@@ -144,3 +144,5 @@ This avoids any attempt to reach an absent Wings endpoint when the system is fre
 > Canary version of EcliPanel are offline during non developmet periods.
 
 Happy exploring!
+>Side note: 
+> [This project](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) took part in [flavortown](https://flavortown.hack.club/?ref=eclipsesystems)!
