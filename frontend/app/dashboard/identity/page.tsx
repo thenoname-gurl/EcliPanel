@@ -183,7 +183,7 @@ export default function IdentityPage() {
           })()}
 
           {/* Verification Steps */}
-          {!status && (
+          {(status?.status === 'failed' || !status) && (
             <div className="rounded-xl border border-border bg-card p-6">
               <SectionHeader title="Start Verification" description="Submit your ID information" />
               <div className="mt-4 grid grid-cols-1 gap-4">
@@ -221,7 +221,7 @@ export default function IdentityPage() {
                       formData.append('idDocument', idDocFile);
                       formData.append('selfie', selfieFile);
                       await apiFetch(API_ENDPOINTS.identity, { method: 'POST', body: formData });
-                      alert('Verification submitted — your documents are under review.');
+                      alert('Verification submitted - your documents are under review.');
                       setIdDocFile(null);
                       setSelfieFile(null);
                       if (user) apiFetch(API_ENDPOINTS.identityStatus.replace(':id', user.id.toString())).then((d) => setStatus(d));
@@ -319,7 +319,7 @@ export default function IdentityPage() {
                   )}
                   {step.status === "failed" && (
                     <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">
-                      Failed — Resubmit
+                      Failed - Resubmit
                     </Badge>
                   )}
                   {step.status === "available" && step.id !== 5 && (

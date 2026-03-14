@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
@@ -593,6 +594,33 @@ export default function AdminPanel() {
   const [replyStatus, setReplyStatus] = useState("closed")
   const [replyLoading, setReplyLoading] = useState(false)
 
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState<string | null>(null)
+  const openPreview = async (url: string, title?: string) => {
+    setPreviewTitle(title ?? "")
+    setPreviewOpen(true)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      if (token) {
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        if (!res.ok) {
+          setPreviewUrl(null)
+          return
+        }
+        const blob = await res.blob()
+        const obj = URL.createObjectURL(blob)
+        setPreviewBlobUrl(obj)
+        setPreviewUrl(obj)
+        return
+      }
+      setPreviewUrl(url)
+    } catch (err) {
+      setPreviewUrl(null)
+    }
+  }
+
   const [editUserDialog, setEditUserDialog] = useState<AdminUser | null>(null)
   const [editRole, setEditRole] = useState("")
   const [editTier, setEditTier] = useState("")
@@ -860,7 +888,7 @@ export default function AdminPanel() {
   useEffect(() => {
     apiFetch(API_ENDPOINTS.adminStats)
       .then((d) => setStats(d))
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   // ── Tab loader ──
@@ -887,7 +915,7 @@ export default function AdminPanel() {
           // also load heartbeat summaries for all nodes
           apiFetch(API_ENDPOINTS.nodeHeartbeatsAll)
             .then((hb) => setNodeHeartbeats(hb || {}))
-            .catch(() => {})
+            .catch(() => { })
         } else if (tab === "organisations") {
           const data = await apiFetch(API_ENDPOINTS.adminOrganisations)
           setOrganisations(data || [])
@@ -923,7 +951,7 @@ export default function AdminPanel() {
           setAdminOrders(Array.isArray(data) ? data : [])
           // also load plans so the order form can show plan names
           if (plans.length === 0) {
-            apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => {})
+            apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
           }
         }
       } catch (_e) {
@@ -1066,7 +1094,7 @@ export default function AdminPanel() {
       body: JSON.stringify({ status }),
     })
     setVerifications((prev) => prev.map((v) => (v.id === id ? { ...v, status } : v)))
-    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
   }
 
   async function deleteVerification(id: number) {
@@ -1074,7 +1102,7 @@ export default function AdminPanel() {
     try {
       await apiFetch(`${API_ENDPOINTS.adminVerifications}/${id}`, { method: 'DELETE' })
       setVerifications((prev) => prev.filter((v) => v.id !== id))
-      apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+      apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
     } catch (err: any) {
       alert('Failed to delete: ' + (err?.message || 'unknown error'))
     }
@@ -1086,7 +1114,7 @@ export default function AdminPanel() {
       body: JSON.stringify({ status }),
     })
     setDeletions((prev) => prev.map((d) => (d.id === id ? { ...d, status } : d)))
-    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
   }
 
   function forceRefreshTab(tab: string) {
@@ -1132,7 +1160,7 @@ export default function AdminPanel() {
     if (!confirm(`Delete organisation "${org.name}"? This will unlink all members.`)) return
     await apiFetch(`${API_ENDPOINTS.adminOrganisations}/${org.id}`, { method: "DELETE" })
     setOrganisations((prev) => prev.filter((o) => o.id !== org.id))
-    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
   }
 
   // ── Server actions ─────────────────────────────────────────────────────────
@@ -1149,7 +1177,7 @@ export default function AdminPanel() {
     if (!confirm(`Delete server ${uuid}? This action cannot be undone.`)) return
     await apiFetch(`${API_ENDPOINTS.adminServers}/${uuid}`, { method: "DELETE" })
     setServers((prev) => prev.filter((s) => s.uuid !== uuid))
-    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
   }
 
   async function openEditServer(srv: AdminServer) {
@@ -1176,10 +1204,10 @@ export default function AdminPanel() {
       .then((data: any) => {
         if (Array.isArray(data)) setEsAllocations(data.map((a: any) => ({ ip: a.ip, port: a.port, is_default: !!a.is_default, fqdn: a.fqdn || "" })))
       })
-      .catch(() => {})
+      .catch(() => { })
     // ensure eggs are loaded for the egg selector
     if (eggs.length === 0) {
-      apiFetch(API_ENDPOINTS.adminEggs).then((data: any) => setEggs(data || [])).catch(() => {})
+      apiFetch(API_ENDPOINTS.adminEggs).then((data: any) => setEggs(data || [])).catch(() => { })
     }
   }
 
@@ -1244,9 +1272,8 @@ export default function AdminPanel() {
     try {
       const result = await apiFetch(API_ENDPOINTS.adminSyncFromWings, { method: "POST" })
       forceRefreshTab("servers")
-      alert(`Sync complete — ${result.created} new configs imported, ${result.skipped} already existed.${
-        result.errors?.length ? `\n\nErrors:\n${result.errors.join("\n")}` : ""
-      }`)
+      alert(`Sync complete — ${result.created} new configs imported, ${result.skipped} already existed.${result.errors?.length ? `\n\nErrors:\n${result.errors.join("\n")}` : ""
+        }`)
     } catch (e: any) {
       alert(`Sync failed: ${e.message}`)
     } finally {
@@ -1284,7 +1311,7 @@ export default function AdminPanel() {
       })
       setCreateServerOpen(false)
       forceRefreshTab("servers")
-      apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+      apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
     } catch (e: any) {
       setCsError(e.message || "Failed to create server")
     } finally {
@@ -1422,7 +1449,7 @@ export default function AdminPanel() {
   function openApplyPlan(userId: number) {
     setApplyPlanUserId(userId)
     setApplyPlanId(""); setApplyPlanNotes(""); setApplyPlanExpiry(""); setApplyPlanOrgId(""); setApplyPlanError("")
-    if (plans.length === 0) apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => {})
+    if (plans.length === 0) apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
     setApplyPlanOpen(true)
   }
 
@@ -1452,7 +1479,7 @@ export default function AdminPanel() {
           setEditTier(plan.type)
           apiFetch(API_ENDPOINTS.adminUserCurrentPlan.replace(":id", String(applyPlanUserId)))
             .then((data) => setUserCurrentPlan(data))
-            .catch(() => {})
+            .catch(() => { })
         }
       }
       setApplyPlanOpen(false)
@@ -1467,7 +1494,7 @@ export default function AdminPanel() {
     if (!confirm(`Delete node "${node.name}"? All server mappings on this node will break.`)) return
     await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
-    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
   }
 
   function buildNodeConfigYaml(node: AdminNode, token: string): string {
@@ -1551,7 +1578,7 @@ remote: ${backendUrl}`
       setNodes((prev) => [...prev, created])
       setAddNodeCreated(created)
       setAddNodeStep("config")
-      apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => {})
+      apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
     } finally {
       setAddNodeLoading(false)
     }
@@ -1828,7 +1855,7 @@ remote: ${panelUrl}`
       setViewUserRoles(Array.isArray(rolesData) ? rolesData : [])
       // ensure global roles list is available for the assign dropdown
       if (roles.length === 0) {
-        apiFetch(API_ENDPOINTS.roles).then((d) => setRoles(Array.isArray(d) ? d : [])).catch(() => {})
+        apiFetch(API_ENDPOINTS.roles).then((d) => setRoles(Array.isArray(d) ? d : [])).catch(() => { })
       }
     } catch { setViewUserProfile({ error: true }) }
     finally { setViewUserLoading(false) }
@@ -2453,7 +2480,8 @@ remote: ${panelUrl}`
                                   href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    window.open(v.idDocumentUrl, '_blank');
+                                    const url = v.idDocumentUrl;
+                                    openPreview(url, 'ID Document')
                                   }}
                                   className="text-primary hover:underline cursor-pointer"
                                 >ID Doc</a>
@@ -2463,7 +2491,8 @@ remote: ${panelUrl}`
                                   href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    window.open(v.selfieUrl, '_blank');
+                                    const url = v.selfieUrl;
+                                    openPreview(url, 'Selfie')
                                   }}
                                   className="text-primary hover:underline cursor-pointer"
                                 >Selfie</a>
@@ -2482,6 +2511,12 @@ remote: ${panelUrl}`
                                       <XCircle className="h-3.5 w-3.5" />
                                     </button>
                                   </>
+                                )}
+                                {v.status === "verified" && (
+                                  <button onClick={() => reviewVerification(v.id, "failed")} title="Revoke verification"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  </button>
                                 )}
                                 <button onClick={() => deleteVerification(v.id)} title="Delete record & files"
                                   className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
@@ -2698,11 +2733,10 @@ remote: ${panelUrl}`
                           <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-xs truncate">{egg.dockerImage}</td>
                           <td className="px-4 py-3">
                             <button onClick={() => toggleEggVisible(egg)}
-                              className={`flex items-center gap-1 text-xs rounded-md px-2 py-1 border transition-colors ${
-                                egg.visible
+                              className={`flex items-center gap-1 text-xs rounded-md px-2 py-1 border transition-colors ${egg.visible
                                   ? "border-green-500/30 bg-green-500/10 text-green-400"
                                   : "border-border bg-secondary/50 text-muted-foreground"
-                              }`}>
+                                }`}>
                               {egg.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                               {egg.visible ? "Visible" : "Hidden"}
                             </button>
@@ -2765,11 +2799,10 @@ remote: ${panelUrl}`
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant="outline" className={`text-xs ${
-                              m.config?.status === "beta" ? "border-warning/30 bg-warning/10 text-warning" :
-                              m.config?.status === "disabled" ? "border-destructive/30 bg-destructive/10 text-destructive" :
-                              "border-green-500/30 bg-green-500/10 text-green-400"
-                            }`}>
+                            <Badge variant="outline" className={`text-xs ${m.config?.status === "beta" ? "border-warning/30 bg-warning/10 text-warning" :
+                                m.config?.status === "disabled" ? "border-destructive/30 bg-destructive/10 text-destructive" :
+                                  "border-green-500/30 bg-green-500/10 text-green-400"
+                              }`}>
                               {m.config?.status || "active"}
                             </Badge>
                           </td>
@@ -2962,9 +2995,8 @@ remote: ${panelUrl}`
                         <div
                           key={role.id}
                           onClick={() => setSelectedRole(role)}
-                          className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-secondary/30 ${
-                            selectedRole?.id === role.id ? "bg-primary/10" : ""
-                          }`}
+                          className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-secondary/30 ${selectedRole?.id === role.id ? "bg-primary/10" : ""
+                            }`}
                         >
                           <div>
                             <p className="text-sm font-medium text-foreground">{role.name}</p>
@@ -3119,13 +3151,12 @@ remote: ${panelUrl}`
                             try {
                               const data = await apiFetch(`${API_ENDPOINTS.adminLogs}?type=${t}&limit=200`)
                               setLogs(data || [])
-                            } catch {}
+                            } catch { }
                           }}
-                          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${
-                            logType === t
+                          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${logType === t
                               ? "bg-primary/20 text-primary"
                               : "text-muted-foreground hover:text-foreground"
-                          }`}
+                            }`}
                         >
                           {t === "audit" ? "Audit" : "API Requests"}
                         </button>
@@ -3137,7 +3168,7 @@ remote: ${panelUrl}`
                       try {
                         const data = await apiFetch(`${API_ENDPOINTS.adminLogs}?type=${logType}&limit=200`)
                         setLogs(data || [])
-                      } catch {}
+                      } catch { }
                     }}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                   >
@@ -3241,7 +3272,7 @@ remote: ${panelUrl}`
                         <p className="text-xs text-muted-foreground mb-3">Services discover the server metadata automatically via this well-known URL:</p>
                         <div className="relative">
                           <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto">
-{`GET /.well-known/oauth-authorization-server`}</pre>
+                            {`GET /.well-known/oauth-authorization-server`}</pre>
                           <button onClick={() => navigator.clipboard.writeText("GET /.well-known/oauth-authorization-server")} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">Returns <code className="font-mono text-foreground">issuer</code>, <code className="font-mono text-foreground">authorization_endpoint</code>, <code className="font-mono text-foreground">token_endpoint</code>, supported scopes and grant types.</p>
@@ -3266,28 +3297,27 @@ remote: ${panelUrl}`
                           </thead>
                           <tbody>
                             {[
-                              { method: "GET",    path: "/.well-known/oauth-authorization-server", auth: "—",              desc: "RFC 8414 discovery metadata" },
-                              { method: "POST",   path: "/api/oauth/apps",                         auth: "Bearer JWT",     desc: "Register a new OAuth application" },
-                              { method: "GET",    path: "/api/oauth/apps",                         auth: "Bearer JWT",     desc: "List your registered apps" },
-                              { method: "GET",    path: "/api/oauth/apps/:clientId",               auth: "—",              desc: "Public app info (used by consent UI)" },
-                              { method: "PUT",    path: "/api/oauth/apps/:id",                    auth: "Bearer JWT",     desc: "Update app settings" },
-                              { method: "DELETE", path: "/api/oauth/apps/:id",                    auth: "Bearer JWT",     desc: "Delete app + revoke all tokens" },
-                              { method: "POST",   path: "/api/oauth/apps/:id/rotate-secret",      auth: "Bearer JWT",     desc: "Rotate client secret, revoke all tokens" },
-                              { method: "GET",    path: "/api/oauth/authorize",                   auth: "—",              desc: "Return consent page data (app info + scopes)" },
-                              { method: "POST",   path: "/api/oauth/authorize",                   auth: "Bearer JWT",     desc: "User approves / denies → returns redirect URL" },
-                              { method: "POST",   path: "/api/oauth/token",                       auth: "client_secret",  desc: "Exchange code / credentials for token" },
-                              { method: "POST",   path: "/api/oauth/token/revoke",                auth: "client_secret",  desc: "Revoke access or refresh token (RFC 7009)" },
-                              { method: "POST",   path: "/api/oauth/token/introspect",            auth: "client_secret",  desc: "Validate token + return metadata (RFC 7662)" },
-                              { method: "GET",    path: "/api/oauth/userinfo",                    auth: "Bearer OAuth",   desc: "Scoped user profile (OpenID-style)" },
+                              { method: "GET", path: "/.well-known/oauth-authorization-server", auth: "—", desc: "RFC 8414 discovery metadata" },
+                              { method: "POST", path: "/api/oauth/apps", auth: "Bearer JWT", desc: "Register a new OAuth application" },
+                              { method: "GET", path: "/api/oauth/apps", auth: "Bearer JWT", desc: "List your registered apps" },
+                              { method: "GET", path: "/api/oauth/apps/:clientId", auth: "—", desc: "Public app info (used by consent UI)" },
+                              { method: "PUT", path: "/api/oauth/apps/:id", auth: "Bearer JWT", desc: "Update app settings" },
+                              { method: "DELETE", path: "/api/oauth/apps/:id", auth: "Bearer JWT", desc: "Delete app + revoke all tokens" },
+                              { method: "POST", path: "/api/oauth/apps/:id/rotate-secret", auth: "Bearer JWT", desc: "Rotate client secret, revoke all tokens" },
+                              { method: "GET", path: "/api/oauth/authorize", auth: "—", desc: "Return consent page data (app info + scopes)" },
+                              { method: "POST", path: "/api/oauth/authorize", auth: "Bearer JWT", desc: "User approves / denies → returns redirect URL" },
+                              { method: "POST", path: "/api/oauth/token", auth: "client_secret", desc: "Exchange code / credentials for token" },
+                              { method: "POST", path: "/api/oauth/token/revoke", auth: "client_secret", desc: "Revoke access or refresh token (RFC 7009)" },
+                              { method: "POST", path: "/api/oauth/token/introspect", auth: "client_secret", desc: "Validate token + return metadata (RFC 7662)" },
+                              { method: "GET", path: "/api/oauth/userinfo", auth: "Bearer OAuth", desc: "Scoped user profile (OpenID-style)" },
                             ].map((ep) => (
                               <tr key={ep.path + ep.method} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                                 <td className="px-4 py-2.5">
-                                  <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold font-mono ${
-                                    ep.method === "GET" ? "bg-blue-500/15 text-blue-400" :
-                                    ep.method === "POST" ? "bg-green-500/15 text-green-400" :
-                                    ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
-                                    "bg-red-500/15 text-red-400"
-                                  }`}>{ep.method}</span>
+                                  <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold font-mono ${ep.method === "GET" ? "bg-blue-500/15 text-blue-400" :
+                                      ep.method === "POST" ? "bg-green-500/15 text-green-400" :
+                                        ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
+                                          "bg-red-500/15 text-red-400"
+                                    }`}>{ep.method}</span>
                                 </td>
                                 <td className="px-4 py-2.5 font-mono text-xs text-foreground">{ep.path}</td>
                                 <td className="px-4 py-2.5">
@@ -3309,13 +3339,13 @@ remote: ${panelUrl}`
                       </div>
                       <div className="p-4 flex flex-col gap-2">
                         {[
-                          { scope: "profile",      desc: "firstName, lastName, displayName, avatarUrl, portalType, role" },
-                          { scope: "email",        desc: "email + emailVerified flag" },
-                          { scope: "orgs:read",    desc: "Organisation id, name, handle and the user's orgRole" },
+                          { scope: "profile", desc: "firstName, lastName, displayName, avatarUrl, portalType, role" },
+                          { scope: "email", desc: "email + emailVerified flag" },
+                          { scope: "orgs:read", desc: "Organisation id, name, handle and the user's orgRole" },
                           { scope: "billing:read", desc: "Billing address fields (company, city, state, zip, country)" },
                           { scope: "servers:read", desc: "List user's servers across all nodes" },
-                          { scope: "servers:write",desc: "Manage / power user's servers" },
-                          { scope: "admin",        desc: "Admin-level access — only grantable to admin users" },
+                          { scope: "servers:write", desc: "Manage / power user's servers" },
+                          { scope: "admin", desc: "Admin-level access — only grantable to admin users" },
                         ].map((s) => (
                           <div key={s.scope} className="flex items-start gap-3">
                             <code className="rounded bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary whitespace-nowrap mt-0.5">{s.scope}</code>
@@ -3482,7 +3512,7 @@ Content-Type: application/json
                               try {
                                 const data = await apiFetch("/api/oauth/apps")
                                 setOauthApps(Array.isArray(data) ? data : [])
-                              } catch {}
+                              } catch { }
                             }}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                           >
@@ -3504,7 +3534,7 @@ Content-Type: application/json
                                     try {
                                       await apiFetch(`/api/oauth/apps/${oa.id}`, { method: "DELETE" })
                                       setOauthApps((prev) => prev.filter((a) => a.id !== oa.id))
-                                    } catch {}
+                                    } catch { }
                                   }}
                                   className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                                   title="Delete app"
@@ -3564,8 +3594,8 @@ Content-Type: application/json
                       <div className="p-4 flex flex-col gap-2">
                         {[
                           { label: "Authorization code", value: "10 minutes" },
-                          { label: "Access token",       value: "1 hour" },
-                          { label: "Refresh token",      value: "30 days" },
+                          { label: "Access token", value: "1 hour" },
+                          { label: "Refresh token", value: "30 days" },
                         ].map((t) => (
                           <div key={t.label} className="flex items-center justify-between">
                             <span className="text-xs text-muted-foreground">{t.label}</span>
@@ -3708,16 +3738,14 @@ Content-Type: application/json
                       </div>
                       <button
                         onClick={() => setPanelSettings((s) => ({ ...s, registrationEnabled: !s.registrationEnabled }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-                          panelSettings.registrationEnabled ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${panelSettings.registrationEnabled ? "bg-primary" : "bg-secondary"
+                          }`}
                         role="switch"
                         aria-checked={panelSettings.registrationEnabled}
                       >
                         <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
-                            panelSettings.registrationEnabled ? "translate-x-5" : "translate-x-0"
-                          }`}
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.registrationEnabled ? "translate-x-5" : "translate-x-0"
+                            }`}
                         />
                       </button>
                     </div>
@@ -3948,6 +3976,29 @@ Content-Type: application/json
         </DialogContent>
       </Dialog>
 
+      {/* Preview ID / Selfie Dialog */}
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); setPreviewBlobUrl(null); } setPreviewUrl(null); setPreviewTitle(null); } }}>
+        <DialogContent className="border-border bg-card sm:max-w-3xl max-w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{previewTitle || 'Preview'}</DialogTitle>
+            <DialogDescription>
+              {previewTitle ? `Preview of ${previewTitle}` : 'Preview of uploaded document'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-2 flex items-center justify-center">
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt={previewTitle || 'Preview'} className="max-h-[70vh] w-auto rounded" />
+            ) : (
+              <div className="text-xs text-muted-foreground">No preview available</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ═══════ Edit User Dialog ═══════════════════════════════════════════════ */}
       <Dialog open={!!editUserDialog} onOpenChange={(open) => !open && setEditUserDialog(null)}>
         <DialogContent className="border-border bg-card sm:max-w-md">
@@ -4174,9 +4225,9 @@ Content-Type: application/json
                           {a.is_default
                             ? <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">default</span>
                             : <button onClick={() => setEsAllocations(prev => prev.map((x, j) => ({ ...x, is_default: j === i })))}
-                                title="Set as default" className="text-muted-foreground hover:text-primary transition-colors">
-                                <Globe className="h-3.5 w-3.5" />
-                              </button>
+                              title="Set as default" className="text-muted-foreground hover:text-primary transition-colors">
+                              <Globe className="h-3.5 w-3.5" />
+                            </button>
                           }
                           <button onClick={() => setEsAllocations(prev => {
                             const next = prev.filter((_, j) => j !== i)
@@ -4483,11 +4534,10 @@ Content-Type: application/json
                     {["https", "http"].map((s) => (
                       <button key={s} type="button"
                         onClick={() => setAddNodeSsl(s === "https")}
-                        className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${
-                          (s === "https") === addNodeSsl
+                        className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
                             ? "border-primary/50 bg-primary/20 text-primary"
                             : "border-border bg-secondary/50 text-muted-foreground"
-                        }`}>
+                          }`}>
                         {s}
                       </button>
                     ))}
@@ -4783,7 +4833,7 @@ Content-Type: application/json
               {applyPlanId && (() => {
                 const p = plans.find(x => x.id === Number(applyPlanId))
                 if (!p) return null
-                return <p className="text-xs text-muted-foreground">{p.description} · {p.memory ? `${p.memory} MB RAM` : "∞"} · {p.disk ? `${(p.disk/1024).toFixed(0)} GB` : "∞"} · {p.cpu ? `${p.cpu}% CPU` : "∞"} · {p.serverLimit ?? "∞"} servers</p>
+                return <p className="text-xs text-muted-foreground">{p.description} · {p.memory ? `${p.memory} MB RAM` : "∞"} · {p.disk ? `${(p.disk / 1024).toFixed(0)} GB` : "∞"} · {p.cpu ? `${p.cpu}% CPU` : "∞"} · {p.serverLimit ?? "∞"} servers</p>
               })()}
             </div>
             <div className="flex flex-col gap-1.5">
@@ -5494,11 +5544,10 @@ Content-Type: application/json
               <button
                 key={w}
                 onClick={() => setHeartbeatDialogWindow(w)}
-                className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${
-                  heartbeatDialogWindow === w
+                className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 {w === "24h" ? "Last 24 hours" : "Last 7 days"}
               </button>
@@ -5514,11 +5563,10 @@ Content-Type: application/json
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Uptime</p>
-                  <p className={`text-xl font-bold ${
-                    heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                    : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                    : "text-red-400"
-                  }`}>
+                  <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
+                      : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
+                        : "text-red-400"
+                    }`}>
                     {heartbeatDialogData.summary.uptime_pct}%
                   </p>
                 </div>
@@ -5546,9 +5594,9 @@ Content-Type: application/json
               )}
               {/* Legend */}
               <div className="flex items-center gap-4 justify-center text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded" style={{background:'#22c55e'}} /> OK</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded" style={{background:'rgba(234,179,8,0.6)'}} /> Timeout</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded" style={{background:'rgba(239,68,68,0.6)'}} /> Error</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded" style={{ background: '#22c55e' }} /> OK</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded" style={{ background: 'rgba(234,179,8,0.6)' }} /> Timeout</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded" style={{ background: 'rgba(239,68,68,0.6)' }} /> Error</span>
               </div>
             </div>
           ) : (
@@ -5579,11 +5627,10 @@ Content-Type: application/json
               <button
                 key={w}
                 onClick={() => setHeartbeatDialogWindow(w)}
-                className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${
-                  heartbeatDialogWindow === w
+                className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 {w === "24h" ? "Last 24 hours" : "Last 7 days"}
               </button>
@@ -5599,11 +5646,10 @@ Content-Type: application/json
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Uptime</p>
-                  <p className={`text-xl font-bold ${
-                    heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                    : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                    : "text-red-400"
-                  }`}>
+                  <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
+                      : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
+                        : "text-red-400"
+                    }`}>
                     {heartbeatDialogData.summary.uptime_pct}%
                   </p>
                 </div>
