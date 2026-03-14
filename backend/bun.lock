@@ -28,7 +28,7 @@
         "reflect-metadata": "latest",
         "sharp": "latest",
         "speakeasy": "latest",
-        "tar": "latest",
+        "tar": "^7.5.11",
         "typeorm": "latest",
         "uuid": "latest",
         "ws": "latest",
