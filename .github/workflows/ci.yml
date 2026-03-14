@@ -45,9 +45,6 @@ jobs:
           version: 10
           cache: true
 
-      - name: Install dependencies
-        run: pnpm install
-
       - name: Install frontend dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile
