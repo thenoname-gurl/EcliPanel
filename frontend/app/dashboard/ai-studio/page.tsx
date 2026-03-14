@@ -39,12 +39,50 @@ function MarkdownContent({ content }: { content: string }) {
               {p.slice(1, -1)}
             </code>
           ) : (
-            <span key={j} dangerouslySetInnerHTML={{
-              __html: p
-                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-                .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-                .replace(/~~([^~]+)~~/g, "<del>$1</del>")
-            }} />
+            // Render basic markdown (**bold**, *italic*, ~~strikethrough~~) safely without innerHTML
+            (() => {
+              const segments: React.ReactNode[] = []
+              const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*|~~([^~]+)~~)/g
+              let lastIndex = 0
+              let match: RegExpExecArray | null
+
+              while ((match = regex.exec(p)) !== null) {
+                if (match.index > lastIndex) {
+                  segments.push(
+                    <span key={`${j}-text-${lastIndex}`}>{p.slice(lastIndex, match.index)}</span>
+                  )
+                }
+
+                const [fullMatch, , boldText, italicText, strikeText] = match
+                if (boldText !== undefined) {
+                  segments.push(
+                    <strong key={`${j}-bold-${match.index}`}>{boldText}</strong>
+                  )
+                } else if (italicText !== undefined) {
+                  segments.push(
+                    <em key={`${j}-italic-${match.index}`}>{italicText}</em>
+                  )
+                } else if (strikeText !== undefined) {
+                  segments.push(
+                    <del key={`${j}-del-${match.index}`}>{strikeText}</del>
+                  )
+                } else {
+                  segments.push(
+                    <span key={`${j}-raw-${match.index}`}>{fullMatch}</span>
+                  )
+                }
+
+                lastIndex = regex.lastIndex
+              }
+
+              if (lastIndex < p.length) {
+                segments.push(
+                  <span key={`${j}-text-${lastIndex}`}>{p.slice(lastIndex)}</span>
+                )
+              }
+
+              return <span key={j}>{segments}</span>
+            })()
           )
         )}
       </span>
