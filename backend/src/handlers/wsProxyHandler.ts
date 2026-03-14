@@ -22,24 +22,24 @@ export function wsProxyRoutes(app: any, prefix: string) {
     let ws: any = undefined;
     let message: any = undefined;
     if (arr.length === 1) {
-      ws = arr[0];
-      ctx = ws?.data || {};
+      ws = arr[0] as any;
+      ctx = (ws as any)?.data || {};
     } else if (arr.length === 2) {
-      if (arr[0] && arr[0].params) {
-        ctx = arr[0];
-        ws = arr[1];
-      } else if (arr[0] && typeof arr[0].send === 'function') {
-        ws = arr[0];
-        message = arr[1];
-        ctx = ws?.data || {};
+      if (arr[0] && (arr[0] as any).params) {
+        ctx = arr[0] as any;
+        ws = arr[1] as any;
+      } else if (arr[0] && typeof (arr[0] as any).send === 'function') {
+        ws = arr[0] as any;
+        message = arr[1] as any;
+        ctx = (ws as any)?.data || {};
       } else {
-        ctx = arr[0];
-        ws = arr[1];
+        ctx = arr[0] as any;
+        ws = arr[1] as any;
       }
     } else if (arr.length >= 3) {
-      ctx = arr[0];
-      ws = arr[1];
-      message = arr[2];
+      ctx = arr[0] as any;
+      ws = arr[1] as any;
+      message = arr[2] as any;
     }
     return { ctx, ws, message };
   }
