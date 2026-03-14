@@ -6,7 +6,14 @@ import escapeHtml from "escape-html"
 export default function DocsPage() {
   const docsDir = path.join(process.cwd(), "public", "documents")
   const docs = fs.existsSync(docsDir)
-    ? fs.readdirSync(docsDir).filter((f) => !f.startsWith(".") && !f.endsWith(".md"))
+    ? fs
+        .readdirSync(docsDir)
+        .filter((f) => {
+          if (f.startsWith('.') || f.endsWith('.md')) return false;
+          if (f.includes('..') || f.includes('/') || f.includes('\\')) return false;
+          return /^[A-Za-z0-9._ \-]+$/.test(f);
+        })
+        .map((name) => ({ name, safeName: name.replace(/[^A-Za-z0-9._ \-]/g, '_') }))
     : []
 
   return (
@@ -31,12 +38,14 @@ export default function DocsPage() {
             ) : (
               docs.map((doc) => (
                 <Link
-                  key={doc}
-                  href={`/documents/${encodeURIComponent(doc)}`}
+                  key={doc.name}
+                  href={`/documents/${encodeURIComponent(doc.name)}`}
                   className="flex items-center justify-between rounded-xl border border-border bg-background/50 px-6 py-4 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <div>
-                    <p className="font-medium text-foreground">{escapeHtml(doc)}</p>
+                    <p className="font-medium text-foreground">{doc.safeName}</p>
                     <p className="text-xs text-muted-foreground">Open in a new tab</p>
                   </div>
                   <span className="text-xs text-primary">View</span>
