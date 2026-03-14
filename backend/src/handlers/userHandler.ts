@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import { WingsApiService } from '../services/wingsApiService';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { t } from 'elysia';
+import crypto from 'crypto';
 
 const userSchema = t.Object({
   id: t.Number(),
@@ -111,7 +112,7 @@ export async function userRoutes(app: any, prefix = '') {
     await logRepo.save(logRepo.create({ userId: user.id, action: 'register', timestamp: new Date() }));
 
     try {
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
       const token = uuidv4();
       await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
       await redisSet(`email-verify:code:${user.id}`, code, 86400);
