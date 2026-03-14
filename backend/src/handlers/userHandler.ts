@@ -232,26 +232,46 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const file = await ctx.file();
-    if (!file) {
+    const { file } = (ctx.body || {}) as any;
+    const uploadFile = Array.isArray(file) ? file[0] : file;
+    if (!uploadFile) {
       ctx.set.status = 400;
       return { error: 'No file' };
     }
+
     const allowed = ['image/png', 'image/jpeg', 'image/webp'];
-    if (!allowed.includes(file.mimetype)) {
+    const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
+    if (!allowed.includes(mime)) {
       ctx.set.status = 400;
       return { error: 'Invalid image type' };
     }
-    const buffer = await file.toBuffer();
+
+    const ab = await uploadFile.arrayBuffer();
+    const buffer = Buffer.from(ab);
+
     const out = await sharp(buffer).rotate().resize(256, 256, { fit: 'cover' }).toBuffer();
-    const filename = `avatar_user_${user.id}` + path.extname(file.filename || '.png');
-    const filepath = path.join(process.cwd(), 'uploads', filename);
+    const originalName = uploadFile.name || uploadFile.filename || `avatar_user_${user.id}`;
+    const ext = path.extname(originalName) || (mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg');
+    const filename = `avatar_user_${user.id}` + ext;
+
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const filepath = path.join(uploadDir, filename);
     fs.writeFileSync(filepath, out);
-    user.avatarUrl = `/uploads/${filename}`;
+
+    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
+      const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request.headers.get('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })();
+
+    user.avatarUrl = `${backendBase}/uploads/${filename}`;
     await userRepo.save(user);
+
     return { success: true, url: user.avatarUrl };
   }, {
    beforeHandle: authenticate,
+    body: t.Object({ file: t.File({ type: 'image' }) }),
     response: {
       200: t.Object({ success: t.Boolean(), url: t.String() }),
       400: t.Object({ error: t.String() }),
