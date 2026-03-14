@@ -9,6 +9,7 @@ import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { sendMail } from '../services/mailService';
+import crypto from 'crypto';
 const speakeasy = require('speakeasy');
 
 // I fixed it :D
@@ -273,7 +274,7 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'User not found' };
     }
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
     await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
     try {
       await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code } });
@@ -410,7 +411,7 @@ export async function authRoutes(app: any, prefix = '') {
 
 
   async function sendVerificationEmail(user: User) {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
     const token = uuidv4();
 
     await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
