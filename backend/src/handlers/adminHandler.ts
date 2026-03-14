@@ -51,7 +51,7 @@ function parseCpuInput(input: any): number | null {
   if (typeof input !== 'string') return null;
   let s = input.trim().toLowerCase().replace(',', '.');
   if (s.endsWith('%')) {
-    const v = parseFloat(s.replace('%', ''));
+    const v = parseFloat(s.replace(/%/g, ''));
     return Number.isFinite(v) ? v : null;
   }
   if (s.match(/core|vcpu|vcore/)) {
