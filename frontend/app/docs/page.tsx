@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import Link from "next/link"
+import escapeHtml from "escape-html"
 
 export default function DocsPage() {
   const docsDir = path.join(process.cwd(), "public", "documents")
@@ -35,7 +36,7 @@ export default function DocsPage() {
                   className="flex items-center justify-between rounded-xl border border-border bg-background/50 px-6 py-4 text-left transition hover:border-primary/40 hover:bg-primary/5"
                 >
                   <div>
-                    <p className="font-medium text-foreground">{doc}</p>
+                    <p className="font-medium text-foreground">{escapeHtml(doc)}</p>
                     <p className="text-xs text-muted-foreground">Open in a new tab</p>
                   </div>
                   <span className="text-xs text-primary">View</span>
