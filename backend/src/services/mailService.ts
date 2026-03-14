@@ -35,7 +35,7 @@ function renderTemplate(name: string, vars: Record<string, any>) {
     return fallback;
   }
   for (const k in vars) {
-    content = content.replace(new RegExp(`{{\s*${k}\s*}}`, 'g'), vars[k]);
+    content = content.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), vars[k]);
   }
   return content;
 }
