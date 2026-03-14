@@ -1,0 +1,66 @@
+{
+  "name": "eclipse-panel-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun src/index.ts",
+    "promote": "bun scripts/promote.ts",
+    "seed": "bun scripts/seed.ts",
+    "gen:jwt-secret": "bun scripts/generate-jwt-secret.ts",
+    "build": "bun install && bun tsc || true"
+  },
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "latest",
+    "@elysiajs/jwt": "latest",
+    "@elysiajs/node": "latest",
+    "@elysiajs/openapi": "latest",
+    "@simplewebauthn/server": "latest",
+    "axios": "latest",
+    "base64url": "latest",
+    "bcrypt": "latest",
+    "bcryptjs": "latest",
+    "dotenv": "^17.3.1",
+    "elysia": "latest",
+    "elysia-helmet": "latest",
+    "jsonwebtoken": "latest",
+    "mariadb": "latest",
+    "mysql": "latest",
+    "node-fetch": "latest",
+    "nodemailer": "latest",
+    "pdfkit": "^0.17.2",
+    "pg": "latest",
+    "redis": "latest",
+    "reflect-metadata": "latest",
+    "sharp": "latest",
+    "speakeasy": "latest",
+    "tar": "latest",
+    "typeorm": "latest",
+    "uuid": "latest",
+    "ws": "latest"
+  },
+  "dependenciesMeta": {
+    "speakeasy": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@types/axios": "latest",
+    "@types/base64url": "latest",
+    "@types/jsonwebtoken": "latest",
+    "@types/node": "latest",
+    "@types/nodemailer": "latest",
+    "@types/uuid": "latest",
+    "@types/ws": "latest",
+    "typescript": "latest"
+  },
+  "overrides": {
+    "tar": "latest",
+    "@mapbox/node-pre-gyp": {
+      "tar": "latest"
+    }
+  }
+}

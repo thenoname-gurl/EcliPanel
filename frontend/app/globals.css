@@ -1,0 +1,206 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   ECLIPSE SYSTEMS - THEME CONFIGURATION
+   
+   To create your own theme, duplicate this section
+   and update the color values. The panel uses OKLCH
+   color space for perceptual uniformity.
+   
+   Theme tokens:
+   - background: main page bg
+   - foreground: main text color
+   - card: card/panel bg
+   - primary: brand accent (purple)
+   - secondary: subtle backgrounds
+   - muted: disabled/subtle elements
+   - accent: hover/active states
+   - destructive: error/danger states
+   - glow: neon glow accent color
+   ============================================ */
+
+:root {
+  /* Dark-only panel - root matches dark */
+  --background: #0a0a12;
+  --foreground: #e8e4f0;
+  --card: #12111f;
+  --card-foreground: #e8e4f0;
+  --popover: #12111f;
+  --popover-foreground: #e8e4f0;
+  --primary: #8b5cf6;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1830;
+  --secondary-foreground: #d4d0e0;
+  --muted: #1e1b35;
+  --muted-foreground: #8a84a0;
+  --accent: #2d1f6e;
+  --accent-foreground: #c4b5fd;
+  --destructive: #ef4444;
+  --destructive-foreground: #fecaca;
+  --border: #2a2545;
+  --input: #1e1b35;
+  --ring: #8b5cf6;
+  --chart-1: #8b5cf6;
+  --chart-2: #06b6d4;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #ef4444;
+  --radius: 0.75rem;
+  --glow: #8b5cf680;
+  --glow-strong: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #06b6d4;
+  --sidebar: #0e0d1a;
+  --sidebar-foreground: #d4d0e0;
+  --sidebar-primary: #8b5cf6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e1b35;
+  --sidebar-accent-foreground: #c4b5fd;
+  --sidebar-border: #2a2545;
+  --sidebar-ring: #8b5cf6;
+}
+
+.dark {
+  --background: #0a0a12;
+  --foreground: #e8e4f0;
+  --card: #12111f;
+  --card-foreground: #e8e4f0;
+  --popover: #12111f;
+  --popover-foreground: #e8e4f0;
+  --primary: #8b5cf6;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1830;
+  --secondary-foreground: #d4d0e0;
+  --muted: #1e1b35;
+  --muted-foreground: #8a84a0;
+  --accent: #2d1f6e;
+  --accent-foreground: #c4b5fd;
+  --destructive: #ef4444;
+  --destructive-foreground: #fecaca;
+  --border: #2a2545;
+  --input: #1e1b35;
+  --ring: #8b5cf6;
+  --chart-1: #8b5cf6;
+  --chart-2: #06b6d4;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #ef4444;
+  --glow: #8b5cf680;
+  --glow-strong: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #06b6d4;
+  --sidebar: #0e0d1a;
+  --sidebar-foreground: #d4d0e0;
+  --sidebar-primary: #8b5cf6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e1b35;
+  --sidebar-accent-foreground: #c4b5fd;
+  --sidebar-border: #2a2545;
+  --sidebar-ring: #8b5cf6;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-glow: var(--glow);
+  --color-glow-strong: var(--glow-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Glow utility classes */
+.glow-box {
+  box-shadow: 0 0 20px var(--glow), 0 0 60px var(--glow), inset 0 0 20px rgba(139, 92, 246, 0.05);
+}
+.glow-box-sm {
+  box-shadow: 0 0 10px var(--glow);
+}
+.glow-text {
+  text-shadow: 0 0 10px var(--glow);
+}
+.glow-border {
+  box-shadow: 0 0 8px var(--glow), inset 0 0 8px rgba(139, 92, 246, 0.03);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Animation keyframes */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}

@@ -1,0 +1,55 @@
+# Node / package
+node_modules/
+dist/
+build/
+**/node_modules/
+
+# Framework outputs
+.next/
+frontend/.next/
+frontend/.turbo/
+backend/.turbo/
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+pids/
+*.pid
+*.seed
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.iml
+*.tsbuildinfo
+coverage/
+.cache/
+.npmrc
+seccomp.min.json
+bins/
+
+# Uploaded/temporary files
+backend/uploads/
+frontend/uploads/
+uploads/
+
+# Legal Documents
+*.pdf

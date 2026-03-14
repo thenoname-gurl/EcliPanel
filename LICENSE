@@ -1,0 +1,98 @@
+EclipseSystems Community License v1.1
+Copyright (c) 2026 EclipseSystems
+A project of Misiu LLC
+Authorized steward: Maksym Huzun (noname@eclipsesystems.org)
+
+1. Definitions
+   "Software" means the source code, documentation, and other materials
+   provided in this repository.
+   "User" means any individual or organization accessing the Software.
+   "Non-Commercial Purpose" means any use that is not intended for or
+   directed toward commercial advantage, monetary compensation, or
+   revenue-generating activity.
+   "Commercial Purpose" means any use of the Software in a manner that
+   generates revenue, provides paid services, is used in a business
+   context, or is deployed in production environments.
+   "Authorized Stewards" means EclipseSystems under Misiu LLC and
+   individuals explicitly designated by Maksym Huzun.
+
+2. Grant of Rights
+   Subject to the terms of this license, Users are granted a worldwide,
+   non-exclusive, royalty-free license to:
+
+     (a) view, read, and inspect the Software;
+     (b) use the Software for any Non-Commercial Purpose;
+     (c) modify the Software for Non-Commercial Purposes; and
+     (d) create and share Non-Commercial Derivative Works.
+
+3. Non-Commercial Use
+   Non-profit organizations, educational institutions, researchers, and
+   individuals may use, modify, and run the Software for Non-Commercial
+   Purposes without restriction.
+
+4. Commercial Use Reserved
+   All rights to use, modify, host, deploy, sublicense, integrate, or
+   distribute the Software for Commercial Purposes are exclusively
+   reserved to:
+
+     - EclipseSystems (a project under Misiu LLC), and
+     - Maksym Huzun (noname@eclipsesystems.org)
+
+   No other User is granted any commercial rights under any circumstances.
+
+5. Redistribution
+   Users may redistribute unmodified copies of the Software for
+   Non-Commercial Purposes only, provided that:
+
+     (a) this license is included in full, and
+     (b) no fee is charged beyond reasonable distribution costs.
+
+   Redistribution for Commercial Purposes is prohibited.
+
+6. Derivative Works
+   Users may create, modify, and share Derivative Works for
+   Non-Commercial Purposes only. Any Derivative Work must:
+
+     (a) include this license in full,
+     (b) clearly state that it is a derivative of the original Software,
+     (c) preserve all attribution notices required by Section 9.
+
+7. Hosting and Deployment Restrictions
+   Users may not deploy, host, or make the Software (or any Derivative
+   Work) publicly accessible as a service, cloud offering, or production
+   system, except for Non-Commercial educational, research, or testing
+   demonstrations.
+
+   All commercial hosting and SaaS rights are exclusively reserved to
+   EclipseSystems and Maksym Huzun.
+
+8. License Preservation
+   This license and all copyright notices must be preserved in all copies,
+   forks, or Derivative Works, except where explicitly exempted for
+   Authorized Stewards.
+
+9. Attribution Requirement
+   Any User deploying, running, or distributing the Software or any
+   Non-Commercial Derivative Work must preserve and display a visible
+   copyright and license notice that:
+
+     (a) identifies EclipseSystems and/or Maksym Huzun as the copyright
+         holders,
+     (b) includes a reference or hyperlink directing back to the official
+         EclipseSystems project repository, and
+     (c) is reasonably accessible to end users in either the frontend
+         user interface, backend administrative interface, or both.
+
+   This attribution requirement does not apply to EclipseSystems under
+   Misiu LLC or to Authorized Stewards designated by Maksym Huzun.
+
+10. Termination
+    Any violation of this license immediately and permanently terminates
+    all rights granted herein. Upon termination, the User must cease all
+    use and destroy all copies of the Software.
+
+11. No Warranty
+    The Software is provided "as is," without warranty of any kind,
+    express or implied. In no event shall the copyright holders or
+    Authorized Stewards be liable for any claim, damages, or other
+    liability arising from the use of the Software.

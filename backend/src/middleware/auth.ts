@@ -1,0 +1,120 @@
+import * as jwtLib from 'jsonwebtoken';
+import { AppDataSource } from '../config/typeorm';
+import { User } from '../models/user.entity';
+import { ApiKey } from '../models/apiKey.entity';
+import { OAuthToken } from '../models/oauthToken.entity';
+
+export type AuthContext = {
+  user?: User;
+  apiKey?: ApiKey;
+  oauthToken?: OAuthToken;
+  jwtPayload?: any;
+};
+
+export async function authenticate(ctx: any) {
+  const getHeader = (name: string) => {
+    const h = ctx.headers || {};
+    return h[name.toLowerCase()] || h[name];
+  };
+
+  const getCookieToken = () => {
+    const cookieName = process.env.JWT_COOKIE_NAME || 'token';
+    if (ctx.cookie && ctx.cookie[cookieName]) {
+      return ctx.cookie[cookieName].value;
+    }
+    const cookie = ctx.headers?.cookie;
+    if (cookie) {
+      const parts = String(cookie).split(';').map((s: string) => s.trim());
+      const pair = parts.find(p => p.startsWith(cookieName + '='));
+      if (pair) return pair.split('=')[1];
+    }
+    return undefined;
+  };
+
+  let auth = getHeader('authorization') as string | undefined;
+  const headerKey = getHeader('x-api-key') as string | undefined;
+  const cookieToken = getCookieToken();
+
+  if (!auth && headerKey) auth = `ApiKey ${headerKey}`;
+
+  if (!auth && cookieToken) auth = `Bearer ${cookieToken}`;
+
+  //ctx.log?.info?.({ authorization: auth, cookieToken }, '[authenticate] headers');
+
+  if (auth?.startsWith('ApiKey ')) {
+    const key = auth.slice('ApiKey '.length);
+    const repo = AppDataSource.getRepository(ApiKey);
+    const entry = await repo.findOne({ where: { key }, relations: ['user'] });
+    if (!entry || (entry.expiresAt && new Date(entry.expiresAt) < new Date())) {
+      ctx.set.status = 401;
+      return { error: 'Invalid API key' };
+    }
+    ctx.apiKey = entry;
+    if (entry.user) ctx.user = entry.user;
+    return;
+  }
+
+  if (!auth) {
+    ctx.set.status = 401;
+    return { error: 'Missing token' };
+  }
+
+  let rawToken = '';
+  const parts = auth.split(' ');
+  if (parts.length === 2 && parts[0] === 'Bearer') {
+    rawToken = parts[1];
+  } else if (auth.length > 20 && !auth.includes(' ')) {
+    rawToken = auth;
+  }
+  if (!rawToken) {
+    ctx.set.status = 401;
+    return { error: 'Invalid token format' };
+  }
+
+  try {
+    const secret = process.env.JWT_SECRET || 'changeme';
+    const decoded = jwtLib.verify(rawToken, secret) as any;
+    ctx.jwtPayload = decoded;
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOne({ where: { id: decoded.userId }, relations: ['org'] });
+    const debugInfo = {
+      userId: decoded.userId,
+      sessionId: decoded.sessionId,
+      userFound: !!user,
+      userSessions: user?.sessions,
+      jwtPayload: decoded
+    };
+    //if (ctx.log && typeof ctx.log.info === 'function') {
+    //  ctx.log.info(debugInfo, '[authenticate] session debug');
+    //} else {
+    //  console.log('[authenticate] session debug', debugInfo);
+    //}
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'User not found' };
+    }
+    if (!user.sessions || !user.sessions.includes(decoded.sessionId)) {
+      ctx.set.status = 401;
+      return { error: 'Invalid session' };
+    }
+
+    ctx.user = user;
+    return;
+  } catch (e: any) {
+    ctx.log?.info?.('[authenticate] JWT verify failed', e?.message || e);
+  }
+
+  const tokenRepo = AppDataSource.getRepository(OAuthToken);
+  const oauthToken = await tokenRepo.findOne({
+    where: { accessToken: rawToken, revoked: false },
+    relations: ['user', 'user.org', 'app'],
+  });
+  if (!oauthToken || new Date() > oauthToken.accessTokenExpiresAt) {
+    ctx.set.status = 401;
+    return { error: 'Invalid token' };
+  }
+  ctx.oauthToken = oauthToken;
+  if (oauthToken.user) ctx.user = oauthToken.user;
+}
+

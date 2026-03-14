@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>You're Invited!</title>
+<style>
+  body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; }
+  .container { max-width: 600px; margin: 20px auto; padding: 20px; background: #fff; border-radius: 8px; }
+  .header { background: #6a44a0; color: #fff; padding: 10px; border-radius: 6px 6px 0 0; text-align: center; }
+  .button { display: inline-block; padding: 10px 20px; background: #6a44a0; color: #fff; text-decoration: none; border-radius: 4px; }
+  .footer { font-size: 12px; color: #777; margin-top: 20px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Invitation to Join</h1>
+  </div>
+  <p>Hello {{name}},</p>
+  <p>You have been invited to join the organisation <strong>{{orgName}}</strong>.</p>
+  <p>Click the button below to accept the invitation:</p>
+  <p><a class="button" href="{{link}}">Accept Invitation</a></p>
+  <p>If you did not expect this email, you can ignore it.</p>
+  <div class="footer">
+    &copy; 2026 EclipseSystems under Misiu LLC. All rights reserved.
+  </div>
+</div>
+</body>
+</html>

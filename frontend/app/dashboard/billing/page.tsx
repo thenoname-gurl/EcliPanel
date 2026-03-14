@@ -1,0 +1,326 @@
+"use client"
+
+import { PanelHeader } from "@/components/panel/header"
+import { StatCard, SectionHeader } from "@/components/panel/shared"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
+import { PORTALS, API_ENDPOINTS } from "@/lib/panel-config"
+import { apiFetch } from "@/lib/api-client"
+import { useAuth } from "@/hooks/useAuth"
+import { useEffect, useState } from "react"
+import {
+  CreditCard,
+  DollarSign,
+  Receipt,
+  Calendar,
+  Download,
+  Check,
+  ArrowRight,
+} from "lucide-react"
+
+
+export default function BillingPage() {
+  const { user, refreshUser } = useAuth()
+  const [orders, setOrders] = useState<any[]>([])
+  const [plans, setPlans] = useState<any[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
+  const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
+  const [portalDescs, setPortalDescs] = useState<Record<string, { name: string; description: string; features: string }> | null>(null)
+
+  // Derive active tier from live orders data, fall back to session tier
+  const activeTier = (activePlan?.plan?.type ?? user?.tier ?? 'free') as keyof typeof PORTALS
+  const currentPlan = PORTALS[activeTier] ?? PORTALS.free
+  const portalMarkerByTier: Record<string, string> = {
+    free: "Free Portal",
+    paid: "Paid Portal",
+    educational: "Educational Portal",
+    enterprise: "Enterprise Portal",
+  }
+  const getPortalMarker = (tier?: string) => {
+    if (!tier) return "Free Portal"
+    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
+  }
+
+  useEffect(() => {
+    refreshUser()
+
+    apiFetch(API_ENDPOINTS.panelSettings)
+      .then((d) => { if (d?.portalDescriptions) setPortalDescs(d.portalDescriptions) })
+      .catch(() => {})
+
+    apiFetch(API_ENDPOINTS.plans)
+      .then((data) => setPlans(Array.isArray(data) ? data : []))
+      .catch(() => setPlans([]))
+
+    apiFetch(API_ENDPOINTS.orders)
+      .then(async (data) => {
+        setOrders(data)
+        const planOrder = data.find((o: any) => o.status === 'active' && o.planId)
+        if (planOrder) {
+          try {
+            const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
+            setActivePlan({ plan, order: planOrder })
+          } catch {
+            // ignore — billing UI degrades gracefully
+          }
+        }
+      })
+      .catch((err) => console.error("failed to load orders", err))
+      .finally(() => setOrdersLoading(false))
+  }, [])
+
+  const livePlanCards = plans.map((plan) => {
+    const tier = String(plan?.type ?? "")
+    const portalConfig = PORTALS[tier as keyof typeof PORTALS]
+    const descOverride = portalDescs?.[tier]
+    const featuresFromPlan = Array.isArray(plan?.features)
+      ? plan.features
+      : Array.isArray(plan?.features?.list)
+        ? plan.features.list
+        : []
+    const features = descOverride?.features
+      ? descOverride.features.split("\n").map((f: string) => f.trim()).filter(Boolean)
+      : featuresFromPlan
+
+    return {
+      key: String(plan.id),
+      id: tier || String(plan.id),
+      type: tier,
+      name: descOverride?.name || plan.name || portalConfig?.name || "Custom Plan",
+      description: descOverride?.description || plan.description || portalConfig?.description || "",
+      features,
+      color: portalConfig?.color,
+      icon: portalConfig?.icon,
+      price: tier === 'enterprise' ? null : Number(plan?.price ?? 0),
+      isActive:
+        !!activePlan &&
+        (Number(activePlan.plan?.id) === Number(plan.id) || String(activePlan.plan?.type ?? "") === tier),
+    }
+  })
+
+  const fallbackCards = Object.values(PORTALS).map((portal) => {
+    const descOverride = portalDescs?.[portal.id]
+    const displayFeatures = descOverride?.features
+      ? descOverride.features.split("\n").map((f: string) => f.trim()).filter(Boolean)
+      : [...portal.features]
+    return {
+      key: portal.id,
+      id: portal.id,
+      type: portal.id,
+      name: descOverride?.name || portal.name,
+      description: descOverride?.description || portal.description,
+      features: displayFeatures,
+      color: portal.color,
+      icon: portal.icon,
+      price: portal.id === "free" || portal.id === "educational" ? 0 : portal.id === "paid" ? 29.99 : null,
+      isActive: portal.id === activeTier,
+    }
+  })
+
+  const subscriptionCards = livePlanCards.length > 0 ? livePlanCards : fallbackCards
+
+  return (
+    <>
+      <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-6 p-6">
+          {/* Stats */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Current Plan"
+              value={getPortalMarker(activePlan?.plan?.type ?? currentPlan.id)}
+              icon={CreditCard}
+            />
+            <StatCard
+              title="Monthly Cost"
+              value={activePlan ? (activePlan.plan.type === 'enterprise' ? 'Price Varies' : `$${Number(activePlan.plan.price ?? 0).toFixed(2)}`) : (currentPlan.id === 'free' ? '$0' : currentPlan.id === 'paid' ? '$29.99' : 'Custom')}
+              icon={DollarSign}
+              subtitle={!activePlan && currentPlan.id === 'enterprise' ? 'Contact sales' : undefined}
+            />
+            <StatCard title="Total Invoices" value={ordersLoading ? '...' : String(orders.length)} icon={Receipt} />
+            <StatCard
+              title="Plan Expires"
+              value={activePlan?.order?.expiresAt ? new Date(activePlan.order.expiresAt).toLocaleDateString() : 'N/A'}
+              icon={Calendar}
+              subtitle={activePlan ? undefined : "Managed via sales"}
+            />
+          </div>
+
+          {/* Live Active Plan Details */}
+          {activePlan && (
+            <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border">
+              <SectionHeader
+                title="Your Active Subscription"
+                description={activePlan.plan.description || "Plan applied by administrator"}
+                action={
+                  <a
+                    href="mailto:sales@eclipsesystems.org"
+                    className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+                  >
+                    Manage Subscription
+                  </a>
+                }
+              />
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-semibold text-foreground">{activePlan.plan.name}</h3>
+                    <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(activePlan.plan.type)}</Badge>
+                  </div>
+                  {activePlan.plan.features?.list && Array.isArray(activePlan.plan.features.list) && (
+                    <ul className="mt-3 flex flex-col gap-1.5">
+                      {activePlan.plan.features.list.map((f: string) => (
+                        <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Check className="h-3.5 w-3.5 text-success shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-2xl font-bold text-primary">
+                    {activePlan.plan.type === 'enterprise' ? 'Price Varies' : `$${Number(activePlan.plan.price ?? 0).toFixed(2)}`}
+                    {activePlan.plan.type !== 'enterprise' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
+                  </p>
+                  {activePlan.order?.expiresAt && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Renews {new Date(activePlan.order.expiresAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Current Plan */}
+          <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border">
+            <SectionHeader
+              title="Current Subscription"
+              description="Your active plan and features. To upgrade or change, contact your administrator."
+              action={
+                <a
+                  href="mailto:sales@eclipsesystems.org"
+                  className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+                >
+                  Request Change
+                </a>
+              }
+            />
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {subscriptionCards.map((planCard) => {
+                const Icon = planCard.icon || CreditCard
+                return (
+                  <div
+                    key={planCard.key}
+                    className={`rounded-xl border p-5 transition-all ${
+                      planCard.isActive
+                        ? "border-primary/50 bg-primary/5 shadow-[0_0_20px_var(--glow)]"
+                        : "border-border bg-secondary/30 hover:border-primary/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-5 w-5" style={planCard.color ? { color: planCard.color } : undefined} />
+                      <h3 className="font-medium text-foreground">{planCard.name}</h3>
+                      <Badge variant="outline" className="text-[10px]">
+                        {getPortalMarker(planCard.type)}
+                      </Badge>
+                      {planCard.isActive && (
+                        <Badge className="bg-primary/20 text-primary border-0 text-[10px]">Active</Badge>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{planCard.description}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {planCard.type === 'enterprise' ? 'Price Varies' : planCard.price != null ? `$${Number(planCard.price).toFixed(2)}/mo` : 'Contact Sales'}
+                    </p>
+                    <ul className="mt-3 flex flex-col gap-1.5">
+                      {planCard.features.map((feature: string) => (
+                        <li key={feature} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Check className="h-3 w-3 text-success" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    {!planCard.isActive && (
+                      <a
+                        href="mailto:sales@eclipsesystems.org"
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                      >
+                        Contact Sales
+                        <ArrowRight className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card">
+            <div className="border-b border-border p-5">
+              <SectionHeader title="Invoice History" description="Past payments and invoices" />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="px-5 py-3 text-left font-medium">Invoice</th>
+                    <th className="px-5 py-3 text-left font-medium">Description</th>
+                    <th className="px-5 py-3 text-left font-medium">Date</th>
+                    <th className="px-5 py-3 text-left font-medium">Amount</th>
+                    <th className="px-5 py-3 text-left font-medium">Status</th>
+                    <th className="px-5 py-3 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordersLoading ? (
+              <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">Loading orders...</td></tr>
+            ) : orders.length === 0 ? (
+              <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">No orders found.</td></tr>
+            ) : orders.map((invoice) => (
+                    <tr key={invoice.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                      <td className="px-5 py-3 font-mono text-sm text-foreground">{invoice.id}</td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">{invoice.description}</td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 font-mono text-sm text-foreground">{invoice.amount}</td>
+                      <td className="px-5 py-3">
+                        <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-xs">
+                          Paid
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/orders/${invoice.id}/invoice`, { credentials: 'include' });
+                              if (!res.ok) throw new Error('Failed to fetch invoice');
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `invoice-${invoice.id}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(url);
+                            } catch (e) {
+                              console.error(e);
+                              alert('Unable to download invoice');
+                            }
+                          }}
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+    </>
+  )
+}
