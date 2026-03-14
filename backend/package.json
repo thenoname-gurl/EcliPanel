@@ -21,7 +21,7 @@
     "@simplewebauthn/server": "latest",
     "axios": "latest",
     "base64url": "latest",
-    "bcrypt": "latest",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
     "dotenv": "^17.3.1",
     "elysia": "latest",

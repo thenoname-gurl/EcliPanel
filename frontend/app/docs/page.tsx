@@ -38,8 +38,8 @@ export default function DocsPage() {
             ) : (
               docs.map((doc) => (
                 <Link
-                  key={doc.name}
-                  href={`/documents/${encodeURIComponent(doc.name)}`}
+                  key={doc.safeName}
+                  href={`/documents/${encodeURIComponent(doc.safeName)}`}
                   className="flex items-center justify-between rounded-xl border border-border bg-background/50 px-6 py-4 text-left transition hover:border-primary/40 hover:bg-primary/5"
                   target="_blank"
                   rel="noopener noreferrer"

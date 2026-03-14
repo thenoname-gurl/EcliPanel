@@ -12,7 +12,7 @@ importers:
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.71.1(react@19.2.4))
       '@monaco-editor/react':
-        specifier: ^4.7.0
+        specifier: latest
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@radix-ui/react-accordion':
         specifier: 1.2.12
