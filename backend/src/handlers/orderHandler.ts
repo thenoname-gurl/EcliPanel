@@ -184,7 +184,7 @@ export async function orderRoutes(app: any, prefix = '') {
 
     try {
       const pdfBuf = await renderInvoicePdf(order as any);
-      return new Response(pdfBuf, {
+      return new Response(pdfBuf as unknown as Uint8Array, {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',

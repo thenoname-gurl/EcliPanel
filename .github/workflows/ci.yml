@@ -41,7 +41,9 @@ jobs:
           cache: 'pnpm'
 
       - name: Setup pnpm
-        run: corepack enable && corepack prepare pnpm@latest --activate
+        uses: pnpm/action-setup@v2
+        with:
+          version: 'latest'
 
       - name: Install frontend dependencies
         working-directory: frontend

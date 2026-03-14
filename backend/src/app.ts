@@ -358,7 +358,7 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
     } catch {
       // skip
     }
-    return new Response(buf, {
+    return new Response(buf as unknown as Uint8Array, {
       status: 200,
       headers: {
         'Content-Type': mimeTypes[ext] || 'application/octet-stream',
@@ -384,7 +384,7 @@ app.get('/uploads/*', async (ctx: any) => {
   };
   try {
     const buf = await fsp.readFile(filepath);
-    return new Response(buf, {
+    return new Response(buf as unknown as Uint8Array, {
       status: 200,
       headers: {
         'Content-Type': mimeTypes[ext] || 'application/octet-stream',

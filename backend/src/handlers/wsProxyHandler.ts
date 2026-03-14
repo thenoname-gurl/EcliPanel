@@ -16,8 +16,8 @@ interface ProxyCtx {
 // Migrations were harder I guess but we will not ignore the fact that migrations made me do this
 // I'm glad it works now?
 export function wsProxyRoutes(app: any, prefix: string) {
-  function unwrapArgs(args: IArguments) {
-    const arr = Array.from(args as any[]);
+  function unwrapArgs(args: any) {
+    const arr = Array.from(args as any);
     let ctx: any = undefined;
     let ws: any = undefined;
     let message: any = undefined;

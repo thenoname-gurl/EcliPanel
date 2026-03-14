@@ -4,7 +4,7 @@ export interface RawRequest { params?: any; query?: any; headers?: any; url?: st
 
 export async function handleSocConnection(app: any, socket: any, req: RawRequest) {
   try {
-    await authenticate(req as any, { code: (_: any) => ({ send: () => {} }), send: () => {} });
+    await authenticate(req as any);
   } catch {
     socket.close();
     return;
@@ -54,7 +54,7 @@ export async function handleSocConnection(app: any, socket: any, req: RawRequest
 
 export async function handleAiConnection(app: any, socket: any, req: RawRequest) {
   try {
-    await authenticate(req as any, { code: (_: any) => ({ send: () => {} }), send: () => {} });
+    await authenticate(req as any);
   } catch {
     socket.close();
     return;
@@ -90,7 +90,7 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
 
 export async function handleServerConnection(app: any, socket: any, req: RawRequest) {
   try {
-    await authenticate(req as any, { code: (_: any) => ({ send: () => {} }), send: () => {} });
+    await authenticate(req as any);
   } catch {
     socket.close();
     return;
