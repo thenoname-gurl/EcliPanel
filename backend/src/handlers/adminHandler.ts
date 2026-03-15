@@ -668,14 +668,22 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
 
-    await userRepo
-      .createQueryBuilder()
-      .update(User)
-      .set({ org: undefined as any, orgRole: 'member' })
-      .where('orgId = :orgId', { orgId: org.id })
-      .execute();
+    try {
+      await userRepo
+        .createQueryBuilder()
+        .update(User)
+        .set({ orgRole: 'member' })
+        .where('orgId = :orgId', { orgId: org.id })
+        .execute();
 
-    await orgRepo.remove(org);
+      await AppDataSource.createQueryRunner().query('UPDATE `user` SET `orgId` = NULL WHERE `orgId` = ?', [org.id]);
+
+      await orgRepo.remove(org);
+    } catch (e: any) {
+      console.error('Failed to clear organisation members before delete:', e?.message || e);
+      ctx.set.status = 500;
+      return { error: 'Failed to delete organisation' };
+    }
     return { success: true };
   }, {
     beforeHandle: authenticate,
