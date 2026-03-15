@@ -436,6 +436,18 @@ export async function adminRoutes(app: any, prefix = '') {
     }
     rec.status = status;
     rec.approvedBy = adminUser.id;
+
+    if (status === 'approved') {
+      const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
+      const targetUser = await userRepo.findOneBy({ id: rec.userId });
+      if (targetUser) {
+        targetUser.deletionRequested = true;
+        targetUser.deletionApproved = true;
+        targetUser.suspended = true;
+        await userRepo.save(targetUser);
+      }
+    }
+
     await delRepo.save(rec);
     return { success: true, rec };
   }, {

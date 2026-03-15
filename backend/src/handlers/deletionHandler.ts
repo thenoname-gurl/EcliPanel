@@ -50,6 +50,18 @@ export async function deletionRoutes(app: any, prefix = '') {
     }
     rec.status = status;
     rec.approvedBy = user.id;
+
+    if (status === 'approved') {
+      const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
+      const targetUser = await userRepo.findOneBy({ id: rec.userId });
+      if (targetUser) {
+        targetUser.deletionRequested = true;
+        targetUser.deletionApproved = true;
+        targetUser.suspended = true;
+        await userRepo.save(targetUser);
+      }
+    }
+
     await repo.save(rec);
     return { success: true, rec };
   }, {
