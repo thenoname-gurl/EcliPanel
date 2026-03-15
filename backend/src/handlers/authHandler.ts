@@ -455,9 +455,7 @@ export async function authRoutes(app: any, prefix = '') {
     await redisDel(`email-verify:token:${token}`);
     await redisDel(`email-verify:code:${user.id}`);
     const panelUrl = getPanelUrl(ctx);
-    ctx.set.status = 302;
-    ctx.set.header('Location', `${panelUrl}/dashboard?emailVerified=1`);
-    return;
+    return { redirect: `${panelUrl}/dashboard?emailVerified=1` };
   }, {
     response: {
       200: t.Any(),
@@ -846,9 +844,7 @@ export async function authRoutes(app: any, prefix = '') {
     if (!isStudent) {
       ctx.log.warn({ userId, eduData }, 'GitHub Education API did not confirm student status');
       const panelUrl = getPanelUrl(ctx);
-      ctx.set.status = 302;
-      ctx.set.header('Location', `${panelUrl}/?studentVerified=0`);
-      return;
+      return { redirect: `${panelUrl}/?studentVerified=0` };
     }
 
     const { Plan } = require('../models/plan.entity');
