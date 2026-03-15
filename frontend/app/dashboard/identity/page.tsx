@@ -58,7 +58,7 @@ function computeSteps(record: any | null, passkeyCount: number, emailVerified: b
         : "Take a photo to match your ID",
       icon: Camera,
     },
-    { id: 5, title: "Student Verification", description: studentVerified ? "Student status confirmed" : "Connect GitHub to verify educational status", icon: User },
+    { id: 5, title: "Student Verification", description: studentVerified ? "Student status confirmed" : GITHUB_STUDENT_ENABLED ? "Connect GitHub to verify educational status" : "Student verification is coming soon", icon: User },
   ] as any[];
 
   let stepsBase = base;
@@ -325,6 +325,11 @@ export default function IdentityPage() {
                   {step.status === "available" && step.id !== 5 && (
                     <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground">
                       Upload above
+                    </Badge>
+                  )}
+                  {step.status === "available" && step.id === 5 && !GITHUB_STUDENT_ENABLED && (
+                    <Badge variant="outline" className="border-muted/30 bg-muted/10 text-muted-foreground">
+                      Coming soon
                     </Badge>
                   )}
                   {step.status === "locked" && (
