@@ -13,18 +13,18 @@ const nodeService = new NodeService();
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
 
-function requireAdminCtx(ctx: any) {
+function requireAdminCtx(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   const apiKey = ctx.apiKey;
   if (apiKey?.type === 'admin') return true;
   if (!user) {
     ctx.set.status = 401;
-    return false;
+    return { error: 'Unauthorized' };
   }
   const adminRoles = ['admin', 'rootAdmin', '*'];
   if (!adminRoles.includes(user.role ?? '')) {
     ctx.set.status = 403;
-    return false;
+    return { error: 'Admin access required.' };
   }
   return true;
 }
@@ -33,7 +33,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   const nodeRepo = () => AppDataSource.getRepository(Node);
 
   app.get(prefix + '/nodes', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const nodes = await nodeRepo().find({ relations: ['organisation'] });
     const safe = nodes.map(({ rootUser, rootPassword, token, ...rest }) => rest);
     return safe;
@@ -43,7 +44,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/:id', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const node = await nodeRepo().findOne({ where: { id: Number(ctx.params.id) }, relations: ['organisation'] });
     if (!node) {
       ctx.set.status = 404;
@@ -57,7 +59,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/nodes', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const { name, url, token, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
@@ -84,7 +87,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/nodes/:id', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
     const { nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
 
@@ -134,7 +138,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/nodes/:id', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const node = await nodeRepo().findOneBy({ id: Number(ctx.params.id) });
     if (!node) {
       ctx.set.status = 404;
@@ -149,7 +154,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/heartbeats', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const nodes = await nodeRepo().find();
     const hbRepo = AppDataSource.getRepository(NodeHeartbeat);
     const result: Record<number, any[]> = {};
@@ -172,7 +178,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/:id/heartbeats', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const nodeId = Number(ctx.params.id);
     const { window: w = '24h' } = ctx.query as any;
     const hours = w === '7d' ? 168 : 24;
@@ -200,7 +207,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/generate-token', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const token = require('crypto').randomBytes(32).toString('hex');
     return { token };
   }, {beforeHandle: authenticate,
@@ -209,7 +217,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/nodes/:id/credentials', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
     const { rootUser, rootPassword } = ctx.body as any;
     const node = await nodeService.updateCredentials(Number(id), rootUser, rootPassword);
@@ -220,7 +229,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/:id/credentials', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
     try {
       const creds = await nodeService.getCredentials(Number(id));
@@ -235,7 +245,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/:id/token', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const node = await nodeRepo().findOneBy({ id: Number(ctx.params.id) });
     if (!node) {
       ctx.set.status = 404;
@@ -248,7 +259,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/servers/:id/map', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const { id: uuid } = ctx.params as any;
     const { nodeId } = ctx.body as any;
     const mapping = await nodeService.mapServer(uuid, nodeId);

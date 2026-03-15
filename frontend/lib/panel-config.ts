@@ -158,6 +158,8 @@ export const API_ENDPOINTS = {
   billing: "/api/billing",
   invoices: "/api/billing/invoices",
   subscribe: "/api/billing/subscribe",
+  authDemo: "/api/auth/demo",
+  authDemoFinish: "/api/auth/demo/finish",
 
   // Orders
   orders: "/api/orders",

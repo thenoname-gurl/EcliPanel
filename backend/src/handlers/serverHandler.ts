@@ -336,7 +336,10 @@ export async function serverRoutes(app: any, prefix = '') {
     
     let limits: any = {};
     if (!isAdmin) {
-      if (user.portalType === 'enterprise' && user.nodeId) {
+      const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
+      const effectivePortalType = isDemoActive && user.demoOriginalPortalType ? user.demoOriginalPortalType : user.portalType;
+
+      if (effectivePortalType === 'enterprise' && user.nodeId) {
         const enterpriseNode = await nodeRepo().findOneBy({ id: user.nodeId });
         if (enterpriseNode) {
           limits = {
@@ -374,6 +377,7 @@ export async function serverRoutes(app: any, prefix = '') {
           return { error: `Server limit reached (${limits.serverLimit}). Delete an existing server to create a new one.` };
         }
       }
+
       if (limits.memory != null && memory > limits.memory) {
         ctx.set.status = 400;
         return { error: `Requested memory (${memory} MB) exceeds your account limit of ${limits.memory} MB.` };

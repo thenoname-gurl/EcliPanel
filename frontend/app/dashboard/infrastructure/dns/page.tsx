@@ -15,6 +15,7 @@ export default function DnsPage() {
   const [selected, setSelected] = useState<any|null>(null)
   const [records, setRecords] = useState<any[]>([])
   const [recordForm, setRecordForm] = useState({ name: "", type: "A", ttl: 3600, content: "" })
+  const demoActive = !!user?.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
 
   const load = () => {
     apiFetch(API_ENDPOINTS.infraDnsZones)
@@ -31,6 +32,10 @@ export default function DnsPage() {
   }, [user])
 
   const createZone = async () => {
+    if (demoActive) {
+      alert('Demo mode is active. DNS zone creation is disabled in demo mode.');
+      return;
+    }
     if (!newName) return
     try {
       await apiFetch(API_ENDPOINTS.infraDnsZones, { method: 'POST', body: JSON.stringify({ name: newName, kind: 'Native' }) });
@@ -44,6 +49,13 @@ export default function DnsPage() {
   return (
     <>
       <PanelHeader title="DNS Zones" description="Manage PowerDNS zones for your enterprise organisations" />
+      {demoActive ? (
+        <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 mx-6">
+          <p className="text-sm font-medium text-warning-foreground">
+            Demo mode is active. DNS changes are simulated and will not affect real zones.
+          </p>
+        </div>
+      ) : null}
       <ScrollArea className="flex-1">
         <div className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -55,7 +67,7 @@ export default function DnsPage() {
                 onChange={(e) => setNewName(e.target.value)}
                 className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground w-64"
               />
-              <Button onClick={createZone}>Create Zone</Button>
+              <Button onClick={createZone} disabled={demoActive} title={demoActive ? 'Disabled in demo mode' : undefined}>Create Zone</Button>
             </div>
             {user?.org?.handle && (
               <p className="text-xs text-muted-foreground">
@@ -131,6 +143,10 @@ export default function DnsPage() {
               <div className="mt-2">
                 <Button
                   onClick={async () => {
+                    if (demoActive) {
+                      alert('Demo mode is active. DNS record changes are disabled in demo mode.');
+                      return;
+                    }
                     try {
                       await apiFetch(API_ENDPOINTS.infraDns + `/zones/${selected.id}/records`, {
                         method: 'POST',
@@ -149,6 +165,8 @@ export default function DnsPage() {
                       alert('failed '+e.message);
                     }
                   }}
+                  disabled={demoActive}
+                  title={demoActive ? 'Disabled in demo mode' : undefined}
                 >
                   Add record
                 </Button>

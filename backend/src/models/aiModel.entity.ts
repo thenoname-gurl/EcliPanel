@@ -19,4 +19,7 @@ export class AIModel {
 
   @Column({ nullable: true })
   apiKey?: string;
+
+  @Column('json', { nullable: true })
+  tags?: string[];
 }

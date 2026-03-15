@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { PORTALS, API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { useEffect, useState } from "react"
 import {
@@ -26,6 +27,10 @@ export default function BillingPage() {
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
   const [portalDescs, setPortalDescs] = useState<Record<string, { name: string; description: string; features: string }> | null>(null)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoError, setDemoError] = useState<string | null>(null)
+  const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
+  const [demoUsed, setDemoUsed] = useState(false)
 
   // Derive active tier from live orders data, fall back to session tier
   const activeTier = (activePlan?.plan?.type ?? user?.tier ?? 'free') as keyof typeof PORTALS
@@ -42,8 +47,6 @@ export default function BillingPage() {
   }
 
   useEffect(() => {
-    refreshUser()
-
     apiFetch(API_ENDPOINTS.panelSettings)
       .then((d) => { if (d?.portalDescriptions) setPortalDescs(d.portalDescriptions) })
       .catch(() => {})
@@ -68,6 +71,13 @@ export default function BillingPage() {
       .catch((err) => console.error("failed to load orders", err))
       .finally(() => setOrdersLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      setDemoActiveUntil(user.demoExpiresAt || null)
+      setDemoUsed(!!user.demoUsed)
+    }
+  }, [user])
 
   const livePlanCards = plans.map((plan) => {
     const tier = String(plan?.type ?? "")
@@ -119,11 +129,90 @@ export default function BillingPage() {
 
   const subscriptionCards = livePlanCards.length > 0 ? livePlanCards : fallbackCards
 
+  const startDemo = async () => {
+    setDemoError(null)
+    setDemoLoading(true)
+    try {
+      const res = await apiFetch(API_ENDPOINTS.authDemo, {
+        method: 'POST',
+        body: JSON.stringify({ minutes: 30 }),
+      })
+      setDemoActiveUntil(res.demoExpiresAt || null)
+      setDemoUsed(true)
+      refreshUser()
+    } catch (err: any) {
+      setDemoError(err.message || 'Failed to start demo mode')
+    } finally {
+      setDemoLoading(false)
+    }
+  }
+
+  const finishDemo = async () => {
+    setDemoError(null)
+    setDemoLoading(true)
+    try {
+      await apiFetch(API_ENDPOINTS.authDemoFinish, {
+        method: 'POST',
+      })
+      setDemoActiveUntil(null)
+      refreshUser()
+      toast({ title: 'Demo ended', description: 'Your demo session has ended and your account is restored.' })
+    } catch (err: any) {
+      setDemoError(err.message || 'Failed to finish demo mode')
+    } finally {
+      setDemoLoading(false)
+    }
+  }
+
+  const normalizedPortalType = String(user?.portalType || user?.tier || '').toLowerCase()
+  const isEnterprisePortal = normalizedPortalType === 'enterprise'
+  const demoActive = !!demoActiveUntil && new Date(demoActiveUntil) > new Date()
+  const demoExpired = !!demoActiveUntil && new Date(demoActiveUntil) <= new Date()
+  const showDemoPanel = !!user && (demoActive || !demoUsed)
+
   return (
     <>
       <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-6 p-6">
+          {/* Demo */}
+          {showDemoPanel ? (
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-5">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Demo Mode</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Demo mode simulates temporary enterprise access with limited resources
+                      and provides limited accessibility to AI models such as openai/gpt-oss-20b which 
+                      can be used in AI Studio, AI Chat or for AI assistant (inline suggestions) features.
+                      Intended for testing and evaluation purposes before purchasing enterprise plan.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-warning/20 px-3 py-1 text-xs font-semibold text-warning">Demo</span>
+                </div>
+                {demoActive ? (
+                  <p className="text-sm text-muted-foreground">Your demo expires at <span className="font-medium text-foreground">{new Date(demoActiveUntil!).toLocaleString()}</span>.</p>
+                ) : demoExpired ? (
+                  <p className="text-sm text-muted-foreground">Your demo has expired. You can no longer start a new demo.</p>
+                ) : demoUsed ? (
+                  <p className="text-sm text-muted-foreground">Demo mode has already been used for this account. Contact support if you believe this is a mistake.</p>
+                ) : null}
+                {demoError && <p className="text-sm text-destructive">{demoError}</p>}
+                <p className="text-sm text-muted-foreground">
+                  Demo mode is a temporary sandbox. Changes made during demo may not persist after it ends, and infrastructure actions are limited.
+                </p>
+                <button
+                  onClick={demoActive ? finishDemo : startDemo}
+                  disabled={(demoUsed && !demoActive) || demoLoading}
+                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {demoLoading ? (demoActive ? 'Finishing…' : 'Starting…') : demoActive ? 'End Demo' : demoUsed ? 'Demo Used' : 'Start Demo'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {/* Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
