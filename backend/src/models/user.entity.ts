@@ -129,5 +129,17 @@ export class User {
   deletionApproved: boolean;
 
   @Column({ nullable: true })
+  demoOriginalPortalType?: string;
+
+  @Column({ nullable: true })
+  demoExpiresAt?: Date;
+
+  @Column('json', { nullable: true })
+  demoLimits?: { tokens?: number; requests?: number };
+
+  @Column({ default: false })
+  demoUsed: boolean;
+
+  @Column({ nullable: true })
   avatarUrl?: string;
 }

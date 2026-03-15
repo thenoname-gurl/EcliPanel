@@ -152,6 +152,18 @@ export async function aiRoutes(app: any, prefix = '') {
       const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id }, model: { id: modelId } } });
       if (orgLink) limits = orgLink.limits || {};
     }
+
+    if (user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date() && user.demoLimits) {
+      limits = {
+        tokens: typeof user.demoLimits.tokens === 'number'
+          ? Math.min(limits.tokens ?? Infinity, user.demoLimits.tokens)
+          : limits.tokens,
+        requests: typeof user.demoLimits.requests === 'number'
+          ? Math.min(limits.requests ?? Infinity, user.demoLimits.requests)
+          : limits.requests,
+      };
+    }
+
     if (limits.tokens != null && tokens > limits.tokens) {
       ctx.set.status = 429;
       return { error: 'Token limit exceeded' };

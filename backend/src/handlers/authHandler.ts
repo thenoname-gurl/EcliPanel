@@ -1,6 +1,8 @@
 import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
+import { AIModel } from '../models/aiModel.entity';
+import { AIModelUser } from '../models/aiModelUser.entity';
 import { comparePassword } from '../utils/password';
 import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
 import { v4 as uuidv4 } from 'uuid';
@@ -879,6 +881,109 @@ export async function authRoutes(app: any, prefix = '') {
     }
   });
 
+  app.post(prefix + '/auth/demo', async (ctx: any) => {
+    const user = ctx.user as User | undefined;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    if (user.demoUsed) {
+      ctx.set.status = 400;
+      return { error: 'Demo has already been used' };
+    }
+
+    const durationMinutes = Number(ctx.body?.minutes || 30);
+    const now = new Date();
+    const expires = new Date(now.getTime() + durationMinutes * 60 * 1000);
+
+    user.demoOriginalPortalType = user.portalType;
+    user.portalType = 'enterprise';
+    user.demoExpiresAt = expires;
+    user.demoLimits = { tokens: 500, requests: 50 };
+    user.demoUsed = true;
+
+    if (!user.org) {
+      const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
+      const demoHandle = `demo-${user.id}`;
+      let demoOrg = await orgRepo.findOneBy({ handle: demoHandle });
+      if (!demoOrg) {
+        demoOrg = orgRepo.create({
+          name: `Demo (${user.email})`,
+          handle: demoHandle,
+          ownerId: user.id,
+          portalTier: 'enterprise',
+        });
+        await orgRepo.save(demoOrg);
+      }
+      user.org = demoOrg;
+      user.orgRole = 'member';
+    }
+
+    await AppDataSource.getRepository(User).save(user);
+
+    try {
+      const modelRepo = AppDataSource.getRepository(AIModel);
+      const userModelRepo = AppDataSource.getRepository(AIModelUser);
+      const demoTag = 'demo';
+
+      const models = await modelRepo.find();
+      let demoModel = models.find((m) => Array.isArray(m.tags) && m.tags.includes(demoTag));
+
+      if (!demoModel) {
+        const demoModelName = 'openai/gpt-oss-20b';
+        demoModel = await modelRepo.findOneBy({ name: demoModelName });
+      }
+
+      const existing = await userModelRepo.findOne({ where: { user: { id: user.id }, model: { id: demoModel.id } } });
+      if (!existing) {
+        const link = userModelRepo.create({ user, model: demoModel, limits: { tokens: 500, requests: 50 } });
+        await userModelRepo.save(link);
+      }
+    } catch (err) {
+      // skip
+    }
+
+    return { success: true, demoExpiresAt: expires.toISOString(), demoLimits: user.demoLimits };
+  }, { beforeHandle: authenticate,
+    body: t.Object({ minutes: t.Optional(t.Number()) }),
+    response: { 200: t.Object({ success: t.Boolean(), demoExpiresAt: t.String(), demoLimits: t.Optional(t.Any()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'Start a temporary demo mode', description: 'Grants temporary enterprise access with demo limits.', tags: ['Auth'], operationId: 'postAuthDemo' }
+  });
+
+  app.post(prefix + '/auth/demo/finish', async (ctx: any) => {
+    const user = ctx.user as User | undefined;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    if (user.demoOriginalPortalType) {
+      user.portalType = user.demoOriginalPortalType;
+      user.demoOriginalPortalType = undefined;
+    }
+    user.demoExpiresAt = undefined;
+    user.demoLimits = undefined;
+
+    if (user.org && String(user.org.handle).startsWith('demo-') && user.org.ownerId === user.id) {
+      try {
+        const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
+        await orgRepo.remove(user.org);
+      } catch (e) {
+        // skip
+      }
+      user.org = undefined;
+      user.orgRole = 'member';
+    }
+
+    await AppDataSource.getRepository(User).save(user);
+
+    return { success: true };
+  }, { beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'Finish demo mode early', description: 'Reverts demo mode back to the original plan.', tags: ['Auth'], operationId: 'postAuthDemoFinish' }
+  });
+
   app.get(prefix + '/auth/session', async (ctx: any) => {
     const user = ctx.user as User | undefined;
     if (!user) {
@@ -918,6 +1023,9 @@ export async function authRoutes(app: any, prefix = '') {
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,
         euIdVerificationDisabled: isEUIdVerificationDisabledForCountry(user.billingCountry),
+        demoExpiresAt: user.demoExpiresAt || null,
+        demoLimits: user.demoLimits || null,
+        demoUsed: user.demoUsed === true,
       },
     };
   }, { beforeHandle: authenticate,

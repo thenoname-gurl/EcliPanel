@@ -275,7 +275,7 @@ app.onRequest((ctx: any) => {
   } else {
     bucket.count++;
   }
-  if (bucket.count > 200) {
+  if (bucket.count > 500) {
     return new Response(JSON.stringify({ error: 'Too many requests' }), {
       status: 429,
       headers: { 'Content-Type': 'application/json' },

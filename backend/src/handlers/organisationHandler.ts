@@ -33,6 +33,12 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/organisations', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date()) {
+      ctx.set.status = 403;
+      return { error: 'Cannot create an organisation while in demo mode' };
+    }
+
     const { name, handle } = ctx.body as any;
     if (!name || !handle) {
       ctx.set.status = 400;
@@ -47,7 +53,6 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 409;
       return { error: 'handle taken' };
     }
-    const user = ctx.user as User;
     const org = orgRepo.create({ name, handle, ownerId: user.id });
     await orgRepo.save(org);
     user.org = org;

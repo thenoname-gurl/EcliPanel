@@ -741,6 +741,7 @@ export default function AdminPanel() {
   const [aiModelStatus, setAiModelStatus] = useState("active")
   const [aiModelDescription, setAiModelDescription] = useState("")
   const [aiModelMaxTokens, setAiModelMaxTokens] = useState("")
+  const [aiModelTags, setAiModelTags] = useState("")
   const [aiModelLoading, setAiModelLoading] = useState(false)
 
   // ── Assign AI model to user ──
@@ -1015,6 +1016,23 @@ export default function AdminPanel() {
       body: JSON.stringify({ suspended: !user.suspended }),
     })
     setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, suspended: !u.suspended } : u)))
+  }
+
+  async function resetDemo(user: AdminUser) {
+    if (!confirm(`Reset demo status for ${user.firstName} ${user.lastName}?`)) return
+    await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ demoUsed: false, demoExpiresAt: null, demoOriginalPortalType: null, demoLimits: null }),
+    })
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, demoUsed: false, demoExpiresAt: null } : u)))
+  }
+
+  async function deleteUser(user: AdminUser) {
+    if (!confirm(`Delete user ${user.firstName} ${user.lastName}? This is permanent.`)) return
+    await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
+      method: "DELETE",
+    })
+    setUsers((prev) => prev.filter((u) => u.id !== user.id))
   }
 
   function openEditUser(user: AdminUser) {
@@ -1812,7 +1830,7 @@ remote: ${panelUrl}`
   function openNewAIModel() {
     setAiModelDialog("new")
     setAiModelName(""); setAiModelEndpoint(""); setAiModelApiKey("")
-    setAiModelType("text"); setAiModelStatus("active"); setAiModelDescription(""); setAiModelMaxTokens("")
+    setAiModelType("text"); setAiModelStatus("active"); setAiModelDescription(""); setAiModelMaxTokens(""); setAiModelTags("")
   }
 
   function openEditAIModel(m: AdminAIModel) {
@@ -1824,6 +1842,7 @@ remote: ${panelUrl}`
     setAiModelStatus(m.config?.status || "active")
     setAiModelDescription(m.config?.description || "")
     setAiModelMaxTokens(String(m.config?.maxTokens || ""))
+    setAiModelTags(Array.isArray(m.tags) ? m.tags.join(", ") : "")
   }
 
   async function saveAIModel() {
@@ -1832,6 +1851,7 @@ remote: ${panelUrl}`
       name: aiModelName,
       endpoint: aiModelEndpoint || undefined,
       apiKey: aiModelApiKey || undefined,
+      tags: aiModelTags ? aiModelTags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
       config: {
         type: aiModelType,
         status: aiModelStatus,
@@ -2174,6 +2194,16 @@ remote: ${panelUrl}`
                                     ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400"
                                     : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}>
                                   {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                                </button>
+                                {user.demoUsed && (
+                                  <button onClick={() => resetDemo(user)} title="Reset demo status"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                <button onClick={() => deleteUser(user)} title="Delete account"
+                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
                             </td>
@@ -2844,6 +2874,7 @@ remote: ${panelUrl}`
                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Type</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tags</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Endpoint</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
                       </tr>
@@ -2869,6 +2900,9 @@ remote: ${panelUrl}`
                               }`}>
                               {m.config?.status || "active"}
                             </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs text-muted-foreground">{Array.isArray(m.tags) ? m.tags.join(', ') : ''}</p>
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-xs truncate">
                             {m.endpoint || <span className="italic">not set</span>}
@@ -5105,6 +5139,13 @@ Content-Type: application/json
               <input value={aiModelDescription} onChange={(e) => setAiModelDescription(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder="Optional description shown to users" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tags</label>
+              <input value={aiModelTags} onChange={(e) => setAiModelTags(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                placeholder="comma-separated tags (e.g. demo, core)" />
+              <p className="text-xs text-muted-foreground">Tags can be used to mark models for special purposes (e.g. <span className="font-semibold">demo</span>).</p>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Endpoint URL</label>

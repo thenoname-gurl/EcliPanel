@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useAuth } from "@/hooks/useAuth"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -66,10 +67,12 @@ const NODE_TYPE_META: Record<string, { label: string; color: string }> = {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function InfraNodesPage() {
+  const { user } = useAuth()
   const [nodes, setNodes] = useState<Node[]>([])
   const [orgs, setOrgs] = useState<Organisation[]>([])
   const [loading, setLoading] = useState(true)
   const [generatedToken, setGeneratedToken] = useState<string | null>(null)
+  const demoActive = !!user?.demoExpiresAt && new Date(user.demoExpiresAt) > new Date()
 
   // ── Create/Edit dialog ──
   const [nodeDialog, setNodeDialog] = useState<Node | null | "new">(null)
@@ -119,6 +122,10 @@ export default function InfraNodesPage() {
 
   // ── Open dialogs ──
   function openNew() {
+    if (demoActive) {
+      alert('Demo mode is active. Node creation is disabled in demo mode.');
+      return;
+    }
     setNodeDialog("new")
     setNodeName(""); setNodeUrl(""); setNodeToken("")
     setNodeType("free"); setNodeOrgId("")
@@ -154,6 +161,10 @@ export default function InfraNodesPage() {
   }
 
   async function saveNode() {
+    if (demoActive) {
+      alert('Demo mode is active. Node editing is disabled in demo mode.');
+      return;
+    }
     setNodeLoading(true)
     try {
       const body: Record<string, any> = {
@@ -196,6 +207,10 @@ export default function InfraNodesPage() {
   }
 
   async function deleteNode(node: Node) {
+    if (demoActive) {
+      alert('Demo mode is active. Node deletion is disabled in demo mode.');
+      return;
+    }
     if (!confirm(`Delete node "${node.name}"? All server mappings on this node will break.`)) return
     await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
@@ -212,6 +227,14 @@ export default function InfraNodesPage() {
           icon={HardDrive}
         />
 
+        {demoActive ? (
+          <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 mx-6">
+            <p className="text-sm font-medium text-warning-foreground">
+              Demo mode is active. Node management is disabled and changes won't affect real infrastructure.
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-6 p-6">
           {/* Header row */}
           <div className="flex items-center justify-between">
@@ -224,7 +247,7 @@ export default function InfraNodesPage() {
               <Button variant="outline" size="sm" onClick={loadNodes} className="border-border h-9 gap-1.5">
                 <RefreshCw className="h-3.5 w-3.5" /> Refresh
               </Button>
-              <Button size="sm" onClick={openNew} className="bg-primary text-primary-foreground h-9 gap-1.5">
+              <Button size="sm" onClick={openNew} disabled={demoActive} className="bg-primary text-primary-foreground h-9 gap-1.5" title={demoActive ? 'Disabled in demo mode' : undefined}>
                 <Plus className="h-3.5 w-3.5" /> Add Node
               </Button>
             </div>
@@ -240,7 +263,7 @@ export default function InfraNodesPage() {
               <HardDrive className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium text-foreground">No nodes registered</p>
               <p className="text-xs text-muted-foreground mt-1">Add a node to start hosting servers.</p>
-              <Button size="sm" onClick={openNew} className="mt-4 bg-primary text-primary-foreground gap-1.5">
+              <Button size="sm" onClick={openNew} disabled={demoActive} className="mt-4 bg-primary text-primary-foreground gap-1.5" title={demoActive ? 'Disabled in demo mode' : undefined}>
                 <Plus className="h-3.5 w-3.5" /> Add Node
               </Button>
             </div>

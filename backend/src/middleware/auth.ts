@@ -99,6 +99,16 @@ export async function authenticate(ctx: any) {
       return { error: 'Invalid session' };
     }
 
+    if (user.demoExpiresAt && new Date(user.demoExpiresAt) < new Date()) {
+      user.demoExpiresAt = undefined;
+      user.demoLimits = undefined;
+      if (user.demoOriginalPortalType) {
+        user.portalType = user.demoOriginalPortalType;
+        user.demoOriginalPortalType = undefined;
+      }
+      await userRepo.save(user);
+    }
+
     ctx.user = user;
     return;
   } catch (e: any) {

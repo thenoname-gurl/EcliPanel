@@ -64,17 +64,15 @@ function parseCpuInput(input: any): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
-function requireAdminCtx(ctx: any): boolean {
+function requireAdminCtx(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user) {
     ctx.set.status = 401;
-    ctx.body = { error: 'Unauthorized' };
-    return false;
+    return { error: 'Unauthorized' };
   }
   if (!adminRoles.includes(user.role ?? '')) {
     ctx.set.status = 403;
-    ctx.body = { error: 'Admin access required.' };
-    return false;
+    return { error: 'Admin access required.' };
   }
   return true;
 }
@@ -166,7 +164,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/users/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!user) {
@@ -174,12 +173,16 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'User not found' };
     }
 
-    const { role, portalType, suspended, limits, nodeId } = ctx.body as any;
+    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits } = ctx.body as any;
     const nodeRepo = AppDataSource.getRepository(Node);
     if (role !== undefined) user.role = role;
     if (portalType !== undefined) user.portalType = portalType;
     if (suspended !== undefined) user.suspended = suspended;
     if (nodeId !== undefined) user.nodeId = nodeId != null ? Number(nodeId) : undefined as any;
+    if (demoUsed !== undefined) user.demoUsed = !!demoUsed;
+    if (demoExpiresAt !== undefined) user.demoExpiresAt = demoExpiresAt ? new Date(demoExpiresAt) : undefined;
+    if (demoOriginalPortalType !== undefined) user.demoOriginalPortalType = demoOriginalPortalType;
+    if (demoLimits !== undefined) user.demoLimits = demoLimits;
     if (limits !== undefined) {
       if (limits && typeof limits === 'object') {
         const outLimits: any = { ...limits };
@@ -233,6 +236,10 @@ export async function adminRoutes(app: any, prefix = '') {
         suspended: t.Optional(t.Boolean()),
         limits: t.Optional(t.Any()),
         nodeId: t.Optional(t.Any()),
+        demoUsed: t.Optional(t.Boolean()),
+        demoExpiresAt: t.Optional(t.String()),
+        demoOriginalPortalType: t.Optional(t.String()),
+        demoLimits: t.Optional(t.Any()),
       }),
       response: {
         200: t.Object({ success: t.Boolean() }),
@@ -243,6 +250,33 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Modify a user record (admin)', tags: ['Admin'] },
+  });
+
+  app.delete(prefix + '/admin/users/:id', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+    if (ctx.user?.id === user.id) {
+      ctx.set.status = 400;
+      return { error: 'Cannot delete your own account' };
+    }
+    await userRepo.remove(user);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Delete user account (admin)', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/tickets', async (ctx) => {
@@ -467,7 +501,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/nodes', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
     return nodes;
@@ -482,7 +517,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/organisations', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const userRepo = AppDataSource.getRepository(User);
 
