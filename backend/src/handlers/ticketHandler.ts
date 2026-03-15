@@ -127,7 +127,7 @@ export async function ticketRoutes(app: any, prefix = '') {
     }
 
     await repo.save(ticket);
-    return { success: true, ticket: { ...ticket, lastReply: computeLastReply(ticket) } };
+    return { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Update ticket (admin only)', tags: ['Tickets'] }
