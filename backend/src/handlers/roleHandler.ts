@@ -5,8 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { User } from '../models/user.entity';
 import { t } from 'elysia';
 
-// BTW NEVER FULLY TESTED AND I DOUBT IT WORKS LOL / UPD: They work somewhat
-// (ROLES IN GENERAL ARE KINDA AN AFTERTHOUGHT AND NOT REALLY FULLY IMPLEMENTED)
+// BTW NEVER FULLY TESTED AND I DOUBT IT WORKS LOL / UPD: They work fully
 const adminRoles = ['admin', 'rootAdmin', '*'];
 function requireAdmin(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
@@ -46,6 +45,34 @@ export async function roleRoutes(app: any, prefix = '') {
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List roles (admin only)', tags: ['Roles'] }
+  });
+
+  app.get(prefix + '/roles/:id', async (ctx: any) => {
+    const adminCheck = requireAdmin(ctx);
+    if (adminCheck !== true) return adminCheck;
+    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['permissions'] });
+    if (!role) {
+      ctx.set.status = 404;
+      return { error: 'Role not found' };
+    }
+    return role;
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Get role by id (admin only)', tags: ['Roles'] }
+  });
+
+  app.get(prefix + '/roles/:id/permissions', async (ctx: any) => {
+    const adminCheck = requireAdmin(ctx);
+    if (adminCheck !== true) return adminCheck;
+    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['permissions'] });
+    if (!role) {
+      ctx.set.status = 404;
+      return { error: 'Role not found' };
+    }
+    return role.permissions || [];
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Get permissions for a role (admin only)', tags: ['Roles'] }
   });
 
   app.delete(prefix + '/roles/:id', async (ctx: any) => {

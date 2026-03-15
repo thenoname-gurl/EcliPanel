@@ -24,7 +24,10 @@ export default function RoleDetail({ params }: { params: Promise<{ id: string }>
     ])
       .then(([r, p]) => {
         setRole(r);
-        setPerms(p || []);
+        const normalized = (p || []).map((perm: any) =>
+          typeof perm === "string" ? perm : perm.value ?? String(perm.id ?? JSON.stringify(perm))
+        );
+        setPerms(normalized);
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
