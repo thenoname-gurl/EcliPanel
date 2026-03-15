@@ -68,8 +68,8 @@ You may use wings-go (pterodactyl stock) but it is untested and some features wi
    pnpm install
    nano .env # edit .env (see .env.example)
    nano lib/panel-config.ts # edit panel config branding etc
-   pnpm run build
-   pnpm run start
+   ./dev.sh --port 3000 # start in dev mode (--port is optional)
+   ./start.sh --port 3000 # start in production mode (--port is optional)
    ```
    Frontend will run on http://localhost:3000 and automatically proxy
    `/api/*` requests to the backend and `/wings/*` to the Wings node(s)

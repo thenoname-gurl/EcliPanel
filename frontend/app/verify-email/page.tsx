@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function VerifyEmailPage() {
+function VerifyEmailClient() {
   const params = useSearchParams();
   const token = params?.get("token");
   const [error, setError] = useState<string | null>(null);
@@ -32,5 +32,13 @@ export default function VerifyEmailPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading…</div>}>
+      <VerifyEmailClient />
+    </Suspense>
   );
 }
