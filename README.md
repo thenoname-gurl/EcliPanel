@@ -1,7 +1,6 @@
 <p align="center">
   <img src="./eclipanel.png" alt="EcliPanel" width="640" />
 </p>
-[![CI - Build Backend & Frontend](https://github.com/thenoname-gurl/EcliPanel/actions/workflows/ci.yml/badge.svg)](https://github.com/thenoname-gurl/EcliPanel/actions/workflows/ci.yml)
 
 EcliPanel v3 is a complete rewrite of the original EcliPanel v1, which itself was built on top of the Jexactyl panel.
 
