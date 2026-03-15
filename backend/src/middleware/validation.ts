@@ -1,9 +1,9 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function validateUserRegistration(ctx: any, _reply?: any): Promise<boolean> {
-  const { firstName, lastName, email, password, address } = ctx.body as any;
+  const { firstName, lastName, email, password, address, billingCity, billingZip, billingCountry } = ctx.body as any;
 
-  if (!firstName || !lastName || !email || !password || !address) {
+  if (!firstName || !lastName || !email || !password || !address || !billingCity || !billingZip || !billingCountry) {
     ctx.set.status = 400;
     (ctx as any).body = { error: 'Missing required fields' };
     return false;

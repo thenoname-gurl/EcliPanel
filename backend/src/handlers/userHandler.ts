@@ -76,6 +76,10 @@ function safeUser(user: User): any {
     delete safe.nodeId;
   }
 
+  for (const k of Object.keys(safe)) {
+    if (safe[k] === null) delete (safe as any)[k];
+  }
+
   return safe;
 }
 
@@ -93,7 +97,7 @@ export async function userRoutes(app: any, prefix = '') {
     } catch { }
 
     const valid = await validateUserRegistration(ctx, ctx);
-    if (!valid) return;
+    if (!valid) return (ctx as any).body;
     const body = ctx.body as Partial<User>;
     const userRepo = AppDataSource.getRepository(User);
     const user = userRepo.create(body);
@@ -136,7 +140,16 @@ export async function userRoutes(app: any, prefix = '') {
       email: t.String({ format: 'email' }),
       password: t.String({ minLength: 8 }),
       firstName: t.Optional(t.String()),
-      lastName: t.Optional(t.String())
+      middleName: t.Optional(t.String()),
+      lastName: t.Optional(t.String()),
+      address: t.String(),
+      address2: t.Optional(t.String()),
+      billingCompany: t.Optional(t.String()),
+      billingCity: t.String(),
+      billingState: t.Optional(t.String()),
+      billingZip: t.String(),
+      billingCountry: t.String(),
+      phone: t.Optional(t.String())
     }),
     response: {
       200: t.Object({ success: t.Boolean(), user: userSchema }),

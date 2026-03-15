@@ -8,14 +8,15 @@
     "promote": "bun scripts/promote.ts",
     "seed": "bun scripts/seed.ts",
     "gen:jwt-secret": "bun scripts/generate-jwt-secret.ts",
+    "gen:default-role": "bun scripts/create-default-role.ts",
     "build": "bun install && bun tsc || true"
   },
   "engines": {
     "bun": ">=1.0"
   },
   "dependencies": {
-    "@elysiajs/cors": "latest",
-    "@elysiajs/jwt": "latest",
+    "@elysiajs/cors": "^1.4.1",
+    "@elysiajs/jwt": "^1.4.1",
     "@elysiajs/node": "latest",
     "@elysiajs/openapi": "latest",
     "@simplewebauthn/server": "latest",
@@ -24,8 +25,9 @@
     "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
     "dotenv": "^17.3.1",
-    "elysia": "latest",
-    "elysia-helmet": "latest",
+    "elysia": "^1.4.27",
+    "elysia-helmet": "^3.0.0",
+    "file-type": "^21.3.2",
     "jsonwebtoken": "latest",
     "mariadb": "latest",
     "mysql": "latest",

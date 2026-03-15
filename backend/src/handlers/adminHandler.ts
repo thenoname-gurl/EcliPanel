@@ -2042,4 +2042,77 @@ isSuspicious: true if fraudScore >= 50`;
     },
     detail: { summary: 'Apply a plan to user and create order', tags: ['Admin'] },
   });
+
+  app.post(prefix + '/admin/ensure-portal-plans', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const { portalType } = ctx.body as any;
+    const userRepo = AppDataSource.getRepository(User);
+    const planRepo = AppDataSource.getRepository(Plan);
+    const orderRepo = AppDataSource.getRepository(Order);
+
+    const users = portalType
+      ? await userRepo.find({ where: { portalType } })
+      : await userRepo.find();
+
+    let assigned = 0;
+    for (const user of users) {
+      const orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
+      const existing = orders.find(o => o.planId != null);
+      if (existing) {
+        const plan = await planRepo.findOneBy({ id: existing.planId! });
+        if (plan && plan.type === user.portalType) continue;
+      }
+
+      const plans = await planRepo.find({ where: { type: user.portalType }, order: { price: 'ASC' } });
+      if (!plans || plans.length === 0) continue;
+
+      let chosen = plans.find(p => p.isDefault) || plans[0];
+
+      const nodeRepo = AppDataSource.getRepository(Node);
+      let limits: Record<string, number> = {};
+      if (chosen.type === 'enterprise' && user.nodeId) {
+        const node = await nodeRepo.findOneBy({ id: user.nodeId });
+        if (node) {
+          if (node.memory != null) limits.memory = Number(node.memory);
+          if (node.disk != null) limits.disk = Number(node.disk);
+          if (node.cpu != null) limits.cpu = Number(node.cpu);
+          if (node.serverLimit != null) limits.serverLimit = Number(node.serverLimit);
+        }
+      }
+      if (Object.keys(limits).length === 0) {
+        if (chosen.memory != null) limits.memory = chosen.memory;
+        if (chosen.disk != null) limits.disk = chosen.disk;
+        if (chosen.cpu != null) limits.cpu = chosen.cpu;
+        if (chosen.serverLimit != null) limits.serverLimit = chosen.serverLimit;
+      }
+
+      user.limits = Object.keys(limits).length ? limits : null;
+      user.portalType = chosen.type;
+      await userRepo.save(user);
+
+      const effectiveAmount = chosen.price ?? 0;
+      const order = orderRepo.create({
+        userId: user.id,
+        description: `${chosen.name} (auto-assigned)`,
+        planId: chosen.id,
+        amount: effectiveAmount,
+        items: `plan:${chosen.id}`,
+        status: 'active',
+        notes: 'Auto-assigned plan to match portal type',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      });
+      await orderRepo.save(order);
+      assigned++;
+    }
+
+    return { success: true, assigned };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      body: t.Object({ portalType: t.Optional(t.String()) }),
+      response: { 200: t.Object({ success: t.Boolean(), assigned: t.Number() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
+    },
+    detail: { summary: 'Ensure users have a plan matching their portalType', tags: ['Admin'] },
+  });
 }

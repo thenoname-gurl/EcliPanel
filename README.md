@@ -23,6 +23,7 @@ The goal of this iteration is to provide a fully in‑house backend and moderniz
 > – debugging guidance
 > – non‑creative code completion
 > – documentation clarity
+> – vulnerability fixes
 >
 > For community expectations, see:  
 > – [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)  
@@ -50,6 +51,7 @@ You may use wings-go (pterodactyl stock) but it is untested and some features wi
    bun run gen:jwt-secret # generate JWT Secret (set in .env as JWT_SECRET=generated-string)
    bun run gen:jwt-secret # generate Encryption Key just like JWT Secret (set in .env as NODE_ENCRYPTION_KEY=generated-string)
    nano .env        # edit .env (see .env.example)
+   bun run gen:default-role # create default role
    # for development you can simply run:
    bun src/index.ts
    # or use the helper scripts which choose Bun when available:
@@ -64,6 +66,7 @@ You may use wings-go (pterodactyl stock) but it is untested and some features wi
    cd frontend
    pnpm install
    nano .env # edit .env (see .env.example)
+   nano lib/panel-config.ts # edit panel config branding etc
    pnpm run build
    pnpm run start
    ```

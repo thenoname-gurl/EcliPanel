@@ -307,17 +307,19 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers', async (ctx: any) => {
     const user = ctx.user;
 
-    // PLEASE KEEP YOUR ACCOUNT SECURE OMD
+    // PLEASE KEEP YOUR ACCOUHT SECURE OM<D LIKE SRS
     if (!(user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
-      if (!user.emailVerified) {
-        ctx.set.status = 403;
-        return { error: 'You must verify your email before creating servers' };
-      }
-      const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-      const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
-      if (passkeyCount === 0) {
-        ctx.set.status = 403;
-        return { error: 'You must register a passkey before creating servers' };
+      if (user.portalType !== 'free') {
+        if (!user.emailVerified) {
+          ctx.set.status = 403;
+          return { error: 'You must verify your email before creating servers' };
+        }
+        const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
+        const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
+        if (passkeyCount === 0) {
+          ctx.set.status = 403;
+          return { error: 'You must register a passkey before creating servers' };
+        }
       }
     }
 
