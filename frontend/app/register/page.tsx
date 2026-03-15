@@ -64,8 +64,6 @@ export default function RegisterPage() {
         <h2 className="mb-6 text-center text-2xl font-semibold text-foreground">
           Create an account
         </h2>
-        <p className="mb-4 text-center text-xs text-muted-foreground">Fields marked <span className="text-destructive">*</span> are required.</p>
-
         {/* Panel notice — shown even when registration is open */}
         {notice && !registrationDisabled && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
@@ -73,7 +71,6 @@ export default function RegisterPage() {
             <p className="text-sm text-blue-300">{notice}</p>
           </div>
         )}
-
         {/* Registration disabled banner */}
         {registrationDisabled && (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
@@ -219,6 +216,7 @@ export default function RegisterPage() {
               aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
+            <p className="col-span-full text-xs text-muted-foreground">Fields marked <span className="text-destructive">*</span> are required.</p>
             <p className="col-span-full text-xs text-muted-foreground">
               By signing in you agree to the{" "}
               <a
