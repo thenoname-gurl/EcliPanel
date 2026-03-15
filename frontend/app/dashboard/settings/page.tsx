@@ -148,6 +148,7 @@ function PasskeyManager() {
       alert("Passkey registration requires a secure connection (HTTPS).\n\nAccess the panel via https:// or configure a TLS certificate.");
       return;
     }
+    const initialCount = passkeys.length;
     setRegistering(true);
     try {
       const opts = await apiFetch(API_ENDPOINTS.passkeyRegisterChallenge, { method: "POST", body: JSON.stringify({}) });
@@ -178,6 +179,10 @@ function PasskeyManager() {
         type: credential.type,
       };
       await apiFetch(API_ENDPOINTS.passkeyRegister, { method: "POST", body: JSON.stringify({ attestationResponse }) });
+      if (initialCount === 0) {
+        window.location.reload();
+        return;
+      }
       load();
     } catch (e: any) {
       alert("Failed to register passkey: " + (e.message || "Unknown error"));
