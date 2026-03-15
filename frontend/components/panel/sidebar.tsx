@@ -126,7 +126,20 @@ export function PanelSidebar() {
                 {BRAND.name}
               </span>
               <span className="text-[10px] text-muted-foreground">
-                v{BRAND.version}
+                {BRAND.version ? (
+                  /[0-9a-f]{7,40}/i.test(String(BRAND.version)) && BRAND.repoUrl ? (
+                    <Link
+                      href={`${BRAND.repoUrl.replace(/\/$/, "")}/commit/${String(BRAND.version)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      #{String(BRAND.version).slice(0, 7)}
+                    </Link>
+                  ) : (
+                    `v${BRAND.version}`
+                  )
+                ) : ""}
               </span>
             </div>
           )}

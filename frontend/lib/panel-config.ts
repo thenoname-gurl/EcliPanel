@@ -44,7 +44,8 @@ export const BRAND = {
   name: "EclipseSystems",
   tagline: "Next-Gen Server Management",
   logo: "/assets/icons/logo.png",
-  version: "3.0.0",
+  version: process.env.NEXT_PUBLIC_COMMIT_SHA || process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || "unknown",
+  repoUrl: process.env.NEXT_PUBLIC_REPO_URL || "https://github.com/thenoname-gurl/EcliPanel",
 } as const
 
 // ============================================
