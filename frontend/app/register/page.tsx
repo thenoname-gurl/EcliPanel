@@ -64,6 +64,7 @@ export default function RegisterPage() {
         <h2 className="mb-6 text-center text-2xl font-semibold text-foreground">
           Create an account
         </h2>
+        <p className="mb-4 text-center text-xs text-muted-foreground">Fields marked <span className="text-destructive">*</span> are required.</p>
 
         {/* Panel notice — shown even when registration is open */}
         {notice && !registrationDisabled && (
@@ -102,45 +103,51 @@ export default function RegisterPage() {
             <input
               name="firstName"
               type="text"
-              placeholder="First Name"
+              placeholder="First Name *"
               value={form.firstName}
               onChange={handleChange}
               required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               name="lastName"
               type="text"
-              placeholder="Last Name"
+              placeholder="Last Name *"
               value={form.lastName}
               onChange={handleChange}
               required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               name="email"
               type="email"
-              placeholder="Email"
+              placeholder="Email *"
               value={form.email}
               onChange={handleChange}
               required
+              aria-required="true"
               className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               name="password"
               type="password"
-              placeholder="Password"
+              placeholder="Password *"
               value={form.password}
               onChange={handleChange}
               required
+              aria-required="true"
               className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               name="address"
               type="text"
-              placeholder="Street Address"
+              placeholder="Street Address *"
               value={form.address}
               onChange={handleChange}
+              required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
@@ -162,34 +169,40 @@ export default function RegisterPage() {
             <input
               name="billingCity"
               type="text"
-              placeholder="City"
+              placeholder="City *"
               value={form.billingCity}
               onChange={handleChange}
+              required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               name="billingState"
               type="text"
-              placeholder="State / Province"
+              placeholder="State / Province *"
               value={form.billingState}
               onChange={handleChange}
+              required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <input
               name="billingZip"
               type="text"
-              placeholder="ZIP / Postal Code"
+              placeholder="ZIP / Postal Code *"
               value={form.billingZip}
               onChange={handleChange}
+              required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <select
               name="billingCountry"
               value={form.billingCountry}
               onChange={handleChange}
-              className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+              required
             >
-              <option value="">Country</option>
+              <option value="">Country *</option>
               {COUNTRIES.map((country) => (
                 <option key={country.code} value={country.name}>
                   {country.name}
@@ -199,9 +212,11 @@ export default function RegisterPage() {
             <input
               name="phone"
               type="tel"
-              placeholder="Phone"
+              placeholder="Phone *"
               value={form.phone}
               onChange={handleChange}
+              required
+              aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <p className="col-span-full text-xs text-muted-foreground">
