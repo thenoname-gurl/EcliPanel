@@ -21,6 +21,10 @@ export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterPro
     return null
   }
 
+  if (typeof pathname === 'string' && (pathname.startsWith('/dashboard/tickets') || pathname.startsWith('/dashboard/ai'))) {
+    return null
+  }
+
   const commonLinks = (
     <div className="flex flex-wrap justify-center gap-3">
       <Link href="/docs" className="hover:text-foreground">
