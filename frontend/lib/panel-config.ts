@@ -373,11 +373,6 @@ export const NAVIGATION: NavSection[] = [
         icon: Building2,
       },
       {
-        label: "Roles",
-        href: "/dashboard/roles",
-        icon: Shield,
-      },
-      {
         label: "API Keys",
         href: "/dashboard/apikeys",
         icon: Fingerprint,
@@ -461,6 +456,12 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Admin Panel",
         href: "/dashboard/admin",
+        icon: Shield,
+        badge: "Staff",
+      },
+      {
+        label: "Roles",
+        href: "/dashboard/roles",
         icon: Shield,
         badge: "Staff",
       },

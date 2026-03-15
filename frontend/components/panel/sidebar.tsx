@@ -80,9 +80,15 @@ export function PanelSidebar() {
     return pathname.startsWith(item.href)
   }
 
+  const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
+
   const isLocked = (item: NavItem) => {
-    if (!item.requiredTier || !user) return false
-    // basic and pro are treated as paid tier
+    if (!user) return false
+
+    if (item.badge === 'Staff' && !isAdmin) return true
+
+    if (!item.requiredTier) return false
+
     const tierOrder: Record<string, number> = { free: 0, basic: 1, pro: 1, paid: 1, educational: 1, enterprise: 2 }
     const userTier = tierOrder[user.tier ?? "free"] ?? 0
     const reqTier = tierOrder[item.requiredTier] ?? 0
@@ -129,18 +135,24 @@ export function PanelSidebar() {
         {/* Navigation */}
         <ScrollArea className="min-h-0 flex-1 py-3">
           <nav className="flex flex-col gap-1 px-3">
-            {NAVIGATION.map((section) => (
-              <div key={section.title} className="mb-2">
-                {!collapsed && (
-                  <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {section.title}
-                  </p>
-                )}
-                {collapsed && <div className="mb-1 h-px bg-border" />}
-                {section.items.map((item) => {
+            {NAVIGATION.map((section) => {
+              const visibleItems = section.items.filter((item) => !(item.badge === 'Staff' && !isAdmin));
+              if (visibleItems.length === 0) return null
+
+              return (
+                <div key={section.title} className="mb-2">
+                  {!collapsed && (
+                    <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {section.title}
+                    </p>
+                  )}
+                  {collapsed && <div className="mb-1 h-px bg-border" />}
+                  {visibleItems.map((item) => {
                   const locked = isLocked(item)
                   const active = isActive(item)
                   const Icon = item.icon
+
+                  if (!isAdmin && item.badge === 'Staff') return null
 
                   const linkContent = locked ? (
                     <button
@@ -209,8 +221,9 @@ export function PanelSidebar() {
 
                   return <div key={item.href}>{linkContent}</div>
                 })}
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </nav>
         </ScrollArea>
 

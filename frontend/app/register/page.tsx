@@ -205,9 +205,22 @@ export default function RegisterPage() {
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
             <p className="col-span-full text-xs text-muted-foreground">
-              By signing up you agree to the{" "}
-              <a href="https://eclipsesystems.org/legal" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">
+              By signing in you agree to the{" "}
+              <a
+                href="https://ecli.app/documents/Terms%20of%20Service.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+              >
                 Terms of Service
+              </a>
+              {" "}and <a
+                href="https://ecli.app/documents/Privacy%20Policy.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Privacy Policy
               </a>.
             </p>
             <div className="col-span-full flex items-center justify-between">

@@ -240,18 +240,25 @@ export default function LoginPage() {
           {passkeyLoading ? "Waiting for passkey..." : "Sign in with Passkey"}
         </button>
 
-        {/* Terms of service notice */}
+        {/* Terms of Service and Privacy Policy notice */}
         <p className="mt-5 text-center text-xs text-muted-foreground">
           By signing in you agree to the{" "}
           <a
-            href="https://eclipsesystems.org/legal"
+            href="https://ecli.app/documents/Terms%20of%20Service.pdf"
             target="_blank"
             rel="noopener noreferrer"
             className="underline underline-offset-2 hover:text-foreground transition-colors"
           >
             Terms of Service
           </a>
-          .
+          {" "}and <a
+            href="https://ecli.app/documents/Privacy%20Policy.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            Privacy Policy
+          </a>.
         </p>
 
         {/* Create account link */}

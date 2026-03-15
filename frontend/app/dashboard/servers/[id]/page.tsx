@@ -243,6 +243,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   }, [id])
 
   const isRunningStatus = (s: any) => (s === "running" || s === "online")
+  const isPowerableStatus = (s: any) => isRunningStatus(s) || s === "starting" || s === "stopping"
   const isStoppedStatus = (s: any) => (s === "stopped" || s === "offline" || s === "hibernated")
   const isHibernatedStatus = (s: any) => s === "hibernated"
 
@@ -362,7 +363,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 size="sm"
                 variant="outline"
                 className="border-green-500/30 text-green-400 hover:bg-green-500/10"
-                disabled={powerLoading || isRunningStatus(server.status) || isHibernatedStatus(server.status)}
+                disabled={powerLoading || isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("start")}
               >
                 <Play className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Start</span>
@@ -371,7 +372,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 size="sm"
                 variant="outline"
                 className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-                disabled={powerLoading || !isRunningStatus(server.status) || isHibernatedStatus(server.status)}
+                disabled={powerLoading || !isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("restart")}
               >
                 <RotateCcw className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Restart</span>
@@ -380,7 +381,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 size="sm"
                 variant="outline"
                 className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                disabled={powerLoading || !isRunningStatus(server.status) || isHibernatedStatus(server.status)}
+                disabled={powerLoading || !isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("stop")}
               >
                 <Square className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Stop</span>
@@ -388,7 +389,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <Button
                 size="sm"
                 variant="destructive"
-                disabled={powerLoading || !isRunningStatus(server.status) || isHibernatedStatus(server.status)}
+                disabled={powerLoading || !isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("kill")}
               >
                 <Power className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Kill</span>
@@ -2169,7 +2170,9 @@ function StartupTab({ serverId }: { serverId: string }) {
       .then((data) => {
         setStartup(data)
         setEditedEnv(data?.environment || {})
-        setDonePatterns(data?.processConfig?.startup?.done || [])
+        const patterns = data?.processConfig?.startup?.done
+        setDonePatterns(patterns && patterns.length ? patterns : [" "]) 
+        // Some templates have no clear startup pattern..
       })
       .catch(() => {})
       .finally(() => setLoading(false))
