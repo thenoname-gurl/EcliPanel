@@ -2045,7 +2045,8 @@ isSuspicious: true if fraudScore >= 50`;
 
   app.post(prefix + '/admin/ensure-portal-plans', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { portalType } = ctx.body as any;
+    const body = (ctx.body as any) || {};
+    const portalType = body.portalType as string | undefined;
     const userRepo = AppDataSource.getRepository(User);
     const planRepo = AppDataSource.getRepository(Plan);
     const orderRepo = AppDataSource.getRepository(Order);

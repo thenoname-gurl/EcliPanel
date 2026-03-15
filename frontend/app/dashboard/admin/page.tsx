@@ -666,6 +666,7 @@ export default function AdminPanel() {
   const [planFeatures, setPlanFeatures] = useState("")
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState("")
+  const [ensureLoading, setEnsureLoading] = useState(false)
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
     paid: "Paid Portal",
@@ -1412,6 +1413,25 @@ export default function AdminPanel() {
     if (!confirm(`Delete plan "${plan.name}"?`)) return
     await apiFetch(`${API_ENDPOINTS.adminPlans}/${plan.id}`, { method: "DELETE" })
     setPlans((prev) => prev.filter((p) => p.id !== plan.id))
+  }
+
+  async function ensurePortalPlans() {
+    if (!confirm("Ensure all users have a portal-matching plan? This will create orders for missing assignments.")) return
+    setEnsureLoading(true)
+    try {
+      const res = await apiFetch('/api/admin/ensure-portal-plans', { method: 'POST' })
+      if (res && typeof res.assigned !== 'undefined') {
+        alert(`Assigned plans to ${res.assigned} users.`)
+        apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
+        apiFetch(API_ENDPOINTS.adminUsers).then((d: any) => setUsers(Array.isArray(d) ? d : [])).catch(() => { })
+      } else {
+        alert('Operation completed.')
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Failed to ensure portal plans')
+    } finally {
+      setEnsureLoading(false)
+    }
   }
 
   // ── Issue Order ───────────────────────────────────────────────────────────
@@ -3642,9 +3662,15 @@ Content-Type: application/json
                     <p className="text-sm font-medium text-foreground">Plans</p>
                     <Badge variant="outline" className="text-xs">{plans.length}</Badge>
                   </div>
-                  <Button size="sm" onClick={openNewPlan}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> New Plan
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={openNewPlan}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> New Plan
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={ensurePortalPlans} disabled={ensureLoading}>
+                      {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                      Ensure Portal Plans
+                    </Button>
+                  </div>
                 </div>
                 {plans.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground">No plans configured. Create one to define resource tiers for users.</p>

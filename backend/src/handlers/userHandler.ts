@@ -128,7 +128,7 @@ export async function userRoutes(app: any, prefix = '') {
       await sendMail({
         to: user.email,
         from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
-        subject: 'Verify your email — EcliPanel',
+        subject: 'Verify your email - EcliPanel',
         template: 'email-verify',
         vars: { name: user.firstName || 'User', verifyUrl, code },
       });
