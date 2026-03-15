@@ -57,11 +57,14 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = "p
 /**
  * Status indicator dot with label
  */
-export function StatusBadge({ status }: { status: "online" | "offline" | "starting" | "running" | "stopped" | "pending" | "open" | "closed" | "urgent" | "high" | "medium" | "low" }) {
+export function StatusBadge({ status }: { status: "online" | "offline" | "starting" | "running" | "stopped" | "pending" | "open" | "opened" | "replied" | "awaiting_staff_reply" | "closed" | "urgent" | "high" | "medium" | "low" }) {
   const config: Record<string, { color: string; label: string }> = {
     online: { color: "bg-success", label: "Online" },
     running: { color: "bg-success", label: "Running" },
     open: { color: "bg-info", label: "Open" },
+    opened: { color: "bg-info", label: "Opened" },
+    replied: { color: "bg-info", label: "Replied" },
+    awaiting_staff_reply: { color: "bg-warning", label: "Awaiting Staff" },
     starting: { color: "bg-warning", label: "Starting" },
     pending: { color: "bg-warning", label: "Pending" },
     medium: { color: "bg-warning", label: "Medium" },

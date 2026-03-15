@@ -23,6 +23,16 @@ import {
 } from "lucide-react"
 
 function buildMessages(ticket: any) {
+  if (Array.isArray(ticket?.messages) && ticket.messages.length) {
+    return ticket.messages.map((m: any, idx: number) => ({
+      id: `msg-${idx}`,
+      sender: m.sender === 'staff' ? 'Support Team' : ticket.userName || 'You',
+      senderRole: m.sender === 'staff' ? 'staff' : 'user',
+      content: m.message,
+      timestamp: m.created || m.createdAt || ticket.created,
+    }))
+  }
+
   const msgs: { id: string; sender: string; senderRole: "user" | "staff"; content: string; timestamp: string }[] = []
   if (ticket?.message) {
     msgs.push({ id: "msg-initial", sender: ticket.userName || "You", senderRole: "user", content: ticket.message, timestamp: ticket.created })
@@ -43,6 +53,8 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [reply, setReply] = useState("")
+  const [replyAs, setReplyAs] = useState<'staff' | 'user'>('user')
+  const [replyPriority, setReplyPriority] = useState('medium')
   const [sending, setSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -51,10 +63,14 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
       .then((data) => {
         setTicket(data)
         setMessages(buildMessages(data))
+        setReplyPriority(data?.priority || 'medium')
+        if (isAdmin) {
+          setReplyAs(data?.userId === user?.id ? 'user' : 'staff')
+        }
       })
       .catch((e) => setError(e.message || "Failed to load ticket"))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, isAdmin, user?.id])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -64,12 +80,14 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     if (!reply.trim() || !ticket) return
     setSending(true)
     try {
-      const updatePayload = isAdmin
-        ? { adminReply: reply.trim(), status: ticket.status }
-        : { message: ticket.message + "\n\n---\n" + reply.trim() }
       const updated = await apiFetch(API_ENDPOINTS.ticketDetail.replace(":id", id), {
         method: "PUT",
-        body: JSON.stringify(updatePayload),
+        body: JSON.stringify({
+          reply: reply.trim(),
+          replyAs,
+          status: ticket.status,
+          ...(isAdmin ? { priority: replyPriority } : {}),
+        }),
       })
       setTicket(updated)
       setMessages(buildMessages(updated))
@@ -144,6 +162,10 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
               </Badge>
             </div>
             <h1 className="mt-1 text-lg font-semibold text-foreground">{ticket.subject}</h1>
+            <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              {ticket.department && <span>Dept: {ticket.department}</span>}
+              {ticket.assignedTo && <span>Assigned: #{ticket.assignedTo}</span>}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {ticket.status !== "closed" ? (
@@ -216,6 +238,28 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                   rows={3}
                   className="w-full bg-transparent p-4 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none"
                 />
+                {isAdmin && (
+                  <div className="flex items-center justify-between border-t border-border px-4 py-2 gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-muted-foreground">Post as</label>
+                      <select value={replyAs} onChange={(e) => setReplyAs(e.target.value as any)}
+                        className="rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50">
+                        <option value="staff">Staff</option>
+                        <option value="user">User</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-muted-foreground">Priority</label>
+                      <select value={replyPriority} onChange={(e) => setReplyPriority(e.target.value)}
+                        className="rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50">
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between border-t border-border px-4 py-2">
                   <span className="text-xs text-muted-foreground">Ctrl+Enter to send</span>
                   <button

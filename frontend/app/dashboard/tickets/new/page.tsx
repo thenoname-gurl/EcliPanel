@@ -13,6 +13,7 @@ export default function NewTicketPage() {
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
   const [priority, setPriority] = useState("medium")
+  const [department, setDepartment] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +28,7 @@ export default function NewTicketPage() {
     try {
       await apiFetch(API_ENDPOINTS.tickets, {
         method: "POST",
-        body: JSON.stringify({ subject: subject.trim(), message: message.trim(), priority }),
+        body: JSON.stringify({ subject: subject.trim(), message: message.trim(), priority, department: department || undefined }),
       })
       router.push("/dashboard/tickets")
     } catch (err: any) {
@@ -82,22 +83,42 @@ export default function NewTicketPage() {
                 />
               </div>
 
-              {/* Priority */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground" htmlFor="priority">
-                  Priority
-                </label>
-                <select
-                  id="priority"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
-                >
-                  <option value="low">Low — general question / non-urgent</option>
-                  <option value="medium">Medium — something is not working as expected</option>
-                  <option value="high">High — service significantly impacted</option>
-                  <option value="urgent">Urgent — complete outage / critical issue</option>
-                </select>
+              {/* Priority & Department */}
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground" htmlFor="priority">
+                    Priority
+                  </label>
+                  <select
+                    id="priority"
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                  >
+                    <option value="low">Low - general question / non-urgent</option>
+                    <option value="medium">Medium - something is not working as expected</option>
+                    <option value="high">High - service significantly impacted</option>
+                    <option value="urgent">Urgent - complete outage / critical issue</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground" htmlFor="department">
+                    Department
+                  </label>
+                  <select
+                    id="department"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                  >
+                    <option value="">Select department</option>
+                    <option value="Support">Support</option>
+                    <option value="Billing">Billing</option>
+                    <option value="Technical">Technical</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
               </div>
 
               {/* Message */}

@@ -92,6 +92,10 @@ interface AdminTicket {
   priority: string
   adminReply: string | null
   created: string
+  lastReply?: string
+  department?: string
+  assignedTo?: number
+  messages?: Array<{ sender: 'user' | 'staff'; message: string; created: string }>
   user?: { firstName: string; lastName: string; email: string }
 }
 
@@ -330,8 +334,9 @@ const priorityColor: Record<string, string> = {
 }
 
 const ticketStatusColor: Record<string, string> = {
-  open: "border-primary/30 bg-primary/10 text-primary",
-  pending: "border-warning/30 bg-warning/10 text-warning",
+  opened: "border-primary/30 bg-primary/10 text-primary",
+  awaiting_staff_reply: "border-warning/30 bg-warning/10 text-warning",
+  replied: "border-info/30 bg-info/10 text-info",
   closed: "border-border bg-secondary/50 text-muted-foreground",
 }
 
@@ -592,7 +597,13 @@ export default function AdminPanel() {
   const [replyTicket, setReplyTicket] = useState<AdminTicket | null>(null)
   const [replyText, setReplyText] = useState("")
   const [replyStatus, setReplyStatus] = useState("closed")
+  const [replyPriority, setReplyPriority] = useState("medium")
+  const [replyDepartment, setReplyDepartment] = useState("")
+  const [replyAssignedTo, setReplyAssignedTo] = useState("")
+  const [replyAs, setReplyAs] = useState<'staff' | 'user'>('staff')
   const [replyLoading, setReplyLoading] = useState(false)
+  const [staffUsers, setStaffUsers] = useState<AdminUser[]>([])
+  const [staffLoading, setStaffLoading] = useState(false)
 
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -1066,22 +1077,43 @@ export default function AdminPanel() {
 
   function openReply(ticket: AdminTicket) {
     setReplyTicket(ticket)
-    setReplyText(ticket.adminReply || "")
-    setReplyStatus("closed")
+    setReplyText("")
+    setReplyStatus(ticket.status || "closed")
+    setReplyPriority(ticket.priority || "medium")
+    setReplyDepartment(ticket.department || "")
+    setReplyAssignedTo(ticket.assignedTo ? String(ticket.assignedTo) : "")
+
+    setReplyAs('staff')
+
+    if (staffUsers.length === 0) {
+      setStaffLoading(true)
+      apiFetch(API_ENDPOINTS.adminUsers)
+        .then((data: any) => {
+          const list = Array.isArray(data) ? data : []
+          setStaffUsers(list.filter((u) => ['admin', 'rootAdmin', '*'].includes(u.role || '')))
+        })
+        .catch(() => {})
+        .finally(() => setStaffLoading(false))
+    }
   }
 
   async function submitReply() {
     if (!replyTicket) return
     setReplyLoading(true)
     try {
-      await apiFetch(`${API_ENDPOINTS.adminTickets}/${replyTicket.id}`, {
+      const updated = await apiFetch(`${API_ENDPOINTS.adminTickets}/${replyTicket.id}`, {
         method: "PUT",
-        body: JSON.stringify({ adminReply: replyText, status: replyStatus }),
+        body: JSON.stringify({
+          reply: replyText,
+          replyAs: replyAs,
+          status: replyStatus,
+          priority: replyPriority,
+          department: replyDepartment || undefined,
+          assignedTo: replyAssignedTo ? Number(replyAssignedTo) : undefined,
+        }),
       })
       setTickets((prev) =>
-        prev.map((t) =>
-          t.id === replyTicket.id ? { ...t, adminReply: replyText, status: replyStatus } : t
-        )
+        prev.map((t) => (t.id === replyTicket.id ? (updated.ticket ?? updated) : t))
       )
       setReplyTicket(null)
     } finally {
@@ -2378,12 +2410,12 @@ remote: ${panelUrl}`
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <div className="flex gap-2">
-                    {["all", "open", "pending", "closed"].map((f) => (
+                    {['all', 'opened', 'awaiting_staff_reply', 'replied', 'closed'].map((f) => (
                       <button key={f} onClick={() => setTicketFilter(f)}
                         className={`rounded-md px-3 py-1 text-xs transition-colors ${ticketFilter === f
                           ? "bg-primary/20 text-primary"
                           : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                        {f === 'all' ? 'All' : f.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                       </button>
                     ))}
                   </div>
@@ -2399,6 +2431,8 @@ remote: ${panelUrl}`
                         <th className="px-4 py-3 text-left font-medium">#</th>
                         <th className="px-4 py-3 text-left font-medium">Subject</th>
                         <th className="px-4 py-3 text-left font-medium">User</th>
+                        <th className="px-4 py-3 text-left font-medium">Dept</th>
+                        <th className="px-4 py-3 text-left font-medium">Assigned</th>
                         <th className="px-4 py-3 text-left font-medium">Priority</th>
                         <th className="px-4 py-3 text-left font-medium">Status</th>
                         <th className="px-4 py-3 text-left font-medium">Created</th>
@@ -2418,12 +2452,22 @@ remote: ${panelUrl}`
                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">#{ticket.id}</td>
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
-                              {ticket.adminReply && (
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">Reply: {ticket.adminReply}</p>
+                              {((ticket.messages && ticket.messages.length) || ticket.adminReply) && (
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
+                                  Reply: {(ticket.messages && ticket.messages.length
+                                    ? ticket.messages[ticket.messages.length - 1].message
+                                    : ticket.adminReply) || ""}
+                                </p>
                               )}
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
                               {ticket.user ? `${ticket.user.firstName} ${ticket.user.lastName}` : `User #${ticket.userId}`}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {ticket.department || "—"}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {ticket.assignedTo ? `#${ticket.assignedTo}` : "—"}
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="outline" className={priorityColor[ticket.priority] || priorityColor.medium}>
@@ -2431,7 +2475,7 @@ remote: ${panelUrl}`
                               </Badge>
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="outline" className={ticketStatusColor[ticket.status] || ticketStatusColor.open}>
+                              <Badge variant="outline" className={ticketStatusColor[ticket.status] || ticketStatusColor.opened}>
                                 {ticket.status}
                               </Badge>
                             </td>
@@ -4376,11 +4420,17 @@ Content-Type: application/json
             <div className="flex flex-col gap-4 py-2">
               <div className="rounded-lg border border-border bg-secondary/30 p-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
-                  From {replyTicket.user
-                    ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}`
-                    : `User #${replyTicket.userId}`}
+                  From {replyTicket.messages && replyTicket.messages.length
+                    ? (replyTicket.messages[replyTicket.messages.length - 1].sender === 'staff' ? 'Support Team' : (replyTicket.user ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}` : `User #${replyTicket.userId}`))
+                    : replyTicket.user
+                      ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}`
+                      : `User #${replyTicket.userId}`}
                 </p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{replyTicket.message}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">
+                  {replyTicket.messages && replyTicket.messages.length
+                    ? replyTicket.messages[replyTicket.messages.length - 1].message
+                    : replyTicket.message}
+                </p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Your Reply</label>
@@ -4388,15 +4438,58 @@ Content-Type: application/json
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none"
                   placeholder="Type your reply…" />
               </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reply As</label>
+                  <select value={replyAs} onChange={(e) => setReplyAs(e.target.value as any)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                    <option value="staff">Staff</option>
+                    <option value="user">User</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Priority</label>
+                  <select value={replyPriority} onChange={(e) => setReplyPriority(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Department</label>
+                  <input value={replyDepartment} onChange={(e) => setReplyDepartment(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assigned Staff</label>
+                  <select value={replyAssignedTo} onChange={(e) => setReplyAssignedTo(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                    <option value="">Unassigned</option>
+                    {staffLoading ? (
+                      <option value="" disabled>Loading…</option>
+                    ) : (
+                      staffUsers.map((u) => (
+                        <option key={u.id} value={String(u.id)}>
+                          {u.firstName} {u.lastName} ({u.email})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Set Status</label>
                 <div className="flex gap-2">
-                  {["open", "pending", "closed"].map((s) => (
+                  {['opened', 'awaiting_staff_reply', 'replied', 'closed'].map((s) => (
                     <button key={s} onClick={() => setReplyStatus(s)}
                       className={`rounded-md px-3 py-1.5 text-xs transition-colors border ${replyStatus === s
                         ? "border-primary/50 bg-primary/20 text-primary"
                         : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"}`}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                     </button>
                   ))}
                 </div>

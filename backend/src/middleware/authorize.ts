@@ -21,14 +21,12 @@ export function authorize(required: string) {
         return false;
       });
       if (has) return;
-      console.warn('[authorize] Insufficient API key permissions', { required, perms, apiKeyType: apiKey.type, ctx: _ctxInfo });
       ctx.set.status = 403;
       return { error: 'Insufficient permissions (api key)' };
     }
 
     const user = ctx.user as User;
     if (!user) {
-      console.warn('[authorize] No user on context', { required, ctx: _ctxInfo });
       ctx.set.status = 401;
       return { error: 'Unauthorized' };
     }
@@ -43,7 +41,6 @@ export function authorize(required: string) {
       relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
     });
     if (!u) {
-      console.warn('[authorize] User record not found', { userId: user.id, required, ctx: _ctxInfo });
       ctx.set.status = 401;
       return { error: 'Unauthorized' };
     }
@@ -77,7 +74,6 @@ export function authorize(required: string) {
       return false;
     });
     if (!has) {
-      console.warn('[authorize] Insufficient permissions for user', { userId: user.id, role: user.role, required, perms, ctx: _ctxInfo });
       ctx.set.status = 403;
       return { error: 'Insufficient permissions' };
     }

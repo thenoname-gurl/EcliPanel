@@ -122,7 +122,9 @@ export default function TicketsPage() {
                       <h3 className="mt-2 font-medium text-foreground group-hover:text-primary transition-colors">
                         {ticket.subject}
                       </h3>
-                      <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                        {ticket.department && <span>Dept: {ticket.department}</span>}
+                        {ticket.assignedTo && <span>Assigned: #{ticket.assignedTo}</span>}
                         {ticket.created && <span>Created: {new Date(ticket.created).toLocaleDateString()}</span>}
                         {ticket.lastReply && <span>Last reply: {new Date(ticket.lastReply).toLocaleString()}</span>}
                         {ticket.updatedAt && !ticket.lastReply && <span>Updated: {new Date(ticket.updatedAt).toLocaleString()}</span>}
