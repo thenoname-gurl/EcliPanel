@@ -15,6 +15,9 @@ import { WingsApiService } from '../services/wingsApiService';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { t } from 'elysia';
 import crypto from 'crypto';
+import { Plan } from '../models/plan.entity';
+import { Order } from '../models/order.entity';
+import { Node } from '../models/node.entity';
 
 const userSchema = t.Object({
   id: t.Number(),
@@ -131,6 +134,52 @@ export async function userRoutes(app: any, prefix = '') {
       });
     } catch (err) {
       console.error('Failed to send verification email:', err);
+    }
+
+    try {
+      const planRepo = AppDataSource.getRepository(Plan);
+      const orderRepo = AppDataSource.getRepository(Order);
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const plans = await planRepo.find({ where: { type: user.portalType }, order: { price: 'ASC' } });
+      if (plans && plans.length > 0) {
+        const chosen = plans.find(p => p.isDefault) || plans[0];
+
+        let limits: Record<string, number> = {};
+        if (chosen.type === 'enterprise' && user.nodeId) {
+          const node = await nodeRepo.findOneBy({ id: user.nodeId });
+          if (node) {
+            if (node.memory != null) limits.memory = Number(node.memory);
+            if (node.disk != null) limits.disk = Number(node.disk);
+            if (node.cpu != null) limits.cpu = Number(node.cpu);
+            if (node.serverLimit != null) limits.serverLimit = Number(node.serverLimit);
+          }
+        }
+        if (Object.keys(limits).length === 0) {
+          if (chosen.memory != null) limits.memory = chosen.memory;
+          if (chosen.disk != null) limits.disk = chosen.disk;
+          if (chosen.cpu != null) limits.cpu = chosen.cpu;
+          if (chosen.serverLimit != null) limits.serverLimit = chosen.serverLimit;
+        }
+
+        user.limits = Object.keys(limits).length ? limits : null;
+        user.portalType = chosen.type;
+        await userRepo.save(user);
+
+        const order = orderRepo.create({
+          userId: user.id,
+          description: `${chosen.name} (auto-assigned)`,
+          planId: chosen.id,
+          amount: chosen.price ?? 0,
+          items: `plan:${chosen.id}`,
+          status: 'active',
+          notes: 'Auto-assigned plan on registration',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+        });
+        await orderRepo.save(order);
+      }
+    } catch (err) {
+      console.error('Failed to auto-assign plan on register:', err);
     }
 
     return { success: true, user: safeUser(user) };
