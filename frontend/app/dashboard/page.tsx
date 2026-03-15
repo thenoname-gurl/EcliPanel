@@ -77,9 +77,21 @@ export default function SOCDashboard() {
       })
   }, [])
 
-  const onlineServers = servers.filter((s) => s.status === "online" || s.status === "running").length
+  const myServers = servers.filter((s) => s.userId == null || s.userId === user.id)
+  const otherServers = servers.filter((s) => s.userId != null && s.userId !== user.id)
+
+  const myOnlineServers = myServers.filter((s) => s.status === "online" || s.status === "running").length
+  const myOnlineList = myServers.filter((s) => s.status === "online" || s.status === "running")
+
+  const otherOnlineServers = otherServers.filter((s) => s.status === "online" || s.status === "running").length
+  const otherOnlineList = otherServers.filter((s) => s.status === "online" || s.status === "running")
+
+  const onlineServers = myOnlineServers + otherOnlineServers
   const totalServers = servers.length
-  const onlineList = servers.filter(s => s.status === "online" || s.status === "running")
+  const onlineList = [...myOnlineList, ...otherOnlineList]
+
+  const myUptimePct = myServers.length > 0 ? Math.round((myOnlineServers / myServers.length) * 10000) / 100 : 0
+  const totalUptimePct = totalServers > 0 ? Math.round((onlineServers / totalServers) * 10000) / 100 : 0
 
   const totalCpuUsed = onlineList.reduce((a, s) => a + (s.resources?.cpu_absolute ?? 0), 0)
   const avgCpu = onlineServers > 0 ? Math.round(totalCpuUsed / onlineServers) : 0
@@ -90,6 +102,48 @@ export default function SOCDashboard() {
   const memPct = totalMemLimit > 0 ? Math.round((totalMemUsed / totalMemLimit) * 100) : 0
   const diskPct = totalDiskLimit > 0 ? Math.round((totalDiskUsed / totalDiskLimit) * 100) : 0
 
+  const renderServerCard = (server: any) => {
+    const cpuPct = Math.round(server.resources?.cpu_absolute ?? 0)
+    const memUsed = server.resources?.memory_bytes ?? 0
+    const memLimit = (server.build?.memory_limit ?? 0) * 1024 * 1024
+    const ramPct = memLimit > 0 ? Math.round((memUsed / memLimit) * 100) : 0
+    const diskUsed = server.resources?.disk_bytes ?? 0
+    const diskLimit = (server.build?.disk_space ?? 0) * 1024 * 1024
+    const dkPct = diskLimit > 0 ? Math.round((diskUsed / diskLimit) * 100) : 0
+    return (
+      <div
+        key={server.uuid || server.id}
+        className="rounded-lg border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/20"
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-success" />
+            <span className="text-sm font-medium text-foreground">
+              {server.name}
+            </span>
+          </div>
+          <span className="font-mono text-xs text-muted-foreground">
+            {server.nodeName || server.node || ""}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <UsageBar label="CPU" value={cpuPct} />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{cpuPct}%</p>
+          </div>
+          <div>
+            <UsageBar label="RAM" value={ramPct} />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(memUsed)} / {formatBytes(memLimit)}</p>
+          </div>
+          <div>
+            <UsageBar label="Disk" value={dkPct} />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(diskUsed)} / {formatBytes(diskLimit)}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <PanelHeader title="SOC Dashboard" description="Security Operations Center Overview" />
@@ -97,10 +151,16 @@ export default function SOCDashboard() {
         <div className="flex flex-col gap-6 p-6">
           {/* Stats Row */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Servers Online"
-              value={`${onlineServers}/${totalServers}`}
+              <StatCard
+              title="Your Servers Online"
+              value={`${myOnlineServers}/${myServers.length}`}
+              subtitle={otherServers.length > 0 ? `${otherOnlineServers}/${otherServers.length} others` : undefined}
               icon={Server}
+            />
+            <StatCard
+              title="Total Servers Online"
+              value={`${onlineServers}/${totalServers}`}
+              icon={Globe}
             />
             <StatCard
               title="Threat Level"
@@ -109,15 +169,9 @@ export default function SOCDashboard() {
               icon={Shield}
             />
             <StatCard
-              title="Active Alerts"
-              value={socAlerts.length}
-              subtitle={socAlerts.length > 0 ? "Requires attention" : "All clear"}
-              icon={AlertTriangle}
-            />
-            <StatCard
               title="Uptime"
-              value={totalServers > 0 ? `${Math.round((onlineServers / totalServers) * 10000) / 100}%` : "N/A"}
-              subtitle="Online servers ratio"
+              value={`${myUptimePct}%`}
+              subtitle={totalServers > 0 ? `Total: ${totalUptimePct}%` : "No servers"}
               icon={Activity}
             />
           </div>
@@ -131,47 +185,24 @@ export default function SOCDashboard() {
                 {onlineList.length === 0 && !loading && (
                   <p className="text-sm text-muted-foreground py-4 text-center">No servers online</p>
                 )}
-                {onlineList.map((server) => {
-                  const cpuPct = Math.round(server.resources?.cpu_absolute ?? 0)
-                  const memUsed = server.resources?.memory_bytes ?? 0
-                  const memLimit = (server.build?.memory_limit ?? 0) * 1024 * 1024
-                  const ramPct = memLimit > 0 ? Math.round((memUsed / memLimit) * 100) : 0
-                  const diskUsed = server.resources?.disk_bytes ?? 0
-                  const diskLimit = (server.build?.disk_space ?? 0) * 1024 * 1024
-                  const dkPct = diskLimit > 0 ? Math.round((diskUsed / diskLimit) * 100) : 0
-                  return (
-                    <div
-                      key={server.uuid || server.id}
-                      className="rounded-lg border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/20"
-                    >
-                      <div className="mb-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-success" />
-                          <span className="text-sm font-medium text-foreground">
-                            {server.name}
-                          </span>
-                        </div>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {server.nodeName || server.node || ""}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <UsageBar label="CPU" value={cpuPct} />
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{cpuPct}%</p>
-                        </div>
-                        <div>
-                          <UsageBar label="RAM" value={ramPct} />
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(memUsed)} / {formatBytes(memLimit)}</p>
-                        </div>
-                        <div>
-                          <UsageBar label="Disk" value={dkPct} />
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(diskUsed)} / {formatBytes(diskLimit)}</p>
-                        </div>
-                      </div>
+
+                {myOnlineList.length > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <h4 className="text-sm font-semibold text-foreground">Your Servers</h4>
+                    <div className="flex flex-col gap-4">
+                      {myOnlineList.map(renderServerCard)}
                     </div>
-                  )
-                })}
+                  </div>
+                )}
+
+                {otherOnlineList.length > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <h4 className="text-sm font-semibold text-foreground">Other Servers</h4>
+                    <div className="flex flex-col gap-4">
+                      {otherOnlineList.map(renderServerCard)}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

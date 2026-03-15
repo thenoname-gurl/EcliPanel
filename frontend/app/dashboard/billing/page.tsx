@@ -168,7 +168,7 @@ export default function BillingPage() {
   const isEnterprisePortal = normalizedPortalType === 'enterprise'
   const demoActive = !!demoActiveUntil && new Date(demoActiveUntil) > new Date()
   const demoExpired = !!demoActiveUntil && new Date(demoActiveUntil) <= new Date()
-  const showDemoPanel = !!user && (demoActive || !demoUsed)
+  const showDemoPanel = !!user && (demoActive || (!demoUsed && !isEnterprisePortal))
 
   return (
     <>

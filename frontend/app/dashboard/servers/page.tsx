@@ -248,6 +248,7 @@ function formatBytes(bytes: number) {
 }
 
 export default function ServersPage() {
+  const { user } = useAuth()
   const [search, setSearch] = useState("")
   const [servers, setServers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -304,6 +305,105 @@ export default function ServersPage() {
       s.game?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const myServers = filtered.filter((s: any) => user ? s.userId === user.id : true)
+  const otherServers = filtered.filter((s: any) => user ? s.userId && s.userId !== user.id : false)
+
+  const renderServerCard = (server: any) => {
+    const sid = server.uuid || server.id
+    return (
+      <div
+        key={sid}
+        className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]"
+      >
+        {/* Header - clickable */}
+        <Link href={`/dashboard/servers/${sid}`} className="block">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="font-medium text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
+                {server.name}
+                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+              </h3>
+              <div className="mt-1 flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="border-border bg-secondary/50 text-muted-foreground text-xs"
+                >
+                  {server.eggName || server.startup?.eggName || server.build?.egg?.name || server.game || "—"}
+                </Badge>
+                <StatusBadge status={server.status} />
+              </div>
+            </div>
+            <button
+              onClick={(e) => e.preventDefault()}
+              className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </div>
+        </Link>
+
+        {/* Stats */}
+        <div className="mt-4 flex flex-col gap-2">
+          <div>
+            <UsageBar label="CPU" value={Math.round(server.resources?.cpu_absolute ?? 0)} />
+          </div>
+          <div>
+            <UsageBar label="RAM" value={server.build?.memory_limit ? Math.round(((server.resources?.memory_bytes ?? 0) / (server.build.memory_limit * 1024 * 1024)) * 100) : 0} />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(server.resources?.memory_bytes ?? 0)} / {formatBytes((server.build?.memory_limit ?? 0) * 1024 * 1024)}</p>
+          </div>
+          <div>
+            <UsageBar label="Disk" value={server.build?.disk_space ? Math.round(((server.resources?.disk_bytes ?? 0) / (server.build.disk_space * 1024 * 1024)) * 100) : 0} />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(server.resources?.disk_bytes ?? 0)} / {formatBytes((server.build?.disk_space ?? 0) * 1024 * 1024)}</p>
+          </div>
+        </div>
+
+        {/* Meta */}
+        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+          <span>{server.nodeName || server.node || "\u2014"}</span>
+          <span>{server.resources?.uptime != null ? formatUptime(server.resources.uptime) : "\u2014"}</span>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
+          {server.status === "online" || server.status === "running" ? (
+            <button
+              onClick={() => sendPower(server.id || server.uuid, "stop")}
+              disabled={powerLoading === (server.id || server.uuid)}
+              className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+            >
+              <Square className="h-3 w-3" />
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={() => sendPower(server.id || server.uuid, "start")}
+              disabled={powerLoading === (server.id || server.uuid)}
+              className="flex items-center gap-1.5 rounded-md bg-success/10 px-3 py-1.5 text-xs text-success transition-colors hover:bg-success/20 disabled:opacity-50"
+            >
+              <Play className="h-3 w-3" />
+              Start
+            </button>
+          )}
+          <button
+            onClick={() => sendPower(server.id || server.uuid, "restart")}
+            disabled={powerLoading === (server.id || server.uuid)}
+            className="flex items-center gap-1.5 rounded-md bg-warning/10 px-3 py-1.5 text-xs text-warning transition-colors hover:bg-warning/20 disabled:opacity-50"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Restart
+          </button>
+          <Link
+            href={`/dashboard/servers/${sid}`}
+            className="ml-auto flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground transition-colors hover:bg-secondary/80"
+          >
+            <Terminal className="h-3 w-3" />
+            Console
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {showNewModal && (
@@ -340,104 +440,38 @@ export default function ServersPage() {
           {/* Servers Grid */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {loading ? (
-            <div className="col-span-full text-center py-10 text-sm text-muted-foreground">
-              Loading servers...
-            </div>
-          ) : (
-            filtered.map((server: any) => {
-              const sid = server.uuid || server.id
-              return (
-              <div
-                key={sid}
-                className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]"
-              >
-                {/* Header - clickable */}
-                <Link href={`/dashboard/servers/${sid}`} className="block">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
-                        {server.name}
-                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
-                      </h3>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className="border-border bg-secondary/50 text-muted-foreground text-xs"
-                        >
-                          {server.eggName || server.startup?.eggName || server.build?.egg?.name || server.game || "—"}
-                        </Badge>
-                        <StatusBadge status={server.status} />
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => e.preventDefault()}
-                      className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </div>
-                </Link>
-
-                {/* Stats */}
-                <div className="mt-4 flex flex-col gap-2">
-                  <div>
-                    <UsageBar label="CPU" value={Math.round(server.resources?.cpu_absolute ?? 0)} />
-                  </div>
-                  <div>
-                    <UsageBar label="RAM" value={server.build?.memory_limit ? Math.round(((server.resources?.memory_bytes ?? 0) / (server.build.memory_limit * 1024 * 1024)) * 100) : 0} />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(server.resources?.memory_bytes ?? 0)} / {formatBytes((server.build?.memory_limit ?? 0) * 1024 * 1024)}</p>
-                  </div>
-                  <div>
-                    <UsageBar label="Disk" value={server.build?.disk_space ? Math.round(((server.resources?.disk_bytes ?? 0) / (server.build.disk_space * 1024 * 1024)) * 100) : 0} />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(server.resources?.disk_bytes ?? 0)} / {formatBytes((server.build?.disk_space ?? 0) * 1024 * 1024)}</p>
-                  </div>
-                </div>
-
-                {/* Meta */}
-                <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{server.nodeName || server.node || "\u2014"}</span>
-                  <span>{server.resources?.uptime != null ? formatUptime(server.resources.uptime) : "\u2014"}</span>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
-                  {server.status === "online" || server.status === "running" ? (
-                    <button
-                      onClick={() => sendPower(server.id || server.uuid, "stop")}
-                      disabled={powerLoading === (server.id || server.uuid)}
-                      className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-                    >
-                      <Square className="h-3 w-3" />
-                      Stop
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => sendPower(server.id || server.uuid, "start")}
-                      disabled={powerLoading === (server.id || server.uuid)}
-                      className="flex items-center gap-1.5 rounded-md bg-success/10 px-3 py-1.5 text-xs text-success transition-colors hover:bg-success/20 disabled:opacity-50"
-                    >
-                      <Play className="h-3 w-3" />
-                      Start
-                    </button>
-                  )}
-                  <button
-                    onClick={() => sendPower(server.id || server.uuid, "restart")}
-                    disabled={powerLoading === (server.id || server.uuid)}
-                    className="flex items-center gap-1.5 rounded-md bg-warning/10 px-3 py-1.5 text-xs text-warning transition-colors hover:bg-warning/20 disabled:opacity-50"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Restart
-                  </button>
-                  <Link
-                    href={`/dashboard/servers/${sid}`}
-                    className="ml-auto flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground transition-colors hover:bg-secondary/80"
-                  >
-                    <Terminal className="h-3 w-3" />
-                    Console
-                  </Link>
-                </div>
+              <div className="col-span-full text-center py-10 text-sm text-muted-foreground">
+                Loading servers...
               </div>
-            )}))}
+            ) : (
+              <>
+                {/* My Servers */}
+                {myServers.length > 0 && (
+                  <div className="col-span-full">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-foreground">Your Servers</h3>
+                      <span className="text-xs text-muted-foreground">{myServers.length} total</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 mt-3">
+                      {myServers.map((server: any) => renderServerCard(server))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Other Servers */}
+                {otherServers.length > 0 && (
+                  <div className="col-span-full">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-foreground">Other Servers</h3>
+                      <span className="text-xs text-muted-foreground">{otherServers.length} total</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 mt-3">
+                      {otherServers.map((server: any) => renderServerCard(server))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {!loading && filtered.length === 0 && (

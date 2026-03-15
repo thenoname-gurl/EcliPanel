@@ -88,7 +88,13 @@ export async function serverRoutes(app: any, prefix = '') {
             const uuid: string = s.configuration?.uuid || s.uuid;
             const cfg = cfgMap.get(uuid);
             const norm = normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined);
-            all.push({ ...norm, name: cfg?.name || norm.name, nodeId: n.id, nodeName: n.name });
+            all.push({
+              ...norm,
+              name: cfg?.name || norm.name,
+              nodeId: n.id,
+              nodeName: n.name,
+              userId: cfg?.userId,
+            });
           }
         } catch {
           // skip
@@ -107,6 +113,7 @@ export async function serverRoutes(app: any, prefix = '') {
             build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
             container: { image: c.dockerImage },
             nodeId: c.nodeId,
+            userId: c.userId,
           });
         }
       }
@@ -143,7 +150,7 @@ export async function serverRoutes(app: any, prefix = '') {
           const s = res.data;
           const uuid: string = s.configuration?.uuid || s.uuid;
           const norm = normalizeServer(s, c.hibernated ? 'hibernated' : undefined);
-          all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name });
+          all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
         } catch {
           all.push({
             uuid: c.uuid,
@@ -155,6 +162,7 @@ export async function serverRoutes(app: any, prefix = '') {
             build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
             container: { image: c.dockerImage },
             nodeId: c.nodeId,
+            userId: c.userId,
           });
         }
       }
