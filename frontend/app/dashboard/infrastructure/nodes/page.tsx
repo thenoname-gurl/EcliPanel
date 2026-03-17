@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -29,6 +30,7 @@ import { apiFetch } from "@/lib/api-client"
 
 interface Node {
   id: number
+  nodeId?: string
   name: string
   url: string
   nodeType: string
@@ -68,20 +70,37 @@ const NODE_TYPE_META: Record<string, { label: string; color: string }> = {
 
 export default function InfraNodesPage() {
   const { user } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [nodes, setNodes] = useState<Node[]>([])
   const [orgs, setOrgs] = useState<Organisation[]>([])
   const [loading, setLoading] = useState(true)
   const [generatedToken, setGeneratedToken] = useState<string | null>(null)
   const demoActive = !!user?.demoExpiresAt && new Date(user.demoExpiresAt) > new Date()
+  const [editNodeId, setEditNodeId] = useState<string | null>(null)
 
   // ── Create/Edit dialog ──
   const [nodeDialog, setNodeDialog] = useState<Node | null | "new">(null)
   const [nodeName, setNodeName] = useState("")
+
+  useEffect(() => {
+    const edit = searchParams.get("edit")
+    if (edit) setEditNodeId(edit)
+  }, [searchParams])
   const [nodeUrl, setNodeUrl] = useState("")
   const [nodeToken, setNodeToken] = useState("")
+  const [nodeIdValue, setNodeIdValue] = useState<string>("")
   const [nodeType, setNodeType] = useState("free")
   const [nodeOrgId, setNodeOrgId] = useState<string>("")
   const [nodeUseSSL, setNodeUseSSL] = useState(true)
+
+  function generateDefaultNodeId() {
+    if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
   const [nodeAllowedOrigin, setNodeAllowedOrigin] = useState("")
   const [nodeSftpPort, setNodeSftpPort] = useState("")
   const [nodeSftpProxyPort, setNodeSftpProxyPort] = useState("")
@@ -113,6 +132,17 @@ export default function InfraNodesPage() {
     apiFetch(API_ENDPOINTS.adminOrganisations).then((d) => setOrgs(d || [])).catch(() => {})
   }, [loadNodes])
 
+  useEffect(() => {
+    if (!loading && editNodeId) {
+      const match = nodes.find((n) => String(n.id) === editNodeId || n.nodeId === editNodeId)
+      if (match) {
+        openEdit(match)
+        setEditNodeId(null)
+        router.replace('/dashboard/infrastructure/nodes')
+      }
+    }
+  }, [loading, editNodeId, nodes, router])
+
   // ── Generate token ──
   async function generateToken() {
     const data = await apiFetch(`${API_ENDPOINTS.nodes}/generate-token`)
@@ -128,6 +158,7 @@ export default function InfraNodesPage() {
     }
     setNodeDialog("new")
     setNodeName(""); setNodeUrl(""); setNodeToken("")
+    setNodeIdValue(generateDefaultNodeId())
     setNodeType("free"); setNodeOrgId("")
     setNodeUseSSL(true)
     setNodeAllowedOrigin("")
@@ -143,6 +174,7 @@ export default function InfraNodesPage() {
   function openEdit(node: Node) {
     setNodeDialog(node)
     setNodeName(node.name); setNodeUrl(node.url); setNodeToken("")
+    setNodeIdValue(node.nodeId || generateDefaultNodeId())
     setNodeType(node.nodeType || "free")
     setNodeOrgId(node.organisationId ? String(node.organisationId) : "")
     setNodeUseSSL(node.useSSL !== false)
@@ -169,6 +201,8 @@ export default function InfraNodesPage() {
     try {
       const body: Record<string, any> = {
         name: nodeName,
+        url: nodeUrl,
+        nodeId: nodeIdValue || null,
         nodeType,
         orgId: nodeOrgId ? Number(nodeOrgId) : undefined,
         useSSL: nodeUseSSL,
@@ -286,7 +320,7 @@ export default function InfraNodesPage() {
                         <p className="mt-1 font-mono text-xs text-muted-foreground break-all">{node.url}</p>
                       </div>
                       <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs shrink-0">
-                        #{node.id}
+                        {node.nodeId ? node.nodeId : `#${node.id}`}
                       </Badge>
                     </div>
 
@@ -353,18 +387,27 @@ export default function InfraNodesPage() {
               />
             </div>
 
-            {/* URL — only on create */}
-            {nodeDialog === "new" && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wings URL</label>
-                <input
-                  value={nodeUrl}
-                  onChange={(e) => setNodeUrl(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                  placeholder="https://wings.example.com:8080"
-                />
-              </div>
-            )}
+            {/* Node ID */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node ID</label>
+              <input
+                value={nodeIdValue}
+                onChange={(e) => setNodeIdValue(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                placeholder="e.g. 1897775d-8e9b-4804-ba21-b3ea07b36cdc"
+              />
+              <p className="text-[10px] text-muted-foreground">Used as the identifier in Wings configs. Must be a 32‑hex character UUID (dashes allowed).</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wings URL</label>
+              <input
+                value={nodeUrl}
+                onChange={(e) => setNodeUrl(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                placeholder="https://wings.example.com:8080"
+              />
+            </div>
 
             {/* Token — only on create */}
             {nodeDialog === "new" && (
@@ -600,7 +643,12 @@ export default function InfraNodesPage() {
             </Button>
             <Button
               onClick={saveNode}
-              disabled={nodeLoading || !nodeName.trim() || (nodeDialog === "new" && (!nodeUrl.trim() || !nodeToken.trim()))}
+              disabled={
+                nodeLoading ||
+                !nodeName.trim() ||
+                !nodeUrl.trim() ||
+                (nodeDialog === "new" && !nodeToken.trim())
+              }
               className="bg-primary text-primary-foreground"
             >
               {nodeLoading ? "Saving…" : nodeDialog === "new" ? "Add Node" : "Save Changes"}

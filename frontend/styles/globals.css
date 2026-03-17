@@ -123,3 +123,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+html, body, #__next {
+  min-width: 0;
+}
+
+pre, code, .overflow-x-auto {
+  max-width: 100%;
+  overflow-x: auto;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+  }
+}

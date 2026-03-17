@@ -72,7 +72,8 @@ export class WingsApiService {
   }
 
   async readFile(serverId: string, path: string) {
-    return this.serverRequest(serverId, `/files/contents?file=${encodeURIComponent(path)}`);
+    const url = `${this.baseUrl}/servers/${serverId}/files/contents?file=${encodeURIComponent(path)}`;
+    return axios.get(url, { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, responseType: 'text' });
   }
 
   async writeFile(serverId: string, filePath: string, content: string) {

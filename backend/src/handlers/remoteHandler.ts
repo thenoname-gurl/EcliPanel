@@ -41,6 +41,8 @@ import { Egg } from '../models/egg.entity';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { t } from 'elysia';
+import { createActivityLog } from './logHandler';
+import { NodeService } from '../services/nodeService';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
@@ -176,7 +178,11 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
     },
     process_configuration: {
       startup: {
-        done: proc.startup?.done || [],
+        done: Array.isArray(proc.startup?.done)
+          ? proc.startup?.done
+          : proc.startup?.done
+          ? [String(proc.startup?.done)]
+          : [],
         user_interaction: proc.startup?.user_interaction ?? proc.startup?.userInteraction ?? [],
         strip_ansi: proc.startup?.strip_ansi ?? false,
       },
@@ -317,6 +323,27 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(prefix + '/remote/servers/reset', async (ctx) => {
     ctx.set.status = 204;
+
+    void (async () => {
+      try {
+        const node = (ctx as any).wingNode as Node;
+        if (!node) return;
+
+        const nodeSvc = new NodeService();
+        const svc = await nodeSvc.getServiceForNode(node.id);
+        const configs = await repo().findBy({ nodeId: node.id });
+        for (const cfg of configs) {
+          try {
+            await svc.syncServer(cfg.uuid, {});
+          } catch (e: any) {
+            (app as any).log?.warn?.({ err: e, server: cfg.uuid, nodeId: node.id }, 'auto-sync failed for server');
+          }
+        }
+      } catch (e: any) {
+        (app as any).log?.warn?.({ err: e }, 'auto-sync failed after wings reset');
+      }
+    })();
+
     return;
   }, {
     beforeHandle: authenticateWings,
@@ -731,29 +758,121 @@ export async function saveServerConfig(params: {
   if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
   if (!Number.isFinite(params.cpu) || params.cpu < 0) throw new Error('Invalid cpu value');
   const r = AppDataSource.getRepository(ServerConfig);
-  const cfg = r.create({
-    uuid: params.uuid,
-    nodeId: params.nodeId,
-    userId: params.userId,
-    name: params.name,
-    description: params.description,
-    dockerImage: params.dockerImage,
-    startup: params.startup,
-    environment: params.environment,
-    memory: params.memory,
-    disk: params.disk,
-    cpu: params.cpu,
-    swap: params.swap ?? 0,
-    ioWeight: params.ioWeight ?? 500,
-    oomDisabled: false,
-    suspended: false,
-    hibernated: params.hibernated ?? false,
-    eggId: params.eggId,
-    skipEggScripts: params.skipEggScripts ?? false,
-    allocations: params.allocations ?? null,
-    processConfig: params.processConfig ?? null,
-  });
-  return r.save(cfg);
+  const existing = await r.find({ where: { uuid: params.uuid }, order: { id: 'ASC' } });
+  if (!existing || existing.length === 0) {
+    const cfg = r.create({
+      uuid: params.uuid,
+      nodeId: params.nodeId,
+      userId: params.userId,
+      name: params.name,
+      description: params.description,
+      dockerImage: params.dockerImage,
+      startup: params.startup,
+      environment: params.environment,
+      memory: params.memory,
+      disk: params.disk,
+      cpu: params.cpu,
+      swap: params.swap ?? 0,
+      ioWeight: params.ioWeight ?? 500,
+      oomDisabled: false,
+      suspended: false,
+      hibernated: params.hibernated ?? false,
+      eggId: params.eggId,
+      skipEggScripts: params.skipEggScripts ?? false,
+      allocations: params.allocations ?? null,
+      processConfig: params.processConfig ?? null,
+    });
+    return r.save(cfg);
+  }
+
+  const keep = existing[0];
+  keep.nodeId = params.nodeId;
+  keep.userId = params.userId;
+  keep.name = params.name ?? keep.name;
+  keep.description = params.description ?? keep.description;
+  keep.dockerImage = params.dockerImage ?? keep.dockerImage;
+  keep.startup = params.startup ?? keep.startup;
+  keep.environment = params.environment ?? keep.environment;
+  keep.memory = params.memory;
+  keep.disk = params.disk;
+  keep.cpu = params.cpu;
+  keep.swap = params.swap ?? keep.swap ?? 0;
+  keep.ioWeight = params.ioWeight ?? keep.ioWeight ?? 500;
+  keep.hibernated = params.hibernated ?? keep.hibernated ?? false;
+  keep.eggId = params.eggId ?? keep.eggId;
+  keep.skipEggScripts = params.skipEggScripts ?? keep.skipEggScripts ?? false;
+  keep.allocations = params.allocations ?? keep.allocations ?? null;
+  keep.processConfig = params.processConfig ?? keep.processConfig ?? null;
+
+  await r.save(keep);
+
+  if (existing.length > 1) {
+    const toDelete = existing.slice(1).map((x: any) => x.id);
+    await r.delete(toDelete as any).catch(() => {});
+    try {
+      await createActivityLog({ userId: 0, action: 'servers:merge-duplicates', targetId: params.uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' });
+    } catch (e) {
+      // skip
+    }
+    console.debug('remote: merged duplicate server configs', { uuid: params.uuid, kept: keep.id, removed: toDelete });
+  }
+
+  return keep;
+}
+
+/**
+ * Merge duplicate ServerConfig rows for a given uuid or all uuids.
+ * This mirrors the startup merge behavior and is safe to call on-demand.
+ */
+export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<void> {
+  const r = AppDataSource.getRepository(ServerConfig);
+  const uuids: string[] = [];
+  if (targetUuid) {
+    uuids.push(targetUuid);
+  } else {
+    const duplicates = await r.createQueryBuilder('c')
+      .select('c.uuid', 'uuid')
+      .addSelect('COUNT(*)', 'cnt')
+      .groupBy('c.uuid')
+      .having('COUNT(*) > 1')
+      .getRawMany();
+    for (const d of duplicates) uuids.push(d.uuid);
+  }
+
+  for (const uuid of uuids) {
+    try {
+      const rows = await r.find({ where: { uuid }, order: { id: 'ASC' } });
+      if (!rows || rows.length <= 1) continue;
+      const keep = rows[0];
+      const others = rows.slice(1);
+      for (const o of others) {
+        keep.nodeId = keep.nodeId ?? o.nodeId;
+        keep.userId = keep.userId ?? o.userId;
+        keep.name = keep.name || o.name;
+        keep.description = keep.description || o.description;
+        keep.dockerImage = keep.dockerImage || o.dockerImage;
+        keep.startup = keep.startup || o.startup;
+        keep.environment = keep.environment && Object.keys(keep.environment || {}).length > 0 ? keep.environment : o.environment;
+        keep.memory = keep.memory ?? o.memory;
+        keep.disk = keep.disk ?? o.disk;
+        keep.cpu = keep.cpu ?? o.cpu;
+        keep.swap = keep.swap ?? o.swap;
+        keep.ioWeight = keep.ioWeight ?? o.ioWeight;
+        keep.hibernated = keep.hibernated ?? o.hibernated;
+        keep.eggId = keep.eggId ?? o.eggId;
+        keep.skipEggScripts = keep.skipEggScripts ?? o.skipEggScripts;
+        keep.allocations = keep.allocations && Object.keys(keep.allocations || {}).length > 0 ? keep.allocations : o.allocations;
+        keep.processConfig = keep.processConfig && Object.keys(keep.processConfig || {}).length > 0 ? keep.processConfig : o.processConfig;
+      }
+      await r.save(keep);
+      const toDelete = others.map(rw => rw.id);
+      await r.delete(toDelete as any).catch(() => {});
+      try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' }); } catch (e) {}
+      (app as any)?.log?.info?.({ uuid, kept: keep.id, removed: toDelete }, 'remote: merged duplicate server configs (on-list)');
+    } catch (e) {
+      (app as any)?.log?.warn?.({ err: e, uuid }, 'remote: failed to merge duplicate server configs (on-list)');
+    }
+  }
 }
 
 export async function removeServerConfig(uuid: string): Promise<void> {

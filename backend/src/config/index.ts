@@ -3,17 +3,38 @@ import { AppDataSource } from './typeorm';
 import { initMail } from '../services/mailService';
 import { startRetentionJobs } from '../services/retentionService';
 import { WingsSocketService } from '../services/wingsSocketService';
+import { WingsApiService } from '../services/wingsApiService';
 import { NodeHeartbeatService } from '../services/nodeHeartbeatService';
 import { startAllSftpProxies } from '../services/sftpProxyService';
 import fs from 'fs';
 import path from 'path';
+import { ServerConfig } from '../models/serverConfig.entity';
+import { createActivityLog } from '../handlers/logHandler';
 
 const WINGS_RETRY_INITIAL = 30_000;
 const WINGS_RETRY_MAX     = 10 * 60_000;
 
 function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) {
   const sock = new WingsSocketService(node.url, node.token);
-  sock.listenToAll().catch((e: any) => {
+  const api = new WingsApiService(node.url, node.token);
+  sock.listenToAll().then(async () => {
+    try {
+      const res = await api.getServers();
+      const servers: any[] = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
+      for (const s of servers) {
+        const id: string = s.uuid || s.id;
+        if (!id) continue;
+        try {
+          await api.syncServer(id, {});
+          app.log.info({ node: node.name, server: id }, 'auto-sync initiated on node connect');
+        } catch (e: any) {
+          app.log.warn({ err: e, node: node.name, server: id }, 'auto-sync failed on node connect');
+        }
+      }
+    } catch (e: any) {
+      app.log.warn({ err: e, node: node.name }, 'failed to list servers for auto-sync on node connect');
+    }
+  }).catch((e: any) => {
     const isTransient = ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNABORTED', 'ENOTFOUND', 'ECONNRESET'].includes(e?.code);
     if (isTransient) {
       app.log.warn({ node: node.name, code: e.code, url: node.url },
@@ -59,6 +80,55 @@ export async function setupConfig(app: any) {
   try {
     const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
     const nodes = await nodeRepo.find();
+    try {
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const duplicates = await cfgRepo.createQueryBuilder('c')
+        .select('c.uuid', 'uuid')
+        .addSelect('COUNT(*)', 'cnt')
+        .groupBy('c.uuid')
+        .having('COUNT(*) > 1')
+        .getRawMany();
+      if (duplicates && duplicates.length > 0) {
+        app.log.info({ count: duplicates.length }, 'startup: found duplicate server configs — merging');
+        for (const d of duplicates) {
+          const uuid = d.uuid;
+          try {
+            const rows = await cfgRepo.find({ where: { uuid }, order: { id: 'ASC' } });
+            if (!rows || rows.length <= 1) continue;
+            const keep = rows[0];
+            const others = rows.slice(1);
+            for (const o of others) {
+              keep.nodeId = keep.nodeId ?? o.nodeId;
+              keep.userId = keep.userId ?? o.userId;
+              keep.name = keep.name || o.name;
+              keep.description = keep.description || o.description;
+              keep.dockerImage = keep.dockerImage || o.dockerImage;
+              keep.startup = keep.startup || o.startup;
+              keep.environment = keep.environment && Object.keys(keep.environment || {}).length > 0 ? keep.environment : o.environment;
+              keep.memory = keep.memory ?? o.memory;
+              keep.disk = keep.disk ?? o.disk;
+              keep.cpu = keep.cpu ?? o.cpu;
+              keep.swap = keep.swap ?? o.swap;
+              keep.ioWeight = keep.ioWeight ?? o.ioWeight;
+              keep.hibernated = keep.hibernated ?? o.hibernated;
+              keep.eggId = keep.eggId ?? o.eggId;
+              keep.skipEggScripts = keep.skipEggScripts ?? o.skipEggScripts;
+              keep.allocations = keep.allocations && Object.keys(keep.allocations || {}).length > 0 ? keep.allocations : o.allocations;
+              keep.processConfig = keep.processConfig && Object.keys(keep.processConfig || {}).length > 0 ? keep.processConfig : o.processConfig;
+            }
+            await cfgRepo.save(keep);
+            const toDelete = others.map(r => r.id);
+            await cfgRepo.delete(toDelete as any).catch(() => {});
+            app.log.info({ uuid, kept: keep.id, removed: toDelete }, 'startup: merged duplicate server configs');
+            try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-startup', targetId: uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' }); } catch (e) {}
+          } catch (e) {
+            app.log.warn({ err: e, uuid }, 'startup: failed to merge duplicate server configs for uuid');
+          }
+        }
+      }
+    } catch (e) {
+      app.log.warn({ err: e }, 'startup: duplicate server config merge check failed');
+    }
     if (nodes.length > 0) {
       for (const n of nodes) {
         connectNodeWithRetry(app, n);

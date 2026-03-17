@@ -59,7 +59,18 @@ export async function eggRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/admin/eggs', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const eggs = await repo().find({ order: { name: 'ASC' } });
+    //scary
+    const rows = await AppDataSource.manager.query('SELECT * FROM egg ORDER BY name ASC');
+    const jsonFields = ['dockerImages', 'envVars', 'configFiles', 'processConfig', 'installScript', 'features', 'fileDenylist'];
+    const eggs = (rows as any[]).map((r: any) => {
+      for (const f of jsonFields) {
+        if (r[f] === null || r[f] === undefined) continue;
+        if (typeof r[f] === 'string') {
+          try { r[f] = JSON.parse(r[f]); } catch { r[f] = null; }
+        }
+      }
+      return r;
+    });
     return eggs;
   }, {
    beforeHandle: authenticate,
@@ -171,6 +182,20 @@ export async function eggRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Delete an egg', tags: ['Eggs'] },
+  });
+
+  app.delete(prefix + '/admin/eggs', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    await repo().createQueryBuilder().delete().execute();
+    return { success: true };
+  }, {
+   beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Delete all eggs', tags: ['Eggs'] },
   });
 
 

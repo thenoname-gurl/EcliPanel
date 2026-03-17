@@ -840,6 +840,8 @@ export default function AdminPanel() {
 
   // ── Sync from Wings ──
   const [syncingFromWings, setSyncingFromWings] = useState(false)
+  // ── Sync to Wings (push panel configs) ──
+  const [syncingToWings, setSyncingToWings] = useState(false)
 
   // ── View Node Config dialog ──
   const [viewConfigNode, setViewConfigNode] = useState<AdminNode | null>(null)
@@ -1331,6 +1333,19 @@ export default function AdminPanel() {
       setSyncingFromWings(false)
     }
   }
+  
+  async function syncToWings() {
+    setSyncingToWings(true)
+    try {
+      const result = await apiFetch(API_ENDPOINTS.adminSyncToWings, { method: "POST" })
+      forceRefreshTab("nodes")
+      alert(`Sync to Wings complete — processed ${Array.isArray(result) ? result.length : JSON.stringify(result)}`)
+    } catch (e: any) {
+      alert(`Sync to Wings failed: ${e.message}`)
+    } finally {
+      setSyncingToWings(false)
+    }
+  }
 
   function openCreateServer() {
     setCsNodeId(nodes.length === 1 ? String(nodes[0].id) : "")
@@ -1791,6 +1806,12 @@ remote: ${panelUrl}`
     if (!confirm(`Delete egg "${egg.name}"?`)) return
     await apiFetch(`${API_ENDPOINTS.adminEggs}/${egg.id}`, { method: "DELETE" })
     setEggs((prev) => prev.filter((e) => e.id !== egg.id))
+  }
+
+  async function deleteAllEggs() {
+    if (!confirm('Delete ALL eggs? This cannot be undone.')) return
+    await apiFetch(API_ENDPOINTS.adminEggs, { method: "DELETE" })
+    setEggs([])
   }
 
   async function toggleEggVisible(egg: AdminEgg) {
@@ -2363,7 +2384,7 @@ remote: ${panelUrl}`
                         </tr>
                       ) : (
                         filteredServers.map((srv) => (
-                          <tr key={srv.uuid} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                          <tr key={`${srv.uuid}-${srv.nodeId || ''}`} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">{srv.name || "Unnamed Server"}</p>
                               {srv.description && (
@@ -2709,6 +2730,9 @@ remote: ${panelUrl}`
                     <Button size="sm" variant="outline" onClick={() => forceRefreshTab("nodes")} className="border-border h-8 gap-1">
                       <RefreshCw className="h-3 w-3" /> Refresh
                     </Button>
+                    <Button size="sm" variant="outline" onClick={syncToWings} disabled={syncingToWings} className="border-border h-8 gap-1">
+                      {syncingToWings ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Sync to Wings
+                    </Button>
                     <Button size="sm" onClick={openAddNode} className="bg-primary text-primary-foreground h-8 gap-1">
                       <Plus className="h-3 w-3" /> Add Node
                     </Button>
@@ -2802,6 +2826,9 @@ remote: ${panelUrl}`
                     </Button>
                     <Button size="sm" onClick={openNewEgg} className="bg-primary text-primary-foreground h-8 gap-1">
                       <Plus className="h-3.5 w-3.5" /> New Egg
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={deleteAllEggs} className="border-destructive/50 text-destructive h-8 gap-1">
+                      <Trash2 className="h-3.5 w-3.5" /> Delete All
                     </Button>
                   </div>
                 </div>

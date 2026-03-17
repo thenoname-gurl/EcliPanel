@@ -35,6 +35,39 @@ export function authorize(required: string) {
       return;
     }
 
+    if (required.startsWith('servers:')) {
+      try {
+        const { ServerSubuser } = require('../models/serverSubuser.entity');
+        const subuserRepo = AppDataSource.getRepository(ServerSubuser);
+        const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
+
+        if (serverUuid) {
+            const whereAny: any[] = [];
+            whereAny.push({ userId: user.id, serverUuid });
+            if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
+            const sub = await subuserRepo.findOne({ where: whereAny });
+            if (sub) {
+              const permNeeded = required.split(':')[1];
+              if (!permNeeded || permNeeded === '*') return;
+              if (Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes(permNeeded))) return;
+            }
+
+          try {
+            const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+            const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
+            if (cfg && cfg.userId === user.id) return;
+          } catch (e) {
+            // skip
+          }
+        } else {
+          const anySub = await subuserRepo.findOne({ where: user.email ? [{ userId: user.id }, { userEmail: user.email }] : { userId: user.id } });
+          if (anySub) return;
+        }
+      } catch (e) {
+        // skip
+      }
+    }
+
     const userRepo = AppDataSource.getRepository(User);
     const u = await userRepo.findOne({
       where: { id: user.id },
@@ -50,7 +83,7 @@ export function authorize(required: string) {
       ur.role.permissions.forEach((p) => perms.push(p.value));
     });
 
-    if (perms.length === 0 && !user.role) {
+    if (perms.length === 0) {
       try {
         const roleRepo = AppDataSource.getRepository(require('../models/role.entity').Role);
         const def = await roleRepo.findOne({ where: { name: 'default' }, relations: ['permissions'] });

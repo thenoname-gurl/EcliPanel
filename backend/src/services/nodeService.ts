@@ -24,9 +24,9 @@ export class NodeService {
     return svc;
   }
 
-  async registerNode(name: string, url: string, token: string) {
+  async registerNode(name: string, url: string, token: string, nodeId?: string) {
     const repo = AppDataSource.getRepository(Node);
-    let node = repo.create({ name, url, token });
+    let node = repo.create({ name, url, token, nodeId });
     node = await repo.save(node);
     this.cache.delete(node.id);
     return node;

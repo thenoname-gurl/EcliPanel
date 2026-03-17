@@ -344,10 +344,10 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         title={server.name || server.uuid?.slice(0, 8) || "Server"}
         description={`${server.uuid || id} · ${server.status || "unknown"}`}
       />
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-6 p-6">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
+        <div className="flex flex-col gap-3 p-2 sm:p-4 md:p-6 max-w-[100vw] w-full min-w-0 box-border">
           {/* Power Bar */}
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between w-full max-w-full">
             <div className="flex items-center gap-3 min-w-0">
               <div className={`h-3 w-3 rounded-full flex-shrink-0 ${statusColor.replace("text-", "bg-")} animate-pulse`} />
               <div className="min-w-0">
@@ -358,11 +358,11 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 {server.status || "unknown"}
               </Badge>
             </div>
-              <div className="grid grid-cols-4 gap-2 sm:flex sm:items-center">
+              <div className="flex flex-wrap gap-2 justify-end items-center w-full sm:w-auto">
               <Button
                 size="sm"
                 variant="outline"
-                className="border-green-500/30 text-green-400 hover:bg-green-500/10"
+                className="border-green-500/30 text-green-400 hover:bg-green-500/10 w-full sm:w-auto"
                 disabled={powerLoading || isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("start")}
               >
@@ -371,7 +371,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <Button
                 size="sm"
                 variant="outline"
-                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto"
                 disabled={powerLoading || !isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("restart")}
               >
@@ -380,7 +380,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <Button
                 size="sm"
                 variant="outline"
-                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 w-full sm:w-auto"
                 disabled={powerLoading || !isPowerableStatus(server.status) || isHibernatedStatus(server.status)}
                 onClick={() => confirmPowerAction("stop")}
               >
@@ -399,7 +399,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
           {/* Resource Stats */}
           {server.resources && (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:grid-cols-4 w-full max-w-full">
               <StatCard label="CPU" value={`${(server.resources.cpu_absolute ?? 0).toFixed(1)}%`} icon={Cpu} />
               <StatCard label="Memory" value={formatBytes(server.resources.memory_bytes ?? 0)} icon={MemoryStick} />
               <StatCard label="Disk" value={formatBytes(server.resources.disk_bytes ?? 0)} icon={HardDrive} />
@@ -426,7 +426,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Tab Content */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 max-w-[100vw] box-border overflow-x-hidden">
             {activeTab === "console" && <ConsoleTab serverId={id} />}
             {activeTab === "stats" && <StatsTab serverId={id} server={server} />}
             {activeTab === "files" && <FilesTab serverId={id} sftpInfo={server?.sftp} editorSettings={editorSettings} />}
@@ -471,7 +471,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-1 sm:p-2 min-w-0 max-w-full w-full">
       <div className="flex items-center gap-2 text-muted-foreground mb-1">
         <Icon className="h-3.5 w-3.5" />
         <span className="text-xs font-medium">{label}</span>
@@ -489,10 +489,6 @@ function formatBytes(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
 }
 
-// ============================================
-// Console Tab — full xterm.js + Wings WebSocket
-// Input is handled directly inside the terminal.
-// ============================================
 function ConsoleTab({ serverId }: { serverId: string }) {
   const termRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<any>(null)
@@ -803,11 +799,13 @@ function ConsoleTab({ serverId }: { serverId: string }) {
 
   return (
     <div className="relative">
-      <div
-        ref={termRef}
-        className="h-[300px] sm:h-[550px] cursor-text"
-        onClick={() => xtermRef.current?.focus()}
-      />
+      <div className="w-full max-w-full min-w-0">
+        <div
+          ref={termRef}
+          className="h-[300px] sm:h-[550px] cursor-text w-full max-w-full min-w-0 overflow-auto"
+          onClick={() => xtermRef.current?.focus()}
+        />
+      </div>
       <div className="absolute top-2 right-2 z-10">
         <Badge
           variant="outline"
@@ -1205,7 +1203,7 @@ function StatsTab({ serverId, server: serverProp }: { serverId: string; server: 
 
 function MiniStat({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className="rounded-xl border border-border bg-card p-3 min-w-0 max-w-full">
       <div className="flex items-center gap-1.5 mb-1">
         <div className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
@@ -1220,7 +1218,7 @@ function MiniStat({ label, value, sub, color }: { label: string; value: string; 
 
 function ChartCard({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4 min-w-0 max-w-full">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <h4 className="text-xs font-semibold text-foreground">{title}</h4>
@@ -1776,18 +1774,18 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Manage MySQL databases attached to this server.</p>
         <Button size="sm" onClick={() => { setShowForm(!showForm); setCreateError("") }}>
-          <Plus className="h-4 w-4 mr-1" />
+          <Plus className="h-3.5 w-3.5 mr-1" />
           New Database
         </Button>
       </div>
 
       {showForm && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
+        <div className="rounded-lg border border-border bg-secondary/20 p-4 mb-4 space-y-3">
           <p className="text-sm font-medium">Create Database</p>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Label (optional)</label>
+            <label className="text-xs font-medium text-foreground">Label (optional)</label>
             <input
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm"
               placeholder="e.g. Primary DB"
               value={formLabel}
               onChange={e => setFormLabel(e.target.value)}
@@ -1981,7 +1979,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
             <div key={sched.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-4">
               <div>
                 <p className="text-sm font-medium text-foreground">{sched.name || "Unnamed Schedule"}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {sched.cron_minute} {sched.cron_hour} {sched.cron_day_of_month} {sched.cron_month} {sched.cron_day_of_week}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -2165,13 +2163,19 @@ function StartupTab({ serverId }: { serverId: string }) {
   const [editedEnv, setEditedEnv] = useState<Record<string, string>>({})
   const [donePatterns, setDonePatterns] = useState<string[]>([])
 
+  const normalizeDonePatterns = (p: any): string[] => {
+    if (Array.isArray(p)) return p.map((x) => (x == null ? "" : String(x)))
+    if (p == null) return [""]
+    return [String(p)]
+  }
+
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverStartup.replace(":id", serverId))
       .then((data) => {
         setStartup(data)
         setEditedEnv(data?.environment || {})
         const patterns = data?.processConfig?.startup?.done
-        setDonePatterns(patterns && patterns.length ? patterns : [" "]) 
+        setDonePatterns(normalizeDonePatterns(patterns))
         // Some templates have no clear startup pattern..
       })
       .catch(() => {})
@@ -2189,7 +2193,7 @@ function StartupTab({ serverId }: { serverId: string }) {
         }),
       })
       if (res?.environment) setEditedEnv(res.environment)
-      if (res?.processConfig?.startup?.done) setDonePatterns(res.processConfig.startup.done)
+      if (res?.processConfig?.startup?.done) setDonePatterns(normalizeDonePatterns(res.processConfig.startup.done))
       alert("Startup configuration saved.")
     } catch (e: any) {
       alert("Save failed: " + e.message)
@@ -2213,7 +2217,7 @@ function StartupTab({ serverId }: { serverId: string }) {
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">Startup Configuration</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {startup.eggName && <InfoRow label="Egg" value={startup.eggName} />}
+          <InfoRow label="Egg" value={startup.eggName} />
           <InfoRow label="Docker Image" value={startup.dockerImage || "\u2014"} mono />
         </div>
         {startup.startup && (

@@ -1,6 +1,7 @@
 "use client"
 
-import { use, useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,7 @@ import {
   Cpu,
   MemoryStick,
   Activity,
+  Edit,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -32,8 +34,9 @@ function formatBytes(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
 }
 
-export default function OrganisationDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function OrganisationDetail() {
+  const params = useParams()
+  const id = params?.id as string | undefined
   const [org, setOrg] = useState<any>(null)
   const [members, setMembers] = useState<any[]>([])
   const [inviteEmail, setInviteEmail] = useState("")
@@ -47,17 +50,42 @@ export default function OrganisationDetail({ params }: { params: Promise<{ id: s
   const [activity, setActivity] = useState<any[]>([])
   const [activityLoading, setActivityLoading] = useState(false)
   const { user } = useAuth()
+  const router = useRouter()
 
   const isManager = user && (user.orgRole === "admin" || user.orgRole === "owner")
+  const isAdmin = user && (user.role === "admin" || user.role === "rootAdmin" || user.role === "*")
+
+  const getAvatarUrl = (url?: string) => {
+    if (!url) return undefined
+    if (url.startsWith("http://") || url.startsWith("https://")) return url
+    const base = process.env.NEXT_PUBLIC_API_BASE || ""
+    if (!base) return url
+    try {
+      return new URL(url, base).toString()
+    } catch {
+      return url
+    }
+  }
 
   useEffect(() => {
+    if (!id) return
+
+    setLoading(true)
+    setOrg(null)
+    setMembers([])
+    setOrders([])
+
     const load = async () => {
       try {
         const [o, u] = await Promise.all([
           apiFetch(API_ENDPOINTS.organisationDetail.replace(":id", id)),
           apiFetch(API_ENDPOINTS.organisationUsers.replace(":id", id)),
         ])
-        setOrg(o)
+        const mergedOrg = {
+          ...(user?.org && user.org.id?.toString() === id ? user.org : {}),
+          ...o,
+        }
+        setOrg(mergedOrg)
         setMembers(u || [])
         if (user && (user.orgRole === "admin" || user.orgRole === "owner")) {
           const ords = await apiFetch(API_ENDPOINTS.orders)
@@ -65,6 +93,9 @@ export default function OrganisationDetail({ params }: { params: Promise<{ id: s
         }
       } catch (err) {
         console.error(err)
+        if (user?.org?.id?.toString() === id) {
+          setOrg(user.org)
+        }
       } finally {
         setLoading(false)
       }
@@ -114,6 +145,7 @@ export default function OrganisationDetail({ params }: { params: Promise<{ id: s
     if (tab === "activity" && activity.length === 0 && !activityLoading) loadActivity()
   }
 
+  if (!id) return <p className="p-6 text-sm text-destructive">Invalid organisation.</p>
   if (loading) return <p className="p-6 text-sm text-muted-foreground">Loading...</p>
   if (!org) return <p className="p-6 text-sm text-destructive">Organisation not found.</p>
 
@@ -143,15 +175,18 @@ export default function OrganisationDetail({ params }: { params: Promise<{ id: s
     }
   }
 
+  const headerTitle = org.name || user?.org?.name || "Organisation"
+  const headerDescription = `${org.handle || user?.org?.handle || ""} · ${org.portalTier || "free"}`.replace(/^ · /, "")
+
   return (
     <>
-      <PanelHeader title={org.name} description={`${org.handle} · ${org.portalTier || "free"}`} />
+      <PanelHeader title={headerTitle} description={headerDescription} />
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-6 p-6">
           {/* Org Header / Logo */}
           <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-4">
             {org.avatarUrl ? (
-              <img src={org.avatarUrl} alt="org logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
+              <img src={getAvatarUrl(org.avatarUrl)} alt="org logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
             ) : (
               <div className="h-16 w-16 rounded-xl bg-secondary/50 border border-border flex items-center justify-center text-2xl text-muted-foreground font-bold">
                 {org.name?.[0]?.toUpperCase()}
@@ -504,6 +539,18 @@ export default function OrganisationDetail({ params }: { params: Promise<{ id: s
                             </div>
                           )}
                         </div>
+                        {isAdmin && (
+                          <div className="mt-4 flex justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`/dashboard/infrastructure/nodes?edit=${n.nodeId || n.id}`)}
+                              className="border-border h-7 px-2 text-xs gap-1"
+                            >
+                              <Edit className="h-3 w-3" /> Edit
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

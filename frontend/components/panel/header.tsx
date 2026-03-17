@@ -93,7 +93,7 @@ export function PanelHeader({ title, description }: { title: string; description
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm pl-12 md:pl-6 lg:pl-6">
         <div className="flex flex-col">
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
           {description && (

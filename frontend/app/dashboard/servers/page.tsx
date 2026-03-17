@@ -254,6 +254,7 @@ export default function ServersPage() {
   const [loading, setLoading] = useState(true)
   const [showNewModal, setShowNewModal] = useState(false)
   const [powerLoading, setPowerLoading] = useState<string | null>(null)
+  const [fixing, setFixing] = useState(false)
 
   const loadServers = async () => {
     setLoading(true)
@@ -274,7 +275,18 @@ export default function ServersPage() {
         })
       )
 
-      setServers(enriched)
+      const seen = new Set<string>()
+      const deduped: any[] = []
+      for (const s of enriched) {
+        const raw = s.uuid || s.id || ''
+        const norm = String(raw).replace(/-/g, '').toLowerCase()
+        const key = `${norm}::${s.nodeId ?? ''}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        deduped.push(s)
+      }
+
+      setServers(deduped)
     } catch (err) {
       console.error("failed to load servers", err)
     } finally {
@@ -310,10 +322,11 @@ export default function ServersPage() {
 
   const renderServerCard = (server: any) => {
     const sid = server.uuid || server.id
+    const reactKey = `${sid}-${server.nodeId ?? ''}`
     return (
       <div
-        key={sid}
-        className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]"
+        key={reactKey}
+        className="group rounded-xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)] w-full max-w-full overflow-x-auto"
       >
         {/* Header - clickable */}
         <Link href={`/dashboard/servers/${sid}`} className="block">
@@ -413,32 +426,34 @@ export default function ServersPage() {
         />
       )}
       <PanelHeader title="Servers" description="Manage your game servers" />
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-6 p-6">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+          <div className="flex flex-col gap-4 p-2 sm:p-4 md:p-6 max-w-[100vw] w-full min-w-0 box-border">
           {/* Toolbar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 w-full max-w-full">
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search servers..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-48"
+                  className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full sm:w-48"
                 />
               </div>
             </div>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-              <Plus className="h-4 w-4" />
-              New Server
-            </button>
+            <div className="flex-shrink-0">
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                <Plus className="h-4 w-4" />
+                New Server
+              </button>
+            </div>
           </div>
 
           {/* Servers Grid */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {loading ? (
               <div className="col-span-full text-center py-10 text-sm text-muted-foreground">
                 Loading servers...

@@ -242,6 +242,7 @@ export const API_ENDPOINTS = {
   adminServerSuspend: "/api/admin/servers/:id/suspend",
   adminServerUnsuspend: "/api/admin/servers/:id/unsuspend",
   adminSyncFromWings: "/api/admin/servers/sync-from-wings",
+  adminSyncToWings: "/api/admin/sync-wings",
   adminTickets: "/api/admin/tickets",
   adminVerifications: "/api/admin/verifications",
   adminDeletions: "/api/admin/deletions",

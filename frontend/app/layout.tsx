@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#0a0a12',
-  userScalable: false,
+  userScalable: true,
 }
 
 import { AuthProvider } from "@/hooks/useAuth";
@@ -39,9 +39,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="font-sans antialiased min-h-screen flex flex-col">
+      <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
         <AuthProvider>
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-w-0">
             {children}
           </div>
           <Footer hideOnDashboard />

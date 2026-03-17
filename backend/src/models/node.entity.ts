@@ -9,6 +9,9 @@ export class Node {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ unique: true, nullable: true, type: 'varchar', length: 64 })
+  nodeId?: string;
+
   @Column({ unique: true })
   name: string;
 

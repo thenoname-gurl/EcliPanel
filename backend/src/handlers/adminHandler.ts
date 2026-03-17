@@ -17,9 +17,11 @@ import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { t } from 'elysia';
 import { PanelSetting } from '../models/panelSetting.entity';
-import { saveServerConfig, removeServerConfig } from './remoteHandler';
+import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } from './remoteHandler';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
+import { ServerConfig } from '../models/serverConfig.entity';
+import { In } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
 import path from 'path';
@@ -704,6 +706,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+    try { await mergeDuplicateServerConfigs(); } catch (e) { /* skip */ }
     const configs = await cfgRepo.find();
     const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
     let all: any[] = [];
@@ -719,7 +722,49 @@ export async function adminRoutes(app: any, prefix = '') {
         }
       } catch { }
     }
-    return all;
+
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    for (const c of configs) {
+      if (all.some((s: any) => s.uuid === c.uuid)) continue;
+      const node = nodeMap.get(c.nodeId);
+      all.push({
+        uuid: c.uuid,
+        name: c.name || c.uuid,
+        status: c.hibernated ? 'hibernated' : 'unknown',
+        hibernated: !!c.hibernated,
+        is_suspended: c.suspended,
+        resources: null,
+        build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+        container: { image: c.dockerImage },
+        nodeId: c.nodeId,
+        nodeName: node?.name,
+        userId: c.userId,
+        eggId: c.eggId ?? null,
+      });
+    }
+
+    const seen = new Set<string>();
+    const deduped: any[] = [];
+    for (const s of all) {
+      try {
+        const raw = s.uuid || (s.configuration && s.configuration.uuid) || '';
+        const norm = String(raw).replace(/-/g, '').toLowerCase();
+        if (!norm) {
+          deduped.push(s);
+          continue;
+        }
+        if (seen.has(norm)) {
+          console.log('admin: duplicate server skipped', { uuid: raw, nodeId: s.nodeId, nodeName: s.nodeName });
+          continue;
+        }
+        seen.add(norm);
+        deduped.push(s);
+      } catch (e) {
+        deduped.push(s);
+      }
+    }
+
+    return deduped;
   }, {
     beforeHandle: authenticate,
     response: {
@@ -1021,6 +1066,83 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Create a new server on a node', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/sync-wings', async (ctx: any) => {
+    if (!requireAdminCtx(ctx)) return;
+    const nodeRepo = AppDataSource.getRepository(Node);
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+
+    const nodes = await nodeRepo.find();
+    const configs = await cfgRepo.find();
+    const results: any[] = [];
+
+    for (const cfg of configs) {
+      const node = nodes.find(n => n.id === cfg.nodeId);
+      if (!node) {
+        results.push({ uuid: cfg.uuid, status: 'node_not_found' });
+        continue;
+      }
+      try {
+        const svc = new WingsApiService(node.url, node.token);
+        try {
+          await svc.getServer(cfg.uuid);
+          results.push({ uuid: cfg.uuid, status: 'exists', nodeId: node.id });
+          continue;
+        } catch (e: any) {
+          const status = e?.response?.status;
+          if (status === 401 || status === 403) {
+            results.push({ uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id });
+            continue;
+          }
+          // skip
+        }
+
+        const egg = cfg.eggId ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId }) : null;
+        const mounts = await AppDataSource.getRepository(ServerMount).findBy({ serverUuid: cfg.uuid });
+        const mountEntities: any[] = [];
+        if (mounts && mounts.length) {
+          const mountIds = mounts.map((m: any) => m.mountId);
+          const allMounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
+          for (const m of mounts) {
+            const found = allMounts.find((am: any) => am.id === m.mountId);
+            if (found) mountEntities.push(found);
+          }
+        }
+
+        const payload: any = {
+          uuid: cfg.uuid,
+          start_on_completion: false,
+          skip_scripts: !!cfg.skipEggScripts,
+          environment: cfg.environment || {},
+          build: {
+            memory_limit: cfg.memory || 0,
+            swap: cfg.swap || 0,
+            disk_space: cfg.disk || 0,
+            io_weight: cfg.ioWeight || 0,
+            cpu_limit: cfg.cpu || 0,
+            threads: null,
+          },
+          container: {
+            image: cfg.dockerImage || (egg ? egg.dockerImage : undefined) || 'ghcr.io/pterodactyl/yolks:nodejs_18',
+            startup: cfg.startup || (egg ? egg.startup : undefined) || 'node index.js',
+          },
+        };
+        if (cfg.name) payload.name = cfg.name;
+        if (cfg.description) payload.meta = { description: cfg.description };
+
+        const res = await svc.createServer(payload);
+        results.push({ uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status });
+      } catch (err: any) {
+        results.push({ uuid: cfg.uuid, status: 'error', message: err?.message || String(err) });
+      }
+    }
+
+    return { results };
+  }, {
+    beforeHandle: authenticate,
+    detail: { summary: 'Synchronize all server configs to Wings (admin)', tags: ['Admin'] },
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
   });
 
   // SO YOU DECIDED TO GO AGAINST LORDS WISHES HUH? 

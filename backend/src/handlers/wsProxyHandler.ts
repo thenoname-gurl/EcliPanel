@@ -4,6 +4,7 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { Node } from '../models/node.entity';
 import { User } from '../models/user.entity';
 import { signWingsJwt } from './remoteHandler';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ProxyCtx {
   params?: any;
@@ -186,17 +187,35 @@ class WingsProxySession {
     if (this.panelOrigin) headers.Origin = this.panelOrigin;
     try {
       if (this.node && this.node.token) {
+        const normalizeUuid = (value: any) => {
+          if (!value) return uuidv4().replace(/-/g, '');
+          const s = String(value).toLowerCase().replace(/-/g, '');
+          if (/^[0-9a-f]{32}$/.test(s)) return s;
+          return uuidv4().replace(/-/g, '');
+        };
+
         const now = Math.floor(Date.now() / 1000);
+        const safeUserUuid = normalizeUuid((this.ctx as any)?.user?.uuid || (this.ctx as any)?.user?.id);
+        const serverUuid = normalizeUuid(this.serverId);
+        const jti = normalizeUuid(uuidv4());
+
+        this.log('info', 'wings jwt payload lengths', {
+          user_uuid: safeUserUuid.length,
+          server_uuid: serverUuid.length,
+          jti: jti.length,
+          user_uuid_source: String((this.ctx as any)?.user?.uuid || (this.ctx as any)?.user?.id),
+        });
+
         const payload = {
           iss: 'eclipanel',
-          sub: String((this.ctx as any)?.user?.id || ''),
+          sub: safeUserUuid,
           aud: [''],
           iat: now,
           nbf: now,
           exp: now + 600,
-          jti: (Math.random() + 1).toString(36).slice(2, 12),
-          user_uuid: String((this.ctx as any)?.user?.uuid || ''),
-          server_uuid: this.serverId,
+          jti,
+          user_uuid: safeUserUuid,
+          server_uuid: serverUuid,
           permissions: ['*'],
           use_console_read_permission: false,
         };

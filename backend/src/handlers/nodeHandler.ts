@@ -32,6 +32,19 @@ function requireAdminCtx(ctx: any): true | { error: string } {
 export async function nodeRoutes(app: any, prefix = '') {
   const nodeRepo = () => AppDataSource.getRepository(Node);
 
+  async function resolveNode(param: string | number) {
+    const raw = String(param);
+    const asNum = Number(raw);
+    if (!Number.isNaN(asNum) && `${asNum}` === raw) {
+      const byId = await nodeRepo().findOneBy({ id: asNum });
+      if (byId) return byId;
+    }
+    const byUuid = await nodeRepo().findOneBy({ nodeId: raw });
+    if (byUuid) return byUuid;
+    const normalized = raw.replace(/-/g, '');
+    return await nodeRepo().findOneBy({ nodeId: normalized });
+  }
+
   app.get(prefix + '/nodes', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
@@ -46,7 +59,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.get(prefix + '/nodes/:id', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const node = await nodeRepo().findOne({ where: { id: Number(ctx.params.id) }, relations: ['organisation'] });
+    const node = await resolveNode(ctx.params.id);
     if (!node) {
       ctx.set.status = 404;
       return { error: 'Node not found' };
@@ -61,12 +74,20 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.post(prefix + '/nodes', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const { name, url, token, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
+    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
       return { error: 'name, url and token are required' };
     }
-    const node = await nodeService.registerNode(name, url, token);
+    if (nodeId && typeof nodeId === 'string') {
+      const normalized = nodeId.replace(/-/g, '')
+      if (!/^[0-9a-f]{32}$/i.test(normalized)) {
+        ctx.set.status = 400;
+        return { error: 'nodeId must be a 32-character UUID' };
+      }
+    }
+
+    const node = await nodeService.registerNode(name, url, token, nodeId);
     if (nodeType && NODE_TYPES.includes(nodeType)) {
       (node as any).nodeType = nodeType;
     }
@@ -90,14 +111,26 @@ export async function nodeRoutes(app: any, prefix = '') {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
-    const { nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
+    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
 
-    const node = await nodeRepo().findOneBy({ id: Number(id) });
+    const node = await resolveNode(id);
     if (!node) {
       ctx.set.status = 404;
       return { error: 'Node not found' };
     }
 
+    if (nodeId !== undefined) {
+      if (nodeId && typeof nodeId === 'string') {
+        const normalized = nodeId.replace(/-/g, '')
+        if (!/^[0-9a-f]{32}$/i.test(normalized)) {
+          ctx.set.status = 400;
+          return { error: 'nodeId must be a 32-character UUID' };
+        }
+      }
+      node.nodeId = nodeId || undefined as any;
+    }
+
+    if (url !== undefined) node.url = url;
     if (name !== undefined) node.name = name;
     if (nodeType !== undefined) {
       if (!NODE_TYPES.includes(nodeType)) {
@@ -140,7 +173,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.delete(prefix + '/nodes/:id', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const node = await nodeRepo().findOneBy({ id: Number(ctx.params.id) });
+    const node = await resolveNode(ctx.params.id);
     if (!node) {
       ctx.set.status = 404;
       return { error: 'Node not found' };

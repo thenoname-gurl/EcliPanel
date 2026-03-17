@@ -7,7 +7,7 @@ import { UserLog } from '../models/userLog.entity';
 import { Node } from '../models/node.entity';
 import { Egg } from '../models/egg.entity';
 import { v4 as uuidv4 } from 'uuid';
-import { saveServerConfig, removeServerConfig, signWingsJwt } from './remoteHandler';
+import { saveServerConfig, removeServerConfig, signWingsJwt, mergeDuplicateServerConfigs } from './remoteHandler';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
@@ -70,6 +70,7 @@ export async function serverRoutes(app: any, prefix = '') {
   }
 
   app.get(prefix + '/servers', async (ctx: any) => {
+    try { await mergeDuplicateServerConfigs(); } catch (e) { /* skip */ }
     const nodes = await nodeRepo().find();
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const configs = await cfgRepo.find();
@@ -146,11 +147,24 @@ export async function serverRoutes(app: any, prefix = '') {
         }
         try {
           const svc = new WingsApiService(node.url, node.token);
-          const res = await svc.getServer(c.uuid);
-          const s = res.data;
-          const uuid: string = s.configuration?.uuid || s.uuid;
-          const norm = normalizeServer(s, c.hibernated ? 'hibernated' : undefined);
-          all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
+          try {
+            const res = await svc.getServer(c.uuid);
+            const s = res.data;
+            const uuid: string = s.configuration?.uuid || s.uuid;
+            const norm = normalizeServer(s, c.hibernated ? 'hibernated' : undefined);
+            all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
+          } catch (e: any) {
+            try {
+              await svc.syncServer(c.uuid, {});
+              const retry = await svc.getServer(c.uuid);
+              const s2 = retry.data;
+              const norm2 = normalizeServer(s2, c.hibernated ? 'hibernated' : undefined);
+              all.push({ ...norm2, name: c.name || norm2.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
+              continue;
+            } catch {
+              // skip
+            }
+          }
         } catch {
           all.push({
             uuid: c.uuid,
@@ -168,7 +182,16 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    return all;
+    const seen = new Set<string>();
+    const unique = all.filter((s: any) => {
+      const uuid = String(s?.uuid || s?.id || '');
+      if (!uuid) return false;
+      if (seen.has(uuid)) return false;
+      seen.add(uuid);
+      return true;
+    });
+
+    return unique;
   }, { beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List all servers', tags: ['Servers'] }
@@ -210,6 +233,26 @@ export async function serverRoutes(app: any, prefix = '') {
   app.get(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
     const cfg = await cfgRepo().findOneBy({ uuid: id });
+
+    const user = ctx.user;
+    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    if (!isAdmin) {
+      const owned = cfg.userId === user?.id;
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({
+        serverUuid: id,
+        userId: user?.id,
+      });
+      if (!owned && !subuser) {
+        ctx.set.status = 403;
+        return { error: 'Insufficient permissions' };
+      }
+    }
+
     let nodeName: string | null = null;
     let sftpInfo: Record<string, any> | null = null;
     if (cfg?.nodeId) {
@@ -235,6 +278,19 @@ export async function serverRoutes(app: any, prefix = '') {
       return { ...norm, node: nodeName, sftp: sftpInfo };
     } catch (e: any) {
       if (cfg) {
+        try {
+          const svc = await serviceFor(id);
+          try {
+            await svc.syncServer(id, {});
+            const retry = await svc.getServer(id);
+            const norm = normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined);
+            return { ...norm, node: nodeName, sftp: sftpInfo };
+          } catch {
+            // skip
+          }
+        } catch {
+          // skip
+        }
         const norm = normalizeServer({
           uuid: cfg.uuid,
           state: cfg.hibernated ? 'hibernated' : 'unknown',
@@ -1372,49 +1428,78 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Node not found for this server' };
     }
 
+    const normalizeUuid = (value: any) => {
+      if (!value) return uuidv4().replace(/-/g, '');
+      const s = String(value).toLowerCase().replace(/-/g, '');
+      if (/^[0-9a-f]{32}$/.test(s)) return s;
+      return uuidv4().replace(/-/g, '');
+    };
+
     const now = Math.floor(Date.now() / 1000);
+    const safeUserUuid = normalizeUuid(user?.uuid || user?.id || uuidv4());
+    const safeServerUuid = normalizeUuid(id);
+    const jti = normalizeUuid(uuidv4());
+
+    console.debug('wings jwt payload lengths', {
+      user_uuid: safeUserUuid.length,
+      server_uuid: safeServerUuid.length,
+      jti: jti.length,
+      sub_source: {
+        uuid: String(user?.uuid || ''),
+        id: (user?.id != null ? String(user.id) : undefined),
+      },
+    });
+
     const payload = {
       iss: 'eclipanel',
-      sub: user.id?.toString() || user.uuid || '',
+      sub: safeUserUuid,
       aud: [''],
       iat: now,
       nbf: now,
       exp: now + 600,
-      jti: uuidv4(),
-      user_uuid: user.uuid || user.id?.toString() || '',
-      server_uuid: id,
+      jti,
+      user_uuid: safeUserUuid,
+      server_uuid: safeServerUuid,
       permissions: ['*'],
       use_console_read_permission: false,
     };
 
     const token = signWingsJwt(payload, node.token);
 
-    let wsUrl: string;
+    if (process.env.DEBUG_WINGS_JWT === '1') {
+      try {
+        const parts = token.split('.')
+        if (parts.length === 3) {
+          const payloadJson = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as any
+          ctx.log?.debug?.(
+            { payload: { sub: payloadJson.sub, user_uuid: payloadJson.user_uuid, server_uuid: payloadJson.server_uuid, jti: payloadJson.jti } },
+            'wings jwt payload decoded from token',
+          )
+        }
+      } catch {
+        // skip
+      }
+    }
+
     const incomingProto = (ctx.headers['x-forwarded-proto'] as string) || ctx.protocol || 'https';
     const forwardedHost = (ctx.headers['x-forwarded-host'] as string) || (ctx.headers['host'] as string) || ctx.hostname;
     const hostSafe = forwardedHost && forwardedHost !== 'undefined' ? forwardedHost : 'localhost';
     const backendBase = (process.env.BACKEND_URL || `${incomingProto}://${hostSafe}`).replace(/\/+$/, '');
-    const backendIsHttps = backendBase.startsWith('https');
-    const nodeUrlIsHttp = node.url.toLowerCase().startsWith('http://');
-    const socketScheme = (backendIsHttps || incomingProto === 'https') ? 'wss' : 'ws';
+    const socketScheme = backendBase.startsWith('https') || incomingProto === 'https' ? 'wss' : 'ws';
 
-    if (node.useSSL === false || (backendIsHttps && nodeUrlIsHttp)) {
-      const cookieName = process.env.JWT_COOKIE_NAME || 'token';
-      const getCookieToken = () => {
-        const cookieValue = (ctx.cookie && ctx.cookie[cookieName] && ctx.cookie[cookieName].value) as string | undefined;
-        if (cookieValue) return cookieValue;
-        const raw = (ctx.headers && (ctx.headers.cookie as string)) || '';
-        const parts = String(raw).split(';').map((s: string) => s.trim());
-        const pair = parts.find(p => p.startsWith(cookieName + '='));
-        if (pair) return pair.split('=')[1];
-        return '';
-      };
+    const cookieName = process.env.JWT_COOKIE_NAME || 'token';
+    const getCookieToken = () => {
+      const cookieValue = (ctx.cookie && ctx.cookie[cookieName] && ctx.cookie[cookieName].value) as string | undefined;
+      if (cookieValue) return cookieValue;
+      const raw = (ctx.headers && (ctx.headers.cookie as string)) || '';
+      const parts = String(raw).split(';').map((s: string) => s.trim());
+      const pair = parts.find(p => p.startsWith(cookieName + '='));
+      if (pair) return pair.split('=')[1];
+      return '';
+    };
 
-      const panelJwt = (ctx.headers['authorization'] as string || '').replace(/^Bearer\s+/i, '') || getCookieToken();
-      wsUrl = backendBase.replace(/^https?/, socketScheme) + `/api/servers/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
-    } else {
-      wsUrl = node.url.replace(/^http/, 'ws') + `/api/servers/${id}/ws`;
-    }
+    const panelJwt = (ctx.headers['authorization'] as string || '').replace(/^Bearer\s+/i, '') || getCookieToken();
+    const wsUrl = backendBase.replace(/^https?/, socketScheme) + `/api/servers/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
 
     return {
       data: {
