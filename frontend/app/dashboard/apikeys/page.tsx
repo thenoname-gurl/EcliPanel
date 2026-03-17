@@ -31,7 +31,7 @@ export default function ApiKeysPage() {
   }, [router]);
 
   return null;
-
+  //deprecated
   const load = () => {
     setLoading(true);
     apiFetch(API_ENDPOINTS.apiKeysMy)

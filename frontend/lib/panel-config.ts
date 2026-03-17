@@ -381,11 +381,6 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/organisations",
         icon: Building2,
       },
-      {
-        label: "API Keys",
-        href: "/dashboard/apikeys",
-        icon: Fingerprint,
-      },
     ],
   },
   {

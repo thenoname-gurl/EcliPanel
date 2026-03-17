@@ -32,8 +32,8 @@ done
 if [[ -n "$PORT_OVERRIDE" ]]; then
 	echo "Starting frontend on port $PORT_OVERRIDE"
 	PORT="$PORT_OVERRIDE" npm run build
-	PORT="$PORT_OVERRIDE" npm run start
+	PORT="$PORT_OVERRIDE" HOST=0.0.0.0 npm run start
 else
 	npm run build
-	npm run start
+	HOST=0.0.0.0 npm run start
 fi
