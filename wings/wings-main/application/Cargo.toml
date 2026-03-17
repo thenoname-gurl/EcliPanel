@@ -7,7 +7,7 @@ edition = "2024"
 [dependencies]
 unrar = { path = "../unrar-rs" }
 tracing = "0.1.41"
-tracing-subscriber = { version = "=0.3.19", features = ["chrono"] } # temporary pin to avoid new ansi escaping
+tracing-subscriber = { version = "=0.3.20", features = ["chrono"] } # temporary pin to avoid new ansi escaping
 tracing-appender = "0.2.3"
 anyhow = { workspace = true }
 axum = { workspace = true }
