@@ -71,7 +71,7 @@ export default function ApiKeysPage() {
   return (
     <>
       <PanelHeader title="API Keys" description="Manage your API credentials" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           <div className="rounded-xl border border-border bg-card p-6">
             <h3 className="text-lg font-medium mb-2">Create New Key</h3>

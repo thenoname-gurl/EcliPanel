@@ -75,7 +75,7 @@ export default function AccountActivity() {
   return (
     <>
       <PanelHeader title="Account Activity" description="SOC audit trail and account events" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2">

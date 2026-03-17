@@ -17,6 +17,20 @@ export async function organisationRoutes(app: any, prefix = '') {
   const inviteRepo = AppDataSource.getRepository(OrganisationInvite);
   const userRepo = AppDataSource.getRepository(User);
 
+  function sanitizeOrg(o: Organisation | undefined) {
+    if (!o) return o;
+    return {
+      id: o.id,
+      name: o.name,
+      handle: o.handle,
+      ownerId: o.ownerId,
+      portalTier: o.portalTier,
+      avatarUrl: o.avatarUrl,
+      users: o.users?.map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, orgRole: u.orgRole, avatarUrl: u.avatarUrl })) || [],
+      invites: o.invites?.map((i: any) => ({ id: i.id, email: i.email, accepted: i.accepted })) || [],
+    };
+  }
+
   app.get(prefix + '/organisations', async (ctx: any) => {
     const user = ctx.user as User;
     const userWithOrg = await userRepo.findOne({ where: { id: user.id }, relations: ['org'] });
@@ -26,7 +40,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     for (const o of owned) {
       if (!orgs.some((x) => x.id === o.id)) orgs.push(o);
     }
-    return orgs;
+    return orgs.map(sanitizeOrg);
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'List organisations accessible to the user', tags: ['Organisations'] }
@@ -59,7 +73,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     user.orgRole = 'owner';
     await userRepo.save(user);
     await createActivityLog({ userId: user.id, action: 'org:create', targetId: String(org.id), targetType: 'organisation', metadata: { orgName: name, handle }, ipAddress: ctx.ip });
-    return { success: true, org };
+    return { success: true, org: sanitizeOrg(org) };
   }, { beforeHandle: [authenticate, authorize('org:create')],
     response: { 200: t.Object({ success: t.Boolean(), org: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
     detail: { summary: 'Create a new organisation', tags: ['Organisations'] }
@@ -76,7 +90,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return org;
+    return sanitizeOrg(org);
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get organisation by id', tags: ['Organisations'] }
@@ -97,7 +111,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     if (name) org.name = name;
     if (portalTier) org.portalTier = portalTier;
     await orgRepo.save(org);
-    return { success: true, org };
+    return { success: true, org: sanitizeOrg(org) };
   }, {beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean(), org: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Update organisation', tags: ['Organisations'] }
@@ -114,7 +128,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return org.users;
+    return (org.users || []).map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, orgRole: u.orgRole, avatarUrl: u.avatarUrl }));
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'List users in organisation', tags: ['Organisations'] }
@@ -221,6 +235,90 @@ export async function organisationRoutes(app: any, prefix = '') {
     response: { 200: t.Object({ success: t.Boolean(), token: t.String() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Invite user to organisation', tags: ['Organisations'] }
   });
+
+  app.post(prefix + '/organisations/:id/invite/:inviteId/resend', async (ctx: any) => {
+    const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
+    if (!org) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const inv = await inviteRepo.findOne({ where: { id: Number(ctx.params['inviteId']) }, relations: ['organisation'] });
+    if (!inv || inv.organisation.id !== org.id) {
+      ctx.set.status = 404;
+      return { error: 'Invite not found' };
+    }
+    if (inv.accepted) {
+      ctx.set.status = 400;
+      return { error: 'Invite already accepted' };
+    }
+    try {
+      const { sendMail } = require('../services/mailService');
+      await sendMail({
+        to: inv.email,
+        from: process.env.SMTP_FROM || 'no-reply@ecli.app',
+        subject: `Invitation to join ${org.name}`,
+        template: 'invite',
+        vars: {
+          name: inv.email.split('@')[0],
+          orgName: org.name,
+          link: `${process.env.FRONTEND_URL || 'https://ecli.app'}/accept?token=${inv.token}`,
+        },
+      });
+      await createActivityLog({ userId: (ctx.user as User).id, action: 'org:resend_invite', targetId: String(org.id), targetType: 'organisation', metadata: { inviteId: inv.id, invitedEmail: inv.email }, ipAddress: ctx.ip });
+    } catch (e) {
+      app.log.error({ err: e }, 'failed to resend invite email');
+    }
+    return { success: true };
+  }, { beforeHandle: [authenticate, authorize('org:invite')], response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }, detail: { summary: 'Resend organisation invite', tags: ['Organisations'] } });
+
+  app.delete(prefix + '/organisations/:id/invite/:inviteId', async (ctx: any) => {
+    const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
+    if (!org) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const inv = await inviteRepo.findOne({ where: { id: Number(ctx.params['inviteId']) }, relations: ['organisation'] });
+    if (!inv || inv.organisation.id !== org.id) {
+      ctx.set.status = 404;
+      return { error: 'Invite not found' };
+    }
+    await inviteRepo.remove(inv);
+    await createActivityLog({ userId: (ctx.user as User).id, action: 'org:revoke_invite', targetId: String(org.id), targetType: 'organisation', metadata: { inviteId: inv.id, invitedEmail: inv.email }, ipAddress: ctx.ip });
+    return { success: true };
+  }, { beforeHandle: [authenticate, authorize('org:invite')], response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }, detail: { summary: 'Revoke organisation invite', tags: ['Organisations'] } });
+
+  app.post(prefix + '/organisations/:id/add-user', async (ctx: any) => {
+    const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
+    if (!org) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const actor = ctx.user as User;
+    const adminRoles = ['admin', 'rootAdmin', '*'];
+    if (!adminRoles.includes(actor.role ?? '')) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    const { userId, email, orgRole } = ctx.body as any;
+    if (!userId && !email) {
+      ctx.set.status = 400;
+      return { error: 'userId or email required' };
+    }
+    const target = userId ? await userRepo.findOneBy({ id: Number(userId) }) : await userRepo.findOne({ where: { email } });
+    if (!target) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+    if (target.org?.id === org.id) {
+      ctx.set.status = 409;
+      return { error: 'User already in organisation' };
+    }
+    target.org = org as any;
+    target.orgRole = ['member','admin','owner'].includes(orgRole) ? orgRole : 'member';
+    await userRepo.save(target);
+    await createActivityLog({ userId: actor.id, action: 'org:add_user', targetId: String(org.id), targetType: 'organisation', metadata: { addedUserId: target.id }, ipAddress: ctx.ip });
+    return { success: true, target: { id: target.id, email: target.email, firstName: target.firstName, lastName: target.lastName, orgRole: target.orgRole } };
+  }, { beforeHandle: authenticate, response: { 200: t.Object({ success: t.Boolean(), target: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) }, detail: { summary: 'Add existing user to organisation (admin only)', tags: ['Organisations'] } });
 
   app.post(prefix + '/organisations/accept-invite', async (ctx: any) => {
     const { token } = ctx.body as any;

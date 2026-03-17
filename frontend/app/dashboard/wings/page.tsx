@@ -117,7 +117,7 @@ export default function WingsPage() {
   return (
     <>
       <PanelHeader title="Wings Daemon" description="Daemon-level diagnostics and controls for individual Wings nodes" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-5 p-6">
 
           {/* Node Selector */}

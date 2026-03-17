@@ -2038,7 +2038,7 @@ remote: ${panelUrl}`
   return (
     <>
       <PanelHeader title="Admin Panel" description="System administration and management" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
 
           {/* Stat cards */}

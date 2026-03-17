@@ -40,6 +40,9 @@ export default function OrganisationDetail() {
   const [org, setOrg] = useState<any>(null)
   const [members, setMembers] = useState<any[]>([])
   const [inviteEmail, setInviteEmail] = useState("")
+  const [addUserEmail, setAddUserEmail] = useState("")
+  const [addUserId, setAddUserId] = useState("")
+  const [addUserRole, setAddUserRole] = useState("member")
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<any[]>([])
   const [servers, setServers] = useState<any[]>([])
@@ -81,8 +84,15 @@ export default function OrganisationDetail() {
           apiFetch(API_ENDPOINTS.organisationDetail.replace(":id", id)),
           apiFetch(API_ENDPOINTS.organisationUsers.replace(":id", id)),
         ])
+        const userOrg = user?.org && user.org.id?.toString() === id ? user.org : null
         const mergedOrg = {
-          ...(user?.org && user.org.id?.toString() === id ? user.org : {}),
+          id: o?.id ?? userOrg?.id,
+          name: o?.name ?? userOrg?.name,
+          handle: o?.handle ?? userOrg?.handle,
+          portalTier: o?.portalTier ?? userOrg?.portalTier ?? 'unknown',
+          avatarUrl: o?.avatarUrl ?? userOrg?.avatarUrl,
+          users: o?.users ?? userOrg?.users ?? [],
+          invites: o?.invites ?? userOrg?.invites ?? [],
           ...o,
         }
         setOrg(mergedOrg)
@@ -163,6 +173,47 @@ export default function OrganisationDetail() {
     }
   }
 
+  const addUserDirect = async () => {
+    if (!addUserEmail.trim() && !addUserId.trim()) return
+    try {
+      const body: any = { orgRole: addUserRole }
+      if (addUserId.trim()) body.userId = Number(addUserId)
+      else body.email = addUserEmail.trim()
+      const res = await apiFetch(API_ENDPOINTS.organisationAddUser.replace(":id", id), {
+        method: "POST",
+        body: JSON.stringify(body),
+      })
+      if (res?.target) {
+        setMembers((m) => [...m, res.target])
+        setAddUserEmail("")
+        setAddUserId("")
+        alert("User added to organisation")
+      }
+    } catch (err: any) {
+      alert("Failed: " + err.message)
+    }
+  }
+
+  const resendInvite = async (inviteId: number) => {
+    try {
+      await apiFetch(API_ENDPOINTS.organisationResendInvite.replace(":id", id).replace(":inviteId", inviteId.toString()), { method: "POST" });
+      alert("Invite resent")
+    } catch (err: any) {
+      alert("Failed: " + err.message)
+    }
+  }
+
+  const revokeInvite = async (inviteId: number) => {
+    if (!confirm('Revoke this invite?')) return
+    try {
+      await apiFetch(API_ENDPOINTS.organisationRevokeInvite.replace(":id", id).replace(":inviteId", inviteId.toString()), { method: "DELETE" });
+      setOrg((o: any) => ({ ...o, invites: (o.invites || []).filter((iv: any) => iv.id !== inviteId) }))
+      alert('Invite revoked')
+    } catch (err: any) {
+      alert('Failed: ' + err.message)
+    }
+  }
+
   const removeMember = async (userId: number) => {
     try {
       await apiFetch(
@@ -175,16 +226,16 @@ export default function OrganisationDetail() {
     }
   }
 
-  const headerTitle = org.name || user?.org?.name || "Organisation"
-  const headerDescription = `${org.handle || user?.org?.handle || ""} · ${org.portalTier || "free"}`.replace(/^ · /, "")
+  const headerTitle = org.name || "Organisation"
+  const headerDescription = `${org.handle || ""} · ${org.portalTier || "free"}`.replace(/^ · /, "")
 
   return (
     <>
       <PanelHeader title={headerTitle} description={headerDescription} />
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-6 p-6">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
+        <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
           {/* Org Header / Logo */}
-          <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+          <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-4 min-w-0 box-border overflow-hidden">
             {org.avatarUrl ? (
               <img src={getAvatarUrl(org.avatarUrl)} alt="org logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
             ) : (
@@ -255,27 +306,27 @@ export default function OrganisationDetail() {
 
           {/* Tabs */}
           <Tabs defaultValue="members" onValueChange={handleTabChange} className="w-full">
-            <TabsList className="border border-border bg-secondary/50">
-              <TabsTrigger value="members" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5">
+            <TabsList className="flex gap-2 overflow-x-auto scrollbar-none border border-border bg-secondary/50 px-2">
+              <TabsTrigger value="members" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Users className="h-3.5 w-3.5" /> Members
               </TabsTrigger>
-              <TabsTrigger value="orders" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5">
+              <TabsTrigger value="orders" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Receipt className="h-3.5 w-3.5" /> Orders
               </TabsTrigger>
-              <TabsTrigger value="servers" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5">
+              <TabsTrigger value="servers" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Server className="h-3.5 w-3.5" /> Servers
               </TabsTrigger>
-              <TabsTrigger value="nodes" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5">
+              <TabsTrigger value="nodes" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Network className="h-3.5 w-3.5" /> Nodes
               </TabsTrigger>
-              <TabsTrigger value="activity" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5">
+              <TabsTrigger value="activity" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Activity className="h-3.5 w-3.5" /> Activity
               </TabsTrigger>
             </TabsList>
 
             {/* Members Tab */}
             <TabsContent value="members" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
+              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{members.length} member{members.length !== 1 ? "s" : ""}</p>
                 </div>
@@ -331,6 +382,46 @@ export default function OrganisationDetail() {
                     ))}
                   </div>
                 )}
+                {/* Pending invites */}
+                {org.invites && org.invites.length > 0 && (
+                  <div className="border-t border-border p-4">
+                    <p className="text-xs font-medium text-foreground mb-2">Pending invitations</p>
+                    <div className="space-y-2">
+                      {org.invites.map((iv: any) => (
+                        <div key={iv.id} className="flex items-center justify-between text-sm text-muted-foreground">
+                          <div>{iv.email}</div>
+                          <div className="flex items-center gap-3">
+                            <div>{iv.accepted ? 'Accepted' : 'Pending'}</div>
+                            {(isManager || isAdmin) && !iv.accepted && (
+                              <>
+                                <Button size="xs" onClick={() => resendInvite(iv.id)}>Resend</Button>
+                                <Button size="xs" variant="destructive" onClick={() => revokeInvite(iv.id)}>Revoke</Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Admin: Add user directly */}
+                {isAdmin && (
+                  <div className="border-t border-border p-4">
+                    <p className="text-xs font-medium text-foreground mb-2">Add existing user (admin)</p>
+                    <div className="flex gap-2 mb-2">
+                      <Input placeholder="user id (optional)" value={addUserId} onChange={(e) => setAddUserId(e.target.value)} className="w-28" />
+                      <Input placeholder="or email@example.com" value={addUserEmail} onChange={(e) => setAddUserEmail(e.target.value)} className="flex-1" />
+                      <select value={addUserRole} onChange={(e) => setAddUserRole(e.target.value)} className="rounded-lg border border-border bg-input px-2 py-1 text-xs">
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                        <option value="owner">Owner</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Button size="sm" onClick={addUserDirect}>Add user</Button>
+                    </div>
+                  </div>
+                )}
                 {/* Invite */}
                 <div className="border-t border-border p-4">
                   <p className="text-xs font-medium text-foreground mb-2">Invite a user</p>
@@ -351,7 +442,7 @@ export default function OrganisationDetail() {
 
             {/* Orders Tab */}
             <TabsContent value="orders" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
+              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">Organisation Orders</p>
                 </div>
@@ -403,7 +494,7 @@ export default function OrganisationDetail() {
 
             {/* Servers Tab */}
             <TabsContent value="servers" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
+              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">Organisation Servers</p>
                   <Button size="sm" variant="outline" onClick={loadServers} disabled={serversLoading}>
@@ -414,8 +505,8 @@ export default function OrganisationDetail() {
                   <div className="p-8 text-center text-sm text-muted-foreground">Loading servers…</div>
                 ) : servers.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">No servers found for this organisation.</div>
-                ) : (
-                  <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                  ) : (
+                  <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {servers.map((s: any) => {
                       const uuid = s.configuration?.uuid || s.uuid
                       const name = s.configuration?.meta?.name || s.name || uuid
@@ -479,7 +570,7 @@ export default function OrganisationDetail() {
 
             {/* Nodes Tab */}
             <TabsContent value="nodes" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
+              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">Organisation Nodes</p>
                   <Button size="sm" variant="outline" onClick={loadNodes} disabled={nodesLoading}>
@@ -490,8 +581,8 @@ export default function OrganisationDetail() {
                   <div className="p-8 text-center text-sm text-muted-foreground">Loading nodes…</div>
                 ) : nodes.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">No nodes assigned to this organisation.</div>
-                ) : (
-                  <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                  ) : (
+                  <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {nodes.map((n: any) => (
                       <div key={n.id} className="rounded-lg border border-border bg-secondary/20 p-4">
                         <div className="flex items-center justify-between mb-3">

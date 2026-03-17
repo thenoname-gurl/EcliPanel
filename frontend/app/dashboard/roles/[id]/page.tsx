@@ -53,7 +53,7 @@ export default function RoleDetail({ params }: { params: Promise<{ id: string }>
   return (
     <>
       <PanelHeader title={role.name} description={role.description} />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           <div>
             <h2 className="text-lg font-medium text-foreground mb-2">Permissions</h2>

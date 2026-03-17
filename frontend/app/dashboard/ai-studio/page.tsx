@@ -320,7 +320,7 @@ export default function AIStudioPage() {
   return (
     <>
       <PanelHeader title="AI Studio" description="AI-powered tools for server management" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
 
           {/* Active Tool Chat Panel */}

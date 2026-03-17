@@ -173,7 +173,7 @@ export default function BillingPage() {
   return (
     <>
       <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           {/* Demo */}
           {showDemoPanel ? (

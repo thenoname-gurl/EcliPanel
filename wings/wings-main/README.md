@@ -1,3 +1,7 @@
+THIS IS A MIRROR OF https://github.com/calagopus/wings/ THAT WAS USED WHILE DEVELOPING THIS VERSION!\
+LICENSE FROM LICENSE INSIDE OF WINGS APPLIES
+THIS CODE IS NOT MAINTAINED BY US AND WE RECOMMEND DOWNLOADING LATEST FROM https://github.com/calagopus/wings/
+
 ![Calagopus Logo](https://calagopus.com/fulllogo.svg)
 
 # Calagopus Wings

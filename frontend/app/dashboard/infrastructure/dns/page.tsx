@@ -56,7 +56,7 @@ export default function DnsPage() {
           </p>
         </div>
       ) : null}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">

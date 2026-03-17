@@ -68,6 +68,17 @@ export function authorize(required: string) {
       }
     }
 
+    if (required.startsWith('org:') || required.startsWith('organisation:')) {
+      try {
+        const orgId = ctx.params?.id || ctx.request?.body?.organisationId || ctx.request?.body?.orgId || ctx.query?.id;
+        if (orgId && user && user.org && String(user.org.id) === String(orgId) && (user.orgRole === 'owner' || user.orgRole === 'admin')) {
+          return;
+        }
+      } catch (e) {
+        // skip
+      }
+    }
+
     const userRepo = AppDataSource.getRepository(User);
     const u = await userRepo.findOne({
       where: { id: user.id },

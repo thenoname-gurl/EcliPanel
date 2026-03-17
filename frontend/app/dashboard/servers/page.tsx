@@ -380,8 +380,8 @@ export default function ServersPage() {
         <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
           {server.status === "online" || server.status === "running" ? (
             <button
-              onClick={() => sendPower(server.id || server.uuid, "stop")}
-              disabled={powerLoading === (server.id || server.uuid)}
+              onClick={() => sendPower(sid, "stop")}
+              disabled={powerLoading === sid}
               className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
             >
               <Square className="h-3 w-3" />
@@ -389,8 +389,8 @@ export default function ServersPage() {
             </button>
           ) : (
             <button
-              onClick={() => sendPower(server.id || server.uuid, "start")}
-              disabled={powerLoading === (server.id || server.uuid)}
+              onClick={() => sendPower(sid, "start")}
+              disabled={powerLoading === sid}
               className="flex items-center gap-1.5 rounded-md bg-success/10 px-3 py-1.5 text-xs text-success transition-colors hover:bg-success/20 disabled:opacity-50"
             >
               <Play className="h-3 w-3" />
@@ -398,8 +398,8 @@ export default function ServersPage() {
             </button>
           )}
           <button
-            onClick={() => sendPower(server.id || server.uuid, "restart")}
-            disabled={powerLoading === (server.id || server.uuid)}
+            onClick={() => sendPower(sid, "restart")}
+            disabled={powerLoading === sid}
             className="flex items-center gap-1.5 rounded-md bg-warning/10 px-3 py-1.5 text-xs text-warning transition-colors hover:bg-warning/20 disabled:opacity-50"
           >
             <RotateCcw className="h-3 w-3" />

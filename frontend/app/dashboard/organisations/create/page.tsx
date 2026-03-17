@@ -35,7 +35,7 @@ export default function CreateOrganisationPage() {
   return (
     <>
       <PanelHeader title="New Organisation" description="Create a new organisation" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex h-full items-center justify-center p-6">
           <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
             {error && <div className="mb-4 text-sm text-destructive">{error}</div>}

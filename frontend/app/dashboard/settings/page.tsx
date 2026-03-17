@@ -675,7 +675,7 @@ export default function SettingsPage() {
   return (
     <>
       <PanelHeader title="Account Settings" description="Manage your account preferences and security" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="border border-border bg-secondary/50">

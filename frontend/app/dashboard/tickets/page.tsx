@@ -43,7 +43,7 @@ export default function TicketsPage() {
   return (
     <>
       <PanelHeader title="Support Tickets" description="Manage your support requests" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           {/* Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

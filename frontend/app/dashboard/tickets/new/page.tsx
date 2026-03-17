@@ -40,7 +40,7 @@ export default function NewTicketPage() {
   return (
     <div className="flex h-screen flex-col bg-background">
       <PanelHeader title="New Ticket" description="Submit a support request" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="mx-auto max-w-2xl p-6 space-y-6">
           {/* Back */}
           <button

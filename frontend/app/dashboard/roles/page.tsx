@@ -21,7 +21,7 @@ export default function RolesPage() {
   return (
     <>
       <PanelHeader title="Roles" description="Manage user roles and permissions" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           {loading ? (
             <p className="text-center text-sm text-muted-foreground">Loading...</p>

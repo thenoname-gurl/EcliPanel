@@ -36,7 +36,7 @@ export default function AcceptInvitePage() {
   return (
     <>
       <PanelHeader title="Accept Organisation Invite" />
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex h-full items-center justify-center p-6">
           {status === "idle" && (
             <button
