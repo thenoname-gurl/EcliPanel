@@ -216,17 +216,53 @@ const app = new Elysia()
     }),
   })
   .use(cors({
-    origin: (origin: string | undefined, cb: (err: any, allow?: boolean) => void) => {
-      const cfg = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()).filter(Boolean);
-      if (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') return cb(null, true);
-      if (!origin) return cb(null, true);
-      if (cfg.length === 0) return cb(null, true);
-      if (cfg.includes(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'), false);
+    origin: (origin: string | undefined) => {
+      const rawCfg = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()).filter(Boolean);
+      if (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') return true;
+      if (!origin) return true;
+      if (rawCfg.length === 0) return true;
+
+      const normalize = (s: any) => {
+        if (!s && s !== '') return '';
+        if (s instanceof URL) return s.origin;
+        const str = typeof s === 'string' ? s : String(s);
+        try {
+          return new URL(str).origin;
+        } catch {
+          try {
+            return new URL(str.startsWith('http') ? str : `https://${str}`).origin;
+          } catch {
+            return str.replace(/\/\/+$//g, '');
+          }
+        }
+      };
+
+      const originNorm = normalize(origin);
+      const cfg = rawCfg.map(normalize);
+      if (cfg.includes(originNorm)) return true;
+
+      let originHost: string | null = null;
+      try {
+        originHost = new URL(originNorm).hostname;
+      } catch {
+        originHost = originNorm;
+      }
+
+      for (const c of cfg) {
+        try {
+          const cHost = new URL(c).hostname;
+          if (originHost === cHost) return true;
+          if (originHost.endsWith('.' + cHost)) return true;
+        } catch {
+          // skip
+        }
+      }
+
+      return false;
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     exposedHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())

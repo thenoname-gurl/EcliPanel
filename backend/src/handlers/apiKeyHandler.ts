@@ -23,7 +23,10 @@ export async function apiKeyRoutes(app: any, prefix = '') {
     if (apiKey) {
       keys = [apiKey];
     } else if (user) {
-      keys = await repo.find({ where: { user: { id: user.id } } });
+      keys = await repo.createQueryBuilder('k')
+        .leftJoinAndSelect('k.user', 'user')
+        .where('user.id = :uid', { uid: user.id })
+        .getMany();
     } else {
       ctx.set.status = 401;
       return { error: 'Unauthorized' };
@@ -41,17 +44,35 @@ export async function apiKeyRoutes(app: any, prefix = '') {
       return { error: 'name and valid type required' };
     }
     const key = crypto.randomBytes(32).toString('hex');
+    const actor = ctx.user as any;
+
+    let userRef;
+    const isAdmin = actor && (actor.role === 'admin' || actor.role === 'rootAdmin' || actor.role === '*');
+    if (userId) {
+      if (!isAdmin && userId !== actor?.id) {
+        ctx.set.status = 403;
+        return { error: 'Not allowed to create keys for other users' };
+      }
+      userRef = { id: userId };
+    } else if (actor) {
+      userRef = { id: actor.id };
+    } else {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
     const ent = repo.create({
       name,
       type,
       permissions: permissions || [],
       key,
-      user: userId ? { id: userId } as any : undefined,
+      user: userRef,
       createdAt: new Date(),
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
     });
     await repo.save(ent);
-    return { success: true, apiKey: key, id: ent.id };
+    const saved = await repo.findOne({ where: { id: ent.id }, relations: ['user'] });
+    return { success: true, apiKey: key, id: ent.id, entry: saved };
   }, { beforeHandle: [authenticate, authorize('apikeys:create')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Create API key', tags: ['API Keys'] }
