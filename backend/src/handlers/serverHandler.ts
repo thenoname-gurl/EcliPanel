@@ -1110,6 +1110,39 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
+    if (payload && payload.targetNodeId && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+      const targetId = Number(payload.targetNodeId);
+      try {
+        const targetNode = await nodeRepo().findOneBy({ id: targetId });
+        if (!targetNode) {
+          ctx.set.status = 404;
+          return { error: 'Target node not found' };
+        }
+        const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
+        const now = Math.floor(Date.now() / 1000);
+        const token = signWingsJwt({
+          iss: 'eclipanel',
+          sub: id,
+          aud: [''],
+          iat: now,
+          nbf: now,
+          exp: now + 600,
+          jti: uuidv4(),
+        }, targetNode.token);
+
+        payload.url = targetUrl;
+        payload.token = token;
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: 'Failed to resolve target node' };
+      }
+    }
+
+    if (payload) {
+      delete payload.sourceNodeId;
+      delete payload.targetNodeId;
+    }
+
     const res = await svc.transferServer(id, payload);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
   }, { beforeHandle: [authenticate, authorize('transfer:execute')],
