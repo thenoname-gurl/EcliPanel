@@ -1,12 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react";
-import { PanelHeader } from "@/components/panel/header";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { apiFetch } from "@/lib/api-client";
-import { API_ENDPOINTS } from "@/lib/panel-config";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const AVAILABLE_PERMISSIONS = [
   "servers:read",
@@ -29,13 +24,13 @@ const AVAILABLE_PERMISSIONS = [
 ] as const;
 
 export default function ApiKeysPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'rootAdmin' || user?.role === '*';
-  const [keys, setKeys] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState("client");
-  const [newPerms, setNewPerms] = useState<string[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/dashboard/settings?tab=api');
+  }, [router]);
+
+  return null;
 
   const load = () => {
     setLoading(true);

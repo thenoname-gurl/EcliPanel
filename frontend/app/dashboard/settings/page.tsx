@@ -27,10 +27,32 @@ import {
   Plus,
   Trash2,
   Loader2,
+  BookOpen
 } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { apiFetch } from "@/lib/api-client"
 import QRCode from "qrcode"
+
+const AVAILABLE_PERMISSIONS = [
+  "servers:read",
+  "servers:write",
+  "servers:delete",
+  "nodes:read",
+  "nodes:create",
+  "billing:read",
+  "billing:write",
+  "apikeys:read",
+  "apikeys:create",
+  "apikeys:delete",
+  "org:read",
+  "org:create",
+  "roles:read",
+  "roles:create",
+  "permissions:assign",
+  "users:read",
+  "users:write",
+] as const;
 
 const THEMES = [
   {
@@ -557,10 +579,66 @@ function SessionList() {
 }
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('tab') || 'profile')
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) setActiveTab(tab)
+  }, [searchParams])
+
   const [showApiKey, setShowApiKey] = useState(false)
   const [activeTheme, setActiveTheme] = useState("Eclipse Purple")
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
   const { user, refreshUser } = useAuth()
+
+  const [apiKeys, setApiKeys] = useState<any[]>([])
+  const [apiLoading, setApiLoading] = useState(true)
+  const [newKeyName, setNewKeyName] = useState("")
+  const [newKeyType, setNewKeyType] = useState("client")
+  const [newKeyPerms, setNewKeyPerms] = useState<string[]>([])
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'rootAdmin' || user?.role === '*'
+
+  const loadApiKeys = async () => {
+    setApiLoading(true)
+    try {
+      const data = await apiFetch(API_ENDPOINTS.apiKeysMy)
+      setApiKeys(Array.isArray(data) ? data : [])
+    } catch {
+      setApiKeys([])
+    } finally {
+      setApiLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user) loadApiKeys()
+  }, [user])
+
+  const createApiKey = async () => {
+    try {
+      const body: any = { name: newKeyName, type: newKeyType }
+      if (newKeyPerms.length > 0) body.permissions = newKeyPerms
+      const res = await apiFetch(API_ENDPOINTS.apiKeys, { method: 'POST', body: JSON.stringify(body) })
+      alert('Key: ' + res.apiKey)
+      setNewKeyName('')
+      setNewKeyPerms([])
+      loadApiKeys()
+    } catch (e: any) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
+  const revokeApiKey = async (id: number) => {
+    if (!confirm('Revoke key?')) return
+    try {
+      await apiFetch(API_ENDPOINTS.apiKeyDetail.replace(':id', id.toString()), { method: 'DELETE' })
+      loadApiKeys()
+    } catch (e: any) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
   const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
@@ -677,7 +755,7 @@ export default function SettingsPage() {
       <PanelHeader title="Account Settings" description="Manage your account preferences and security" />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
-          <Tabs defaultValue="profile" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="flex gap-2 overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
               <TabsTrigger value="profile" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 Profile
@@ -1071,50 +1149,84 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-4">
                 <div className="rounded-xl border border-border bg-card p-6">
                   <SectionHeader title="API Keys" description="Manage your API access keys" />
-                  <div className="mt-4 flex flex-col gap-3">
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                      <div className="flex items-center gap-3">
-                        <Key className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Production Key</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <code className="font-mono text-xs text-muted-foreground">
-                              {showApiKey ? "eclp_prod_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6" : "eclp_prod_****************************"}
-                            </code>
-                            <button onClick={() => setShowApiKey(!showApiKey)} className="text-muted-foreground hover:text-foreground transition-colors">
-                              {showApiKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                            </button>
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Copy className="h-3 w-3" />
-                            </button>
-                          </div>
+                  <div className="mt-4 flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="text"
+                        placeholder="Key name"
+                        value={newKeyName}
+                        onChange={(e) => setNewKeyName(e.target.value)}
+                        className="rounded border border-border px-3 py-2"
+                      />
+                      <select
+                        value={newKeyType}
+                        onChange={(e) => setNewKeyType(e.target.value)}
+                        className="rounded border border-border bg-input px-3 py-2 text-sm text-foreground outline-none"
+                      >
+                        <option value="client">Client</option>
+                        {isAdmin && <option value="admin">Admin</option>}
+                      </select>
+                      {newKeyType === 'client' && (
+                        <div className="grid grid-cols-2 gap-1 rounded border border-border bg-secondary/20 p-3">
+                          {AVAILABLE_PERMISSIONS.map((perm) => (
+                            <label key={perm} className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={newKeyPerms.includes(perm)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setNewKeyPerms((p) => [...p, perm])
+                                  else setNewKeyPerms((p) => p.filter((x) => x !== perm))
+                                }}
+                                className="accent-primary"
+                              />
+                              <span className="text-muted-foreground hover:text-foreground transition-colors">{perm}</span>
+                            </label>
+                          ))}
                         </div>
-                      </div>
-                      <Badge variant="outline" className="border-success/30 bg-success/10 text-success">Active</Badge>
+                      )}
+                      <button
+                        onClick={createApiKey}
+                        className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Code className="h-4 w-4" /> Generate New Key
+                      </button>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-card p-4">
+                      {apiLoading ? (
+                        <p>Loading keys...</p>
+                      ) : apiKeys.length === 0 ? (
+                        <p>No API keys found</p>
+                      ) : (
+                        <ul className="flex flex-col gap-2">
+                          {apiKeys.map((k) => (
+                            <li key={k.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{k.name}</p>
+                                <p className="text-xs text-muted-foreground">{k.type} &bull; {k.permissions?.join(', ')}</p>
+                              </div>
+                              <button
+                                onClick={() => revokeApiKey(k.id)}
+                                className="text-destructive text-xs"
+                              >
+                                Revoke
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
-                  <button className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary">
-                    <Code className="h-4 w-4" />
-                    Generate New Key
-                  </button>
                 </div>
 
                 <div className="rounded-xl border border-border bg-card p-6">
                   <SectionHeader title="API Documentation" description="Quick reference for the Eclipse API" />
-                  <div className="mt-4 rounded-lg border border-border bg-[#0d0c18] p-4">
-                    <pre className="font-mono text-xs text-muted-foreground overflow-x-auto">
-{`// Example: List your servers
-const response = await fetch('https://api.eclipse.systems/v1/servers', {
-  headers: {
-    'Authorization': 'Bearer eclp_prod_your_key_here',
-    'Content-Type': 'application/json'
-  }
-});
-
-const servers = await response.json();
-console.log(servers);`}
-                    </pre>
-                  </div>
+                  <button
+                    onClick={() => window.open('https://backend.ecli.app/openapi', '_blank')}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    <BookOpen className="h-4 w-4" /> View API Docs
+                  </button>
                 </div>
               </div>
             </TabsContent>

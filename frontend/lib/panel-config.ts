@@ -121,6 +121,7 @@ export const API_ENDPOINTS = {
   serverDetail: "/api/servers/:id",
   serverDelete: "/api/servers/:id",
   serverPower: "/api/servers/:id/power",
+  serverTransfer: "/api/servers/:id/transfer",
   serverConsole: "/api/servers/:id/console",
   serverFiles: "/api/servers/:id/files",
   serverFileContents: "/api/servers/:id/files/contents",
