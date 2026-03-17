@@ -676,32 +676,32 @@ export default function SettingsPage() {
     <>
       <PanelHeader title="Account Settings" description="Manage your account preferences and security" />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="border border-border bg-secondary/50">
-              <TabsTrigger value="profile" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            <TabsList className="flex gap-2 overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
+              <TabsTrigger value="profile" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 Profile
               </TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <TabsTrigger value="security" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 Security
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <TabsTrigger value="notifications" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 Notifications
               </TabsTrigger>
-              <TabsTrigger value="api" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <TabsTrigger value="api" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 API
               </TabsTrigger>
-              <TabsTrigger value="appearance" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <TabsTrigger value="appearance" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 Appearance
               </TabsTrigger>
-              <TabsTrigger value="editor" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+              <TabsTrigger value="editor" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
                 Editor
               </TabsTrigger>
             </TabsList>
 
             {/* Profile */}
             <TabsContent value="profile" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6">
+              <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                 <SectionHeader title="Profile Information" description="Update your personal details" />
 
                 {/* Avatar upload */}
@@ -946,7 +946,7 @@ export default function SettingsPage() {
             {/* Security */}
             <TabsContent value="security" className="mt-4">
               <div className="flex flex-col gap-4">
-                <div className="rounded-xl border border-border bg-card p-6">
+                <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                   <SectionHeader title="Password" description="Change your account password" />
                   <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div className="flex flex-col gap-2">
@@ -982,7 +982,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-6">
+                <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                   <SectionHeader title="Passkeys &amp; Two-Factor Security" description="Use a passkey as your second factor or primary login method" />
                   <PasskeyManager />
 
@@ -996,7 +996,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-6">
+                <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                   <SectionHeader title="SSH Public Keys" description="Keys used for passwordless SFTP / SSH authentication on your servers" />
                   <SshKeyManager />
                 </div>
@@ -1038,7 +1038,7 @@ export default function SettingsPage() {
 
             {/* Notifications */}
             <TabsContent value="notifications" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6">
+              <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                 <SectionHeader title="Notification Preferences" description="Choose what you want to be notified about" />
                 <div className="mt-6 flex flex-col gap-4">
                   {[
@@ -1121,7 +1121,7 @@ console.log(servers);`}
 
             {/* Appearance */}
             <TabsContent value="appearance" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6">
+              <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                 <SectionHeader title="Theme Settings" description="Customize the panel appearance" />
                 <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {THEMES.map((theme) => {

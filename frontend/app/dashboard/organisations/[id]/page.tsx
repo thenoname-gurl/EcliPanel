@@ -58,6 +58,18 @@ export default function OrganisationDetail() {
   const isManager = user && (user.orgRole === "admin" || user.orgRole === "owner")
   const isAdmin = user && (user.role === "admin" || user.role === "rootAdmin" || user.role === "*")
 
+  const leaveOrg = async () => {
+    if (!confirm('Leave organisation? This will remove your access and related subuser links.')) return
+    try {
+      await apiFetch(API_ENDPOINTS.organisationLeave.replace(":id", id), { method: 'POST' })
+      setOrg((o: any) => ({ ...o, users: (o.users || []).filter((u: any) => u.id !== user.id) }))
+      alert('You have left the organisation')
+      router.push('/dashboard')
+    } catch (err: any) {
+      alert('Failed: ' + err.message)
+    }
+  }
+
   const getAvatarUrl = (url?: string) => {
     if (!url) return undefined
     if (url.startsWith("http://") || url.startsWith("https://")) return url
@@ -299,6 +311,9 @@ export default function OrganisationDetail() {
                       }}
                     />
                   </label>
+                  {user && user.org?.id?.toString() === id && user.orgRole !== 'owner' && (
+                    <Button size="sm" variant="destructive" onClick={leaveOrg}>Leave org</Button>
+                  )}
                 </>
               )}
             </div>
@@ -391,11 +406,16 @@ export default function OrganisationDetail() {
                         <div key={iv.id} className="flex items-center justify-between text-sm text-muted-foreground">
                           <div>{iv.email}</div>
                           <div className="flex items-center gap-3">
-                            <div>{iv.accepted ? 'Accepted' : 'Pending'}</div>
+                            <Badge
+                              variant={iv.accepted ? 'secondary' : 'outline'}
+                              className={iv.accepted ? 'text-xs' : 'text-xs border-warning/30 bg-warning/10 text-warning'}
+                            >
+                              {iv.accepted ? 'Accepted' : 'Pending'}
+                            </Badge>
                             {(isManager || isAdmin) && !iv.accepted && (
                               <>
-                                <Button size="xs" onClick={() => resendInvite(iv.id)}>Resend</Button>
-                                <Button size="xs" variant="destructive" onClick={() => revokeInvite(iv.id)}>Revoke</Button>
+                                <Button size="sm" variant="outline" onClick={() => resendInvite(iv.id)}>Resend</Button>
+                                <Button size="sm" variant="destructive" onClick={() => revokeInvite(iv.id)}>Revoke</Button>
                               </>
                             )}
                           </div>

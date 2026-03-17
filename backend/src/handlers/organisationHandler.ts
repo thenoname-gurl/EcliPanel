@@ -344,6 +344,42 @@ export async function organisationRoutes(app: any, prefix = '') {
     detail: { summary: 'Accept organisation invite', tags: ['Organisations'] }
   });
 
+  app.post(prefix + '/organisations/:id/leave', async (ctx: any) => {
+    const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
+    if (!org) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const user = ctx.user as User;
+    if (!user || user.org?.id !== org.id) {
+      ctx.set.status = 403;
+      return { error: 'Not a member of this organisation' };
+    }
+    if (org.ownerId === user.id) {
+      ctx.set.status = 403;
+      return { error: 'Owner cannot leave organisation without transferring ownership' };
+    }
+
+    user.org = undefined as any;
+    user.orgRole = 'member';
+    await userRepo.save(user);
+
+    try {
+      const mappingRepo = AppDataSource.getRepository(require('../models/serverMapping.entity').ServerMapping);
+      const mappings = await mappingRepo.find({ relations: ['node'] });
+      const uuids = mappings.filter((m: any) => m.node?.organisation?.id === org.id).map((m: any) => m.uuid);
+      if (uuids.length > 0) {
+        const subuserRepo = AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser);
+        await subuserRepo.createQueryBuilder().delete().where('userId = :uid', { uid: user.id }).andWhere('serverUuid IN (:...uuids)', { uuids }).execute();
+      }
+    } catch (e) {
+      // skip
+    }
+
+    await createActivityLog({ userId: user.id, action: 'org:leave', targetId: String(org.id), targetType: 'organisation', metadata: {}, ipAddress: ctx.ip });
+    return { success: true };
+  }, { beforeHandle: authenticate, response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }, detail: { summary: 'Leave organisation', tags: ['Organisations'] } });
+
   app.get(prefix + '/organisations/:id/servers', async (ctx: any) => {
     const orgId = Number(ctx.params['id']);
     const repo = AppDataSource.getRepository(require('../models/node.entity').Node);

@@ -2039,7 +2039,7 @@ remote: ${panelUrl}`
     <>
       <PanelHeader title="Admin Panel" description="System administration and management" />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
 
           {/* Stat cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
@@ -2055,7 +2055,7 @@ remote: ${panelUrl}`
 
           {/* Tabs */}
           <Tabs defaultValue="users" onValueChange={(tab) => loadTab(tab)} className="w-full">
-            <TabsList className="border border-border bg-secondary/50">
+            <TabsList className="flex gap-2 overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
               {[
                 { value: "users", label: "Users" },
                 { value: "organisations", label: "Organisations" },
@@ -2078,7 +2078,7 @@ remote: ${panelUrl}`
                 <TabsTrigger
                   key={t.value}
                   value={t.value}
-                  className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary"
+                  className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap"
                 >
                   {t.label}
                 </TabsTrigger>
@@ -2099,11 +2099,11 @@ remote: ${panelUrl}`
                         onChange={(e) => setUserSearch(e.target.value)}
                         onFocus={() => setUserSearchFocused(true)}
                         onBlur={() => setTimeout(() => setUserSearchFocused(false), 150)}
-                        className="w-64 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                        className="w-full md:w-64 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
                       />
                     </div>
                     {userSearchFocused && userSearch.trim().length > 0 && filteredUsers.length > 0 && (
-                      <div className="absolute top-full left-0 z-50 mt-1 w-80 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                      <div className="absolute top-full left-0 z-50 mt-1 w-full md:w-80 max-w-[90vw] rounded-lg border border-border bg-card shadow-lg overflow-hidden">
                         {filteredUsers.slice(0, 3).map((u) => (
                           <button
                             key={u.id}

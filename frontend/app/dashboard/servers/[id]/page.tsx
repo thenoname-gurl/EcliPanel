@@ -2610,6 +2610,7 @@ function SubusersTab({ serverId }: { serverId: string }) {
     { key: 'schedules', label: 'Schedules', desc: 'Manage schedules' },
   ]
   const [selectedPerms, setSelectedPerms] = useState<string[]>(['console'])
+  const { user } = useAuth()
 
   const loadSubusers = () => {
     setLoading(true)
@@ -2653,13 +2654,23 @@ function SubusersTab({ serverId }: { serverId: string }) {
 
   if (loading) return <LoadingState />
 
+  const canManage = (() => {
+    if (!user) return false
+    if (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin') return true
+    if (subusers.length > 1) return true
+    if (subusers.some(su => su.userId && su.userId !== user.id)) return true
+    return false
+  })()
+
   return (
     <div className="p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Subusers</h3>
-        <Button size="sm" onClick={() => setShowAdd(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Subuser
-        </Button>
+        {canManage && (
+          <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Subuser
+          </Button>
+        )}
       </div>
 
       {showAdd && (
@@ -2719,9 +2730,19 @@ function SubusersTab({ serverId }: { serverId: string }) {
                   ))}
                 </div>
               </div>
-              <Button size="sm" variant="destructive" onClick={() => handleRemove(su.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {su.userId === user?.id ? (
+                  <Button size="sm" variant="destructive" onClick={() => handleRemove(su.id)}>
+                    Give up
+                  </Button>
+                ) : (
+                  canManage ? (
+                    <Button size="sm" variant="destructive" onClick={() => handleRemove(su.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  ) : null
+                )}
+              </div>
             </div>
           ))}
         </div>

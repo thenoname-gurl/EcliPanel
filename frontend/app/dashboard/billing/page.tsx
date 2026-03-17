@@ -174,10 +174,10 @@ export default function BillingPage() {
     <>
       <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
           {/* Demo */}
           {showDemoPanel ? (
-            <div className="rounded-xl border border-warning/30 bg-warning/10 p-5">
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-5 min-w-0 box-border overflow-hidden">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -214,7 +214,7 @@ export default function BillingPage() {
           ) : null}
 
           {/* Stats */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 max-w-[100vw] w-full box-border">
             <StatCard
               title="Current Plan"
               value={getPortalMarker(activePlan?.plan?.type ?? currentPlan.id)}
@@ -237,7 +237,7 @@ export default function BillingPage() {
 
           {/* Live Active Plan Details */}
           {activePlan && (
-            <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border">
+            <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
               <SectionHeader
                 title="Your Active Subscription"
                 description={activePlan.plan.description || "Plan applied by administrator"}
@@ -283,7 +283,7 @@ export default function BillingPage() {
           )}
 
           {/* Current Plan */}
-          <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border">
+          <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
             <SectionHeader
               title="Current Subscription"
               description="Your active plan and features. To upgrade or change, contact your administrator."
@@ -296,7 +296,7 @@ export default function BillingPage() {
                 </a>
               }
             />
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3 max-w-[100vw] w-full box-border">
               {subscriptionCards.map((planCard) => {
                 const Icon = planCard.icon || CreditCard
                 return (

@@ -27,12 +27,17 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
   const userRepo = () => AppDataSource.getRepository(User);
   app.get(prefix + '/servers/:id/subusers', async (ctx) => {
     const { id } = ctx.params as any;
-    if (!(await canManageSubusers(ctx, id))) {
-      ctx.set.status = 403;
-      return { error: 'Only server owner or admin can manage subusers' };
+    if (await canManageSubusers(ctx, id)) {
+      const subusers = await subuserRepo().find({ where: { serverUuid: id }, order: { createdAt: 'ASC' } });
+      return subusers;
     }
-    const subusers = await subuserRepo().find({ where: { serverUuid: id }, order: { createdAt: 'ASC' } });
-    return subusers;
+    const user = (ctx as any).user as User;
+    if (!user) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    const entry = await subuserRepo().findOne({ where: { serverUuid: id, userId: user.id } });
+    return entry ? [entry] : [];
   }, {
     beforeHandle: authenticate,
     detail: { summary: 'List subusers for a server', tags: ['Servers'] },
@@ -139,15 +144,15 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
   app.delete(prefix + '/servers/:id/subusers/:subId', async (ctx) => {
     const { id, subId } = ctx.params as any;
     const user = (ctx as any).user as User;
-    if (!(await canManageSubusers(ctx, id))) {
-      ctx.set.status = 403;
-      return { error: 'Only server owner or admin can manage subusers' };
-    }
-
     const entry = await subuserRepo().findOneBy({ id: Number(subId), serverUuid: id });
     if (!entry) {
       ctx.set.status = 404;
       return { error: 'Subuser not found' };
+    }
+
+    if (!(await canManageSubusers(ctx, id)) && entry.userId !== user.id) {
+      ctx.set.status = 403;
+      return { error: 'Only server owner, admin, or the subuser themselves can remove this entry' };
     }
 
     await subuserRepo().delete({ id: entry.id });

@@ -89,6 +89,7 @@ export const API_ENDPOINTS = {
   organisationRevokeInvite: "/api/organisations/:id/invite/:inviteId",
   organisationAddUser: "/api/organisations/:id/add-user",
   organisationUsers: "/api/organisations/:id/users",
+  organisationLeave: "/api/organisations/:id/leave",
   organisationAddUserRole: "/api/organisations/:id/users/:userId/role",
   organisationRemoveUser: "/api/organisations/:id/users/:userId",
   organisationAcceptInvite: "/api/organisations/accept-invite",
