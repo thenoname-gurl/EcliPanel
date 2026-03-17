@@ -216,10 +216,18 @@ const app = new Elysia()
     }),
   })
   .use(cors({
-    origin: (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') ? true : (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()),
+    origin: (origin: string | undefined, cb: (err: any, allow?: boolean) => void) => {
+      const cfg = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()).filter(Boolean);
+      if (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') return cb(null, true);
+      if (!origin) return cb(null, true);
+      if (cfg.length === 0) return cb(null, true);
+      if (cfg.includes(origin)) return cb(null, true);
+      return cb(new Error('Not allowed by CORS'), false);
+    },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
+    exposedHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())
   .use(jwt({ secret: process.env.JWT_SECRET || 'changeme' }));

@@ -2045,18 +2045,27 @@ isSuspicious: true if fraudScore >= 50`;
       ctx.set.status = 404;
       return { error: 'Order not found' };
     }
-    const { status, notes, expiresAt, description } = ctx.body as any;
+    const { status, notes, expiresAt, description, amount, planId, items, userId } = ctx.body as any;
     if (status !== undefined) order.status = status;
     if (notes !== undefined) order.notes = notes;
     if (description !== undefined) order.description = description;
     if (expiresAt !== undefined) order.expiresAt = new Date(expiresAt);
+    if (amount !== undefined) order.amount = Number(amount || 0);
+    if (planId !== undefined) order.planId = planId != null ? Number(planId) : undefined as any;
+    if (items !== undefined) order.items = items;
+    if (userId !== undefined) {
+      const userRepo = AppDataSource.getRepository(User);
+      const u = await userRepo.findOneBy({ id: Number(userId) });
+      if (!u) { ctx.set.status = 404; return { error: 'User not found' }; }
+      order.userId = Number(userId);
+    }
     await orderRepo.save(order);
     return { success: true, order };
   }, {
     beforeHandle: authenticate,
     schema: {
       params: t.Object({ id: t.String() }),
-      body: t.Object({ status: t.Optional(t.String()), notes: t.Optional(t.String()), expiresAt: t.Optional(t.String()), description: t.Optional(t.String()) }),
+      body: t.Object({ status: t.Optional(t.String()), notes: t.Optional(t.String()), expiresAt: t.Optional(t.String()), description: t.Optional(t.String()), amount: t.Optional(t.Number()), planId: t.Optional(t.Any()), items: t.Optional(t.String()), userId: t.Optional(t.Any()) }),
       response: {
         200: t.Object({ success: t.Boolean(), order: t.Any() }),
         400: t.Object({ error: t.String() }),
@@ -2066,6 +2075,30 @@ isSuspicious: true if fraudScore >= 50`;
       },
     },
     detail: { summary: 'Modify an order', tags: ['Admin'] },
+  });
+
+  app.delete(prefix + '/admin/orders/:id', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const orderRepo = AppDataSource.getRepository(Order);
+    const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
+    if (!order) {
+      ctx.set.status = 404;
+      return { error: 'Order not found' };
+    }
+    await orderRepo.remove(order);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Delete an order (admin)', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/users/:id/current-plan', async (ctx) => {

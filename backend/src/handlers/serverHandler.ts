@@ -1092,7 +1092,24 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/transfer', async (ctx: any) => {
     const { id } = ctx.params as any;
     const payload = ctx.body;
-    const svc = await serviceFor(id);
+    const user = ctx.user;
+    let svc = await serviceFor(id);
+
+    if (payload && payload.sourceNodeId && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+      const nodeId = Number(payload.sourceNodeId);
+      try {
+        const node = await nodeRepo().findOneBy({ id: nodeId });
+        if (!node) {
+          ctx.set.status = 404;
+          return { error: 'Source node not found' };
+        }
+        svc = new WingsApiService(node.url, node.token);
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: 'Failed to resolve source node' };
+      }
+    }
+
     const res = await svc.transferServer(id, payload);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
   }, { beforeHandle: [authenticate, authorize('transfer:execute')],

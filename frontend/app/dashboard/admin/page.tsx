@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { PanelHeader } from "@/components/panel/header"
 import { StatCard, SectionHeader, StatusBadge } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -632,6 +632,36 @@ export default function AdminPanel() {
     }
   }
 
+  // ── Confirmation dialog helper (replaces window.confirm)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmMessage, setConfirmMessage] = useState<string>("")
+  const [confirmTitle, setConfirmTitle] = useState<string>("Confirm Action")
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const confirmResolveRef = useRef<((v: boolean) => void) | null>(null)
+
+  function confirmAsync(message: string, title?: string): Promise<boolean> {
+    setConfirmTitle(title || "Confirm Action")
+    setConfirmMessage(message)
+    setConfirmOpen(true)
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve
+    })
+  }
+
+  const handleConfirmOk = async () => {
+    setConfirmOpen(false)
+    setConfirmLoading(false)
+    if (confirmResolveRef.current) confirmResolveRef.current(true)
+    confirmResolveRef.current = null
+  }
+
+  const handleConfirmCancel = () => {
+    setConfirmOpen(false)
+    setConfirmLoading(false)
+    if (confirmResolveRef.current) confirmResolveRef.current(false)
+    confirmResolveRef.current = null
+  }
+
   const [editUserDialog, setEditUserDialog] = useState<AdminUser | null>(null)
   const [editRole, setEditRole] = useState("")
   const [editTier, setEditTier] = useState("")
@@ -699,6 +729,18 @@ export default function AdminPanel() {
   const [ioExpiresAt, setIoExpiresAt] = useState("")
   const [ioLoading, setIoLoading] = useState(false)
   const [ioError, setIoError] = useState("")
+
+  // ── Edit / Cancel / Delete Order ──
+  const [editOrderOpen, setEditOrderOpen] = useState(false)
+  const [editOrderTarget, setEditOrderTarget] = useState<AdminOrder | null>(null)
+  const [eoDescription, setEoDescription] = useState("")
+  const [eoAmount, setEoAmount] = useState("0")
+  const [eoPlanId, setEoPlanId] = useState("")
+  const [eoNotes, setEoNotes] = useState("")
+  const [eoExpiresAt, setEoExpiresAt] = useState("")
+  const [eoStatus, setEoStatus] = useState("")
+  const [eoLoading, setEoLoading] = useState(false)
+  const [eoError, setEoError] = useState("")
 
   // ── User current plan ──
   const [userCurrentPlan, setUserCurrentPlan] = useState<{ plan: any; order: any } | null>(null)
@@ -1021,7 +1063,7 @@ export default function AdminPanel() {
   }
 
   async function resetDemo(user: AdminUser) {
-    if (!confirm(`Reset demo status for ${user.firstName} ${user.lastName}?`)) return
+    if (!(await confirmAsync(`Reset demo status for ${user.firstName} ${user.lastName}?`))) return
     await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
       method: "PUT",
       body: JSON.stringify({ demoUsed: false, demoExpiresAt: null, demoOriginalPortalType: null, demoLimits: null }),
@@ -1030,7 +1072,7 @@ export default function AdminPanel() {
   }
 
   async function deleteUser(user: AdminUser) {
-    if (!confirm(`Delete user ${user.firstName} ${user.lastName}? This is permanent.`)) return
+    if (!(await confirmAsync(`Delete user ${user.firstName} ${user.lastName}? This is permanent.`))) return
     await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
       method: "DELETE",
     })
@@ -1057,7 +1099,7 @@ export default function AdminPanel() {
 
   async function cancelUserPlan() {
     if (!editUserDialog) return
-    if (!confirm(`Cancel ${editUserDialog.firstName}'s active plan? They will revert to Free tier.`)) return
+    if (!(await confirmAsync(`Cancel ${editUserDialog.firstName}'s active plan? They will revert to Free tier.`))) return
     setCancelPlanLoading(true)
     try {
       await apiFetch(API_ENDPOINTS.adminUserCancelPlan.replace(":id", String(editUserDialog.id)), { method: "POST" })
@@ -1151,7 +1193,7 @@ export default function AdminPanel() {
   }
 
   async function deleteVerification(id: number) {
-    if (!confirm('Delete this verification record and its uploaded documents?')) return
+    if (!(await confirmAsync('Delete this verification record and its uploaded documents?'))) return
     try {
       await apiFetch(`${API_ENDPOINTS.adminVerifications}/${id}`, { method: 'DELETE' })
       setVerifications((prev) => prev.filter((v) => v.id !== id))
@@ -1210,7 +1252,7 @@ export default function AdminPanel() {
   }
 
   async function deleteOrg(org: AdminOrganisation) {
-    if (!confirm(`Delete organisation "${org.name}"? This will unlink all members.`)) return
+    if (!(await confirmAsync(`Delete organisation "${org.name}"? This will unlink all members.`))) return
     await apiFetch(`${API_ENDPOINTS.adminOrganisations}/${org.id}`, { method: "DELETE" })
     setOrganisations((prev) => prev.filter((o) => o.id !== org.id))
     apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
@@ -1227,7 +1269,7 @@ export default function AdminPanel() {
   }
 
   async function deleteServer(uuid: string) {
-    if (!confirm(`Delete server ${uuid}? This action cannot be undone.`)) return
+    if (!(await confirmAsync(`Delete server ${uuid}? This action cannot be undone.`))) return
     await apiFetch(`${API_ENDPOINTS.adminServers}/${uuid}`, { method: "DELETE" })
     setServers((prev) => prev.filter((s) => s.uuid !== uuid))
     apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
@@ -1298,7 +1340,7 @@ export default function AdminPanel() {
 
   async function reinstallServerFromDialog() {
     if (!editServerDialog) return
-    if (!confirm(`Reinstall "${editServerDialog.name || editServerDialog.uuid}"? All server files will be wiped and the server will be re-provisioned from its egg.`)) return
+    if (!(await confirmAsync(`Reinstall "${editServerDialog.name || editServerDialog.uuid}"? All server files will be wiped and the server will be re-provisioned from its egg.`))) return
     setEsReinstalling(true)
     try {
       await apiFetch(`/api/servers/${editServerDialog.uuid}/reinstall`, { method: "POST" })
@@ -1475,13 +1517,13 @@ export default function AdminPanel() {
   }
 
   async function deletePlan(plan: AdminPlan) {
-    if (!confirm(`Delete plan "${plan.name}"?`)) return
+    if (!(await confirmAsync(`Delete plan "${plan.name}"?`))) return
     await apiFetch(`${API_ENDPOINTS.adminPlans}/${plan.id}`, { method: "DELETE" })
     setPlans((prev) => prev.filter((p) => p.id !== plan.id))
   }
 
   async function ensurePortalPlans() {
-    if (!confirm("Ensure all users have a portal-matching plan? This will create orders for missing assignments.")) return
+    if (!(await confirmAsync("Ensure all users have a portal-matching plan? This will create orders for missing assignments."))) return
     setEnsureLoading(true)
     try {
       const res = await apiFetch('/api/admin/ensure-portal-plans', { method: 'POST' })
@@ -1526,6 +1568,66 @@ export default function AdminPanel() {
       setIoError(e.message || "Failed to issue order")
     } finally {
       setIoLoading(false)
+    }
+  }
+
+  function openEditOrder(order: AdminOrder) {
+    setEditOrderTarget(order)
+    setEoDescription(order.description || "")
+    setEoAmount(String(order.amount ?? 0))
+    setEoPlanId(order.planId ? String(order.planId) : "")
+    setEoNotes(order.notes || "")
+    setEoExpiresAt(order.expiresAt || "")
+    setEoStatus(order.status || "")
+    setEoError("")
+    setEditOrderOpen(true)
+  }
+
+  async function submitEditOrder() {
+    if (!editOrderTarget) return
+    setEoLoading(true); setEoError("")
+    try {
+      const id = String(editOrderTarget.id)
+      const res = await apiFetch(API_ENDPOINTS.adminOrderDetail.replace(":id", id), {
+        method: "PUT",
+        body: JSON.stringify({
+          description: eoDescription || undefined,
+          amount: eoAmount ? Number(eoAmount) : 0,
+          planId: eoPlanId ? Number(eoPlanId) : undefined,
+          notes: eoNotes || undefined,
+          expiresAt: eoExpiresAt || undefined,
+          status: eoStatus || undefined,
+        }),
+      })
+      setAdminOrders((prev) => prev.map((o) => (o.id === editOrderTarget.id ? (res.order ?? res) : o)))
+      setEditOrderOpen(false)
+    } catch (e: any) {
+      setEoError(e?.message || "Failed to save order")
+    } finally {
+      setEoLoading(false)
+    }
+  }
+
+  async function cancelOrder(order: AdminOrder) {
+    if (!confirm(`Cancel order #${order.id}?`)) return
+    try {
+      const res = await apiFetch(API_ENDPOINTS.adminOrderDetail.replace(":id", String(order.id)), {
+        method: "PUT",
+        body: JSON.stringify({ status: "cancelled" }),
+      })
+      setAdminOrders((prev) => prev.map((o) => (o.id === order.id ? (res.order ?? res) : o)))
+    } catch (e) {
+      alert("Failed to cancel order")
+    }
+  }
+
+  async function deleteOrder(order: AdminOrder) {
+    if (!confirm(`Delete order #${order.id}? This cannot be undone.`)) return
+    try {
+      await apiFetch(API_ENDPOINTS.adminOrderDetail.replace(":id", String(order.id)), { method: "DELETE" })
+      setAdminOrders((prev) => prev.filter((o) => o.id !== order.id))
+    } catch (e) {
+      alert("Failed to delete order")
     }
   }
 
@@ -1576,7 +1678,7 @@ export default function AdminPanel() {
   }
 
   async function deleteNode(node: AdminNode) {
-    if (!confirm(`Delete node "${node.name}"? All server mappings on this node will break.`)) return
+    if (!(await confirmAsync(`Delete node "${node.name}"? All server mappings on this node will break.`))) return
     await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
     apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
@@ -1803,13 +1905,13 @@ remote: ${panelUrl}`
   }
 
   async function deleteEgg(egg: AdminEgg) {
-    if (!confirm(`Delete egg "${egg.name}"?`)) return
+    if (!(await confirmAsync(`Delete egg "${egg.name}"?`))) return
     await apiFetch(`${API_ENDPOINTS.adminEggs}/${egg.id}`, { method: "DELETE" })
     setEggs((prev) => prev.filter((e) => e.id !== egg.id))
   }
 
   async function deleteAllEggs() {
-    if (!confirm('Delete ALL eggs? This cannot be undone.')) return
+    if (!(await confirmAsync('Delete ALL eggs? This cannot be undone.'))) return
     await apiFetch(API_ENDPOINTS.adminEggs, { method: "DELETE" })
     setEggs([])
   }
@@ -1895,7 +1997,7 @@ remote: ${panelUrl}`
   }
 
   async function deleteAIModel(m: AdminAIModel) {
-    if (!confirm(`Delete model "${m.name}"?`)) return
+    if (!(await confirmAsync(`Delete model "${m.name}"?`))) return
     await apiFetch(`${API_ENDPOINTS.adminAiModels}/${m.id}`, { method: "DELETE" })
     setAiModels((prev) => prev.filter((x) => x.id !== m.id))
   }
@@ -2038,6 +2140,21 @@ remote: ${panelUrl}`
   return (
     <>
       <PanelHeader title="Admin Panel" description="System administration and management" />
+      {/* Global confirmation dialog used by page actions */}
+      <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) handleConfirmCancel() }}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{confirmTitle}</DialogTitle>
+            {confirmMessage && <DialogDescription className="text-sm text-muted-foreground">{confirmMessage}</DialogDescription>}
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleConfirmCancel()} disabled={confirmLoading}>Cancel</Button>
+            <Button variant="destructive" onClick={() => handleConfirmOk()} disabled={confirmLoading}>
+              {confirmLoading ? "Working…" : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
 
@@ -3050,7 +3167,7 @@ remote: ${panelUrl}`
                           {!alert.suspended && (
                             <button
                               onClick={async () => {
-                                if (!confirm(`Suspend user ${alert.firstName} ${alert.lastName}?`)) return;
+                                if (!(await confirmAsync(`Suspend user ${alert.firstName} ${alert.lastName}?`))) return;
                                 try {
                                   await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
                                     method: "PUT",
@@ -3131,7 +3248,7 @@ remote: ${panelUrl}`
                           <button
                             onClick={async (e) => {
                               e.stopPropagation()
-                              if (!confirm(`Delete role "${role.name}"?`)) return
+                              if (!(await confirmAsync(`Delete role "${role.name}"?`))) return
                               await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" })
                               setRoles((prev) => prev.filter((r) => r.id !== role.id))
                               if (selectedRole?.id === role.id) setSelectedRole(null)
@@ -3655,7 +3772,7 @@ Content-Type: application/json
                                 <p className="text-sm font-medium text-foreground truncate">{oa.name}</p>
                                 <button
                                   onClick={async () => {
-                                    if (!confirm(`Delete app "${oa.name}"? All tokens will be revoked.`)) return
+                                    if (!(await confirmAsync(`Delete app "${oa.name}"? All tokens will be revoked.`))) return
                                     try {
                                       await apiFetch(`/api/oauth/apps/${oa.id}`, { method: "DELETE" })
                                       setOauthApps((prev) => prev.filter((a) => a.id !== oa.id))
@@ -3842,7 +3959,18 @@ Content-Type: application/json
                           </p>
                           {order.notes && <p className="text-xs text-muted-foreground italic">{order.notes}</p>}
                         </div>
-                        <Badge variant="outline" className="text-xs capitalize shrink-0 ml-3">{order.status}</Badge>
+                        <div className="flex items-center gap-2 ml-3">
+                          <Button size="sm" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary" onClick={() => openEditOrder(order)}>
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary" onClick={() => cancelOrder(order)}>
+                            <XCircle className="h-3.5 w-3.5 text-yellow-400" />
+                          </Button>
+                          <Button size="sm" className="rounded-md p-1.5 text-destructive hover:bg-secondary" onClick={() => deleteOrder(order)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Badge variant="outline" className="text-xs capitalize shrink-0">{order.status}</Badge>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -5045,6 +5173,53 @@ Content-Type: application/json
             <Button variant="outline" onClick={() => setApplyPlanOpen(false)} className="border-border">Cancel</Button>
             <Button onClick={submitApplyPlan} disabled={applyPlanLoading} className="bg-primary text-primary-foreground">
               {applyPlanLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Applying…</> : "Apply Plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Edit Order Dialog ═════════════════════════════════════════════ */}
+      <Dialog open={editOrderOpen} onOpenChange={(open) => !open && setEditOrderOpen(false)}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{editOrderTarget ? `Edit Order #${editOrderTarget.id}` : 'Edit Order'}</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">Modify order details or change status.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
+              <input value={eoDescription} onChange={(e) => setEoDescription(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</label>
+                <input type="number" value={eoAmount} onChange={(e) => setEoAmount(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan ID</label>
+                <input value={eoPlanId} onChange={(e) => setEoPlanId(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</label>
+              <input value={eoNotes} onChange={(e) => setEoNotes(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none" />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expires At</label>
+                <input type="date" value={eoExpiresAt?.split("T")?.[0] || eoExpiresAt} onChange={(e) => setEoExpiresAt(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+                <input value={eoStatus} onChange={(e) => setEoStatus(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              </div>
+            </div>
+            {eoError && <p className="text-xs text-destructive">{eoError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOrderOpen(false)} className="border-border">Cancel</Button>
+            <Button onClick={submitEditOrder} disabled={eoLoading} className="bg-primary text-primary-foreground">
+              {eoLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Saving…</> : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
