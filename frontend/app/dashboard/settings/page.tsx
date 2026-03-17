@@ -617,15 +617,16 @@ export default function SettingsPage() {
 
   const createApiKey = async () => {
     try {
-      const body: any = { name: newKeyName, type: newKeyType }
-      if (newKeyPerms.length > 0) body.permissions = newKeyPerms
-      const res = await apiFetch(API_ENDPOINTS.apiKeys, { method: 'POST', body: JSON.stringify(body) })
-      alert('Key: ' + res.apiKey)
-      setNewKeyName('')
-      setNewKeyPerms([])
-      loadApiKeys()
+      if (!user?.id) throw new Error('User not loaded');
+      const body: any = { name: newKeyName, type: newKeyType, userId: user.id };
+      if (newKeyPerms.length > 0) body.permissions = newKeyPerms;
+      const res = await apiFetch(API_ENDPOINTS.apiKeys, { method: 'POST', body: JSON.stringify(body) });
+      alert('Key: ' + res.apiKey);
+      setNewKeyName('');
+      setNewKeyPerms([]);
+      loadApiKeys();
     } catch (e: any) {
-      alert('Failed: ' + e.message)
+      alert('Failed: ' + e.message);
     }
   }
 
