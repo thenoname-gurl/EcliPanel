@@ -124,7 +124,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.id !== org.ownerId && user.org?.id !== org.id && user.role !== 'admin' && user.role !== '*') {
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin') || user.role === 'admin' || user.role === '*';
+    if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -141,7 +142,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.id !== org.ownerId && user.org?.id !== org.id && user.role !== 'admin' && user.role !== '*') {
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin') || user.role === 'admin' || user.role === '*';
+    if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -149,6 +151,10 @@ export async function organisationRoutes(app: any, prefix = '') {
     if (!target || target.org?.id !== org.id) {
       ctx.set.status = 404;
       return { error: 'User not found in org' };
+    }
+    if (target.orgRole === 'owner') {
+      ctx.set.status = 403;
+      return { error: 'Cannot remove organisation owner' };
     }
     target.org = undefined as any;
     target.orgRole = 'member';
@@ -167,7 +173,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.id !== org.ownerId && user.org?.id !== org.id && user.role !== 'admin' && user.role !== '*') {
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin') || user.role === 'admin' || user.role === '*';
+    if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

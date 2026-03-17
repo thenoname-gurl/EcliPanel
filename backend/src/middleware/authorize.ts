@@ -35,6 +35,10 @@ export function authorize(required: string) {
       return;
     }
 
+    if (required === 'transfer:execute' && user.role === 'admin') {
+      return;
+    }
+
     if (required.startsWith('servers:')) {
       try {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
