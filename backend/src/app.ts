@@ -232,7 +232,7 @@ const app = new Elysia()
           try {
             return new URL(str.startsWith('http') ? str : `https://${str}`).origin;
           } catch {
-            return str.replace(/\/\/+$//g, '');
+            return str.replace(/\/+$/g, '');
           }
         }
       };
