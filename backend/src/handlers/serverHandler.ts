@@ -1143,8 +1143,15 @@ export async function serverRoutes(app: any, prefix = '') {
       delete payload.targetNodeId;
     }
 
-    const res = await svc.transferServer(id, payload);
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    try {
+      const res = await svc.transferServer(id, payload);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    } catch (e: any) {
+      const status = e?.response?.status || 500;
+      const message = e?.response?.data?.error || e?.response?.data || e?.message || 'Transfer failed';
+      ctx.set.status = status;
+      return { error: message };
+    }
   }, { beforeHandle: [authenticate, authorize('transfer:execute')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Transfer server', tags: ['Servers'] }

@@ -1,7 +1,10 @@
 import axios from 'axios';
+import https from 'https';
 import WebSocket from 'ws';
 
 const REQUEST_TIMEOUT = 10_000;
+
+const allowInvalidCerts = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
 
 export class WingsApiService {
   private baseUrl: string;
@@ -20,7 +23,11 @@ export class WingsApiService {
   }
 
   private cfg(extra?: object) {
-    return { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, ...extra };
+    const cfg: any = { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, ...extra };
+    if (allowInvalidCerts) {
+      cfg.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    }
+    return cfg;
   }
 
   async getSystemInfo() {
