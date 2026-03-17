@@ -39,6 +39,7 @@ import {
   Save,
   ArrowLeft,
   RefreshCw,
+  Repeat,
   Send,
   Loader2,
   AlertTriangle,
@@ -231,6 +232,12 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [powerDialogOpen, setPowerDialogOpen] = useState(false)
   const [pendingPowerAction, setPendingPowerAction] = useState<string | null>(null)
 
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferNodes, setTransferNodes] = useState<any[]>([])
+  const [transferNodeId, setTransferNodeId] = useState<number | null>(null)
+  const [transferError, setTransferError] = useState<string | null>(null)
+
   const loadServer = useCallback(async () => {
     try {
       const data = await apiFetch(API_ENDPOINTS.serverDetail.replace(":id", id))
@@ -291,6 +298,50 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       router.push("/dashboard/servers")
     } catch (e: any) {
       alert("Delete failed: " + e.message)
+    }
+  }
+
+  const loadNodes = async () => {
+    try {
+      const nodes = await apiFetch(API_ENDPOINTS.nodes)
+      if (Array.isArray(nodes)) {
+        setTransferNodes(nodes)
+      }
+    } catch {
+      // skip
+    }
+  }
+
+  const openTransferDialog = async () => {
+    setTransferError(null)
+    setTransferNodeId(null)
+    setTransferDialogOpen(true)
+    if (transferNodes.length === 0) {
+      await loadNodes()
+    }
+  }
+
+  const doTransfer = async () => {
+    if (!transferNodeId) {
+      setTransferError('Please select a target node')
+      return
+    }
+    setTransferLoading(true)
+    setTransferError(null)
+    try {
+      await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id), {
+        method: "POST",
+        body: JSON.stringify({ targetNodeId: transferNodeId }),
+      })
+      setTransferDialogOpen(false)
+      setTransferNodeId(null)
+      setTransferNodes([])
+      loadServer()
+      alert('Transfer initiated. This may take several minutes.')
+    } catch (e: any) {
+      setTransferError(e.message || 'Transfer failed')
+    } finally {
+      setTransferLoading(false)
     }
   }
 
@@ -394,6 +445,16 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               >
                 <Power className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Kill</span>
               </Button>
+              {user && (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 w-full sm:w-auto"
+                  onClick={openTransferDialog}
+                >
+                  <Repeat className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Transfer</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -460,6 +521,44 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <Button variant="outline" onClick={() => { setPowerDialogOpen(false); setPendingPowerAction(null); }} disabled={powerLoading}>Cancel</Button>
               <Button variant={pendingPowerAction === 'kill' ? 'destructive' : 'default'} onClick={doConfirmedPowerAction} disabled={powerLoading}>
                 {powerLoading ? 'Processing...' : (pendingPowerAction ? (pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)) : 'Confirm')}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer dialog */}
+      <Dialog open={transferDialogOpen} onOpenChange={(open) => { if (!open) { setTransferDialogOpen(false); setTransferNodeId(null); setTransferError(null); } }}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Transfer Server</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">Select the destination node to transfer this server to. This may take a few minutes.</p>
+            <div>
+              <label className="text-xs font-medium text-foreground">Destination Node</label>
+              <select
+                value={transferNodeId ?? ''}
+                onChange={(e) => setTransferNodeId(e.target.value ? Number(e.target.value) : null)}
+                className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              >
+                <option value="">Select a node...</option>
+                {transferNodes.map((n: any) => (
+                  <option key={n.id} value={n.id}>
+                    {n.name || n.nodeId || n.id} {n.nodeType ? `(${n.nodeType})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {transferError && <p className="text-xs text-destructive">{transferError}</p>}
+            <p className="text-xs text-muted-foreground">The source node will stream the server data to the destination node. Make sure both nodes are online.</p>
+          </div>
+          <DialogFooter>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTransferDialogOpen(false)} disabled={transferLoading}>Cancel</Button>
+              <Button variant="default" onClick={doTransfer} disabled={transferLoading || !transferNodeId}>
+                {transferLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                Transfer
               </Button>
             </div>
           </DialogFooter>
