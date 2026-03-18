@@ -83,6 +83,11 @@ export class WingsApiService {
     return axios.get(url, { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, responseType: 'text' });
   }
 
+  async downloadFile(serverId: string, path: string) {
+    const url = `${this.baseUrl}/servers/${serverId}/files/contents?file=${encodeURIComponent(path)}`;
+    return axios.get(url, { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, responseType: 'arraybuffer' });
+  }
+
   async writeFile(serverId: string, filePath: string, content: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/write?file=${encodeURIComponent(filePath)}`;
     return axios.post(url, content, {
@@ -118,8 +123,8 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/backups', 'post', payload);
   }
 
-  async restoreServerBackup(serverId: string, backupId: string) {
-    return this.serverRequest(serverId, `/backups/${backupId}/restore`, 'post');
+  async restoreServerBackup(serverId: string, backupId: string, payload: any) {
+    return this.serverRequest(serverId, `/backups/${backupId}/restore`, 'post', payload);
   }
 
   async executeServerCommand(serverId: string, command: string) {

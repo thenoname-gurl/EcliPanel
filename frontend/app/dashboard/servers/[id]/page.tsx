@@ -1627,18 +1627,11 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
               if (fileInputRef.current) fileInputRef.current.value = ''
             }
           }} />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
-            disabled={uploading || bulkBusy}
-          >
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Upload
-          </button>
           {selectedNames.length > 0 && (
             <>
               <span className="text-xs text-muted-foreground">{selectedNames.length} selected</span>
               <button
-                onClick={archiveSelected}
+c                 onClick={archiveSelected}
                 disabled={bulkBusy}
                 className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60"
               >
@@ -1660,6 +1653,13 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
               </button>
             </>
           )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
+            disabled={uploading || bulkBusy}
+          >
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Upload
+          </button>
           <button
             onClick={() => { setShowNewFileForm(true); setShowNewFolderForm(false); setNewName("") }}
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
@@ -1795,20 +1795,55 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
                   {!isDir && (
                     <button
                       onClick={async () => {
+                        const newName = prompt('Rename file to', fname);
+                        if (!newName || newName === fname) return;
                         try {
-                          const data = await apiFetch(API_ENDPOINTS.serverFileContents.replace(":id", serverId) + `?path=${encodeURIComponent(path + fname)}`)
-                          const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
-                          const blob = new Blob([content], { type: 'application/octet-stream' })
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement('a')
-                          a.href = url
-                          a.download = fname
-                          document.body.appendChild(a)
-                          a.click()
-                          a.remove()
-                          URL.revokeObjectURL(url)
+                          await apiFetch(API_ENDPOINTS.serverFileRename.replace(":id", serverId), {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                              root: path,
+                              files: [{ from: fname, to: newName }],
+                            }),
+                          });
+                          await loadFiles(path);
                         } catch (e: any) {
-                          alert('Download failed: ' + (e?.message || e))
+                          alert('Rename failed: ' + (e?.message || e));
+                        }
+                      }}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/10"
+                      title="Rename"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {!isDir && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(
+                            API_ENDPOINTS.serverFileDownload.replace(":id", serverId) + `?path=${encodeURIComponent(path + fname)}`,
+                            {
+                              credentials: 'include',
+                              headers: {
+                                Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                              },
+                            }
+                          );
+                          if (!res.ok) {
+                            const text = await res.text();
+                            throw new Error(text || `HTTP ${res.status}`);
+                          }
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = fname;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(url);
+                        } catch (e: any) {
+                          alert('Download failed: ' + (e?.message || e));
                         }
                       }}
                       className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/10"
