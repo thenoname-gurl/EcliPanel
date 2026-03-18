@@ -24,9 +24,6 @@ export class WingsApiService {
 
   private cfg(extra?: object) {
     const cfg: any = { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, ...extra };
-    if (allowInvalidCerts) {
-      cfg.httpsAgent = new https.Agent({ rejectUnauthorized: false });
-    }
     return cfg;
   }
 
