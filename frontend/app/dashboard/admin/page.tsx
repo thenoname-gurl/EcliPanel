@@ -138,6 +138,7 @@ interface AdminEgg {
   installScript?: Record<string, any>
   features?: string[]
   fileDenylist?: string[]
+  allowedPortals?: string[]
   updateUrl?: string
   visible: boolean
 }
@@ -830,6 +831,7 @@ export default function AdminPanel() {
   const [eggVisible, setEggVisible] = useState(true)
   const [eggFeatures, setEggFeatures] = useState("") // comma-separated
   const [eggFileDenylist, setEggFileDenylist] = useState("") // one per line
+  const [eggAllowedPortals, setEggAllowedPortals] = useState<string[]>([])
   const [eggProcessStop, setEggProcessStop] = useState("stop") // stop command value
   const [eggProcessDone, setEggProcessDone] = useState("") // done patterns, one per line
   const [eggInstallContainer, setEggInstallContainer] = useState("")
@@ -1809,6 +1811,7 @@ remote: ${panelUrl}`
     setEggImage(""); setEggDockerImagesRaw(""); setEggStartup("")
     setEggEnvVars(""); setEggVisible(true)
     setEggFeatures(""); setEggFileDenylist("")
+    setEggAllowedPortals([])
     setEggProcessStop("stop"); setEggProcessDone("")
     setEggInstallContainer(""); setEggInstallEntrypoint("bash"); setEggInstallScript("")
   }
@@ -1830,6 +1833,7 @@ remote: ${panelUrl}`
     setEggVisible(egg.visible)
     setEggFeatures((egg.features || []).join(", "))
     setEggFileDenylist((egg.fileDenylist || []).join("\n"))
+    setEggAllowedPortals(egg.allowedPortals || [])
     setEggProcessStop(egg.processConfig?.stop?.value || "stop")
     setEggProcessDone((egg.processConfig?.startup?.done || []).join("\n"))
     setEggInstallContainer(egg.installScript?.container || "")
@@ -1888,6 +1892,7 @@ remote: ${panelUrl}`
       installScript,
       features: features.length ? features : undefined,
       fileDenylist: fileDenylist.length ? fileDenylist : undefined,
+      allowedPortals: eggAllowedPortals,
       visible: eggVisible,
     }
     try {
@@ -2500,8 +2505,8 @@ remote: ${panelUrl}`
                           </td>
                         </tr>
                       ) : (
-                        filteredServers.map((srv) => (
-                          <tr key={`${srv.uuid}-${srv.nodeId || ''}`} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                        filteredServers.map((srv, i) => (
+                          <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ''}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">{srv.name || "Unnamed Server"}</p>
                               {srv.description && (
@@ -2615,8 +2620,8 @@ remote: ${panelUrl}`
                           </td>
                         </tr>
                       ) : (
-                        filteredTickets.map((ticket) => (
-                          <tr key={ticket.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                        filteredTickets.map((ticket, i) => (
+                          <tr key={ticket.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">#{ticket.id}</td>
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
@@ -2695,8 +2700,8 @@ remote: ${panelUrl}`
                           </td>
                         </tr>
                       ) : (
-                        verifications.map((v) => (
-                          <tr key={v.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                        verifications.map((v, i) => (
+                          <tr key={v.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">
                                 {v.user ? `${v.user.firstName} ${v.user.lastName}` : `User #${v.userId}`}
@@ -2793,8 +2798,8 @@ remote: ${panelUrl}`
                           </td>
                         </tr>
                       ) : (
-                        deletions.map((d) => (
-                          <tr key={d.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                        deletions.map((d, i) => (
+                          <tr key={d.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">
                                 {d.user ? `${d.user.firstName} ${d.user.lastName}` : `User #${d.userId}`}
@@ -2962,8 +2967,8 @@ remote: ${panelUrl}`
                     <tbody>
                       {eggs.length === 0 ? (
                         <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No eggs configured.</td></tr>
-                      ) : eggs.map((egg) => (
-                        <tr key={egg.id} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
+                      ) : eggs.map((egg, i) => (
+                        <tr key={egg.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
                           <td className="px-4 py-3">
                             <p className="font-medium text-foreground">{egg.name}</p>
                             {egg.description && <p className="text-xs text-muted-foreground">{egg.description}</p>}
@@ -3026,8 +3031,8 @@ remote: ${panelUrl}`
                     <tbody>
                       {aiModels.length === 0 ? (
                         <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No AI models configured. Add one to enable AI features.</td></tr>
-                      ) : aiModels.map((m) => (
-                        <tr key={m.id} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
+                      ) : aiModels.map((m, i) => (
+                        <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
                           <td className="px-4 py-3">
                             <p className="font-medium text-foreground">{m.name}</p>
                             {m.config?.description && <p className="text-xs text-muted-foreground">{m.config.description}</p>}
@@ -3441,8 +3446,8 @@ remote: ${panelUrl}`
                           </td>
                         </tr>
                       ) : (
-                        logs.map((log: any) => (
-                          <tr key={log.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                        logs.map((log: any, i) => (
+                          <tr key={log.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                               {new Date(log.timestamp).toLocaleString()}
                             </td>
@@ -5621,6 +5626,29 @@ Content-Type: application/json
                   <textarea value={eggInstallScript} onChange={(e) => setEggInstallScript(e.target.value)} rows={14}
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary/50 resize-none"
                     placeholder={"#!/bin/bash\napt-get install -y curl\n# ...\n"} />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Allowed Portals</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['free', 'paid', 'enterprise'].map((tier) => (
+                      <label key={tier} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={eggAllowedPortals.includes(tier)}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...eggAllowedPortals, tier]
+                              : eggAllowedPortals.filter((p) => p !== tier)
+                            setEggAllowedPortals(next)
+                          }}
+                          className="accent-primary"
+                        />
+                        <span>{portalMarkerByTier[tier] ?? tier}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">When empty, this egg is available to all portals.</p>
                 </div>
               </div>
             )}

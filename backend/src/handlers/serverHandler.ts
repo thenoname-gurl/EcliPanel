@@ -55,7 +55,7 @@ export async function serverRoutes(app: any, prefix = '') {
             throw new Error('Node not available for your organisation');
           }
         } else {
-          const allowedTypes = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free'];
+          const allowedTypes = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
           if (!allowedTypes.includes(n.nodeType || '')) {
             throw new Error('Node not available for your portal tier');
           }
@@ -440,11 +440,12 @@ export async function serverRoutes(app: any, prefix = '') {
       : user.id;
 
     const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
-    
+
+    let effectivePortalType = user.portalType;
     let limits: any = {};
     if (!isAdmin) {
       const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
-      const effectivePortalType = isDemoActive && user.demoOriginalPortalType ? user.demoOriginalPortalType : user.portalType;
+      effectivePortalType = isDemoActive && user.demoOriginalPortalType ? user.demoOriginalPortalType : user.portalType;
 
       if (effectivePortalType === 'enterprise' && user.nodeId) {
         const enterpriseNode = await nodeRepo().findOneBy({ id: user.nodeId });
@@ -511,6 +512,15 @@ export async function serverRoutes(app: any, prefix = '') {
     if (!egg.visible && !isAdmin) {
       ctx.set.status = 403;
       return { error: 'Egg not available' };
+    }
+
+    // Restrict eggs to specific portals if configured
+    if (!isAdmin && Array.isArray((egg as any).allowedPortals) && (egg as any).allowedPortals.length > 0) {
+      const allowed = (egg as any).allowedPortals as string[];
+      if (!allowed.includes(effectivePortalType)) {
+        ctx.set.status = 403;
+        return { error: 'Egg not available for your portal type' };
+      }
     }
 
     let node: Node;

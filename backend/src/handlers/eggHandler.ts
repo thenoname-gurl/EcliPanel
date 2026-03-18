@@ -61,7 +61,7 @@ export async function eggRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     //scary
     const rows = await AppDataSource.manager.query('SELECT * FROM egg ORDER BY name ASC');
-    const jsonFields = ['dockerImages', 'envVars', 'configFiles', 'processConfig', 'installScript', 'features', 'fileDenylist'];
+    const jsonFields = ['dockerImages', 'envVars', 'configFiles', 'processConfig', 'installScript', 'features', 'fileDenylist', 'allowedPortals'];
     const eggs = (rows as any[]).map((r: any) => {
       for (const f of jsonFields) {
         if (r[f] === null || r[f] === undefined) continue;
@@ -84,12 +84,12 @@ export async function eggRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/admin/eggs', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { name, description, dockerImage, startup, envVars, configFiles, visible } = ctx.body as any;
+    const { name, description, dockerImage, startup, envVars, configFiles, visible, allowedPortals } = ctx.body as any;
     if (!name || !dockerImage || !startup) {
       ctx.set.status = 400;
       return { error: 'name, dockerImage and startup are required' };
     }
-    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true });
+    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true, allowedPortals });
     await repo().save(egg);
     ctx.set.status = 201;
     return egg;
@@ -104,6 +104,7 @@ export async function eggRoutes(app: any, prefix = '') {
         envVars: t.Optional(t.Any()),
         configFiles: t.Optional(t.Any()),
         visible: t.Optional(t.Boolean()),
+        allowedPortals: t.Optional(t.Array(t.String())),
       }),
       response: {
         201: t.Any(),
@@ -126,7 +127,7 @@ export async function eggRoutes(app: any, prefix = '') {
     const {
       name, description, author, dockerImage, dockerImages, startup,
       envVars, configFiles, processConfig, installScript, features,
-      fileDenylist, updateUrl, visible,
+      fileDenylist, updateUrl, visible, allowedPortals,
     } = ctx.body as any;
     if (name !== undefined) egg.name = name;
     if (description !== undefined) egg.description = description;
@@ -142,6 +143,7 @@ export async function eggRoutes(app: any, prefix = '') {
     if (fileDenylist !== undefined) egg.fileDenylist = fileDenylist;
     if (updateUrl !== undefined) egg.updateUrl = updateUrl;
     if (visible !== undefined) egg.visible = visible;
+    if (allowedPortals !== undefined) egg.allowedPortals = allowedPortals;
 
     await repo().save(egg);
     return egg;

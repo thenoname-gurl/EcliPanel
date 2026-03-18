@@ -58,6 +58,9 @@ export class Egg {
   @Column({ type: 'json', nullable: true })
   fileDenylist?: string[];
 
+  @Column({ type: 'json', nullable: true })
+  allowedPortals?: string[];
+
   @Column({ nullable: true, type: 'text' })
   updateUrl?: string;
 
