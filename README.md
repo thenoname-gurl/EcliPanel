@@ -9,6 +9,7 @@ The goal of this iteration is to provide a fully in‑house backend and moderniz
 
 ⚠️ This is still in-dev project bugs might happen, tho it was tested and should be save to use in production!
 
+Interested on how this project looks? Check out showcase [by clicking here](/SHOWCASE.md)
 
 
 > ⚠️ **Open Source (Non‑Commercial Only)**  
