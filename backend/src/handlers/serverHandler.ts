@@ -783,11 +783,41 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     const { path } = ctx.query as any;
     const svc = await serviceFor(id);
-    const res = await svc.readFile(id, path);
-    return res.data ?? '';
+    try {
+      const res = await svc.readFile(id, path);
+      return res.data ?? '';
+    } catch (e: any) {
+      const status = e?.response?.status || 500;
+      const msg = e?.response?.data?.error || e?.message || 'Failed to read file';
+      ctx.set.status = status;
+      return { error: msg };
+    }
   }, { beforeHandle: [authenticate, authorize('files:read')],
-    response: { 200: t.String(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Read file contents', tags: ['Servers'] }
+  });
+
+  app.get(prefix + '/servers/:id/files/download', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { path } = ctx.query as any;
+    const svc = await serviceFor(id);
+
+    try {
+      const res = await svc.downloadFile(id, path);
+      const filename = (path || '').split('/').pop() || 'download';
+      const contentType = res.headers['content-type'] || 'application/octet-stream';
+      ctx.set.header('Content-Type', contentType);
+      ctx.set.header('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      return res.data;
+    } catch (e: any) {
+      const status = e?.response?.status || 500;
+      const msg = e?.response?.data?.error || e?.message || 'Failed to download file';
+      ctx.set.status = status;
+      return { error: msg };
+    }
+  }, { beforeHandle: [authenticate, authorize('files:read')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Download file', tags: ['Servers'] }
   });
 
   app.post(prefix + '/servers/:id/files/write', async (ctx: any) => {
@@ -893,6 +923,29 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'Archive files', tags: ['Servers'] }
   });
 
+  app.put(prefix + '/servers/:id/files/rename', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { root = '/', files } = ctx.body as any;
+    if (!Array.isArray(files) || files.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'files must be a non-empty array' };
+    }
+
+    const svc = await serviceFor(id);
+    try {
+      const res = await svc.serverRequest(id, '/files/rename', 'put', { root, files });
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    } catch (e: any) {
+      const status = e?.response?.status || 500;
+      const msg = e?.response?.data?.error || e?.message || 'Rename failed';
+      ctx.set.status = status;
+      return { error: msg };
+    }
+  }, { beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Rename files', tags: ['Servers'] }
+  });
+
   app.post(prefix + '/servers/:id/files/move', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { root = '/', files, destination } = ctx.body as any;
@@ -946,10 +999,14 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/servers/:id/backups', async (ctx: any) => {
     const { id } = ctx.params as any;
-    const payload = ctx.body;
+    const body = ctx.body || {};
+    const adapter = body.adapter || 'wings';
+    const uuid = body.uuid || uuidv4();
+    const ignore = typeof body.ignore === 'string' ? body.ignore : '';
+
     try {
       const svc = await serviceFor(id);
-      const res = await svc.createServerBackup(id, payload);
+      const res = await svc.createServerBackup(id, { adapter, uuid, ignore });
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       if (e?.response?.status === 404) {
@@ -968,9 +1025,13 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/servers/:id/backups/:bid/restore', async (ctx: any) => {
     const { id, bid } = ctx.params as any;
+    const body = ctx.body || {};
+    const adapter = body.adapter || 'wings';
+    const truncate_directory = body.truncate_directory === true;
+    const download_url = body.download_url;
     try {
       const svc = await serviceFor(id);
-      const res = await svc.restoreServerBackup(id, bid);
+      const res = await svc.restoreServerBackup(id, bid, { adapter, truncate_directory, download_url });
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       if (e?.response?.status === 404) {
@@ -989,9 +1050,11 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(prefix + '/servers/:id/backups/:bid', async (ctx: any) => {
     const { id, bid } = ctx.params as any;
+    const body = ctx.body || {};
+    const adapter = body.adapter || 'wings';
     try {
       const svc = await serviceFor(id);
-      const res = await svc.serverRequest(id, `/backups/${bid}`, 'delete');
+      const res = await svc.serverRequest(id, `/backups/${bid}`, 'delete', { adapter });
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       if (e?.response?.status === 404) {
