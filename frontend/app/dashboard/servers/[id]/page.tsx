@@ -35,6 +35,7 @@ import {
   Trash2,
   Pencil,
   Plus,
+  Download,
   X,
   Save,
   ArrowLeft,
@@ -1342,6 +1343,8 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
   const [newName, setNewName] = useState("")
   const [selectedNames, setSelectedNames] = useState<string[]>([])
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const breadcrumbs = path.split("/").filter(Boolean)
 
@@ -1603,6 +1606,34 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <input ref={fileInputRef} type="file" className="hidden" onChange={async (e) => {
+            const files = e.target.files
+            if (!files || files.length === 0) return
+            setUploading(true)
+            try {
+              for (let i = 0; i < files.length; i++) {
+                const f = files[i]
+                const content = await f.text()
+                await apiFetch(API_ENDPOINTS.serverFileWrite.replace(":id", serverId), {
+                  method: "POST",
+                  body: JSON.stringify({ path: path + f.name, content }),
+                })
+              }
+              await loadFiles(path)
+            } catch (err: any) {
+              alert('Upload failed: ' + (err?.message || err))
+            } finally {
+              setUploading(false)
+              if (fileInputRef.current) fileInputRef.current.value = ''
+            }
+          }} />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
+            disabled={uploading || bulkBusy}
+          >
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Upload
+          </button>
           {selectedNames.length > 0 && (
             <>
               <span className="text-xs text-muted-foreground">{selectedNames.length} selected</span>
@@ -1759,6 +1790,31 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
                       title="Edit"
                     >
                       <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {!isDir && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const data = await apiFetch(API_ENDPOINTS.serverFileContents.replace(":id", serverId) + `?path=${encodeURIComponent(path + fname)}`)
+                          const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+                          const blob = new Blob([content], { type: 'application/octet-stream' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = fname
+                          document.body.appendChild(a)
+                          a.click()
+                          a.remove()
+                          URL.revokeObjectURL(url)
+                        } catch (e: any) {
+                          alert('Download failed: ' + (e?.message || e))
+                        }
+                      }}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/10"
+                      title="Download"
+                    >
+                      <Download className="h-3.5 w-3.5" />
                     </button>
                   )}
                   <button
