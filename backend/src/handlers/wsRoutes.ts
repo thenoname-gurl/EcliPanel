@@ -18,8 +18,8 @@ export async function handleSocConnection(app: any, socket: any, req: RawRequest
 
   let allowedIds: string[] | null = null;
   if (!user || (!(user.role === 'admin' || user.role === '*') && !apiKey)) {
-    const { NodeService } = require('../services/nodeService');
-    const nodeSvc: any = new NodeService();
+    const { nodeService } = require('../services/nodeService');
+    const nodeSvc: any = nodeService;
     const nodesRepo = require('../config/typeorm').AppDataSource.getRepository(require('../models/node.entity').Node);
     const nodes = await nodesRepo.find({ where: user && user.org ? { organisation: { id: user.org.id } } : {} });
     allowedIds = [];
@@ -99,7 +99,7 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
     socket.close();
     return;
   }
-  const nodeSvc = new (require('./../services/nodeService').NodeService)();
+  const nodeSvc = require('./../services/nodeService').nodeService;
   const serverId = (req.params as any).id;
   try {
     const svc: any = await nodeSvc.getServiceForServer(serverId);

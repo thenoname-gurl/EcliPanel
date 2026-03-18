@@ -27,6 +27,9 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [eggId, setEggId] = useState<string>("")
   const [eggs, setEggs] = useState<{ id: number; name: string; description?: string }[]>([])
   const [eggsLoading, setEggsLoading] = useState(true)
+  const [nodeId, setNodeId] = useState<number | null>(null)
+  const [nodes, setNodes] = useState<{ id: number; name: string; nodeType?: string }[]>([])
+  const [nodesLoading, setNodesLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +50,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
         if (l?.cpu) setCpu(l.cpu)
       })
       .catch(() => {})
+
     apiFetch(API_ENDPOINTS.eggs)
       .then((data) => {
         const list = Array.isArray(data) ? data : []
@@ -55,6 +59,15 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
       })
       .catch(() => {})
       .finally(() => setEggsLoading(false))
+
+    apiFetch(API_ENDPOINTS.nodesAvailable)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : []
+        setNodes(list)
+        if (list.length > 0) setNodeId(list[0].id)
+      })
+      .catch(() => {})
+      .finally(() => setNodesLoading(false))
   }, [])
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -66,7 +79,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
     try {
       await apiFetch(API_ENDPOINTS.servers, {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), eggId: Number(eggId), memory, disk, cpu }),
+        body: JSON.stringify({ name: name.trim(), eggId: Number(eggId), memory, disk, cpu, nodeId }),
       })
       onCreated()
       onClose()
@@ -145,6 +158,27 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
             )}
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Node</label>
+            {nodesLoading ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading nodes…
+              </div>
+            ) : nodes.length === 0 ? (
+              <p className="text-xs text-destructive">No nodes available for your plan. Contact an admin.</p>
+            ) : (
+              <select
+                value={nodeId ?? ""}
+                onChange={(e) => setNodeId(Number(e.target.value))}
+                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+              >
+                {nodes.map((n) => (
+                  <option key={n.id} value={n.id}>{n.name} {n.nodeType ? `(${n.nodeType})` : ''}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
           {/* Resource sliders */}
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
             <p className="text-xs font-medium text-foreground">Resources</p>
@@ -214,7 +248,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
             <button
               type="submit"
               disabled={
-              creating || eggsLoading || eggs.length === 0 ||
+              creating || eggsLoading || eggs.length === 0 || nodesLoading || nodes.length === 0 ||
               (user && (!user.emailVerified || (user.passkeyCount ?? 0) === 0))
             }
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -262,22 +296,9 @@ export default function ServersPage() {
       const data = await apiFetch(API_ENDPOINTS.servers)
       const list = Array.isArray(data) ? data : []
 
-      const enriched = await Promise.all(
-        list.map(async (s: any) => {
-          const sid = s.uuid || s.id
-          try {
-            const startup = await apiFetch(API_ENDPOINTS.serverStartup.replace(":id", sid))
-            if (startup && startup.eggName) s.startup = { ...(s.startup || {}), eggName: startup.eggName }
-          } catch {
-            //  skip
-          }
-          return s
-        })
-      )
-
       const seen = new Set<string>()
       const deduped: any[] = []
-      for (const s of enriched) {
+      for (const s of list) {
         const raw = s.uuid || s.id || ''
         const norm = String(raw).replace(/-/g, '').toLowerCase()
         const key = `${norm}::${s.nodeId ?? ''}`

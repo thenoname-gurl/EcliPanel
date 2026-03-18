@@ -12,7 +12,7 @@ import { UserLog } from '../models/userLog.entity';
 import { ApiRequestLog } from '../models/apiRequestLog.entity';
 import { AIModel } from '../models/aiModel.entity';
 import { Egg } from '../models/egg.entity';
-import { NodeService } from '../services/nodeService';
+import { nodeService } from '../services/nodeService';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { t } from 'elysia';
@@ -1022,7 +1022,7 @@ export async function adminRoutes(app: any, prefix = '') {
     try {
       const svc = new WingsApiService(node.url, node.token);
       const res = await svc.createServer(wingsPayload);
-      const nodeSvc = new NodeService();
+      const nodeSvc = nodeService;
       await nodeSvc.mapServer(serverUuid, node.id);
       await saveServerConfig({
         uuid: serverUuid,

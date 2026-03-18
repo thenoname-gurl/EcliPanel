@@ -14,6 +14,14 @@ export class NodeService {
     return this.getServiceForNode(mapping.node.id);
   }
 
+  invalidateNode(nodeId: number) {
+    this.cache.delete(nodeId);
+  }
+
+  invalidateAll() {
+    this.cache.clear();
+  }
+
   async getServiceForNode(nodeId: number): Promise<WingsApiService> {
     if (this.cache.has(nodeId)) return this.cache.get(nodeId)!;
     const nodeRepo = AppDataSource.getRepository(Node);
@@ -28,7 +36,7 @@ export class NodeService {
     const repo = AppDataSource.getRepository(Node);
     let node = repo.create({ name, url, token, nodeId });
     node = await repo.save(node);
-    this.cache.delete(node.id);
+    this.invalidateNode(node.id);
     return node;
   }
 
@@ -51,6 +59,7 @@ export class NodeService {
     node.rootUser = encrypt(rootUser);
     node.rootPassword = encrypt(rootPassword);
     await repo.save(node);
+    this.invalidateNode(nodeId);
     return node;
   }
 
@@ -64,3 +73,5 @@ export class NodeService {
     };
   }
 }
+
+export const nodeService = new NodeService();

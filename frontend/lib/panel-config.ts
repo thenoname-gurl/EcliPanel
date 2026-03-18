@@ -111,6 +111,7 @@ export const API_ENDPOINTS = {
 
   // Nodes
   nodes: "/api/nodes",
+  nodesAvailable: "/api/nodes/available",
   nodeDetail: "/api/nodes/:id",
   nodeGenerateToken: "/api/nodes/generate-token",
   nodeAssignOrg: "/api/nodes/:id/assign-org",

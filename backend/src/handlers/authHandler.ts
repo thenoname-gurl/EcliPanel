@@ -1017,7 +1017,15 @@ export async function authRoutes(app: any, prefix = '') {
         studentVerified: (user as any).studentVerified || false,
         twoFactorEnabled: !!user.twoFactorEnabled,
         avatarUrl: user.avatarUrl || null,
-        org: user.org ? { id: user.org.id, name: user.org.name, handle: user.org.handle } : null,
+        org: user.org
+          ? {
+              id: user.org.id,
+              name: user.org.name,
+              handle: user.org.handle,
+              portalTier: (user.org as any).portalTier,
+              avatarUrl: (user.org as any).avatarUrl,
+            }
+          : null,
         orgRole: user.orgRole || 'member',
         limits: (user as any).limits || (user as any).educationLimits || null,
         nodeId: (user as any).nodeId || null,

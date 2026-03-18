@@ -42,7 +42,7 @@ import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { t } from 'elysia';
 import { createActivityLog } from './logHandler';
-import { NodeService } from '../services/nodeService';
+import { nodeService } from '../services/nodeService';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
@@ -329,7 +329,7 @@ export async function remoteRoutes(app: any, prefix: string) {
         const node = (ctx as any).wingNode as Node;
         if (!node) return;
 
-        const nodeSvc = new NodeService();
+        const nodeSvc = nodeService;
         const svc = await nodeSvc.getServiceForNode(node.id);
         const configs = await repo().findBy({ nodeId: node.id });
         for (const cfg of configs) {

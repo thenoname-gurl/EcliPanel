@@ -1,5 +1,5 @@
 import { WingsApiService } from '../services/wingsApiService';
-import { NodeService } from '../services/nodeService';
+import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
@@ -19,7 +19,7 @@ import { ServerSubuser } from '../models/serverSubuser.entity';
 import { t } from 'elysia';
 
 export async function serverRoutes(app: any, prefix = '') {
-  const nodeSvc = new NodeService();
+  const nodeSvc = nodeService;
   const logRepo = () => AppDataSource.getRepository(UserLog);
   const nodeRepo = () => AppDataSource.getRepository(Node);
   const eggRepo = () => AppDataSource.getRepository(Egg);
@@ -29,37 +29,55 @@ export async function serverRoutes(app: any, prefix = '') {
     return nodeSvc.getServiceForServer(serverId);
   }
 
-  async function pickNode(userTier: string, preferredNodeId?: number, assignedNodeId?: number): Promise<Node> {
-    // treat educational tier like paid for node selection
-    // Tho lets be real, if you have educational limits you probably
-    // didnt pay us..
-    if (userTier === 'educational') userTier = 'paid';
+  async function pickNode(user: any, preferredNodeId?: number, assignedNodeId?: number): Promise<Node> {
+    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
+    const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
+    const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
 
     // Enterprise users with assigned nodes must use their assigned node
     // LIKE SERIOUSLY DONT TOUCH POOR USERS ASSIGNED NODES
     // ITS A NIGHTMARE TO SUPPORT OTHERWISE AND THEY PROBABLY 
     // PAID ONLY FOR THE ASSIGNED NODE FEATURE ANYWAY
-    if (userTier === 'enterprise' && assignedNodeId) {
+    if (portalType === 'enterprise' && assignedNodeId) {
       const n = await nodeRepo().findOneBy({ id: assignedNodeId });
       if (!n) throw new Error('Assigned enterprise node not found');
       return n;
     }
-    
+
     if (preferredNodeId) {
-      const n = await nodeRepo().findOneBy({ id: preferredNodeId });
+      const n = await nodeRepo().findOne({ where: { id: preferredNodeId }, relations: ['organisation'] });
       if (!n) throw new Error('Specified node not found');
+
+      if (!isAdmin) {
+        if (portalType === 'enterprise') {
+          if (!user.org?.id || n.organisation?.id !== user.org.id) {
+            throw new Error('Node not available for your organisation');
+          }
+        } else {
+          const allowedTypes = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free'];
+          if (!allowedTypes.includes(n.nodeType || '')) {
+            throw new Error('Node not available for your portal tier');
+          }
+        }
+      }
+
       return n;
     }
 
     let types: string[];
-    if (userTier === 'enterprise') {
-      // Plan change you know :D
+    if (portalType === 'enterprise') {
+      if (user.org?.id) {
+        const orgNode = await nodeRepo().findOne({ where: { organisation: { id: user.org.id } } });
+        if (orgNode) return orgNode;
+      }
       types = ['enterprise', 'free_and_paid', 'paid', 'free'];
-    } else if (userTier === 'paid' || userTier === 'basic' || userTier === 'pro' || userTier === 'educational') {
-      types = ['paid', 'free_and_paid', 'free'];
+    } else if (portalType === 'paid') {
+      types = ['paid', 'free_and_paid'];
     } else {
-      types = ['free', 'free_and_paid'];
+      types = ['free'];
     }
+
     for (const t of types) {
       const n = await nodeRepo().findOneBy({ nodeType: t as any });
       if (n) return n;
@@ -81,24 +99,30 @@ export async function serverRoutes(app: any, prefix = '') {
     const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
 
     if (isAdmin) {
-      for (const n of nodes) {
+      const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
         try {
           const svc = new WingsApiService(n.url, n.token);
           const res = await svc.getServers();
-          for (const s of (res.data || [])) {
-            const uuid: string = s.configuration?.uuid || s.uuid;
-            const cfg = cfgMap.get(uuid);
-            const norm = normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined);
-            all.push({
-              ...norm,
-              name: cfg?.name || norm.name,
-              nodeId: n.id,
-              nodeName: n.name,
-              userId: cfg?.userId,
-            });
-          }
+          return { node: n, servers: res.data || [] };
         } catch {
-          // skip
+          return null;
+        }
+      }));
+
+      for (const nodeResult of nodeResults) {
+        if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
+        const { node, servers } = nodeResult.value;
+        for (const s of servers) {
+          const uuid: string = s.configuration?.uuid || s.uuid;
+          const cfg = cfgMap.get(uuid);
+          const norm = normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined);
+          all.push({
+            ...norm,
+            name: cfg?.name || norm.name,
+            nodeId: node.id,
+            nodeName: node.name,
+            userId: cfg?.userId,
+          });
         }
       }
 
@@ -128,6 +152,8 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+      const configsByNode = new Map<number, any[]>();
       for (const c of configs) {
         if (!allowedUuids.has(c.uuid)) continue;
         const node = nodeMap.get(c.nodeId);
@@ -145,41 +171,58 @@ export async function serverRoutes(app: any, prefix = '') {
           });
           continue;
         }
-        try {
+
+        const list = configsByNode.get(node.id) ?? [];
+        list.push(c);
+        configsByNode.set(node.id, list);
+      }
+
+      const nodePromises: Promise<void>[] = [];
+      for (const [nodeId, cfgList] of configsByNode.entries()) {
+        const node = nodeMap.get(nodeId);
+        if (!node) continue;
+        nodePromises.push((async () => {
           const svc = new WingsApiService(node.url, node.token);
-          try {
-            const res = await svc.getServer(c.uuid);
-            const s = res.data;
-            const uuid: string = s.configuration?.uuid || s.uuid;
-            const norm = normalizeServer(s, c.hibernated ? 'hibernated' : undefined);
-            all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
-          } catch (e: any) {
+          const promises = cfgList.map(async (c) => {
+            try {
+              const res = await svc.getServer(c.uuid);
+              const s = res.data;
+              const norm = normalizeServer(s, c.hibernated ? 'hibernated' : undefined);
+              all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
+              return;
+            } catch {
+              // try sync + retry
+            }
+
             try {
               await svc.syncServer(c.uuid, {});
               const retry = await svc.getServer(c.uuid);
               const s2 = retry.data;
               const norm2 = normalizeServer(s2, c.hibernated ? 'hibernated' : undefined);
               all.push({ ...norm2, name: c.name || norm2.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
-              continue;
+              return;
             } catch {
               // skip
             }
-          }
-        } catch {
-          all.push({
-            uuid: c.uuid,
-            name: c.name || c.uuid,
-            status: c.hibernated ? 'hibernated' : 'unknown',
-            hibernated: !!c.hibernated,
-            is_suspended: c.suspended,
-            resources: null,
-            build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-            container: { image: c.dockerImage },
-            nodeId: c.nodeId,
-            userId: c.userId,
+
+            all.push({
+              uuid: c.uuid,
+              name: c.name || c.uuid,
+              status: c.hibernated ? 'hibernated' : 'unknown',
+              hibernated: !!c.hibernated,
+              is_suspended: c.suspended,
+              resources: null,
+              build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+              container: { image: c.dockerImage },
+              nodeId: c.nodeId,
+              userId: c.userId,
+            });
           });
-        }
+          await Promise.allSettled(promises);
+        })());
       }
+
+      await Promise.allSettled(nodePromises);
     }
 
     const seen = new Set<string>();
@@ -472,7 +515,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     let node: Node;
     try {
-      node = await pickNode(user.portalType || 'free', nodeId, user.nodeId);
+      node = await pickNode(user, nodeId, user.nodeId);
     } catch (e: any) {
       ctx.set.status = 503;
       return { error: e.message };

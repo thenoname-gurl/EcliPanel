@@ -1,4 +1,4 @@
-import { NodeService } from '../services/nodeService';
+import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
@@ -8,8 +8,6 @@ import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
 import { t } from 'elysia';
-
-const nodeService = new NodeService();
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
 
@@ -54,6 +52,43 @@ export async function nodeRoutes(app: any, prefix = '') {
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List all nodes (admin only)', tags: ['Nodes'] }
+  });
+
+  function sanitizeNodes(nodes: any[]) {
+    return nodes.map(({ rootUser, rootPassword, token, ...rest }) => rest);
+  }
+
+  app.get(prefix + '/nodes/available', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+
+    // Determine effective portal type (demo uses original portal tier)
+    const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
+    const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
+    const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
+
+    if (isAdmin) {
+      const nodes = await nodeRepo().find({ relations: ['organisation'] });
+      return sanitizeNodes(nodes);
+    }
+
+    if (portalType === 'enterprise') {
+      if (!user.org?.id) return [];
+      const nodes = await nodeRepo().find({ where: { organisation: { id: user.org.id } }, relations: ['organisation'] });
+      return sanitizeNodes(nodes);
+    }
+
+    const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free'];
+    const nodes = await nodeRepo().find({ where: { nodeType: In(types) }, relations: ['organisation'] });
+    return sanitizeNodes(nodes);
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List nodes available for the current user', tags: ['Nodes'] }
   });
 
   app.get(prefix + '/nodes/:id', async (ctx: any) => {
@@ -162,6 +197,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
     await nodeRepo().save(node);
+    nodeService.invalidateNode(node.id);
     refreshAllSftpProxies().catch(() => {});
     const updated = await nodeRepo().findOne({ where: { id: Number(id) }, relations: ['organisation'] });
     return { success: true, node: updated };
@@ -178,6 +214,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Node not found' };
     }
+    nodeService.invalidateNode(node.id);
     await nodeRepo().remove(node);
     refreshAllSftpProxies().catch(() => {});
     return { success: true };
