@@ -63,7 +63,7 @@ export function PanelHeader({ title, description }: { title: string; description
     setNotifOpen(willOpen)
     if (willOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
-      const width = 320 // matches w-80
+      const width = 320
       const left = Math.max(8, rect.right - width)
       setNotifPos({ top: rect.bottom + 8, left })
     }
