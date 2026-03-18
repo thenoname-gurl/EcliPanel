@@ -358,12 +358,6 @@ export default function ServersPage() {
                 <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
               </h3>
               <div className="mt-1 flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="border-border bg-secondary/50 text-muted-foreground text-xs"
-                >
-                  {server.eggName || server.startup?.eggName || server.build?.egg?.name || server.game || "—"}
-                </Badge>
                 <StatusBadge status={server.status} />
               </div>
             </div>
