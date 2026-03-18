@@ -1,21 +1,54 @@
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
-import { PowerdnsService } from '../services/powerdnsService';
+import { CloudflareService } from '../services/cloudflareService';
 import { t } from 'elysia';
 
-// TODO: Fix this with cloudflare
-// This heck refuses TO WORK PROPERLY!!!
-// I guess PDNS fault?
-export async function dnsRoutes(app: any, prefix = '') {
-  const svc = new PowerdnsService();
+export function createDnsService() {
+  return new CloudflareService();
+}
 
-  function canManageZone(user: any, zoneName: string) {
+export async function dnsRoutes(app: any, prefix = '') {
+  const svc = createDnsService();
+
+  async function resolveZoneName(zoneIdOrName: string) {
+    const name = String(zoneIdOrName || '').trim();
+    if (!name) return null;
+
+    if (name.includes('.')) {
+      return name.replace(/\.$/, '');
+    }
+
+    try {
+      const zone = await svc.getZone(name);
+      if (zone && zone.name) return String(zone.name).replace(/\.$/, '');
+    } catch {
+      // skip
+    }
+
+    return null;
+  }
+
+  async function canManageZone(user: any, zoneIdOrName: string) {
     if (user.role === 'admin' || user.role === '*') return true;
+
     if (!user.org) return false;
-    const name = zoneName.replace(/\.$/, '');
+
+    const name = await resolveZoneName(zoneIdOrName);
+    if (!name) return false;
+
     const handle = user.org.handle.replace(/\.$/, '');
-    if (name === handle) return true;
-    if (name.endsWith(`.${handle}`)) return true;
+
+    if (name === handle || name.endsWith(`.${handle}`)) {
+      if (user.id === user.org.ownerId) return true;
+      if (user.orgRole === 'admin' || user.orgRole === 'owner') return true;
+      return false;
+    }
+
+    const baseZone = process.env.CLOUDFLARE_BASE_ZONE?.replace(/\.$/, '');
+    if (baseZone) {
+      if (name === baseZone || name.endsWith(`.${baseZone}`)) return false;
+    }
+
     return false;
   }
 
@@ -23,11 +56,16 @@ export async function dnsRoutes(app: any, prefix = '') {
     try {
       const zones = await svc.listZones();
       const user = ctx.user;
+      const normalized = (zones || []).map((z: any) => ({
+        ...z,
+        name: String(z.name || '').replace(/\.$/, ''),
+        kind: z.kind ? String(z.kind).toLowerCase() : 'cloudflare',
+      }));
+
       if (user.role !== 'admin' && user.role !== '*') {
         const handle = (user.org?.handle || '').replace(/\.$/, '');
         if (handle) {
-          const allZones = (zones as any[]) || [];
-          const filtered = allZones.filter((z: any) => {
+          const filtered = normalized.filter((z: any) => {
             const name = (z.name || '').replace(/\.$/, '');
             return name === handle || name.endsWith(`.${handle}`);
           });
@@ -35,7 +73,7 @@ export async function dnsRoutes(app: any, prefix = '') {
         }
         return [];
       }
-      return zones;
+      return normalized;
     } catch (e: any) {
       ctx.set.status = 502;
       return { error: e.message };
@@ -54,25 +92,29 @@ export async function dnsRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: 'Zone name required' };
       }
-      const canonicalName = rawName.endsWith('.') ? rawName : rawName + '.';
-      if (!canManageZone(user, canonicalName)) {
+      const normalName = rawName.replace(/\.$/, '');
+      if (!await canManageZone(user, normalName)) {
         ctx.set.status = 403;
         return { error: 'Forbidden zone' };
       }
-      body.name = canonicalName;
-      body.kind = body.kind || 'Native';
-      const normalName = rawName.replace(/\.$/, '');
+      body.name = normalName;
+
+      body.kind = body.kind || 'Cloudflare';
+
       if (user.org && normalName === user.org.handle.replace(/\.$/, '')) {
         body.rrsets = body.rrsets || [];
         body.rrsets.push({
-          name: canonicalName,
+          name: normalName,
           type: 'TXT',
           ttl: 3600,
           records: [{ content: `"abuse_contact=abuse@ecli.app organisation=${user.org.name}"`, disabled: false }],
         });
       }
       const zone = await svc.createZone(body);
-      return zone;
+      const out = Object.assign({}, zone);
+      out.name = String(out.name || body.name || '').replace(/\.$/, '');
+      out.kind = out.kind ? String(out.kind).toLowerCase() : 'cloudflare';
+      return out;
     } catch (e: any) {
       ctx.set.status = 502;
       return { error: e.message };
@@ -85,8 +127,16 @@ export async function dnsRoutes(app: any, prefix = '') {
   app.get(prefix + '/infrastructure/dns/zones/:id', async (ctx: any) => {
     try {
       const rawId = ctx.params.id as string;
-      const zoneId = rawId.endsWith('.') ? rawId : rawId + '.';
-      const zone = await svc.getZone(zoneId);
+      const zone = await svc.getZone(rawId);
+      if (zone) {
+        if (zone.name) zone.name = String(zone.name).replace(/\.$/, '');
+        if (zone.rrsets && Array.isArray(zone.rrsets)) {
+          zone.rrsets = zone.rrsets.map((r: any) => ({ ...r, name: String(r.name || '').replace(/\.$/, '') }));
+        }
+        if (zone.recordsList && Array.isArray(zone.recordsList)) {
+          zone.recordsList = zone.recordsList.map((r: any) => ({ ...r, name: String(r.name || '').replace(/\.$/, '') }));
+        }
+      }
       return zone;
     } catch (e: any) {
       ctx.set.status = 502;
@@ -100,10 +150,9 @@ export async function dnsRoutes(app: any, prefix = '') {
   app.post(prefix + '/infrastructure/dns/zones/:id/records', async (ctx: any) => {
     try {
       const rec = ctx.body as any;
-      const rawZoneName = ctx.params.id as string;
-      const zoneName = rawZoneName.endsWith('.') ? rawZoneName : rawZoneName + '.';
+      const rawZoneId = ctx.params.id as string;
       const user = ctx.user;
-      if (!canManageZone(user, zoneName)) {
+      if (!await canManageZone(user, rawZoneId)) {
         ctx.set.status = 403;
         return { error: 'Forbidden zone' };
       }
@@ -114,16 +163,7 @@ export async function dnsRoutes(app: any, prefix = '') {
           return { error: 'Record type not allowed' };
         }
       }
-      if (!rec.name) {
-        rec.name = zoneName;
-      } else if (rec.name.endsWith('.')) {
-        // already a canonical FQDN
-      } else if (rec.name.endsWith(zoneName.replace(/\.$/, ''))) {
-        rec.name = rec.name + '.';
-      } else {
-        rec.name = `${rec.name}.${zoneName}`;
-      }
-      const result = await svc.addRecord(zoneName, rec);
+      const result = await svc.addRecord(rawZoneId, rec);
       return result;
     } catch (e: any) {
       ctx.set.status = 502;
@@ -132,5 +172,76 @@ export async function dnsRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate, authorize('infra:dns')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Add DNS record', tags: ['DNS','Infrastructure'] }
+  });
+
+  app.put(prefix + '/infrastructure/dns/zones/:id/records/:rid', async (ctx: any) => {
+    try {
+      const rec = ctx.body as any;
+      const rawZoneId = ctx.params.id as string;
+      const recordId = ctx.params.rid as string;
+      const user = ctx.user;
+      if (!await canManageZone(user, rawZoneId)) {
+        ctx.set.status = 403;
+        return { error: 'Forbidden zone' };
+      }
+      if (user.role !== 'admin' && user.role !== '*') {
+        const badTypes = ['NS','MX','SMTP'];
+        if (badTypes.includes((rec.type||'').toUpperCase())) {
+          ctx.set.status = 403;
+          return { error: 'Record type not allowed' };
+        }
+      }
+      const result = await svc.updateRecord(rawZoneId, recordId, rec);
+      return result;
+    } catch (e: any) {
+      ctx.set.status = 502;
+      return { error: e.message };
+    }
+  }, { beforeHandle: [authenticate, authorize('infra:dns')],
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    detail: { summary: 'Update DNS record', tags: ['DNS','Infrastructure'] }
+  });
+
+  app.delete(prefix + '/infrastructure/dns/zones/:id/records/:rid', async (ctx: any) => {
+    try {
+      const rawZoneId = ctx.params.id as string;
+      const recordId = ctx.params.rid as string;
+      const user = ctx.user;
+      if (!await canManageZone(user, rawZoneId)) {
+        ctx.set.status = 403;
+        return { error: 'Forbidden zone' };
+      }
+      const result = await svc.deleteRecord(rawZoneId, recordId);
+      return result;
+    } catch (e: any) {
+      ctx.set.status = 502;
+      return { error: e.message };
+    }
+  }, { beforeHandle: [authenticate, authorize('infra:dns')],
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    detail: { summary: 'Delete DNS record', tags: ['DNS','Infrastructure'] }
+  });
+
+  app.delete(prefix + '/infrastructure/dns/zones/:id', async (ctx: any) => {
+    try {
+      const rawId = ctx.params.id as string;
+      const user = ctx.user;
+
+      if (!(user.role === 'admin' || user.role === '*')) {
+        if (!await canManageZone(user, rawId)) {
+          ctx.set.status = 403;
+          return { error: 'Forbidden zone' };
+        }
+      }
+
+      const result = await svc.deleteZone(rawId);
+      return { success: true, deleted: !!result.deleted };
+    } catch (e: any) {
+      ctx.set.status = 502;
+      return { error: e.message };
+    }
+  }, { beforeHandle: [authenticate, authorize('infra:dns')],
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    detail: { summary: 'Delete DNS zone', tags: ['DNS','Infrastructure'] }
   });
 }

@@ -6,6 +6,7 @@ import { PORTALS, NAVIGATION, API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { apiFetch } from "@/lib/api-client"
 
 // Flatten navigation items for search
@@ -31,7 +32,9 @@ export function PanelHeader({ title, description }: { title: string; description
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [notifLoading, setNotifLoading] = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
+  const notifRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const [notifPos, setNotifPos] = useState<{ top: number; left: number } | null>(null)
 
   // keyboard shortcut Ctrl+K / ⌘K
   useEffect(() => {
@@ -58,6 +61,12 @@ export function PanelHeader({ title, description }: { title: string; description
   const openNotifications = async () => {
     const willOpen = !notifOpen
     setNotifOpen(willOpen)
+    if (willOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      const width = 320 // matches w-80
+      const left = Math.max(8, rect.right - width)
+      setNotifPos({ top: rect.bottom + 8, left })
+    }
     if (willOpen && user && notifications.length === 0) {
       setNotifLoading(true)
       try {
@@ -76,7 +85,12 @@ export function PanelHeader({ title, description }: { title: string; description
   // close notifications on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(target) &&
+        !(buttonRef.current && buttonRef.current.contains(target))
+      ) {
         setNotifOpen(false)
       }
     }
@@ -129,8 +143,9 @@ export function PanelHeader({ title, description }: { title: string; description
           </Badge>
 
           {/* Notifications */}
-          <div ref={notifRef} className="relative">
+          <div className="relative">
             <button
+              ref={buttonRef}
               onClick={openNotifications}
               className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
@@ -140,49 +155,55 @@ export function PanelHeader({ title, description }: { title: string; description
               )}
             </button>
 
-            {notifOpen && (
-              <div className="absolute right-0 top-full mt-2 z-[9999] w-80 rounded-xl border border-border bg-card shadow-[0_0_30px_rgba(0,0,0,0.4)]">
-                <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                  <span className="text-sm font-medium text-foreground">Notifications</span>
-                  <button
-                    onClick={() => setNotifOpen(false)}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="max-h-72 overflow-y-auto">
-                  {notifLoading ? (
-                    <p className="px-4 py-3 text-xs text-muted-foreground">Loading...</p>
-                  ) : notifications.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-xs text-muted-foreground">No recent activity</p>
-                  ) : (
-                    notifications.map((n, i) => (
-                      <div
-                        key={n.id ?? i}
-                        className="flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
-                      >
-                        <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-foreground truncate">{n.action || n.event || "Account event"}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {n.timestamp ? new Date(n.timestamp).toLocaleString() : ""}
-                          </p>
+            {notifOpen && notifPos &&
+              createPortal(
+                <div
+                  ref={(el) => { notifRef.current = el }}
+                  style={{ position: 'fixed', top: notifPos.top, left: notifPos.left }}
+                  className="z-[99999] w-80 rounded-xl border border-border bg-card shadow-[0_0_30px_rgba(0,0,0,0.4)]"
+                >
+                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                    <span className="text-sm font-medium text-foreground">Notifications</span>
+                    <button
+                      onClick={() => setNotifOpen(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifLoading ? (
+                      <p className="px-4 py-3 text-xs text-muted-foreground">Loading...</p>
+                    ) : notifications.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-xs text-muted-foreground">No recent activity</p>
+                    ) : (
+                      notifications.map((n, i) => (
+                        <div
+                          key={n.id ?? i}
+                          className="flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
+                        >
+                          <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-foreground truncate">{n.action || n.event || "Account event"}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {n.timestamp ? new Date(n.timestamp).toLocaleString() : ""}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="border-t border-border px-4 py-2">
-                  <button
-                    onClick={() => { setNotifOpen(false); setTimeout(() => { window.location.href = "/dashboard/activity" }, 50) }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    View all activity →
-                  </button>
-                </div>
-              </div>
-            )}
+                      ))
+                    )}
+                  </div>
+                  <div className="border-t border-border px-4 py-2">
+                    <button
+                      onClick={() => { setNotifOpen(false); setTimeout(() => { window.location.href = "/dashboard/activity" }, 50) }}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      View all activity →
+                    </button>
+                  </div>
+                </div>,
+                document.body
+              )}
           </div>
         </div>
       </header>

@@ -30,6 +30,10 @@ export GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-grrr}
 
 export EU_ID_DISABLED=${EU_ID_DISABLED:-true}
 
+export CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-""}
+export CLOUDFLARE_BASE_ZONE=${CLOUDFLARE_BASE_ZONE:-""}
+export CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-""}
+
 echo "--- environment loaded ---"
 
 if command -v bun >/dev/null 2>&1; then

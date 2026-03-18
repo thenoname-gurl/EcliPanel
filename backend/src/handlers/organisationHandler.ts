@@ -10,6 +10,7 @@ import fs from 'fs';
 import sharp from 'sharp';
 import { WingsApiService } from '../services/wingsApiService';
 import { createActivityLog } from './logHandler';
+import { createDnsService } from './dnsHandler';
 import { t } from 'elysia';
 
 export async function organisationRoutes(app: any, prefix = '') {
@@ -72,6 +73,21 @@ export async function organisationRoutes(app: any, prefix = '') {
     user.org = org;
     user.orgRole = 'owner';
     await userRepo.save(user);
+
+    void (async () => {
+      try {
+        const svc = createDnsService();
+        const zoneName = handle.replace(/\.$/, '');
+        const zones = await svc.listZones();
+        const exists = (zones || []).some((z: any) => String(z.name || '').replace(/\.$/, '') === zoneName);
+        if (!exists) {
+          await svc.createZone({ name: zoneName });
+        }
+      } catch (e) {
+        // skip
+      }
+    })();
+
     await createActivityLog({ userId: user.id, action: 'org:create', targetId: String(org.id), targetType: 'organisation', metadata: { orgName: name, handle }, ipAddress: ctx.ip });
     return { success: true, org: sanitizeOrg(org) };
   }, { beforeHandle: [authenticate, authorize('org:create')],
