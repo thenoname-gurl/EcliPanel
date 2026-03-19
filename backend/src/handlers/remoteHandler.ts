@@ -76,7 +76,7 @@ async function authenticateWings(ctx: any): Promise<unknown> {
   if (!node && tokenPart !== raw) {
     node = await nodeRepo.findOneBy({ token: raw });
   }
-  
+
   if (!node && dotIdx >= 0) {
     const prefix = raw.substring(0, dotIdx);
     node = await nodeRepo.findOneBy({ token: prefix });
@@ -103,7 +103,7 @@ async function authenticateWings(ctx: any): Promise<unknown> {
  * No shame, we will never delete this function, it is a part of our legacy now.
  */
 function eggIdToUuid(id?: number): string {
-  if (!id) return '00000000-0000-4000-8000-000000000000'; 
+  if (!id) return '00000000-0000-4000-8000-000000000000';
   // No I won't call same fucntion from this function to "optimise" it
   const hex = id.toString(16).padStart(12, '0');
   return `00000000-0000-4000-8000-${hex}`;
@@ -181,8 +181,8 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
         done: Array.isArray(proc.startup?.done)
           ? proc.startup?.done
           : proc.startup?.done
-          ? [String(proc.startup?.done)]
-          : [],
+            ? [String(proc.startup?.done)]
+            : [],
         user_interaction: proc.startup?.user_interaction ?? proc.startup?.userInteraction ?? [],
         strip_ansi: proc.startup?.strip_ansi ?? false,
       },
@@ -486,93 +486,107 @@ export async function remoteRoutes(app: any, prefix: string) {
   // body: { type: "password"|"public_key", username: "email.8hexchars", password: "..." }
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(prefix + '/remote/sftp/auth', async (ctx) => {
-    const node = (ctx as any).wingNode as Node;
-    const { type: authType, username, password } = ctx.body as any;
-
-    if (!username || !password) {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Invalid credentials' }] };
-    }
-
-    // Username format: <user-identifier>.<first-8-hex-of-server-uuid>
-    // Learnt hard way of using entire server uuid and then wondering why it did not work
-    // HEAVENS FORBID WE CHANGE THIS FORMAT NOW, WINGS DEPENDS ON IT, 
-    // AND CHANGING IT WOULD BREAK COMPATIBILITY WITH BOTH GO AND RUST WINGS, 
-    // WHICH WOULD BE A NIGHTMARE TO COORDINATE AND SUPPORT
-    const lastDot = username.lastIndexOf('.');
-    if (lastDot < 1) {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Invalid username format' }] };
-    }
-
-    const userPart = username.substring(0, lastDot);
-    const serverHex = username.substring(lastDot + 1);
-
-    if (!/^[a-f0-9]{8}$/i.test(serverHex)) {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Invalid server identifier in username' }] };
-    }
-
-    // Find user by email cuz im afraid to do another identifier type 
-    // and also email is unique so it works
-    // DISPLAYNAMES ARE NOT UNIQUE SO NO, ALSO LEGAL NAMES ARE NOT UNIQUE SO NO
-    // ID LOOKS UGLY SO LETS JUST USE EMAIL, ALSO USERNAME IS A BIT MISLEADING BECAUSE 
-    // ITS NOT REALLY A USERNAME ITS AN EMAIL BUT WHATEVER
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ email: userPart });
-    if (!user) {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Unknown user' }] };
-    }
-
-    if (authType === 'password') {
-      const bcrypt = require('bcryptjs');
-      const valid = await bcrypt.compare(password, user.passwordHash);
-      if (!valid) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Invalid password' }] };
+    try {
+      const node = (ctx as any).wingNode as Node;
+      if (!node) {
+        ctx.set.status = 401;
+        return { errors: [{ code: 'Unauthorized', detail: 'Invalid node token' }] };
       }
-    } else if (authType === 'public_key') {
-      const { SshKey } = require('../models/sshKey.entity');
-      const sshKeyRepo = AppDataSource.getRepository(SshKey);
-      const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
 
-      const submittedParts = password.trim().split(/\s+/);
-      const submittedType = submittedParts[0] ?? '';
-      const submittedMaterial = submittedParts[1] ?? '';
+      const { type: authType, username, password } = ctx.body as any;
 
-      const matched = userKeys.some((k: any) => {
-        const stored = k.publicKey.trim().split(/\s+/);
-        return stored[0] === submittedType && stored[1] === submittedMaterial;
-      });
-
-      if (!matched) {
+      if (!username || !password) {
         ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Public key not recognised' }] };
+        return { errors: [{ code: 'Forbidden', detail: 'Invalid credentials' }] };
       }
-    } else {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Unsupported authentication type' }] };
-    }
 
-    const configs = await repo().find({ where: { nodeId: node.id, userId: user.id } });
-    const cfg = configs.find(c => c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
-    if (!cfg) {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Server not found or not owned by user' }] };
-    }
+      // Username format: <user-identifier>.<first-8-hex-of-server-uuid>
+      // Learnt hard way of using entire server uuid and then wondering why it did not work
+      // HEAVENS FORBID WE CHANGE THIS FORMAT NOW, WINGS DEPENDS ON IT, 
+      // AND CHANGING IT WOULD BREAK COMPATIBILITY WITH BOTH GO AND RUST WINGS, 
+      // WHICH WOULD BE A NIGHTMARE TO COORDINATE AND SUPPORT
+      const lastDot = username.lastIndexOf('.');
+      if (lastDot < 1) {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Invalid username format' }] };
+      }
 
-    if (cfg.suspended) {
-      ctx.set.status = 403;
-      return { errors: [{ code: 'Forbidden', detail: 'Server is suspended' }] };
-    }
+      const userPart = username.substring(0, lastDot);
+      const serverHex = username.substring(lastDot + 1);
 
-    return {
-      user: user.id.toString(),
-      server: cfg.uuid,
-      permissions: ['*'],
-      ignored_files: [],
-    };
+      if (!/^[a-f0-9]{8}$/i.test(serverHex)) {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Invalid server identifier in username' }] };
+      }
+
+      // Find user by email cuz im afraid to do another identifier type 
+      // and also email is unique so it works
+      // DISPLAYNAMES ARE NOT UNIQUE SO NO, ALSO LEGAL NAMES ARE NOT UNIQUE SO NO
+      // ID LOOKS UGLY SO LETS JUST USE EMAIL, ALSO USERNAME IS A BIT MISLEADING BECAUSE 
+      // ITS NOT REALLY A USERNAME ITS AN EMAIL BUT WHATEVER
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ email: userPart });
+      if (!user) {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Unknown user' }] };
+      }
+
+      if (authType === 'password') {
+        const bcrypt = require('bcryptjs');
+        const valid = await bcrypt.compare(password, user.passwordHash);
+        if (!valid) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Invalid password' }] };
+        }
+      } else if (authType === 'public_key') {
+        const { SshKey } = require('../models/sshKey.entity');
+        const sshKeyRepo = AppDataSource.getRepository(SshKey);
+        const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
+
+        const submittedParts = password.trim().split(/\s+/);
+        const submittedType = submittedParts[0] ?? '';
+        const submittedMaterial = submittedParts[1] ?? '';
+
+        const matched = userKeys.some((k: any) => {
+          const stored = k.publicKey.trim().split(/\s+/);
+          return stored[0] === submittedType && stored[1] === submittedMaterial;
+        });
+
+        if (!matched) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Public key not recognised' }] };
+        }
+      } else {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Unsupported authentication type' }] };
+      }
+
+      const configs = await repo().find({ where: { nodeId: node.id, userId: user.id } });
+      const cfg = configs.find(c => c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
+      if (!cfg) {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Server not found or not owned by user' }] };
+      }
+
+      if (cfg.suspended) {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Server is suspended' }] };
+      }
+
+      ctx.set.status = 200;
+      return {
+        user: crypto.createHash('sha256').update(String(user.id)).digest('hex').slice(0, 32),
+        server: cfg.uuid,
+        permissions: ['*'],
+        ignored_files: [],
+      };
+    } catch (err) {
+      try {
+        (ctx.app as any)?.log?.error?.({ err }, 'SFTP auth handler error');
+      } catch { }
+      ctx.set.status = 500;
+      return { errors: [{ code: 'InternalServerError', detail: 'Unexpected error' }] };
+    }
   }, {
     beforeHandle: authenticateWings,
     detail: { summary: 'Authenticate SFTP login from Wings', tags: ['Remote'] },
@@ -808,7 +822,7 @@ export async function saveServerConfig(params: {
 
   if (existing.length > 1) {
     const toDelete = existing.slice(1).map((x: any) => ({ uuid: x.uuid, createdAt: x.createdAt }));
-    await r.delete(toDelete as any).catch(() => {});
+    await r.delete(toDelete as any).catch(() => { });
     try {
       await createActivityLog({ userId: 0, action: 'servers:merge-duplicates', targetId: params.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' });
     } catch (e) {
@@ -882,8 +896,8 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
       }
       await r.save(keep);
       const toDelete = others.map(rw => ({ uuid: rw.uuid, createdAt: rw.createdAt }));
-      await r.delete(toDelete as any).catch(() => {});
-      try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: keep.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' }); } catch (e) {}
+      await r.delete(toDelete as any).catch(() => { });
+      try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: keep.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' }); } catch (e) { }
       console.info('remote: merged duplicate server configs (on-list)', { normalized: norm, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete });
     } catch (e) {
       console.warn('remote: failed to merge duplicate server configs (on-list)', { err: e, normalized: norm });

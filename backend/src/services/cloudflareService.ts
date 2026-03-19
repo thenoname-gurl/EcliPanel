@@ -86,14 +86,26 @@ export class CloudflareService {
 
   async createZone(zone: any) {
     const baseZone = await this.getBaseZoneId();
-    if (baseZone) {
-      const name = String(zone.name || '').replace(/\.$/, '');
-      const recordName = `${name}.${process.env.CLOUDFLARE_BASE_ZONE?.replace(/\.$/, '')}`;
+    const base = process.env.CLOUDFLARE_BASE_ZONE?.replace(/\.$/, '');
+    if (baseZone && base) {
+      const rawName = String(zone.name || '').replace(/\.$/, '');
+      const tryCreateSubzone = process.env.CLOUDFLARE_CREATE_SUBZONE === '1';
+      if (tryCreateSubzone && rawName.endsWith('.' + base)) {
+        try {
+          const body: any = { name: rawName, jump_start: true };
+          if (this.accountId) body.account = { id: this.accountId };
+          return this.request('/zones', { method: 'POST', body: JSON.stringify(body) });
+        } catch (e) {
+          // skippy
+        }
+      }
+
+      const name = rawName.endsWith('.' + base) ? rawName : `${rawName}.${base}`;
       return this.addRecord(baseZone, {
-        name: recordName,
+        name: name,
         type: 'TXT',
         ttl: 3600,
-        content: `"abuse_contact=abuse@ecli.app organisation=${name}"`,
+        content: `"abuse_contact=abuse@ecli.app organisation=${rawName}"`,
       });
     }
 
