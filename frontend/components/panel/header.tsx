@@ -52,12 +52,10 @@ export function PanelHeader({ title, description }: { title: string; description
     return () => window.removeEventListener("keydown", handler)
   }, [])
 
-  // focus input when search overlay opens
   useEffect(() => {
     if (searchOpen) setTimeout(() => searchRef.current?.focus(), 50)
   }, [searchOpen])
 
-  // load notifications when bell clicked
   const openNotifications = async () => {
     const willOpen = !notifOpen
     setNotifOpen(willOpen)

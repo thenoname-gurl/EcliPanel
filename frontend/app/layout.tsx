@@ -31,6 +31,7 @@ export const viewport: Viewport = {
 
 import { AuthProvider } from "@/hooks/useAuth";
 import { Footer } from "@/components/Footer";
+import { RenderLogger } from "@/components/RenderLogger";
 
 export default function RootLayout({
   children,
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
         <AuthProvider>
+          <RenderLogger />
           <div className="flex-1 flex flex-col min-w-0">
             {children}
           </div>

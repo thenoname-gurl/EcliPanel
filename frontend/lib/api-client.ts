@@ -46,7 +46,13 @@ export async function apiFetch(
     }
   }
 
+  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const res = await fetch(url, { ...options, headers, credentials: "include" });
+  const duration = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
+  if (typeof window !== 'undefined') {
+    console.log(`[apiFetch] answered in ${duration.toFixed(2)}ms`, url);
+  }
+
   if (!res.ok) {
     const text = await res.text();
     let msg = text;
