@@ -3,22 +3,45 @@ import { SocData } from '../models/socData.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { WingsApiService } from '../services/wingsApiService';
+import { redisGet, redisSet } from '../config/redis';
 import { t } from 'elysia';
 
 export async function socRoutes(app: any, prefix = '') {
   const socRepo = AppDataSource.getRepository(SocData);
 
+  async function withCache<T>(key: string, ttlSeconds: number, loader: () => Promise<T>) {
+    try {
+      const cached = await redisGet(key);
+      if (cached) {
+        const raw = typeof cached === 'string' ? cached : cached.toString();
+        return JSON.parse(raw) as T;
+      }
+    } catch {}
+
+    const data = await loader();
+    try {
+      await redisSet(key, JSON.stringify(data), ttlSeconds);
+    } catch {}
+    return data;
+  }
+
   app.get(prefix + '/soc/overview', async (ctx: any) => {
     const user = ctx.user as any;
     const isAdmin = ['admin', 'rootAdmin', '*'].includes(user.role ?? '');
-    let data;
-    if (isAdmin) {
-      data = await socRepo.find({ order: { timestamp: 'DESC' }, take: 500 });
-    } else {
+
+    const cacheKey = isAdmin
+      ? 'soc:overview:admin'
+      : `soc:overview:user:${user.id}`;
+
+    return withCache(cacheKey, 5, async () => {
+      if (isAdmin) {
+        return socRepo.find({ order: { timestamp: 'DESC' }, take: 500 });
+      }
+
       try {
         const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
-        const mappingRepo = AppDataSource.getRepository(require('../models/serverMapping.entity').ServerMapping);
         const nodes = await nodeRepo.find();
+
         const serverIds: string[] = [];
         for (const n of nodes) {
           try {
@@ -29,12 +52,18 @@ export async function socRoutes(app: any, prefix = '') {
             }
           } catch {}
         }
-        data = serverIds.length
-          ? await socRepo.createQueryBuilder('s').where('s.serverId IN (:...ids)', { ids: serverIds }).orderBy('s.timestamp', 'DESC').take(200).getMany()
-          : [];
-      } catch { data = []; }
-    }
-    return data;
+
+        if (!serverIds.length) return [];
+
+        return socRepo.createQueryBuilder('s')
+          .where('s.serverId IN (:...ids)', { ids: serverIds })
+          .orderBy('s.timestamp', 'DESC')
+          .take(200)
+          .getMany();
+      } catch {
+        return [];
+      }
+    });
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'SOC overview metrics', tags: ['SOC'] }

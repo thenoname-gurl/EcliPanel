@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 
 @Entity()
@@ -6,9 +6,11 @@ export class ServerConfig {
   @PrimaryColumn()
   uuid: string;
 
+  @Index()
   @Column()
   nodeId: number;
 
+  @Index()
   @Column()
   userId: number;
 
@@ -18,9 +20,11 @@ export class ServerConfig {
   @Column({ nullable: true, type: 'text' })
   description?: string;
 
+  @Index()
   @Column({ default: false })
   suspended: boolean;
 
+  @Index()
   @Column({ default: false })
   hibernated: boolean;
 

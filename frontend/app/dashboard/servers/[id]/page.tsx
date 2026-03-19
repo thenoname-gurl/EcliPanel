@@ -604,6 +604,13 @@ function ConsoleTab({ serverId }: { serverId: string }) {
     let cancelled = false
     let ws: WebSocket | null = null
     let term: any = null
+    let reconnectTimer: any = null
+    let retryCount = 0
+    let lastAttempt = 0
+    let isConnecting = false
+    const BASE_DELAY = 5000
+    const MAX_DELAY = 60000
+    const MAX_RETRIES = 10
 
     ;(async () => {
       const { Terminal } = await import("@xterm/xterm")
@@ -765,121 +772,152 @@ function ConsoleTab({ serverId }: { serverId: string }) {
       setConnectionState("connecting")
       term.focus()
 
-      // Get Wings WS credentials from backend
-      try {
-        const creds = await apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
-        const socketUrl = creds?.data?.socket
-        const token = creds?.data?.token
-
-        if (!socketUrl || !token) {
-          term.writeln("\x1b[31mFailed to obtain WebSocket credentials.\x1b[0m")
-          return
-        }
-
+      async function connect() {
         if (cancelled) return
-
-        // log the url so we can diagnose mixed‑content / scheme problems
-        console.debug('server console websocket url:', socketUrl)
-
+        if (isConnecting) return
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return
+        isConnecting = true
         try {
-          ws = new WebSocket(socketUrl)
-        } catch (err: any) {
-          term.writeln(`\x1b[31mWebSocket construction failed: ${err.message || err}\x1b[0m`)
-          console.error('failed to create WebSocket', err)
-          return
-        }
-        wsRef.current = ws
+          const creds = await apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
+          const socketUrl = creds?.data?.socket
+          const token = creds?.data?.token
 
-        ws.onopen = () => {
-          if (cancelled) return
-          ws!.send(JSON.stringify({ event: "auth", args: [token] }))
-        }
+          if (!socketUrl || !token) {
+            term.writeln("\x1b[31mFailed to obtain WebSocket credentials.\x1b[0m")
+            return
+          }
 
-        ws.onmessage = (ev) => {
           if (cancelled) return
+
+          console.debug('server console websocket url:', socketUrl)
+
           try {
-            const msg = JSON.parse(ev.data)
-            switch (msg.event) {
-              case "auth success":
-                setConnected(true)
-                term.writeln("\x1b[32mConnected.\x1b[0m Type commands directly.\r\n")
-                ws!.send(JSON.stringify({ event: "send logs", args: [] }))
-                ws!.send(JSON.stringify({ event: "send stats", args: [] }))
-                break
-              case "console output":
-                for (const line of msg.args || []) {
-                  const raw = typeof line === "string" ? line : JSON.stringify(line)
-                  term.writeln(normalizeDaemonText(raw))
-                }
-                break
-              case "install output":
-                for (const line of msg.args || []) {
-                  term.writeln(`\x1b[33m[Install]\x1b[0m ${normalizeDaemonText(String(line))}`)
-                }
-                break
-              case "status":
-                try {
-                  const raw = String(msg.args?.[0] || "")
-                  term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(raw)}`)
-                  setConnectionState(raw)
-                  const s = raw.toLowerCase()
-                  if (s === "connected") setConnected(true)
-                  else if (s === "connecting") setConnected(false)
-                  else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired")) setConnected(false)
-                } catch (e) {
-                  term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(String(msg.args?.[0] || ""))}`)
-                }
-                break
-              case "daemon message":
-                term.writeln(`\x1b[33m[Daemon]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
-                break
-              case "daemon error":
-                term.writeln(`\x1b[31m[Error]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
-                break
-              case "jwt error":
-                term.writeln(`\x1b[31m[Auth Error]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
-                setConnected(false)
-                break
-              case "token expiring":
-                apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
-                  .then((c) => {
-                    if (c?.data?.token && ws?.readyState === WebSocket.OPEN) {
-                      ws.send(JSON.stringify({ event: "auth", args: [c.data.token] }))
-                    }
-                  })
-                  .catch(() => {})
-                break
-              case "token expired":
-                term.writeln("\x1b[31mSession expired. Reconnecting...\x1b[0m")
-                setConnected(false)
-                break
-              default:
-                break
+            ws = new WebSocket(socketUrl)
+          } catch (err: any) {
+            term.writeln(`\x1b[31mWebSocket construction failed: ${err.message || err}\x1b[0m`)
+            console.error('failed to create WebSocket', err)
+            return
+          }
+          wsRef.current = ws
+
+          ws.onopen = () => {
+            isConnecting = false
+            if (cancelled) return
+            retryCount = 0
+            lastAttempt = Date.now()
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+            ws!.send(JSON.stringify({ event: "auth", args: [token] }))
+          }
+
+          ws.onmessage = (ev) => {
+            if (cancelled) return
+            try {
+              const msg = JSON.parse(ev.data)
+              switch (msg.event) {
+                case "auth success":
+                  setConnected(true)
+                  term.writeln("\x1b[32mConnected.\x1b[0m Type commands directly.\r\n")
+                  ws!.send(JSON.stringify({ event: "send logs", args: [] }))
+                  ws!.send(JSON.stringify({ event: "send stats", args: [] }))
+                  break
+                case "console output":
+                  for (const line of msg.args || []) {
+                    const raw = typeof line === "string" ? line : JSON.stringify(line)
+                    term.writeln(normalizeDaemonText(raw))
+                  }
+                  break
+                case "install output":
+                  for (const line of msg.args || []) {
+                    term.writeln(`\x1b[33m[Install]\x1b[0m ${normalizeDaemonText(String(line))}`)
+                  }
+                  break
+                case "status":
+                  try {
+                    const raw = String(msg.args?.[0] || "")
+                    term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(raw)}`)
+                    setConnectionState(raw)
+                    const s = raw.toLowerCase()
+                    if (s === "connected") setConnected(true)
+                    else if (s === "connecting") setConnected(false)
+                    else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired")) setConnected(false)
+                  } catch (e) {
+                    term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(String(msg.args?.[0] || ""))}`)
+                  }
+                  break
+                case "daemon message":
+                  term.writeln(`\x1b[33m[Daemon]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
+                  break
+                case "daemon error":
+                  term.writeln(`\x1b[31m[Error]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
+                  break
+                case "jwt error":
+                  term.writeln(`\x1b[31m[Auth Error]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
+                  setConnected(false)
+                  break
+                case "token expiring":
+                  apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
+                    .then((c) => {
+                      if (c?.data?.token && ws?.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ event: "auth", args: [c.data.token] }))
+                      }
+                    })
+                    .catch(() => {})
+                  break
+                case "token expired":
+                  term.writeln("\x1b[31mSession expired. Reconnecting...\x1b[0m")
+                  setConnected(false)
+                  break
+                default:
+                  break
+              }
+            } catch {
+              term.writeln(normalizeDaemonText(String(ev.data)))
             }
-          } catch {
-            term.writeln(normalizeDaemonText(String(ev.data)))
           }
-        }
 
-        ws.onerror = (ev) => {
-          if (!cancelled) {
-            term.writeln("\x1b[31mWebSocket error (see console).\x1b[0m")
-            console.error('websocket error event', ev)
+          ws.onerror = (ev) => {
+            if (!cancelled) {
+              term.writeln("\x1b[31mWebSocket error (see console).\x1b[0m")
+              console.error('websocket error event', ev)
+            }
           }
-        }
 
-        ws.onclose = (ev) => {
-          if (!cancelled) {
-            setConnected(false)
-            term.writeln(
-              `\x1b[90mDisconnected from console (code ${ev.code} ${ev.reason || ''}).\x1b[0m`
-            )
-            console.debug('ws closed', ev)
+          ws.onclose = (ev) => {
+            isConnecting = false
+            if (!cancelled) {
+              setConnected(false)
+              term.writeln(
+                `\x1b[90mDisconnected from console (code ${ev.code} ${ev.reason || ''}).\x1b[0m`
+              )
+              console.debug('ws closed', ev)
+              if (ev.code === 1006) {
+                retryCount++
+                if (retryCount > MAX_RETRIES) {
+                  term.writeln(`\x1b[31mToo many reconnect attempts (${retryCount}). Stopping retries.\x1b[0m`)
+                  return
+                }
+                if (reconnectTimer) return
+                const now = Date.now()
+                const sinceLast = now - (lastAttempt || 0)
+                const backoff = Math.min(BASE_DELAY * Math.pow(2, retryCount - 1), MAX_DELAY)
+                const delay = Math.max(backoff, sinceLast < 1000 ? BASE_DELAY : 0)
+                term.writeln(`\x1b[33mAbnormal disconnect detected — reconnecting in ${Math.round(delay/1000)}s...\x1b[0m`)
+                reconnectTimer = setTimeout(() => {
+                  reconnectTimer = null
+                  if (!cancelled) {
+                    lastAttempt = Date.now()
+                    connect()
+                  }
+                }, delay)
+              }
+            }
           }
+        } catch (err: any) {
+          term.writeln(`\x1b[31mFailed to connect: ${err.message || err}\x1b[0m`)
         }
-      } catch (err: any) {
-        term.writeln(`\x1b[31mFailed to connect: ${err.message || err}\x1b[0m`)
       }
+
+      connect()
     })()
 
     const onResize = () => fitRef.current?.fit()
@@ -888,6 +926,7 @@ function ConsoleTab({ serverId }: { serverId: string }) {
     return () => {
       cancelled = true
       window.removeEventListener("resize", onResize)
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
       ws?.close()
       wsRef.current = null
       term?.dispose()
@@ -977,7 +1016,6 @@ function StatsTab({ serverId, server: serverProp }: { serverId: string; server: 
   const [nodeInfo, setNodeInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [timeWindow, setTimeWindow] = useState<"1h" | "6h" | "24h" | "7d">("1h")
-  // Rolling buffer of realtime points built from serverProp.resources (parent polls every 15s)
   const [localPoints, setLocalPoints] = useState<any[]>([])
   const [Area, setArea] = useState<any>(null)
   const [ResponsiveContainer, setResponsiveContainer] = useState<any>(null)

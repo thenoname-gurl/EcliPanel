@@ -815,7 +815,7 @@ export default function AdminPanel() {
 
   // ── Logs ──
   const [logs, setLogs] = useState<any[]>([])
-  const [logType, setLogType] = useState<"audit" | "requests">("audit")
+  const [logType, setLogType] = useState<"audit" | "requests" | "slow">("audit")
 
   // ── Egg dialog ──
   const [eggDialog, setEggDialog] = useState<AdminEgg | null | "new">(null)
@@ -3383,20 +3383,23 @@ remote: ${panelUrl}`
               </div>
             </TabsContent>
 
-            {/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 LOGS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */}
+            {/* ═══════════════ LOGS ════════════════════════════════════ */}
             <TabsContent value="logs" className="mt-4">
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <div className="flex items-center gap-3">
                     <p className="text-sm font-medium text-foreground">Audit Logs</p>
                     <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/50 p-1">
-                      {(["audit", "requests"] as const).map((t) => (
+                      {( ["audit", "requests", "slow"] as const).map((t) => (
                         <button
                           key={t}
                           onClick={async () => {
                             setLogType(t)
                             try {
-                              const data = await apiFetch(`${API_ENDPOINTS.adminLogs}?type=${t}&limit=200`)
+                              const endpoint = t === 'slow'
+                                ? `${API_ENDPOINTS.adminSlowQueries}`
+                                : `${API_ENDPOINTS.adminLogs}?type=${t}&limit=200`
+                              const data = await apiFetch(endpoint)
                               setLogs(data || [])
                             } catch { }
                           }}
@@ -3405,7 +3408,7 @@ remote: ${panelUrl}`
                               : "text-muted-foreground hover:text-foreground"
                             }`}
                         >
-                          {t === "audit" ? "Audit" : "API Requests"}
+                          {t === "audit" ? "Audit" : t === "requests" ? "API Requests" : "Slow Queries"}
                         </button>
                       ))}
                     </div>
@@ -3427,13 +3430,20 @@ remote: ${panelUrl}`
                     <thead>
                       <tr className="border-b border-border text-xs text-muted-foreground">
                         <th className="px-4 py-3 text-left font-medium">Time</th>
-                        <th className="px-4 py-3 text-left font-medium">User</th>
+                        {(logType === "audit" || logType === "requests") && (
+                          <th className="px-4 py-3 text-left font-medium">User</th>
+                        )}
                         {logType === "audit" ? (
                           <th className="px-4 py-3 text-left font-medium">Action</th>
-                        ) : (
+                        ) : logType === "requests" ? (
                           <>
                             <th className="px-4 py-3 text-left font-medium">Endpoint</th>
                             <th className="px-4 py-3 text-left font-medium">Count</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="px-4 py-3 text-left font-medium">Duration (ms)</th>
+                            <th className="px-4 py-3 text-left font-medium">Query</th>
                           </>
                         )}
                       </tr>
@@ -3441,7 +3451,7 @@ remote: ${panelUrl}`
                     <tbody>
                       {logs.length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                          <td colSpan={logType === "slow" ? 3 : 3} className="px-4 py-8 text-center text-sm text-muted-foreground">
                             No logs found.
                           </td>
                         </tr>
@@ -3451,24 +3461,31 @@ remote: ${panelUrl}`
                             <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                               {new Date(log.timestamp).toLocaleString()}
                             </td>
-                            <td className="px-4 py-3">
-                              {log.username ? (
-                                <div>
-                                  <p className="text-sm font-medium text-foreground">{log.username}</p>
-                                  <p className="text-xs text-muted-foreground">{log.email}</p>
-                                </div>
-                              ) : log.userId ? (
-                                <span className="text-xs text-muted-foreground">User #{log.userId}</span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
-                            </td>
+                            {(logType === "audit" || logType === "requests") && (
+                              <td className="px-4 py-3">
+                                {log.username ? (
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">{log.username}</p>
+                                    <p className="text-xs text-muted-foreground">{log.email}</p>
+                                  </div>
+                                ) : (log.userId !== undefined && log.userId !== null) ? (
+                                  <span className="text-xs text-muted-foreground">{log.userId === 0 ? 'System' : `User #${log.userId}`}</span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
+                            )}
                             {logType === "audit" ? (
                               <td className="px-4 py-3 font-mono text-xs text-foreground">{log.action}</td>
-                            ) : (
+                            ) : logType === "requests" ? (
                               <>
                                 <td className="px-4 py-3 font-mono text-xs text-foreground">{log.endpoint}</td>
                                 <td className="px-4 py-3 text-xs text-muted-foreground">{log.count}</td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-4 py-3 font-mono text-xs text-foreground">{log.durationMs}</td>
+                                <td className="px-4 py-3 font-mono text-xs text-foreground break-words max-w-[520px]">{log.query}</td>
                               </>
                             )}
                           </tr>

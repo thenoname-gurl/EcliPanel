@@ -12,7 +12,7 @@ import { t } from 'elysia';
  * D: BASKETBALL.
 */
 export async function createActivityLog(opts: {
-  userId: number;
+  userId?: number;
   action: string;
   targetId?: string;
   targetType?: string;
@@ -21,7 +21,7 @@ export async function createActivityLog(opts: {
 }) {
   const repo = AppDataSource.getRepository(UserLog);
   const entry = repo.create({
-    userId: opts.userId,
+    userId: opts.userId || undefined,
     action: opts.action,
     targetId: opts.targetId,
     targetType: opts.targetType,

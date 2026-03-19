@@ -203,6 +203,7 @@ export const API_ENDPOINTS = {
   adminUserProfile: "/api/admin/users/:id/profile",
   adminUserAiLink: "/api/admin/users/:id/ai/:linkId",
   adminLogs: "/api/admin/logs",
+  adminSlowQueries: "/api/admin/slow-queries",
   adminNodes: "/api/admin/nodes",
   adminFraudAlerts: "/api/admin/fraud-alerts",
   adminFraudScan: "/api/admin/fraud-scan/:id",

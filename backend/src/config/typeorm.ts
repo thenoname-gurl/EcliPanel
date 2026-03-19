@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { SlowQueryRecord, addSlowQuery } from '../utils/slowQueryCollector';
 
 function getDataSourceOptions() {
   const url = process.env.DATABASE_URL;
@@ -48,10 +49,31 @@ function getDataSourceOptions() {
   return base;
 }
 
+class SlowQueryLogger {
+  logQuery(): void {}
+  logQueryError(error: string | Error, query: string, parameters?: any[]) {}
+  logQuerySlow(time: number, query: string, parameters?: any[]) {
+    addSlowQuery({
+      timestamp: new Date().toISOString(),
+      durationMs: time,
+      query,
+      parameters,
+    });
+    if (process.env.DB_LOG_QUERIES) {
+      console.warn(`[slow-query] ${time}ms`, query, parameters);
+    }
+  }
+  logSchemaBuild(message: string): void {}
+  logMigration(message: string): void {}
+  log(level: 'log' | 'info' | 'warn', message: any): void {}
+}
+
 export const AppDataSource = new DataSource({
   ...getDataSourceOptions(),
   synchronize: true,
-  logging: false,
+  logging: process.env.DB_LOG_QUERIES ? ['error'] : false,
+  logger: new SlowQueryLogger(),
+  maxQueryExecutionTime: Number(process.env.DB_MAX_QUERY_MS || 200),
   entities: [
     require('../models/user.entity').User,
     require('../models/organisation.entity').Organisation,

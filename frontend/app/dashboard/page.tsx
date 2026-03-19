@@ -28,7 +28,6 @@ function formatBytes(bytes: number) {
 
 export default function SOCDashboard() {
   const { user } = useAuth();
-  useEffect(() => { console.log('dashboard rendered; user=', user); }, [user]);
   if (!user) {
     return <div className="p-8 text-center">Authentication in progress...</div>;
   }

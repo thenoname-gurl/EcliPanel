@@ -5,9 +5,9 @@ export class UserLog {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
   @Index()
-  userId: number;
+  userId?: number;
 
   @Column('text')
   action: string;

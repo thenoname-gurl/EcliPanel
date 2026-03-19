@@ -868,9 +868,9 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
       const toDelete = others.map(rw => rw.id);
       await r.delete(toDelete as any).catch(() => {});
       try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' }); } catch (e) {}
-      (app as any)?.log?.info?.({ uuid, kept: keep.id, removed: toDelete }, 'remote: merged duplicate server configs (on-list)');
+      console.info('remote: merged duplicate server configs (on-list)', { uuid, kept: keep.id, removed: toDelete });
     } catch (e) {
-      (app as any)?.log?.warn?.({ err: e, uuid }, 'remote: failed to merge duplicate server configs (on-list)');
+      console.warn('remote: failed to merge duplicate server configs (on-list)', { err: e, uuid });
     }
   }
 }

@@ -91,12 +91,22 @@ export async function serverRoutes(app: any, prefix = '') {
     try { await mergeDuplicateServerConfigs(); } catch (e) { /* skip */ }
     const nodes = await nodeRepo().find();
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const configs = await cfgRepo.find();
-    const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
-    let all: any[] = [];
 
     const user = ctx.user;
     const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+
+    const configs = isAdmin
+      ? await cfgRepo.find()
+      : await (async () => {
+          const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({ where: { userId: user.id } });
+          const subuserUuids = subuserEntries.map(s => s.serverUuid);
+          const where: any[] = [{ userId: user.id }];
+          if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
+          return await cfgRepo.find({ where });
+        })();
+
+    const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
+    let all: any[] = [];
 
     if (isAdmin) {
       const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
@@ -143,13 +153,7 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
     } else {
-      const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({ where: { userId: user.id } });
-      const subuserUuids = new Set(subuserEntries.map(s => s.serverUuid));
-
-      const allowedUuids = new Set<string>();
-      for (const c of configs) {
-        if (c.userId === user.id || subuserUuids.has(c.uuid)) allowedUuids.add(c.uuid);
-      }
+      const allowedUuids = new Set(configs.map((c: any) => c.uuid));
 
       const nodeMap = new Map(nodes.map(n => [n.id, n]));
 

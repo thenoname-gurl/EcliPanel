@@ -7,7 +7,9 @@ export function RenderLogger() {
   const pathname = usePathname()
 
   const renderStart = useMemo(() => {
-    return (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    console.log('[render] start', pathname)
+    return now
   }, [pathname])
 
   useEffect(() => {

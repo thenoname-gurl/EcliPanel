@@ -47,6 +47,10 @@ export async function apiFetch(
   }
 
   const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (typeof window !== 'undefined') {
+    const method = String(options.method ?? 'GET').toUpperCase();
+    console.log(`[apiFetch] request`, method, url);
+  }
   const res = await fetch(url, { ...options, headers, credentials: "include" });
   const duration = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
   if (typeof window !== 'undefined') {

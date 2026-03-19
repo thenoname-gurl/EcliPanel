@@ -906,17 +906,17 @@ export async function authRoutes(app: any, prefix = '') {
     if (!user.org) {
       const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
       const demoHandle = `demo-${user.id}`;
-      let demoOrg = await orgRepo.findOneBy({ handle: demoHandle });
+      let demoOrg: any = await orgRepo.findOneBy({ handle: demoHandle });
       if (!demoOrg) {
         demoOrg = orgRepo.create({
           name: `Demo (${user.email})`,
           handle: demoHandle,
           ownerId: user.id,
           portalTier: 'enterprise',
-        });
+        } as any);
         await orgRepo.save(demoOrg);
       }
-      user.org = demoOrg;
+      user.org = demoOrg as any;
       user.orgRole = 'member';
     }
 

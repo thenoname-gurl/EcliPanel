@@ -2,7 +2,7 @@ import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
-import { MoreThanOrEqual } from 'typeorm';
+import { In, MoreThanOrEqual } from 'typeorm';
 import { User } from '../models/user.entity';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';

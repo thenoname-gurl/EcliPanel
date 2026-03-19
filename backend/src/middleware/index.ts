@@ -11,13 +11,19 @@ export function setupMiddleware(app: any) {
     const url = req.url || '';
     const method = req.method || '';
     ctx.log.info?.(`${method} ${url}`);
+
     try {
       const user = ctx.user;
       const apiKey = ctx.apiKey;
-      const orgId = user?.org?.id || apiKey?.user?.org?.id;
-      const userId = user?.id || apiKey?.user?.id;
+      const userId = (user && typeof user === 'object' && ('id' in user) && (user as any).id)
+        || (user && typeof user === 'object' && ('userId' in user) && (user as any).userId)
+        || (apiKey?.user?.id ?? undefined);
+
+      const orgId = (user && typeof user === 'object' && ('org' in user) && (user as any).org?.id)
+        || apiKey?.user?.org?.id;
+
       const repo = AppDataSource.getRepository(require('../models/apiRequestLog.entity').ApiRequestLog);
-      const record = repo.create({ endpoint: url, userId, organisationId: orgId, count: 1, timestamp: new Date() });
+      const record = repo.create({ endpoint: url, userId: userId ?? undefined, organisationId: orgId ?? undefined, count: 1, timestamp: new Date() });
       await repo.save(record);
     } catch {}
   });

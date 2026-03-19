@@ -24,6 +24,7 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { In } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
+import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
 import path from 'path';
 import fs from 'fs';
 
@@ -128,6 +129,33 @@ export async function adminRoutes(app: any, prefix = '') {
       403: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Get aggregated admin statistics (admin only)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/slow-queries', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    return getSlowQueries(100);
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Array(t.Any()),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'List recent slow database queries (admin only)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/slow-queries/clear', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    clearSlowQueries();
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Clear slow query log (admin only)', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/users', async (ctx) => {
@@ -1374,33 +1402,52 @@ export async function adminRoutes(app: any, prefix = '') {
         .createQueryBuilder('l')
         .orderBy('l.timestamp', 'DESC')
         .take(lim);
-      if (userId) qb.where('l.userId = :uid', { uid: Number(userId) });
+      if (userId !== undefined && userId !== null && userId !== '') qb.where('l.userId = :uid', { uid: Number(userId) });
       const logs = await qb.getMany();
-      return logs;
+
+      const userIds = [...new Set(logs.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
+      const userMap: Record<number, { username: string; email: string }> = {};
+      if (userIds.length > 0) {
+        const users = await AppDataSource.getRepository(User)
+          .createQueryBuilder('u')
+          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email'])
+          .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
+          .getMany();
+        users.forEach((u) => {
+          const name = [`${u.firstName || ''}`.trim(), `${u.lastName || ''}`.trim()].filter(Boolean).join(' ').trim();
+          userMap[u.id] = { username: name || u.email || `User #${u.id}`, email: u.email };
+        });
+      }
+
+      return logs.map((e) => ({
+        ...e,
+        username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
+        email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
+      }));
     }
 
     const qb = AppDataSource.getRepository(UserLog)
       .createQueryBuilder('l')
       .orderBy('l.timestamp', 'DESC')
       .take(lim);
-    if (userId) qb.where('l.userId = :uid', { uid: Number(userId) });
+    if (userId !== undefined && userId !== null && userId !== '') qb.where('l.userId = :uid', { uid: Number(userId) });
     const entries = await qb.getMany();
 
-    const userIds = [...new Set(entries.map((e) => e.userId).filter(Boolean))];
+    const userIds = [...new Set(entries.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
     const userMap: Record<number, { username: string; email: string }> = {};
     if (userIds.length > 0) {
       const users = await AppDataSource.getRepository(User)
         .createQueryBuilder('u')
         .select(['u.id', 'u.firstName', 'u.lastName', 'u.email'])
-        .where('u.id IN (:...ids)', { ids: userIds })
+        .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
         .getMany();
       users.forEach((u) => { userMap[u.id] = { username: `${u.firstName} ${u.lastName}`.trim(), email: u.email }; });
     }
 
     const logs = entries.map((e) => ({
       ...e,
-      username: userMap[e.userId]?.username ?? null,
-      email: userMap[e.userId]?.email ?? null,
+      username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
+      email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
     }));
     return logs;
   }, {

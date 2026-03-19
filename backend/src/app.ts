@@ -216,7 +216,8 @@ const app = new Elysia()
     }),
   })
   .use(cors({
-    origin: (origin: string | undefined) => {
+    origin: (request: any) => {
+      const origin = request?.headers?.get?.('origin') ?? undefined;
       const rawCfg = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()).filter(Boolean);
       if (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') return true;
       if (!origin) return true;
@@ -263,7 +264,7 @@ const app = new Elysia()
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    exposedHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
+    exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())
   .use(jwt({ secret: process.env.JWT_SECRET || 'changeme' }));
@@ -396,13 +397,13 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
     '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf',
   };
   try {
-    let buf = await fsp.readFile(filepath);
+    let buf: any = await fsp.readFile(filepath);
     try {
       buf = decryptBuffer(buf);
     } catch {
       // skip
     }
-    return new Response(buf as any, {
+    return new Response((new Uint8Array(buf as any)) as any, {
       status: 200,
       headers: {
         'Content-Type': mimeTypes[ext] || 'application/octet-stream',
@@ -427,8 +428,8 @@ app.get('/uploads/*', async (ctx: any) => {
     '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
   };
   try {
-    const buf = await fsp.readFile(filepath);
-    return new Response(buf as any, {
+    const buf: any = await fsp.readFile(filepath);
+    return new Response((new Uint8Array(buf as any)) as any, {
       status: 200,
       headers: {
         'Content-Type': mimeTypes[ext] || 'application/octet-stream',
