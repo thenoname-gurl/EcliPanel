@@ -61,18 +61,30 @@ export async function setupConfig(app: any) {
     throw err;
   });
   
-  connectRedis().catch((err) => {
+  try {
+    await connectRedis();
+    (app.log ?? console).info('Redis connected');
+  } catch (err: any) {
     (app.log ?? console).error({ err }, 'Redis connection error');
-  });
+  }
 
-  initMail().catch((err) => {
+  try {
+    await initMail();
+    app.log.info('Mail transport ready');
+  } catch (err: any) {
     app.log.error({ err }, 'Mail initialization failed');
-  });
+  }
 
   startRetentionJobs();
 
   const heartbeatSvc = new NodeHeartbeatService();
   heartbeatSvc.start();
+
+  try {
+    await startAllSftpProxies();
+  } catch (e: any) {
+    app.log.error({ err: e }, 'Failed to start SFTP proxies');
+  }
 
   const uploadDir = path.join(process.cwd(), 'uploads');
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -93,7 +105,7 @@ export async function setupConfig(app: any) {
         for (const d of duplicates) {
           const uuid = d.uuid;
           try {
-            const rows = await cfgRepo.find({ where: { uuid }, order: { id: 'ASC' } });
+            const rows = await cfgRepo.find({ where: { uuid }, order: { createdAt: 'ASC' } });
             if (!rows || rows.length <= 1) continue;
             const keep = rows[0];
             const others = rows.slice(1);
@@ -117,10 +129,10 @@ export async function setupConfig(app: any) {
               keep.processConfig = keep.processConfig && Object.keys(keep.processConfig || {}).length > 0 ? keep.processConfig : o.processConfig;
             }
             await cfgRepo.save(keep);
-            const toDelete = others.map(r => r.id);
+            const toDelete = others.map(r => ({ uuid: r.uuid, createdAt: r.createdAt }));
             await cfgRepo.delete(toDelete as any).catch(() => {});
-            app.log.info({ uuid, kept: keep.id, removed: toDelete }, 'startup: merged duplicate server configs');
-            try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-startup', targetId: uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' }); } catch (e) {}
+            app.log.info({ uuid, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, 'startup: merged duplicate server configs');
+            try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-startup', targetId: uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' }); } catch (e) {}
           } catch (e) {
             app.log.warn({ err: e, uuid }, 'startup: failed to merge duplicate server configs for uuid');
           }

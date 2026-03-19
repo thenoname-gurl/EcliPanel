@@ -758,7 +758,7 @@ export async function saveServerConfig(params: {
   if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
   if (!Number.isFinite(params.cpu) || params.cpu < 0) throw new Error('Invalid cpu value');
   const r = AppDataSource.getRepository(ServerConfig);
-  const existing = await r.find({ where: { uuid: params.uuid }, order: { id: 'ASC' } });
+  const existing = await r.find({ where: { uuid: params.uuid }, order: { createdAt: 'ASC' } });
   if (!existing || existing.length === 0) {
     const cfg = r.create({
       uuid: params.uuid,
@@ -807,14 +807,14 @@ export async function saveServerConfig(params: {
   await r.save(keep);
 
   if (existing.length > 1) {
-    const toDelete = existing.slice(1).map((x: any) => x.id);
+    const toDelete = existing.slice(1).map((x: any) => ({ uuid: x.uuid, createdAt: x.createdAt }));
     await r.delete(toDelete as any).catch(() => {});
     try {
-      await createActivityLog({ userId: 0, action: 'servers:merge-duplicates', targetId: params.uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' });
+      await createActivityLog({ userId: 0, action: 'servers:merge-duplicates', targetId: params.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' });
     } catch (e) {
       // skip
     }
-    console.debug('remote: merged duplicate server configs', { uuid: params.uuid, kept: keep.id, removed: toDelete });
+    console.debug('remote: merged duplicate server configs', { uuid: params.uuid, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete });
   }
 
   return keep;
@@ -826,23 +826,39 @@ export async function saveServerConfig(params: {
  */
 export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<void> {
   const r = AppDataSource.getRepository(ServerConfig);
-  const uuids: string[] = [];
+  const normalize = (u: string | null | undefined) => (u || '').toString().replace(/-/g, '').toLowerCase();
+
+  const groups: Map<string, ServerConfig[]> = new Map();
+
   if (targetUuid) {
-    uuids.push(targetUuid);
+    const allMatches = await r.find();
+    const tgtNorm = normalize(targetUuid);
+    for (const row of allMatches) {
+      if (normalize(row.uuid) === tgtNorm) {
+        const arr = groups.get(tgtNorm) || [];
+        arr.push(row);
+        groups.set(tgtNorm, arr);
+      }
+    }
   } else {
-    const duplicates = await r.createQueryBuilder('c')
-      .select('c.uuid', 'uuid')
-      .addSelect('COUNT(*)', 'cnt')
-      .groupBy('c.uuid')
-      .having('COUNT(*) > 1')
-      .getRawMany();
-    for (const d of duplicates) uuids.push(d.uuid);
+    const all = await r.find();
+    for (const row of all) {
+      const key = normalize(row.uuid);
+      if (!key) continue;
+      const arr = groups.get(key) || [];
+      arr.push(row);
+      groups.set(key, arr);
+    }
   }
 
-  for (const uuid of uuids) {
+  for (const [norm, rows] of groups.entries()) {
+    if (!rows || rows.length <= 1) continue;
     try {
-      const rows = await r.find({ where: { uuid }, order: { id: 'ASC' } });
-      if (!rows || rows.length <= 1) continue;
+      rows.sort((a: any, b: any) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aTime - bTime;
+      });
       const keep = rows[0];
       const others = rows.slice(1);
       for (const o of others) {
@@ -865,12 +881,12 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
         keep.processConfig = keep.processConfig && Object.keys(keep.processConfig || {}).length > 0 ? keep.processConfig : o.processConfig;
       }
       await r.save(keep);
-      const toDelete = others.map(rw => rw.id);
+      const toDelete = others.map(rw => ({ uuid: rw.uuid, createdAt: rw.createdAt }));
       await r.delete(toDelete as any).catch(() => {});
-      try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: uuid, targetType: 'server', metadata: { kept: keep.id, removed: toDelete }, ipAddress: '' }); } catch (e) {}
-      console.info('remote: merged duplicate server configs (on-list)', { uuid, kept: keep.id, removed: toDelete });
+      try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: keep.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' }); } catch (e) {}
+      console.info('remote: merged duplicate server configs (on-list)', { normalized: norm, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete });
     } catch (e) {
-      console.warn('remote: failed to merge duplicate server configs (on-list)', { err: e, uuid });
+      console.warn('remote: failed to merge duplicate server configs (on-list)', { err: e, normalized: norm });
     }
   }
 }

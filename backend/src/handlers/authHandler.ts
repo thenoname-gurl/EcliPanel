@@ -993,6 +993,65 @@ export async function authRoutes(app: any, prefix = '') {
     const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
     const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
     const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
+
+    const userTier = (user as any).portalType || (user as any).tier || ((user.org as any)?.portalTier || null);
+    let returnedLimits: any = (user as any).limits || (user as any).educationLimits || null;
+    if (!returnedLimits && userTier && userTier !== 'free') {
+      try {
+        const Order = require('../models/order.entity').Order;
+        const Plan = require('../models/plan.entity').Plan;
+        const orderRepo = AppDataSource.getRepository(Order);
+        const planRepo = AppDataSource.getRepository(Plan);
+        let orders: any[] = [];
+        try {
+          if (user.org && (user.org as any).id) {
+            orders = await orderRepo.find({ where: [ { userId: user.id, status: 'active' }, { orgId: (user.org as any).id, status: 'active' } ], order: { createdAt: 'DESC' } });
+          } else {
+            orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
+          }
+        } catch (err) {
+          orders = [];
+        }
+
+        let order = orders.find((o: any) => o.planId != null) || null;
+        let plan: any = null;
+        if (order) {
+          plan = await planRepo.findOneBy({ id: order.planId! });
+        }
+
+        if (!plan && userTier) {
+          try {
+            plan = await planRepo.findOne({ where: { type: userTier } });
+          } catch (err) {
+            plan = null;
+          }
+        }
+
+        if (plan) {
+          const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
+          let limitsFromPlan: any = {};
+          if (plan.type === 'enterprise' && (user as any).nodeId) {
+            const node = await nodeRepo.findOneBy({ id: (user as any).nodeId });
+            if (node) {
+              if (node.memory != null) limitsFromPlan.memory = Number(node.memory);
+              if (node.disk != null) limitsFromPlan.disk = Number(node.disk);
+              if (node.cpu != null) limitsFromPlan.cpu = Number(node.cpu);
+              if (node.serverLimit != null) limitsFromPlan.serverLimit = Number(node.serverLimit);
+            }
+          }
+          if (Object.keys(limitsFromPlan).length === 0) {
+            if (plan.memory != null) limitsFromPlan.memory = plan.memory;
+            if (plan.disk != null) limitsFromPlan.disk = plan.disk;
+            if (plan.cpu != null) limitsFromPlan.cpu = plan.cpu;
+            if (plan.serverLimit != null) limitsFromPlan.serverLimit = plan.serverLimit;
+          }
+          returnedLimits = Object.keys(limitsFromPlan).length ? limitsFromPlan : null;
+        }
+      } catch (err) {
+        //  skip
+      }
+    }
+
     return {
       user: {
         id: user.id,
@@ -1027,7 +1086,7 @@ export async function authRoutes(app: any, prefix = '') {
             }
           : null,
         orgRole: user.orgRole || 'member',
-        limits: (user as any).limits || (user as any).educationLimits || null,
+        limits: returnedLimits,
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,
         euIdVerificationDisabled: isEUIdVerificationDisabledForCountry(user.billingCountry),

@@ -94,6 +94,24 @@ export async function logRoutes(app: any, prefix = '') {
     detail: { summary: 'Fetch logs for a specific server', tags: ['Logs'] }
   });
 
+  app.get(prefix + '/servers/:id/activity', async (ctx: any) => {
+    const serverId = ctx.params['id'] as string;
+    const { limit = '50', offset = '0' } = ctx.query as any;
+    const logRepo = AppDataSource.getRepository(UserLog);
+    const logs = await logRepo.createQueryBuilder('log')
+      .where('log.targetId = :serverId', { serverId })
+      .andWhere('log.targetType = :type', { type: 'server' })
+      .orderBy('log.timestamp', 'DESC')
+      .skip(Number(offset))
+      .take(Math.min(Number(limit), 200))
+      .getMany();
+    return logs;
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()) },
+    detail: { summary: 'Fetch activity for a specific server (alias)', tags: ['Logs'] }
+  });
+
   app.get(prefix + '/organisations/:id/logs', async (ctx: any) => {
     const orgId = ctx.params['id'] as string;
     const { limit = '50', offset = '0' } = ctx.query as any;
@@ -110,5 +128,48 @@ export async function logRoutes(app: any, prefix = '') {
    beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()) },
     detail: { summary: 'Fetch logs for a specific organisation', tags: ['Logs'] }
+  });
+
+  app.get(prefix + '/organisations/:id/activity', async (ctx: any) => {
+    const orgId = ctx.params['id'] as string;
+    const { limit = '50', offset = '0' } = ctx.query as any;
+    const logRepo = AppDataSource.getRepository(UserLog);
+    const logs = await logRepo.createQueryBuilder('log')
+      .where('log.targetId = :orgId', { orgId })
+      .andWhere('log.targetType = :type', { type: 'organisation' })
+      .orderBy('log.timestamp', 'DESC')
+      .skip(Number(offset))
+      .take(Math.min(Number(limit), 200))
+      .getMany();
+    return logs;
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()) },
+    detail: { summary: 'Fetch activity for a specific organisation (alias)', tags: ['Logs'] }
+  });
+
+  // Optional: alias for user activity
+  app.get(prefix + '/users/:id/activity', async (ctx: any) => {
+    const userId = Number(ctx.params['id']);
+    const requester = ctx.user as any;
+    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    const { limit = '50', offset = '0', action, targetType } = ctx.query as any;
+    const logRepo = AppDataSource.getRepository(UserLog);
+    const qb = logRepo.createQueryBuilder('log')
+      .where('log.userId = :userId', { userId })
+      .orderBy('log.timestamp', 'DESC')
+      .skip(Number(offset))
+      .take(Math.min(Number(limit), 200));
+    if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
+    if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
+    const logs = await qb.getMany();
+    return logs;
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) },
+    detail: { summary: 'Fetch activity logs for a given user (alias)', tags: ['Logs'] }
   });
 }
