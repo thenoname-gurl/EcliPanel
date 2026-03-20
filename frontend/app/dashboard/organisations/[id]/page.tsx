@@ -24,6 +24,7 @@ import {
   MemoryStick,
   Activity,
   Edit,
+  Globe,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -52,6 +53,17 @@ export default function OrganisationDetail() {
   const [nodesLoading, setNodesLoading] = useState(false)
   const [activity, setActivity] = useState<any[]>([])
   const [activityLoading, setActivityLoading] = useState(false)
+
+  const [subdomains, setSubdomains] = useState<any[]>([])
+  const [subdomainsLoading, setSubdomainsLoading] = useState(false)
+  const [subdomainSelection, setSubdomainSelection] = useState<any | null>(null)
+  const [subdomainRecords, setSubdomainRecords] = useState<any[]>([])
+  const [subdomainNewName, setSubdomainNewName] = useState("")
+
+  const [subdomainRecordForm, setSubdomainRecordForm] = useState({ name: "", type: "A", ttl: 3600, content: "", proxied: false })
+  const [subdomainEditId, setSubdomainEditId] = useState<string | null>(null)
+  const [subdomainEditingRecord, setSubdomainEditingRecord] = useState<any|null>(null)
+
   const { user } = useAuth()
   const router = useRouter()
 
@@ -80,6 +92,26 @@ export default function OrganisationDetail() {
     } catch {
       return url
     }
+  }
+
+  const getMemberAvatarUrl = (member: any) => {
+    const avatarUrl = member.avatarUrl || member.settings?.avatarUrl || member.settings?.avatar?.url
+    return getAvatarUrl(avatarUrl)
+  }
+
+  const getMemberDisplayName = (member: any) => {
+    const display = (member.displayName || "").trim()
+    const legal = [member.firstName, member.lastName].filter(Boolean).join(" ").trim()
+
+    if (display && legal && display !== legal) {
+      return `${display} (${legal})`
+    }
+
+    if (display) return display
+    if (legal) return legal
+    if (member.email) return member.email
+    if (member.id != null) return `User #${member.id}`
+    return "Unknown user"
   }
 
   useEffect(() => {
@@ -161,10 +193,70 @@ export default function OrganisationDetail() {
     }
   }, [id])
 
+  const canManageSubdomain = (sub: any|null) => {
+    if (!sub || !user || !org) return false
+    if (user.role === 'admin' || user.role === '*') return true
+    if (!(user.orgRole === 'admin' || user.orgRole === 'owner')) return false
+    const handle = (org.handle || '').replace(/\.$/, '')
+    const name = String(sub.name || '').replace(/\.$/, '')
+    return name === handle || name.endsWith(`.${handle}`)
+  }
+
+  const loadSubdomains = async () => {
+    if (!org?.handle) { setSubdomains([]); return }
+    setSubdomainsLoading(true)
+    try {
+      const data = await apiFetch(API_ENDPOINTS.infraDnsZones)
+      const handle = org.handle.replace(/\.$/, '')
+      const list = (data || []).map((z: any) => ({
+        ...z,
+        name: String(z.name || '').replace(/\.$/, ''),
+        kind: z.kind ? String(z.kind).toLowerCase() : 'cloudflare',
+      }))
+      setSubdomains(list.filter((z: any) => {
+        const n = String(z.name || '').replace(/\.$/, '')
+        return n === handle || n.endsWith(`.${handle}`)
+      }))
+    } catch {
+      setSubdomains([])
+    } finally {
+      setSubdomainsLoading(false)
+    }
+  }
+
+  const loadSubdomainRecords = async (sub: any) => {
+    if (!sub || !sub.id) return
+    setSubdomainRecords([])
+    try {
+      const d = await apiFetch(API_ENDPOINTS.infraDns + `/zones/${sub.id}`)
+      const list = d.recordsList || d.rrsets || []
+      const normalized = (list || []).map((r: any) => {
+        if (r.content) return { id: r.id, name: r.name, type: r.type, ttl: r.ttl, content: r.content, proxied: !!r.proxied }
+        if (r.records && r.records.length) return { id: r.id || r.records[0].id, name: r.name, type: r.type, ttl: r.ttl, content: r.records.map((x:any)=>x.content).join(' | '), proxied: !!r.proxied }
+        return { id: r.id, name: r.name, type: r.type, ttl: r.ttl, content: '', proxied: !!r.proxied }
+      })
+      setSubdomainRecords(normalized || [])
+    } catch {
+      setSubdomainRecords([])
+    }
+  }
+
+  const createSubdomain = async () => {
+    if (!subdomainNewName) return
+    try {
+      await apiFetch(API_ENDPOINTS.infraDnsZones, { method: 'POST', body: JSON.stringify({ name: subdomainNewName, kind: 'Cloudflare' }) })
+      setSubdomainNewName('')
+      await loadSubdomains()
+    } catch (e: any) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
   const handleTabChange = (tab: string) => {
     if (tab === "servers" && servers.length === 0 && !serversLoading) loadServers()
     if (tab === "nodes" && nodes.length === 0 && !nodesLoading) loadNodes()
     if (tab === "activity" && activity.length === 0 && !activityLoading) loadActivity()
+    if (tab === "dns" && subdomains.length === 0 && !subdomainsLoading) loadSubdomains()
   }
 
   if (!id) return <p className="p-6 text-sm text-destructive">Invalid organisation.</p>
@@ -334,6 +426,9 @@ export default function OrganisationDetail() {
               <TabsTrigger value="nodes" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Network className="h-3.5 w-3.5" /> Nodes
               </TabsTrigger>
+              <TabsTrigger value="dns" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
+                <Globe className="h-3.5 w-3.5" /> DNS
+              </TabsTrigger>
               <TabsTrigger value="activity" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Activity className="h-3.5 w-3.5" /> Activity
               </TabsTrigger>
@@ -349,19 +444,25 @@ export default function OrganisationDetail() {
                   <div className="p-8 text-center text-sm text-muted-foreground">No members in this organisation.</div>
                 ) : (
                   <div className="divide-y divide-border">
-                    {members.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
-                            {(m.firstName?.[0] || m.email?.[0] || "?").toUpperCase()}
+                    {members.map((m) => {
+                      const memberName = getMemberDisplayName(m)
+                      const memberAvatar = getMemberAvatarUrl(m)
+
+                      return (
+                        <div key={m.id} className="flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0 overflow-hidden">
+                              {memberAvatar ? (
+                                <img src={memberAvatar} alt="avatar" className="h-full w-full object-cover" />
+                              ) : (
+                                (memberName?.[0] || "?").toUpperCase()
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{memberName}</p>
+                              <p className="text-xs text-muted-foreground truncate">{m.email || `User #${m.id}`}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">
-                              {m.firstName} {m.lastName}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">{m.email}</p>
-                          </div>
-                        </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <select
                             value={m.orgRole}
@@ -394,7 +495,7 @@ export default function OrganisationDetail() {
                           )}
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
                 {/* Pending invites */}

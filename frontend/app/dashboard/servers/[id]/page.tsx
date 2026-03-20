@@ -1995,6 +1995,75 @@ function DatabasesTab({ serverId }: { serverId: string }) {
     setTimeout(() => setCopied(null), 2000)
   }
 
+  function PasswordReveal({ value, copyKey }: { value: string; copyKey: string }) {
+    const [display, setDisplay] = useState("")
+    const raf = useRef<number | null>(null)
+    const progress = useRef(0)
+    const initialMaskRef = useRef<string | null>(null)
+
+    useEffect(() => {
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{};:,.<>/?"
+      const mask = Array.from({ length: Math.max(0, value.length) }).map(() => chars[Math.floor(Math.random() * chars.length)]).join("")
+      initialMaskRef.current = mask
+      setDisplay(mask)
+      return () => { if (raf.current) cancelAnimationFrame(raf.current) }
+    }, [value])
+
+    const startReveal = () => {
+      progress.current = 0
+      const len = value.length
+      const step = () => {
+        progress.current += 0.03
+        const p = Math.min(1, progress.current)
+        const revealed = Math.floor(p * len)
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{};:,.<>/?"
+        let out = ""
+        for (let i = 0; i < len; i++) {
+          if (i < revealed) out += value[i]
+          else out += chars[Math.floor(Math.random() * chars.length)]
+        }
+        setDisplay(out)
+        if (p < 1) raf.current = requestAnimationFrame(step)
+        else setDisplay(value)
+      }
+      if (raf.current) cancelAnimationFrame(raf.current)
+      raf.current = requestAnimationFrame(step)
+    }
+
+    const stopReveal = () => {
+      if (raf.current) cancelAnimationFrame(raf.current)
+      const len = value.length
+      let encProgress = 0
+      const target = initialMaskRef.current ?? Array.from({ length: Math.max(0, len) }).map(() => "•").join("")
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{};:,.<>/?"
+      const stepEnc = () => {
+        encProgress += 0.04
+        const p = Math.min(1, encProgress)
+        const revealed = Math.floor((1 - p) * len)
+        let out = ""
+        for (let i = 0; i < len; i++) {
+          if (i < revealed) out += value[i]
+          else out += chars[Math.floor(Math.random() * chars.length)]
+        }
+        setDisplay(out)
+        if (p < 1) raf.current = requestAnimationFrame(stepEnc)
+        else setDisplay(target)
+      }
+      raf.current = requestAnimationFrame(stepEnc)
+    }
+
+    return (
+      <div
+        onMouseEnter={startReveal}
+        onMouseLeave={stopReveal}
+        onClick={() => copyText(value, copyKey)}
+        className="cursor-pointer select-none w-full rounded px-2 py-0.5 bg-secondary/40 text-xs"
+      >
+        <div className="truncate">{display}</div>
+      </div>
+    )
+  }
+
   if (loading) return <LoadingState />
 
   return (
@@ -2079,7 +2148,11 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                   ].map(row => (
                     <div key={row.key} className="flex items-center justify-between gap-3">
                       <span className="text-xs text-muted-foreground w-20 shrink-0">{row.label}</span>
-                      <code className="text-xs bg-secondary/40 rounded px-2 py-0.5 flex-1 truncate">{row.value}</code>
+                      {row.label === "Password" ? (
+                        <PasswordReveal value={row.value} copyKey={row.key} />
+                      ) : (
+                        <code className="text-xs bg-secondary/40 rounded px-2 py-0.5 flex-1 truncate">{row.value}</code>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"

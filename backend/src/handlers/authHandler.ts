@@ -3,7 +3,7 @@ import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
-import { comparePassword } from '../utils/password';
+import { comparePassword, hashPassword } from '../utils/password';
 import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
@@ -379,6 +379,78 @@ export async function authRoutes(app: any, prefix = '') {
       tags: ['Auth'],
       operationId: 'postAuth2faVerifyLogin',
     }
+  });
+
+  app.post(prefix + '/auth/password-reset/request', async (ctx: any) => {
+    const body = ctx.body || {};
+    const { email } = body as any;
+    if (!email) {
+      ctx.set.status = 400;
+      return { error: 'Email required' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ email });
+    if (!user) {
+      return { success: true };
+    }
+
+    const token = uuidv4();
+    await redisSet(`password-reset:${token}`, String(user.id), 3600);
+    const url = `${getPanelUrl(ctx)}/reset-password/${token}`;
+
+    try {
+      await sendMail({
+        to: user.email,
+        from: process.env.SMTP_FROM || 'noreply@ecli.app',
+        subject: 'Password reset request',
+        template: 'password-reset',
+        vars: {
+          name: user.firstName || user.email,
+          url,
+          message: 'Click the link below to reset your password. This link is valid for 1 hour.',
+        },
+      });
+    } catch (e) {
+      // skip
+    }
+
+    return { success: true };
+  }, {
+    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
+    detail: { summary: 'Request password reset email', tags: ['Auth'] }
+  });
+
+  app.post(prefix + '/auth/password-reset/confirm', async (ctx: any) => {
+    const body = ctx.body || {};
+    const { token, password } = body as any;
+    if (!token || !password) {
+      ctx.set.status = 400;
+      return { error: 'token and password are required' };
+    }
+
+    const userId = await redisGet(`password-reset:${token}`);
+    if (!userId) {
+      ctx.set.status = 400;
+      return { error: 'Invalid or expired token' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: Number(userId) });
+    if (!user) {
+      ctx.set.status = 400;
+      return { error: 'Invalid token' };
+    }
+
+    user.passwordHash = await hashPassword(String(password));
+    user.sessions = [];
+    await userRepo.save(user);
+    await redisDel(`password-reset:${token}`);
+
+    return { success: true };
+  }, {
+    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
+    detail: { summary: 'Confirm password reset', tags: ['Auth'] }
   });
 
   app.post(prefix + '/auth/logout', async (ctx: any) => {
@@ -878,6 +950,153 @@ export async function authRoutes(app: any, prefix = '') {
       description: 'Handles the callback from GitHub OAuth for student verification.',
       tags: ['Auth'],
       operationId: 'getAuthGithubCallback',
+    }
+  });
+
+  app.get(prefix + '/auth/hackclub/start', async (ctx: any) => {
+    const user = ctx.user;
+    const state = randomToken(16);
+    await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
+    const clientId = process.env.HACKCLUB_CLIENT_ID;
+    const redirectUri = process.env.HACKCLUB_REDIRECT_URI || `${getPanelUrl(ctx)}/api/auth/hackclub/callback`;
+    if (!clientId) {
+      ctx.set.status = 500;
+      return { error: 'Hack Club client id not configured' };
+    }
+    const scope = 'verification_status';
+    const authorizationUrl =
+      `https://auth.hackclub.com/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&state=${encodeURIComponent(state)}`;
+
+    return { redirect: authorizationUrl };
+  }, { beforeHandle: authenticate,
+    response: { 200: t.Object({ redirect: t.String() }), 401: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: {
+      summary: 'Initiate Hack Club student OAuth',
+      description: 'Starts the Hack Club OAuth flow for student verification.',
+      tags: ['Auth'],
+      operationId: 'getAuthHackclubStart',
+    }
+  });
+
+  app.get(prefix + '/auth/hackclub/callback', async (ctx: any) => {
+    const { code, state } = ctx.query as any;
+    if (!code || !state) {
+      ctx.set.status = 400;
+      return { error: 'Missing code or state' };
+    }
+    const stored = await redisGet(`hackclub-student-state:${state}`);
+    if (!stored) {
+      ctx.set.status = 400;
+      return { error: 'Invalid or expired state' };
+    }
+    const userId = Number(stored);
+
+    const clientId = process.env.HACKCLUB_CLIENT_ID;
+    const clientSecret = process.env.HACKCLUB_CLIENT_SECRET;
+    const redirectUri = process.env.HACKCLUB_REDIRECT_URI || `${getPanelUrl(ctx)}/api/auth/hackclub/callback`;
+    if (!clientId || !clientSecret) {
+      ctx.set.status = 500;
+      return { error: 'Hack Club OAuth not configured' };
+    }
+
+    const tokenRes = await fetch('https://auth.hackclub.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        code,
+        grant_type: 'authorization_code',
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+    if (!accessToken) {
+      ctx.set.status = 400;
+      return { error: 'Failed to obtain access token' };
+    }
+
+    const meRes = await fetch('https://auth.hackclub.com/api/v1/me', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    const meText = await meRes.text();
+    let meData: any = {};
+    try { meData = JSON.parse(meText); } catch {
+      ctx.log.warn({ status: meRes.status, body: meText }, 'Hack Club /api/v1/me returned non-JSON');
+    }
+
+    const hkIdentity = meData?.identity ?? {};
+    const isStudent =
+      hkIdentity?.ysws_eligible === true ||
+      hkIdentity?.verification_status === 'student' ||
+      hkIdentity?.verification_status === 'verified' ||
+      meData?.ysws_eligible === true ||
+      meData?.verification_status === 'student' ||
+      meData?.verification_status === 'verified' ||
+      meData?.student === true ||
+      meData?.is_student === true ||
+      meData?.verified === true;
+
+    if (!isStudent) {
+      ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');
+      const panelUrl = getPanelUrl(ctx);
+      await redisDel(`hackclub-student-state:${state}`);
+      return { redirect: `${panelUrl}/?studentVerified=0` };
+    }
+
+    const { Plan } = require('../models/plan.entity');
+    const planRepo = AppDataSource.getRepository(Plan);
+    const eduPlan = await planRepo.findOne({ where: { type: 'educational' } });
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: userId });
+    if (user) {
+      user.studentVerified = true;
+      user.studentVerifiedAt = new Date();
+
+      const defaultEduLimits = {
+        memory: eduPlan?.memory ?? 2048,
+        disk: eduPlan?.disk ?? 20480,
+        cpu: eduPlan?.cpu ?? 400,
+        serverLimit: eduPlan?.serverLimit ?? 2,
+      };
+
+      const existingLimits = user.educationLimits || {};
+      const currentBaseLimits = user.limits || {};
+
+      user.educationLimits = {
+        memory: Math.max(existingLimits.memory || 0, currentBaseLimits.memory || 0, defaultEduLimits.memory),
+        disk: Math.max(existingLimits.disk || 0, currentBaseLimits.disk || 0, defaultEduLimits.disk),
+        cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, defaultEduLimits.cpu),
+        serverLimit: Math.max(existingLimits.serverLimit || 0, currentBaseLimits.serverLimit || 0, defaultEduLimits.serverLimit),
+      };
+
+      if (!['paid', 'enterprise'].includes(user.portalType)) {
+        user.portalType = 'educational';
+      }
+
+      ctx.log.info({ eduPlan: eduPlan?.id ?? null, portalType: user.portalType, educationLimits: user.educationLimits }, 'Applying Hack Club educational plan limits to user');
+      await userRepo.save(user);
+    }
+
+    await redisDel(`hackclub-student-state:${state}`);
+    const panelUrl = getPanelUrl(ctx);
+    return { redirect: `${panelUrl}/?studentVerified=1` };
+  }, {
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: {
+      summary: 'Handle Hack Club OAuth callback',
+      description: 'Handles the callback from Hack Club OAuth for student verification.',
+      tags: ['Auth'],
+      operationId: 'getAuthHackclubCallback',
     }
   });
 

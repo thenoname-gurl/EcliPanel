@@ -543,13 +543,38 @@ export async function remoteRoutes(app: any, prefix: string) {
         const sshKeyRepo = AppDataSource.getRepository(SshKey);
         const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
 
-        const submittedParts = password.trim().split(/\s+/);
-        const submittedType = submittedParts[0] ?? '';
-        const submittedMaterial = submittedParts[1] ?? '';
+        const submittedKey = password.trim();
+        const submittedParts = submittedKey.split(/\s+/);
+        if (submittedParts.length < 2) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Invalid public key format' }] };
+        }
+
+        const submittedType = submittedParts[0];
+        const submittedMaterial = submittedParts[1];
+
+        function keyFingerprint(key: string): string | null {
+          try {
+            const keyParts = key.trim().split(/\s+/);
+            if (keyParts.length < 2) return null;
+            const keyMaterial = Buffer.from(keyParts[1], 'base64');
+            const hash = crypto.createHash('sha256').update(keyMaterial).digest('base64').replace(/=+$/, '');
+            return `SHA256:${hash}`;
+          } catch {
+            return null;
+          }
+        }
+
+        const submittedFinger = keyFingerprint(submittedKey);
 
         const matched = userKeys.some((k: any) => {
-          const stored = k.publicKey.trim().split(/\s+/);
-          return stored[0] === submittedType && stored[1] === submittedMaterial;
+          const storedKey = k.publicKey?.trim() ?? '';
+          const storedParts = storedKey.split(/\s+/);
+          const storedMaterial = storedParts[1] ?? '';
+          if (k.fingerprint && submittedFinger && k.fingerprint === submittedFinger) {
+            return true;
+          }
+          return storedParts[0] === submittedType && storedMaterial === submittedMaterial;
         });
 
         if (!matched) {

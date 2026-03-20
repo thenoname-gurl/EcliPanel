@@ -18,8 +18,14 @@ export class Organisation {
   @Column({ default: 'free' })
   portalTier: string;
 
+  @Column({ default: false })
+  isStaff: boolean;
+
   @Column({ nullable: true })
   avatarUrl?: string;
+
+  @Column({ default: false })
+  isStaff?: boolean;
 
   @OneToMany(() => User, (user) => user.org)
   users: User[];

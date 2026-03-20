@@ -27,6 +27,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ownerId: o.ownerId,
       portalTier: o.portalTier,
       avatarUrl: o.avatarUrl,
+      isStaff: !!o.isStaff,
       users: o.users?.map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, orgRole: u.orgRole, avatarUrl: u.avatarUrl })) || [],
       invites: o.invites?.map((i: any) => ({ id: i.id, email: i.email, accepted: i.accepted })) || [],
     };
@@ -95,6 +96,10 @@ export async function organisationRoutes(app: any, prefix = '') {
     detail: { summary: 'Create a new organisation', tags: ['Organisations'] }
   });
 
+  async function userCanManageOrg(user: User, org: Organisation) {
+    return user.role === 'admin' || user.role === '*' || user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin')
+  }
+
   app.get(prefix + '/organisations/:id', async (ctx: any) => {
     const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['users', 'invites'] });
     if (!org) {
@@ -110,6 +115,76 @@ export async function organisationRoutes(app: any, prefix = '') {
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get organisation by id', tags: ['Organisations'] }
+  });
+
+  app.get(prefix + '/organisations/:id/dns/zones', async (ctx: any) => {
+    const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
+    if (!org) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const user = ctx.user as User;
+    if (!(await userCanManageOrg(user, org))) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const svc = createDnsService();
+    try {
+      const zones = await svc.listZones();
+      const handle = org.handle.replace(/\.$/, '');
+      return (zones || [])
+        .map((z: any) => ({ ...z, name: String(z.name || '').replace(/\.$/, ''), kind: z.kind ? String(z.kind).toLowerCase() : 'cloudflare' }))
+        .filter((z: any) => {
+          const name = String(z.name || '').replace(/\.$/, '');
+          return name === handle || name.endsWith(`.${handle}`);
+        });
+    } catch (e: any) {
+      ctx.set.status = 502;
+      return { error: e.message };
+    }
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    detail: { summary: 'List organisation DNS subdomains', tags: ['Organisations','DNS'] }
+  });
+
+  app.post(prefix + '/organisations/:id/dns/zones', async (ctx: any) => {
+    const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
+    if (!org) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const user = ctx.user as User;
+    if (!(await userCanManageOrg(user, org))) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const body = ctx.body as any;
+    const rawName = String(body.name || '').trim().replace(/\.$/, '');
+    if (!rawName) {
+      ctx.set.status = 400;
+      return { error: 'Subdomain name required' };
+    }
+
+    const handle = org.handle.replace(/\.$/, '');
+    if (rawName !== handle && !rawName.endsWith(`.${handle}`)) {
+      ctx.set.status = 403;
+      return { error: 'Subdomain must belong to organisation handle' };
+    }
+
+    try {
+      const svc = createDnsService();
+      const zone = await svc.createZone({ name: rawName });
+      const out = { ...zone, name: String(zone.name || rawName).replace(/\.$/, ''), kind: zone.kind ? String(zone.kind).toLowerCase() : 'cloudflare' };
+      return out;
+    } catch (e: any) {
+      ctx.set.status = 502;
+      return { error: e.message };
+    }
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    detail: { summary: 'Create organisation DNS subdomain', tags: ['Organisations','DNS'] }
   });
 
   app.put(prefix + '/organisations/:id', async (ctx: any) => {
@@ -241,7 +316,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       const { sendMail } = require('../services/mailService');
       await sendMail({
         to: email,
-        from: process.env.SMTP_FROM || 'no-reply@ecli.app',
+        from: process.env.SMTP_FROM || 'noreply@ecli.app',
         subject: `Invitation to join ${org.name}`,
         template: 'invite',
         vars: {
@@ -278,7 +353,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       const { sendMail } = require('../services/mailService');
       await sendMail({
         to: inv.email,
-        from: process.env.SMTP_FROM || 'no-reply@ecli.app',
+        from: process.env.SMTP_FROM || 'noreply@ecli.app',
         subject: `Invitation to join ${org.name}`,
         template: 'invite',
         vars: {

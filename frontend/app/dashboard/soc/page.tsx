@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react"
+import SearchableUserSelect from "@/components/SearchableUserSelect"
 
 interface SocEntry {
   id: number
@@ -306,18 +307,9 @@ export default function SocPage() {
             <TabsContent value="user-usage" className="mt-4">
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center gap-3 border-b border-border p-4">
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 flex-1 max-w-xs"
-                  >
-                    <option value="">— select a user —</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={String(u.id)}>
-                        {u.firstName} {u.lastName} ({u.email})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1 max-w-xs">
+                    <SearchableUserSelect value={selectedUserId} onChange={setSelectedUserId} placeholder="— select a user —" initialList={users} />
+                  </div>
                   <Button size="sm" onClick={fetchUserUsage} disabled={!selectedUserId || loadingUserUsage}>
                     {loadingUserUsage ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <BarChart2 className="h-3.5 w-3.5" />}
                     <span className="ml-1.5">Load</span>

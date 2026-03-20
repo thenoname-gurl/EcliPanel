@@ -30,18 +30,14 @@ import {
 } from "lucide-react"
 
 // Feature flags
-const GITHUB_STUDENT_ENABLED = false; 
-// Heaven decided to disable the GitHub student verification button for 
-// now since the flow is a bit buggy and we want to focus on the core 
-// ID verification features first. 
-// We can re-enable it later once its more stable and 
-// once gods of github kingdom respond to our pleas.
+const HACKCLUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED === 'true';
+const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED === 'true';
 
 // helper to derive step status from backend record
 function computeSteps(record: any | null, passkeyCount: number, emailVerified: boolean, studentVerified: boolean, portalType?: string, euIdDisabled?: boolean) {
   const base = [
     { id: 1, title: "Email Verification", description: emailVerified ? "Your email has been verified" : "Verify your email address to continue", icon: FileText },
-    { id: 2, title: "Security Verification", description: "Register a passkey or enable two-factor authentication", icon: KeyRound },
+    { id: 2, title: "Security Verification", description: "Register a passkey and enable two-factor authentication", icon: KeyRound },
     {
       id: 3,
       title: "Identity Document",
@@ -58,7 +54,7 @@ function computeSteps(record: any | null, passkeyCount: number, emailVerified: b
         : "Take a photo to match your ID",
       icon: Camera,
     },
-    { id: 5, title: "Student Verification", description: studentVerified ? "Student status confirmed" : GITHUB_STUDENT_ENABLED ? "Connect GitHub to verify educational status" : "Student verification is coming soon", icon: User },
+    { id: 5, title: "Student Verification", description: studentVerified ? "Student status confirmed" : HACKCLUB_STUDENT_ENABLED ? "Connect Hack Club to verify educational status" : GITHUB_STUDENT_ENABLED ? "Connect GitHub to verify educational status" : "Student verification is coming soon", icon: User },
   ] as any[];
 
   let stepsBase = base;
@@ -299,8 +295,25 @@ export default function IdentityPage() {
                       Not Applicable
                     </Badge>
                   )}
-                  {/* student verification button (hidden) */}
-                  {step.id === 5 && step.status === "available" && GITHUB_STUDENT_ENABLED && (
+                  {/* student verification button */}
+                  {step.id === 5 && step.status === "available" && HACKCLUB_STUDENT_ENABLED && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res: any = await apiFetch(API_ENDPOINTS.hackclubStudentStart, { method: 'GET' });
+                          if (res.redirect) {
+                            window.location.href = res.redirect;
+                          }
+                        } catch (e: any) {
+                          alert(e.message || 'Failed to start Hack Club flow');
+                        }
+                      }}
+                      className="rounded-lg border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
+                    >
+                      Connect Hack Club
+                    </button>
+                  )}
+                  {step.id === 5 && step.status === "available" && !HACKCLUB_STUDENT_ENABLED && GITHUB_STUDENT_ENABLED && (
                     <button
                       onClick={async () => {
                         try {
@@ -327,7 +340,7 @@ export default function IdentityPage() {
                       Upload above
                     </Badge>
                   )}
-                  {step.status === "available" && step.id === 5 && !GITHUB_STUDENT_ENABLED && (
+                  {step.status === "available" && step.id === 5 && !HACKCLUB_STUDENT_ENABLED && !GITHUB_STUDENT_ENABLED && (
                     <Badge variant="outline" className="border-muted/30 bg-muted/10 text-muted-foreground">
                       Coming soon
                     </Badge>

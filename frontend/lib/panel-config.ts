@@ -71,8 +71,12 @@ export const API_ENDPOINTS = {
   twoFactorDisable: "/api/auth/2fa/disable",
   twoFactorSendEmail: "/api/auth/2fa/send-email",
   twoFactorVerifyLogin: "/api/auth/2fa/verify-login",
+  passwordResetRequest: "/api/auth/password-reset/request",
+  passwordResetConfirm: "/api/auth/password-reset/confirm",
   verifyEmail: "/api/auth/verify-email",
   resendVerification: "/api/auth/resend-verification",
+  hackclubStudentStart: "/api/auth/hackclub/start",
+  hackclubStudentCallback: "/api/auth/hackclub/callback",
   githubStudentStart: "/api/auth/github/start",
   githubStudentCallback: "/api/auth/github/callback",
 
@@ -282,6 +286,8 @@ export const API_ENDPOINTS = {
   infraDns: "/api/infrastructure/dns",
   infraDnsZones: "/api/infrastructure/dns/zones",
   infraDnsRecords: "/api/infrastructure/dns/zones/:id/records",
+  organisationDnsZones: "/api/organisations/:id/dns/zones",
+  organisationDnsZone: "/api/organisations/:id/dns/zones/:zoneId",
 } as const
 
 // ============================================

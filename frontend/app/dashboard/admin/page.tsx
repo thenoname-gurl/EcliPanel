@@ -56,6 +56,7 @@ import {
 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import SearchableUserSelect from "@/components/SearchableUserSelect"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -163,6 +164,7 @@ interface AdminOrganisation {
   handle: string
   ownerId: number
   portalTier: string
+  isStaff?: boolean
   owner?: { firstName: string; lastName: string; email: string }
   memberCount: number
 }
@@ -678,6 +680,7 @@ export default function AdminPanel() {
   const [editOrgHandle, setEditOrgHandle] = useState("")
   const [editOrgTier, setEditOrgTier] = useState("")
   const [editOrgOwnerId, setEditOrgOwnerId] = useState("")
+  const [editOrgIsStaff, setEditOrgIsStaff] = useState(false)
   const [editOrgAddMemberId, setEditOrgAddMemberId] = useState("")
   const [editOrgAddMemberRole, setEditOrgAddMemberRole] = useState("member")
   const [editOrgMemberLoading, setEditOrgMemberLoading] = useState(false)
@@ -1231,6 +1234,7 @@ export default function AdminPanel() {
     setEditOrgHandle(org.handle)
     setEditOrgTier(org.portalTier || "free")
     setEditOrgOwnerId(String(org.ownerId))
+    setEditOrgIsStaff(!!org.isStaff)
     setEditOrgAddMemberId("")
   }
 
@@ -1240,11 +1244,11 @@ export default function AdminPanel() {
     try {
       await apiFetch(`${API_ENDPOINTS.adminOrganisations}/${editOrgDialog.id}`, {
         method: "PUT",
-        body: JSON.stringify({ name: editOrgName, handle: editOrgHandle, portalTier: editOrgTier, ownerId: editOrgOwnerId ? Number(editOrgOwnerId) : undefined }),
+        body: JSON.stringify({ name: editOrgName, handle: editOrgHandle, portalTier: editOrgTier, ownerId: editOrgOwnerId ? Number(editOrgOwnerId) : undefined, isStaff: editOrgIsStaff }),
       })
       setOrganisations((prev) =>
         prev.map((o) =>
-          o.id === editOrgDialog.id ? { ...o, name: editOrgName, handle: editOrgHandle, portalTier: editOrgTier, ownerId: editOrgOwnerId ? Number(editOrgOwnerId) : o.ownerId } : o
+          o.id === editOrgDialog.id ? { ...o, name: editOrgName, handle: editOrgHandle, portalTier: editOrgTier, ownerId: editOrgOwnerId ? Number(editOrgOwnerId) : o.ownerId, isStaff: editOrgIsStaff } : o
         )
       )
       setEditOrgDialog(null)
@@ -4677,19 +4681,14 @@ Content-Type: application/json
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assigned Staff</label>
-                  <select value={replyAssignedTo} onChange={(e) => setReplyAssignedTo(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                    <option value="">Unassigned</option>
-                    {staffLoading ? (
-                      <option value="" disabled>Loading…</option>
-                    ) : (
-                      staffUsers.map((u) => (
-                        <option key={u.id} value={String(u.id)}>
-                          {u.firstName} {u.lastName} ({u.email})
-                        </option>
-                      ))
-                    )}
-                  </select>
+                  <SearchableUserSelect
+                    value={replyAssignedTo}
+                    onChange={(v) => setReplyAssignedTo(v)}
+                    placeholder="Search staff by name, email or id"
+                    initialList={staffUsers}
+                    filter={(u) => ['admin', 'rootAdmin', '*'].includes(u.role || '')}
+                    disabled={staffLoading}
+                  />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -4748,6 +4747,13 @@ Content-Type: application/json
                 <input type="number" value={editOrgOwnerId} onChange={(e) => setEditOrgOwnerId(e.target.value)}
                   placeholder="User ID"
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Staff Organisation</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input type="checkbox" checked={editOrgIsStaff} onChange={(e) => setEditOrgIsStaff(e.target.checked)} className="h-4 w-4" />
+                <span className="text-sm text-foreground">This organisation is the admin staff org</span>
               </div>
             </div>
 
@@ -5259,22 +5265,12 @@ Content-Type: application/json
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select User</label>
-              {assignAiUsersLoading ? (
-                <p className="text-sm text-muted-foreground">Loading users…</p>
-              ) : (
-                <select
-                  value={assignAiUserId}
-                  onChange={(e) => setAssignAiUserId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                >
-                  <option value="">-- choose a user --</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={String(u.id)}>
-                      {u.firstName} {u.lastName} ({u.email})
-                    </option>
-                  ))}
-                </select>
-              )}
+              <SearchableUserSelect
+                value={assignAiUserId}
+                onChange={(v) => setAssignAiUserId(v)}
+                placeholder="Type name, email or id to search"
+                initialList={users}
+              />
             </div>
             <p className="text-xs text-muted-foreground">Limits (optional — leave blank for unlimited)</p>
             <div className="grid grid-cols-2 gap-3">
