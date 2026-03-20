@@ -662,6 +662,8 @@ export default function AdminPanel() {
 
   const [privateMode, setPrivateMode] = useState(true)
   const [privacyDialogOpen, setPrivacyDialogOpen] = useState(true)
+  const [redactServers, setRedactServers] = useState<boolean>(true)
+  const [redactOrganisations, setRedactOrganisations] = useState<boolean>(true)
 
   const redact = (value?: string | number | null) => {
     if (!value && value !== 0) return <span className="text-muted-foreground">████████████</span>
@@ -675,6 +677,24 @@ export default function AdminPanel() {
 
   const redactName = (firstName?: string, lastName?: string) => {
     if (privateMode) return (
+      <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
+    )
+    const parts = [firstName, lastName].filter(Boolean).join(" ")
+    return parts || <span className="text-muted-foreground">████████████</span>
+  }
+
+  const redactOrg = (value?: string | number | null) => {
+    if (!value && value !== 0) return <span className="text-muted-foreground">████████████</span>
+    if (!redactOrganisations) return <>{value}</>
+    return (
+      <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">
+        ████████████
+      </span>
+    )
+  }
+
+  const redactOrgName = (firstName?: string, lastName?: string) => {
+    if (redactOrganisations) return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
     )
     const parts = [firstName, lastName].filter(Boolean).join(" ")
@@ -2492,12 +2512,21 @@ remote: ${panelUrl}`
                       className="w-52 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
                     />
                   </div>
-                  <button
-                    onClick={() => forceRefreshTab("organisations")}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => forceRefreshTab("organisations")}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setRedactOrganisations(!redactOrganisations)}
+                      title={redactOrganisations ? "Unredact organisations" : "Redact organisations"}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary/10 transition-colors"
+                    >
+                      {redactOrganisations ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -2522,20 +2551,20 @@ remote: ${panelUrl}`
                         filteredOrgs.map((org) => (
                           <tr key={org.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{redact(org.name)}</p>
-                              <p className="font-mono text-xs text-muted-foreground">ID #{redact(org.id)}</p>
+                              <p className="text-sm font-medium text-foreground">{redactOrg(org.name)}</p>
+                              <p className="font-mono text-xs text-muted-foreground">ID #{redactOrg(org.id)}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-muted-foreground">{redact(org.handle)}</span>
+                              <span className="font-mono text-xs text-muted-foreground">{redactOrg(org.handle)}</span>
                             </td>
                             <td className="px-4 py-3">
                               {org.owner ? (
                                 <div>
-                                  <p className="text-sm text-foreground">{redactName(org.owner.firstName, org.owner.lastName)}</p>
-                                  <p className="text-xs text-muted-foreground">{redact(org.owner.email)}</p>
+                                  <p className="text-sm text-foreground">{redactOrgName(org.owner.firstName, org.owner.lastName)}</p>
+                                  <p className="text-xs text-muted-foreground">{redactOrg(org.owner.email)}</p>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">{redact(org.ownerId)}</span>
+                                <span className="text-xs text-muted-foreground">{redactOrg(org.ownerId)}</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -2603,6 +2632,13 @@ remote: ${panelUrl}`
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
                     </button>
+                    <button
+                      onClick={() => setRedactServers(!redactServers)}
+                      title={redactServers ? "Unredact servers" : "Redact servers"}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary/10 transition-colors"
+                    >
+                      {redactServers ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -2627,9 +2663,9 @@ remote: ${panelUrl}`
                         filteredServers.map((srv, i) => (
                           <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ''}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{srv.name ? redactText(srv.name, privateMode) : "Unnamed Server"}</p>
+                              <p className="text-sm font-medium text-foreground">{srv.name ? redactText(srv.name, redactServers) : "Unnamed Server"}</p>
                               {srv.description && (
-                                <p className={privateMode ? "text-xs text-muted-foreground truncate max-w-xs blur-sm" : "text-xs text-muted-foreground truncate max-w-xs"}>{srv.description}</p>
+                                <p className={redactServers ? "text-xs text-muted-foreground truncate max-w-xs blur-sm" : "text-xs text-muted-foreground truncate max-w-xs"}>{srv.description}</p>
                               )}
                             </td>
                             <td className="px-4 py-3">

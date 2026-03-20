@@ -1034,16 +1034,7 @@ export async function authRoutes(app: any, prefix = '') {
     }
 
     const hkIdentity = meData?.identity ?? {};
-    const isStudent =
-      hkIdentity?.ysws_eligible === true ||
-      hkIdentity?.verification_status === 'student' ||
-      hkIdentity?.verification_status === 'verified' ||
-      meData?.ysws_eligible === true ||
-      meData?.verification_status === 'student' ||
-      meData?.verification_status === 'verified' ||
-      meData?.student === true ||
-      meData?.is_student === true ||
-      meData?.verified === true;
+    const isStudent = hkIdentity?.ysws_eligible === true;
 
     if (!isStudent) {
       ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');

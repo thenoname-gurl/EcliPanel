@@ -38,59 +38,60 @@ function computeSteps(record: any | null, passkeyCount: number, emailVerified: b
   const base = [
     { id: 1, title: "Email Verification", description: emailVerified ? "Your email has been verified" : "Verify your email address to continue", icon: FileText },
     { id: 2, title: "Security Verification", description: "Register a passkey and enable two-factor authentication", icon: KeyRound },
+    { id: 3, title: "Student Verification", description: studentVerified ? "Student status confirmed" : HACKCLUB_STUDENT_ENABLED ? "Connect Hack Club to verify educational status" : GITHUB_STUDENT_ENABLED ? "Connect GitHub to verify educational status" : "Student verification is coming soon", icon: User },
     {
-      id: 3,
+      id: 4,
       title: "Identity Document",
       description: euIdDisabled
         ? "Not applicable for EU residents"
-        : "Upload a government-issued ID",
+        : "Upload a government-issued ID (optional)",
       icon: Upload,
     },
     {
-      id: 4,
+      id: 5,
       title: "Selfie Verification",
       description: euIdDisabled
         ? "Not applicable for EU residents"
-        : "Take a photo to match your ID",
+        : "Take a photo to match your ID (optional)",
       icon: Camera,
     },
-    { id: 5, title: "Student Verification", description: studentVerified ? "Student status confirmed" : HACKCLUB_STUDENT_ENABLED ? "Connect Hack Club to verify educational status" : GITHUB_STUDENT_ENABLED ? "Connect GitHub to verify educational status" : "Student verification is coming soon", icon: User },
   ] as any[];
 
   let stepsBase = base;
   if (portalType === 'educational') {
-    stepsBase = base.filter((s) => s.id !== 5);
+    stepsBase = base.filter((s) => s.id !== 3);
   }
 
   const completed = record?.status === "verified";
   const pending = record?.status === "pending";
   const failed = record?.status === "failed";
   const securityDone = passkeyCount > 0;
-  return stepsBase.map((s, idx) => {
-    if (idx === 0) return { ...s, status: emailVerified ? "completed" : "available" };
-    if (idx === 1) {
+
+  return stepsBase.map((s) => {
+    if (s.id === 1) return { ...s, status: emailVerified ? "completed" : "available" };
+    if (s.id === 2) {
       if (!emailVerified) return { ...s, status: "locked" };
       return { ...s, status: securityDone ? "completed" : "available" };
     }
-    if (idx === 2) {
-      if (!emailVerified) return { ...s, status: "locked" };
-      if (euIdDisabled) return { ...s, status: "notApplicable" };
-      if (completed) return { ...s, status: "completed" };
-      if (pending) return { ...s, status: "pending" };
-      if (failed) return { ...s, status: "failed" };
-      return { ...s, status: "available" };
-    }
-    if (idx === 3) {
-      if (!emailVerified) return { ...s, status: "locked" };
-      if (euIdDisabled) return { ...s, status: "notApplicable" };
-      if (completed) return { ...s, status: "completed" };
-      if (pending) return { ...s, status: "pending" };
-      if (failed) return { ...s, status: "failed" };
-      return { ...s, status: "available" };
-    }
-    if (idx === 4) {
+    if (s.id === 3) {
       if (!emailVerified || !securityDone) return { ...s, status: "locked" };
       if (studentVerified) return { ...s, status: "completed" };
+      return { ...s, status: "available" };
+    }
+    if (s.id === 4) {
+      if (!emailVerified) return { ...s, status: "locked" };
+      if (euIdDisabled) return { ...s, status: "notApplicable" };
+      if (completed) return { ...s, status: "completed" };
+      if (pending) return { ...s, status: "pending" };
+      if (failed) return { ...s, status: "failed" };
+      return { ...s, status: "available" };
+    }
+    if (s.id === 5) {
+      if (!emailVerified) return { ...s, status: "locked" };
+      if (euIdDisabled) return { ...s, status: "notApplicable" };
+      if (completed) return { ...s, status: "completed" };
+      if (pending) return { ...s, status: "pending" };
+      if (failed) return { ...s, status: "failed" };
       return { ...s, status: "available" };
     }
     return { ...s, status: "locked" };
@@ -128,7 +129,7 @@ export default function IdentityPage() {
 
   return (
     <>
-      <PanelHeader title="Identity Verification" description="Verify your identity for enhanced account features" />
+      <PanelHeader title="Identity Verification" description="ID verification is optional — complete required steps to unlock enhanced features" />
       <Dialog open={euIdDialogOpen} onOpenChange={setEuIdDialogOpen}>
         <DialogContent className="border-border bg-card">
           <DialogHeader>
@@ -148,9 +149,9 @@ export default function IdentityPage() {
           {/* Status Banner */}
           {(() => {
             const s = computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType);
-            const requiredSteps = s.slice(0, 4);
+            const requiredSteps = s.filter((x: any) => x.title !== 'Identity Document' && x.title !== 'Selfie Verification');
             const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed' || x.status === 'notApplicable').length;
-            const allRequired = doneRequired === 4;
+            const allRequired = doneRequired === requiredSteps.length;
             const borderColor = allRequired ? 'border-success/30' : 'border-warning/30';
             const bgColor = allRequired ? 'bg-success/5' : 'bg-warning/5';
             const iconBg = allRequired ? 'bg-success/10' : 'bg-warning/10';
@@ -168,11 +169,11 @@ export default function IdentityPage() {
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {allRequired
                       ? 'All required steps are verified. Enterprise features and higher resource limits are unlocked.'
-                      : 'Complete the four required steps to unlock enterprise features and higher resource limits.'}
+                      : `Complete the required steps to unlock enterprise features and higher resource limits.`}
                   </p>
                 </div>
                 <Badge variant="outline" className={`${badgeBorder} ${badgeBg} ${badgeText}`}>
-                  {`${doneRequired}/4 Required`}
+                  {`${doneRequired}/${requiredSteps.length} Required`}
                 </Badge>
               </div>
             );
@@ -181,7 +182,7 @@ export default function IdentityPage() {
           {/* Verification Steps */}
           {(status?.status === 'failed' || !status) && (
             <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader title="Start Verification" description="Submit your ID information" />
+              <SectionHeader title="Start Verification" description="Submit your ID information (optional)" />
               <div className="mt-4 grid grid-cols-1 gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-foreground">Government-Issued ID Document</label>
@@ -296,7 +297,7 @@ export default function IdentityPage() {
                     </Badge>
                   )}
                   {/* student verification button */}
-                  {step.id === 5 && step.status === "available" && HACKCLUB_STUDENT_ENABLED && user?.portalType !== 'educational' && (
+                  {step.id === 3 && step.status === "available" && HACKCLUB_STUDENT_ENABLED && user?.portalType !== 'educational' && (
                     <button
                       onClick={async () => {
                         try {
@@ -313,7 +314,7 @@ export default function IdentityPage() {
                       Connect Hack Club
                     </button>
                   )}
-                  {step.id === 5 && step.status === "available" && !HACKCLUB_STUDENT_ENABLED && GITHUB_STUDENT_ENABLED && user?.portalType !== 'educational' && (
+                  {step.id === 3 && step.status === "available" && !HACKCLUB_STUDENT_ENABLED && GITHUB_STUDENT_ENABLED && user?.portalType !== 'educational' && (
                     <button
                       onClick={async () => {
                         try {
@@ -335,12 +336,12 @@ export default function IdentityPage() {
                       Failed - Resubmit
                     </Badge>
                   )}
-                  {step.status === "available" && step.id !== 5 && (
+                  {step.status === "available" && step.id !== 3 && (
                     <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground">
                       Upload above
                     </Badge>
                   )}
-                  {step.status === "available" && step.id === 5 && !HACKCLUB_STUDENT_ENABLED && !GITHUB_STUDENT_ENABLED && (
+                  {step.status === "available" && step.id === 3 && !HACKCLUB_STUDENT_ENABLED && !GITHUB_STUDENT_ENABLED && (
                     <Badge variant="outline" className="border-muted/30 bg-muted/10 text-muted-foreground">
                       Coming soon
                     </Badge>
