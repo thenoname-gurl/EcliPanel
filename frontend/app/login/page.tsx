@@ -187,6 +187,9 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+        <div className="mt-2 text-right text-sm">
+          <Link href="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
+        </div>
 
         {tempToken && (
           <div className="mt-4 rounded-lg border border-border bg-card p-4">

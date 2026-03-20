@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -9,8 +10,10 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 
 export default function DnsPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const [zones, setZones] = useState<any[]>([])
+  const [redirecting, setRedirecting] = useState(true)
   const [loadingZones, setLoadingZones] = useState<boolean>(true)
   const [newName, setNewName] = useState("")
   const [selected, setSelected] = useState<any|null>(null)
@@ -19,6 +22,37 @@ export default function DnsPage() {
   const [recordForm, setRecordForm] = useState({ name: "", type: "A", ttl: 3600, content: "", proxied: false })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingRecord, setEditingRecord] = useState<any|null>(null)
+
+  useEffect(() => {
+    const goToOrgDns = async () => {
+      if (!user) return
+
+      if (user.org && user.org.id) {
+        router.replace(`/dashboard/organisations/${user.org.id}?tab=dns`)
+        return
+      }
+
+      if (user.role === 'admin' || user.role === '*') {
+        try {
+          const adminOrgs = await apiFetch(API_ENDPOINTS.adminOrganisations)
+          const staffOrg = (adminOrgs || []).find((o: any) => o.isStaff)
+          if (staffOrg) {
+            router.replace(`/dashboard/organisations/${staffOrg.id}?tab=dns`)
+            return
+          }
+        } catch (_) {
+          // skip
+        }
+      }
+
+      router.replace('/dashboard/organisations')
+    }
+
+    if (redirecting) {
+      goToOrgDns().finally(() => setRedirecting(false))
+    }
+  }, [user, router, redirecting])
+
   const demoActive = !!user?.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
 
   const canManageSelected = (sel: any|null) => {
@@ -70,9 +104,15 @@ export default function DnsPage() {
     }
   }
 
+  if (redirecting) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">Redirecting to your organisation DNS subdomains...</div>
+    )
+  }
+
   return (
     <>
-      <PanelHeader title="DNS Zones" description="Manage Cloudflare DNS zones for your enterprise organisations" />
+      <PanelHeader title="DNS" description="Manage Cloudflare Sub-Domains DNS for your organisation" />
       {demoActive ? (
         <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 mx-6">
           <p className="text-sm font-medium text-warning-foreground">
@@ -86,24 +126,24 @@ export default function DnsPage() {
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="zone name (eg example.com)"
+                placeholder="subdomain (eg app.example.com)"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground w-64"
               />
-              <Button onClick={createZone} disabled={demoActive} title={demoActive ? 'Disabled in demo mode' : undefined}>Create Zone</Button>
+              <Button onClick={createZone} disabled={demoActive} title={demoActive ? 'Disabled in demo mode' : undefined}>Create Subdomain</Button>
             </div>
             {user?.org?.handle && (
               <p className="text-xs text-muted-foreground">
-                Zone name auto-set to your organisation handle: <span className="font-mono font-medium text-foreground">{user.org.handle}</span>
+                Subdomain name auto-set to your organisation handle: <span className="font-mono font-medium text-foreground">{user.org.handle}</span>
               </p>
             )}
           </div>
           <div className="flex flex-col gap-2">
             {loadingZones ? (
-              <p className="text-sm text-muted-foreground">Loading zones...</p>
+              <p className="text-sm text-muted-foreground">Loading subdomains...</p>
             ) : zones.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No zones found. Create a zone above or contact a staff admin to add a root zone.</p>
+              <p className="text-sm text-muted-foreground">No subdomains found. Create a subdomain above or contact a staff admin to add a root zone.</p>
             ) : (
               zones.map((z) => (
                 <div

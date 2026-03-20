@@ -572,6 +572,7 @@ export async function adminRoutes(app: any, prefix = '') {
       ...o,
       owner: ownerMap[o.ownerId] ?? null,
       memberCount: countMap[o.id] ?? 0,
+      isStaff: !!o.isStaff,
     }));
 
     return result;
@@ -594,11 +595,12 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
 
-    const { name, handle, portalTier, ownerId } = ctx.body as any;
+    const { name, handle, portalTier, ownerId, isStaff } = ctx.body as any;
     if (name !== undefined) org.name = name;
     if (handle !== undefined) org.handle = handle;
     if (portalTier !== undefined) org.portalTier = portalTier;
     if (ownerId !== undefined) org.ownerId = Number(ownerId);
+    if (isStaff !== undefined) org.isStaff = !!isStaff;
 
     await orgRepo.save(org);
     return { success: true, org };
@@ -611,6 +613,7 @@ export async function adminRoutes(app: any, prefix = '') {
         handle: t.Optional(t.String()),
         portalTier: t.Optional(t.String()),
         ownerId: t.Optional(t.Any()),
+        isStaff: t.Optional(t.Boolean()),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), org: t.Any() }),
