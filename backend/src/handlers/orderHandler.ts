@@ -98,6 +98,33 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
   });
 }
 
+function deriveDescriptionFromItems(itemsStr: string | undefined) {
+  if (!itemsStr) return undefined;
+  try {
+    const items = JSON.parse(itemsStr);
+    if (Array.isArray(items) && items.length > 0) {
+      const it = items[0];
+      return it.description || it.name || JSON.stringify(it);
+    }
+    if (typeof items === 'object' && items) {
+      return items.description || items.name || JSON.stringify(items);
+    }
+  } catch (e) {
+    return String(itemsStr).slice(0, 200);
+  }
+  return undefined;
+}
+
+function normalizeOrder(o: any) {
+  const date = o.createdAt ? (o.createdAt instanceof Date ? o.createdAt.toISOString() : new Date(o.createdAt).toISOString()) : new Date().toISOString();
+  const desc = o.description || deriveDescriptionFromItems(o.items) || 'Order';
+  return {
+    ...o,
+    date,
+    description: desc,
+  };
+}
+
 export async function orderRoutes(app: any, prefix = '') {
   const orderRepo = AppDataSource.getRepository(Order);
 
@@ -124,7 +151,7 @@ export async function orderRoutes(app: any, prefix = '') {
       expiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 10)),
     });
     await orderRepo.save(order);
-    return { success: true, order };
+    return { success: true, order: normalizeOrder(order) };
   }, {
     beforeHandle: [authenticate, authorize('orders:create')],
     response: { 200: t.Object({ success: t.Boolean(), order: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -133,13 +160,13 @@ export async function orderRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/orders', async (ctx: any) => {
     const user = ctx.user as any;
-    if (user.role === 'admin' || user.role === '*') {
-      return await orderRepo.find();
-    }
+    let rows: any[] = [];
     if (user.org && (user.orgRole === 'admin' || user.orgRole === 'owner')) {
-      return await orderRepo.find({ where: [{ orgId: user.org.id }, { userId: user.id }] });
+      rows = await orderRepo.find({ where: [{ orgId: user.org.id }, { userId: user.id }] });
+    } else {
+      rows = await orderRepo.find({ where: { userId: user.id } });
     }
-    return await orderRepo.find({ where: { userId: user.id } });
+    return rows.map(normalizeOrder);
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -153,11 +180,11 @@ export async function orderRoutes(app: any, prefix = '') {
       return { error: 'Order not found' };
     }
     const user = ctx.user as any;
-    if (order.userId === user.id || user.role === 'admin' || user.role === '*') {
-      return order;
+    if (order.userId === user.id) {
+      return normalizeOrder(order);
     }
     if (order.orgId && user.org && user.org.id === order.orgId && (user.orgRole === 'admin' || user.orgRole === 'owner')) {
-      return order;
+      return normalizeOrder(order);
     }
     ctx.set.status = 403;
     return { error: 'Forbidden' };
@@ -175,11 +202,13 @@ export async function orderRoutes(app: any, prefix = '') {
       return { error: 'Order not found' };
     }
     const user = ctx.user as any;
-    if (!(order.userId === user.id || user.role === 'admin' || user.role === '*')) {
-      if (!(order.orgId && user.org && user.org.id === order.orgId && (user.orgRole === 'admin' || user.orgRole === 'owner'))) {
-        ctx.set.status = 403;
-        return { error: 'Forbidden' };
-      }
+    if (order.userId === user.id) {
+      // skip
+    } else if (order.orgId && user.org && user.org.id === order.orgId && (user.orgRole === 'admin' || user.orgRole === 'owner')) {
+      // skip
+    } else {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
     }
 
     try {

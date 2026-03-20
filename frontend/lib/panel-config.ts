@@ -189,6 +189,8 @@ export const API_ENDPOINTS = {
   adminApplyPlan: "/api/admin/users/:id/apply-plan",
   adminUserCurrentPlan: "/api/admin/users/:id/current-plan",
   adminUserCancelPlan: "/api/admin/users/:id/cancel-plan",
+  adminUserDeassignStudent: "/api/admin/users/:id/deassign-student",
+  adminUserRequireStudentReverify: "/api/admin/users/:id/require-student-reverify",
 
   // SOC
   socOverview: "/api/soc/overview",

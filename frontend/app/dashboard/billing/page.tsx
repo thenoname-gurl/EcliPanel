@@ -26,7 +26,6 @@ export default function BillingPage() {
   const [plans, setPlans] = useState<any[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
-  const [portalDescs, setPortalDescs] = useState<Record<string, { name: string; description: string; features: string }> | null>(null)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState<string | null>(null)
   const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
@@ -47,10 +46,6 @@ export default function BillingPage() {
   }
 
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.panelSettings)
-      .then((d) => { if (d?.portalDescriptions) setPortalDescs(d.portalDescriptions) })
-      .catch(() => {})
-
     apiFetch(API_ENDPOINTS.plans)
       .then((data) => setPlans(Array.isArray(data) ? data : []))
       .catch(() => setPlans([]))
@@ -82,23 +77,19 @@ export default function BillingPage() {
   const livePlanCards = plans.map((plan) => {
     const tier = String(plan?.type ?? "")
     const portalConfig = PORTALS[tier as keyof typeof PORTALS]
-    const descOverride = portalDescs?.[tier]
     const featuresFromPlan = Array.isArray(plan?.features)
       ? plan.features
       : Array.isArray(plan?.features?.list)
         ? plan.features.list
         : []
-    const features = descOverride?.features
-      ? descOverride.features.split("\n").map((f: string) => f.trim()).filter(Boolean)
-      : featuresFromPlan
 
     return {
       key: String(plan.id),
       id: tier || String(plan.id),
       type: tier,
-      name: descOverride?.name || plan.name || portalConfig?.name || "Custom Plan",
-      description: descOverride?.description || plan.description || portalConfig?.description || "",
-      features,
+      name: plan.name || portalConfig?.name || "Custom Plan",
+      description: plan.description || portalConfig?.description || "",
+      features: featuresFromPlan,
       color: portalConfig?.color,
       icon: portalConfig?.icon,
       price: tier === 'enterprise' ? null : Number(plan?.price ?? 0),
@@ -109,17 +100,13 @@ export default function BillingPage() {
   })
 
   const fallbackCards = Object.values(PORTALS).map((portal) => {
-    const descOverride = portalDescs?.[portal.id]
-    const displayFeatures = descOverride?.features
-      ? descOverride.features.split("\n").map((f: string) => f.trim()).filter(Boolean)
-      : [...portal.features]
     return {
       key: portal.id,
       id: portal.id,
       type: portal.id,
-      name: descOverride?.name || portal.name,
-      description: descOverride?.description || portal.description,
-      features: displayFeatures,
+      name: portal.name,
+      description: portal.description,
+      features: [...portal.features],
       color: portal.color,
       icon: portal.icon,
       price: portal.id === "free" || portal.id === "educational" ? 0 : portal.id === "paid" ? 29.99 : null,
@@ -330,7 +317,7 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    {!planCard.isActive && (
+                    {!planCard.isActive && planCard.type !== 'free' && planCard.type !== 'educational' && (
                       <a
                         href="mailto:sales@eclipsesystems.org"
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"

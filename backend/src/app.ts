@@ -9,6 +9,7 @@ import { registerRoutes } from './routes/index';
 import { setupMiddleware, authenticate } from './middleware';
 import { setupConfig } from './config';
 import { AppDataSource } from './config/typeorm';
+import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
@@ -347,6 +348,7 @@ export async function initApp() {
   await setupConfig(app);
   setupMiddleware(app);
   registerRoutes(app);
+  try { scheduleStudentReverifyJob(); } catch (e) { /* skip */ }
 }
 
 app.get('/health', async (ctx: any) => {

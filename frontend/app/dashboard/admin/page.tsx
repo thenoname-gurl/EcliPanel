@@ -82,6 +82,8 @@ interface AdminUser {
   suspended: boolean
   passkeyCount: number
   createdAt?: string
+  studentVerified?: boolean
+  demoUsed?: boolean
 }
 
 interface AdminTicket {
@@ -149,6 +151,7 @@ interface AdminAIModel {
   name: string
   endpoint?: string
   apiKey?: string
+  tags?: string[]
   config?: {
     type?: string
     status?: string
@@ -324,6 +327,24 @@ function NodeSparkline({ data, compact = true }: { data: HeartbeatPoint[]; compa
   )
 }
 
+function redactText(value?: string | number | null, privateMode = true) {
+  if (!value && value !== 0) return <span className="text-muted-foreground">██████</span>
+  if (!privateMode) return <>{value}</>
+  return (
+    <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">
+      ██████
+    </span>
+  )
+}
+
+function redactNameGlobal(firstName?: string, lastName?: string, privateMode = true) {
+  if (privateMode) return (
+    <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
+  )
+  const parts = [firstName, lastName].filter(Boolean).join(" ")
+  return parts || <span className="text-muted-foreground">—</span>
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const ROLES = ["user", "admin", "rootAdmin", "*"]
@@ -345,7 +366,7 @@ const ticketStatusColor: Record<string, string> = {
 
 // ─── Database Hosts Panel ─────────────────────────────────────────────────────
 
-function DatabaseHostsPanel() {
+function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
   const [hosts, setHosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -533,8 +554,8 @@ function DatabaseHostsPanel() {
                 <div>
                   <p className="text-sm font-medium text-foreground">{h.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {h.host}:{h.port} · User: {h.username}
-                    {h.nodeId ? ` · Node #${h.nodeId}` : " · All nodes"}
+                    {redactText(h.host, privateMode)}:{redactText(h.port, privateMode)} · User: {redactText(h.username, privateMode)}
+                    {h.nodeId ? ` · Node #${redactText(h.nodeId, privateMode)}` : " · All nodes"}
                     {h.maxDatabases > 0 ? ` · Limit: ${h.maxDatabases}` : " · Unlimited"}
                   </p>
                   {testResults[h.id] && (
@@ -638,6 +659,27 @@ export default function AdminPanel() {
   // ── Confirmation dialog helper (replaces window.confirm)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmMessage, setConfirmMessage] = useState<string>("")
+
+  const [privateMode, setPrivateMode] = useState(true)
+  const [privacyDialogOpen, setPrivacyDialogOpen] = useState(true)
+
+  const redact = (value?: string | number | null) => {
+    if (!value && value !== 0) return <span className="text-muted-foreground">████████████</span>
+    if (!privateMode) return <>{value}</>
+    return (
+      <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">
+        ████████████
+      </span>
+    )
+  }
+
+  const redactName = (firstName?: string, lastName?: string) => {
+    if (privateMode) return (
+      <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
+    )
+    const parts = [firstName, lastName].filter(Boolean).join(" ")
+    return parts || <span className="text-muted-foreground">████████████</span>
+  }
   const [confirmTitle, setConfirmTitle] = useState<string>("Confirm Action")
   const [confirmLoading, setConfirmLoading] = useState(false)
   const confirmResolveRef = useRef<((v: boolean) => void) | null>(null)
@@ -902,12 +944,10 @@ export default function AdminPanel() {
   const [fraudScanningAll, setFraudScanningAll] = useState(false)
 
   // ── Panel settings ──
-  type PortalDescEntry = { name: string; description: string; features: string }
   const [panelSettings, setPanelSettings] = useState<{
     registrationEnabled: boolean
     registrationNotice: string
-    portalDescriptions: Record<string, PortalDescEntry> | null
-  }>({ registrationEnabled: true, registrationNotice: "", portalDescriptions: null })
+  }>({ registrationEnabled: true, registrationNotice: "" })
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
 
@@ -1082,6 +1122,34 @@ export default function AdminPanel() {
       method: "DELETE",
     })
     setUsers((prev) => prev.filter((u) => u.id !== user.id))
+  }
+
+  async function deassignStudent(user: AdminUser) {
+    if (!(await confirmAsync(`Deassign student verification for ${user.firstName} ${user.lastName}?`))) return
+    try {
+      await apiFetch(API_ENDPOINTS.adminUserDeassignStudent.replace(':id', String(user.id)), {
+        method: 'POST',
+        body: JSON.stringify({ removePortal: true }),
+      })
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, studentVerified: false, portalType: 'free' } : u))
+      alert('Student deassigned')
+    } catch (e: any) {
+      alert('Failed: ' + (e.message || 'error'))
+    }
+  }
+
+  async function requireStudentReverify(user: AdminUser) {
+    if (!(await confirmAsync(`Require ${user.firstName} ${user.lastName} to re-verify student status?`))) return
+    try {
+      await apiFetch(API_ENDPOINTS.adminUserRequireStudentReverify.replace(':id', String(user.id)), {
+        method: 'POST',
+        body: JSON.stringify({ clearLimits: false }),
+      })
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, studentVerified: false } : u))
+      alert('User marked for re-verification')
+    } catch (e: any) {
+      alert('Failed: ' + (e.message || 'error'))
+    }
   }
 
   function openEditUser(user: AdminUser) {
@@ -2149,6 +2217,17 @@ remote: ${panelUrl}`
   return (
     <>
       <PanelHeader title="Admin Panel" description="System administration and management" />
+      <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span>
+            Sensitive data is currently <strong>{privateMode ? "hidden" : "visible"}</strong>.
+            {privateMode ? "" : ""}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setPrivacyDialogOpen(true)}>
+            {privateMode ? "Confirm to reveal" : "Re-hide private data"}
+          </Button>
+        </div>
+      </div>
       {/* Global confirmation dialog used by page actions */}
       <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) handleConfirmCancel() }}>
         <DialogContent className="border-border bg-card sm:max-w-md">
@@ -2160,6 +2239,29 @@ remote: ${panelUrl}`
             <Button variant="outline" onClick={() => handleConfirmCancel()} disabled={confirmLoading}>Cancel</Button>
             <Button variant="destructive" onClick={() => handleConfirmOk()} disabled={confirmLoading}>
               {confirmLoading ? "Working…" : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Privacy check before exposing sensitive fields */}
+      <Dialog open={privacyDialogOpen} onOpenChange={(open) => setPrivacyDialogOpen(open)}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Privacy Confirmation</DialogTitle>
+           <DialogDescription className="text-sm text-muted-foreground">
+            This admin panel contains private user data (names, emails, IDs),
+            which is prohibited from being shared with third parties (see NDA, clause 4).
+            <br />
+            To proceed, please confirm that you are not recording your screen or sharing it.
+          </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPrivateMode(true); setPrivacyDialogOpen(false) }}>
+              Continue with redaction
+            </Button>
+            <Button onClick={() => { setPrivateMode(false); setPrivacyDialogOpen(false) }}>
+              I am not recording
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2241,8 +2343,8 @@ remote: ${panelUrl}`
                               {u.firstName?.[0]?.toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{u.firstName} {u.lastName}</p>
-                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                              <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName)}</p>
+                              <p className="text-xs text-muted-foreground truncate">{redact(u.email)}</p>
                             </div>
                           </button>
                         ))}
@@ -2282,8 +2384,8 @@ remote: ${panelUrl}`
                         filteredUsers.map((user) => (
                           <tr key={user.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{user.firstName} {user.lastName}</p>
-                              <p className="text-xs text-muted-foreground">{user.email}</p>
+                              <p className="text-sm font-medium text-foreground">{redactName(user.firstName, user.lastName)}</p>
+                              <p className="text-xs text-muted-foreground">{redact(user.email)}</p>
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="outline" className={
@@ -2352,6 +2454,19 @@ remote: ${panelUrl}`
                                   className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
+                                {/* Student controls */}
+                                {(user.studentVerified || user.portalType === 'educational') && (
+                                  <>
+                                    <button onClick={() => deassignStudent(user)} title="Deassign student"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                      <UserPlus className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button onClick={() => requireStudentReverify(user)} title="Require re-verify"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -2407,20 +2522,20 @@ remote: ${panelUrl}`
                         filteredOrgs.map((org) => (
                           <tr key={org.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{org.name}</p>
-                              <p className="font-mono text-xs text-muted-foreground">ID #{org.id}</p>
+                              <p className="text-sm font-medium text-foreground">{redact(org.name)}</p>
+                              <p className="font-mono text-xs text-muted-foreground">ID #{redact(org.id)}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-muted-foreground">{org.handle}</span>
+                              <span className="font-mono text-xs text-muted-foreground">{redact(org.handle)}</span>
                             </td>
                             <td className="px-4 py-3">
                               {org.owner ? (
                                 <div>
-                                  <p className="text-sm text-foreground">{org.owner.firstName} {org.owner.lastName}</p>
-                                  <p className="text-xs text-muted-foreground">{org.owner.email}</p>
+                                  <p className="text-sm text-foreground">{redactName(org.owner.firstName, org.owner.lastName)}</p>
+                                  <p className="text-xs text-muted-foreground">{redact(org.owner.email)}</p>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">Owner #{org.ownerId}</span>
+                                <span className="text-xs text-muted-foreground">{redact(org.ownerId)}</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -2512,9 +2627,9 @@ remote: ${panelUrl}`
                         filteredServers.map((srv, i) => (
                           <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ''}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{srv.name || "Unnamed Server"}</p>
+                              <p className="text-sm font-medium text-foreground">{srv.name ? redactText(srv.name, privateMode) : "Unnamed Server"}</p>
                               {srv.description && (
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">{srv.description}</p>
+                                <p className={privateMode ? "text-xs text-muted-foreground truncate max-w-xs blur-sm" : "text-xs text-muted-foreground truncate max-w-xs"}>{srv.description}</p>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -2638,7 +2753,7 @@ remote: ${panelUrl}`
                               )}
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {ticket.user ? `${ticket.user.firstName} ${ticket.user.lastName}` : `User #${ticket.userId}`}
+                              {ticket.user ? redactName(ticket.user.firstName, ticket.user.lastName) : redact(ticket.userId)}
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
                               {ticket.department || "—"}
@@ -2708,9 +2823,9 @@ remote: ${panelUrl}`
                           <tr key={v.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">
-                                {v.user ? `${v.user.firstName} ${v.user.lastName}` : `User #${v.userId}`}
+                                {v.user ? redactName(v.user.firstName, v.user.lastName) : redact(v.userId)}
                               </p>
-                              <p className="text-xs text-muted-foreground">{v.user?.email}</p>
+                              <p className="text-xs text-muted-foreground">{redact(v.user?.email)}</p>
                             </td>
                             <td className="px-4 py-3">
                               <StatusBadge status={v.status === "verified" ? "online" : v.status === "failed" ? "offline" : "pending"} />
@@ -2722,7 +2837,7 @@ remote: ${panelUrl}`
                                   onClick={(e) => {
                                     e.preventDefault();
                                     const url = v.idDocumentUrl;
-                                    openPreview(url, 'ID Document')
+                                    if (url) openPreview(url, 'ID Document')
                                   }}
                                   className="text-primary hover:underline cursor-pointer"
                                 >ID Doc</a>
@@ -2733,7 +2848,7 @@ remote: ${panelUrl}`
                                   onClick={(e) => {
                                     e.preventDefault();
                                     const url = v.selfieUrl;
-                                    openPreview(url, 'Selfie')
+                                    if (url) openPreview(url, 'Selfie')
                                   }}
                                   className="text-primary hover:underline cursor-pointer"
                                 >Selfie</a>
@@ -2806,9 +2921,9 @@ remote: ${panelUrl}`
                           <tr key={d.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
                               <p className="text-sm font-medium text-foreground">
-                                {d.user ? `${d.user.firstName} ${d.user.lastName}` : `User #${d.userId}`}
+                                {d.user ? redactName(d.user.firstName, d.user.lastName) : redact(d.userId)}
                               </p>
-                              <p className="text-xs text-muted-foreground">{d.user?.email}</p>
+                              <p className="text-xs text-muted-foreground">{redact(d.user?.email)}</p>
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
                               {new Date(d.requestedAt).toLocaleDateString()}
@@ -2890,9 +3005,9 @@ remote: ${panelUrl}`
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <h3 className="font-medium text-foreground">{node.name}</h3>
-                              <p className="mt-0.5 font-mono text-xs text-muted-foreground">{node.url}</p>
+                              <p className="mt-0.5 font-mono text-xs text-muted-foreground">{redact(node.url)}</p>
                               {node.organisation && (
-                                <p className="mt-1 text-xs text-muted-foreground">Org: {node.organisation.name}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">Org: {redact(node.organisation.name)}</p>
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-2 shrink-0">
@@ -3058,7 +3173,7 @@ remote: ${panelUrl}`
                             <p className="text-xs text-muted-foreground">{Array.isArray(m.tags) ? m.tags.join(', ') : ''}</p>
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-xs truncate">
-                            {m.endpoint || <span className="italic">not set</span>}
+                            {m.endpoint ? redact(m.endpoint) : <span className="italic">not set</span>}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
@@ -3137,20 +3252,22 @@ remote: ${panelUrl}`
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium text-foreground">
-                              {alert.firstName} {alert.lastName}
+                              {redactName(alert.firstName, alert.lastName)}
                             </span>
-                            <span className="text-xs text-muted-foreground">{alert.email}</span>
+                            <span className="text-xs text-muted-foreground">{redact(alert.email)}</span>
                             {alert.suspended && (
                               <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">Suspended</Badge>
                             )}
                           </div>
-                          <p className="text-xs text-destructive/80 mt-1">{alert.fraudReason}</p>
+                          <p className={privateMode ? "text-xs text-destructive/80 mt-1 blur-sm" : "text-xs text-destructive/80 mt-1"}>
+                            {privateMode ? "Sensitive fraud reason redacted" : alert.fraudReason}
+                          </p>
                           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            {alert.address && <p><span className="text-foreground/60">Address:</span> {alert.address}{alert.address2 ? `, ${alert.address2}` : ''}</p>}
-                            {alert.billingCity && <p><span className="text-foreground/60">City:</span> {alert.billingCity}{alert.billingState ? `, ${alert.billingState}` : ''} {alert.billingZip}</p>}
-                            {alert.billingCountry && <p><span className="text-foreground/60">Country:</span> {alert.billingCountry}</p>}
-                            {alert.billingCompany && <p><span className="text-foreground/60">Company:</span> {alert.billingCompany}</p>}
-                            {alert.phone && <p><span className="text-foreground/60">Phone:</span> {alert.phone}</p>}
+                            {alert.address && <p><span className="text-foreground/60">Address:</span> {redact(alert.address)}{alert.address2 ? `, ${redact(alert.address2)}` : ''}</p>}
+                            {alert.billingCity && <p><span className="text-foreground/60">City:</span> {redact(alert.billingCity)}{alert.billingState ? `, ${redact(alert.billingState)}` : ''} {redact(alert.billingZip)}</p>}
+                            {alert.billingCountry && <p><span className="text-foreground/60">Country:</span> {redact(alert.billingCountry)}</p>}
+                            {alert.billingCompany && <p><span className="text-foreground/60">Company:</span> {redact(alert.billingCompany)}</p>}
+                            {alert.phone && <p><span className="text-foreground/60">Phone:</span> {redact(alert.phone)}</p>}
                           </div>
                           <p className="text-[10px] text-muted-foreground mt-1">
                             Detected {alert.fraudDetectedAt ? new Date(alert.fraudDetectedAt).toLocaleString() : "—"}
@@ -3469,11 +3586,11 @@ remote: ${panelUrl}`
                               <td className="px-4 py-3">
                                 {log.username ? (
                                   <div>
-                                    <p className="text-sm font-medium text-foreground">{log.username}</p>
-                                    <p className="text-xs text-muted-foreground">{log.email}</p>
+                                    <p className="text-sm font-medium text-foreground">{redact(log.username)}</p>
+                                    <p className="text-xs text-muted-foreground">{redact(log.email)}</p>
                                   </div>
                                 ) : (log.userId !== undefined && log.userId !== null) ? (
-                                  <span className="text-xs text-muted-foreground">{log.userId === 0 ? 'System' : `User #${log.userId}`}</span>
+                                  <span className="text-xs text-muted-foreground">{log.userId === 0 ? 'System' : redact(log.userId)}</span>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
@@ -3974,8 +4091,8 @@ Content-Type: application/json
                         <div>
                           <p className="text-sm font-medium text-foreground">{order.description || `Order #${order.id}`}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            User #{order.userId}
-                            {order.planId ? ` · Plan #${order.planId}` : ""}
+                            User #{privateMode ? "████" : order.userId}
+                            {order.planId ? (privateMode ? " · Plan #████" : ` · Plan #${order.planId}`) : ""}
                             {" "} · ${(order.amount ?? 0).toFixed(2)}
                             {" "} · <span className={order.status === "active" ? "text-green-400" : "text-muted-foreground"}>{order.status}</span>
                           </p>
@@ -4109,102 +4226,11 @@ Content-Type: application/json
                     </div>
                   </div>
                 </div>
-
-                {/* Portal Descriptions */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-medium text-foreground">Portal Tier Descriptions</p>
-                    <span className="ml-auto text-xs text-muted-foreground">Shown on the Billing page</span>
-                  </div>
-                  <div className="flex flex-col gap-4 p-4">
-                    {(["free", "paid", "enterprise"] as const).map((tier) => {
-                      const saved = panelSettings.portalDescriptions?.[tier]
-                      const defaultNames: Record<string, string> = { free: "Free Portal", paid: "Paid Portal", enterprise: "Enterprise Portal" }
-                      return (
-                        <div key={tier} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tier}</p>
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs text-muted-foreground">Display Name</label>
-                            <input
-                              value={saved?.name ?? defaultNames[tier]}
-                              onChange={(e) => setPanelSettings((s) => ({
-                                ...s,
-                                portalDescriptions: {
-                                  ...(s.portalDescriptions ?? {}),
-                                  [tier]: { ...((s.portalDescriptions?.[tier]) ?? { name: defaultNames[tier], description: "", features: "" }), name: e.target.value },
-                                },
-                              }))}
-                              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs text-muted-foreground">Short Description</label>
-                            <input
-                              value={saved?.description ?? ""}
-                              onChange={(e) => setPanelSettings((s) => ({
-                                ...s,
-                                portalDescriptions: {
-                                  ...(s.portalDescriptions ?? {}),
-                                  [tier]: { ...((s.portalDescriptions?.[tier]) ?? { name: defaultNames[tier], description: "", features: "" }), description: e.target.value },
-                                },
-                              }))}
-                              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs text-muted-foreground">Features (one per line)</label>
-                            <textarea
-                              rows={4}
-                              value={saved?.features ?? ""}
-                              onChange={(e) => setPanelSettings((s) => ({
-                                ...s,
-                                portalDescriptions: {
-                                  ...(s.portalDescriptions ?? {}),
-                                  [tier]: { ...((s.portalDescriptions?.[tier]) ?? { name: defaultNames[tier], description: "", features: "" }), features: e.target.value },
-                                },
-                              }))}
-                              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none font-mono"
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      {settingsSaved && (
-                        <span className="text-xs text-green-400">Settings saved</span>
-                      )}
-                      <Button
-                        disabled={settingsSaving}
-                        onClick={async () => {
-                          setSettingsSaving(true); setSettingsSaved(false)
-                          try {
-                            const data = await apiFetch(API_ENDPOINTS.adminSettings, {
-                              method: "PUT",
-                              body: JSON.stringify({ portalDescriptions: panelSettings.portalDescriptions }),
-                            })
-                            if (data?.settings) setPanelSettings((s) => ({ ...s, ...data.settings }))
-                            setSettingsSaved(true)
-                            setTimeout(() => setSettingsSaved(false), 3000)
-                          } catch (e: any) {
-                            alert(e.message || "Failed to save portal descriptions")
-                          } finally {
-                            setSettingsSaving(false)
-                          }
-                        }}
-                        className="bg-primary text-primary-foreground"
-                        size="sm"
-                      >
-                        {settingsSaving ? "Saving…" : "Save Portal Descriptions"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </TabsContent>
             {/* ═════════════════ DATABASE HOSTS ══════════════════════════════ */}
             <TabsContent value="databases" className="mt-4">
-              <DatabaseHostsPanel />
+              <DatabaseHostsPanel privateMode={privateMode} />
             </TabsContent>
           </Tabs>
         </div>
@@ -4289,7 +4315,7 @@ Content-Type: application/json
         <DialogContent className="border-border bg-card sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Edit User — {editUserDialog?.firstName} {editUserDialog?.lastName}
+              Edit User — {editUserDialog ? (privateMode ? redactName(editUserDialog.firstName, editUserDialog.lastName) : `${editUserDialog.firstName} ${editUserDialog.lastName}`) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
@@ -5684,8 +5710,8 @@ Content-Type: application/json
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Eye className="h-4 w-4 text-muted-foreground" />
-              {viewUserDialog?.firstName} {viewUserDialog?.lastName}
-              <span className="text-xs text-muted-foreground font-normal ml-1">#{viewUserDialog?.id}</span>
+              {privateMode ? redactName(viewUserDialog?.firstName, viewUserDialog?.lastName) : `${viewUserDialog?.firstName || ""} ${viewUserDialog?.lastName || ""}`}
+              <span className="text-xs text-muted-foreground font-normal ml-1">#{redact(viewUserDialog?.id)}</span>
             </DialogTitle>
           </DialogHeader>
           {viewUserLoading ? (
@@ -5696,9 +5722,9 @@ Content-Type: application/json
             <div className="flex flex-col gap-5 py-2">
               {/* Profile Info */}
               <div className="rounded-lg border border-border bg-secondary/20 p-4 grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Email: </span><span className="text-foreground">{viewUserProfile.email}</span></div>
-                <div><span className="text-muted-foreground">Role: </span><span className="text-foreground">{viewUserProfile.role || "user"}</span></div>
-                <div><span className="text-muted-foreground">Tier: </span><span className="text-foreground">{viewUserProfile.portalType}</span></div>
+                <div><span className="text-muted-foreground">Email: </span><span className="text-foreground">{redact(viewUserProfile.email)}</span></div>
+                <div><span className="text-muted-foreground">Role: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.role) : (viewUserProfile.role || "user")}</span></div>
+                <div><span className="text-muted-foreground">Tier: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.portalType) : viewUserProfile.portalType}</span></div>
                 <div><span className="text-muted-foreground">Status: </span>
                   <span className={viewUserProfile.suspended ? "text-destructive" : "text-emerald-400"}>
                     {viewUserProfile.suspended ? "Suspended" : "Active"}
@@ -5710,12 +5736,12 @@ Content-Type: application/json
                 <div><span className="text-muted-foreground">ID Verified: </span>
                   <span className={viewUserProfile.idVerified ? "text-emerald-400" : "text-muted-foreground"}>{viewUserProfile.idVerified ? "Yes" : "No"}</span>
                 </div>
-                {viewUserProfile.address && <div className="col-span-2"><span className="text-muted-foreground">Address: </span><span className="text-foreground">{viewUserProfile.address}{viewUserProfile.address2 ? `, ${viewUserProfile.address2}` : ''}</span></div>}
-                {viewUserProfile.billingCity && <div><span className="text-muted-foreground">City: </span><span className="text-foreground">{viewUserProfile.billingCity}</span></div>}
-                {viewUserProfile.billingState && <div><span className="text-muted-foreground">State: </span><span className="text-foreground">{viewUserProfile.billingState}</span></div>}
-                {viewUserProfile.billingCountry && <div><span className="text-muted-foreground">Country: </span><span className="text-foreground">{viewUserProfile.billingCountry}</span></div>}
-                {viewUserProfile.billingCompany && <div><span className="text-muted-foreground">Company: </span><span className="text-foreground">{viewUserProfile.billingCompany}</span></div>}
-                {viewUserProfile.phone && <div><span className="text-muted-foreground">Phone: </span><span className="text-foreground">{viewUserProfile.phone}</span></div>}
+                {viewUserProfile.address && <div className="col-span-2"><span className="text-muted-foreground">Address: </span><span className="text-foreground">{redact(viewUserProfile.address)}{viewUserProfile.address2 ? `, ${redact(viewUserProfile.address2)}` : ''}</span></div>}
+                {viewUserProfile.billingCity && <div><span className="text-muted-foreground">City: </span><span className="text-foreground">{redact(viewUserProfile.billingCity)}</span></div>}
+                {viewUserProfile.billingState && <div><span className="text-muted-foreground">State: </span><span className="text-foreground">{redact(viewUserProfile.billingState)}</span></div>}
+                {viewUserProfile.billingCountry && <div><span className="text-muted-foreground">Country: </span><span className="text-foreground">{redact(viewUserProfile.billingCountry)}</span></div>}
+                {viewUserProfile.billingCompany && <div><span className="text-muted-foreground">Company: </span><span className="text-foreground">{redact(viewUserProfile.billingCompany)}</span></div>}
+                {viewUserProfile.phone && <div><span className="text-muted-foreground">Phone: </span><span className="text-foreground">{redact(viewUserProfile.phone)}</span></div>}
               </div>
 
               {/* Fraud Scan */}

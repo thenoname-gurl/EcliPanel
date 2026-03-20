@@ -296,7 +296,7 @@ export default function IdentityPage() {
                     </Badge>
                   )}
                   {/* student verification button */}
-                  {step.id === 5 && step.status === "available" && HACKCLUB_STUDENT_ENABLED && (
+                  {step.id === 5 && step.status === "available" && HACKCLUB_STUDENT_ENABLED && user?.portalType !== 'educational' && (
                     <button
                       onClick={async () => {
                         try {
@@ -313,7 +313,7 @@ export default function IdentityPage() {
                       Connect Hack Club
                     </button>
                   )}
-                  {step.id === 5 && step.status === "available" && !HACKCLUB_STUDENT_ENABLED && GITHUB_STUDENT_ENABLED && (
+                  {step.id === 5 && step.status === "available" && !HACKCLUB_STUDENT_ENABLED && GITHUB_STUDENT_ENABLED && user?.portalType !== 'educational' && (
                     <button
                       onClick={async () => {
                         try {
