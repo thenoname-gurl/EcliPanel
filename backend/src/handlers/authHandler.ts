@@ -857,6 +857,18 @@ export async function authRoutes(app: any, prefix = '') {
       return { error: 'GitHub client id not configured' };
     }
     const redirect = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read:user+user:email&state=${state}`;
+    try {
+      if (ctx.set && typeof ctx.set.header === 'function') {
+        ctx.set.status = 302;
+        ctx.set.header('Location', redirect);
+        return '';
+      }
+      if (typeof ctx.redirect === 'function') {
+        return ctx.redirect(redirect);
+      }
+    } catch (e) {
+      ctx.log?.warn?.({ err: e }, 'failed to perform server redirect, falling back to JSON');
+    }
     return { redirect };
   }, { beforeHandle: authenticate,
     response: { 200: t.Object({ redirect: t.String() }), 401: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
