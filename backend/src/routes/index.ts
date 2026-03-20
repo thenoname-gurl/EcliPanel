@@ -26,6 +26,7 @@ import { planRoutes } from '../handlers/planHandler';
 import { serverSubuserRoutes } from '../handlers/serverSubuserHandler';
 import { wsProxyRoutes } from '../handlers/wsProxyHandler';
 import { sshKeyRoutes } from '../handlers/sshKeyHandler';
+import { publicRoutes } from '../handlers/publicHandler';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 export function registerRoutes(app: any) {
     app.get('/favicon.ico', () => new Response(null, { status: 204 }));
@@ -56,4 +57,5 @@ export function registerRoutes(app: any) {
     wsProxyRoutes(app, '/api');
     sshKeyRoutes(app, '/api');
     serverSubuserRoutes(app, '/api');
+    publicRoutes(app, '');
 }
