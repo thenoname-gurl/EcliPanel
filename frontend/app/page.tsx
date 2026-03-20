@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 
 function BinaryStrip() {
   const [binary, setBinary] = useState("")
-  
+
   useEffect(() => {
     const chars = "01"
     let str = ""
@@ -14,7 +14,7 @@ function BinaryStrip() {
     }
     setBinary(str)
   }, [])
-  
+
   return (
     <div className="overflow-hidden py-4 text-[10px] font-mono text-purple-500/30 select-none">
       {binary}
@@ -39,7 +39,7 @@ function TerminalBlock({ children }: { children: React.ReactNode }) {
 function TypingText({ text }: { text: string }) {
   const [displayed, setDisplayed] = useState("")
   const [showCursor, setShowCursor] = useState(true)
-  
+
   useEffect(() => {
     let i = 0
     const interval = setInterval(() => {
@@ -52,14 +52,14 @@ function TypingText({ text }: { text: string }) {
     }, 50)
     return () => clearInterval(interval)
   }, [text])
-  
+
   useEffect(() => {
     const cursorInterval = setInterval(() => {
       setShowCursor(prev => !prev)
     }, 500)
     return () => clearInterval(cursorInterval)
   }, [])
-  
+
   return (
     <span>
       {displayed}
@@ -120,17 +120,17 @@ export default function Home() {
             </span>
           </h1>
           <p className="mx-auto mb-6 max-w-xl font-mono text-lg text-purple-400/80">
-            Deploy servers. Harden with bounties. <span className="text-pink-400">Own the edge.</span>
+            <span className="text-pink-400">Next-Gen</span>{""} Hosting Provider that loves cats
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link 
-              href="/register" 
+            <Link
+              href="/register"
               className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
             >
               ./start --journey
             </Link>
-            <Link 
-              href="/login" 
+            <Link
+              href="/login"
               className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
               sign_in()
@@ -152,10 +152,10 @@ export default function Home() {
                   infra?.status === 'online'
                     ? 'text-emerald-400'
                     : infra?.status === 'degraded'
-                    ? 'text-yellow-400'
-                    : infra?.status === 'offline'
-                    ? 'text-red-400'
-                    : 'text-purple-400'
+                      ? 'text-yellow-400'
+                      : infra?.status === 'offline'
+                        ? 'text-red-400'
+                        : 'text-purple-400'
                 }>
                   {infra ? (infra.status || 'UNKNOWN').toString().toUpperCase() : 'LOADING'}
                 </span>
@@ -171,7 +171,7 @@ export default function Home() {
           <p className="mb-6 font-mono text-purple-400/60">
             If you are still confused about <span className="text-pink-400">ECLIPSE SYSTEMS</span> and what this is about:
           </p>
-          
+
           <div className="grid gap-6 md:grid-cols-2">
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
               <h3 className="mb-4 font-mono text-xl font-bold text-purple-400"># Hosting Dream</h3>
@@ -187,7 +187,7 @@ export default function Home() {
                 <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">Dynamic DNS Management</li>
               </ul>
             </div>
-            
+
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
               <h3 className="mb-4 font-mono text-xl font-bold text-purple-400"># That Knows You</h3>
               <p className="mb-4 font-mono text-sm text-purple-400/60">
@@ -234,13 +234,13 @@ export default function Home() {
         <section id="trusted" className="mb-8">
           <h2 className="mb-2 font-mono text-3xl font-bold text-purple-400"># Community</h2>
           <h3 className="mb-6 font-mono text-xl text-purple-400/80">Join the network</h3>
-          
+
           <div className="mb-6 rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
             <p className="mb-4 font-mono text-purple-400/60">
               From indie studios to enterprise infrastructure - EclipseSystems powers production workloads everywhere.
             </p>
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/dashboard"
               className="inline-block rounded border border-purple-500 bg-purple-500/10 px-4 py-2 font-mono text-sm text-purple-400 transition-all hover:bg-purple-500/20"
             >
               ./connect --dashboard
@@ -258,10 +258,10 @@ export default function Home() {
                   infra?.status === 'online'
                     ? 'text-emerald-400'
                     : infra?.status === 'degraded'
-                    ? 'text-yellow-400'
-                    : infra?.status === 'offline'
-                    ? 'text-red-400'
-                    : 'text-purple-400'
+                      ? 'text-yellow-400'
+                      : infra?.status === 'offline'
+                        ? 'text-red-400'
+                        : 'text-purple-400'
                 }>
                   {infra ? (infra.status || 'UNKNOWN').toString().toUpperCase() : 'LOADING'}
                 </span>
@@ -387,13 +387,15 @@ export default function Home() {
               { q: "How do I get started?", a: "Sign up for a free portal account and deploy your first server in minutes. Our panel guides you through every step." },
               { q: "Can I connect my own nodes?", a: "YES! Eclipse supports connecting your own infrastructure. Enterprise plans include full node management." },
               { q: "What is included in support?", a: "Basic support includes email & community. Premium support includes priority response, dedicated channels, and direct engineering access." },
-              { q: "Is Eclipse open source?", a: (
-                <span>
-                  The core panel is open-source for non-commercial purposes. Check our{' '}
-                  <a href="https://github.com/thenoname-gurl/EcliPanel" className="text-pink-400 hover:underline">GitHub</a>{' '}
-                  for more details!
-                </span>
-              ) },
+              {
+                q: "Is Eclipse open source?", a: (
+                  <span>
+                    The core panel is open-source for non-commercial purposes. Check our{' '}
+                    <a href="https://github.com/thenoname-gurl/EcliPanel" className="text-pink-400 hover:underline">GitHub</a>{' '}
+                    for more details!
+                  </span>
+                )
+              },
             ].map((faq, i) => (
               <div key={i} className="rounded-lg border border-purple-500/20 bg-black/40 p-4 backdrop-blur-sm">
                 <p className="font-mono text-sm font-bold text-pink-400">Q. {faq.q}</p>
@@ -412,14 +414,14 @@ export default function Home() {
             Join thousands of teams using EclipseSystems to power their infrastructure.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link 
-              href="/register" 
+            <Link
+              href="/register"
               className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
             >
               ./register --now
             </Link>
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/dashboard"
               className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
               go_to_dashboard()
