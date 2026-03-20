@@ -516,22 +516,39 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const file = await ctx.file();
-    if (!file) {
+    const { file } = (ctx.body || {}) as any;
+    const uploadFile = Array.isArray(file) ? file[0] : file;
+    if (!uploadFile) {
       ctx.set.status = 400;
       return { error: 'No file' };
     }
+
     const allowed = ['image/png','image/jpeg','image/webp'];
-    if (!allowed.includes(file.mimetype)) {
+    const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
+    if (!allowed.includes(mime)) {
       ctx.set.status = 400;
       return { error: 'Invalid image type' };
     }
-    const buffer = await file.toBuffer();
+
+    const ab = await uploadFile.arrayBuffer();
+    const buffer = Buffer.from(ab);
     const out = await sharp(buffer).rotate().resize(256,256,{fit:'cover'}).toBuffer();
-    const filename = `avatar_org_${org.id}` + path.extname(file.filename || '.png');
-    const filepath = path.join(process.cwd(),'uploads',filename);
+    const originalName = uploadFile.name || uploadFile.filename || `avatar_org_${org.id}`;
+    const ext = path.extname(originalName) || (mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg');
+    const filename = `avatar_org_${org.id}` + ext;
+
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const filepath = path.join(uploadDir, filename);
     fs.writeFileSync(filepath, out);
-    org.avatarUrl = `/uploads/${filename}`;
+
+    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
+      const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request.headers.get('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })();
+
+    org.avatarUrl = `${backendBase}/uploads/${filename}`;
     await orgRepoLocal.save(org);
     return { success: true, url: org.avatarUrl };
   }, {beforeHandle: authenticate,
