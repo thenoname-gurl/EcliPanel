@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad } from 'typeorm';
 import { Organisation } from './organisation.entity';
 import { UserRole } from './userRole.entity';
 import { Passkey } from './passkey.entity';
@@ -30,6 +30,45 @@ export class User {
 
   @Column({ nullable: true })
   phone?: string;
+
+  @AfterLoad()
+  afterLoadDecrypt() {
+    try {
+      const { decrypt } = require('../utils/crypto');
+      const isEnc = (v: any) => typeof v === 'string' && v.split(':').length === 3;
+      if (this.address && isEnc(this.address)) {
+        this.address = decrypt(this.address);
+      }
+      if (this.address2 && isEnc(this.address2)) {
+        this.address2 = decrypt(this.address2);
+      }
+      if (this.phone && isEnc(this.phone)) {
+        this.phone = decrypt(this.phone);
+      }
+    } catch (e) {
+      //skip
+    }
+  }
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  encryptFieldsBeforeSave() {
+    try {
+      const { encrypt } = require('../utils/crypto');
+      const isEnc = (v: any) => typeof v === 'string' && v.split(':').length === 3;
+      if (this.address && !isEnc(this.address)) {
+        this.address = encrypt(this.address);
+      }
+      if (this.address2 && !isEnc(this.address2)) {
+        this.address2 = encrypt(this.address2);
+      }
+      if (this.phone && !isEnc(this.phone)) {
+        this.phone = encrypt(this.phone);
+      }
+    } catch (e) {
+      // skip
+    }
+  }
 
   @Column({ nullable: true })
   billingCompany?: string;
