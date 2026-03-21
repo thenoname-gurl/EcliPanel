@@ -1001,9 +1001,18 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'files must be a non-empty array' };
     }
 
+    const normalizedFiles = files.map((f: any) => {
+      if (!f || typeof f !== 'object' || typeof f.file !== 'string' || !/^[0-7]{3,4}$/.test(f.mode)) {
+        throw new Error('Invalid file entry; expected { file: string, mode: string }');
+      }
+      const normalized: any = { file: f.file, mode: f.mode };
+      if (typeof f.recursive === 'boolean') normalized.recursive = f.recursive;
+      return normalized;
+    });
+
     const svc = await serviceFor(id);
     try {
-      const res = await svc.chmodFiles(id, root, files);
+      const res = await svc.chmodFiles(id, root, normalizedFiles);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       const status = e?.response?.status || 500;

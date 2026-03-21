@@ -23,6 +23,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: str
   const [selectedNames, setSelectedNames] = useState<string[]>([])
   const [bulkBusy, setBulkBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [chmodRecursive, setChmodRecursive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const breadcrumbs = path.split("/").filter(Boolean)
@@ -196,11 +197,14 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: str
     try {
       await apiFetch(API_ENDPOINTS.serverFileChmod.replace(":id", serverId), {
         method: "POST",
-        body: JSON.stringify({ root: path, files: selectedNames.map((fileName) => ({ file: fileName, mode })) }),
+        body: JSON.stringify({
+          root: path,
+          files: selectedNames.map((fileName) => ({ file: fileName, mode, recursive: chmodRecursive })),
+        }),
       })
       setSelectedNames([])
       await loadFiles(path)
-      alert(`Permissions updated to ${mode}`)
+      alert(`Permissions updated to ${mode}${chmodRecursive ? ' recursively' : ''}`)
     } catch (e: any) {
       alert("Bulk permission update failed: " + (e?.message || e))
     } finally {
@@ -215,17 +219,18 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: str
       alert("Invalid mode. Use octal e.g. 0644 or 0755")
       return
     }
+    const recursive = confirm("Apply permissions recursively (includes subdirectories/files)?")
 
     try {
       await apiFetch(API_ENDPOINTS.serverFileChmod.replace(":id", serverId), {
         method: "POST",
         body: JSON.stringify({
           root: path,
-          files: [{ file: filePath, mode }],
+          files: [{ file: filePath, mode, recursive }],
         }),
       })
       await loadFiles(path)
-      alert(`Permissions updated to ${mode}`)
+      alert(`Permissions updated to ${mode}${recursive ? ' recursively' : ''}`)
     } catch (e: any) {
       alert("Permission update failed: " + (e?.message || e))
     }
@@ -340,6 +345,15 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: str
           {selectedNames.length > 0 && (
             <>
               <span className="text-xs text-muted-foreground">{selectedNames.length} selected</span>
+              <label className="inline-flex items-center gap-1 text-xs text-muted-foreground ml-2">
+                <input
+                  type="checkbox"
+                  checked={chmodRecursive}
+                  onChange={(e) => setChmodRecursive(e.target.checked)}
+                  className="h-3 w-3"
+                />
+                Recursive
+              </label>
               <button
                 onClick={archiveSelected}
                 disabled={bulkBusy}
