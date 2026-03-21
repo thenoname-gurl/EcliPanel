@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { MonacoFileEditor } from "./MonacoFileEditor"
@@ -26,7 +26,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: str
   const [chmodRecursive, setChmodRecursive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const breadcrumbs = path.split("/").filter(Boolean)
+  const breadcrumbs = useMemo(() => path.split("/").filter(Boolean), [path])
 
   const loadFiles = useCallback(async (p: string) => {
     setLoading(true)
@@ -51,8 +51,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: str
   }, [path])
 
   const fileNameOf = (f: any) => f.name || f.attributes?.name || ""
-  const selectableFiles = files.map(fileNameOf).filter(Boolean)
-  const allSelected = selectableFiles.length > 0 && selectableFiles.every((n) => selectedNames.includes(n))
+  const selectableFiles = useMemo(() => files.map(fileNameOf).filter(Boolean), [files])
+  const allSelected = useMemo(() => selectableFiles.length > 0 && selectableFiles.every((n) => selectedNames.includes(n)), [selectableFiles, selectedNames])
 
   const toggleOne = (name: string) => {
     setSelectedNames((prev) => prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name])

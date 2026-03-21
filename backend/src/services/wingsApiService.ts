@@ -111,7 +111,7 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/files/compress', 'post', { root, files });
   }
 
-  async chmodFiles(serverId: string, root: string, files: Array<{ file: string; mode: string }>) {
+  async chmodFiles(serverId: string, root: string, files: Array<{ file: string; mode: string; recursive?: boolean }>) {
     return this.serverRequest(serverId, '/files/chmod', 'post', { root, files });
   }
 

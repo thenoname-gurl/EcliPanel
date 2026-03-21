@@ -100,6 +100,13 @@ export async function apiFetch(
         expiry: Date.now() + API_CACHE_TTL,
         data: parsed,
       })
+    } else {
+      const normalized = url.split('?')[0];
+      for (const key of Array.from(apiResponseCache.keys())) {
+        if (key.startsWith('GET:') && key.includes(normalized)) {
+          apiResponseCache.delete(key);
+        }
+      }
     }
     try {
       if (url.includes('/auth/login') || url.includes('/auth/session') || url.includes('/auth/2fa/verify-login')) {
@@ -113,6 +120,13 @@ export async function apiFetch(
         expiry: Date.now() + API_CACHE_TTL,
         data: text,
       })
+    } else {
+      const normalized = url.split('?')[0];
+      for (const key of Array.from(apiResponseCache.keys())) {
+        if (key.startsWith('GET:') && key.includes(normalized)) {
+          apiResponseCache.delete(key);
+        }
+      }
     }
     return text;
   }
