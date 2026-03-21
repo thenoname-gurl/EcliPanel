@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useState, useRef, useCallback, lazy, Suspense } from "react"
+import { use, useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "@/lib/editor-settings"
@@ -1085,27 +1085,26 @@ function StatsTab({ serverId, server: serverProp }: { serverId: string; server: 
     })
   }, [serverProp?.resources])
 
-  // Transform SocData metrics into chart-friendly points
-  const chartData = history.map((entry: any) => {
-    const m = entry.metrics || {}
-    // Wings WebSocket stats typically send: { cpu_absolute, memory_bytes, memory_limit_bytes, disk_bytes, network: { rx_bytes, tx_bytes }, state }
-    // But the shape may vary — normalise gracefully
-    const cpu = m.cpu_absolute ?? m.cpu ?? m.proc?.cpu?.total ?? 0
-    const memBytes = m.memory_bytes ?? m.memory ?? m.proc?.memory?.total ?? 0
-    const diskBytes = m.disk_bytes ?? m.disk ?? 0
-    const rxBytes = m.network?.rx_bytes ?? m.network?.rx ?? 0
-    const txBytes = m.network?.tx_bytes ?? m.network?.tx ?? 0
-    const ts = new Date(entry.timestamp).getTime()
-    return {
-      time: new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      ts,
-      cpu: Number(cpu.toFixed ? cpu.toFixed(1) : cpu),
-      memMB: Math.round(memBytes / 1024 / 1024),
-      diskMB: Math.round(diskBytes / 1024 / 1024),
-      rxMB: Math.round((rxBytes / 1024 / 1024) * 100) / 100,
-      txMB: Math.round((txBytes / 1024 / 1024) * 100) / 100,
-    }
-  })
+  const chartData = useMemo(() => {
+    return history.map((entry: any) => {
+      const m = entry.metrics || {}
+      const cpu = m.cpu_absolute ?? m.cpu ?? m.proc?.cpu?.total ?? 0
+      const memBytes = m.memory_bytes ?? m.memory ?? m.proc?.memory?.total ?? 0
+      const diskBytes = m.disk_bytes ?? m.disk ?? 0
+      const rxBytes = m.network?.rx_bytes ?? m.network?.rx ?? 0
+      const txBytes = m.network?.tx_bytes ?? m.network?.tx ?? 0
+      const ts = new Date(entry.timestamp).getTime()
+      return {
+        time: new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        ts,
+        cpu: Number(cpu.toFixed ? cpu.toFixed(1) : cpu),
+        memMB: Math.round(memBytes / 1024 / 1024),
+        diskMB: Math.round(diskBytes / 1024 / 1024),
+        rxMB: Math.round((rxBytes / 1024 / 1024) * 100) / 100,
+        txMB: Math.round((txBytes / 1024 / 1024) * 100) / 100,
+      }
+    })
+  }, [history])
 
   // Node system info
   // Wings /system/stats wraps live data under cpu.used, memory.used, memory.total
