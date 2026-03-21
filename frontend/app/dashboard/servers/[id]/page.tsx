@@ -2902,19 +2902,21 @@ function ActivityTab({ serverId }: { serverId: string }) {
                   {actionLabels[log.action] || log.action}
                 </p>
                 {log.metadata?.command && (
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5 break-words whitespace-pre-wrap">
                     $ {log.metadata.command}
                   </p>
                 )}
                 {log.metadata?.filePath && (
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5 break-words whitespace-pre-wrap">
                     {log.metadata.filePath}
                   </p>
                 )}
                 {log.metadata?.files && Array.isArray(log.metadata.files) && (
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
-                    {log.metadata.files.join(', ')}
-                  </p>
+                  <div className="text-xs font-mono text-muted-foreground mt-0.5 max-w-full">
+                    {log.metadata.files.map((f: string, i: number) => (
+                      <div key={i} className="break-words whitespace-pre-wrap">{f}</div>
+                    ))}
+                  </div>
                 )}
                 {log.metadata?.powerAction && !log.metadata.command && (
                   <p className="text-xs text-muted-foreground mt-0.5">
