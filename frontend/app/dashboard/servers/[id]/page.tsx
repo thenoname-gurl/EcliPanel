@@ -2431,7 +2431,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
     try {
       await apiFetch(`/api/servers/${serverId}/backups/${bid}/rename`, {
         method: 'POST',
-        body: JSON.stringify({ displayName: name }),
+        body: JSON.stringify({ name }),
       })
       load()
     } catch (e: any) {
