@@ -116,15 +116,43 @@ export class WingsApiService {
   }
 
   async listServerBackups(serverId: string) {
-    return this.serverRequest(serverId, '/backups');
+    try {
+      return await this.serverRequest(serverId, '/backup');
+    } catch (err: any) {
+      if (err?.response?.status === 404 || err?.response?.status === 405) {
+        try {
+          return await this.serverRequest(serverId, '/backups');
+        } catch (err2: any) {
+          if (err2?.response?.status === 404 || err2?.response?.status === 405) {
+            return { data: [] };
+          }
+          throw err2;
+        }
+      }
+      throw err;
+    }
   }
 
   async createServerBackup(serverId: string, payload: any) {
-    return this.serverRequest(serverId, '/backups', 'post', payload);
+    try {
+      return await this.serverRequest(serverId, '/backup', 'post', payload);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        return this.serverRequest(serverId, '/backups', 'post', payload);
+      }
+      throw err;
+    }
   }
 
   async restoreServerBackup(serverId: string, backupId: string, payload: any) {
-    return this.serverRequest(serverId, `/backups/${backupId}/restore`, 'post', payload);
+    try {
+      return await this.serverRequest(serverId, `/backup/${backupId}/restore`, 'post', payload);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        return this.serverRequest(serverId, `/backups/${backupId}/restore`, 'post', payload);
+      }
+      throw err;
+    }
   }
 
   async executeServerCommand(serverId: string, command: string) {

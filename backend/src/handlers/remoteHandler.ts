@@ -623,7 +623,15 @@ export async function remoteRoutes(app: any, prefix: string) {
   // Returns: { adapter: "wings", uuid: "<new-backup-uuid>" }
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(prefix + '/remote/servers/:uuid/backups', async (ctx) => {
+    const { uuid } = ctx.params as any;
     const backupUuid = crypto.randomUUID();
+    try {
+      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      await repo.save(repo.create({ uuid: backupUuid, serverUuid: uuid, adapter: 'wings' }));
+      (app as any).log?.info?.({ serverUuid: uuid, backupUuid }, 'remote: reserved backup slot and persisted');
+    } catch (e) {
+      (app as any).log?.warn?.({ err: e, serverUuid: uuid, backupUuid }, 'remote: failed to persist reserved backup slot');
+    }
     ctx.set.status = 201;
     return { adapter: 'wings', uuid: backupUuid };
   }, {
@@ -648,6 +656,36 @@ export async function remoteRoutes(app: any, prefix: string) {
   });
 
   app.post(prefix + '/remote/backups/:uuid', async (ctx) => {
+    const id = ctx.params?.uuid as string;
+    const body = ctx.body as any;
+    (app as any).log?.info?.({ backupUuid: id, body }, 'remote: backup completion callback received');
+    try {
+      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      let rec = await repo.findOneBy({ uuid: id });
+      const payload: any = {
+        name: body?.name ?? body?.uuid ?? undefined,
+        bytes: Number(body?.bytes || body?.size || 0) || 0,
+        checksum: body?.checksum || body?.sha1 || body?.sha256 || undefined,
+        checksumType: body?.checksum_type || body?.checksumType || undefined,
+        browsable: !!body?.browsable,
+        streaming: !!body?.streaming,
+        parts: body?.parts ?? undefined,
+        raw: body ?? undefined,
+        progress: Number(body?.progress ?? body?.percent ?? 0) || 0,
+        status: body?.status ?? undefined,
+      };
+      if (rec) {
+        Object.assign(rec, payload);
+        await repo.save(rec);
+        (app as any).log?.info?.({ backupUuid: id }, 'remote: updated persisted backup record');
+      } else {
+        const newRec = repo.create({ uuid: id, adapter: body?.adapter || 'wings', ...payload });
+        await repo.save(newRec);
+        (app as any).log?.info?.({ backupUuid: id }, 'remote: created persisted backup record (no prior reservation)');
+      }
+    } catch (e) {
+      (app as any).log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to persist backup completion');
+    }
     ctx.set.status = 204;
     return;
   }, {
@@ -657,6 +695,15 @@ export async function remoteRoutes(app: any, prefix: string) {
   });
 
   app.delete(prefix + '/remote/backups/:uuid', async (ctx) => {
+    const id = ctx.params?.uuid as string;
+    (app as any).log?.info?.({ backupUuid: id }, 'remote: delete backup callback received');
+    try {
+      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      await repo.delete({ uuid: id });
+      (app as any).log?.info?.({ backupUuid: id }, 'remote: deleted persisted backup record');
+    } catch (e) {
+      (app as any).log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to delete persisted backup record');
+    }
     ctx.set.status = 204;
     return;
   }, {
@@ -666,6 +713,20 @@ export async function remoteRoutes(app: any, prefix: string) {
   });
 
   app.post(prefix + '/remote/backups/:uuid/restore', async (ctx) => {
+    const id = ctx.params?.uuid as string;
+    const body = ctx.body as any;
+    try {
+      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      const rec = await repo.findOneBy({ uuid: id });
+      if (rec) {
+        rec.status = body?.status ?? 'restored';
+        rec.progress = Number(body?.progress ?? 100) || 100;
+        await repo.save(rec);
+        (app as any).log?.info?.({ backupUuid: id }, 'remote: backup restore callback updated record');
+      }
+    } catch (e) {
+      (app as any).log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to update backup restore status');
+    }
     ctx.set.status = 204;
     return;
   }, {

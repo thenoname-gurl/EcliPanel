@@ -1001,7 +1001,27 @@ export async function serverRoutes(app: any, prefix = '') {
     try {
       const svc = await serviceFor(id);
       const res = await svc.listServerBackups(id);
-      return Array.isArray(res.data) ? res.data : [];
+      try { (app as any).log?.info?.({ serverUuid: id, remoteCount: Array.isArray(res.data) ? res.data.length : 0 }, 'server: listServerBackups response'); } catch {}
+      if (Array.isArray(res.data) && res.data.length) return res.data;
+      try {
+        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+        const records = await repo.find({ where: { serverUuid: id }, order: { createdAt: 'DESC' } });
+        try { (app as any).log?.info?.({ serverUuid: id, localCount: records.length, uuids: records.map((r:any)=>r.uuid) }, 'server: falling back to local persisted backup records'); } catch {}
+        return records.map((r: any) => ({
+          uuid: r.uuid,
+          name: r.name,
+          display_name: r.displayName,
+          bytes: r.bytes,
+          created_at: r.createdAt,
+          adapter: r.adapter,
+          locked: !!r.locked,
+          progress: r.progress ?? 0,
+          status: r.status ?? null,
+        }));
+      } catch (e) {
+        try { (app as any).log?.warn?.({ err: e, serverUuid: id }, 'server: failed to read local backup records'); } catch {}
+        return [];
+      }
     } catch (e: any) {
       if (e?.response?.status === 404) return [];
       throw e;
@@ -1014,16 +1034,25 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/backups', async (ctx: any) => {
     const { id } = ctx.params as any;
     const body = ctx.body || {};
-    const adapter = body.adapter || 'wings';
+    const adapter = 'wings';
     const uuid = body.uuid || uuidv4();
     const ignore = typeof body.ignore === 'string' ? body.ignore : '';
 
     try {
       const svc = await serviceFor(id);
       const res = await svc.createServerBackup(id, { adapter, uuid, ignore });
+      try {
+        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+        const record = repo.create({ uuid, serverUuid: id, adapter, name: (res?.data?.name) || undefined });
+        await repo.save(record);
+        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: uuid }, 'server: created backup and persisted local record'); } catch {}
+      } catch (e) {
+        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: uuid }, 'server: failed to persist created backup record'); } catch {}
+      }
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       if (e?.response?.status === 404) {
+        console.log(e)
         ctx.set.status = 400;
         return { error: 'Backups are not supported by this Wings version.' };
       }
@@ -1040,7 +1069,7 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/backups/:bid/restore', async (ctx: any) => {
     const { id, bid } = ctx.params as any;
     const body = ctx.body || {};
-    const adapter = body.adapter || 'wings';
+    const adapter = 'wings';
     const truncate_directory = body.truncate_directory === true;
     const download_url = body.download_url;
     try {
@@ -1064,11 +1093,31 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(prefix + '/servers/:id/backups/:bid', async (ctx: any) => {
     const { id, bid } = ctx.params as any;
-    const body = ctx.body || {};
-    const adapter = body.adapter || 'wings';
+    const adapter = 'wings';
     try {
       const svc = await serviceFor(id);
-      const res = await svc.serverRequest(id, `/backups/${bid}`, 'delete', { adapter });
+      try {
+        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+        const rec = await repo.findOneBy({ uuid: bid });
+        if (rec && rec.locked) {
+          const force = (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) || (ctx.body && ctx.body.force === true);
+          if (!force) {
+            ctx.set.status = 403;
+            return { error: 'Backup is locked and cannot be deleted' };
+          }
+        }
+      } catch (e) {
+        // skip
+      }
+      try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: attempting to delete backup on node'); } catch {}
+      const res = await svc.serverRequest(id, `/backup/${bid}`, 'delete', { adapter });
+      try {
+        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+        await repo.delete({ uuid: bid });
+        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: deleted local persisted backup record'); } catch {}
+      } catch (e) {
+        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: bid }, 'server: failed to delete local persisted backup record'); } catch {}
+      }
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       if (e?.response?.status === 404) {
@@ -1084,6 +1133,48 @@ export async function serverRoutes(app: any, prefix = '') {
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete backup', tags: ['Servers'] }
   });
+
+  app.post(prefix + '/servers/:id/backups/:bid/lock', async (ctx: any) => {
+    const { id, bid } = ctx.params as any;
+    const { lock } = ctx.body || {};
+    try {
+      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      const rec = await repo.findOneBy({ uuid: bid });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: 'Backup not found' };
+      }
+      rec.locked = !!lock;
+      await repo.save(rec);
+      return { success: true, locked: rec.locked };
+    } catch (e: any) {
+      ctx.set.status = 500;
+      return { error: e?.message || 'Failed to update lock' };
+    }
+  }, { beforeHandle: [authenticate, authorize('backups:write')], response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) }, detail: { summary: 'Lock/unlock a backup', tags: ['Servers'] } });
+
+  app.post(prefix + '/servers/:id/backups/:bid/rename', async (ctx: any) => {
+    const { id, bid } = ctx.params as any;
+    const { name } = ctx.body || {};
+    if (typeof name !== 'string' || !name.trim()) {
+      ctx.set.status = 400;
+      return { error: 'name is required' };
+    }
+    try {
+      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      const rec = await repo.findOneBy({ uuid: bid });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: 'Backup not found' };
+      }
+      rec.displayName = name.trim();
+      await repo.save(rec);
+      return { success: true, display_name: rec.displayName };
+    } catch (e: any) {
+      ctx.set.status = 500;
+      return { error: e?.message || 'Failed to rename backup' };
+    }
+  }, { beforeHandle: [authenticate, authorize('backups:write')], response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) }, detail: { summary: 'Rename backup display name', tags: ['Servers'] } });
 
   app.post(prefix + '/servers/:id/commands', async (ctx: any) => {
     const { id } = ctx.params as any;

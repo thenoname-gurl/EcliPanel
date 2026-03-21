@@ -24,12 +24,12 @@ function BinaryStrip() {
 
 function TerminalBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-purple-500/20 bg-black/60 p-4 font-mono text-sm backdrop-blur-sm">
+    <div className="rounded-lg border border-purple-500/20 bg-black/60 p-3 sm:p-4 font-mono text-xs sm:text-sm backdrop-blur-sm overflow-x-auto">
       <div className="mb-3 flex items-center gap-2">
-        <div className="h-3 w-3 rounded-full bg-red-500" />
-        <div className="h-3 w-3 rounded-full bg-yellow-500" />
-        <div className="h-3 w-3 rounded-full bg-green-500" />
-        <span className="ml-2 text-xs text-purple-400/60">Terminal</span>
+        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-red-500 flex-shrink-0" />
+        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-yellow-500 flex-shrink-0" />
+        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-green-500 flex-shrink-0" />
+        <span className="ml-2 text-xs text-purple-400/60 whitespace-nowrap">Terminal</span>
       </div>
       {children}
     </div>
@@ -38,32 +38,30 @@ function TerminalBlock({ children }: { children: React.ReactNode }) {
 
 function TypingText({ text }: { text: string }) {
   const [displayed, setDisplayed] = useState("")
-  const [showCursor, setShowCursor] = useState(true)
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
     let i = 0
+    setDisplayed("")
+    setDone(false)
     const interval = setInterval(() => {
-      if (i < text.length) {
-        setDisplayed(text.slice(0, i + 1))
-        i++
-      } else {
+      i++
+      setDisplayed(text.slice(0, i))
+      if (i >= text.length) {
         clearInterval(interval)
+        setDone(true)
       }
     }, 50)
     return () => clearInterval(interval)
   }, [text])
 
-  useEffect(() => {
-    const cursorInterval = setInterval(() => {
-      setShowCursor(prev => !prev)
-    }, 500)
-    return () => clearInterval(cursorInterval)
-  }, [])
-
   return (
     <span>
       {displayed}
-      <span className={showCursor ? "opacity-100" : "opacity-0"}>_</span>
+      <span
+        style={{ animation: "blink 1s step-end infinite" }}
+        className={done ? "inline" : "hidden"}
+      >_</span>
     </span>
   )
 }
@@ -96,16 +94,16 @@ export default function Home() {
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(147,51,234,0.1),transparent_50%)]" />
 
       <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-10">
-        <header className="mb-8 flex items-center justify-between border-b border-purple-500/20 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center">
-              <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-8 w-8 object-contain" />
+        <header className="mb-8 flex items-center justify-between border-b border-purple-500/20 pb-4 flex-wrap sm:flex-nowrap gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center">
+              <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-6 w-6 sm:h-8 sm:w-8 object-contain" />
             </div>
-            <span className="font-mono text-xl font-bold tracking-tight text-purple-400">
+            <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
               Eclipse Systems
             </span>
           </div>
-          <nav className="flex gap-6 font-mono text-sm text-purple-400/70">
+          <nav className="hidden gap-6 font-mono text-xs sm:text-sm text-purple-400/70 md:flex">
             <Link href="#features" className="transition-colors hover:text-purple-300">[features]</Link>
             <Link href="#about" className="transition-colors hover:text-purple-300">[about]</Link>
             <Link href="#pricing" className="transition-colors hover:text-purple-300">[pricing]</Link>
@@ -114,24 +112,24 @@ export default function Home() {
         </header>
 
         <section className="mb-8 text-center">
-          <h1 className="mb-4 font-mono text-6xl font-black tracking-tighter md:text-7xl">
+          <h1 className="mb-4 font-mono text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter">
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
               Eclipse Systems
             </span>
           </h1>
-          <p className="mx-auto mb-6 max-w-xl font-mono text-lg text-purple-400/80">
+          <p className="mx-auto mb-6 max-w-xl font-mono text-sm sm:text-base md:text-lg text-purple-400/80 px-4">
             <span className="text-pink-400">Next-Gen</span>{""} Hosting Provider that loves cats
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
             <Link
               href="/register"
-              className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+              className="rounded border border-purple-500 bg-purple-500/10 px-4 py-2 sm:px-6 sm:py-2.5 font-mono text-xs sm:text-sm font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
             >
               ./start --journey
             </Link>
             <Link
               href="/login"
-              className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
+              className="rounded border border-purple-500/30 px-4 py-2 sm:px-6 sm:py-2.5 font-mono text-xs sm:text-sm font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
               sign_in()
             </Link>
@@ -167,15 +165,15 @@ export default function Home() {
         <BinaryStrip />
 
         <section className="mb-8">
-          <h2 className="mb-6 font-mono text-3xl font-bold text-purple-400"># What is this?</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># What is this?</h2>
           <p className="mb-6 font-mono text-purple-400/60">
             If you are still confused about <span className="text-pink-400">ECLIPSE SYSTEMS</span> and what this is about:
           </p>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
-              <h3 className="mb-4 font-mono text-xl font-bold text-purple-400"># Hosting Dream</h3>
-              <p className="mb-4 font-mono text-sm text-purple-400/60">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+            <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
+              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400"># Hosting Dream</h3>
+              <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
                 Spin up containers, game servers, web apps. Configure DNS, 2FA, scoped API keys.
                 <br></br>
                 Just in few clicks.
@@ -208,8 +206,8 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="features" className="mb-8">
-          <h2 className="mb-6 font-mono text-3xl font-bold text-purple-400"># Features</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Features</h2>
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
               { title: "simple_panel()", text: "A minimal, fast panel built for smooth workflows and instant actions." },
               { title: "scoped_access()", text: "Roles, permissions, teams, and scoped API keys that work out of the box." },
@@ -220,10 +218,10 @@ export default function Home() {
             ].map((feature) => (
               <article
                 key={feature.title}
-                className="group rounded-lg border border-purple-500/20 bg-black/40 p-5 backdrop-blur-sm transition-all hover:border-purple-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]"
+                className="group rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-5 backdrop-blur-sm transition-all hover:border-purple-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]"
               >
-                <h4 className="mb-2 font-mono text-sm font-bold text-pink-400">{feature.title}</h4>
-                <p className="font-mono text-xs text-purple-400/60">{feature.text}</p>
+                <h4 className="mb-2 font-mono text-xs sm:text-sm font-bold text-pink-400">{feature.title}</h4>
+                <p className="font-mono text-xs text-purple-400/60 leading-relaxed">{feature.text}</p>
               </article>
             ))}
           </div>
@@ -232,11 +230,11 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="trusted" className="mb-8">
-          <h2 className="mb-2 font-mono text-3xl font-bold text-purple-400"># Community</h2>
-          <h3 className="mb-6 font-mono text-xl text-purple-400/80">Join the network</h3>
+          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Community</h2>
+          <h3 className="mb-4 sm:mb-6 font-mono text-lg sm:text-xl text-purple-400/80">Join the network</h3>
 
-          <div className="mb-6 rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
-            <p className="mb-4 font-mono text-purple-400/60">
+          <div className="mb-6 rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
+            <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
               From indie studios to enterprise infrastructure - EclipseSystems powers production workloads everywhere.
             </p>
             <Link
@@ -276,7 +274,7 @@ export default function Home() {
             </div>
           </TerminalBlock>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 sm:mt-6 grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
             {[
               "DevOps Teams",
               "Startups",
@@ -285,7 +283,7 @@ export default function Home() {
             ].map((org) => (
               <div
                 key={org}
-                className="rounded border border-purple-500/20 bg-black/40 p-3 text-center font-mono text-sm text-purple-400/80 backdrop-blur-sm transition-all hover:border-purple-500/40"
+                className="rounded border border-purple-500/20 bg-black/40 p-2 sm:p-3 text-center font-mono text-xs sm:text-sm text-purple-400/80 backdrop-blur-sm transition-all hover:border-purple-500/40"
               >
                 {org}
               </div>
@@ -296,12 +294,12 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="about" className="mb-8">
-          <h2 className="mb-2 font-mono text-3xl font-bold text-purple-400"># About</h2>
-          <h3 className="mb-4 font-mono text-xl">
+          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># About</h2>
+          <h3 className="mb-3 sm:mb-4 font-mono text-base sm:text-lg md:text-xl">
             Built by hosters, <span className="text-pink-400">for hosters.</span>
           </h3>
-          <div className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
-            <p className="font-mono text-sm leading-relaxed text-purple-400/60">
+          <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
+            <p className="font-mono text-xs sm:text-sm leading-relaxed text-purple-400/60">
               EclipseSystems was created with a simple belief: hosting should feel effortless.
               <br></br>
               Our platform merges orchestration, security, and team operations into a single,
@@ -314,17 +312,17 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="pricing" className="mb-8">
-          <h2 className="mb-2 font-mono text-3xl font-bold text-purple-400"># Portal Plans</h2>
-          <p className="mb-6 font-mono text-purple-400/60">
+          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Portal Plans</h2>
+          <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60">
             Choose the portal that fits your workflow. All portals include access to the dashboard.
           </p>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-purple-500/20 bg-black/40 p-5 backdrop-blur-sm">
-              <h3 className="font-mono text-lg font-bold text-purple-400">free_portal</h3>
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-5 backdrop-blur-sm">
+              <h3 className="font-mono text-base sm:text-lg font-bold text-purple-400">free_portal</h3>
               <p className="mt-1 font-mono text-xs text-purple-400/50">Perfect for newbies!</p>
-              <p className="mt-3 font-mono text-2xl font-black text-white">Free<span className="text-sm text-purple-400/50">/forever</span></p>
-              <ul className="mt-4 space-y-1 font-mono text-xs text-purple-400/60">
+              <p className="mt-3 font-mono text-xl sm:text-2xl font-black text-white">Free<span className="text-xs sm:text-sm text-purple-400/50">/forever</span></p>
+              <ul className="mt-3 sm:mt-4 space-y-1 font-mono text-xs text-purple-400/60">
                 <li>→ 1 Server</li>
                 <li>→ 1 Port per server</li>
                 <li>→ 1 vCore</li>
@@ -381,8 +379,8 @@ export default function Home() {
         <BinaryStrip />
 
         <section className="mb-8">
-          <h2 className="mb-6 font-mono text-3xl font-bold text-purple-400"># FAQs</h2>
-          <div className="space-y-4">
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># FAQs</h2>
+          <div className="space-y-3 sm:space-y-4">
             {[
               { q: "How do I get started?", a: "Sign up for a free portal account and deploy your first server in minutes. Our panel guides you through every step." },
               { q: "Can I connect my own nodes?", a: "YES! Eclipse supports connecting your own infrastructure. Enterprise plans include full node management." },
@@ -397,8 +395,8 @@ export default function Home() {
                 )
               },
             ].map((faq, i) => (
-              <div key={i} className="rounded-lg border border-purple-500/20 bg-black/40 p-4 backdrop-blur-sm">
-                <p className="font-mono text-sm font-bold text-pink-400">Q. {faq.q}</p>
+              <div key={i} className="rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-4 backdrop-blur-sm">
+                <p className="font-mono text-xs sm:text-sm font-bold text-pink-400">Q. {faq.q}</p>
                 <p className="mt-2 font-mono text-xs text-purple-400/60">{faq.a}</p>
               </div>
             ))}
@@ -409,8 +407,8 @@ export default function Home() {
 
         {/* CTA */}
         <section className="mb-8 text-center">
-          <h2 className="mb-4 font-mono text-2xl font-bold text-purple-400"># Ready to deploy?</h2>
-          <p className="mb-6 font-mono text-purple-400/60">
+          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400"># Ready to deploy?</h2>
+          <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60 px-2">
             Join thousands of teams using EclipseSystems to power their infrastructure.
           </p>
           <div className="flex flex-wrap justify-center gap-4">

@@ -52,6 +52,8 @@ import {
   BarChart3,
   Activity,
   Copy,
+  Lock,
+  Unlock,
 } from "lucide-react"
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react").then(m => ({ default: m.default })))
@@ -2411,6 +2413,32 @@ function BackupsTab({ serverId }: { serverId: string }) {
     }
   }
 
+  const lockBackup = async (bid: string, lock: boolean) => {
+    try {
+      await apiFetch(`/api/servers/${serverId}/backups/${bid}/lock`, {
+        method: "POST",
+        body: JSON.stringify({ lock }),
+      })
+      load()
+    } catch (e: any) {
+      alert("Failed: " + e.message)
+    }
+  }
+
+  const renameBackup = async (bid: string) => {
+    const name = prompt('Enter new display name for the backup:')
+    if (name == null) return
+    try {
+      await apiFetch(`/api/servers/${serverId}/backups/${bid}/rename`, {
+        method: 'POST',
+        body: JSON.stringify({ displayName: name }),
+      })
+      load()
+    } catch (e: any) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
   if (loading) return <LoadingState />
 
   return (
@@ -2429,11 +2457,22 @@ function BackupsTab({ serverId }: { serverId: string }) {
         <div className="space-y-3">
           {backups.map((backup: any) => (
             <div key={backup.uuid || backup.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">{backup.name || backup.uuid || "Backup"}</p>
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-foreground">{backup.displayName || backup.display_name || backup.name || backup.uuid || "Backup"}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Size: {formatBytes(backup.bytes || 0)} &middot; Created: {backup.created_at ? new Date(backup.created_at).toLocaleString() : "\u2014"}
                 </p>
+                {backup.status && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Status: {String(backup.status)}</p>
+                )}
+                {((backup.progress != null && Number(backup.progress) > 0 && Number(backup.progress) < 100) || (backup.status && ["running", "in-progress", "processing"].includes(String(backup.status).toLowerCase()))) && (
+                  <div className="mt-2 w-64 max-w-full">
+                    <div className="h-2 bg-border rounded overflow-hidden">
+                      <div className="h-2 bg-primary" style={{ width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Progress: {Math.round(Number(backup.progress) || 0)}%</p>
+                  </div>
+                )}
                 {backup.is_successful === false && (
                   <p className="text-xs text-destructive mt-0.5">Backup failed or incomplete</p>
                 )}
@@ -2442,7 +2481,13 @@ function BackupsTab({ serverId }: { serverId: string }) {
                 <Button size="sm" variant="outline" onClick={() => restoreBackup(String(backup.uuid || backup.id))}>
                   <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => deleteBackup(String(backup.uuid || backup.id))}>
+                <Button size="sm" variant="ghost" onClick={() => renameBackup(String(backup.uuid || backup.id))}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => lockBackup(String(backup.uuid || backup.id), !(backup.locked || backup.is_locked))}>
+                  {(backup.locked || backup.is_locked) ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => deleteBackup(String(backup.uuid || backup.id))} disabled={!!(backup.locked || backup.is_locked)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>

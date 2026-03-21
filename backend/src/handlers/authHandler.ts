@@ -30,28 +30,28 @@ function randomToken(bytes = 32) {
   return require('crypto').randomBytes(bytes).toString('hex');
 }
 
-  async function verifyTempToken(token: string, logSource: string, ctx: any) {
-    if (!token) {
-      ctx.set.status = 400;
-      return { error: 'Missing tempToken' };
-    }
-    try {
-      const jwt = ctx.app?.jwt || ctx.jwt || (ctx.app && (ctx.app as any).jwt);
-      if (!jwt || typeof jwt.verify !== 'function') {
-        throw new Error('jwt unavailable');
-      }
-      const res = jwt.verify(token);
-      if (res && typeof (res as any).then === 'function') {
-        return await res;
-      }
-      return res as any;
-    } catch (err: any) {
-      const logCtx = ctx.log || ctx.app?.log || console;
-      logCtx.warn?.({ err: err.message, token, source: logSource }, 'tempToken verification failed');
-      ctx.set.status = 400;
-      return { error: 'Invalid tempToken' };
-    }
+async function verifyTempToken(token: string, logSource: string, ctx: any) {
+  if (!token) {
+    ctx.set.status = 400;
+    return { error: 'Missing tempToken' };
   }
+  try {
+    const jwt = ctx.app?.jwt || ctx.jwt || (ctx.app && (ctx.app as any).jwt);
+    if (!jwt || typeof jwt.verify !== 'function') {
+      throw new Error('jwt unavailable');
+    }
+    const res = jwt.verify(token);
+    if (res && typeof (res as any).then === 'function') {
+      return await res;
+    }
+    return res as any;
+  } catch (err: any) {
+    const logCtx = ctx.log || ctx.app?.log || console;
+    logCtx.warn?.({ err: err.message, token, source: logSource }, 'tempToken verification failed');
+    ctx.set.status = 400;
+    return { error: 'Invalid tempToken' };
+  }
+}
 
 export async function authRoutes(app: any, prefix = '') {
   function getCookieDomain(ctx: any): string | null {
@@ -207,7 +207,7 @@ export async function authRoutes(app: any, prefix = '') {
     }
 
 
-    ctx.log?.info?.({ userId: user.id, token: token.slice(0,8) + '...' }, 'login succeeded, returning token');
+    ctx.log?.info?.({ userId: user.id, token: token.slice(0, 8) + '...' }, 'login succeeded, returning token');
     setAuthCookie(ctx, token);
     return {
       token,
@@ -468,9 +468,10 @@ export async function authRoutes(app: any, prefix = '') {
       const logRepo = AppDataSource.getRepository(UserLog);
       await logRepo.save(logRepo.create({ userId: user.id, action: 'logout', timestamp: new Date() }));
     }
-    try { clearAuthCookie(ctx); } catch {}
+    try { clearAuthCookie(ctx); } catch { }
     return { success: true };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: {
       200: t.Object({ success: t.Boolean() }),
       401: t.Object({ error: t.String() })
@@ -529,7 +530,7 @@ export async function authRoutes(app: any, prefix = '') {
     await redisDel(`email-verify:token:${token}`);
     await redisDel(`email-verify:code:${user.id}`);
     const panelUrl = getPanelUrl(ctx);
-    return { redirect: `${panelUrl}/dashboard?emailVerified=1` };
+    return ctx.redirect(`${panelUrl}/dashboard?emailVerified=1`);
   }, {
     response: {
       200: t.Any(),
@@ -543,6 +544,7 @@ export async function authRoutes(app: any, prefix = '') {
       operationId: 'getAuthVerifyEmail',
     }
   });
+
 
   app.post(prefix + '/auth/verify-email', async (ctx: any) => {
     const user = ctx.user;
@@ -563,7 +565,8 @@ export async function authRoutes(app: any, prefix = '') {
     await userRepo.save(user);
     await redisDel(`email-verify:code:${user.id}`);
     return { success: true };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Object({ code: t.String() }),
     response: {
       200: t.Object({ success: t.Boolean() }),
@@ -583,7 +586,8 @@ export async function authRoutes(app: any, prefix = '') {
     if (user.emailVerified) return { success: true, message: 'Already verified' };
     await sendVerificationEmail(user);
     return { success: true };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: {
       200: t.Object({ success: t.Boolean(), message: t.Optional(t.String()) }),
       401: t.Object({ error: t.String() })
@@ -603,12 +607,13 @@ export async function authRoutes(app: any, prefix = '') {
     if (origin) {
       try {
         frontendHost = new URL(origin).hostname;
-      } catch {}
+      } catch { }
     }
     const opts = await PasskeyService.generateRegistration({ id: user.id, email: user.email }, frontendHost);
     await redisSet(`passkey:reg:${user.id}`, opts.challenge, 300);
     return opts;
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Begin passkey registration',
@@ -634,7 +639,8 @@ export async function authRoutes(app: any, prefix = '') {
     });
     await redisDel(`passkey:reg:${user.id}`);
     return ver;
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Any(),
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: {
@@ -663,7 +669,7 @@ export async function authRoutes(app: any, prefix = '') {
     if (origin) {
       try {
         frontendHost = new URL(origin).hostname;
-      } catch {}
+      } catch { }
     }
     const opts = await PasskeyService.generateAuthentication(user.id, frontendHost);
     await redisSet(`passkey:auth:${user.id}`, opts.challenge, 300);
@@ -731,7 +737,8 @@ export async function authRoutes(app: any, prefix = '') {
       credentialID: k.credentialID,
       transports: k.transports,
     }));
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Array(t.Object({ id: t.Number(), credentialID: t.Any(), transports: t.Any() })), 401: t.Object({ error: t.String() }) },
     detail: {
       summary: 'List registered passkeys',
@@ -745,7 +752,8 @@ export async function authRoutes(app: any, prefix = '') {
     const user = ctx.user as User;
     const secret = speakeasy.generateSecret({ name: `EcliPanel (${user.email})` });
     return { secret: secret.base32, otpauth_url: secret.otpauth_url };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ secret: t.String(), otpauth_url: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Generate 2FA secret',
@@ -782,7 +790,8 @@ export async function authRoutes(app: any, prefix = '') {
     await userRepo.save(user);
     ctx.log.info({ userId: user.id, twoFactorEnabled: user.twoFactorEnabled }, 'User 2FA enabled and recovery codes generated');
     return { recoveryCodes: codes };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Object({ token: t.String(), secret: t.String() }),
     response: { 200: t.Object({ recoveryCodes: t.Array(t.String()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: {
@@ -813,7 +822,8 @@ export async function authRoutes(app: any, prefix = '') {
     await userRepo.save(user);
     ctx.log.info({ userId: user.id, twoFactorEnabled: user.twoFactorEnabled }, 'User 2FA disabled');
     return { success: true };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Object({ token: t.String() }),
     response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: {
@@ -835,7 +845,8 @@ export async function authRoutes(app: any, prefix = '') {
     }
     await passkeyRepo.remove(key);
     return { success: true };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Remove a passkey',
@@ -870,7 +881,8 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.log?.warn?.({ err: e }, 'failed to perform server redirect, falling back to JSON');
     }
     return { redirect };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ redirect: t.String() }), 401: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Initiate GitHub student OAuth',
@@ -944,9 +956,9 @@ export async function authRoutes(app: any, prefix = '') {
       user.studentVerifiedAt = new Date();
       user.portalType = 'educational';
       user.educationLimits = {
-        memory:      eduPlan?.memory      ?? 2048,
-        disk:        eduPlan?.disk        ?? 20480,
-        cpu:         eduPlan?.cpu         ?? 400,
+        memory: eduPlan?.memory ?? 2048,
+        disk: eduPlan?.disk ?? 20480,
+        cpu: eduPlan?.cpu ?? 400,
         serverLimit: eduPlan?.serverLimit ?? 2,
       };
       ctx.log.info({ eduPlan: eduPlan?.id ?? null, limits: user.educationLimits }, 'Applying educational plan limits to user');
@@ -954,7 +966,7 @@ export async function authRoutes(app: any, prefix = '') {
     }
     await redisDel(`github-student-state:${state}`);
     const panelUrl = getPanelUrl(ctx);
-    return { redirect: `${panelUrl}/?studentVerified=1` };
+    return ctx.redirect(`${panelUrl}/?studentVerified=1`);
   }, {
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: {
@@ -984,7 +996,8 @@ export async function authRoutes(app: any, prefix = '') {
       `&state=${encodeURIComponent(state)}`;
 
     return { redirect: authorizationUrl };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ redirect: t.String() }), 401: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Initiate Hack Club student OAuth',
@@ -1092,7 +1105,7 @@ export async function authRoutes(app: any, prefix = '') {
 
     await redisDel(`hackclub-student-state:${state}`);
     const panelUrl = getPanelUrl(ctx);
-    return { redirect: `${panelUrl}/?studentVerified=1` };
+    return ctx.redirect(`${panelUrl}/?studentVerified=1`);
   }, {
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: {
@@ -1167,7 +1180,8 @@ export async function authRoutes(app: any, prefix = '') {
     }
 
     return { success: true, demoExpiresAt: expires.toISOString(), demoLimits: user.demoLimits };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Object({ minutes: t.Optional(t.Number()) }),
     response: { 200: t.Object({ success: t.Boolean(), demoExpiresAt: t.String(), demoLimits: t.Optional(t.Any()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'Start a temporary demo mode', description: 'Grants temporary enterprise access with demo limits.', tags: ['Auth'], operationId: 'postAuthDemo' }
@@ -1201,7 +1215,8 @@ export async function authRoutes(app: any, prefix = '') {
     await AppDataSource.getRepository(User).save(user);
 
     return { success: true };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'Finish demo mode early', description: 'Reverts demo mode back to the original plan.', tags: ['Auth'], operationId: 'postAuthDemoFinish' }
   });
@@ -1227,7 +1242,7 @@ export async function authRoutes(app: any, prefix = '') {
         let orders: any[] = [];
         try {
           if (user.org && (user.org as any).id) {
-            orders = await orderRepo.find({ where: [ { userId: user.id, status: 'active' }, { orgId: (user.org as any).id, status: 'active' } ], order: { createdAt: 'DESC' } });
+            orders = await orderRepo.find({ where: [{ userId: user.id, status: 'active' }, { orgId: (user.org as any).id, status: 'active' }], order: { createdAt: 'DESC' } });
           } else {
             orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
           }
@@ -1300,12 +1315,12 @@ export async function authRoutes(app: any, prefix = '') {
         avatarUrl: user.avatarUrl || null,
         org: user.org
           ? {
-              id: user.org.id,
-              name: user.org.name,
-              handle: user.org.handle,
-              portalTier: (user.org as any).portalTier,
-              avatarUrl: (user.org as any).avatarUrl,
-            }
+            id: user.org.id,
+            name: user.org.name,
+            handle: user.org.handle,
+            portalTier: (user.org as any).portalTier,
+            avatarUrl: (user.org as any).avatarUrl,
+          }
           : null,
         orgRole: user.orgRole || 'member',
         limits: returnedLimits,
@@ -1317,7 +1332,8 @@ export async function authRoutes(app: any, prefix = '') {
         demoUsed: user.demoUsed === true,
       },
     };
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Get current session info',

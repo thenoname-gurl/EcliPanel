@@ -1,3 +1,8 @@
+SET NAMES utf8mb4;
+SET character_set_client = utf8mb4;
+SET character_set_results = utf8mb4;
+SET character_set_connection = utf8mb4;
+
 CREATE TABLE `user` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `firstName` varchar(255) NOT NULL,

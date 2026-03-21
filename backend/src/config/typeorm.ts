@@ -17,6 +17,11 @@ function getDataSourceOptions() {
       database: u.pathname.replace(/^\//, ''),
     };
 
+    if ((driver === 'mysql' || driver === 'mariadb') && !u.searchParams.has('charset')) {
+      opts.charset = 'utf8mb4';
+      opts.collation = 'utf8mb4_unicode_ci';
+    }
+
     if (u.searchParams.has('ssl')) {
       const raw = u.searchParams.get('ssl')!;
       try {
@@ -37,6 +42,11 @@ function getDataSourceOptions() {
     password: process.env.DB_PASS || '',
     database: process.env.DB_NAME || 'panel',
   };
+
+  if (base.type === 'mysql' || base.type === 'mariadb') {
+    base.charset = 'utf8mb4';
+    base.collation = 'utf8mb4_unicode_ci';
+  }
 
   if (process.env.DB_SSL) {
     try {
@@ -101,6 +111,7 @@ export const AppDataSource = new DataSource({
     require('../models/egg.entity').Egg,
     require('../models/serverConfig.entity').ServerConfig,
     require('../models/nodeHeartbeat.entity').NodeHeartbeat,
+    require('../models/serverBackup.entity').ServerBackup,
     require('../models/oauthApp.entity').OAuthApp,
     require('../models/oauthAuthCode.entity').OAuthAuthCode,
     require('../models/oauthToken.entity').OAuthToken,
