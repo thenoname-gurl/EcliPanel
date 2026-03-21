@@ -993,6 +993,29 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'Move files', tags: ['Servers'] }
   });
 
+  app.post(prefix + '/servers/:id/files/chmod', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { root = '/', files } = ctx.body as any;
+    if (!Array.isArray(files) || files.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'files must be a non-empty array' };
+    }
+
+    const svc = await serviceFor(id);
+    try {
+      const res = await svc.chmodFiles(id, root, files);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    } catch (e: any) {
+      const status = e?.response?.status || 500;
+      const msg = e?.response?.data?.error || e?.message || 'chmod failed';
+      ctx.set.status = status;
+      return { error: msg };
+    }
+  }, { beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Change file permissions', tags: ['Servers'] }
+  });
+
   // yeah so basically wings-rs only cuz wings-go compatibility
   // would be nightmare to add
   // be happy that most shit is already supported and using wings-go is possible

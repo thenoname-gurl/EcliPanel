@@ -153,6 +153,7 @@ export const API_ENDPOINTS = {
   serverStats: "/api/servers/:id/stats",
   serverStatsHistory: "/api/servers/:id/stats/history",
   serverStatsNode: "/api/servers/:id/stats/node",
+  serverFileChmod: "/api/servers/:id/files/chmod",
   serverConfigEgg: "/api/servers/:id/configuration/egg",
   serverActivity: "/api/servers/:id/activity",
   serverSubusers: "/api/servers/:id/subusers",

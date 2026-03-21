@@ -168,6 +168,15 @@ Here is some small overview about optimisation we have done!
 - Stats tab no longer recomputes chart data on unrelated state changes, CPU usage and React render churn go down! (YAY)
 - Page load intial rendering is faster in cold loads because Monaco and charting engine only download when needed..
 
+### Optimization visual comparison
+Before and after optimization showed performance improvement on most pages avg at 10-20 points per page!
+
+<p float="left">
+  <img src="./showcase/Before-Optimisation.png" alt="Before optimization" width="45%" />
+  <img src="./showcase/After-Optimisation.png" alt="After optimization" width="45%" />
+</p>
+
+
 Happy exploring!
 >Side note: 
 > [This project](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) took part in [flavortown](https://flavortown.hack.club/?ref=eclipsesystems)!
