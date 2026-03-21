@@ -135,7 +135,7 @@ If you want a container setup, you can wrap each service in a Dockerfile and use
 ### Troubleshooting
 
 If the frontend cannot reach the backend, check:
-- `NEXT_PUBLIC_API_BASE` is set correctly
+- `NEXT_PUBLIC_API_BASE` is set correctly (just in case)
 - backend is running & reachable
 - reverse proxy is passing through `/api/*` and `/wings/*` correctly
 
@@ -153,6 +153,20 @@ This avoids any attempt to reach an absent Wings endpoint when the system is fre
 
 > You may view API routes without deploying at https://backend.ecli.app/openapi for production or https://backend.canary.ecli.app/openapi for canary.
 > Canary version of EcliPanel are offline during non developmet periods.
+
+## Optimization
+Here is some small overview about optimisation we have done!
+- `frontend/lib/api-client.ts`
+  - We have implemented in memory GET caching with `API_CACHE_TTL = 60s`.
+  - Cache hit avoid repeated REST downloads for frequent read operations.
+- `frontend/app/dashboard/servers/[id]/page.tsx`
+  - Added `useMemo` around stats history data (`chartData`) to avoid recomputing on every render..
+  - Already existing lazy loading of heavy dependencies (`@monaco-editor/react`, `recharts`) is now leveraged more aggressively in tab use patterns, so the app initial bundle reduces first paint cost.
+
+## Optimization Results (observed)
+- Repeated dashboard refresh calls for mostly-read endpoints now hit the JS cache and skip server round trips for the 60s window which improves UX.
+- Stats tab no longer recomputes chart data on unrelated state changes, CPU usage and React render churn go down! (YAY)
+- Page load intial rendering is faster in cold loads because Monaco and charting engine only download when needed..
 
 Happy exploring!
 >Side note: 
