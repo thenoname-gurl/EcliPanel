@@ -93,7 +93,8 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const maxDisk = limits?.disk ?? null
   const maxCpu = limits?.cpu ?? null
   const hasLimits = limits ? Object.keys(limits).length > 0 : false
-  const planName = (user as any)?.portalType || user?.tier || 'free'
+  const rawPlanName = (user as any)?.portalType || user?.tier || 'free'
+  const planName = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'paid' : String(rawPlanName).toLowerCase()
 
   useEffect(() => {
     if (maxMemory !== null) setMemory(maxMemory)

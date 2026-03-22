@@ -4659,17 +4659,17 @@ Content-Type: application/json
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Memory (MB)</label>
-                  <input type="number" min="128" value={csMemory} onChange={(e) => setCsMemory(e.target.value)}
+                  <input type="number" min="1" value={csMemory} onChange={(e) => setCsMemory(e.target.value)}
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Disk (MB)</label>
-                  <input type="number" min="512" value={csDisk} onChange={(e) => setCsDisk(e.target.value)}
+                  <input type="number" min="1" value={csDisk} onChange={(e) => setCsDisk(e.target.value)}
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">CPU (%)</label>
-                  <input type="number" min="10" value={csCpu} onChange={(e) => setCsCpu(e.target.value)}
+                  <input type="number" min="5" value={csCpu} onChange={(e) => setCsCpu(e.target.value)}
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>

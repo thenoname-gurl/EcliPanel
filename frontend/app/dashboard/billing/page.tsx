@@ -31,8 +31,8 @@ export default function BillingPage() {
   const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
   const [demoUsed, setDemoUsed] = useState(false)
 
-  // Derive active tier from live orders data, fall back to session tier
-  const activeTier = (activePlan?.plan?.type ?? user?.tier ?? 'free') as keyof typeof PORTALS
+  const activeTierRaw = (activePlan?.plan?.type ?? user?.portalType ?? user?.tier ?? 'free').toString().toLowerCase()
+  const activeTier = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
   const currentPlan = PORTALS[activeTier] ?? PORTALS.free
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",

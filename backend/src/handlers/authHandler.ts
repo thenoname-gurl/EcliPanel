@@ -952,8 +952,6 @@ export async function authRoutes(app: any, prefix = '') {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: userId });
     if (user) {
-      user.studentVerified = true;
-      user.studentVerifiedAt = new Date();
       user.portalType = 'educational';
       user.educationLimits = {
         memory: eduPlan?.memory ?? 2048,
@@ -961,7 +959,10 @@ export async function authRoutes(app: any, prefix = '') {
         cpu: eduPlan?.cpu ?? 400,
         serverLimit: eduPlan?.serverLimit ?? 2,
       };
-      ctx.log.info({ eduPlan: eduPlan?.id ?? null, limits: user.educationLimits }, 'Applying educational plan limits to user');
+      user.limits = user.educationLimits ? { ...user.educationLimits } : null;
+      ctx.log.info({ eduPlan: eduPlan?.id ?? null, limits: user.limits }, 'Applying educational plan limits to user');
+      user.studentVerified = true;
+      user.studentVerifiedAt = new Date();
       await userRepo.save(user);
     }
     await redisDel(`github-student-state:${state}`);
