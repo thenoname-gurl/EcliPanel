@@ -7,10 +7,20 @@ export function clearApiCache(): void {
   apiResponseCache.clear()
 }
 
+const DEFAULT_API_TIMEOUT = 10000
+const DEFAULT_API_RETRIES = 2
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function apiFetch(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit & { timeout?: number; retries?: number } = {}
 ): Promise<any> {
+  const timeout = Number(options.timeout ?? DEFAULT_API_TIMEOUT)
+  const retries = Number(options.retries ?? DEFAULT_API_RETRIES)
+
   let base = process.env.NEXT_PUBLIC_API_BASE || "";
   if (typeof window !== 'undefined') {
     try {
@@ -53,7 +63,6 @@ export async function apiFetch(
     }
   }
 
-  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const method = String(options.method ?? 'GET').toUpperCase();
   const cacheKey = `${method}:${url}`
 
@@ -67,67 +76,102 @@ export async function apiFetch(
     }
   }
 
-  if (typeof window !== 'undefined') {
-    console.log(`[apiFetch] request`, method, url);
-  }
-  const res = await fetch(url, { ...options, headers, credentials: "include" });
-  const duration = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
-  if (typeof window !== 'undefined') {
-    console.log(`[apiFetch] answered in ${duration.toFixed(2)}ms`, url);
-  }
+  async function execute(attempt: number): Promise<any> {
+    const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-  if (!res.ok) {
-    const text = await res.text();
-    let msg = text;
+    if (typeof window !== 'undefined') {
+      console.log(`[apiFetch] request`, method, url, `(attempt ${attempt}/${retries})`);
+    }
+
     try {
-      const json = JSON.parse(text);
-      msg = json.error || JSON.stringify(json);
-    } catch {}
-    throw new Error(msg || `HTTP error ${res.status}`);
-  }
-  if (res.status === 204) return null;
-
-  const cl = res.headers.get('content-length');
-  const text = await res.text();
-  if (res.status === 200 && !text) {
-    return "";
-  }
-
-  try {
-    const parsed = JSON.parse(text);
-    if (method === 'GET') {
-      apiResponseCache.set(cacheKey, {
-        expiry: Date.now() + API_CACHE_TTL,
-        data: parsed,
+      const res = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include',
+        signal: controller.signal,
       })
-    } else {
-      const normalized = url.split('?')[0];
-      for (const key of Array.from(apiResponseCache.keys())) {
-        if (key.startsWith('GET:') && key.includes(normalized)) {
-          apiResponseCache.delete(key);
+
+      const duration = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
+      if (typeof window !== 'undefined') {
+        console.log(`[apiFetch] answered in ${duration.toFixed(2)}ms`, url);
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = text;
+        try {
+          const json = JSON.parse(text);
+          msg = json.error || JSON.stringify(json);
+        } catch {}
+        throw new Error(msg || `HTTP error ${res.status}`);
+      }
+
+      if (res.status === 204) return null;
+
+      const text = await res.text();
+      if (res.status === 200 && !text) {
+        return "";
+      }
+
+      let data: any
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = text
+      }
+
+      if (method === 'GET') {
+        apiResponseCache.set(cacheKey, {
+          expiry: Date.now() + API_CACHE_TTL,
+          data,
+        })
+      } else {
+        const normalized = url.split('?')[0];
+        for (const key of Array.from(apiResponseCache.keys())) {
+          if (!key.startsWith('GET:')) continue;
+          const cachedUrl = key.slice(4);
+          if (
+            cachedUrl === normalized ||
+            cachedUrl.startsWith(normalized + '?') ||
+            normalized.startsWith(cachedUrl + '/') ||
+            cachedUrl.startsWith(normalized + '/')
+          ) {
+            apiResponseCache.delete(key);
+          }
         }
       }
-    }
-    try {
-      if (url.includes('/auth/login') || url.includes('/auth/session') || url.includes('/auth/2fa/verify-login')) {
-        console.debug('[apiFetch] auth response:', url, parsed);
-      }
-    } catch {}
-    return parsed;
-  } catch {
-    if (method === 'GET') {
-      apiResponseCache.set(cacheKey, {
-        expiry: Date.now() + API_CACHE_TTL,
-        data: text,
-      })
-    } else {
-      const normalized = url.split('?')[0];
-      for (const key of Array.from(apiResponseCache.keys())) {
-        if (key.startsWith('GET:') && key.includes(normalized)) {
-          apiResponseCache.delete(key);
+
+      try {
+        if (url.includes('/auth/login') || url.includes('/auth/session') || url.includes('/auth/2fa/verify-login')) {
+          console.debug('[apiFetch] auth response:', url, data);
         }
+      } catch {}
+
+      return data
+    } catch (err: any) {
+      const isAbort = err?.name === 'AbortError' || err?.message?.includes('The user aborted a request');
+      const isNetwork = err instanceof TypeError || err?.message?.toLowerCase().includes('failed to fetch');
+
+      if (attempt < retries && (isAbort || isNetwork)) {
+        if (typeof window !== 'undefined') {
+          console.warn(`[apiFetch] retrying ${url} due to network/timeout (attempt ${attempt + 1}/${retries})`, err);
+        }
+        await sleep(500 * attempt)
+        return execute(attempt + 1)
       }
+
+      if (isAbort) {
+        throw new Error(`Request timed out after ${timeout}ms: ${url}`)
+      }
+
+      throw err
+    } finally {
+      clearTimeout(timeoutId)
     }
-    return text;
   }
+
+  return execute(1)
 }
+

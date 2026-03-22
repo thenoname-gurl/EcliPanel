@@ -77,6 +77,27 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     response: { 201: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) }
   });
 
+  app.put(prefix + '/ssh-keys/:id', async (ctx: any) => {
+    const keyId = Number((ctx.params as any).id);
+    const { name } = ctx.body as any;
+    if (!name || !String(name).trim()) {
+      ctx.set.status = 400;
+      return { error: 'name is required' };
+    }
+    const key = await sshKeyRepo().findOneBy({ id: keyId, userId: (ctx as any).user.id });
+    if (!key) {
+      ctx.set.status = 404;
+      return { error: 'SSH key not found' };
+    }
+    key.name = String(name).trim();
+    await sshKeyRepo().save(key);
+    return { success: true, key: { id: key.id, name: key.name } };
+  }, {
+    beforeHandle: authenticate,
+    detail: { summary: 'Update SSH key name', tags: ['SSH'] },
+    response: { 200: t.Object({ success: t.Boolean(), key: t.Object({ id: t.Number(), name: t.String() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+  });
+
   app.delete(prefix + '/ssh-keys/:id', async (ctx: any) => {
     const keyId = Number((ctx.params as any).id);
     const key = await sshKeyRepo().findOneBy({ id: keyId, userId: (ctx as any).user.id });

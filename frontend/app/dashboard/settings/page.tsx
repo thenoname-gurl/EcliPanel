@@ -25,6 +25,7 @@ import {
   Save,
   KeyRound,
   Plus,
+  Edit,
   Trash2,
   Loader2,
   BookOpen
@@ -154,6 +155,8 @@ function PasskeyManager() {
   const [passkeys, setPasskeys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [editingPasskeyId, setEditingPasskeyId] = useState<number | null>(null);
+  const [editingPasskeyName, setEditingPasskeyName] = useState("");
 
   const load = () => {
     apiFetch(API_ENDPOINTS.passkeys)
@@ -163,6 +166,20 @@ function PasskeyManager() {
   };
 
   useEffect(() => { if (user) load(); }, [user]);
+
+  const updatePasskeyName = async (id: number, name: string) => {
+    try {
+      await apiFetch(API_ENDPOINTS.passkeyUpdate.replace(':id', String(id)), {
+        method: 'PUT',
+        body: JSON.stringify({ name: String(name).trim() }),
+      });
+      setEditingPasskeyId(null);
+      setEditingPasskeyName('');
+      load();
+    } catch (e: any) {
+      alert('Failed: ' + e.message);
+    }
+  };
 
   const addPasskey = async () => {
     if (!user) return;
@@ -254,16 +271,46 @@ function PasskeyManager() {
             <div className="flex items-center gap-3">
               <KeyRound className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm font-medium text-foreground">Passkey #{pk.id}</p>
-                <p className="text-xs text-muted-foreground font-mono">{pk.credentialID?.slice(0, 20)}…</p>
+                {editingPasskeyId === pk.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={editingPasskeyName}
+                      onChange={(e) => setEditingPasskeyName(e.target.value)}
+                      className="rounded border border-border bg-input px-2 py-1 text-sm"
+                    />
+                    <button
+                      className="rounded border border-primary px-2 py-1 text-xs text-primary"
+                      onClick={() => updatePasskeyName(pk.id, editingPasskeyName)}
+                    >Save</button>
+                    <button
+                      className="rounded border border-border px-2 py-1 text-xs"
+                      onClick={() => { setEditingPasskeyId(null); setEditingPasskeyName(''); }}
+                    >Cancel</button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-foreground">{pk.name || `Passkey #${pk.id}`}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{pk.credentialID?.slice(0, 20)}…</p>
+                  </>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => removePasskey(pk.id)}
-              className="flex items-center gap-1.5 rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {editingPasskeyId !== pk.id && (
+                <button
+                  onClick={() => { setEditingPasskeyId(pk.id); setEditingPasskeyName(pk.name || `Passkey #${pk.id}`); }}
+                  className="rounded-md p-2 text-muted-foreground hover:bg-secondary/10 hover:text-foreground transition-colors"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => removePasskey(pk.id)}
+                className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         ))
       )}
@@ -287,6 +334,8 @@ function SshKeyManager() {
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingSshKeyId, setEditingSshKeyId] = useState<number | null>(null);
+  const [editingSshKeyName, setEditingSshKeyName] = useState("");
 
   const loadKeys = async () => {
     setLoading(true);
@@ -332,6 +381,18 @@ function SshKeyManager() {
     }
   };
 
+  const updateSshKeyName = async (id: number, newName: string) => {
+    if (!newName.trim()) return;
+    try {
+      await apiFetch(API_ENDPOINTS.sshKeyUpdate.replace(":id", String(id)), { method: "PUT", body: JSON.stringify({ name: newName.trim() }) });
+      setEditingSshKeyId(null);
+      setEditingSshKeyName("");
+      loadKeys();
+    } catch (e: any) {
+      alert("Failed: " + e.message);
+    }
+  };
+
   return (
     <div className="mt-4 flex flex-col gap-3">
       {loading ? (
@@ -350,20 +411,44 @@ function SshKeyManager() {
             <div className="flex items-center gap-3 min-w-0">
               <KeyRound className="h-5 w-5 text-primary shrink-0" />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{k.name}</p>
-                {k.fingerprint && (
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{k.fingerprint}</p>
+                {editingSshKeyId === k.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={editingSshKeyName}
+                      onChange={(e) => setEditingSshKeyName(e.target.value)}
+                      className="rounded border border-border bg-input px-2 py-1 text-sm"
+                    />
+                    <button className="rounded border border-primary px-2 py-1 text-xs text-primary" onClick={() => updateSshKeyName(k.id, editingSshKeyName)}>Save</button>
+                    <button className="rounded border border-border px-2 py-1 text-xs" onClick={() => { setEditingSshKeyId(null); setEditingSshKeyName(''); }}>Cancel</button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-foreground">{k.name}</p>
+                    {k.fingerprint && (
+                      <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{k.fingerprint}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground/60">Added {new Date(k.createdAt).toLocaleDateString()}</p>
+                  </>
                 )}
-                <p className="text-xs text-muted-foreground/60">Added {new Date(k.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
-            <button
+            <div className="flex items-center gap-2">
+              {editingSshKeyId !== k.id && (
+                <button
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary/10 transition-colors"
+                  onClick={() => { setEditingSshKeyId(k.id); setEditingSshKeyName(k.name || ''); }}
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+              )}
+              <button
               onClick={() => handleDelete(k.id)}
               className="ml-4 shrink-0 rounded-lg border border-destructive/30 bg-transparent px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
+        </div>
         ))
       )}
 
