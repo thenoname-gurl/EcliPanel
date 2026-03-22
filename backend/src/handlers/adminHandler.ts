@@ -1817,6 +1817,7 @@ isSuspicious: true if fraudScore >= 50`;
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
       portalDescriptions: portalDescriptions || null,
+      codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
     };
   }, {
     response: {
@@ -1867,7 +1868,7 @@ isSuspicious: true if fraudScore >= 50`;
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice'];
+    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled'];
     for (const key of allowed) {
       if (body[key] !== undefined) {
         const value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
@@ -1890,6 +1891,7 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: map['registrationEnabled'] !== 'false',
         registrationNotice: map['registrationNotice'] || '',
         portalDescriptions: portalDescriptions || null,
+        codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
       },
     };
   }, {
@@ -1899,6 +1901,7 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: t.Optional(t.Boolean()),
         registrationNotice: t.Optional(t.String()),
         portalDescriptions: t.Optional(t.Any()),
+        codeInstancesEnabled: t.Optional(t.Boolean()),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), settings: t.Any() }),

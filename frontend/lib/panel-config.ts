@@ -284,6 +284,9 @@ export const API_ENDPOINTS = {
   infraNodeDetail: "/api/infrastructure/nodes/:id",
   infraNodeConfig: "/api/infrastructure/nodes/:id/config",
   infraNodeAllocations: "/api/infrastructure/nodes/:id/allocations",
+  infraCodeInstances: "/api/infrastructure/code-instances",
+  infraCodeInstancePing: "/api/infrastructure/code-instances/:id/ping",
+  infraCodeInstanceStop: "/api/infrastructure/code-instances/:id/stop",
   infraEmail: "/api/infrastructure/email",
   infraEmailDomains: "/api/infrastructure/email/domains",
   infraEmailMailboxes: "/api/infrastructure/email/mailboxes",
@@ -407,6 +410,12 @@ export const NAVIGATION: NavSection[] = [
         label: "Servers",
         href: "/dashboard/servers",
         icon: Server,
+      },
+      {
+        label: "Code Instances",
+        href: "/dashboard/infrastructure/code-instances",
+        icon: Server,
+        requiredTier: "educational",
       },
       {
         label: "Nodes",

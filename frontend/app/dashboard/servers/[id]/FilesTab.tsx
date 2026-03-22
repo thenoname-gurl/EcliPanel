@@ -8,7 +8,7 @@ import { formatBytes, displayPath, MONACO_LANGUAGE_MAP } from "./serverTabHelper
 import { LoadingState } from "./serverTabShared"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Folder, FileText, ChevronRight, FolderPlus, FilePlus, Trash2, Pencil, Copy, Download, X, Save, RefreshCw, Loader2, Plus, Shield, Archive } from "lucide-react"
+import { Folder, FileText, ChevronRight, FolderPlus, FilePlus, Trash2, Pencil, Copy, Download, X, Save, RefreshCw, Loader2, Plus, Shield, Archive, ArrowLeft } from "lucide-react"
 
 export function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sftpInfo?: { host: string; port: number; username?: string; proxied?: boolean } | null; editorSettings?: any }) {
   const [path, setPath] = useState("/")

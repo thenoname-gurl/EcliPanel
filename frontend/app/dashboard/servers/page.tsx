@@ -5,6 +5,7 @@ import Link from "next/link"
 import { PanelHeader } from "@/components/panel/header"
 import { StatusBadge, UsageBar } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/useAuth"
@@ -293,12 +294,90 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
+function CodeInstancesModal({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [stopping, setStopping] = useState<string | null>(null)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const data = await apiFetch(API_ENDPOINTS.infraCodeInstances)
+      setList(Array.isArray(data) ? data : [])
+    } catch (e) {
+      console.error('failed to load code instances', e)
+      setList([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const stopInstance = async (id: string) => {
+    if (!confirm('Stop and delete this Code Instance? Unsaved work will be lost.')) return
+    setStopping(id)
+    try {
+      await apiFetch(API_ENDPOINTS.infraCodeInstanceStop.replace(':id', id), { method: 'POST' })
+      await load()
+    } catch (e: any) {
+      alert('Failed to stop instance: ' + (e?.message || e))
+    } finally {
+      setStopping(null)
+    }
+  }
+
+  const minutesLeft = (lastActivity?: string | null) => {
+    if (!lastActivity) return 'Expires soon'
+    const last = new Date(lastActivity).getTime()
+    const diff = Date.now() - last
+    const remaining = Math.max(0, 30 * 60 * 1000 - diff)
+    const m = Math.ceil(remaining / 60000)
+    return `${m}m remaining`
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Your Code Instances</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Code Instances auto-delete after 30 minutes of inactivity. Save your work externally.</p>
+          {loading ? (
+            <div className="text-sm text-muted-foreground">Loading…</div>
+          ) : list.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No active Code Instances.</div>
+          ) : (
+            <div className="grid gap-3">
+              {list.map((ci) => (
+                <div key={ci.uuid} className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/5">
+                  <div>
+                    <div className="font-medium text-foreground">{ci.name || ci.uuid}</div>
+                    <div className="text-[11px] text-muted-foreground">Last activity: {ci.lastActivityAt ? new Date(ci.lastActivityAt).toLocaleString() : 'unknown'} — {minutesLeft(ci.lastActivityAt)}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/dashboard/servers/${ci.uuid}`} className="rounded-md px-3 py-1.5 bg-secondary text-xs text-secondary-foreground">Open</Link>
+                    <button onClick={() => stopInstance(ci.uuid)} disabled={stopping === ci.uuid} className="rounded-md px-3 py-1.5 bg-destructive/10 text-xs text-destructive">{stopping === ci.uuid ? 'Stopping...' : 'Stop & Delete'}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ServersPage() {
   const { user } = useAuth()
   const [search, setSearch] = useState("")
   const [servers, setServers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewModal, setShowNewModal] = useState(false)
+  const [showCodeModal, setShowCodeModal] = useState(false)
   const [powerLoading, setPowerLoading] = useState<string | null>(null)
   const [fixing, setFixing] = useState(false)
 
@@ -359,11 +438,10 @@ export default function ServersPage() {
     return (
       <div
         key={reactKey}
-        className="group rounded-xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)] w-full max-w-full overflow-x-auto"
+        className="relative group rounded-xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)] w-full max-w-full overflow-x-auto"
       >
-        {/* Header - clickable */}
-        <Link href={`/dashboard/servers/${sid}`} className="block">
-          <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between">
+          <Link href={`/dashboard/servers/${sid}`} className="block">
             <div>
               <h3 className="font-medium text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
                 {server.name}
@@ -373,14 +451,8 @@ export default function ServersPage() {
                 <StatusBadge status={server.status} />
               </div>
             </div>
-            <button
-              onClick={(e) => e.preventDefault()}
-              className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-          </div>
-        </Link>
+          </Link>
+        </div>
 
         {/* Stats */}
         <div className="mt-4 flex flex-col gap-2">
@@ -446,6 +518,9 @@ export default function ServersPage() {
 
   return (
     <>
+      {showCodeModal && (
+        <CodeInstancesModal onClose={() => setShowCodeModal(false)} />
+      )}
       {showNewModal && (
         <NewServerModal
           onClose={() => setShowNewModal(false)}
@@ -476,6 +551,12 @@ export default function ServersPage() {
                 <Plus className="h-4 w-4" />
                 New Server
               </button>
+              {/*<button
+                onClick={() => setShowCodeModal(true)}
+                className="ml-2 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary/5">
+                <Terminal className="h-4 w-4" />
+                Open Code Instances
+              </button>*/}
             </div>
           </div>
 

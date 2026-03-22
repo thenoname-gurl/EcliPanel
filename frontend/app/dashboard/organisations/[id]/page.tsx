@@ -6,7 +6,7 @@ import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { apiFetch, clearApiCache } from "@/lib/api-client"
+import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -219,7 +219,6 @@ export default function OrganisationDetail() {
   }
 
   const loadSubdomains = async (forceRefresh = false) => {
-    if (forceRefresh) clearApiCache();
     if (!org?.handle) { setSubdomains([]); return }
     setSubdomainsLoading(true)
     try {
@@ -258,7 +257,6 @@ export default function OrganisationDetail() {
   }
 
   const loadSubdomainRecords = async (sub: any, forceRefresh = false) => {
-    if (forceRefresh) clearApiCache();
     if (!sub || !sub.id) return
     setSubdomainSelection(sub)
     setSubdomainRecords([])

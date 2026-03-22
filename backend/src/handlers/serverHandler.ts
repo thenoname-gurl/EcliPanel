@@ -3,6 +3,7 @@ import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
+import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
 import { Node } from '../models/node.entity';
 import { Egg } from '../models/egg.entity';
@@ -102,7 +103,8 @@ export async function serverRoutes(app: any, prefix = '') {
           const subuserUuids = subuserEntries.map(s => s.serverUuid);
           const where: any[] = [{ userId: user.id }];
           if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
-          return await cfgRepo.find({ where });
+          const found = await cfgRepo.find({ where });
+          return found.filter((c: any) => !c.isCodeInstance);
         })();
 
     const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
@@ -434,10 +436,8 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    const {
-      eggId, name, nodeId, userId,
-      memory: reqMemory, disk: reqDisk, cpu: reqCpu,
-    } = ctx.body as any;
+    const body = ctx.body as any;
+    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu } = body;
 
     const ownerId: number = (userId && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*'))
       ? userId
@@ -480,6 +480,52 @@ export async function serverRoutes(app: any, prefix = '') {
     const memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
     const disk   = reqDisk   != null ? Number(reqDisk)   : (limits.disk   ?? 10240);
     const cpu    = reqCpu    != null ? Number(reqCpu)     : (limits.cpu    ?? 100);
+    const isCodeInstance = !!ctx.body?.isCodeInstance;
+
+    try {
+      const settingRepo = AppDataSource.getRepository(require('../models/panelSetting.entity').PanelSetting);
+      const setting = await settingRepo.findOneBy({ key: 'codeInstancesEnabled' });
+      if (isCodeInstance && setting && setting.value === 'false' && !(user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+        ctx.set.status = 403;
+        return { error: 'Code instance creation is temporarily disabled by an administrator.' };
+      }
+    } catch (e) { /* skip */ }
+
+    if (isCodeInstance && !isAdmin) {
+      const allowedPortalTypes = ['educational', 'paid', 'enterprise'];
+      if (!allowedPortalTypes.includes(effectivePortalType)) {
+        ctx.set.status = 403;
+        return { error: 'Code Instances are available only for educational or higher plans.' };
+      }
+
+      const existingInstances = await cfgRepo().find({ where: { userId: ownerId, isCodeInstance: true } });
+      if (existingInstances.length >= 2) {
+        ctx.set.status = 403;
+        return { error: 'Maximum 2 Code Instances are allowed concurrently.' };
+      }
+
+      const existingMemory = existingInstances.reduce((sum, i) => sum + (i.memory || 0), 0);
+      const existingCpu = existingInstances.reduce((sum, i) => sum + (i.cpu || 0), 0);
+      const existingDisk = existingInstances.reduce((sum, i) => sum + (i.disk || 0), 0);
+      if (existingMemory + memory > 8192) {
+        ctx.set.status = 403;
+        return { error: 'Total Code Instance memory limit is 8192 MB.' };
+      }
+      if (existingCpu + cpu > 6) {
+        ctx.set.status = 403;
+        return { error: 'Total Code Instance CPU limit is 6 cores.' };
+      }
+      if (existingDisk + disk > 102400) {
+        ctx.set.status = 403;
+        return { error: 'Total Code Instance disk limit is 100000 MB.' };
+      }
+
+      const usedMinutes = existingInstances.reduce((sum, i) => sum + (i.codeInstanceMinutesUsed || 0), 0);
+      if (usedMinutes >= 150 * 60) {
+        ctx.set.status = 403;
+        return { error: 'Monthly Code Instance usage limit of 150 hours reached.' };
+      }
+    }
 
     if (!isAdmin) {
       if (limits.serverLimit != null && limits.serverLimit > 0) {
@@ -504,16 +550,22 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
+    if (isCodeInstance) {
+      eggId = 264; 
+      //Note for future me: 264 is eggId of Code-Server, uh for people who self host this hf finding out ur egg id and replacing it
+    }
+
     if (!eggId) {
       ctx.set.status = 400;
       return { error: 'eggId is required' };
     }
+
     const egg = await eggRepo().findOneBy({ id: eggId });
     if (!egg) {
       ctx.set.status = 404;
       return { error: 'Egg not found' };
     }
-    if (!egg.visible && !isAdmin) {
+    if (!egg.visible && !isAdmin && egg.id !== 264) {
       ctx.set.status = 403;
       return { error: 'Egg not available' };
     }
@@ -621,6 +673,8 @@ export async function serverRoutes(app: any, prefix = '') {
       disk,
       cpu,
       eggId: egg.id,
+      isCodeInstance,
+      lastActivityAt: isCodeInstance ? new Date() : undefined,
       ...(autoAllocation ? { allocations: autoAllocation } : {}),
     });
 
@@ -1856,5 +1910,86 @@ export async function serverRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Object({ host: t.String(), port: t.Number(), username: t.String(), proxied: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Get SFTP connection info', tags: ['Servers'] }
+  });
+
+  app.get(prefix + '/infrastructure/code-instances', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    const instances = await cfgRepo().find({ where: { userId: user.id, isCodeInstance: true } });
+    return instances.map((cfg) => ({
+      uuid: cfg.uuid,
+      name: cfg.name,
+      nodeId: cfg.nodeId,
+      memory: cfg.memory,
+      disk: cfg.disk,
+      cpu: cfg.cpu,
+      status: cfg.hibernated ? 'hibernated' : 'active',
+      lastActivityAt: cfg.lastActivityAt,
+      createdAt: cfg.createdAt,
+      codeInstanceMinutesUsed: cfg.codeInstanceMinutesUsed,
+    }));
+  }, { beforeHandle: [authenticate],
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
+      detail: { summary: 'List code instances for the current user', tags: ['Code Instances'] }
+  });
+
+  app.post(prefix + '/infrastructure/code-instances/:uuid/ping', async (ctx: any) => {
+    const { uuid } = ctx.params as any;
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    const cfg = await cfgRepo().findOneBy({ uuid, isCodeInstance: true });
+    if (!cfg || cfg.userId !== user.id) {
+      ctx.set.status = 404;
+      return { error: 'Code Instance not found' };
+    }
+
+    cfg.lastActivityAt = new Date();
+    await cfgRepo().save(cfg);
+
+    await createActivityLog({ userId: user.id, action: 'codeInstance:ping', targetId: uuid, targetType: 'code-instance', ipAddress: ctx.ip });
+    return { success: true };
+  }, { beforeHandle: [authenticate],
+      response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      detail: { summary: 'Ping code instance activity', tags: ['Code Instances'] }
+  });
+
+  app.post(prefix + '/infrastructure/code-instances/:uuid/stop', async (ctx: any) => {
+    const { uuid } = ctx.params as any;
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    const cfg = await cfgRepo().findOneBy({ uuid, isCodeInstance: true });
+    if (!cfg || cfg.userId !== user.id) {
+      ctx.set.status = 404;
+      return { error: 'Code Instance not found' };
+    }
+
+    try {
+      const svc = await serviceFor(uuid);
+      await svc.powerServer(uuid, 'stop').catch(() => {});
+      await svc.serverRequest(uuid, '', 'delete').catch(() => {});
+    } catch (e: any) {
+      // skip
+    }
+
+    await removeServerConfig(uuid).catch(() => {});
+    await nodeSvc.unmapServer(uuid).catch(() => {});
+
+    await createActivityLog({ userId: user.id, action: 'codeInstance:stop', targetId: uuid, targetType: 'code-instance', ipAddress: ctx.ip });
+    return { success: true };
+  }, { beforeHandle: [authenticate],
+      response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      detail: { summary: 'Stop and delete code instance', tags: ['Code Instances'] }
   });
 }

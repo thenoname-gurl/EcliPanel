@@ -852,6 +852,9 @@ export async function saveServerConfig(params: {
   skipEggScripts?: boolean;
   allocations?: Record<string, any>;
   processConfig?: Record<string, any>;
+  isCodeInstance?: boolean;
+  lastActivityAt?: Date;
+  codeInstanceMinutesUsed?: number;
   hibernated?: boolean;
 }): Promise<ServerConfig> {
   if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
@@ -881,6 +884,9 @@ export async function saveServerConfig(params: {
       skipEggScripts: params.skipEggScripts ?? false,
       allocations: params.allocations ?? null,
       processConfig: params.processConfig ?? null,
+      isCodeInstance: params.isCodeInstance ?? false,
+      lastActivityAt: params.lastActivityAt ?? null,
+      codeInstanceMinutesUsed: params.codeInstanceMinutesUsed ?? 0,
     });
     return r.save(cfg);
   }
@@ -898,6 +904,9 @@ export async function saveServerConfig(params: {
   keep.cpu = params.cpu;
   keep.swap = params.swap ?? keep.swap ?? 0;
   keep.ioWeight = params.ioWeight ?? keep.ioWeight ?? 500;
+  keep.isCodeInstance = params.isCodeInstance ?? keep.isCodeInstance;
+  keep.lastActivityAt = params.lastActivityAt ?? keep.lastActivityAt;
+  keep.codeInstanceMinutesUsed = params.codeInstanceMinutesUsed ?? keep.codeInstanceMinutesUsed ?? 0;
   keep.hibernated = params.hibernated ?? keep.hibernated ?? false;
   keep.eggId = params.eggId ?? keep.eggId;
   keep.skipEggScripts = params.skipEggScripts ?? keep.skipEggScripts ?? false;

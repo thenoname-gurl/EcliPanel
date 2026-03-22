@@ -967,7 +967,8 @@ export default function AdminPanel() {
   const [panelSettings, setPanelSettings] = useState<{
     registrationEnabled: boolean
     registrationNotice: string
-  }>({ registrationEnabled: true, registrationNotice: "" })
+    codeInstancesEnabled: boolean
+  }>({ registrationEnabled: true, registrationNotice: "", codeInstancesEnabled: true })
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
 
@@ -1064,20 +1065,25 @@ export default function AdminPanel() {
           setOauthApps(Array.isArray(data) ? data : [])
         } else if (tab === "settings") {
           const data = await apiFetch(API_ENDPOINTS.adminSettings)
-          if (data) setPanelSettings(data)
+          if (data)
+            setPanelSettings({
+              registrationEnabled: data.registrationEnabled ?? true,
+              registrationNotice: data.registrationNotice ?? "",
+              codeInstancesEnabled:
+                data.codeInstancesEnabled === "false" ? false : Boolean(data.codeInstancesEnabled),
+            })
         } else if (tab === "plans") {
           const data = await apiFetch(API_ENDPOINTS.adminPlans)
           setPlans(Array.isArray(data) ? data : [])
         } else if (tab === "orders") {
           const data = await apiFetch(API_ENDPOINTS.adminOrders)
           setAdminOrders(Array.isArray(data) ? data : [])
-          // also load plans so the order form can show plan names
           if (plans.length === 0) {
             apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
           }
         }
       } catch (_e) {
-        // silently fail
+        // skip
       }
     },
     [loadedTabs]
@@ -4229,6 +4235,33 @@ Content-Type: application/json
                         )}
                       </div>
                     )}
+
+                    {/* Code Instances toggle */}
+                    <div className="rounded-xl border border-border bg-card">
+                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                        <FileCode className="h-4 w-4 text-primary" />
+                        <p className="text-sm font-medium text-foreground">Code Instances</p>
+                      </div>
+                      <div className="flex flex-col gap-4 p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Allow creation of code instances</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">When disabled, users cannot create code instances; non-admins will be blocked by the backend.</p>
+                          </div>
+                          <button
+                            onClick={() => setPanelSettings((s) => ({ ...s, codeInstancesEnabled: !s.codeInstancesEnabled }))}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${panelSettings.codeInstancesEnabled ? "bg-primary" : "bg-secondary"}`}
+                            role="switch"
+                            aria-checked={panelSettings.codeInstancesEnabled}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.codeInstancesEnabled ? "translate-x-5" : "translate-x-0"}`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">Toggle to temporarily prevent users from creating resource-heavy code instances.</p>
+                      </div>
+                    </div>
 
                     {/* Save button */}
                     <div className="flex items-center justify-end gap-2 pt-1">

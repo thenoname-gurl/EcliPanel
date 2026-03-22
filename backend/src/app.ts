@@ -10,6 +10,7 @@ import { setupMiddleware, authenticate } from './middleware';
 import { setupConfig } from './config';
 import { AppDataSource } from './config/typeorm';
 import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
+import { scheduleCodeInstanceIdleJob } from './jobs/codeInstanceIdleJob';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
@@ -353,6 +354,7 @@ export async function initApp() {
   setupMiddleware(app);
   registerRoutes(app);
   try { scheduleStudentReverifyJob(); } catch (e) { /* skip */ }
+  try { scheduleCodeInstanceIdleJob(); } catch (e) { /* skip */ }
 }
 
 app.get('/health', async (ctx: any) => {

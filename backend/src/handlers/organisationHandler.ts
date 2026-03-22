@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
+import { resizeImage } from '../workers/imageWorker';
 import { WingsApiService } from '../services/wingsApiService';
 import { createActivityLog } from './logHandler';
 import { CloudflareService } from '../services/cloudflareService';
@@ -842,7 +843,13 @@ export async function organisationRoutes(app: any, prefix = '') {
 
     const ab = await uploadFile.arrayBuffer();
     const buffer = Buffer.from(ab);
-    const out = await sharp(buffer).rotate().resize(256, 256, { fit: 'cover' }).toBuffer();
+    const out = await resizeImage(buffer, 256, 256).catch(async (err) => {
+      try {
+        return await sharp(buffer).rotate().resize(256, 256, { fit: 'cover' }).toBuffer();
+      } catch (e) {
+        throw err || e;
+      }
+    });
     const originalName = uploadFile.name || uploadFile.filename || `avatar_org_${org.id}`;
     const ext = path.extname(originalName) || (mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg');
     const filename = `avatar_org_${org.id}` + ext;

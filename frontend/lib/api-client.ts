@@ -1,12 +1,5 @@
 import { API_ENDPOINTS } from "./panel-config";
 
-const API_CACHE_TTL = 60 * 1000 
-const apiResponseCache = new Map<string, { expiry: number; data: any }>()
-
-export function clearApiCache(): void {
-  apiResponseCache.clear()
-}
-
 const DEFAULT_API_TIMEOUT = 10000
 const DEFAULT_API_RETRIES = 2
 
@@ -64,17 +57,6 @@ export async function apiFetch(
   }
 
   const method = String(options.method ?? 'GET').toUpperCase();
-  const cacheKey = `${method}:${url}`
-
-  if (method === 'GET') {
-    const cached = apiResponseCache.get(cacheKey)
-    if (cached && cached.expiry > Date.now()) {
-      if (typeof window !== 'undefined') {
-        console.log(`[apiFetch] cache hit`, url)
-      }
-      return cached.data
-    }
-  }
 
   async function execute(attempt: number): Promise<any> {
     const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -120,27 +102,6 @@ export async function apiFetch(
         data = JSON.parse(text)
       } catch {
         data = text
-      }
-
-      if (method === 'GET') {
-        apiResponseCache.set(cacheKey, {
-          expiry: Date.now() + API_CACHE_TTL,
-          data,
-        })
-      } else {
-        const normalized = url.split('?')[0];
-        for (const key of Array.from(apiResponseCache.keys())) {
-          if (!key.startsWith('GET:')) continue;
-          const cachedUrl = key.slice(4);
-          if (
-            cachedUrl === normalized ||
-            cachedUrl.startsWith(normalized + '?') ||
-            normalized.startsWith(cachedUrl + '/') ||
-            cachedUrl.startsWith(normalized + '/')
-          ) {
-            apiResponseCache.delete(key);
-          }
-        }
       }
 
       try {

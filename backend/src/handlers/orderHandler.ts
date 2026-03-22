@@ -7,8 +7,22 @@ import PDFDocument from 'pdfkit';
 import stream from 'stream';
 import fs from 'fs';
 import path from 'path';
+import { generateInvoicePdf } from '../workers/pdfWorker';
+import { User } from '../models/user.entity';
 
 async function renderInvoicePdf(order: Order): Promise<Buffer> {
+  try {
+    const userRepo = AppDataSource.getRepository(User as any);
+    const u = await userRepo.findOneBy({ id: order.userId }).catch(() => null);
+    const logoPath = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+    const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
+    try {
+      return await generateInvoicePdf({ order, user: u, logoPath, companyName });
+    } catch (err) {
+      // skip
+    }
+  } catch (e) {}
+  // FALLBACK to in-process generation if worker fails for any reason
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });

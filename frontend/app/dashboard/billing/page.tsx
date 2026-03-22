@@ -26,15 +26,33 @@ export default function BillingPage() {
   const [plans, setPlans] = useState<any[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
+  const [latestOrder, setLatestOrder] = useState<any | null>(null)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState<string | null>(null)
   const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
   const [demoUsed, setDemoUsed] = useState(false)
 
-  const activeTierRaw = (activePlan?.plan?.type ?? user?.portalType ?? user?.tier ?? 'free').toString().toLowerCase()
+  const userPlanType = (user?.portalType ?? user?.tier ?? 'free').toString().toLowerCase()
+  const activeTierRaw = (activePlan?.plan?.type ?? userPlanType).toString().toLowerCase()
   const activeTierEffective = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
   const activeTierLabel = activeTierRaw === 'educational' ? 'educational' : activeTierRaw
   const currentPlan = PORTALS[activeTierEffective] ?? PORTALS.free
+
+  const userPlanLabel = userPlanType === 'enterprise' ? 'Enterprise Portal' : getPortalMarker(userPlanType)
+  const activePlanTitle = activePlan?.plan?.name ?? userPlanLabel
+  const activePlanType = activePlan?.plan?.type ?? userPlanType
+  const activePlanPrice = activePlan
+    ? activePlan.plan.type === 'enterprise'
+      ? activePlan.order?.amount
+        ? `$${Number(activePlan.order.amount).toFixed(2)}`
+        : 'Price Varies'
+      : `$${Number(activePlan.plan.price ?? currentPlan.price ?? 0).toFixed(2)}`
+    : currentPlan.id === 'free'
+      ? '$0'
+      : currentPlan.id === 'paid'
+        ? '$12.00'
+        : 'Custom'
+  const activePlanExpires = activePlan?.order?.expiresAt || null
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
     paid: "Paid Portal",
@@ -54,25 +72,26 @@ export default function BillingPage() {
     apiFetch(API_ENDPOINTS.orders)
       .then(async (data) => {
         setOrders(data)
-        if (Array.isArray(data)) {
-          const activeOrders = data
-            .filter((o: any) => o.status === 'active' && o.planId)
-            .sort((a: any, b: any) => {
-              const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime()
-              const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime()
-              return bDate - aDate
-            })
+        if (Array.isArray(data) && data.length > 0) {
+          const sortedOrders = [...data].sort((a: any, b: any) => {
+            const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime()
+            const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime()
+            return bDate - aDate
+          })
+          setLatestOrder(sortedOrders[0])
 
-          const planOrder = activeOrders[0]
-          if (planOrder) {
+          const activeOrders = sortedOrders.filter((o: any) => o.status === 'active' && o.planId)
+          const planOrder = activeOrders[0] || sortedOrders[0]
+          if (planOrder?.planId) {
             try {
               const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
               setActivePlan({ plan, order: planOrder })
-              return
             } catch {
               // skip
             }
           }
+        } else {
+          setLatestOrder(null)
         }
       })
       .catch((err) => {
@@ -220,14 +239,14 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 max-w-[100vw] w-full box-border">
             <StatCard
               title="Current Plan"
-              value={getPortalMarker(activePlan?.plan?.type ?? activeTierLabel)}
+              value={activePlanTitle}
               icon={CreditCard}
             />
             <StatCard
               title="Monthly Cost"
-              value={activePlan ? (activePlan.plan.type === 'enterprise' ? 'Price Varies' : `$${Number(activePlan.plan.price ?? 0).toFixed(2)}`) : (currentPlan.id === 'free' ? '$0' : currentPlan.id === 'paid' ? '$29.99' : 'Custom')}
+              value={activePlanPrice}
               icon={DollarSign}
-              subtitle={!activePlan && currentPlan.id === 'enterprise' ? 'Contact sales' : undefined}
+              subtitle={activePlan?.plan?.type === 'enterprise' && !activePlan?.order?.amount ? 'Price from order or contact sales' : undefined}
             />
             <StatCard title="Total Invoices" value={ordersLoading ? '...' : String(orders.length)} icon={Receipt} />
             <StatCard
@@ -256,8 +275,8 @@ export default function BillingPage() {
               <div className="mt-4 flex flex-col sm:flex-row sm:items-start gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-semibold text-foreground">{activePlan.plan.name}</h3>
-                    <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(activePlan.plan.type)}</Badge>
+                    <h3 className="text-xl font-semibold text-foreground">{activePlanTitle}</h3>
+                    <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(activePlanType)}</Badge>
                   </div>
                   {activePlan.plan.features?.list && Array.isArray(activePlan.plan.features.list) && (
                     <ul className="mt-3 flex flex-col gap-1.5">
@@ -269,15 +288,24 @@ export default function BillingPage() {
                       ))}
                     </ul>
                   )}
+                  <div className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
+                    <p>Configured limits:</p>
+                    <ul className="mt-1 space-y-1">
+                      <li>Memory: <span className="text-foreground font-medium">{activePlan.plan.memory ?? user?.limits?.memory ?? 'unlimited'}</span></li>
+                      <li>Disk: <span className="text-foreground font-medium">{activePlan.plan.disk ?? user?.limits?.disk ?? 'unlimited'}</span></li>
+                      <li>CPU: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? user?.limits?.cpu ?? 'unlimited'}</span></li>
+                      <li>Server limit: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? user?.limits?.serverLimit ?? 'unlimited'}</span></li>
+                    </ul>
+                  </div>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-2xl font-bold text-primary">
-                    {activePlan.plan.type === 'enterprise' ? 'Price Varies' : `$${Number(activePlan.plan.price ?? 0).toFixed(2)}`}
-                    {activePlan.plan.type !== 'enterprise' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
+                    {activePlanPrice}
+                    {activePlanType !== 'enterprise' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
                   </p>
-                  {activePlan.order?.expiresAt && (
+                  {activePlanExpires && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Renews {new Date(activePlan.order.expiresAt).toLocaleDateString()}
+                      Renews {new Date(activePlanExpires).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -333,6 +361,22 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
+                    {planCard.type === 'educational' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res:any = await apiFetch(API_ENDPOINTS.hackclubStudentStart, { method: 'GET' })
+                            if (res?.redirect) window.location.href = res.redirect
+                          } catch (e:any) {
+                            alert(e?.message || 'Failed to start Hack Club flow')
+                          }
+                        }}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                      >
+                        Connect Hack Club
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    )}
                     {!planCard.isActive && planCard.type !== 'free' && planCard.type !== 'educational' && (
                       <a
                         href="mailto:sales@eclipsesystems.org"

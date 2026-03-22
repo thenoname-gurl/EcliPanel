@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { User } from '../models/user.entity';
 import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
 import { encryptBuffer } from '../utils/crypto';
+import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 import path from 'path';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
@@ -42,7 +43,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
         const ab = await uploadFile.arrayBuffer();
         const buffer = Buffer.from(ab);
-        const encrypted = encryptBuffer(buffer);
+        const encrypted = await encryptBufferWithWorker(buffer).catch(() => encryptBuffer(buffer));
         fs.writeFileSync(filepath, encrypted);
 
         const url = `/uploads/id-docs/${filename}`;
