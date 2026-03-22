@@ -6,7 +6,7 @@ import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch, clearApiCache } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -217,8 +217,6 @@ export default function OrganisationDetail() {
     const name = String(sub.name || '').replace(/\.$/, '')
     return name === handle || name.endsWith(`.${handle}`)
   }
-
-  const { clearApiCache } = await import('@/lib/api-client');
 
   const loadSubdomains = async (forceRefresh = false) => {
     if (forceRefresh) clearApiCache();
