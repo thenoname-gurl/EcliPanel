@@ -1,5 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { UserLog } from '../models/userLog.entity';
+import { User } from '../models/user.entity';
+import { sendMail } from '../services/mailService';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 
@@ -30,6 +32,50 @@ export async function createActivityLog(opts: {
     timestamp: new Date(),
   });
   await repo.save(entry);
+
+  (async () => {
+    try {
+      if (!entry.userId) return;
+      const userRepo = AppDataSource.getRepository(User);
+      const targetUser = await userRepo.findOneBy({ id: entry.userId });
+      if (!targetUser || !targetUser.email) return;
+
+      const notifKey = (() => {
+        const a = (entry.action || '').toLowerCase();
+        if (a.includes('server') || a.includes('offline') || a.includes('server:')) return 'serverAlerts';
+        if (a.includes('bill') || a.includes('invoice') || a.includes('payment')) return 'billing';
+        if (a.includes('login') || a.includes('security') || a.includes('suspicious')) return 'security';
+        if (a.includes('product') || a.includes('update') || a.includes('announcement')) return 'productUpdates';
+        if (a.includes('ticket') || a.includes('support')) return 'tickets';
+        if (a.includes('ai') || a.includes('usage') || a.includes('credits')) return 'aiUsage';
+        return null;
+      })();
+
+      if (!notifKey) return;
+      const wants = targetUser.settings?.notifications?.[notifKey];
+      const defaultPrefs: Record<string, boolean> = { serverAlerts: true, billing: true, security: true, productUpdates: false, tickets: true, aiUsage: false };
+      const enabled = typeof wants === 'boolean' ? wants : (defaultPrefs[notifKey] ?? true);
+      if (!enabled) return;
+
+      const title = notifKey === 'serverAlerts' ? 'Server Alert' : notifKey === 'billing' ? 'Billing Notification' : notifKey === 'security' ? 'Security Alert' : notifKey === 'productUpdates' ? 'Product Update' : notifKey === 'tickets' ? 'Ticket Update' : 'Notification';
+      const message = `Event: ${entry.action}${entry.metadata ? ' — ' + JSON.stringify(entry.metadata) : ''}`;
+
+      try {
+        await sendMail({
+          to: targetUser.email,
+          from: process.env.MAIL_FROM,
+          subject: `${title} — Eclipse Systems`,
+          template: 'notification',
+          vars: { title, message, details: entry.metadata ? JSON.stringify(entry.metadata, null, 2) : '' }
+        });
+      } catch (e) {
+        console.warn('Failed to send notification email', e?.message || e);
+      }
+    } catch (e) {
+      // ignore any notification-side errors
+    }
+  })();
+
   return entry;
 }
 

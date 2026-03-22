@@ -801,6 +801,38 @@ export default function SettingsPage() {
     }
   };
 
+  const DEFAULT_NOTIFICATION_PREFS: Record<string, { label: string; desc: string; enabled: boolean }> = {
+    serverAlerts: { label: 'Server Alerts', desc: 'Get notified when servers go offline or have issues', enabled: true },
+    billing: { label: 'Billing Notifications', desc: 'Receive invoices and payment reminders', enabled: true },
+    security: { label: 'Security Alerts', desc: 'Login attempts and security-related events', enabled: true },
+    productUpdates: { label: 'Product Updates', desc: 'New features and platform announcements', enabled: false },
+    tickets: { label: 'Ticket Responses', desc: 'Notify when support tickets get a reply', enabled: true },
+    aiUsage: { label: 'AI Usage Reports', desc: 'Weekly summary of your AI credit usage', enabled: false },
+  };
+
+  const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>(() => {
+    try {
+      const fromUser = user?.settings?.notifications || {};
+      return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce((acc, k) => {
+        acc[k] = typeof fromUser[k] === 'boolean' ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled;
+        return acc;
+      }, {} as Record<string, boolean>);
+    } catch {
+      return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce((acc, k) => ({ ...acc, [k]: DEFAULT_NOTIFICATION_PREFS[k].enabled }), {} as Record<string, boolean>);
+    }
+  });
+
+  useEffect(() => {
+    // re-sync when user loads/changes
+    if (user) {
+      const fromUser = user?.settings?.notifications || {};
+      setNotificationPrefs(Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce((acc, k) => {
+        acc[k] = typeof fromUser[k] === 'boolean' ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled;
+        return acc;
+      }, {} as Record<string, boolean>));
+    }
+  }, [user?.settings]);
+
   const updateTheme = async (themeName: string) => {
     setActiveTheme(themeName);
     const theme = THEMES.find((t) => t.name === themeName);
@@ -1205,27 +1237,35 @@ export default function SettingsPage() {
               <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
                 <SectionHeader title="Notification Preferences" description="Choose what you want to be notified about" />
                 <div className="mt-6 flex flex-col gap-4">
-                  {[
-                    { label: "Server Alerts", desc: "Get notified when servers go offline or have issues", enabled: true },
-                    { label: "Billing Notifications", desc: "Receive invoices and payment reminders", enabled: true },
-                    { label: "Security Alerts", desc: "Login attempts and security-related events", enabled: true },
-                    { label: "Product Updates", desc: "New features and platform announcements", enabled: false },
-                    { label: "Ticket Responses", desc: "Notify when support tickets get a reply", enabled: true },
-                    { label: "AI Usage Reports", desc: "Weekly summary of your AI credit usage", enabled: false },
-                  ].map((notif) => (
-                    <div key={notif.label} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                      <div className="flex items-center gap-3">
-                        <Bell className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{notif.label}</p>
-                          <p className="text-xs text-muted-foreground">{notif.desc}</p>
+                  {Object.keys(DEFAULT_NOTIFICATION_PREFS).map((key) => {
+                    const info = DEFAULT_NOTIFICATION_PREFS[key];
+                    const enabled = !!notificationPrefs[key];
+                    return (
+                      <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
+                        <div className="flex items-center gap-3">
+                          <Bell className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{info.label}</p>
+                            <p className="text-xs text-muted-foreground">{info.desc}</p>
+                          </div>
                         </div>
+                        <Switch
+                          checked={enabled}
+                          onCheckedChange={async (v) => {
+                            const newPrefs = { ...notificationPrefs, [key]: !!v };
+                            setNotificationPrefs(newPrefs);
+                            try {
+                              await saveUserSettings({ notifications: newPrefs });
+                            } catch (e: any) {
+                              // revert on failure
+                              setNotificationPrefs(notificationPrefs);
+                              alert('Failed to save notification preferences: ' + (e?.message || 'unknown'));
+                            }
+                          }}
+                        />
                       </div>
-                      <div className={`h-5 w-9 rounded-full transition-colors cursor-pointer ${notif.enabled ? "bg-primary" : "bg-muted"}`}>
-                        <div className={`h-4 w-4 translate-y-0.5 rounded-full bg-foreground transition-transform ${notif.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </TabsContent>

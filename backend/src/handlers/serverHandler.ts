@@ -876,9 +876,22 @@ export async function serverRoutes(app: any, prefix = '') {
       const res = await svc.downloadFile(id, path);
       const filename = (path || '').split('/').pop() || 'download';
       const contentType = res.headers['content-type'] || 'application/octet-stream';
-      ctx.set.header('Content-Type', contentType);
-      ctx.set.header('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-      return res.data;
+      const disposition = `attachment; filename="${encodeURIComponent(filename)}"`;
+      try {
+        return new Response(res.data, { headers: { 'Content-Type': contentType, 'Content-Disposition': disposition } });
+      } catch (e) {
+        try {
+          if (ctx.set && typeof ctx.set.header === 'function') {
+            ctx.set.header('Content-Type', contentType);
+            ctx.set.header('Content-Disposition', disposition);
+          } else if (ctx.set && typeof ctx.set === 'object') {
+            try { (ctx.set as any).headers = { ...(ctx.set as any).headers, 'Content-Type': contentType, 'Content-Disposition': disposition }; } catch {}
+          }
+        } catch (err) {
+          // skip
+        }
+        return res.data;
+      }
     } catch (e: any) {
       const status = e?.response?.status || 500;
       const msg = e?.response?.data?.error || e?.message || 'Failed to download file';
