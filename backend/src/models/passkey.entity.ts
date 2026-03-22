@@ -12,6 +12,9 @@ export class Passkey {
   @Column()
   credentialID: string;
 
+  @Column({ nullable: true })
+  name?: string;
+
   @Column('text')
   publicKey: string;
 

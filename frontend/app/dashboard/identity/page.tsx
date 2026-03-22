@@ -149,7 +149,8 @@ export default function IdentityPage() {
           {/* Status Banner */}
           {(() => {
             const s = computeSteps(status, passkeyCount, !!user?.emailVerified, !!user?.studentVerified, user?.portalType);
-            const requiredSteps = s.filter((x: any) => x.title !== 'Identity Document' && x.title !== 'Selfie Verification');
+            const requiredStepTitles = ['Email Verification', 'Security Verification'];
+            const requiredSteps = s.filter((x: any) => requiredStepTitles.includes(x.title));
             const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed' || x.status === 'notApplicable').length;
             const allRequired = doneRequired === requiredSteps.length;
             const borderColor = allRequired ? 'border-success/30' : 'border-warning/30';

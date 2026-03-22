@@ -32,8 +32,9 @@ export default function BillingPage() {
   const [demoUsed, setDemoUsed] = useState(false)
 
   const activeTierRaw = (activePlan?.plan?.type ?? user?.portalType ?? user?.tier ?? 'free').toString().toLowerCase()
-  const activeTier = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
-  const currentPlan = PORTALS[activeTier] ?? PORTALS.free
+  const activeTierEffective = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
+  const activeTierLabel = activeTierRaw === 'educational' ? 'educational' : activeTierRaw
+  const currentPlan = PORTALS[activeTierEffective] ?? PORTALS.free
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
     paid: "Paid Portal",
@@ -53,19 +54,32 @@ export default function BillingPage() {
     apiFetch(API_ENDPOINTS.orders)
       .then(async (data) => {
         setOrders(data)
-        const planOrder = data.find((o: any) => o.status === 'active' && o.planId)
-        if (planOrder) {
-          try {
-            const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
-            setActivePlan({ plan, order: planOrder })
-          } catch {
-            // ignore — billing UI degrades gracefully
+        if (Array.isArray(data)) {
+          const activeOrders = data
+            .filter((o: any) => o.status === 'active' && o.planId)
+            .sort((a: any, b: any) => {
+              const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime()
+              const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime()
+              return bDate - aDate
+            })
+
+          const planOrder = activeOrders[0]
+          if (planOrder) {
+            try {
+              const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
+              setActivePlan({ plan, order: planOrder })
+              return
+            } catch {
+              // skip
+            }
           }
         }
       })
-      .catch((err) => console.error("failed to load orders", err))
+      .catch((err) => {
+        console.error("failed to load orders", err)
+      })
       .finally(() => setOrdersLoading(false))
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -75,7 +89,8 @@ export default function BillingPage() {
   }, [user])
 
   const livePlanCards = plans.map((plan) => {
-    const tier = String(plan?.type ?? "")
+    const tier = String(plan?.type ?? "").toLowerCase()
+    const tierEffective = tier === 'educational' ? 'paid' : tier
     const portalConfig = PORTALS[tier as keyof typeof PORTALS]
     const featuresFromPlan = Array.isArray(plan?.features)
       ? plan.features
@@ -87,6 +102,7 @@ export default function BillingPage() {
       key: String(plan.id),
       id: tier || String(plan.id),
       type: tier,
+      effectiveType: tierEffective,
       name: plan.name || portalConfig?.name || "Custom Plan",
       description: plan.description || portalConfig?.description || "",
       features: featuresFromPlan,
@@ -110,7 +126,7 @@ export default function BillingPage() {
       color: portal.color,
       icon: portal.icon,
       price: portal.id === "free" || portal.id === "educational" ? 0 : portal.id === "paid" ? 29.99 : null,
-      isActive: portal.id === activeTier,
+      isActive: portal.id === activeTierLabel,
     }
   })
 
@@ -204,7 +220,7 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 max-w-[100vw] w-full box-border">
             <StatCard
               title="Current Plan"
-              value={getPortalMarker(activePlan?.plan?.type ?? currentPlan.id)}
+              value={getPortalMarker(activePlan?.plan?.type ?? activeTierLabel)}
               icon={CreditCard}
             />
             <StatCard
@@ -299,7 +315,7 @@ export default function BillingPage() {
                       <Icon className="h-5 w-5" style={planCard.color ? { color: planCard.color } : undefined} />
                       <h3 className="font-medium text-foreground">{planCard.name}</h3>
                       <Badge variant="outline" className="text-[10px]">
-                        {getPortalMarker(planCard.type)}
+                        {getPortalMarker(planCard.type === 'educational' ? 'educational' : planCard.type)}
                       </Badge>
                       {planCard.isActive && (
                         <Badge className="bg-primary/20 text-primary border-0 text-[10px]">Active</Badge>

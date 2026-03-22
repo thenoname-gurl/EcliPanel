@@ -521,7 +521,9 @@ export async function serverRoutes(app: any, prefix = '') {
     // Restrict eggs to specific portals if configured
     if (!isAdmin && Array.isArray((egg as any).allowedPortals) && (egg as any).allowedPortals.length > 0) {
       const allowed = (egg as any).allowedPortals as string[];
-      if (!allowed.includes(effectivePortalType)) {
+      const isEducational = effectivePortalType === 'educational';
+      const isActuallyAllowed = allowed.includes(effectivePortalType) || (isEducational && allowed.includes('paid'));
+      if (!isActuallyAllowed) {
         ctx.set.status = 403;
         return { error: 'Egg not available for your portal type' };
       }

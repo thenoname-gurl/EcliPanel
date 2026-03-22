@@ -104,8 +104,10 @@ export class PasskeyService {
       const transport = Array.isArray(transports) ? transports.join(',') : String(transports);
 
       const passkeyRepo = AppDataSource.getRepository(Passkey);
+      const existingCount = await passkeyRepo.count({ where: { user: { id: userId } } });
       const passkey = passkeyRepo.create({
         user: { id: userId } as any,
+        name: `Passkey #${existingCount + 1}`,
         credentialID: credID,
         publicKey: pk,
         counter,

@@ -734,17 +734,46 @@ export async function authRoutes(app: any, prefix = '') {
     const keys = await passkeyRepo.find({ where: { user: { id: user.id } }, relations: ['user'] });
     return keys.map((k: any) => ({
       id: k.id,
+      name: k.name || `Passkey #${k.id}`,
       credentialID: k.credentialID,
       transports: k.transports,
     }));
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Array(t.Object({ id: t.Number(), credentialID: t.Any(), transports: t.Any() })), 401: t.Object({ error: t.String() }) },
+    response: { 200: t.Array(t.Object({ id: t.Number(), name: t.Optional(t.String()), credentialID: t.Any(), transports: t.Any() })), 401: t.Object({ error: t.String() }) },
     detail: {
       summary: 'List registered passkeys',
       description: 'Lists all registered passkeys for the user.',
       tags: ['Auth'],
       operationId: 'getAuthPasskeys',
+    }
+  });
+
+  app.put(prefix + '/auth/passkeys/:id', async (ctx: any) => {
+    const user = ctx.user;
+    const id = Number((ctx.params as any).id);
+    const { name } = ctx.body as any;
+    if (!name) {
+      ctx.set.status = 400;
+      return { error: 'name is required' };
+    }
+    const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
+    const passkey = await passkeyRepo.findOne({ where: { id, user: { id: user.id } } });
+    if (!passkey) {
+      ctx.set.status = 404;
+      return { error: 'Passkey not found' };
+    }
+    passkey.name = String(name).trim();
+    await passkeyRepo.save(passkey);
+    return { success: true, passkey: { id: passkey.id, name: passkey.name } };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean(), passkey: t.Object({ id: t.Number(), name: t.String() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: {
+      summary: 'Update passkey name',
+      description: 'Updates name for a registered passkey.',
+      tags: ['Auth'],
+      operationId: 'putAuthPasskeyName',
     }
   });
 

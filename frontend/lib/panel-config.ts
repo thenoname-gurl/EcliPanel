@@ -61,9 +61,11 @@ export const API_ENDPOINTS = {
   passkeyRegisterChallenge: "/api/auth/passkey/register-challenge",
   passkeyRegister: "/api/auth/passkey/register",
   passkeys: "/api/auth/passkeys",
+  passkeyUpdate: "/api/auth/passkeys/:id",
   passkeyDelete: "/api/auth/passkeys/:id",
   // SSH keys
   sshKeys: "/api/ssh-keys",
+  sshKeyUpdate: "/api/ssh-keys/:id",
   sshKeyDelete: "/api/ssh-keys/:id",
   // Two-factor (TOTP)
   twoFactorSetup: "/api/auth/2fa/setup",

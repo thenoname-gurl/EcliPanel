@@ -54,8 +54,18 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
     apiFetch(API_ENDPOINTS.eggs)
       .then((data) => {
         const list = Array.isArray(data) ? data : []
-        setEggs(list)
-        if (list.length > 0) setEggId(String(list[0].id))
+        const allowedEggs = list.filter((egg: any) => {
+          if (!egg || !egg.allowedPortals || !Array.isArray(egg.allowedPortals) || egg.allowedPortals.length === 0) {
+            return true
+          }
+          const effectiveUserPortal = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'educational' : String(rawPlanName).toLowerCase()
+          if (effectiveUserPortal === 'educational') {
+            return egg.allowedPortals.includes('educational') || egg.allowedPortals.includes('paid')
+          }
+          return egg.allowedPortals.includes(effectiveUserPortal)
+        })
+        setEggs(allowedEggs)
+        if (allowedEggs.length > 0) setEggId(String(allowedEggs[0].id))
       })
       .catch(() => {})
       .finally(() => setEggsLoading(false))
@@ -94,7 +104,8 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const maxCpu = limits?.cpu ?? null
   const hasLimits = limits ? Object.keys(limits).length > 0 : false
   const rawPlanName = (user as any)?.portalType || user?.tier || 'free'
-  const planName = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'paid' : String(rawPlanName).toLowerCase()
+  const planTier = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'paid' : String(rawPlanName).toLowerCase()
+  const planName = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'educational' : String(rawPlanName).toLowerCase()
 
   useEffect(() => {
     if (maxMemory !== null) setMemory(maxMemory)
