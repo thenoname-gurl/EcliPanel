@@ -291,6 +291,8 @@ export const API_ENDPOINTS = {
   infraDnsRecords: "/api/infrastructure/dns/zones/:id/records",
   organisationDnsZones: "/api/organisations/:id/dns/zones",
   organisationDnsZone: "/api/organisations/:id/dns/zones/:zoneId",
+  organisationDnsZoneRecords: "/api/organisations/:id/dns/zones/:zoneId/records",
+  organisationDnsZoneRecord: "/api/organisations/:id/dns/zones/:zoneId/records/:recordId",
 } as const
 
 // ============================================
@@ -408,12 +410,6 @@ export const NAVIGATION: NavSection[] = [
         label: "Nodes",
         href: "/dashboard/infrastructure/nodes",
         icon: Network,
-        requiredTier: "enterprise",
-      },
-      {
-        label: "DNS",
-        href: "/dashboard/infrastructure/dns",
-        icon: Globe,
         requiredTier: "enterprise",
       },
       

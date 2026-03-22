@@ -402,7 +402,7 @@ export async function authRoutes(app: any, prefix = '') {
     try {
       await sendMail({
         to: user.email,
-        from: process.env.SMTP_FROM || 'noreply@ecli.app',
+        from: process.env.SMTP_USER || 'noreply@ecli.app',
         subject: 'Password reset request',
         template: 'password-reset',
         vars: {

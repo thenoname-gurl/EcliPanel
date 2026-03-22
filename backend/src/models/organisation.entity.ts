@@ -24,9 +24,6 @@ export class Organisation {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  @Column({ default: false })
-  isStaff?: boolean;
-
   @OneToMany(() => User, (user) => user.org)
   users: User[];
 

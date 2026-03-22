@@ -284,15 +284,18 @@ app.onError((ctx: any) => {
     status = ctx.code;
   }
   if (ctx.error.status == 404) {
-      return new Response(JSON.stringify({ error: 'Route not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
+    return new Response(JSON.stringify({ error: 'Route not found' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }
   const log = (app as any).log || console;
   if (status >= 500) {
     log.error({ err: ctx.error, url: ctx.request.url }, 'Unhandled server error');
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }
 
-  return new Response(JSON.stringify({ error: ctx.error?.message ?? 'Request error' }), { status, headers: { 'Content-Type': 'application/json' } });
+  const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
+  return new Response(JSON.stringify({ error: ctx.error?.message ?? 'Request error' }), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
 });
 
 
@@ -322,9 +325,10 @@ app.onRequest((ctx: any) => {
     bucket.count++;
   }
   if (bucket.count > 500) {
+    const origin = (ctx.request as Request)?.headers?.get?.('origin') || (process.env.FRONTEND_URL || '*');
     return new Response(JSON.stringify({ error: 'Too many requests' }), {
       status: 429,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' },
     });
   }
   try {

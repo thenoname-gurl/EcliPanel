@@ -122,5 +122,6 @@ export const AppDataSource = new DataSource({
     require('../models/serverDatabase.entity').ServerDatabase,
     require('../models/serverSubuser.entity').ServerSubuser,
     require('../models/sshKey.entity').SshKey,
+    require('../models/organisationDnsZone.entity').OrganisationDnsZone,
   ],
 });

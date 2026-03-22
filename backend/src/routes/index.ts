@@ -15,7 +15,6 @@ import { serverRoutes } from '../handlers/serverHandler';
 import { wingsRoutes } from '../handlers/wingsHandler';
 import { nodeRoutes } from '../handlers/nodeHandler';
 import { apiKeyRoutes } from '../handlers/apiKeyHandler';
-import { dnsRoutes } from '../handlers/dnsHandler';
 import { ticketRoutes } from '../handlers/ticketHandler';
 import { adminRoutes } from '../handlers/adminHandler';
 import { eggRoutes } from '../handlers/eggHandler';
@@ -45,7 +44,6 @@ export function registerRoutes(app: any) {
     wingsRoutes(app, '/api');
     nodeRoutes(app, '/api');
     apiKeyRoutes(app, '/api');
-    dnsRoutes(app, '/api');
     ticketRoutes(app, '/api');
     adminRoutes(app, '/api');
     eggRoutes(app, '/api');

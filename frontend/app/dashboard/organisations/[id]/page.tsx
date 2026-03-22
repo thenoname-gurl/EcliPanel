@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -58,11 +58,14 @@ export default function OrganisationDetail() {
   const [subdomainsLoading, setSubdomainsLoading] = useState(false)
   const [subdomainSelection, setSubdomainSelection] = useState<any | null>(null)
   const [subdomainRecords, setSubdomainRecords] = useState<any[]>([])
+  const [subdomainRecordsLoading, setSubdomainRecordsLoading] = useState(false)
   const [subdomainNewName, setSubdomainNewName] = useState("")
 
-  const [subdomainRecordForm, setSubdomainRecordForm] = useState({ name: "", type: "A", ttl: 3600, content: "", proxied: false })
+  const [subdomainRecordForm, setSubdomainRecordForm] = useState({ name: "", type: "A", ttl: 3600, content: "", proxied: false, autoTtl: false })
   const [subdomainEditId, setSubdomainEditId] = useState<string | null>(null)
-  const [subdomainEditingRecord, setSubdomainEditingRecord] = useState<any|null>(null)
+  const [subdomainEditingRecord, setSubdomainEditingRecord] = useState<any | null>(null)
+  const [activeTab, setActiveTab] = useState("members")
+  const searchParams = useSearchParams()
 
   const { user } = useAuth()
   const router = useRouter()
@@ -140,6 +143,9 @@ export default function OrganisationDetail() {
           ...o,
         }
         setOrg(mergedOrg)
+        if (!subdomainNewName && mergedOrg.handle) {
+          setSubdomainNewName(mergedOrg.handle)
+        }
         setMembers(u || [])
         if (user && (user.orgRole === "admin" || user.orgRole === "owner")) {
           const ords = await apiFetch(API_ENDPOINTS.orders)
@@ -156,6 +162,16 @@ export default function OrganisationDetail() {
     }
     load()
   }, [id, user])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) {
+      setActiveTab(tab)
+      if (tab === 'dns') {
+        loadSubdomains()
+      }
+    }
+  }, [searchParams])
 
   const loadServers = useCallback(async () => {
     setServersLoading(true)
@@ -193,21 +209,40 @@ export default function OrganisationDetail() {
     }
   }, [id])
 
-  const canManageSubdomain = (sub: any|null) => {
+  const canManageSubdomain = (sub: any | null) => {
     if (!sub || !user || !org) return false
-    if (user.role === 'admin' || user.role === '*') return true
-    if (!(user.orgRole === 'admin' || user.orgRole === 'owner')) return false
+    if (user.role === 'admin' || user.role === 'rootAdmin' || user.role === 'staff' || user.role === '*') return true
+    if (!(user.orgRole === 'owner' || user.orgRole === 'admin' || user.orgRole === 'member')) return false
     const handle = (org.handle || '').replace(/\.$/, '')
     const name = String(sub.name || '').replace(/\.$/, '')
     return name === handle || name.endsWith(`.${handle}`)
   }
 
-  const loadSubdomains = async () => {
+  const { clearApiCache } = await import('@/lib/api-client');
+
+  const loadSubdomains = async (forceRefresh = false) => {
+    if (forceRefresh) clearApiCache();
     if (!org?.handle) { setSubdomains([]); return }
     setSubdomainsLoading(true)
     try {
-      const data = await apiFetch(API_ENDPOINTS.infraDnsZones)
+      const endpoint = API_ENDPOINTS.organisationDnsZones.replace(':id', id)
+      let data = await apiFetch(endpoint)
       const handle = org.handle.replace(/\.$/, '')
+
+      const normalizedData = (data || []).map((z: any) => ({
+        ...z,
+        name: String(z.name || '').replace(/\.$/, ''),
+        kind: z.kind ? String(z.kind).toLowerCase() : 'cloudflare',
+      }))
+      if (normalizedData.length === 0 && handle) {
+        try {
+          await apiFetch(endpoint, { method: 'POST', body: JSON.stringify({ name: handle, kind: 'Cloudflare' }) })
+          data = await apiFetch(endpoint)
+        } catch {
+          // skip
+        }
+      }
+
       const list = (data || []).map((z: any) => ({
         ...z,
         name: String(z.name || '').replace(/\.$/, ''),
@@ -224,31 +259,111 @@ export default function OrganisationDetail() {
     }
   }
 
-  const loadSubdomainRecords = async (sub: any) => {
+  const loadSubdomainRecords = async (sub: any, forceRefresh = false) => {
+    if (forceRefresh) clearApiCache();
     if (!sub || !sub.id) return
+    setSubdomainSelection(sub)
     setSubdomainRecords([])
+    setSubdomainRecordsLoading(true)
     try {
-      const d = await apiFetch(API_ENDPOINTS.infraDns + `/zones/${sub.id}`)
+      const d = await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', id).replace(':zoneId', sub.id))
       const list = d.recordsList || d.rrsets || []
       const normalized = (list || []).map((r: any) => {
         if (r.content) return { id: r.id, name: r.name, type: r.type, ttl: r.ttl, content: r.content, proxied: !!r.proxied }
-        if (r.records && r.records.length) return { id: r.id || r.records[0].id, name: r.name, type: r.type, ttl: r.ttl, content: r.records.map((x:any)=>x.content).join(' | '), proxied: !!r.proxied }
+        if (r.records && r.records.length) return { id: r.id || r.records[0].id, name: r.name, type: r.type, ttl: r.ttl, content: r.records.map((x: any) => x.content).join(' | '), proxied: !!r.proxied }
         return { id: r.id, name: r.name, type: r.type, ttl: r.ttl, content: '', proxied: !!r.proxied }
       })
       setSubdomainRecords(normalized || [])
     } catch {
       setSubdomainRecords([])
+    } finally {
+      setSubdomainRecordsLoading(false)
     }
   }
 
   const createSubdomain = async () => {
-    if (!subdomainNewName) return
+    const endpoint = API_ENDPOINTS.organisationDnsZones.replace(':id', id)
+    const handle = org?.handle?.replace(/\.$/, '')
+    let name = subdomainNewName.trim() || handle || ''
+    if (!name) {
+      alert('Subdomain name required')
+      return
+    }
+
+    if (!handle) {
+      alert('Organisation handle is not set')
+      return
+    }
+
+    if (name !== handle) {
+      alert('Only organisation handle zone can be created')
+      return
+    }
+
     try {
-      await apiFetch(API_ENDPOINTS.infraDnsZones, { method: 'POST', body: JSON.stringify({ name: subdomainNewName, kind: 'Cloudflare' }) })
+      await apiFetch(endpoint, { method: 'POST', body: JSON.stringify({ name, kind: 'Cloudflare' }) })
       setSubdomainNewName('')
       await loadSubdomains()
     } catch (e: any) {
       alert('Failed: ' + e.message)
+    }
+  }
+
+  const refreshSubdomainRecords = async () => {
+    if (!subdomainSelection) return
+    await loadSubdomainRecords(subdomainSelection, true)
+  }
+
+  const addSubdomainRecord = async () => {
+    if (!subdomainSelection) return
+    if (!subdomainRecordForm.type || !subdomainRecordForm.content) return
+    try {
+      const body = { ...subdomainRecordForm }
+      if (body.autoTtl) body.ttl = 1
+      await apiFetch(API_ENDPOINTS.organisationDnsZoneRecords
+        .replace(':id', id)
+        .replace(':zoneId', subdomainSelection.id),
+        { method: 'POST', body: JSON.stringify(body) }
+      )
+      setSubdomainRecordForm({ name: '', type: 'A', ttl: 3600, content: '', proxied: false, autoTtl: false })
+      await loadSubdomainRecords(subdomainSelection)
+    } catch (e: any) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
+  const updateSubdomainRecord = async () => {
+    if (!subdomainSelection || !subdomainEditId || !subdomainEditingRecord) return
+    try {
+      const body = { ...subdomainEditingRecord }
+      if (body.autoTtl) body.ttl = 1
+      await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord
+        .replace(':id', id)
+        .replace(':zoneId', subdomainSelection.id)
+        .replace(':recordId', subdomainEditId),
+        { method: 'PUT', body: JSON.stringify(body) }
+      )
+      setSubdomainEditId(null)
+      setSubdomainEditingRecord(null)
+      await loadSubdomainRecords(subdomainSelection)
+    } catch (e: any) {
+      alert('Failed update: ' + e.message)
+    }
+  }
+
+  const deleteSubdomainRecord = async (record: any) => {
+    if (!subdomainSelection || !record?.id) return
+    if (!confirm('Delete this record?')) return
+    try {
+      await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord
+        .replace(':id', id)
+        .replace(':zoneId', subdomainSelection.id)
+        .replace(':recordId', String(record.id)),
+        { method: 'DELETE' }
+      )
+      await loadSubdomainRecords(subdomainSelection)
+    } catch (e: any) {
+      alert('Failed delete: ' + e.message)
     }
   }
 
@@ -412,7 +527,7 @@ export default function OrganisationDetail() {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="members" onValueChange={handleTabChange} className="w-full">
+          <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); handleTabChange(value); }} className="w-full">
             <TabsList className="flex gap-2 overflow-x-auto scrollbar-none border border-border bg-secondary/50 px-2">
               <TabsTrigger value="members" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
                 <Users className="h-3.5 w-3.5" /> Members
@@ -463,39 +578,40 @@ export default function OrganisationDetail() {
                               <p className="text-xs text-muted-foreground truncate">{m.email || `User #${m.id}`}</p>
                             </div>
                           </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <select
-                            value={m.orgRole}
-                            onChange={async (e) => {
-                              const newRole = e.target.value
-                              try {
-                                await apiFetch(
-                                  API_ENDPOINTS.organisationAddUserRole.replace(":id", id).replace(":userId", m.id.toString()),
-                                  { method: "PUT", body: JSON.stringify({ orgRole: newRole }) }
-                                )
-                                setMembers((prev) => prev.map((u) => (u.id === m.id ? { ...u, orgRole: newRole } : u)))
-                              } catch {
-                                alert("Failed to change role")
-                              }
-                            }}
-                            className="rounded-lg border border-border bg-input px-2 py-1 text-xs text-foreground"
-                          >
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
-                            <option value="owner">Owner</option>
-                          </select>
-                          <Badge variant="outline" className="text-[10px]">{m.orgRole}</Badge>
-                          {isManager && (
-                            <button
-                              onClick={() => removeMember(m.id)}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          <div className="flex items-center gap-2 shrink-0">
+                            <select
+                              value={m.orgRole}
+                              onChange={async (e) => {
+                                const newRole = e.target.value
+                                try {
+                                  await apiFetch(
+                                    API_ENDPOINTS.organisationAddUserRole.replace(":id", id).replace(":userId", m.id.toString()),
+                                    { method: "PUT", body: JSON.stringify({ orgRole: newRole }) }
+                                  )
+                                  setMembers((prev) => prev.map((u) => (u.id === m.id ? { ...u, orgRole: newRole } : u)))
+                                } catch {
+                                  alert("Failed to change role")
+                                }
+                              }}
+                              className="rounded-lg border border-border bg-input px-2 py-1 text-xs text-foreground"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                              <option value="member">Member</option>
+                              <option value="admin">Admin</option>
+                              <option value="owner">Owner</option>
+                            </select>
+                            <Badge variant="outline" className="text-[10px]">{m.orgRole}</Badge>
+                            {isManager && (
+                              <button
+                                onClick={() => removeMember(m.id)}
+                                className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )})}
+                      )
+                    })}
                   </div>
                 )}
                 {/* Pending invites */}
@@ -626,7 +742,7 @@ export default function OrganisationDetail() {
                   <div className="p-8 text-center text-sm text-muted-foreground">Loading servers…</div>
                 ) : servers.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">No servers found for this organisation.</div>
-                  ) : (
+                ) : (
                   <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {servers.map((s: any) => {
                       const uuid = s.configuration?.uuid || s.uuid
@@ -702,7 +818,7 @@ export default function OrganisationDetail() {
                   <div className="p-8 text-center text-sm text-muted-foreground">Loading nodes…</div>
                 ) : nodes.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground">No nodes assigned to this organisation.</div>
-                  ) : (
+                ) : (
                   <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {nodes.map((n: any) => (
                       <div key={n.id} className="rounded-lg border border-border bg-secondary/20 p-4">
@@ -769,6 +885,184 @@ export default function OrganisationDetail() {
                 )}
               </div>
             </TabsContent>
+
+            {/* DNS Tab */}
+            <TabsContent value="dns" className="mt-4">
+              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border p-4">
+                  <p className="text-sm font-medium text-foreground">Organisation DNS</p>
+                  <div className="flex items-center gap-2">
+                    {!(subdomains || []).some((z: any) => String(z.name || '').replace(/\.$/, '') === String(org?.handle || '').replace(/\.$/, '')) && (
+                      <>
+                        <Input
+                          value={subdomainNewName}
+                          onChange={(e) => setSubdomainNewName(e.target.value)}
+                          placeholder="subdomain e.g. app.example.com"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
+                        />
+                        <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')}>Create</Button>
+                      </>
+                    )}
+                    <Button size="sm" variant="outline" onClick={loadSubdomains} disabled={subdomainsLoading}>
+                      {subdomainsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
+                    </Button>
+                  </div>
+                </div>
+
+                {subdomainsLoading ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">Loading subdomains…</div>
+                ) : subdomains.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">No subdomains found. Add one above or create a root zone in the infrastructure DNS page.</div>
+                ) : (
+                  <div className="grid gap-2 p-4">
+                    {subdomains.map((sub) => (
+                      <div key={sub.id} className="flex items-center gap-2">
+                        <button
+                          onClick={() => loadSubdomainRecords(sub)}
+                          className={`flex-1 text-left rounded-lg border border-border bg-card p-3 ${subdomainSelection?.id === sub.id ? 'ring-2 ring-primary' : ''}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-sm text-foreground">{sub.name}</span>
+                            <span className="text-xs text-muted-foreground">{sub.kind}</span>
+                          </div>
+                        </button>
+                        {String(sub.name || '').replace(/\.$/, '') !== String(org?.handle || '').replace(/\.$/, '') && (
+                          <Button
+                            size="xs"
+                            variant="destructive"
+                            onClick={async () => {
+                              if (!confirm(`Remove subdomain ${sub.name} from organisation?`)) return
+                              try {
+                                await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', id).replace(':zoneId', sub.id), { method: 'DELETE' })
+                                if (subdomainSelection?.id === sub.id) setSubdomainSelection(null)
+                                await loadSubdomains()
+                              } catch (e: any) {
+                                alert('Failed to delete subdomain: ' + e.message)
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {subdomainSelection && (
+                  <div className="p-4 border-t border-border">
+                    <p className="text-sm font-medium text-foreground">Zone: {subdomainSelection.name}</p>
+                    <p className="text-xs text-muted-foreground">ID: {subdomainSelection.id}</p>
+                    <div className="mt-3">
+                      {subdomainRecordsLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading records…</p>
+                      ) : subdomainRecords.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No records found for this zone.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {subdomainRecords.map((r) => (
+                            <div key={r.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                              <div className="min-w-0">
+                                <p className="font-mono text-sm text-foreground truncate">{r.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{r.type} • ttl {r.ttl} • <Badge variant="outline" className="text-[10px]">{r.proxied ? 'proxied' : 'dns'}</Badge></p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono text-sm text-foreground truncate max-w-[180px]">{r.content}</p>
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setSubdomainEditId(String(r.id))
+                                  setSubdomainEditingRecord({ name: r.name, type: r.type, ttl: r.ttl, content: r.content, proxied: !!r.proxied, autoTtl: r.ttl === 1 })
+                                }}>
+                                  Edit
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => deleteSubdomainRecord(r)}>
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {subdomainEditId && subdomainEditingRecord && (
+                      <div className="mt-4 p-3 rounded-lg border border-border bg-secondary/10">
+                        <p className="text-sm font-medium mb-2">Edit DNS record</p>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+                          <Input placeholder="name" value={subdomainEditingRecord.name}
+                            onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, name: e.target.value }))}
+                          />
+                          <select className="rounded-lg border border-border bg-input px-3 py-2 text-sm" value={subdomainEditingRecord.type}
+                            onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, type: e.target.value }))}>
+                            <option>A</option> <option>AAAA</option> <option>CNAME</option> <option>TXT</option>
+                          </select>
+                          <Input type="number" placeholder="ttl" value={subdomainEditingRecord.ttl}
+                            onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, ttl: Number(e.target.value) }))}
+                            disabled={!!subdomainEditingRecord.autoTtl}
+                          />
+                          <Input placeholder="content" value={subdomainEditingRecord.content}
+                            onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, content: e.target.value }))}
+                          />
+                          <div className="flex items-center gap-2">
+                            <label className="inline-flex items-center text-sm">
+                              <input type="checkbox" className="mr-2" checked={!!subdomainEditingRecord.autoTtl} onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, autoTtl: e.target.checked }))} />
+                              <span className="text-xs text-muted-foreground">Auto TTL</span>
+                            </label>
+                            <label className="inline-flex items-center text-sm">
+                              <input type="checkbox" className="mr-2" checked={!!subdomainEditingRecord.proxied} onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, proxied: e.target.checked }))} />
+                              <span className="text-xs text-muted-foreground">Proxied</span>
+                            </label>
+                          </div>
+                          <Button onClick={updateSubdomainRecord}>Save</Button>
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <Button variant="outline" onClick={() => { setSubdomainEditId(null); setSubdomainEditingRecord(null); }}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-4 border-t border-border pt-4">
+                      <p className="text-sm font-medium text-foreground mb-2">Add DNS record (root = @)</p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+                        <Input placeholder="name (e.g. @, www, api)" value={subdomainRecordForm.name}
+                          onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, name: e.target.value }))}
+                        />
+                        <select className="rounded-lg border border-border bg-input px-3 py-2 text-sm" value={subdomainRecordForm.type}
+                          onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, type: e.target.value }))}>
+                          <option>A</option>
+                          <option>AAAA</option>
+                          <option>CNAME</option>
+                          <option>TXT</option>
+                        </select>
+                        <Input type="number" placeholder="ttl" value={subdomainRecordForm.ttl}
+                          onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, ttl: Number(e.target.value) }))}
+                          disabled={subdomainRecordForm.autoTtl}
+                        />
+                        <Input placeholder="content" value={subdomainRecordForm.content}
+                          onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, content: e.target.value }))}
+                        />
+                        <div className="flex items-center gap-2">
+                          <label className="inline-flex items-center text-sm">
+                            <input type="checkbox" className="mr-2" checked={subdomainRecordForm.autoTtl} onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, autoTtl: e.target.checked }))} />
+                            <span className="text-xs text-muted-foreground">Auto TTL</span>
+                          </label>
+                          <label className="inline-flex items-center text-sm">
+                            <input type="checkbox" className="mr-2" checked={subdomainRecordForm.proxied} onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, proxied: e.target.checked }))} />
+                            <span className="text-xs text-muted-foreground">Proxied</span>
+                          </label>
+                        </div>
+                        <Button onClick={addSubdomainRecord}>Add record</Button>
+                      </div>
+                      <div className="mt-2">
+                        <label className="text-xs text-muted-foreground">
+                          {`@ => ${subdomainSelection.name} ; subdomain name => name.${subdomainSelection.name}`}
+                        </label>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
             {/* Activity Tab */}
             <TabsContent value="activity" className="mt-4">
               <div className="rounded-xl border border-border bg-card">
