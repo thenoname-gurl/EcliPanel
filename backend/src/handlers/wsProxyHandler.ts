@@ -239,11 +239,23 @@ class WingsProxySession {
     this.wingsWs = new WebSocket(wsUrl, { headers });
 
     this.wingsWs.on('open', () => {
-      //this.log('debug', 'wings ws open');
-      while (this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
-        const queued = this.queue.shift();
-        if (queued) this.wingsWs.send(queued);
-      }
+      const BATCH_SIZE = 32;
+      const drain = () => {
+        try {
+          let sent = 0;
+          while (sent < BATCH_SIZE && this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
+            const queued = this.queue.shift();
+            if (queued) this.wingsWs.send(queued);
+            sent++;
+          }
+          if (this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
+            setImmediate(drain);
+          }
+        } catch (e) {
+          this.log('error', 'ws-proxy drain error', e);
+        }
+      };
+      drain();
     });
 
     this.wingsWs.on('message', (msg: any) => {

@@ -47,16 +47,58 @@ import {
   Lock,
   Globe,
   BookOpen,
-  ExternalLink,
-  ChevronRight,
   Zap,
   Database,
   Check,
   CreditCard,
 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
+
+// ── Lightweight markdown renderer ──────────────────
+function markdownToHtml(md: string) {
+  if (!md) return "";
+  const codeReplaced = md.replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    return `<pre><code>${escapeHtml(code)}</code></pre>`;
+  });
+
+  let out = escapeHtml(codeReplaced);
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;"/>');
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  out = out.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  out = out.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+  out = out.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+  out = out.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+  out = out.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
+  out = out.replace(/(?:^|\n)(<li>[\s\S]*?<\/li>)(?:\n(?!<li>))/g, '<ul>$1</ul>');
+  out = out.replace(/(^|\n)([^<\n][^\n]+)(?=\n|$)/g, (_, p1, txt) => `<p>${txt.trim()}</p>`);
+  return out;
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildEmailHtml(title: string, message: string, details: string) {
+  const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: #e0e0e0; margin: 0; padding: 0; }
+    .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: #12111f; border-radius: 12px; border: 1px solid #2a2545; }
+    .email-preview-root .header { text-align: center; margin-bottom: 24px; }
+    .email-preview-root .header h1 { color: #c4b5fd; font-size: 20px; margin: 0; }
+    .email-preview-root .btn { display: inline-block; padding: 10px 18px; background: #8b5cf6; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; }
+    .email-preview-root .details { font-family: monospace; font-size: 13px; color: #cbd5e1; background: #0f1724; border-radius: 8px; padding: 12px; border: 1px solid #2a2545; margin-top: 12px; white-space: pre-wrap; }
+    .email-preview-root .footer { font-size: 12px; color: #777; margin-top: 24px; text-align: center; }
+    .email-preview-root p { line-height: 1.6; color: #e0e0e0; }`;
+
+  const messageHtml = markdownToHtml(message || '');
+
+  return `<div class="email-preview-root"><style>${style}</style><div class="container"><div class="header"><h1>${escapeHtml(title || '')}</h1></div>${messageHtml}<div class="details">${escapeHtml(details || '')}</div><div class="footer">&copy; 2026 EclipseSystems under Misiu LLC. All rights reserved.</div></div></div>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -594,6 +636,7 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminPanel() {
+  const { user } = useAuth()
   // ── Stats state ──
   const [stats, setStats] = useState<AdminStats | null>(null)
 
@@ -971,6 +1014,13 @@ export default function AdminPanel() {
   }>({ registrationEnabled: true, registrationNotice: "", codeInstancesEnabled: true })
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
+
+  // ── Announcements / Product updates ──
+  const [annSubject, setAnnSubject] = useState("")
+  const [annMessage, setAnnMessage] = useState("")
+  const [annPreview, setAnnPreview] = useState(false)
+  const [annForce, setAnnForce] = useState(false)
+  const [annSending, setAnnSending] = useState(false)
 
   // ── OAuth app management ─────────────────────────────────────────────────
   const [oauthCreateOpen, setOauthCreateOpen] = useState(false)
@@ -2320,6 +2370,7 @@ remote: ${panelUrl}`
                 { value: "nodes", label: "Nodes" },
                 { value: "eggs", label: "Eggs" },
                 { value: "ai", label: "AI Models" },
+                { value: "announcements", label: "Announcements" },
                 { value: "fraud", label: "Fraud" },
                 { value: "roles", label: "Roles" },
                 { value: "logs", label: "Logs" },
@@ -3237,6 +3288,126 @@ remote: ${panelUrl}`
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </TabsContent>
+            {/* ═══════════════ ANNOUNCEMENTS / PRODUCT UPDATES ═══════════════ */}
+            <TabsContent value="announcements" className="mt-4">
+              <div className="rounded-xl border border-border bg-card">
+                <div className="font-medium text-foreground flex items-center gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Announcements</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Send product updates and platform announcements. Use Test to send to yourself first.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setAnnPreview((p) => !p)}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!annSubject.trim() || !annMessage.trim()) return alert('Subject and message are required for test send');
+                        setAnnSending(true);
+                        try {
+                          const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, { method: 'POST', body: JSON.stringify({ subject: annSubject, message: annMessage, test: true }) });
+                          if (res && res.success) alert(`Test sent — ${res.recipients} recipient(s)`);
+                          else alert('Test send failed');
+                        } catch (e: any) {
+                          alert('Test send failed: ' + (e.message || e));
+                        } finally {
+                          setAnnSending(false);
+                        }
+                      }}
+                      disabled={annSending}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Send Test
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Subject"
+                        value={annSubject}
+                        onChange={(e) => setAnnSubject(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none"
+                      />
+
+                      <textarea
+                        placeholder="Write your announcement in Markdown..."
+                        value={annMessage}
+                        onChange={(e) => setAnnMessage(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none min-h-[320px] whitespace-pre-wrap"
+                      />
+
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <input type="checkbox" checked={annForce} onChange={(e) => setAnnForce(e.target.checked)} />
+                          Force send to everyone (override preferences)
+                        </label>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (!annSubject.trim() || !annMessage.trim()) return alert('Subject and message are required');
+                              const ok = await confirmAsync('Send this announcement to ALL users? This will respect or override preferences based on the Force option.');
+                              if (!ok) return;
+                              setAnnSending(true);
+                              try {
+                                const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, { method: 'POST', body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce }) });
+                                if (res && res.success) alert(`Broadcast sent — ${res.recipients} recipient(s)`);
+                                else alert('Broadcast failed');
+                              } catch (e: any) {
+                                alert('Broadcast failed: ' + (e.message || e));
+                              } finally {
+                                setAnnSending(false);
+                              }
+                            }}
+                            disabled={annSending}
+                            variant="destructive"
+                          >
+                            Send Broadcast
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="rounded-lg border border-border bg-muted p-3 h-full flex flex-col">
+                        <div className="mb-3 border-b border-border pb-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-semibold">{annSubject || 'Announcement Subject'}</div>
+                              <div className="text-xs text-muted-foreground">From: Eclipse Systems</div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">Preview</div>
+                          </div>
+                        </div>
+
+                        <div className="overflow-y-auto pr-2">
+                          {(() => {
+                            const detailParts: string[] = [];
+                            if (user?.firstName) detailParts.push(user.firstName);
+                            if (user?.middleName) detailParts.push(user.middleName[0] + '.');
+                            if (user?.lastName) detailParts.push(user.lastName[0] + '.');
+                            const previewDetails = `${detailParts.join(' ')} — ${user?.email || ''}`.trim();
+                            return <div dangerouslySetInnerHTML={{ __html: buildEmailHtml(annSubject || 'Announcement Subject', annMessage || '', previewDetails) }} />
+                          })()}
+                        </div>
+
+                        <div className="mt-auto pt-3 text-xs text-muted-foreground border-t border-border">
+                          <div>Note: This is an email preview. Final rendering may vary by mail client.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>

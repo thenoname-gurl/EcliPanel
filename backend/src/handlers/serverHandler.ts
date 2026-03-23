@@ -480,7 +480,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
     const disk   = reqDisk   != null ? Number(reqDisk)   : (limits.disk   ?? 10240);
     const cpu    = reqCpu    != null ? Number(reqCpu)     : (limits.cpu    ?? 100);
-    const isCodeInstance = !!ctx.body?.isCodeInstance;
+    let isCodeInstance = !!ctx.body?.isCodeInstance || Number(ctx.body?.eggId) === 264;
 
     try {
       const settingRepo = AppDataSource.getRepository(require('../models/panelSetting.entity').PanelSetting);
@@ -529,11 +529,33 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!isAdmin) {
       if (limits.serverLimit != null && limits.serverLimit > 0) {
-        const userServerCount = await cfgRepo().countBy({ userId: ownerId });
+        const userServerCount = await cfgRepo().countBy({ userId: ownerId, isCodeInstance: false });
         if (userServerCount >= limits.serverLimit) {
           ctx.set.status = 403;
           return { error: `Server limit reached (${limits.serverLimit}). Delete an existing server to create a new one.` };
         }
+      }
+
+      try {
+        const existingServers = await cfgRepo().find({ where: { userId: ownerId, isCodeInstance: false } });
+        const existingMemory = existingServers.reduce((sum: number, s: any) => sum + (s.memory || 0), 0);
+        const existingDisk = existingServers.reduce((sum: number, s: any) => sum + (s.disk || 0), 0);
+        const existingCpu = existingServers.reduce((sum: number, s: any) => sum + (s.cpu || 0), 0);
+
+        if (limits.memory != null && existingMemory + memory > limits.memory) {
+          ctx.set.status = 400;
+          return { error: `Total account memory limit exceeded. Current: ${existingMemory} MB, requested: ${memory} MB, limit: ${limits.memory} MB.` };
+        }
+        if (limits.disk != null && existingDisk + disk > limits.disk) {
+          ctx.set.status = 400;
+          return { error: `Total account disk limit exceeded. Current: ${existingDisk} MB, requested: ${disk} MB, limit: ${limits.disk} MB.` };
+        }
+        if (limits.cpu != null && existingCpu + cpu > limits.cpu) {
+          ctx.set.status = 400;
+          return { error: `Total account CPU limit exceeded. Current: ${existingCpu}%, requested: ${cpu}%, limit: ${limits.cpu}%.` };
+        }
+      } catch (e) {
+        // skip
       }
 
       if (limits.memory != null && memory > limits.memory) {
