@@ -8,6 +8,7 @@ import { Node } from '../models/node.entity';
 import { Organisation } from '../models/organisation.entity';
 import { WingsApiService } from '../services/wingsApiService';
 import { authenticate } from '../middleware/auth';
+import { sendMail } from '../services/mailService';
 import { UserLog } from '../models/userLog.entity';
 import { ApiRequestLog } from '../models/apiRequestLog.entity';
 import { AIModel } from '../models/aiModel.entity';
@@ -156,6 +157,92 @@ export async function adminRoutes(app: any, prefix = '') {
       403: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Clear slow query log (admin only)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/product-updates', async (ctx) => {
+    // In hopes incident with 110k email in a minute wont repeat
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const body = (ctx.body || {}) as { subject?: string; message?: string; force?: boolean; test?: boolean };
+    const { subject, message, force = false, test = false } = body;
+    if (!subject || !message) {
+      ctx.set.status = 400;
+      return { error: 'subject and message are required' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const logRepo = AppDataSource.getRepository(UserLog);
+
+    if (test) {
+      const adminUser = ctx.user as User | undefined;
+      const toEmail = adminUser?.email;
+      if (!toEmail) {
+        ctx.set.status = 400;
+        return { error: 'No admin email available to send test to' };
+      }
+      try {
+        const htmlMessage = markdownToHtml(message);
+        const detailNameParts: string[] = [];
+        if (adminUser?.firstName) detailNameParts.push(adminUser.firstName);
+        if (adminUser?.middleName) detailNameParts.push(adminUser.middleName[0] + '.');
+        if (adminUser?.lastName) detailNameParts.push(adminUser.lastName[0] + '.');
+        const detailsStr = `${detailNameParts.join(' ')} — ${adminUser.email}`.trim();
+
+        await sendMail({
+          to: toEmail,
+          from: process.env.MAIL_FROM,
+          subject: `${subject} — Eclipse Systems (TEST)`,
+          template: 'notification',
+          vars: { title: subject, message: htmlMessage, details: escapeHtml(detailsStr) }
+        });
+        await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update-test', targetType: 'test', metadata: { subject, recipients: 1 }, timestamp: new Date() } as any));
+        return { success: true, recipients: 1 };
+      } catch (e) {
+        ctx.set.status = 500;
+        return { error: 'Failed to send test email' };
+      }
+    }
+
+    const users = await userRepo.find();
+
+    let sent = 0;
+    for (const u of users) {
+      if (!u.email) continue;
+      const wants = u.settings?.notifications?.productUpdates;
+      const enabled = force || (typeof wants === 'boolean' ? wants : false);
+      if (!enabled) continue;
+      try {
+        const htmlMessage = markdownToHtml(message);
+        const adminUser = ctx.user as User | undefined;
+        const detailNameParts: string[] = [];
+        if (adminUser?.firstName) detailNameParts.push(adminUser.firstName);
+        if (adminUser?.middleName) detailNameParts.push(adminUser.middleName[0] + '.');
+        if (adminUser?.lastName) detailNameParts.push(adminUser.lastName[0] + '.');
+        const detailsStr = `${detailNameParts.join(' ')} — ${adminUser?.email || ''}`.trim();
+
+        await sendMail({
+          to: u.email,
+          from: process.env.MAIL_FROM,
+          subject: `${subject} — Eclipse Systems`,
+          template: 'notification',
+          vars: { title: subject, message: htmlMessage, details: escapeHtml(detailsStr) }
+        });
+        sent++;
+      } catch (e) {
+        // skip
+      }
+    }
+
+    await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update', targetType: 'broadcast', metadata: { subject, recipients: sent, force }, timestamp: new Date() } as any));
+
+    return { success: true, recipients: sent };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      body: t.Object({ subject: t.String(), message: t.String(), force: t.Optional(t.Boolean()), test: t.Optional(t.Boolean()) }),
+      response: { 200: t.Object({ success: t.Boolean(), recipients: t.Number() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    },
+    detail: { summary: 'Send product updates to users (admin only).', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/users', async (ctx) => {
@@ -2456,4 +2543,32 @@ isSuspicious: true if fraudScore >= 50`;
     },
     detail: { summary: 'Ensure users have a plan matching their portalType', tags: ['Admin'] },
   });
+}
+
+function escapeHtml(s: any) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function markdownToHtml(md: any) {
+  if (!md) return '';
+  let src = String(md);
+  src = src.replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (_m, _lang, code) => {
+    return `<pre><code>${escapeHtml(code)}</code></pre>`;
+  });
+
+  let out = escapeHtml(src);
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;"/>');
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  out = out.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  out = out.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+  out = out.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+  out = out.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+  out = out.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
+  out = out.replace(/(?:^|\n)(<li>[\s\S]*?<\/li>)(?:\n(?!<li>))/g, '<ul>$1</ul>');
+  out = out.replace(/(^|\n)([^<\n][^\n]+)(?=\n|$)/g, (_m, _p, txt) => `<p>${txt.trim()}</p>`);
+  return out;
 }

@@ -252,6 +252,7 @@ export const API_ENDPOINTS = {
   // Admin
   adminStats: "/api/admin/stats",
   adminUsers: "/api/admin/users",
+  adminProductUpdates: "/api/admin/product-updates",
   adminOrganisations: "/api/admin/organisations",
   adminServers: "/api/admin/servers",
   adminCreateServer: "/api/admin/servers",
