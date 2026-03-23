@@ -43,6 +43,7 @@ interface Node {
   portRangeStart?: number
   portRangeEnd?: number
   defaultIp?: string
+  fqdn?: string
   cost?: number
   memory?: number
   disk?: number
@@ -107,6 +108,7 @@ export default function InfraNodesPage() {
   const [nodePortStart, setNodePortStart] = useState("")
   const [nodePortEnd, setNodePortEnd] = useState("")
   const [nodeDefaultIp, setNodeDefaultIp] = useState("")
+  const [nodeFqdn, setNodeFqdn] = useState("")
   const [nodeCost, setNodeCost] = useState("")
   const [nodeMemory, setNodeMemory] = useState("")
   const [nodeDisk, setNodeDisk] = useState("")
@@ -165,7 +167,8 @@ export default function InfraNodesPage() {
     setNodeSftpPort("")
     setNodeSftpProxyPort("")
     setNodePortStart(""); setNodePortEnd("")
-    setNodeDefaultIp(""); setNodeCost("")
+    setNodeDefaultIp(""); setNodeFqdn("")
+    setNodeCost("")
     setNodeMemory(""); setNodeDisk(""); setNodeCpu("")
     setNodeServerLimit("")
     setGeneratedToken(null)
@@ -184,6 +187,7 @@ export default function InfraNodesPage() {
     setNodePortStart(node.portRangeStart != null ? String(node.portRangeStart) : "")
     setNodePortEnd(node.portRangeEnd != null ? String(node.portRangeEnd) : "")
     setNodeDefaultIp(node.defaultIp || "")
+    setNodeFqdn((node as any).fqdn || "")
     setNodeCost(node.cost != null ? String(node.cost) : "")
     setNodeMemory(node.memory != null ? String(node.memory) : "")
     setNodeDisk(node.disk != null ? String(node.disk) : "")
@@ -212,6 +216,7 @@ export default function InfraNodesPage() {
         portRangeStart: nodePortStart ? Number(nodePortStart) : null,
         portRangeEnd: nodePortEnd ? Number(nodePortEnd) : null,
         defaultIp: nodeDefaultIp || null,
+        fqdn: nodeFqdn || null,
         cost: nodeCost ? Number(nodeCost) : null,
         memory: nodeMemory ? Number(nodeMemory) : null,
         disk: nodeDisk ? Number(nodeDisk) : null,
@@ -318,6 +323,9 @@ export default function InfraNodesPage() {
                           <h3 className="font-medium text-foreground truncate">{node.name}</h3>
                         </div>
                         <p className="mt-1 font-mono text-xs text-muted-foreground break-all">{node.url}</p>
+                        {node.fqdn ? (
+                          <p className="mt-1 text-[12px] text-muted-foreground">FQDN: {node.fqdn}</p>
+                        ) : null}
                       </div>
                       <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs shrink-0">
                         {node.nodeId ? node.nodeId : `#${node.id}`}
@@ -397,6 +405,18 @@ export default function InfraNodesPage() {
                 placeholder="e.g. 1897775d-8e9b-4804-ba21-b3ea07b36cdc"
               />
               <p className="text-[10px] text-muted-foreground">Used as the identifier in Wings configs. Must be a 32‑hex character UUID (dashes allowed).</p>
+            </div>
+
+            {/* FQDN */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">FQDN (optional)</label>
+              <p className="text-[10px] text-muted-foreground">Optional: set a node-wide hostname to display for network addresses. Wings still uses numeric IPs in configs.</p>
+              <input
+                value={nodeFqdn}
+                onChange={(e) => setNodeFqdn(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                placeholder="e.g. node-eu.example.com"
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">

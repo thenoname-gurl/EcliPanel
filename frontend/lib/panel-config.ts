@@ -185,6 +185,7 @@ export const API_ENDPOINTS = {
   planDetail: "/api/plans/:id",
   adminPlans: "/api/admin/plans",
   adminPlanDetail: "/api/admin/plans/:id",
+  adminPlanReapplyLimits: "/api/admin/plans/:id/reapply-limits",
 
   // Admin Orders & Apply Plan
   adminOrders: "/api/admin/orders",

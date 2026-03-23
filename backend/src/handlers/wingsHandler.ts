@@ -42,8 +42,16 @@ export async function wingsRoutes(app: any, prefix = '') {
     }
     const svc = await getNodeService(nodeId, ctx);
     if (!svc) return;
-    const res = await svc.getSystemInfo();
-    return res.data;
+    try {
+      const res = await svc.getSystemInfo();
+      return res.data;
+    } catch (err: any) {
+      if (err?.response) {
+        ctx.set.status = err.response.status;
+        return err.response.data;
+      }
+      throw err;
+    }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Get system info from Wings node (admin only)', tags: ['Remote'] }
@@ -58,8 +66,16 @@ export async function wingsRoutes(app: any, prefix = '') {
     }
     const svc = await getNodeService(nodeId, ctx);
     if (!svc) return;
-    const res = await svc.getUpdates();
-    return res.data;
+    try {
+      const res = await svc.getUpdates();
+      return res.data;
+    } catch (err: any) {
+      if (err?.response) {
+        ctx.set.status = err.response.status;
+        return err.response.data;
+      }
+      throw err;
+    }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Check node for updates (admin only)', tags: ['Remote'] }
@@ -74,8 +90,16 @@ export async function wingsRoutes(app: any, prefix = '') {
     }
     const svc = await getNodeService(nodeId, ctx);
     if (!svc) return;
-    const res = await svc.getTransfers();
-    return res.data;
+    try {
+      const res = await svc.getTransfers();
+      return res.data;
+    } catch (err: any) {
+      if (err?.response) {
+        ctx.set.status = err.response.status;
+        return err.response.data;
+      }
+      throw err;
+    }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List active transfers (admin only)', tags: ['Remote'] }
@@ -90,8 +114,16 @@ export async function wingsRoutes(app: any, prefix = '') {
     }
     const svc = await getNodeService(nodeId, ctx);
     if (!svc) return;
-    const res = await svc.getBackups();
-    return res.data;
+    try {
+      const res = await svc.getBackups();
+      return res.data;
+    } catch (err: any) {
+      if (err?.response) {
+        ctx.set.status = err.response.status;
+        return err.response.data;
+      }
+      throw err;
+    }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List node backups', tags: ['Remote'] }

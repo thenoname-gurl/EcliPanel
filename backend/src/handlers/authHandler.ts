@@ -1311,6 +1311,8 @@ export async function authRoutes(app: any, prefix = '') {
             if (plan.disk != null) limitsFromPlan.disk = plan.disk;
             if (plan.cpu != null) limitsFromPlan.cpu = plan.cpu;
             if (plan.serverLimit != null) limitsFromPlan.serverLimit = plan.serverLimit;
+            if (plan.databases != null) limitsFromPlan.databases = plan.databases;
+            if (plan.backups != null) limitsFromPlan.backups = plan.backups;
           }
           returnedLimits = Object.keys(limitsFromPlan).length ? limitsFromPlan : null;
         }

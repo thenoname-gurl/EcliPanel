@@ -323,6 +323,16 @@ export async function adminRoutes(app: any, prefix = '') {
           if (!Number.isFinite(sl) || sl < 0) { ctx.set.status = 400; return { error: 'Invalid serverLimit value in limits' }; }
           outLimits.serverLimit = Math.round(sl);
         }
+        if (limits.databases !== undefined) {
+          const d = Number(limits.databases);
+          if (!Number.isFinite(d) || d < 0) { ctx.set.status = 400; return { error: 'Invalid databases value in limits' }; }
+          outLimits.databases = Math.round(d);
+        }
+        if (limits.backups !== undefined) {
+          const b = Number(limits.backups);
+          if (!Number.isFinite(b) || b < 0) { ctx.set.status = 400; return { error: 'Invalid backups value in limits' }; }
+          outLimits.backups = Math.round(b);
+        }
         user.limits = outLimits;
       } else {
         user.limits = limits;

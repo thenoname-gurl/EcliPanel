@@ -45,6 +45,9 @@ export class Node {
   @Column({ nullable: true, type: 'text' })
   defaultIp?: string;
 
+  @Column({ nullable: true, type: 'text' })
+  fqdn?: string;
+
   @Column('float', { nullable: true, default: 0 })
   cost?: number;
 

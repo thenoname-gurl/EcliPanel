@@ -52,6 +52,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     apiFetch(API_ENDPOINTS.session, { method: "GET" })
       .then((data) => {
         setUser(data.user);
+        try {
+          if (typeof window !== 'undefined' && data?.user?.settings?.theme?.name) {
+            document.cookie = `eclipseTheme=${encodeURIComponent(data.user.settings.theme.name)}; path=/`;
+          }
+        } catch (e) {}
         if (typeof window !== 'undefined') {
           const params = new URLSearchParams(window.location.search);
           const sv = params.get('studentVerified');
@@ -150,7 +155,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, pathname, router]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <div className="min-h-screen">
+        {user === undefined && (
+          <div className="w-full p-2 text-center text-sm text-muted-foreground bg-secondary/10">Fetching session data from server...</div>
+        )}
+        {children}
+      </div>
+    </AuthContext.Provider>
+  );
 };
 
 export function useAuth() {

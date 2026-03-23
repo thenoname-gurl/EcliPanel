@@ -109,7 +109,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.post(prefix + '/nodes', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
+    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
       return { error: 'name, url and token are required' };
@@ -132,6 +132,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       node.useSSL = node.url.toLowerCase().startsWith('https://');
     }
     if (allowedOrigin) node.allowedOrigin = allowedOrigin;
+    if (fqdn !== undefined) node.fqdn = fqdn || undefined as any;
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
     await nodeRepo().save(node);
@@ -146,7 +147,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
-    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
+    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
 
     const node = await resolveNode(id);
     if (!node) {
@@ -180,6 +181,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (portRangeStart !== undefined) node.portRangeStart = portRangeStart !== null ? Number(portRangeStart) : undefined as any;
     if (portRangeEnd !== undefined) node.portRangeEnd = portRangeEnd !== null ? Number(portRangeEnd) : undefined as any;
     if (defaultIp !== undefined) node.defaultIp = defaultIp || undefined as any;
+    if (fqdn !== undefined) node.fqdn = fqdn || undefined as any;
     if (cost !== undefined) node.cost = cost !== null ? Number(cost) : undefined as any;
     if (memory !== undefined) node.memory = memory !== null ? Number(memory) : undefined as any;
     if (disk !== undefined) node.disk = disk !== null ? Number(disk) : undefined as any;
