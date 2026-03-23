@@ -6,7 +6,7 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { Node } from '../models/node.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
-import { Not } from 'typeorm';
+import { In, Not } from 'typeorm';
 import * as mariadb from 'mariadb';
 import crypto from 'crypto';
 
@@ -164,6 +164,19 @@ export async function databaseRoutes(app: any, prefix = '') {
     if (!cfg) {
       ctx.set.status = 404;
       return { error: 'Server not found' };
+    }
+
+    const user = ctx.user;
+    const accountDatabaseLimit = user?.limits && typeof user.limits.databases === 'number' ? user.limits.databases : 0;
+    if (accountDatabaseLimit > 0) {
+      const ownerId = cfg.userId || user?.id;
+      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: ['uuid'] }) : [];
+      const serverUuids = ownedServers.map((s: any) => s.uuid);
+      const existingAccountDbs = serverUuids.length > 0 ? await dbRepo().count({ where: { serverUuid: In(serverUuids) } }) : 0;
+      if (existingAccountDbs >= accountDatabaseLimit) {
+        ctx.set.status = 429;
+        return { error: `Account database limit reached (${accountDatabaseLimit})` };
+      }
     }
 
     if (cfg.maxDatabases > 0) {

@@ -29,7 +29,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [eggs, setEggs] = useState<{ id: number; name: string; description?: string }[]>([])
   const [eggsLoading, setEggsLoading] = useState(true)
   const [nodeId, setNodeId] = useState<number | null>(null)
-  const [nodes, setNodes] = useState<{ id: number; name: string; nodeType?: string }[]>([])
+  const [nodes, setNodes] = useState<{ id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number }[]>([])
   const [nodesLoading, setNodesLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -100,18 +100,33 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
     }
   }
 
-  const maxMemory = limits?.memory ?? null
-  const maxDisk = limits?.disk ?? null
-  const maxCpu = limits?.cpu ?? null
-  const hasLimits = limits ? Object.keys(limits).length > 0 : false
+  const selectedNode = nodes.find((n) => n.id === nodeId)
+  const nodeMemory = selectedNode?.memory ?? null
+  const nodeDisk = selectedNode?.disk ?? null
+  const nodeCpu = selectedNode?.cpu ?? null
+
+  const [memorySource, setMemorySource] = useState<'plan' | 'node'>('plan')
+  const [diskSource, setDiskSource] = useState<'plan' | 'node'>('plan')
+  const [cpuSource, setCpuSource] = useState<'plan' | 'node'>('plan')
+
+  useEffect(() => {
+    if (!limits?.memory && nodeMemory != null) setMemorySource('node')
+    if (!limits?.disk && nodeDisk != null) setDiskSource('node')
+    if (!limits?.cpu && nodeCpu != null) setCpuSource('node')
+  }, [limits, nodeMemory, nodeDisk, nodeCpu])
+
+  const maxMemory = memorySource === 'node' ? nodeMemory : (limits?.memory ?? nodeMemory)
+  const maxDisk = diskSource === 'node' ? nodeDisk : (limits?.disk ?? nodeDisk)
+  const maxCpu = cpuSource === 'node' ? nodeCpu : (limits?.cpu ?? nodeCpu)
+  const hasLimits = maxMemory != null || maxDisk != null || maxCpu != null
   const rawPlanName = (user as any)?.portalType || user?.tier || 'free'
   const planTier = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'paid' : String(rawPlanName).toLowerCase()
   const planName = ['educational', 'edu'].includes(String(rawPlanName).toLowerCase()) ? 'educational' : String(rawPlanName).toLowerCase()
 
   useEffect(() => {
-    if (maxMemory !== null) setMemory(maxMemory)
-    if (maxDisk !== null) setDisk(maxDisk)
-    if (maxCpu !== null) setCpu(maxCpu)
+    if (maxMemory !== null) setMemory((prev) => Math.min(prev, maxMemory))
+    if (maxDisk !== null) setDisk((prev) => Math.min(prev, maxDisk))
+    if (maxCpu !== null) setCpu((prev) => Math.min(prev, maxCpu))
   }, [maxMemory, maxDisk, maxCpu])
 
   return (
@@ -195,6 +210,41 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
           {/* Resource sliders */}
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
             <p className="text-xs font-medium text-foreground">Resources</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1 rounded-md border border-border bg-background/80">
+                <strong>Memory source:</strong>
+                <select
+                  className="rounded border border-border bg-input px-2 py-1 text-xs"
+                  value={memorySource}
+                  onChange={(e) => setMemorySource(e.target.value as 'plan' | 'node')}
+                >
+                  {limits?.memory != null && <option value="plan">Plan ({limits.memory} MB)</option>}
+                  {nodeMemory != null && <option value="node">Node ({nodeMemory} MB)</option>}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1 rounded-md border border-border bg-background/80">
+                <strong>Disk source:</strong>
+                <select
+                  className="rounded border border-border bg-input px-2 py-1 text-xs"
+                  value={diskSource}
+                  onChange={(e) => setDiskSource(e.target.value as 'plan' | 'node')}
+                >
+                  {limits?.disk != null && <option value="plan">Plan ({limits.disk} MB)</option>}
+                  {nodeDisk != null && <option value="node">Node ({nodeDisk} MB)</option>}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1 rounded-md border border-border bg-background/80">
+                <strong>CPU source:</strong>
+                <select
+                  className="rounded border border-border bg-input px-2 py-1 text-xs"
+                  value={cpuSource}
+                  onChange={(e) => setCpuSource(e.target.value as 'plan' | 'node')}
+                >
+                  {limits?.cpu != null && <option value="plan">Plan ({limits.cpu}%)</option>}
+                  {nodeCpu != null && <option value="node">Node ({nodeCpu}%)</option>}
+                </select>
+              </div>
+            </div>
             {!hasLimits ? (
               <p className="text-xs text-muted-foreground">
                 {planName !== 'free' ? (
@@ -262,7 +312,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
               type="submit"
               disabled={
               creating || eggsLoading || eggs.length === 0 || nodesLoading || nodes.length === 0 ||
-              (user && (!user.emailVerified || (user.passkeyCount ?? 0) === 0))
+              (user ? (!user.emailVerified || (user.passkeyCount ?? 0) === 0) : false)
             }
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >

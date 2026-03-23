@@ -54,7 +54,7 @@ export async function planRoutes(app: any, prefix = '') {
     }
     const {
       name, type, price, description,
-      memory, disk, cpu, serverLimit,
+      memory, disk, cpu, serverLimit, databases, backups,
       portCount, isDefault, features,
     } = ctx.body as any;
     if (!name || !type) {
@@ -71,6 +71,8 @@ export async function planRoutes(app: any, prefix = '') {
       disk: disk != null ? Number(disk) : undefined,
       cpu: cpu != null ? Number(cpu) : undefined,
       serverLimit: serverLimit != null ? Number(serverLimit) : undefined,
+      databases: databases != null ? Number(databases) : undefined,
+      backups: backups != null ? Number(backups) : undefined,
       portCount: portCount != null ? Number(portCount) : 1,
       isDefault: isDefault ?? false,
       features: features ?? undefined,
@@ -96,7 +98,7 @@ export async function planRoutes(app: any, prefix = '') {
 
     const {
       name, type, price, description,
-      memory, disk, cpu, serverLimit,
+      memory, disk, cpu, serverLimit, databases, backups,
       portCount, isDefault, features,
     } = ctx.body as any;
 
@@ -108,6 +110,8 @@ export async function planRoutes(app: any, prefix = '') {
     if (disk !== undefined) plan.disk = disk != null ? Number(disk) : undefined;
     if (cpu !== undefined) plan.cpu = cpu != null ? Number(cpu) : undefined;
     if (serverLimit !== undefined) plan.serverLimit = serverLimit != null ? Number(serverLimit) : undefined;
+    if (databases !== undefined) plan.databases = databases != null ? Number(databases) : undefined;
+    if (backups !== undefined) plan.backups = backups != null ? Number(backups) : undefined;
     if (portCount !== undefined) plan.portCount = Number(portCount);
     if (isDefault !== undefined) plan.isDefault = Boolean(isDefault);
     if (features !== undefined) plan.features = features ?? undefined;
@@ -118,6 +122,70 @@ export async function planRoutes(app: any, prefix = '') {
     beforeHandle: authenticate,
     detail: { summary: 'Update a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
+  });
+
+  app.post(prefix + '/admin/plans/:id/reapply-limits', async (ctx) => {
+    if (!isAdmin(ctx)) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
+    if (!plan) {
+      ctx.set.status = 404;
+      return { error: 'Plan not found' };
+    }
+
+    const force = (ctx.query?.force === 'true' || ctx.query?.force === true || ctx.body?.force === true);
+
+    const userRepo = AppDataSource.getRepository(User);
+    const users = await userRepo.find({ where: { portalType: plan.type } });
+
+    const planLimits: Record<string, number> = {};
+    if (plan.memory != null) planLimits.memory = Number(plan.memory);
+    if (plan.disk != null) planLimits.disk = Number(plan.disk);
+    if (plan.cpu != null) planLimits.cpu = Number(plan.cpu);
+    if (plan.serverLimit != null) planLimits.serverLimit = Number(plan.serverLimit);
+    if (plan.databases != null) planLimits.databases = Number(plan.databases);
+    if (plan.backups != null) planLimits.backups = Number(plan.backups);
+
+    const isCustomLimits = (userLimits: Record<string, any> | null | undefined, planLimits: Record<string, number>) => {
+      if (!userLimits || Object.keys(userLimits).length === 0) return false;
+      if (Object.keys(planLimits).length === 0) return false; 
+      const planKeys = Object.keys(planLimits);
+      const extraKeys = Object.keys(userLimits).filter((k) => !planKeys.includes(k));
+      if (extraKeys.length > 0) return true;
+      for (const key of planKeys) {
+        const userValue = userLimits[key];
+        if (userValue == null) return true;
+        if (Number(userValue) !== Number(planLimits[key])) return true;
+      }
+
+      return false;
+    };
+
+    let updated = 0;
+    const toSave: User[] = [];
+    for (const u of users) {
+      if (!force && isCustomLimits(u.limits, planLimits)) continue;
+
+      if (Object.keys(planLimits).length > 0) {
+        u.limits = { ...planLimits };
+      } else {
+        u.limits = null;
+      }
+
+      toSave.push(u);
+      updated++;
+    }
+
+    if (toSave.length > 0) await userRepo.save(toSave);
+
+    return { success: true, updated };
+  }, {
+    beforeHandle: authenticate,
+    detail: { summary: 'Reapply plan limits to users without custom limits', tags: ['Plans', 'Admin'] },
+    response: { 200: t.Object({ success: t.Boolean(), updated: t.Number() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });
 
   app.delete(prefix + '/admin/plans/:id', async (ctx) => {

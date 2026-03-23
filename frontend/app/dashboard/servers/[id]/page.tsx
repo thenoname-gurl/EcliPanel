@@ -2145,6 +2145,9 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 function NetworkTab({ serverId }: { serverId: string }) {
   const [allocations, setAllocations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [requestCount, setRequestCount] = useState(1)
+  const [requesting, setRequesting] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
@@ -2152,6 +2155,20 @@ function NetworkTab({ serverId }: { serverId: string }) {
       .catch(() => setAllocations([]))
       .finally(() => setLoading(false))
   }, [serverId])
+
+  const requestPorts = async () => {
+    setRequesting(true)
+    setRequestError(null)
+    try {
+      const data = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), { method: 'POST', body: JSON.stringify({ count: Number(requestCount || 1) }) })
+      const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
+      setAllocations(Array.isArray(refreshed) ? refreshed : [])
+    } catch (e: any) {
+      setRequestError(e?.message || String(e) || 'Request failed')
+    } finally {
+      setRequesting(false)
+    }
+  }
 
   if (loading) return <LoadingState />
 
@@ -2170,7 +2187,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
             <span>Type</span>
           </div>
           {allocations.map((alloc: any, i: number) => {
-            const displayHost = alloc.fqdn || alloc.ip || alloc.alias || "—"
+            const displayHost = alloc.fqdn || alloc.ip || "—"
             return (
             <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center px-4 py-2.5 text-sm border-t border-border">
               <div>
@@ -2186,6 +2203,17 @@ function NetworkTab({ serverId }: { serverId: string }) {
           })}
         </div>
       )}
+      <div className="p-6 border-t border-border">
+        <div className="flex items-center gap-3">
+          <input type="number" min={1} value={requestCount} onChange={(e) => setRequestCount(Number(e.target.value))}
+            className="w-24 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground" />
+          <Button size="sm" onClick={requestPorts} disabled={requesting}>
+            {requesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-3.5 w-3.5 mr-1" />} Request port{requestCount > 1 ? 's' : ''}
+          </Button>
+          {requestError && <p className="text-sm text-destructive ml-2">{requestError}</p>}
+          <p className="text-xs text-muted-foreground ml-auto">Per-account limit enforced by panel.</p>
+        </div>
+      </div>
     </div>
   )
 }

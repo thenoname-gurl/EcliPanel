@@ -56,6 +56,14 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+  SelectLabel,
+} from "@/components/ui/select"
 
 // ── Lightweight markdown renderer ──────────────────
 function markdownToHtml(md: string) {
@@ -242,6 +250,8 @@ interface AdminPlan {
   disk?: number
   cpu?: number
   serverLimit?: number
+  databases?: number
+  backups?: number
   portCount?: number
   isDefault?: boolean
   features?: string[]
@@ -703,9 +713,9 @@ export default function AdminPanel() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmMessage, setConfirmMessage] = useState<string>("")
 
-  const [privateMode, setPrivateMode] = useState(true)
-  const [privacyDialogOpen, setPrivacyDialogOpen] = useState(true)
-  const [redactServers, setRedactServers] = useState<boolean>(true)
+  const [privateMode, setPrivateMode] = useState(false)
+  const [privacyDialogOpen, setPrivacyDialogOpen] = useState(false)
+  const [redactServers, setRedactServers] = useState<boolean>(false)
   const [redactOrganisations, setRedactOrganisations] = useState<boolean>(true)
 
   const redact = (value?: string | number | null) => {
@@ -778,6 +788,8 @@ export default function AdminPanel() {
   const [editCpuLimit, setEditCpuLimit] = useState("")
   const [editMemoryLimit, setEditMemoryLimit] = useState("")
   const [editDiskLimit, setEditDiskLimit] = useState("")
+  const [editDatabaseLimit, setEditDatabaseLimit] = useState("")
+  const [editBackupLimit, setEditBackupLimit] = useState("")
 
   // ── Organisation edit dialog ──
   const [editOrgDialog, setEditOrgDialog] = useState<AdminOrganisation | null>(null)
@@ -811,11 +823,15 @@ export default function AdminPanel() {
   const [planDisk, setPlanDisk] = useState("")
   const [planCpu, setPlanCpu] = useState("")
   const [planServerLimit, setPlanServerLimit] = useState("")
+  const [planDatabases, setPlanDatabases] = useState("")
+  const [planBackups, setPlanBackups] = useState("")
   const [planPortCount, setPlanPortCount] = useState("1")
   const [planIsDefault, setPlanIsDefault] = useState(false)
   const [planFeatures, setPlanFeatures] = useState("")
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState("")
+  const [planReapplyId, setPlanReapplyId] = useState<number | null>(null)
+  const [planReapplyLoading, setPlanReapplyLoading] = useState(false)
   const [ensureLoading, setEnsureLoading] = useState(false)
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
@@ -975,14 +991,14 @@ export default function AdminPanel() {
   const [esAllocFqdn, setEsAllocFqdn] = useState("")
   const [esEditFqdnIdx, setEsEditFqdnIdx] = useState<number | null>(null)
   const [esEditFqdnVal, setEsEditFqdnVal] = useState("")
-  const [esEggId, setEsEggId] = useState("")
+  const [esEggId, setEsEggId] = useState<string | undefined>(undefined)
   const [esReinstalling, setEsReinstalling] = useState(false)
 
   // ── Create Server dialog ──
   const [createServerOpen, setCreateServerOpen] = useState(false)
   const [csNodeId, setCsNodeId] = useState("")
   const [csUserId, setCsUserId] = useState("")
-  const [csEggId, setCsEggId] = useState("")
+  const [csEggId, setCsEggId] = useState<string | undefined>(undefined)
   const [csName, setCsName] = useState("")
   const [csMemory, setCsMemory] = useState("1024")
   const [csDisk, setCsDisk] = useState("10240")
@@ -1237,6 +1253,8 @@ export default function AdminPanel() {
     setEditCpuLimit(lim.cpu !== undefined ? String(lim.cpu) : "")
     setEditMemoryLimit(lim.memory !== undefined ? String(lim.memory) : "")
     setEditDiskLimit(lim.disk !== undefined ? String(lim.disk) : "")
+    setEditDatabaseLimit(lim.databases !== undefined ? String(lim.databases) : "")
+    setEditBackupLimit(lim.backups !== undefined ? String(lim.backups) : "")
     // Fetch current plan
     setUserCurrentPlan(null)
     setUserPlanLoading(true)
@@ -1271,6 +1289,8 @@ export default function AdminPanel() {
       if (editCpuLimit !== "") limits.cpu = Number(editCpuLimit)
       if (editMemoryLimit !== "") limits.memory = Number(editMemoryLimit)
       if (editDiskLimit !== "") limits.disk = Number(editDiskLimit)
+      if (editDatabaseLimit !== "") limits.databases = Number(editDatabaseLimit)
+      if (editBackupLimit !== "") limits.backups = Number(editBackupLimit)
       await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}`, {
         method: "PUT",
         body: JSON.stringify({ role: editRole, portalType: editTier, limits: Object.keys(limits).length ? limits : null }),
@@ -1435,7 +1455,7 @@ export default function AdminPanel() {
     setEsSwap(String(srv.configuration?.build?.swap || "0"))
     setEsDockerImage(srv.configuration?.docker?.image || "")
     setEsStartup(srv.configuration?.invocation || "")
-    setEsEggId(String(srv.eggId || ""))
+    setEsEggId(srv.eggId ? String(srv.eggId) : undefined)
     setEsError("")
     setEsReinstalling(false)
     setEsAllocations([])
@@ -1474,7 +1494,7 @@ export default function AdminPanel() {
           dockerImage: esDockerImage || undefined,
           startup: esStartup || undefined,
           allocations: esAllocations,
-          eggId: esEggId ? Number(esEggId) : undefined,
+          eggId: esEggId && esEggId !== "none" ? Number(esEggId) : undefined,
         }),
       })
       setServers((prev) => prev.map((s) =>
@@ -1542,7 +1562,7 @@ export default function AdminPanel() {
   function openCreateServer() {
     setCsNodeId(nodes.length === 1 ? String(nodes[0].id) : "")
     setCsUserId("")
-    setCsEggId(eggs.length === 1 ? String(eggs[0].id) : "")
+    setCsEggId(eggs.length === 1 ? String(eggs[0].id) : undefined)
     setCsName("")
     setCsMemory("1024")
     setCsDisk("10240")
@@ -1560,7 +1580,7 @@ export default function AdminPanel() {
         body: JSON.stringify({
           nodeId: Number(csNodeId),
           userId: csUserId ? Number(csUserId) : undefined,
-          eggId: csEggId ? Number(csEggId) : undefined,
+          eggId: csEggId && csEggId !== "none" ? Number(csEggId) : undefined,
           name: csName || undefined,
           memory: Number(csMemory),
           disk: Number(csDisk),
@@ -1619,6 +1639,7 @@ export default function AdminPanel() {
     setPlanEditTarget(null)
     setPlanName(""); setPlanType("free"); setPlanPrice("0"); setPlanDesc("")
     setPlanMemory(""); setPlanDisk(""); setPlanCpu(""); setPlanServerLimit("")
+    setPlanDatabases(""); setPlanBackups("")
     setPlanPortCount("1"); setPlanIsDefault(false); setPlanFeatures(""); setPlanError("")
     setPlanDialogOpen(true)
   }
@@ -1628,6 +1649,7 @@ export default function AdminPanel() {
     setPlanName(plan.name); setPlanType(plan.type); setPlanPrice(String(plan.price ?? 0)); setPlanDesc(plan.description || "")
     setPlanMemory(plan.memory != null ? String(plan.memory) : ""); setPlanDisk(plan.disk != null ? String(plan.disk) : "")
     setPlanCpu(plan.cpu != null ? String(plan.cpu) : ""); setPlanServerLimit(plan.serverLimit != null ? String(plan.serverLimit) : "")
+    setPlanDatabases((plan as any).databases != null ? String((plan as any).databases) : ""); setPlanBackups((plan as any).backups != null ? String((plan as any).backups) : "")
     setPlanPortCount(plan.portCount != null ? String(plan.portCount) : "1"); setPlanIsDefault(plan.isDefault ?? false)
     const featList = (plan as any).features?.list
     setPlanFeatures(Array.isArray(featList) ? featList.join("\n") : "")
@@ -1646,6 +1668,8 @@ export default function AdminPanel() {
       disk: planDisk ? Number(planDisk) : null,
       cpu: planCpu ? Number(planCpu) : null,
       serverLimit: planServerLimit ? Number(planServerLimit) : null,
+      databases: planDatabases ? Number(planDatabases) : null,
+      backups: planBackups ? Number(planBackups) : null,
       portCount: planPortCount ? Number(planPortCount) : 1,
       isDefault: planIsDefault,
       features: featuresList.length ? { list: featuresList } : null,
@@ -1663,6 +1687,30 @@ export default function AdminPanel() {
       setPlanError(e.message || "Failed to save")
     } finally {
       setPlanLoading(false)
+    }
+  }
+
+  async function reapplyPlanLimits(planId: number, force = false) {
+    const confirmation = force
+      ? 'Force reapply limits for all users on this plan (this will overwrite custom limits)?'
+      : 'Reapply limits for all users on this plan (skipping users with custom limits)?';
+    if (!confirm(confirmation)) return
+
+    setPlanReapplyId(planId)
+    setPlanReapplyLoading(true)
+    try {
+      const query = force ? '?force=true' : ''
+      const res = await apiFetch(API_ENDPOINTS.adminPlanReapplyLimits.replace(':id', String(planId)) + query, { method: 'POST' })
+      if (res && res.updated != null) {
+        alert(`Reapplied plan limits to ${res.updated} users`)
+      } else {
+        alert('Reapplied plan limits')
+      }
+    } catch (e: any) {
+      alert('Failed: ' + (e.message || 'error'))
+    } finally {
+      setPlanReapplyId(null)
+      setPlanReapplyLoading(false)
     }
   }
 
@@ -1810,6 +1858,8 @@ export default function AdminPanel() {
         if (plan.disk) limits.disk = plan.disk
         if (plan.cpu) limits.cpu = plan.cpu
         if (plan.serverLimit) limits.serverLimit = plan.serverLimit
+        if (plan.databases) limits.databases = plan.databases
+        if (plan.backups) limits.backups = plan.backups
         setUsers((prev) => prev.map((u) => u.id === applyPlanUserId ? { ...u, portalType: plan.type, limits } : u))
         // Refresh current plan display if user edit dialog is open for the same user
         if (editUserDialog?.id === applyPlanUserId) {
@@ -4268,10 +4318,18 @@ Content-Type: application/json
                             {plan.disk != null ? `${(plan.disk / 1024).toFixed(0)} GB disk` : "∞ disk"} ·{" "}
                             {plan.cpu != null ? `${plan.cpu}% CPU` : "∞ CPU"} ·{" "}
                             {plan.serverLimit != null ? `${plan.serverLimit} servers` : "∞ servers"} ·{" "}
+                            {plan.databases != null ? `${plan.databases} DB` : "∞ DB"} ·{" "}
+                            {plan.backups != null ? `${plan.backups} backups` : "∞ backups"} ·{" "}
                             ${(plan.price ?? 0).toFixed(2)}/mo
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
+                          <Button variant="outline" size="sm" disabled={planReapplyLoading && planReapplyId === plan.id} onClick={() => reapplyPlanLimits(plan.id)}>
+                            {planReapplyLoading && planReapplyId === plan.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Reapply limits'}
+                          </Button>
+                          <Button variant="destructive" size="sm" disabled={planReapplyLoading && planReapplyId === plan.id} onClick={() => reapplyPlanLimits(plan.id, true)}>
+                            {planReapplyLoading && planReapplyId === plan.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Force reapply'}
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => openEditPlan(plan)}><Edit className="h-3.5 w-3.5" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => deletePlan(plan)} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </div>
@@ -4645,6 +4703,18 @@ Content-Type: application/json
                     placeholder="unlimited"
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">Databases</label>
+                  <input type="number" min="0" value={editDatabaseLimit} onChange={(e) => setEditDatabaseLimit(e.target.value)}
+                    placeholder="0"
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">Backups</label>
+                  <input type="number" min="0" value={editBackupLimit} onChange={(e) => setEditBackupLimit(e.target.value)}
+                    placeholder="0"
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
               </div>
             </div>
           </div>
@@ -4719,13 +4789,26 @@ Content-Type: application/json
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Egg / Template</label>
-                <select value={esEggId} onChange={(e) => setEsEggId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  <option value="">— No template —</option>
-                  {eggs.map((egg) => (
-                    <option key={egg.id} value={String(egg.id)}>{egg.name}</option>
-                  ))}
-                </select>
+                <div>
+                  <Select value={esEggId ?? "none"} onValueChange={(v) => setEsEggId(v === "none" ? undefined : v)}>
+                    <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                      <SelectValue placeholder="— No template —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— No template —</SelectItem>
+                      {eggs.map((egg) => (
+                        <SelectItem key={egg.id} value={String(egg.id)}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{egg.name}</span>
+                            {egg.description && (
+                              <span className="text-xs text-muted-foreground line-clamp-2">{egg.description}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="col-span-2 flex flex-col gap-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Network Allocations</label>
@@ -4846,11 +4929,26 @@ Content-Type: application/json
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Egg (optional)</label>
-                <select value={csEggId} onChange={(e) => setCsEggId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  <option value="">Default (Node.js)</option>
-                  {eggs.map((e) => <option key={e.id} value={String(e.id)}>{e.name}</option>)}
-                </select>
+                <div>
+                  <Select value={csEggId ?? "none"} onValueChange={(v) => setCsEggId(v === "none" ? undefined : v)}>
+                    <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                      <SelectValue placeholder="Default (Node.js)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Default (Node.js)</SelectItem>
+                      {eggs.map((egg) => (
+                        <SelectItem key={egg.id} value={String(egg.id)}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{egg.name}</span>
+                            {egg.description && (
+                              <span className="text-xs text-muted-foreground line-clamp-2">{egg.description}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Owner User ID (optional)</label>
@@ -5330,8 +5428,28 @@ Content-Type: application/json
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Databases</label>
+                <input type="number" min="0" placeholder="e.g. 10" value={planDatabases} onChange={(e) => setPlanDatabases(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backups</label>
+                <input type="number" min="0" placeholder="e.g. 20" value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ports per Server</label>
                 <input type="number" min="1" placeholder="1" value={planPortCount} onChange={(e) => setPlanPortCount(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Account Databases Limit</label>
+                <input type="number" min="0" placeholder="0" value={planDatabases} onChange={(e) => setPlanDatabases(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Account Backups Limit</label>
+                <input type="number" min="0" placeholder="0" value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5 justify-end">

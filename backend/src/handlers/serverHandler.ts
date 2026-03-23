@@ -611,6 +611,42 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: e.message };
     }
 
+    const nodeMemoryLimit = node.memory != null ? Number(node.memory) : undefined;
+    const nodeDiskLimit = node.disk != null ? Number(node.disk) : undefined;
+    const nodeCpuLimit = node.cpu != null ? Number(node.cpu) : undefined;
+
+    const effectiveMemoryLimit = limits.memory != null ? Number(limits.memory) : nodeMemoryLimit;
+    const effectiveDiskLimit = limits.disk != null ? Number(limits.disk) : nodeDiskLimit;
+    const effectiveCpuLimit = limits.cpu != null ? Number(limits.cpu) : nodeCpuLimit;
+
+    if (!isAdmin) {
+      if (effectiveMemoryLimit != null && memory > effectiveMemoryLimit) {
+        ctx.set.status = 400;
+        return { error: `Requested memory (${memory} MB) exceeds the maximum allowed (${effectiveMemoryLimit} MB).` };
+      }
+      if (effectiveDiskLimit != null && disk > effectiveDiskLimit) {
+        ctx.set.status = 400;
+        return { error: `Requested disk (${disk} MB) exceeds the maximum allowed (${effectiveDiskLimit} MB).` };
+      }
+      if (effectiveCpuLimit != null && cpu > effectiveCpuLimit) {
+        ctx.set.status = 400;
+        return { error: `Requested CPU (${cpu}%) exceeds the maximum allowed (${effectiveCpuLimit}%).` };
+      }
+
+      if (effectiveMemoryLimit == null && nodeMemoryLimit != null && memory > nodeMemoryLimit) {
+        ctx.set.status = 400;
+        return { error: `Requested memory (${memory} MB) exceeds node capacity (${nodeMemoryLimit} MB).` };
+      }
+      if (effectiveDiskLimit == null && nodeDiskLimit != null && disk > nodeDiskLimit) {
+        ctx.set.status = 400;
+        return { error: `Requested disk (${disk} MB) exceeds node capacity (${nodeDiskLimit} MB).` };
+      }
+      if (effectiveCpuLimit == null && nodeCpuLimit != null && cpu > nodeCpuLimit) {
+        ctx.set.status = 400;
+        return { error: `Requested CPU (${cpu}%) exceeds node capacity (${nodeCpuLimit}%).` };
+      }
+    }
+
     let autoAllocation: Record<string, any> | null = null;
     if (node.portRangeStart && node.portRangeEnd) {
       const bindIp = node.defaultIp || '0.0.0.0';
@@ -626,7 +662,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
       for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
         if (!takenPorts.has(p)) {
-          autoAllocation = { default: { ip: bindIp, port: p }, mappings: { [bindIp]: [p] } };
+          autoAllocation = { default: { ip: bindIp, port: p }, mappings: { [bindIp]: [p] }, owners: { [`${bindIp}:${p}`]: ownerId } } as any;
           break;
         }
       }
@@ -1156,6 +1192,20 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/servers/:id/backups', async (ctx: any) => {
     const { id } = ctx.params as any;
+    const user = ctx.user;
+    const accountBackupsLimit = user?.limits && typeof user.limits.backups === 'number' ? user.limits.backups : 0;
+    if (accountBackupsLimit > 0) {
+      const backupRepo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      const ownerId = cfg?.userId || user?.id;
+      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: ['uuid'] }) : [];
+      const serverUuids = ownedServers.map((s: any) => s.uuid);
+      const existingBackups = serverUuids.length > 0 ? await backupRepo.count({ where: { serverUuid: In(serverUuids) } }) : 0;
+      if (existingBackups >= accountBackupsLimit) {
+        ctx.set.status = 429;
+        return { error: `Account backup limit reached (${accountBackupsLimit})` };
+      }
+    }
     const body = ctx.body || {};
     const adapter = 'wings';
     const uuid = body.uuid || uuidv4();
@@ -1521,11 +1571,13 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     const a = cfg?.allocations;
     if (!a) return [];
+    const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+    const nodeFqdn = node?.fqdn;
     const fqdns: Record<string, string> = (a as any).fqdns ?? {};
     const result: any[] = [];
     if (a.default) {
       const key = `${a.default.ip}:${a.default.port}`;
-      result.push({ ip: a.default.ip, port: a.default.port, fqdn: fqdns[key] || null, is_default: true, notes: null });
+      result.push({ ip: a.default.ip, port: a.default.port, fqdn: fqdns[key] || nodeFqdn || null, is_default: true, notes: null });
     }
     const mappings: Record<string, number[]> = a.mappings ?? {};
     for (const [ip, ports] of Object.entries(mappings)) {
@@ -1533,7 +1585,7 @@ export async function serverRoutes(app: any, prefix = '') {
         const isDef = a.default?.ip === ip && a.default?.port === port;
         if (!isDef) {
           const key = `${ip}:${port}`;
-          result.push({ ip, port, fqdn: fqdns[key] || null, is_default: false, notes: null });
+          result.push({ ip, port, fqdn: fqdns[key] || nodeFqdn || null, is_default: false, notes: null });
         }
       }
     }
@@ -1541,6 +1593,172 @@ export async function serverRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List network allocations', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/servers/:id/allocations', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const body = ctx.body as any || {};
+    const count = Number(body.count || 1);
+    if (count <= 0) {
+      ctx.set.status = 400;
+      return { error: 'Invalid allocation count' };
+    }
+
+    const cfg = await cfgRepo().findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    const user = ctx.user;
+    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    if (!isAdmin) {
+      const owned = cfg.userId === user?.id;
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id });
+      if (!owned && !subuser) {
+        ctx.set.status = 403;
+        return { error: 'Insufficient permissions' };
+      }
+    }
+
+    const limit = (user?.limits && typeof user.limits.portsPerServer === 'number') ? user.limits.portsPerServer : 3;
+
+    const alloc = cfg.allocations as any || {};
+    const owners: Record<string, any> = alloc.owners || {};
+    let existingCount = 0;
+    for (const [k, v] of Object.entries(owners)) {
+      if (v === user.id) existingCount++;
+    }
+    if (alloc.default) {
+      const defKey = `${alloc.default.ip}:${alloc.default.port}`;
+      if (!owners[defKey] && cfg.userId === user?.id) {
+        existingCount++;
+      }
+    }
+    if (existingCount + count > limit) {
+      ctx.set.status = 403;
+      return { error: `Per-server port limit exceeded (allowed ${limit}). Currently allocated: ${existingCount}` };
+    }
+
+    const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+    if (!node || !node.portRangeStart || !node.portRangeEnd) {
+      ctx.set.status = 400;
+      return { error: 'Node does not support additional allocations' };
+    }
+
+    const bindIp = node.defaultIp || '0.0.0.0';
+
+    const nodeConfigs = await cfgRepo().find({ where: { nodeId: node.id } });
+    const takenPorts = new Set<number>();
+    for (const c of nodeConfigs) {
+      const a = c.allocations as any;
+      if (!a) continue;
+      if (a.default?.port) takenPorts.add(Number(a.default.port));
+      for (const ports of Object.values(a.mappings ?? {}) as number[][]) {
+        for (const p of ports) takenPorts.add(Number(p));
+      }
+      if (a.owners) {
+        for (const k of Object.keys(a.owners || {})) {
+          const [, pstr] = k.split(':');
+          const pnum = Number(pstr);
+          if (!Number.isNaN(pnum)) takenPorts.add(pnum);
+        }
+      }
+    }
+
+    const newPorts: { ip: string; port: number }[] = [];
+    for (let p = node.portRangeStart; p <= node.portRangeEnd && newPorts.length < count; p++) {
+      if (!takenPorts.has(p)) {
+        newPorts.push({ ip: bindIp, port: p });
+        takenPorts.add(p);
+      }
+    }
+
+    if (newPorts.length < count) {
+      ctx.set.status = 503;
+      return { error: 'Not enough free ports available on this node' };
+    }
+
+    alloc.mappings = alloc.mappings || {};
+    alloc.mappings[bindIp] = alloc.mappings[bindIp] || [];
+    alloc.owners = alloc.owners || {};
+    for (const np of newPorts) {
+      alloc.mappings[bindIp].push(np.port);
+      alloc.owners[`${np.ip}:${np.port}`] = user.id;
+    }
+    cfg.allocations = alloc;
+    await cfgRepo().save(cfg);
+
+    return newPorts.map(x => ({ ip: x.ip, port: x.port, is_default: false }));
+  }, { beforeHandle: [authenticate, authorize('servers:write')],
+    response: { 200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 503: t.Object({ error: t.String() }) },
+    detail: { summary: 'Request additional network allocations for server (per-account limit)', tags: ['Servers'] }
+  });
+
+  app.delete(prefix + '/servers/:id/allocations', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const body = ctx.body as any || {};
+    const ip = body.ip;
+    const port = Number(body.port || 0);
+    if (!ip || !port) {
+      ctx.set.status = 400;
+      return { error: 'Invalid ip/port' };
+    }
+
+    const cfg = await cfgRepo().findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    const user = ctx.user;
+    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    if (!isAdmin) {
+      const owned = cfg.userId === user?.id;
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id });
+      if (!owned && !subuser) {
+        ctx.set.status = 403;
+        return { error: 'Insufficient permissions' };
+      }
+    }
+
+    const alloc = cfg.allocations as any || {};
+    if (alloc.default && alloc.default.ip === ip && Number(alloc.default.port) === port) {
+      ctx.set.status = 400;
+      return { error: 'Cannot remove default allocation' };
+    }
+
+    const key = `${ip}:${port}`;
+    if (!isAdmin) {
+      const owners: Record<string, any> = alloc.owners || {};
+      if (owners[key] !== user.id) {
+        ctx.set.status = 403;
+        return { error: 'Not owner of this allocation' };
+      }
+    }
+
+    alloc.mappings = alloc.mappings || {};
+    for (const [mip, ports] of Object.entries(alloc.mappings)) {
+      if (mip === ip) {
+        const idx = (ports as number[]).indexOf(Number(port));
+        if (idx !== -1) {
+          (ports as number[]).splice(idx, 1);
+        }
+        if ((ports as number[]).length === 0) delete alloc.mappings[mip];
+      }
+    }
+
+    if (alloc.owners) {
+      delete alloc.owners[key];
+    }
+
+    cfg.allocations = alloc;
+    await cfgRepo().save(cfg);
+
+    return { success: true };
+  }, { beforeHandle: [authenticate, authorize('servers:write')],
+    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Delete a network allocation from a server', tags: ['Servers'] }
   });
 
   for (const sub of ['network', 'location']) {

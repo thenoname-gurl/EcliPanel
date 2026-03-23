@@ -295,6 +295,8 @@ export default function BillingPage() {
                       <li>Disk: <span className="text-foreground font-medium">{activePlan.plan.disk ?? user?.limits?.disk ?? 'unlimited'}</span></li>
                       <li>CPU: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? user?.limits?.cpu ?? 'unlimited'}</span></li>
                       <li>Server limit: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? user?.limits?.serverLimit ?? 'unlimited'}</span></li>
+                      <li>Databases: <span className="text-foreground font-medium">{activePlan.plan.databases ?? user?.limits?.databases ?? 'unlimited'}</span></li>
+                      <li>Backups: <span className="text-foreground font-medium">{activePlan.plan.backups ?? user?.limits?.backups ?? 'unlimited'}</span></li>
                     </ul>
                   </div>
                 </div>

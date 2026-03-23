@@ -29,6 +29,12 @@ export class Plan {
   @Column({ nullable: true })
   serverLimit?: number;
 
+  @Column({ default: 0 })
+  databases?: number;
+
+  @Column({ default: 0 })
+  backups?: number;
+
   @Column({ default: 1 })
   portCount: number;
 
