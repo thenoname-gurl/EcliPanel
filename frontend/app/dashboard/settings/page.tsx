@@ -711,7 +711,10 @@ export default function SettingsPage() {
   };
 
   const DEFAULT_NOTIFICATION_PREFS: Record<string, { label: string; desc: string; enabled: boolean }> = {
-    serverAlerts: { label: 'Server Alerts', desc: 'Get notified when servers go offline or have issues', enabled: true },
+    serverAlerts: { label: 'Server Alerts', desc: 'Get notified when servers go offline or have issues (legacy umbrella, very noisy)', enabled: true },
+    serverLifecycle: { label: 'Server Events (create/stop/start/reinstall/delete)', desc: 'Important lifecycle changes for your servers', enabled: true },
+    serverErrors: { label: 'Server Errors & Failures', desc: 'Notify on crashes, failed installs, and errors', enabled: true },
+    serverActivity: { label: 'Server Activity (verbose)', desc: 'Verbose Wings lifecycle events (can be noisy)', enabled: false },
     billing: { label: 'Billing Notifications', desc: 'Receive invoices and payment reminders', enabled: true },
     security: { label: 'Security Alerts', desc: 'Login attempts and security-related events', enabled: true },
     productUpdates: { label: 'Product Updates', desc: 'New features and platform announcements', enabled: false },

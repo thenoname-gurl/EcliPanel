@@ -56,13 +56,36 @@ export default function AccountActivity() {
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [selectedLog, setSelectedLog] = useState<any | null>(null)
+  const LOGS_PER = 50
+
+  const loadLogs = async (pageNumber = 1) => {
+    if (!user) return
+    setLoading(true)
+    try {
+      const offset = (pageNumber - 1) * LOGS_PER
+      const url = `${API_ENDPOINTS.userDetail.replace(":id", user.id.toString())}/logs?limit=${LOGS_PER}&offset=${offset}`
+      const data = await apiFetch(url)
+      const items = Array.isArray(data) ? data : []
+      setLogs(items)
+      setHasMore(items.length === LOGS_PER)
+      setPage(pageNumber)
+      if (pageNumber === 1) {
+        setSelectedLog(items[0] ?? null)
+      }
+    } catch {
+      setLogs([])
+      setHasMore(false)
+      setSelectedLog(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!user) return
-    apiFetch(API_ENDPOINTS.userDetail.replace(":id", user.id.toString()) + "/logs")
-      .then((data) => setLogs(Array.isArray(data) ? data : []))
-      .catch(() => setLogs([]))
-      .finally(() => setLoading(false))
+    loadLogs(1)
   }, [user])
 
   const displayLogs = logs.filter((item) => {
@@ -109,6 +132,27 @@ export default function AccountActivity() {
             })}
           </div>
 
+          {/* Pagination */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">Page {page}</span>
+            <div className="flex gap-2">
+              <button
+                disabled={page <= 1 || loading}
+                onClick={() => loadLogs(Math.max(1, page - 1))}
+                className="rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                disabled={!hasMore || loading}
+                onClick={() => loadLogs(page + 1)}
+                className="rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
           {/* Activity Timeline */}
           <div className="rounded-xl border border-border bg-card p-5">
             {loading ? (
@@ -116,14 +160,20 @@ export default function AccountActivity() {
             ) : displayLogs.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No activity found.</p>
             ) : (
-              <div className="flex flex-col">
-                {displayLogs.map((item, idx) => {
-                  const type = guessType(item.action ?? "")
-                  const Icon = typeIcons[type] ?? Server
-                  const iconColor = typeColors[type] ?? "text-primary"
+              <>
+                <div className="flex flex-col">
+                  {displayLogs.map((item, idx) => {
+                    const type = guessType(item.action ?? "")
+                    const Icon = typeIcons[type] ?? Server
+                    const iconColor = typeColors[type] ?? "text-primary"
+                    const selected = selectedLog?.id === item.id
 
-                  return (
-                    <div key={item.id} className="flex gap-4">
+                    return (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedLog(item)}
+                      className={`flex w-full gap-4 rounded-md p-3 text-left transition ${selected ? "border border-primary/40 bg-primary/10" : "border border-border bg-card hover:bg-secondary/60"}`}
+                    >
                       {/* Timeline line */}
                       <div className="flex flex-col items-center">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary/50">
@@ -135,7 +185,7 @@ export default function AccountActivity() {
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 pb-6">
+                      <div className="flex-1">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-sm font-medium text-foreground capitalize">
@@ -151,19 +201,83 @@ export default function AccountActivity() {
                                 ? `${new Date(item.timestamp).toLocaleDateString()} ${new Date(item.timestamp).toLocaleTimeString()}`
                                 : ""}
                             </span>
-                            {item.ip && (
+                            {item.ipAddress && (
                               <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-[10px]">
-                                IP: {item.ip}
+                                IP: {item.ipAddress}
                               </Badge>
                             )}
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
-            )}
+
+              {selectedLog && (
+                <div className="rounded-xl border border-border bg-card p-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-foreground">Selected Log Details</h3>
+                    <button
+                      onClick={() => setSelectedLog(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Action</p>
+                      <p className="text-sm text-foreground">{selectedLog.action || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Target Type</p>
+                      <p className="text-sm text-foreground">{selectedLog.targetType || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Target ID</p>
+                      <p className="text-sm text-foreground">{selectedLog.targetId || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Timestamp</p>
+                      <p className="text-sm text-foreground">{selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">IP Address</p>
+                      <p className="text-sm text-foreground">{selectedLog.ipAddress || '-'}</p>
+                    </div>
+                  </div>
+                  {selectedLog.metadata && (
+                    <div className="mt-3">
+                      <p className="text-xs text-muted-foreground">Metadata</p>
+                      <pre className="mt-1 rounded-md border border-border bg-secondary/50 p-2 text-xs font-mono overflow-x-auto">
+                        {JSON.stringify(selectedLog.metadata, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="mt-4 border-t border-border pt-4">
+                    <p className="text-xs text-muted-foreground">All Properties</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs">
+                      {Object.entries(selectedLog).map(([key, value]) => (
+                        <div key={key} className="rounded-lg border border-border bg-secondary/50 p-2">
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{key}</p>
+                          <p className="mt-1 font-mono text-[11px] text-foreground break-words">{typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground">Raw JSON</p>
+                    <pre className="mt-1 rounded-md border border-border bg-secondary/50 p-2 text-xs font-mono overflow-x-auto">
+                      {JSON.stringify(selectedLog, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           </div>
         </div>
       </ScrollArea>

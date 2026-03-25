@@ -219,7 +219,8 @@ export const API_ENDPOINTS = {
   adminFraudScan: "/api/admin/fraud-scan/:id",
   adminFraudScanAll: "/api/admin/fraud-scan-all",
   adminFraudAction: "/api/admin/fraud-alerts/:id",
-
+  adminFraudBulkDismiss: "/api/admin/fraud-alerts/dismiss",
+  adminTicketsBulkArchive: "/api/admin/tickets/archive",
   // API Keys
   apiKeys: "/api/apikeys",
   apiKeysMy: "/api/apikeys/my",
@@ -441,7 +442,6 @@ export const NAVIGATION: NavSection[] = [
         label: "AI Chat",
         href: "/dashboard/ai-chat",
         icon: MessageSquare,
-        requiredTier: "paid",
       },
     ],
   },

@@ -461,17 +461,24 @@ export async function remoteRoutes(app: any, prefix: string) {
     const node = (ctx as any).wingNode as Node;
     const body = ctx.body as any;
     const events: any[] = Array.isArray(body) ? body : (body.data ?? [body]);
-    const logRepo = AppDataSource.getRepository(UserLog);
     for (const evt of events) {
       const uuid = evt.server ?? evt.uuid ?? '';
       if (!uuid) continue;
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
       if (!cfg) continue;
-      await logRepo.save(logRepo.create({
-        userId: cfg.userId,
-        action: `wings:${evt.event ?? 'activity'}`,
-        timestamp: evt.timestamp ? new Date(evt.timestamp) : new Date(),
-      }));
+      try {
+        await createActivityLog({
+          userId: cfg.userId,
+          action: `wings:${evt.event ?? 'activity'}`,
+          targetId: uuid,
+          targetType: 'server',
+          metadata: { event: evt.event, payload: evt, nodeId: node.id, nodeName: node.name },
+          ipAddress: ctx.ip,
+          notify: false,
+        });
+      } catch (e) {
+        // skip
+      }
     }
     ctx.set.status = 204;
     return;

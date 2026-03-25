@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { useEffect, useState, useRef } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   Brain,
   ArrowRight,
@@ -22,174 +24,12 @@ import {
   Clock,
 } from "lucide-react"
 
-// ── Lightweight markdown renderer ────────────────────────────────────────────
 function MarkdownContent({ content }: { content: string }) {
-  const lines = content.split("\n")
-  const elements: React.ReactNode[] = []
-  let i = 0
-
-  const inlineFormat = (text: string, key: string | number): React.ReactNode => {
-    // inline code
-    const parts = text.split(/(`[^`]+`)/)
-    return (
-      <span key={key}>
-        {parts.map((p, j) =>
-          p.startsWith("`") && p.endsWith("`") ? (
-            <code key={j} className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[0.8em] text-foreground">
-              {p.slice(1, -1)}
-            </code>
-          ) : (
-            // Render basic markdown (**bold**, *italic*, ~~strikethrough~~) safely without innerHTML
-            (() => {
-              const segments: React.ReactNode[] = []
-              const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*|~~([^~]+)~~)/g
-              let lastIndex = 0
-              let match: RegExpExecArray | null
-
-              while ((match = regex.exec(p)) !== null) {
-                if (match.index > lastIndex) {
-                  segments.push(
-                    <span key={`${j}-text-${lastIndex}`}>{p.slice(lastIndex, match.index)}</span>
-                  )
-                }
-
-                const [fullMatch, , boldText, italicText, strikeText] = match
-                if (boldText !== undefined) {
-                  segments.push(
-                    <strong key={`${j}-bold-${match.index}`}>{boldText}</strong>
-                  )
-                } else if (italicText !== undefined) {
-                  segments.push(
-                    <em key={`${j}-italic-${match.index}`}>{italicText}</em>
-                  )
-                } else if (strikeText !== undefined) {
-                  segments.push(
-                    <del key={`${j}-del-${match.index}`}>{strikeText}</del>
-                  )
-                } else {
-                  segments.push(
-                    <span key={`${j}-raw-${match.index}`}>{fullMatch}</span>
-                  )
-                }
-
-                lastIndex = regex.lastIndex
-              }
-
-              if (lastIndex < p.length) {
-                segments.push(
-                  <span key={`${j}-text-${lastIndex}`}>{p.slice(lastIndex)}</span>
-                )
-              }
-
-              return <span key={j}>{segments}</span>
-            })()
-          )
-        )}
-      </span>
-    )
-  }
-
-  while (i < lines.length) {
-    const line = lines[i]
-
-    // fenced code block
-    if (line.trimStart().startsWith("```")) {
-      const lang = line.trim().slice(3).trim()
-      const codeLines: string[] = []
-      i++
-      while (i < lines.length && !lines[i].trimStart().startsWith("```")) {
-        codeLines.push(lines[i])
-        i++
-      }
-      elements.push(
-        <pre key={i} className="my-2 overflow-x-auto rounded-lg bg-muted/80 border border-border p-3 text-xs font-mono text-foreground leading-relaxed">
-          {lang && <div className="mb-1 text-[10px] text-muted-foreground uppercase tracking-wider">{lang}</div>}
-          <code>{codeLines.join("\n")}</code>
-        </pre>
-      )
-      i++
-      continue
-    }
-
-    // heading
-    const hm = line.match(/^(#{1,3})\s+(.+)/)
-    if (hm) {
-      const lvl = hm[1].length
-      const cls = lvl === 1 ? "text-base font-bold mt-3 mb-1" : lvl === 2 ? "text-sm font-bold mt-2 mb-1" : "text-sm font-semibold mt-1"
-      elements.push(<div key={i} className={cls}>{inlineFormat(hm[2], i)}</div>)
-      i++; continue
-    }
-
-    // horizontal rule
-    if (/^[-*_]{3,}$/.test(line.trim())) {
-      elements.push(<hr key={i} className="my-2 border-border" />)
-      i++; continue
-    }
-
-    // table
-    if (line.includes("|") && lines[i + 1]?.match(/^[\s|:-]+$/)) {
-      const headers = line.split("|").map(c => c.trim()).filter(Boolean)
-      i += 2
-      const rows: string[][] = []
-      while (i < lines.length && lines[i].includes("|")) {
-        rows.push(lines[i].split("|").map(c => c.trim()).filter(Boolean))
-        i++
-      }
-      elements.push(
-        <div key={i} className="my-2 overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                {headers.map((h, j) => <th key={j} className="px-2 py-1 text-left font-semibold text-foreground">{inlineFormat(h, j)}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, ri) => (
-                <tr key={ri} className="border-b border-border/40 even:bg-muted/20">
-                  {row.map((cell, ci) => <td key={ci} className="px-2 py-1 text-muted-foreground">{inlineFormat(cell, ci)}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )
-      continue
-    }
-
-    // unordered list
-    if (/^[-*+]\s/.test(line)) {
-      const items: React.ReactNode[] = []
-      while (i < lines.length && /^[-*+]\s/.test(lines[i])) {
-        items.push(<li key={i} className="ml-4 list-disc text-sm">{inlineFormat(lines[i].replace(/^[-*+]\s/, ""), i)}</li>)
-        i++
-      }
-      elements.push(<ul key={i} className="my-1 space-y-0.5">{items}</ul>)
-      continue
-    }
-
-    // ordered list
-    if (/^\d+\.\s/.test(line)) {
-      const items: React.ReactNode[] = []
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        items.push(<li key={i} className="ml-4 list-decimal text-sm">{inlineFormat(lines[i].replace(/^\d+\.\s/, ""), i)}</li>)
-        i++
-      }
-      elements.push(<ol key={i} className="my-1 space-y-0.5">{items}</ol>)
-      continue
-    }
-
-    // blank line
-    if (line.trim() === "") {
-      elements.push(<div key={i} className="h-1.5" />)
-      i++; continue
-    }
-
-    // paragraph
-    elements.push(<p key={i} className="text-sm leading-relaxed">{inlineFormat(line, i)}</p>)
-    i++
-  }
-
-  return <div className="space-y-0.5">{elements}</div>
+  return (
+    <div className="prose prose-invert max-w-full break-words">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  )
 }
 // ─────────────────────────────────────────────────────────────────────────────
 

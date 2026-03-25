@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +38,18 @@ export default function LoginPage() {
   const [emailCode, setEmailCode] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [otpMethod, setOtpMethod] = useState<OtpMethod | null>(null);
+  const [domainOk, setDomainOk] = useState<boolean | null>(null);
+  const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem('domainWarningDismissed') === '1' } catch { return false }
+  });
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const host = window.location.hostname || '';
+      setDomainOk(host.endsWith('ecli.app'))
+    } catch { setDomainOk(null) }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,6 +168,19 @@ export default function LoginPage() {
         <h2 className="mb-6 text-center text-2xl font-semibold text-foreground">
           Sign in to Eclipse Panel
         </h2>
+
+        {domainOk === false && !dismissedDomainWarning && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-yellow-300">Security check - confirm domain</p>
+              <p className="text-xs text-yellow-200/80">This panel should be served from ecli.app. If the address in your browser is different, an attacker could intercept your credentials or hijack your session — navigate to <a href="https://ecli.app" className="underline">https://ecli.app</a> instead.</p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => { try { localStorage.setItem('domainWarningDismissed','1') } catch {} setDismissedDomainWarning(true) }} className="text-xs rounded border px-2 py-1">Dismiss</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 rounded bg-destructive/10 px-4 py-2 text-sm text-destructive">

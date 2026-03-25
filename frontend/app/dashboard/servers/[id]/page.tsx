@@ -1224,6 +1224,7 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
   const [bulkBusy, setBulkBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   const breadcrumbs = path.split("/").filter(Boolean)
 
@@ -1489,20 +1490,38 @@ function FilesTab({ serverId, sftpInfo, editorSettings }: { serverId: string; sf
             const files = e.target.files
             if (!files || files.length === 0) return
             setUploading(true)
+            setUploadProgress(0)
             try {
               for (let i = 0; i < files.length; i++) {
                 const f = files[i]
-                const content = await f.text()
-                await apiFetch(API_ENDPOINTS.serverFileWrite.replace(":id", serverId), {
-                  method: "POST",
-                  body: JSON.stringify({ path: path + f.name, content }),
+                await new Promise<void>((resolve, reject) => {
+                  const form = new FormData()
+                  form.append('file', f)
+                  form.append('path', path + f.name)
+                  const xhr = new XMLHttpRequest()
+                  xhr.open('POST', API_ENDPOINTS.serverFileWrite.replace(":id", serverId))
+                  xhr.withCredentials = true
+                  xhr.upload.onprogress = (ev) => {
+                    if (ev.lengthComputable) {
+                      const percent = Math.round((ev.loaded / ev.total) * 100)
+                      setUploadProgress(percent)
+                    }
+                  }
+                  xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve()
+                    else reject(new Error(xhr.responseText || `Upload failed ${xhr.status}`))
+                  }
+                  xhr.onerror = () => reject(new Error('Network error'))
+                  xhr.send(form)
                 })
+                setUploadProgress(null)
               }
               await loadFiles(path)
             } catch (err: any) {
               alert('Upload failed: ' + (err?.message || err))
             } finally {
               setUploading(false)
+              setUploadProgress(null)
               if (fileInputRef.current) fileInputRef.current.value = ''
             }
           }} />
@@ -1532,13 +1551,23 @@ c                 onClick={archiveSelected}
               </button>
             </>
           )}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
-            disabled={uploading || bulkBusy}
-          >
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Upload
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
+              disabled={uploading || bulkBusy}
+            >
+              {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Upload
+            </button>
+            {uploadProgress !== null && (
+              <div className="w-40">
+                <div className="h-2 w-full rounded bg-border overflow-hidden">
+                  <div className="h-2 bg-primary" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">{uploadProgress}%</div>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => { setShowNewFileForm(true); setShowNewFolderForm(false); setNewName("") }}
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80"
@@ -2145,9 +2174,13 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 function NetworkTab({ serverId }: { serverId: string }) {
   const [allocations, setAllocations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [requestCount, setRequestCount] = useState(1)
   const [requesting, setRequesting] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
+  const { user } = useAuth()
+  const [serverOwnerId, setServerOwnerId] = useState<number | null>(null)
+  const [isSubuser, setIsSubuser] = useState(false)
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
@@ -2156,17 +2189,44 @@ function NetworkTab({ serverId }: { serverId: string }) {
       .finally(() => setLoading(false))
   }, [serverId])
 
+  useEffect(() => {
+    let mounted = true
+    apiFetch(API_ENDPOINTS.serverDetail.replace(":id", serverId))
+      .then((s: any) => { if (mounted) setServerOwnerId(s?.userId ?? null) })
+      .catch(() => {})
+    apiFetch(API_ENDPOINTS.serverSubusers.replace(":id", serverId))
+      .then((list: any) => { if (mounted && Array.isArray(list)) setIsSubuser(list.some((su: any) => su.userId === user?.id)) })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [serverId, user?.id])
+
   const requestPorts = async () => {
     setRequesting(true)
     setRequestError(null)
     try {
-      const data = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), { method: 'POST', body: JSON.stringify({ count: Number(requestCount || 1) }) })
+      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), { method: 'POST', body: JSON.stringify({ count: 1 }) })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
     } catch (e: any) {
       setRequestError(e?.message || String(e) || 'Request failed')
     } finally {
       setRequesting(false)
+    }
+  }
+
+  const deassignPort = async (ip: string, port: number) => {
+    if (!confirm(`Deassign ${ip}:${port}? This will free the port for others.`)) return
+    setDeleting(true)
+    setDeletingKey(`${ip}:${port}`)
+    try {
+      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), { method: 'DELETE', body: JSON.stringify({ ip, port }) })
+      const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
+      setAllocations(Array.isArray(refreshed) ? refreshed : [])
+    } catch (e: any) {
+      alert(e?.message || String(e) || 'Failed to deassign port')
+    } finally {
+      setDeleting(false)
+      setDeletingKey(null)
     }
   }
 
@@ -2181,15 +2241,17 @@ function NetworkTab({ serverId }: { serverId: string }) {
         <EmptyState message="No network allocations found." />
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-4 bg-secondary/50 px-4 py-2.5 text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 bg-secondary/50 px-4 py-2.5 text-xs font-medium text-muted-foreground">
             <span>Address</span>
             <span>Port</span>
             <span>Type</span>
+            <span>Actions</span>
           </div>
           {allocations.map((alloc: any, i: number) => {
             const displayHost = alloc.fqdn || alloc.ip || "—"
+            const canDeassign = !!user && (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin' || serverOwnerId === user?.id || isSubuser)
             return (
-            <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center px-4 py-2.5 text-sm border-t border-border">
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-4 py-2.5 text-sm border-t border-border">
               <div>
                 <span className="font-mono text-foreground">{displayHost}</span>
                 {alloc.fqdn && alloc.ip && alloc.fqdn !== alloc.ip && (
@@ -2197,7 +2259,16 @@ function NetworkTab({ serverId }: { serverId: string }) {
                 )}
               </div>
               <span className="font-mono text-foreground">{alloc.port || "—"}</span>
-              <Badge variant="outline" className="w-fit text-xs">{alloc.is_default ? "Primary" : "Secondary"}</Badge>
+              <div className="flex items-center">
+                <Badge variant="outline" className="w-fit text-xs">{alloc.is_default ? "Primary" : "Secondary"}</Badge>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                {!alloc.is_default && canDeassign ? (
+                  <Button size="sm" variant="outline" onClick={() => deassignPort(alloc.ip, alloc.port)} disabled={deleting || deletingKey === `${alloc.ip}:${alloc.port}`}>
+                    {deleting && deletingKey === `${alloc.ip}:${alloc.port}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
+                ) : null}
+              </div>
             </div>
             )
           })}
@@ -2205,10 +2276,8 @@ function NetworkTab({ serverId }: { serverId: string }) {
       )}
       <div className="p-6 border-t border-border">
         <div className="flex items-center gap-3">
-          <input type="number" min={1} value={requestCount} onChange={(e) => setRequestCount(Number(e.target.value))}
-            className="w-24 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground" />
           <Button size="sm" onClick={requestPorts} disabled={requesting}>
-            {requesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-3.5 w-3.5 mr-1" />} Request port{requestCount > 1 ? 's' : ''}
+            {requesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-3.5 w-3.5 mr-1" />} Request port
           </Button>
           {requestError && <p className="text-sm text-destructive ml-2">{requestError}</p>}
           <p className="text-xs text-muted-foreground ml-auto">Per-account limit enforced by panel.</p>

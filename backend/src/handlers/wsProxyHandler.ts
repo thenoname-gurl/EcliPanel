@@ -78,6 +78,11 @@ class WingsProxySession {
   private node?: Node;
   private serverId?: string;
   private panelOrigin?: string;
+  private reconnectTimer: any = null;
+  private reconnectAttempts = 0;
+  private pingInterval: any = null;
+  private lastPong = 0;
+  private closedByClient = false;
 
   constructor(app: any, ctx: ProxyCtx, ws: any) {
     this.app = app;
@@ -180,107 +185,174 @@ class WingsProxySession {
   private async connectToWings() {
     if (!this.node || !this.serverId) return;
 
-    const nodeUrl = String(this.node.url).replace(/\/+$/, '');
-    const wsUrl = nodeUrl.replace(/^https?:/, this.node.useSSL === false ? 'ws:' : 'wss:') + `/api/servers/${this.serverId}/ws`;
+    this.clearReconnect();
 
-    const headers: any = {};
-    if (this.panelOrigin) headers.Origin = this.panelOrigin;
-    try {
-      if (this.node && this.node.token) {
-        const normalizeUuid = (value: any) => {
-          if (!value) return uuidv4().replace(/-/g, '');
-          const s = String(value).toLowerCase().replace(/-/g, '');
-          if (/^[0-9a-f]{32}$/.test(s)) return s;
-          return uuidv4().replace(/-/g, '');
-        };
+    const attempt = async () => {
+      if (!this.node || !this.serverId) return;
+      const nodeUrl = String(this.node.url).replace(/\/+$/, '');
+      const wsUrl = nodeUrl.replace(/^https?:/, this.node.useSSL === false ? 'ws:' : 'wss:') + `/api/servers/${this.serverId}/ws`;
 
-        const now = Math.floor(Date.now() / 1000);
-        const safeUserUuid = normalizeUuid((this.ctx as any)?.user?.uuid || (this.ctx as any)?.user?.id);
-        const serverUuid = normalizeUuid(this.serverId);
-        const jti = normalizeUuid(uuidv4());
+      const headers: any = {};
+      if (this.panelOrigin) headers.Origin = this.panelOrigin;
 
-        this.log('info', 'wings jwt payload lengths', {
-          user_uuid: safeUserUuid.length,
-          server_uuid: serverUuid.length,
-          jti: jti.length,
-          user_uuid_source: String((this.ctx as any)?.user?.uuid || (this.ctx as any)?.user?.id),
-        });
-
-        const payload = {
-          iss: 'eclipanel',
-          sub: safeUserUuid,
-          aud: [''],
-          iat: now,
-          nbf: now,
-          exp: now + 600,
-          jti,
-          user_uuid: safeUserUuid,
-          server_uuid: serverUuid,
-          permissions: ['*'],
-          use_console_read_permission: false,
-        };
-        const signed = signWingsJwt(payload, String(this.node.token));
-        headers.Authorization = `Bearer ${signed}`;
-      }
-    } catch (e) {
-      if (this.node && this.node.token) headers.Authorization = `Bearer ${this.node.token}`;
-    }
-
-    //this.log('debug', 'connecting to wings', { wsUrl, headers });
-
-    try {
-      if (this.clientWs && typeof this.clientWs.send === 'function') {
-        this.clientWs.send(JSON.stringify({ event: 'status', args: ['Connecting'] }));
-      }
-    } catch (e) {
-      // skip
-    }
-
-    this.wingsWs = new WebSocket(wsUrl, { headers });
-
-    this.wingsWs.on('open', () => {
-      const BATCH_SIZE = 32;
-      const drain = () => {
-        try {
-          let sent = 0;
-          while (sent < BATCH_SIZE && this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
-            const queued = this.queue.shift();
-            if (queued) this.wingsWs.send(queued);
-            sent++;
-          }
-          if (this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
-            setImmediate(drain);
-          }
-        } catch (e) {
-          this.log('error', 'ws-proxy drain error', e);
-        }
-      };
-      drain();
-    });
-
-    this.wingsWs.on('message', (msg: any) => {
-      let text: string;
       try {
-        if (typeof msg === 'string') text = msg;
-        else if (msg instanceof Buffer) text = msg.toString('utf8');
-        else if (msg instanceof ArrayBuffer) text = Buffer.from(msg).toString('utf8');
-        else text = JSON.stringify(msg);
+        if (this.node && this.node.token) {
+          const normalizeUuid = (value: any) => {
+            if (!value) return uuidv4().replace(/-/g, '');
+            const s = String(value).toLowerCase().replace(/-/g, '');
+            if (/^[0-9a-f]{32}$/.test(s)) return s;
+            return uuidv4().replace(/-/g, '');
+          };
+
+          const now = Math.floor(Date.now() / 1000);
+          const safeUserUuid = normalizeUuid((this.ctx as any)?.user?.uuid || (this.ctx as any)?.user?.id);
+          const serverUuid = normalizeUuid(this.serverId);
+          const jti = normalizeUuid(uuidv4());
+
+          this.log('debug', 'wings jwt payload lengths', {
+            user_uuid: safeUserUuid.length,
+            server_uuid: serverUuid.length,
+            jti: jti.length,
+            user_uuid_source: String((this.ctx as any)?.user?.uuid || (this.ctx as any)?.user?.id),
+          });
+
+          const payload = {
+            iss: 'eclipanel',
+            sub: safeUserUuid,
+            aud: [''],
+            iat: now,
+            nbf: now,
+            exp: now + 600,
+            jti,
+            user_uuid: safeUserUuid,
+            server_uuid: serverUuid,
+            permissions: ['*'],
+            use_console_read_permission: false,
+          };
+          const signed = signWingsJwt(payload, String(this.node.token));
+          headers.Authorization = `Bearer ${signed}`;
+        }
       } catch (e) {
-        text = String(msg);
+        if (this.node && this.node.token) headers.Authorization = `Bearer ${this.node.token}`;
       }
-      //this.log('debug', 'forwarding wings -> client', (text && text.slice) ? text.slice(0, 256) : text);
-      try { this.clientWs.send(text); } catch (e) { this.log('error', 'failed sending to client', e); }
-    });
 
-    this.wingsWs.on('close', () => {
-      this.log('debug', 'wings ws closed');
-      this.close();
-    });
+      try {
+        if (this.clientWs && typeof this.clientWs.send === 'function') {
+          this.clientWs.send(JSON.stringify({ event: 'status', args: ['Connecting'] }));
+        }
+      } catch (e) {
+        // skip
+      }
 
-    this.wingsWs.on('error', (err: any) => {
-      this.log('error', 'wings ws error', err);
-      this.close();
-    });
+      try {
+        this.wingsWs = new WebSocket(wsUrl, { headers });
+      } catch (err: any) {
+        this.log('error', 'failed to create wings websocket', err);
+        this.scheduleReconnect();
+        return;
+      }
+
+      this.wingsWs.on('open', () => {
+        this.reconnectAttempts = 0;
+        this.log('info', 'wings ws open');
+        const BATCH_SIZE = 32;
+        const drain = () => {
+          try {
+            let sent = 0;
+            while (sent < BATCH_SIZE && this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
+              const queued = this.queue.shift();
+              if (queued) this.wingsWs.send(queued);
+              sent++;
+            }
+            if (this.queue.length && this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) setImmediate(drain);
+          } catch (e) {
+            this.log('error', 'ws-proxy drain error', e);
+          }
+        };
+        drain();
+        this.startPing();
+        try { this.clientWs.send(JSON.stringify({ event: 'status', args: ['Connected'] })); } catch { }
+      });
+
+      this.wingsWs.on('message', (msg: any) => {
+        let text: string;
+        try {
+          if (typeof msg === 'string') text = msg;
+          else if (msg instanceof Buffer) text = msg.toString('utf8');
+          else if (msg instanceof ArrayBuffer) text = Buffer.from(msg).toString('utf8');
+          else text = JSON.stringify(msg);
+        } catch (e) {
+          text = String(msg);
+        }
+        try { this.clientWs.send(text); } catch (e) { this.log('error', 'failed sending to client', e); }
+      });
+
+      this.wingsWs.on('close', (code: number, reason: Buffer) => {
+        this.log('warn', 'wings ws closed', { code, reason: reason?.toString?.() });
+        this.stopPing();
+        if (!this.closedByClient) {
+          try { this.clientWs.send(JSON.stringify({ event: 'status', args: ['Disconnected'] })); } catch { }
+          this.scheduleReconnect();
+        } else {
+          this.close();
+        }
+      });
+
+      this.wingsWs.on('error', (err: any) => {
+        this.log('error', 'wings ws error', err);
+        this.stopPing();
+        if (!this.closedByClient) this.scheduleReconnect();
+      });
+
+      this.wingsWs.on('pong', () => { this.lastPong = Date.now(); });
+    };
+
+    attempt();
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer) return;
+    this.reconnectAttempts++;
+    const BASE = 2000;
+    const delay = Math.min(BASE * Math.pow(2, Math.max(0, this.reconnectAttempts - 1)), 60_000);
+    this.log('info', 'scheduling wings reconnect', { attempt: this.reconnectAttempts, delay });
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.clientWs == null) return;
+      try {
+        this.connectToWings();
+      } catch (e) {
+        this.scheduleReconnect();
+      }
+    }, delay);
+  }
+
+  private clearReconnect() {
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    this.reconnectAttempts = 0;
+  }
+
+  private startPing() {
+    this.stopPing();
+    this.lastPong = Date.now();
+    this.pingInterval = setInterval(() => {
+      try {
+        if (this.wingsWs && this.wingsWs.readyState === WebSocket.OPEN) {
+          try { this.wingsWs.ping(); } catch { }
+          if (Date.now() - this.lastPong > 30_000) {
+            this.log('warn', 'wings ws pong timeout, reconnecting');
+            try { this.wingsWs.terminate(); } catch { }
+            this.scheduleReconnect();
+          }
+        }
+      } catch (e) {
+        // skip
+      }
+    }, 15_000);
+  }
+
+  private stopPing() {
+    if (this.pingInterval) { clearInterval(this.pingInterval); this.pingInterval = null; }
   }
 
   public onClientMessage(msg: any) {
@@ -309,8 +381,8 @@ class WingsProxySession {
   }
 
   public close() {
-    try { this.clientWs?.close?.(); } catch {}
-    try { this.wingsWs?.close?.(); } catch {}
+    try { this.clientWs?.close?.(); } catch { }
+    try { this.wingsWs?.close?.(); } catch { }
   }
 
   public error(err: any) {

@@ -26,11 +26,26 @@ export class Ticket {
   @Column({ nullable: true })
   department: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   adminReply: string | null;
 
-  @Column({ type: 'simple-json', nullable: true })
-  messages?: Array<{ sender: 'user' | 'staff'; message: string; created: Date }>;
+  @Column({ default: false })
+  aiTouched: boolean;
+
+  @Column({ default: false })
+  aiMarkedSpam: boolean;
+
+  @Column({ default: false })
+  aiClosed: boolean;
+
+  @Column({ default: false })
+  aiDisabled: boolean;
+
+  @Column({ default: false })
+  archived: boolean;
+
+  @Column({ type: 'simple-json', nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
+  messages?: Array<{ sender: 'user' | 'staff'; message: string; created: Date; ai?: boolean }>;
 
   @CreateDateColumn()
   created: Date;

@@ -5,6 +5,8 @@ import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import axios from 'axios';
+import { redisClient } from '../config/redis';
+import { createActivityLog } from './logHandler';
 import { AIUsage } from '../models/aiUsage.entity';
 import { User } from '../models/user.entity';
 import { t } from 'elysia';
@@ -28,11 +30,80 @@ function requireAdmin(ctx: any): true | { error: string } {
 // There is no mercy for the unclean.
 // This code should burn in hell
 // TODO: refactor this entire file, its a mess
+// TBH not refacturing it
 export async function aiRoutes(app: any, prefix = '') {
   const modelRepo = AppDataSource.getRepository(AIModel);
   const modelUserRepo = AppDataSource.getRepository(AIModelUser);
   const modelOrgRepo = AppDataSource.getRepository(AIModelOrg);
   const usageRepo = AppDataSource.getRepository(AIUsage);
+  const endpointCooldowns: Map<string, number> = new Map();
+
+  function nowTs() { return Date.now(); }
+
+  function extractEndpoints(model: any): Array<{ base: string; apiKey?: string; id?: string }> {
+    const list: Array<{ base: string; apiKey?: string; id?: string }> = [];
+    try {
+      if (Array.isArray(model?.endpoints) && model.endpoints.length) {
+        for (const e of model.endpoints) {
+          if (!e) continue;
+          const base = (e.endpoint || e.url || '').toString().replace(/\/v1.*$/i, '').replace(/\/+$/, '');
+          if (!base) continue;
+          list.push({ base, apiKey: e.apiKey || e.key || undefined, id: e.id || base });
+        }
+      }
+    } catch { }
+    if (list.length === 0 && model?.endpoint) {
+      list.push({ base: model.endpoint.toString().replace(/\/v1.*$/i, '').replace(/\/+$/, ''), apiKey: model.apiKey || undefined, id: model.endpoint });
+    }
+    return list;
+  }
+
+  async function requestWithFallback(opts: { model: any; path: string; method?: 'post'|'get'|'put'|'delete'; data?: any; headers?: Record<string, any>; timeoutMs?: number }) {
+    const { model, path, method = 'post', data, headers = {}, timeoutMs = 60000 } = opts;
+    const endpoints = extractEndpoints(model);
+    if (endpoints.length === 0) throw new Error('No endpoints configured');
+
+    const errs: any[] = [];
+    for (const ep of endpoints) {
+      const key = ep.id || ep.base;
+      const cooldown = endpointCooldowns.get(key) || 0;
+      if (cooldown > nowTs()) {
+        errs.push({ endpoint: ep.base, reason: 'cooldown' });
+        continue;
+      }
+
+      const url = `${ep.base.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}`;
+      const hdrs = { ...(headers || {}), Authorization: `Bearer ${ep.apiKey || ''}`, 'Content-Type': 'application/json' } as any;
+      try {
+        const res = await axios.request({ method: method as any, url, data, headers: hdrs, timeout: timeoutMs });
+        return res;
+      } catch (e: any) {
+        const status = e.response?.status;
+        const body = e.response?.data;
+        const isRate = status === 429 || (body && (String(body?.type || '').includes('rate') || String(body?.code || '').includes('rate') || String(body?.error || '').toLowerCase().includes('rate')));
+        if (isRate) {
+          const ra = Number(e.response?.headers?.['retry-after'] || e.response?.headers?.['x-retry-after'] || 0);
+          const wait = (Number.isFinite(ra) && ra > 0) ? (ra * 1000) : 5000;
+          endpointCooldowns.set(key, nowTs() + wait + 50);
+          errs.push({ endpoint: ep.base, reason: 'rate_limited', wait });
+          try {
+            const entry = { timestamp: new Date().toISOString(), modelId: model?.id, modelName: model?.name, endpoint: ep.base, waitMs: wait };
+            try { await redisClient.lPush('admin:ai:cooldowns', JSON.stringify(entry)); } catch (e) { /* ignore redis push errors */ }
+            try { await redisClient.expire('admin:ai:cooldowns', 24 * 60 * 60); } catch (e) { /* ignore */ }
+            try { await createActivityLog({ userId: 0, action: 'ai:endpoint:cooldown', targetId: String(model?.id || ''), targetType: 'ai-model', metadata: entry, ipAddress: '', notify: false }); } catch (e) { /* ignore */ }
+          } catch (e) { /* meow */ }
+          continue;
+        }
+
+        errs.push({ endpoint: ep.base, reason: e.message || 'error', status });
+        continue;
+      }
+    }
+
+    const err = new Error('All endpoints failed');
+    (err as any).details = errs;
+    throw err;
+  }
 
   function resolveProviderModelId(model: any) {
     const providerId = model?.config?.modelId || model?.name;
@@ -209,11 +280,6 @@ export async function aiRoutes(app: any, prefix = '') {
     }
 
     try {
-      const baseUrl = (model.endpoint || '')
-        .replace(/\/+$/, '')
-        .replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
-      const chatUrl = `${baseUrl}/v1/chat/completions`;
-
       const messages: { role: string; content: string }[] = [];
       if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
       if (Array.isArray(history)) {
@@ -224,13 +290,20 @@ export async function aiRoutes(app: any, prefix = '') {
       messages.push({ role: 'user', content: message });
 
       const providerModel = resolveProviderModelId(model);
-      const res = await axios.post(
-        chatUrl,
-        { model: providerModel, messages, max_tokens: 4096 },
-        { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 60000 }
-      );
-      const aiReply = res.data?.choices?.[0]?.message?.content || JSON.stringify(res.data);
-      return { reply: aiReply };
+      try {
+        const res = await requestWithFallback({
+          model,
+          path: '/v1/chat/completions',
+          method: 'post',
+          data: { model: providerModel, messages, max_tokens: 4096 },
+          timeoutMs: 60000,
+        });
+        const aiReply = res.data?.choices?.[0]?.message?.content || JSON.stringify(res.data);
+        return { reply: aiReply };
+      } catch (e: any) {
+        // hide provider internals from end user
+        return { reply: 'AI service temporarily unavailable. Please try again shortly.' };
+      }
     } catch (err: any) {
       const status = err.response?.status;
       const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
@@ -278,8 +351,13 @@ export async function aiRoutes(app: any, prefix = '') {
       const forwardBody = { ...(body || {}) };
       delete (forwardBody as any).model;
       forwardBody.model = resolveProviderModelId(model);
-      const res = await axios.post(url, forwardBody, { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 60000 });
-      return res.data;
+      try {
+        const res = await requestWithFallback({ model, path: '/v1/chat/completions', method: 'post', data: forwardBody, timeoutMs: 60000 });
+        return res.data;
+      } catch (e: any) {
+        ctx.set.status = 502;
+        return { error: 'AI service temporarily unavailable' };
+      }
     } catch (err: any) {
       const status = err.response?.status;
       const detail = err.response?.data ? err.response.data : err.message;
@@ -328,8 +406,13 @@ export async function aiRoutes(app: any, prefix = '') {
       const forwardBody = { ...(body || {}) };
       delete (forwardBody as any).model;
       forwardBody.model = resolveProviderModelId(model);
-      const res = await axios.post(url, forwardBody, { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 60000 });
-      return res.data;
+      try {
+        const res = await requestWithFallback({ model, path: '/v1/completions', method: 'post', data: forwardBody, timeoutMs: 60000 });
+        return res.data;
+      } catch (e: any) {
+        ctx.set.status = 502;
+        return { error: 'AI service temporarily unavailable' };
+      }
     } catch (err: any) {
       const status = err.response?.status;
       const detail = err.response?.data ? err.response.data : err.message;
@@ -362,24 +445,49 @@ export async function aiRoutes(app: any, prefix = '') {
     }
 
     const restPath = ctx.params['*'];
-    const base = (model.endpoint || '').replace(/\/+$/, '');
-    const url = `${base}/${restPath}`;
-    const headers: any = { ...ctx.headers };
-    if (model.apiKey) headers.authorization = `Bearer ${model.apiKey}`;
-    delete headers.host;
+    const endpoints = extractEndpoints(model);
+    const errs: any[] = [];
+    for (const ep of endpoints) {
+      const key = ep.id || ep.base;
+      const cooldown = endpointCooldowns.get(key) || 0;
+      if (cooldown > nowTs()) {
+        errs.push({ endpoint: ep.base, reason: 'cooldown' });
+        continue;
+      }
+      const url = `${ep.base.replace(/\/$/, '')}/${restPath}`;
+      const headers: any = { ...ctx.headers };
+      if (ep.apiKey) headers.authorization = `Bearer ${ep.apiKey}`;
+      delete headers.host;
+      try {
+        const res2 = await axios({
+          method: ctx.method as any,
+          url,
+          headers,
+          data: ctx.raw,
+          responseType: 'stream',
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        });
+        const response = new Response(res2.data, { status: res2.status, headers: res2.headers as any });
+        return response;
+      } catch (e: any) {
+        const status = e.response?.status;
+        const body = e.response?.data;
+        const isRate = status === 429 || (body && (String(body?.type || '').includes('rate') || String(body?.code || '').includes('rate')));
+        if (isRate) {
+          const ra = Number(e.response?.headers?.['retry-after'] || e.response?.headers?.['x-retry-after'] || 0);
+          const wait = (Number.isFinite(ra) && ra > 0) ? (ra * 1000) : 5000;
+          endpointCooldowns.set(key, nowTs() + wait + 50);
+          errs.push({ endpoint: ep.base, reason: 'rate_limited', wait });
+          continue;
+        }
+        errs.push({ endpoint: ep.base, reason: e.message || 'error', status });
+        continue;
+      }
+    }
 
-    const res2 = await axios({
-      method: ctx.method as any,
-      url,
-      headers,
-      data: ctx.raw,
-      responseType: 'stream',
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-    });
-
-    const response = new Response(res2.data, { status: res2.status, headers: res2.headers as any });
-    return response;
+    ctx.set.status = 502;
+    return { error: 'AI service temporarily unavailable' };
   }, {beforeHandle: authenticate,
     detail: { summary: 'Proxy request to AI model endpoint', tags: ['AI'] }
   });
@@ -393,6 +501,21 @@ export async function aiRoutes(app: any, prefix = '') {
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Admin list AI models', tags: ['AI'] }
   });
+
+  app.get(prefix + '/admin/ai/cooldowns', async (ctx: any) => {
+    const adminCheck = requireAdmin(ctx);
+    if (adminCheck !== true) return adminCheck;
+    try {
+      const rows = await redisClient.lRange('admin:ai:cooldowns', 0, 99);
+      const parsed = rows.map((r: string) => {
+        try { return JSON.parse(r); } catch { return r; }
+      });
+      return parsed;
+    } catch (e: any) {
+      ctx.set.status = 500;
+      return { error: 'Failed to read cooldowns' };
+    }
+  }, { beforeHandle: authenticate, response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }, detail: { summary: 'Recent AI endpoint cooldowns (24h)', tags: ['AI','Admin'] } });
 
   app.post(prefix + '/admin/ai/models', async (ctx: any) => {
     const adminCheck = requireAdmin(ctx);

@@ -57,6 +57,18 @@ export default function RegisterPage() {
 
   const registrationDisabled = panelSettings !== null && !panelSettings.registrationEnabled;
   const notice = panelSettings?.registrationNotice || "";
+  const [domainOk, setDomainOk] = useState<boolean | null>(null);
+  const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem('domainWarningDismissed') === '1' } catch { return false }
+  });
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const host = window.location.hostname || '';
+      setDomainOk(host.endsWith('ecli.app'))
+    } catch { setDomainOk(null) }
+  }, [])
 
   return (
     <div className="flex h-screen items-center justify-center bg-background">
@@ -69,6 +81,18 @@ export default function RegisterPage() {
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
             <p className="text-sm text-blue-300">{notice}</p>
+          </div>
+        )}
+        {domainOk === false && !dismissedDomainWarning && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+            <div>
+              <p className="text-sm font-semibold text-yellow-300">Security check — confirm domain</p>
+              <p className="text-xs text-yellow-200/80">This panel should be served from ecli.app. If the address in your browser is different, an attacker could intercept your credentials or hijack your session — navigate to <a href="https://ecli.app" className="underline">https://ecli.app</a> instead.</p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => { try { localStorage.setItem('domainWarningDismissed','1') } catch {} setDismissedDomainWarning(true) }} className="text-xs rounded border px-2 py-1">Dismiss</button>
+              </div>
+            </div>
           </div>
         )}
         {/* Registration disabled banner */}

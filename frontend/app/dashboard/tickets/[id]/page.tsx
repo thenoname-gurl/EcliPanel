@@ -1,6 +1,8 @@
 "use client"
 
 import { use, useState, useEffect, useRef } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -18,22 +20,30 @@ import {
   Tag,
   XCircle,
   CheckCircle,
-  AlertCircle,
-  Loader2,
+  AlertCircle,  Info,  Loader2,
 } from "lucide-react"
+
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="prose prose-invert max-w-full break-words">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  )
+}
 
 function buildMessages(ticket: any) {
   if (Array.isArray(ticket?.messages) && ticket.messages.length) {
     return ticket.messages.map((m: any, idx: number) => ({
       id: `msg-${idx}`,
-      sender: m.sender === 'staff' ? 'Support Team' : ticket.userName || 'You',
-      senderRole: m.sender === 'staff' ? 'staff' : 'user',
+      sender: m.sender === 'staff' ? 'Support Team' : (m.sender === 'system' ? 'Information' : ticket.userName || 'You'),
+      senderRole: m.sender === 'staff' ? 'staff' : (m.sender === 'system' ? 'system' : 'user'),
+      ai: !!m.ai,
       content: m.message,
       timestamp: m.created || m.createdAt || ticket.created,
     }))
   }
 
-  const msgs: { id: string; sender: string; senderRole: "user" | "staff"; content: string; timestamp: string }[] = []
+  const msgs: { id: string; sender: string; senderRole: "user" | "staff" | "system"; content: string; timestamp: string }[] = []
   if (ticket?.message) {
     msgs.push({ id: "msg-initial", sender: ticket.userName || "You", senderRole: "user", content: ticket.message, timestamp: ticket.created })
   }
@@ -41,6 +51,29 @@ function buildMessages(ticket: any) {
     msgs.push({ id: "msg-reply", sender: "Support Team", senderRole: "staff", content: ticket.adminReply, timestamp: ticket.updatedAt || ticket.created })
   }
   return msgs
+}
+
+function getTicketChangeNotifications(oldTicket: any, newTicket: any) {
+  const changes: Array<{ icon: any; text: string }> = []
+  if (!oldTicket || !newTicket) return changes
+
+  if (oldTicket.priority !== newTicket.priority) {
+    changes.push({ icon: Tag, text: `Priority changed to ${newTicket.priority ?? 'unset'}` })
+  }
+  if (oldTicket.department !== newTicket.department) {
+    changes.push({ icon: Info, text: `Department changed to ${newTicket.department ?? 'unset'}` })
+  }
+  if (!oldTicket.aiMarkedSpam && newTicket.aiMarkedSpam) {
+    changes.push({ icon: AlertCircle, text: 'Ticket was marked as spam' })
+  }
+  if (!oldTicket.aiClosed && newTicket.aiClosed) {
+    changes.push({ icon: CheckCircle, text: 'Ticket was closed by AI' })
+  }
+  if (oldTicket.status !== newTicket.status) {
+    changes.push({ icon: Info, text: `Status changed to ${newTicket.status ?? 'unknown'}` })
+  }
+
+  return changes
 }
 
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,24 +85,69 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<any[]>([])
+  const [changeNotifications, setChangeNotifications] = useState<Array<{ icon: any; text: string }>>([])
   const [reply, setReply] = useState("")
   const [replyAs, setReplyAs] = useState<'staff' | 'user'>('user')
   const [replyPriority, setReplyPriority] = useState('medium')
+  const [adminStatus, setAdminStatus] = useState('')
+  const [adminPriority, setAdminPriority] = useState('')
+  const [adminDepartment, setAdminDepartment] = useState('')
+  const [adminAiDisabled, setAdminAiDisabled] = useState(false)
+  const [adminAiTouched, setAdminAiTouched] = useState(false)
+  const [savingAdmin, setSavingAdmin] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [sending, setSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const prevTicketRef = useRef<any>(null)
 
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.ticketDetail.replace(":id", id))
-      .then((data) => {
+    const loadTicket = async () => {
+      try {
+        const data = await apiFetch(API_ENDPOINTS.ticketDetail.replace(":id", id))
+        const diff = getTicketChangeNotifications(prevTicketRef.current, data)
+        if (diff.length > 0) {
+          setChangeNotifications((prev) => [...prev, ...diff])
+        }
+        prevTicketRef.current = data
         setTicket(data)
         setMessages(buildMessages(data))
         setReplyPriority(data?.priority || 'medium')
+        setAdminStatus(data?.status || '')
+        setAdminPriority(data?.priority || 'medium')
+        setAdminDepartment(data?.department || '')
+        setAdminAiDisabled(Boolean(data?.aiDisabled))
+        setAdminAiTouched(Boolean(data?.aiTouched))
         if (isAdmin) {
           setReplyAs(data?.userId === user?.id ? 'user' : 'staff')
         }
-      })
-      .catch((e) => setError(e.message || "Failed to load ticket"))
-      .finally(() => setLoading(false))
+      } catch (e: any) {
+        setError(e.message || "Failed to load ticket")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTicket()
+
+    const pollId = setInterval(async () => {
+      try {
+        const data = await apiFetch(API_ENDPOINTS.ticketDetail.replace(":id", id))
+        if (!data) return
+
+        const diff = getTicketChangeNotifications(prevTicketRef.current, data)
+        if (diff.length > 0) {
+          setChangeNotifications((prev) => [...prev, ...diff])
+        }
+
+        prevTicketRef.current = data
+        setTicket(data)
+        setMessages(buildMessages(data))
+      } catch {
+        // ignore poll errors
+      }
+    }, 7000)
+
+    return () => clearInterval(pollId)
   }, [id, isAdmin, user?.id])
 
   useEffect(() => {
@@ -89,6 +167,11 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
           ...(isAdmin ? { priority: replyPriority } : {}),
         }),
       })
+      const diff = getTicketChangeNotifications(prevTicketRef.current, updated)
+      if (diff.length > 0) {
+        setChangeNotifications((prev) => [...prev, ...diff])
+      }
+      prevTicketRef.current = updated
       setTicket(updated)
       setMessages(buildMessages(updated))
       setReply("")
@@ -108,8 +191,47 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
       })
       setTicket(updated)
       setMessages(buildMessages(updated))
+      setAdminStatus(updated.status)
     } catch (e: any) {
       alert("Failed: " + e.message)
+    }
+  }
+
+  const saveAdminChanges = async () => {
+    if (!ticket || !isAdmin) return
+    setSavingAdmin(true)
+    try {
+      const updated = await apiFetch(API_ENDPOINTS.ticketDetail.replace(":id", id), {
+        method: "PUT",
+        body: JSON.stringify({
+          status: adminStatus,
+          priority: adminPriority,
+          department: adminDepartment || null,
+          aiDisabled: adminAiDisabled,
+          aiTouched: adminAiTouched,
+        }),
+      })
+      setTicket(updated)
+      setMessages(buildMessages(updated))
+      setChangeNotifications((prev) => [...prev, { icon: Info, text: 'Admin ticket settings updated' }])
+    } catch (e: any) {
+      alert("Failed to save admin settings: " + e.message)
+    } finally {
+      setSavingAdmin(false)
+    }
+  }
+
+  const deleteTicket = async () => {
+    if (!ticket || !isAdmin) return
+    if (!confirm('Delete this ticket permanently?')) return
+    setDeleting(true)
+    try {
+      await apiFetch(API_ENDPOINTS.ticketDetail.replace(":id", id), { method: "DELETE" })
+      window.location.href = '/dashboard/tickets'
+    } catch (e: any) {
+      alert("Failed to delete: " + e.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -168,6 +290,9 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs hover:bg-secondary">
+              Open in new tab
+            </a>
             {ticket.status !== "closed" ? (
               <button
                 onClick={() => setStatus("closed")}
@@ -188,14 +313,22 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
-          <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+          <div className="flex flex-col gap-2 max-w-3xl mx-auto">
+            {changeNotifications.map((n, idx) => (
+              <div key={`cn-${idx}`} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
+                <n.icon className="h-3 w-3" />
+                {n.text}
+              </div>
+            ))}
             {messages.map((msg) => (
               <div key={msg.id} className="flex gap-3">
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                  msg.senderRole === "staff" ? "border-primary/30 bg-primary/10" : "border-border bg-secondary"
+                  msg.senderRole === "staff" ? "border-primary/30 bg-primary/10" : (msg.senderRole === "system" ? "border-border bg-muted/10" : "border-border bg-secondary")
                 }`}>
                   {msg.senderRole === "staff" ? (
                     <Shield className="h-3.5 w-3.5 text-primary" />
+                  ) : msg.senderRole === "system" ? (
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
                   ) : (
                     <User className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
@@ -206,6 +339,9 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                     {msg.senderRole === "staff" && (
                       <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Staff</Badge>
                     )}
+                    {msg.senderRole === "system" && (
+                      <Badge className="bg-muted/10 text-muted-foreground border-border text-[10px]">System</Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(msg.timestamp).toLocaleString()}
                     </span>
@@ -215,9 +351,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                       ? "border border-primary/20 bg-primary/5 text-foreground"
                       : "border border-border bg-card text-foreground"
                   }`}>
-                    {msg.content.split("\n").map((line: string, i: number) => (
-                      <span key={i}>{line}{i < msg.content.split("\n").length - 1 && <br />}</span>
-                    ))}
+                    <MarkdownContent content={msg.content} />
                   </div>
                 </div>
               </div>
@@ -317,6 +451,77 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-xs text-muted-foreground mb-1">Messages</p>
             <p className="text-lg font-semibold text-foreground">{messages.length}</p>
           </div>
+          {isAdmin && (
+            <div className="border-t border-border pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Admin actions</p>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Status</label>
+                <select value={adminStatus} onChange={(e) => setAdminStatus(e.target.value)} className="w-full rounded-lg border border-border bg-card px-2 py-1 text-sm">
+                  <option value="opened">Open</option>
+                  <option value="awaiting_staff_reply">Awaiting Staff</option>
+                  <option value="replied">Replied</option>
+                  <option value="closed">Closed</option>
+                </select>
+
+                <label className="text-xs text-muted-foreground">Priority</label>
+                <select value={adminPriority} onChange={(e) => setAdminPriority(e.target.value)} className="w-full rounded-lg border border-border bg-card px-2 py-1 text-sm">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+
+                <label className="text-xs text-muted-foreground">Department</label>
+                <select value={adminDepartment || ""} onChange={(e) => setAdminDepartment(e.target.value)} className="w-full rounded-lg border border-border bg-card px-2 py-1 text-sm">
+                  <option value="">(none)</option>
+                  <option value="Technical Support">Technical Support</option>
+                  <option value="Billing">Billing</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Security">Security</option>
+                </select>
+
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={adminAiDisabled} onChange={(e) => setAdminAiDisabled(e.target.checked)} />
+                  Disable AI responses
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={adminAiTouched} onChange={(e) => setAdminAiTouched(e.target.checked)} />
+                  Mark AI touched
+                </div>
+
+                {/* Ban user from support */}
+                <div className="border-t border-border pt-3">
+                  <label className="text-xs text-muted-foreground">Ban user from support</label>
+                  <div className="mt-2 flex gap-2">
+                    <button onClick={async () => {
+                      const confirmed = confirm('Ban this user from support? This will prevent them from creating tickets.');
+                      if (!confirmed) return;
+                      const reason = prompt('Reason for ban (optional):') || '';
+                      try {
+                        await apiFetch(`/api/admin/users/${ticket.userId}`, { method: 'PUT', body: JSON.stringify({ supportBanned: true, supportBanReason: reason }) });
+                        alert('User banned from support');
+                      } catch (e: any) { alert('Failed to ban: ' + e.message) }
+                    }} className="flex-1 rounded-lg border border-destructive px-3 py-2 text-xs text-destructive hover:bg-destructive/10">Ban</button>
+                    <button onClick={async () => {
+                      const confirmed = confirm('Unban this user from support?');
+                      if (!confirmed) return;
+                      try {
+                        await apiFetch(`/api/admin/users/${ticket.userId}`, { method: 'PUT', body: JSON.stringify({ supportBanned: false, supportBanReason: null }) });
+                        alert('User unbanned');
+                      } catch (e: any) { alert('Failed to unban: ' + e.message) }
+                    }} className="flex-1 rounded-lg border border-border px-3 py-2 text-xs hover:bg-secondary">Unban</button>
+                  </div>
+                </div>
+
+                <button onClick={saveAdminChanges} disabled={savingAdmin} className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                  {savingAdmin ? 'Saving...' : 'Save admin changes'}
+                </button>
+                <button onClick={deleteTicket} disabled={deleting} className="w-full rounded-lg border border-destructive text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">
+                  {deleting ? 'Deleting...' : 'Delete ticket'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

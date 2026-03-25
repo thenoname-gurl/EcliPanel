@@ -1,3 +1,4 @@
+import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
@@ -44,6 +45,22 @@ export async function publicRoutes(app: any, prefix = '') {
       status,
       timestamp: now.toISOString(),
     };
+  }, {
+    response: {
+      200: t.Object({
+        nodeCount: t.Number(),
+        online: t.Number(),
+        degraded: t.Number(),
+        offline: t.Number(),
+        status: t.String(),
+        timestamp: t.String(),
+      }),
+    },
+    detail: {
+      tags: ['Health'],
+      summary: 'Public node status and platform health',
+      description: 'Returns aggregated node availability and platform health status.',
+    },
   });
 }
 

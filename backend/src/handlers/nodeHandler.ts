@@ -109,7 +109,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.post(prefix + '/nodes', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn } = ctx.body as any;
+    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, backendWingsUrl } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
       return { error: 'name, url and token are required' };
@@ -122,7 +122,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       }
     }
 
-    const node = await nodeService.registerNode(name, url, token, nodeId);
+    const node = await nodeService.registerNode(name, url, token, nodeId, backendWingsUrl);
     if (nodeType && NODE_TYPES.includes(nodeType)) {
       (node as any).nodeType = nodeType;
     }
@@ -147,7 +147,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
-    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort } = ctx.body as any;
+    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl } = ctx.body as any;
 
     const node = await resolveNode(id);
     if (!node) {
@@ -198,6 +198,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (allowedOrigin !== undefined) node.allowedOrigin = allowedOrigin || undefined;
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
+    if (backendWingsUrl !== undefined) node.backendWingsUrl = backendWingsUrl || undefined as any;
     await nodeRepo().save(node);
     nodeService.invalidateNode(node.id);
     refreshAllSftpProxies().catch(() => {});

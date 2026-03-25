@@ -63,6 +63,16 @@ class SlowQueryLogger {
   logQuery(): void {}
   logQueryError(error: string | Error, query: string, parameters?: any[]) {}
   logQuerySlow(time: number, query: string, parameters?: any[]) {
+    const trimmedQuery = query?.toString().trim().toUpperCase() || ''
+    const ignoredPatterns = /^(BEGIN|START TRANSACTION|COMMIT|ROLLBACK|SAVEPOINT|RELEASE SAVEPOINT|SET\s+(AUTOCOMMIT|TRANSACTION|SESSION))/
+
+    if (ignoredPatterns.test(trimmedQuery)) {
+      if (process.env.DB_LOG_QUERIES) {
+        console.warn(`[slow-query] (skipped) ${time}ms`, query, parameters);
+      }
+      return
+    }
+
     addSlowQuery({
       timestamp: new Date().toISOString(),
       durationMs: time,

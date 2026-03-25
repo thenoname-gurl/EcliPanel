@@ -793,7 +793,8 @@ export async function organisationRoutes(app: any, prefix = '') {
     const nodes = await repo.find({ where: { organisation: { id: orgId } } });
     let results: any[] = [];
     for (const n of nodes) {
-      const svc = new WingsApiService(n.url, n.token);
+      const base = (n as any).backendWingsUrl || n.url;
+      const svc = new WingsApiService(base, n.token);
       const res = await svc.getServers();
       results.push(...(res.data || []).map((s: any) => ({ ...s, node: n.id })));
     }

@@ -29,7 +29,8 @@ async function getNodeService(nodeId: number, ctx: any): Promise<WingsApiService
     ctx.set.status = 404;
     return null;
   }
-  return new WingsApiService(node.url, node.token);
+  const base = (node as any).backendWingsUrl || node.url;
+  return new WingsApiService(base, node.token);
 }
 
 export async function wingsRoutes(app: any, prefix = '') {

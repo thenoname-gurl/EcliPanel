@@ -22,7 +22,7 @@ import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } fro
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
-import { In } from 'typeorm';
+import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
@@ -81,6 +81,36 @@ function requireAdminCtx(ctx: any): true | { error: string } {
   return true;
 }
 
+function getTicketResponseDurations(ticket: Ticket): number[] {
+  const records = Array.isArray(ticket.messages) ? ticket.messages : [];
+  const sorted = records
+    .map((m: any) => ({
+      sender: m.sender,
+      created: new Date(m.created),
+    }))
+    .filter((m: any) => m.created instanceof Date && !Number.isNaN(m.created.getTime()))
+    .sort((a: any, b: any) => a.created.getTime() - b.created.getTime());
+
+  const durations: number[] = [];
+  let lastUserMessage: Date | null = null;
+
+  for (const msg of sorted) {
+    if (msg.sender === 'user') {
+      lastUserMessage = msg.created;
+      continue;
+    }
+    if (msg.sender === 'staff' && lastUserMessage) {
+      const diff = msg.created.getTime() - lastUserMessage.getTime();
+      if (diff >= 0) {
+        durations.push(diff);
+      }
+      lastUserMessage = null;
+    }
+  }
+
+  return durations;
+}
+
 export async function adminRoutes(app: any, prefix = '') {
   app.get(prefix + '/admin/stats', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
@@ -106,13 +136,43 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodes = await AppDataSource.getRepository(Node).find();
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
         totalServers += (res.data || []).length;
       } catch { }
     }
 
-    return { totalUsers, totalNodes, totalOrganisations, totalServers, pendingTickets, pendingVerifications, pendingDeletions, fraudAlerts };
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentTickets = await ticketRepo.find({
+      where: [{ created: MoreThanOrEqual(since) }, { updatedAt: MoreThanOrEqual(since) }],
+    });
+
+    const responseDurationsLast30 = recentTickets.flatMap((t) => getTicketResponseDurations(t));
+    const avgTicketResponseMsLast30 = responseDurationsLast30.length > 0
+      ? Math.round(responseDurationsLast30.reduce((acc, v) => acc + v, 0) / responseDurationsLast30.length)
+      : null;
+
+    const allTickets = await ticketRepo.find();
+    const responseDurationsAll = allTickets.flatMap((t) => getTicketResponseDurations(t));
+    const avgTicketResponseMsGlobal = responseDurationsAll.length > 0
+      ? Math.round(responseDurationsAll.reduce((acc, v) => acc + v, 0) / responseDurationsAll.length)
+      : null;
+
+    return {
+      totalUsers,
+      totalNodes,
+      totalOrganisations,
+      totalServers,
+      pendingTickets,
+      pendingVerifications,
+      pendingDeletions,
+      fraudAlerts,
+      avgTicketResponseMsLast30,
+      avgTicketResponseSampleCountLast30: responseDurationsLast30.length,
+      avgTicketResponseMsGlobal,
+      avgTicketResponseSampleCountGlobal: responseDurationsAll.length,
+    };
   }, {
     beforeHandle: authenticate,
     response: {
@@ -125,6 +185,10 @@ export async function adminRoutes(app: any, prefix = '') {
         pendingVerifications: t.Number(),
         pendingDeletions: t.Number(),
         fraudAlerts: t.Number(),
+        avgTicketResponseMsLast30: t.Optional(t.Number()),
+        avgTicketResponseSampleCountLast30: t.Optional(t.Number()),
+        avgTicketResponseMsGlobal: t.Optional(t.Number()),
+        avgTicketResponseSampleCountGlobal: t.Optional(t.Number()),
       }),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),
@@ -249,14 +313,31 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const userRepo = AppDataSource.getRepository(User);
     const passkeyRepo = AppDataSource.getRepository(Passkey);
+    const { page = '1', q = '' } = ctx.query as any;
+    const per = 50;
+    const p = Math.max(1, Number(page) || 1);
 
-    const users = await userRepo.find({ order: { id: 'ASC' } });
-    const passkeyCounts = await passkeyRepo
+    let qb = userRepo.createQueryBuilder('u').orderBy('u.id', 'ASC');
+    if (q && String(q).trim() !== '') {
+      const qstr = String(q).trim();
+      if (/^\d+$/.test(qstr)) {
+        qb = qb.where('u.id = :id', { id: Number(qstr) });
+      } else {
+        qb = qb.where('u.email LIKE :q OR u.firstName LIKE :q OR u.lastName LIKE :q', { q: `%${qstr}%` });
+      }
+    }
+
+    const total = await qb.getCount();
+    const users = await qb.skip((p - 1) * per).take(per).getMany();
+
+    const userIds = users.map((u) => u.id);
+    const passkeyCounts = userIds.length ? await passkeyRepo
       .createQueryBuilder('p')
       .select('p.userId', 'userId')
       .addSelect('COUNT(*)', 'count')
+      .where('p.userId IN (:...ids)', { ids: userIds })
       .groupBy('p.userId')
-      .getRawMany();
+      .getRawMany() : [];
 
     const countMap: Record<number, number> = {};
     for (const row of passkeyCounts) countMap[Number(row.userId)] = Number(row.count);
@@ -269,15 +350,18 @@ export async function adminRoutes(app: any, prefix = '') {
       return out;
     });
 
-    return result;
+    return { users: result, total, page: p, per };
   }, {
     beforeHandle: authenticate,
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
+    schema: {
+      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ users: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
     },
-    detail: { summary: 'List all users (admin)', tags: ['Admin'] },
+    detail: { summary: 'List all users (admin) with pagination and search', tags: ['Admin'] },
   });
 
   app.put(prefix + '/admin/users/:id', async (ctx) => {
@@ -290,7 +374,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'User not found' };
     }
 
-    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits } = ctx.body as any;
+    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits, supportBanned, supportBanReason } = ctx.body as any;
     const nodeRepo = AppDataSource.getRepository(Node);
     if (role !== undefined) user.role = role;
     if (portalType !== undefined) user.portalType = portalType;
@@ -351,6 +435,8 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
+    if (supportBanned !== undefined) user.supportBanned = !!supportBanned;
+    if (supportBanReason !== undefined) user.supportBanReason = supportBanReason;
     await userRepo.save(user);
     return { success: true };
   }, {
@@ -486,26 +572,81 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const userRepo = AppDataSource.getRepository(User);
+    const { page = '1', q = '', priority = '', status = '', archived = '' } = ctx.query as any;
+    const per = 50;
+    const p = Math.max(1, Number(page) || 1);
 
-    const tickets = await ticketRepo.find({ order: { created: 'DESC' } });
-    const userIds = [...new Set(tickets.map((t) => t.userId))];
-    const users = await userRepo.findByIds(userIds);
+    // Nutshelllllll its  composite ordering
+    // Priority + wait time  gorups
+    const LONG_WAIT_HOURS = 48;
+
+    const groupCase = `CASE
+      WHEN t.priority = 'urgent' THEN 4
+      WHEN (t.priority IN ('high','medium') AND TIMESTAMPDIFF(HOUR, t.created, NOW()) >= :longWaitHours) THEN 3
+      WHEN (t.priority = 'high' AND TIMESTAMPDIFF(HOUR, t.created, NOW()) < :longWaitHours) THEN 2
+      WHEN (t.priority = 'medium' AND TIMESTAMPDIFF(HOUR, t.created, NOW()) < :longWaitHours) THEN 2
+      WHEN (t.priority = 'low' AND TIMESTAMPDIFF(HOUR, t.created, NOW()) >= :longWaitHours) THEN 2
+      WHEN (t.priority = 'low' AND TIMESTAMPDIFF(HOUR, t.created, NOW()) < :longWaitHours) THEN 1
+      ELSE 1
+    END`;
+
+    let qb = ticketRepo.createQueryBuilder('t')
+      .addSelect(groupCase, 'group_weight')
+      .setParameter('longWaitHours', LONG_WAIT_HOURS)
+      .orderBy('group_weight', 'DESC')
+      .addOrderBy('t.created', 'ASC');
+
+    if (priority && String(priority).trim() !== '') {
+      qb = qb.where('t.priority = :pr', { pr: String(priority).trim() });
+    }
+
+    if (status && String(status).trim() !== '') {
+      const s = String(status).trim().toLowerCase();
+      if (s === 'archived') {
+        qb = qb.andWhere('t.archived = :ar', { ar: true });
+      } else {
+        qb = qb.andWhere('t.status = :s', { s });
+        qb = qb.andWhere('t.archived = :ar', { ar: false });
+      }
+    } else if (archived === 'true' || archived === '1' || archived === 'yes') {
+      qb = qb.andWhere('t.archived = :ar', { ar: true });
+    } else {
+      qb = qb.andWhere('t.archived = :ar', { ar: false });
+    }
+
+    if (q && String(q).trim() !== '') {
+      const qstr = String(q).trim();
+      if (/^\d+$/.test(qstr)) {
+        qb = qb.andWhere('t.userId = :uid', { uid: Number(qstr) });
+      } else {
+        qb = qb.leftJoin(require('../models/user.entity').User, 'u', 'u.id = t.userId').andWhere('u.email LIKE :email OR u.firstName LIKE :q OR u.lastName LIKE :q', { email: `%${qstr}%`, q: `%${qstr}%` });
+      }
+    }
+
+    const total = await qb.getCount();
+    const tickets = await qb.skip((p - 1) * per).take(per).getMany();
+
+    const userIds = [...new Set(tickets.map((t: any) => t.userId))];
+    const users = userIds.length ? await userRepo.findByIds(userIds) : [];
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
-    const result = tickets.map((t) => ({
+    const result = tickets.map((t: any) => ({
       ...t,
       user: userMap[t.userId] ?? null,
     }));
-    return result;
+    return { tickets: result, total, page: p, per };
   }, {
     beforeHandle: authenticate,
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
+    schema: {
+      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()), priority: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ tickets: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
     },
-    detail: { summary: 'List all support tickets (admin)', tags: ['Admin'] },
+    detail: { summary: 'List support tickets (admin) with pagination, search and priority filter', tags: ['Admin'] },
   });
 
   app.put(prefix + '/admin/tickets/:id', async (ctx) => {
@@ -516,9 +657,10 @@ export async function adminRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    const { status, adminReply } = ctx.body as any;
+    const { status, adminReply, archived } = ctx.body as any;
     if (status) ticket.status = status;
     if (adminReply !== undefined) ticket.adminReply = adminReply;
+    if (archived !== undefined) ticket.archived = Boolean(archived);
     await ticketRepo.save(ticket);
     return { success: true, ticket };
   }, {
@@ -535,6 +677,33 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Update a ticket (admin)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/tickets/archive', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const ticketRepo = AppDataSource.getRepository(Ticket);
+    const { ids, archived } = ctx.body as any;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'ids array is required' };
+    }
+
+    const archiveFlag = Boolean(archived);
+    await ticketRepo
+      .createQueryBuilder()
+      .update(Ticket)
+      .set({ archived: archiveFlag })
+      .where('id IN (:...ids)', { ids: ids.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id)) })
+      .execute();
+
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      body: t.Object({ ids: t.Array(t.Number()), archived: t.Boolean() }),
+      response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    },
+    detail: { summary: 'Bulk archive/unarchive support tickets (admin)', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/verifications', async (ctx) => {
@@ -724,39 +893,56 @@ export async function adminRoutes(app: any, prefix = '') {
     if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const userRepo = AppDataSource.getRepository(User);
+    const { page = '1', q = '' } = ctx.query as any;
+    const per = 50;
+    const p = Math.max(1, Number(page) || 1);
 
-    const orgs = await orgRepo.find();
-    const ownerIds = [...new Set(orgs.map((o) => o.ownerId))];
+    let qb = orgRepo.createQueryBuilder('o').orderBy('o.id', 'ASC');
+    if (q && String(q).trim() !== '') {
+      const qstr = String(q).trim();
+      qb = qb.leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.ownerId')
+        .where('o.name LIKE :q OR o.handle LIKE :q OR u.email LIKE :q', { q: `%${qstr}%` });
+    }
+
+    const total = await qb.getCount();
+    const orgs = await qb.skip((p - 1) * per).take(per).getMany();
+
+    const ownerIds = [...new Set(orgs.map((o: any) => o.ownerId))];
     const owners = ownerIds.length ? await userRepo.findByIds(ownerIds) : [];
     const ownerMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of owners) ownerMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
-    const memberCounts = await userRepo
+    const orgIds = orgs.map((o: any) => o.id);
+    const memberCounts = orgIds.length ? await userRepo
       .createQueryBuilder('u')
       .select('u.orgId', 'orgId')
       .addSelect('COUNT(*)', 'count')
-      .where('u.orgId IS NOT NULL')
+      .where('u.orgId IN (:...ids)', { ids: orgIds })
       .groupBy('u.orgId')
-      .getRawMany();
+      .getRawMany() : [];
+
     const countMap: Record<number, number> = {};
     for (const row of memberCounts) countMap[Number(row.orgId)] = Number(row.count);
 
-    const result = orgs.map((o) => ({
+    const result = orgs.map((o: any) => ({
       ...o,
       owner: ownerMap[o.ownerId] ?? null,
       memberCount: countMap[o.id] ?? 0,
       isStaff: !!o.isStaff,
     }));
 
-    return result;
+    return { organisations: result, total, page: p, per };
   }, {
     beforeHandle: authenticate,
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
+    schema: {
+      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ organisations: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
     },
-    detail: { summary: 'List organisations with owners and member counts', tags: ['Admin'] },
+    detail: { summary: 'List organisations with owners and member counts (paged)', tags: ['Admin'] },
   });
 
   app.put(prefix + '/admin/organisations/:id', async (ctx) => {
@@ -916,7 +1102,8 @@ export async function adminRoutes(app: any, prefix = '') {
     let all: any[] = [];
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
         const servers = res.data || [];
         for (const s of servers) {
@@ -968,13 +1155,34 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
-    return deduped;
+    const { page = '1', q = '' } = ctx.query as any;
+    const per = 50;
+    const p = Math.max(1, Number(page) || 1);
+
+    let filtered = deduped;
+    if (q && String(q).trim() !== '') {
+      const qstr = String(q).trim().toLowerCase();
+      filtered = deduped.filter((s: any) => {
+        const name = String(s.name || '').toLowerCase();
+        const uuid = String(s.uuid || '').toLowerCase();
+        const nodeName = String(s.nodeName || '').toLowerCase();
+        return name.includes(qstr) || uuid.includes(qstr) || nodeName.includes(qstr);
+      });
+    }
+
+    const total = filtered.length;
+    const start = (p - 1) * per;
+    const servers = filtered.slice(start, start + per);
+    return { servers, total, page: p, per };
   }, {
     beforeHandle: authenticate,
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
+    schema: {
+      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ servers: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
     },
     detail: { summary: 'List all servers across nodes', tags: ['Admin'] },
   });
@@ -999,7 +1207,8 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'Server is hibernated and cannot be started or restarted' };
     }
     try {
-      const svc = new WingsApiService(node.url, node.token);
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
       const res = await svc.powerServer(serverId, action);
       return { success: true, data: res.data };
     } catch (e: any) {
@@ -1089,7 +1298,8 @@ export async function adminRoutes(app: any, prefix = '') {
     await cfgRepo.save(cfg);
     const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
     if (node) {
-      const svc = new WingsApiService(node.url, node.token);
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
       await svc.syncServer(serverId, {}).catch(() => { });
     }
     return { success: true, server: cfg };
@@ -1132,7 +1342,8 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodes = await nodeRepo.find();
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
         await svc.serverRequest(serverId, '', 'delete');
         await removeServerConfig(serverId);
@@ -1224,7 +1435,8 @@ export async function adminRoutes(app: any, prefix = '') {
     };
 
     try {
-      const svc = new WingsApiService(node.url, node.token);
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
       const res = await svc.createServer(wingsPayload);
       const nodeSvc = nodeService;
       await nodeSvc.mapServer(serverUuid, node.id);
@@ -1288,7 +1500,8 @@ export async function adminRoutes(app: any, prefix = '') {
         continue;
       }
       try {
-        const svc = new WingsApiService(node.url, node.token);
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
         try {
           await svc.getServer(cfg.uuid);
           results.push({ uuid: cfg.uuid, status: 'exists', nodeId: node.id });
@@ -1357,7 +1570,8 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodes = await AppDataSource.getRepository(Node).find();
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
         await svc.powerServer(serverId, 'kill').catch(() => { });
         await svc.syncServer(serverId, { suspended: true });
@@ -1388,7 +1602,8 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodes = await AppDataSource.getRepository(Node).find();
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
         await svc.syncServer(serverId, { suspended: false });
         const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -1426,7 +1641,8 @@ export async function adminRoutes(app: any, prefix = '') {
 
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
         const servers: any[] = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
 
@@ -1496,14 +1712,48 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodes = await AppDataSource.getRepository(Node).find();
     for (const n of nodes) {
       try {
-        const svc = new WingsApiService(n.url, n.token);
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
         for (const s of (res.data || [])) {
-          if (s.owner === userId || s.user === userId) {
+          const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
+          if (!Number.isNaN(serverOwner) && serverOwner === userId) {
             servers.push({ ...s, nodeName: n.name, nodeId: n.id });
           }
         }
       } catch { }
+    }
+
+    try {
+      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+      const configs = await cfgRepo.find({ where: { userId } });
+      const nodeMap = new Map((nodes || []).map((n: any) => [n.id, n]));
+      for (const c of configs) {
+        const already = servers.find((s) => {
+          const su = s.uuid || (s.configuration && s.configuration.uuid) || s.id || s.serverId;
+          const cu = c.uuid || c.serverUuid || '';
+          if (!su || !cu) return false;
+          return String(su).replace(/-/g, '').toLowerCase() === String(cu).replace(/-/g, '').toLowerCase();
+        });
+        if (already) continue;
+        const node = nodeMap.get(c.nodeId);
+        servers.push({
+          uuid: c.uuid,
+          name: c.name || c.uuid,
+          status: c.hibernated ? 'hibernated' : 'unknown',
+          hibernated: !!c.hibernated,
+          is_suspended: !!c.suspended,
+          resources: null,
+          build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+          container: { image: c.dockerImage },
+          nodeId: c.nodeId,
+          nodeName: node?.name,
+          userId: c.userId,
+          eggId: c.eggId ?? null,
+        });
+      }
+    } catch (e) {
+      // skippy
     }
 
     const Order = require('../models/order.entity').Order;
@@ -1570,16 +1820,16 @@ export async function adminRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/admin/logs', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { userId, limit = 200, type = 'audit' } = ctx.query as any;
-    const lim = Math.min(Number(limit), 500);
+    const { userId, page = '1', per = '200', type = 'audit' } = ctx.query as any;
+    const perNum = Math.min(Math.max(Number(per) || 200, 1), 500);
+    const p = Math.max(1, Number(page) || 1);
 
     if (type === 'requests') {
-      const qb = AppDataSource.getRepository(ApiRequestLog)
-        .createQueryBuilder('l')
-        .orderBy('l.timestamp', 'DESC')
-        .take(lim);
-      if (userId !== undefined && userId !== null && userId !== '') qb.where('l.userId = :uid', { uid: Number(userId) });
-      const logs = await qb.getMany();
+      const repo = AppDataSource.getRepository(ApiRequestLog);
+      let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
+      if (userId !== undefined && userId !== null && userId !== '') qb = qb.where('l.userId = :uid', { uid: Number(userId) });
+      const total = await qb.getCount();
+      const logs = await qb.skip((p - 1) * perNum).take(perNum).getMany();
 
       const userIds = [...new Set(logs.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
       const userMap: Record<number, { username: string; email: string }> = {};
@@ -1595,19 +1845,19 @@ export async function adminRoutes(app: any, prefix = '') {
         });
       }
 
-      return logs.map((e) => ({
+      const out = logs.map((e) => ({
         ...e,
         username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
         email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
       }));
+      return { logs: out, total, page: p, per: perNum };
     }
 
-    const qb = AppDataSource.getRepository(UserLog)
-      .createQueryBuilder('l')
-      .orderBy('l.timestamp', 'DESC')
-      .take(lim);
-    if (userId !== undefined && userId !== null && userId !== '') qb.where('l.userId = :uid', { uid: Number(userId) });
-    const entries = await qb.getMany();
+    const repo = AppDataSource.getRepository(UserLog);
+    let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
+    if (userId !== undefined && userId !== null && userId !== '') qb = qb.where('l.userId = :uid', { uid: Number(userId) });
+    const total = await qb.getCount();
+    const entries = await qb.skip((p - 1) * perNum).take(perNum).getMany();
 
     const userIds = [...new Set(entries.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
     const userMap: Record<number, { username: string; email: string }> = {};
@@ -1625,17 +1875,18 @@ export async function adminRoutes(app: any, prefix = '') {
       username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
       email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
     }));
-    return logs;
+    return { logs, total, page: p, per: perNum };
   }, {
     beforeHandle: authenticate,
     schema: {
       query: t.Object({
         userId: t.Optional(t.Any()),
-        limit: t.Optional(t.Number()),
+        page: t.Optional(t.Number()),
+        per: t.Optional(t.Number()),
         type: t.Optional(t.String()),
       }),
       response: {
-        200: t.Array(t.Any()),
+        200: t.Union([t.Object({ logs: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }), t.Array(t.Any())]),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
       },
@@ -1901,6 +2152,42 @@ isSuspicious: true if fraudScore >= 50`;
     detail: { summary: 'Take action on a fraud alert', tags: ['Admin'] },
   });
 
+  app.post(prefix + '/admin/fraud-alerts/dismiss', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const body = ctx.body as any;
+    const ids = Array.isArray(body?.ids) ? body.ids.map((v: any) => Number(v)).filter((n: number) => Number.isFinite(n)) : [];
+    if (ids.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'ids array is required' };
+    }
+    const userRepo = AppDataSource.getRepository(User);
+    try {
+      await userRepo
+        .createQueryBuilder()
+        .update()
+        .set({ fraudFlag: false, fraudReason: null, fraudDetectedAt: null })
+        .whereInIds(ids)
+        .execute();
+      return { success: true, dismissed: ids.length };
+    } catch (e) {
+      ctx.set.status = 500;
+      return { error: 'Failed to dismiss alerts' };
+    }
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      body: t.Object({ ids: t.Array(t.Number()) }),
+      response: {
+        200: t.Object({ success: t.Boolean(), dismissed: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Dismiss multiple fraud alerts', tags: ['Admin'] },
+  });
+
   app.get(prefix + '/panel/settings', async (_ctx) => {
     const repo = AppDataSource.getRepository(PanelSetting);
     const rows = await repo.find();
@@ -1960,6 +2247,7 @@ isSuspicious: true if fraudScore >= 50`;
    * You better dont know how to use this endpoint or else you might break 
    * the portal descriptions and cause a lot of work for yourself trying to fix it 
    * by hand in the database... (HAPPENED TWICE!!)
+   * Didn't happen after that twice anymore :D
    */
   app.put(prefix + '/admin/settings', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
@@ -2190,23 +2478,38 @@ isSuspicious: true if fraudScore >= 50`;
 
   app.get(prefix + '/admin/orders', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { userId } = ctx.query as any;
+    const { userId, page = '1', q = '' } = ctx.query as any;
     const orderRepo = AppDataSource.getRepository(Order);
-    const orders = userId
-      ? await orderRepo.find({ where: { userId: Number(userId) }, order: { createdAt: 'DESC' } })
-      : await orderRepo.find({ order: { createdAt: 'DESC' } });
-    return orders;
+    const per = 50;
+    const p = Math.max(1, Number(page) || 1);
+
+    let qb = orderRepo.createQueryBuilder('o').orderBy('o.createdAt', 'DESC');
+
+    if (q && String(q).trim() !== '') {
+      const qstr = String(q).trim();
+      if (/^\d+$/.test(qstr)) {
+        qb = qb.where('o.userId = :uid', { uid: Number(qstr) });
+      } else {
+        qb = qb.leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.userId').where('u.email LIKE :email', { email: `%${qstr}%` });
+      }
+    } else if (userId) {
+      qb = qb.where('o.userId = :uid', { uid: Number(userId) });
+    }
+
+    const total = await qb.getCount();
+    const orders = await qb.skip((p - 1) * per).take(per).getMany();
+    return { orders, total, page: p, per };
   }, {
     beforeHandle: authenticate,
     schema: {
-      query: t.Object({ userId: t.Optional(t.Any()) }),
+      query: t.Object({ userId: t.Optional(t.Any()), page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
       response: {
-        200: t.Array(t.Any()),
+        200: t.Object({ orders: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
       },
     },
-    detail: { summary: 'List orders, optionally filtered by user', tags: ['Admin'] },
+    detail: { summary: 'List orders, with pagination and search (admin)', tags: ['Admin'] },
   });
 
   app.post(prefix + '/admin/orders', async (ctx) => {

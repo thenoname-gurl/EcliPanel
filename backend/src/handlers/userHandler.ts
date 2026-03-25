@@ -390,9 +390,16 @@ export async function userRoutes(app: any, prefix = '') {
     const nodes = await repo.find();
     let results: any[] = [];
     for (const n of nodes) {
-      const svc = new WingsApiService(n.url, n.token);
+      const base = (n as any).backendWingsUrl || n.url;
+      const svc = new WingsApiService(base, n.token);
       const res = await svc.getServers();
-      const userServers = (res.data || []).filter((s: any) => s.owner === userId);
+
+      const userServers = (res.data || []).filter((s: any) => {
+        const ownerCandidate = s.owner ?? s.ownerId ?? s.user ?? s.userId ?? s.owner_id ?? s.user_id;
+        const serverOwner = Number(ownerCandidate);
+        return !Number.isNaN(serverOwner) && serverOwner === userId;
+      });
+
       results.push(...userServers.map((s: any) => ({ ...s, node: n.id })));
     }
     return results;

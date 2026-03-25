@@ -18,6 +18,7 @@ import {
 import {
   Users,
   HardDrive,
+  Clock,
   Search,
   Ban,
   CheckCircle,
@@ -56,6 +57,8 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Select,
   SelectTrigger,
@@ -65,47 +68,49 @@ import {
   SelectLabel,
 } from "@/components/ui/select"
 
-// ── Lightweight markdown renderer ──────────────────
-function markdownToHtml(md: string) {
-  if (!md) return "";
-  const codeReplaced = md.replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    return `<pre><code>${escapeHtml(code)}</code></pre>`;
-  });
-
-  let out = escapeHtml(codeReplaced);
-  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;"/>');
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  out = out.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-  out = out.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
-  out = out.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
-  out = out.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
-  out = out.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
-  out = out.replace(/(?:^|\n)(<li>[\s\S]*?<\/li>)(?:\n(?!<li>))/g, '<ul>$1</ul>');
-  out = out.replace(/(^|\n)([^<\n][^\n]+)(?=\n|$)/g, (_, p1, txt) => `<p>${txt.trim()}</p>`);
-  return out;
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function buildEmailHtml(title: string, message: string, details: string) {
+function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: #e0e0e0; margin: 0; padding: 0; }
     .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: #12111f; border-radius: 12px; border: 1px solid #2a2545; }
     .email-preview-root .header { text-align: center; margin-bottom: 24px; }
     .email-preview-root .header h1 { color: #c4b5fd; font-size: 20px; margin: 0; }
-    .email-preview-root .btn { display: inline-block; padding: 10px 18px; background: #8b5cf6; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; }
     .email-preview-root .details { font-family: monospace; font-size: 13px; color: #cbd5e1; background: #0f1724; border-radius: 8px; padding: 12px; border: 1px solid #2a2545; margin-top: 12px; white-space: pre-wrap; }
     .email-preview-root .footer { font-size: 12px; color: #777; margin-top: 24px; text-align: center; }
-    .email-preview-root p { line-height: 1.6; color: #e0e0e0; }`;
+    .email-preview-root .message { word-wrap: break-word; }
+    .email-preview-root p { line-height: 1.6; color: #e0e0e0; margin: 0 0 1em 0; }
+    .email-preview-root code { background: #1f1b31; padding: .2em .3em; border-radius: .25rem; }
+    .email-preview-root pre { background: #1f1b31; border-radius: .5rem; overflow-x: auto; padding: .8rem; }
+    .email-preview-root a { color: #8b5cf6; text-decoration: underline; }`;
 
-  const messageHtml = markdownToHtml(message || '');
-
-  return `<div class="email-preview-root"><style>${style}</style><div class="container"><div class="header"><h1>${escapeHtml(title || '')}</h1></div>${messageHtml}<div class="details">${escapeHtml(details || '')}</div><div class="footer">&copy; 2026 EclipseSystems under Misiu LLC. All rights reserved.</div></div></div>`;
+  return (
+    <div className="email-preview-root">
+      <style>{style}</style>
+      <div className="container">
+        <div className="header">
+          <h1>{title}</h1>
+          <div className="text-xs text-muted-foreground">From: Eclipse Systems</div>
+        </div>
+        <div className="message text-sm text-foreground">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message || ""}</ReactMarkdown>
+        </div>
+        <div className="details">{details || ""}</div>
+        <div className="footer">© 2026 EclipseSystems under Misiu LLC. All rights reserved.</div>
+      </div>
+    </div>
+  );
 }
+
+function formatDurationMs(ms: number | null | undefined) {
+  if (ms == null || !Number.isFinite(ms)) return "N/A";
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = seconds / 60;
+  if (minutes < 60) return `${minutes.toFixed(1)}m`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${hours.toFixed(1)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -118,6 +123,8 @@ interface AdminStats {
   pendingTickets: number
   pendingVerifications: number
   pendingDeletions: number
+  avgTicketResponseMs?: number | null
+  avgTicketResponseSampleCount?: number | null
 }
 
 interface AdminUser {
@@ -148,6 +155,7 @@ interface AdminTicket {
   lastReply?: string
   department?: string
   assignedTo?: number
+  archived?: boolean
   messages?: Array<{ sender: 'user' | 'staff'; message: string; created: string }>
   user?: { firstName: string; lastName: string; email: string }
 }
@@ -669,6 +677,7 @@ export default function AdminPanel() {
   const [ticketFilter, setTicketFilter] = useState<string>("all")
   const [orgSearch, setOrgSearch] = useState("")
   const [serverSearch, setServerSearch] = useState("")
+  const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
 
   // ── Dialogs ──
   const [replyTicket, setReplyTicket] = useState<AdminTicket | null>(null)
@@ -713,9 +722,9 @@ export default function AdminPanel() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmMessage, setConfirmMessage] = useState<string>("")
 
-  const [privateMode, setPrivateMode] = useState(false)
-  const [privacyDialogOpen, setPrivacyDialogOpen] = useState(false)
-  const [redactServers, setRedactServers] = useState<boolean>(false)
+  const [privateMode, setPrivateMode] = useState(true)
+  const [privacyDialogOpen, setPrivacyDialogOpen] = useState(true)
+  const [redactServers, setRedactServers] = useState<boolean>(true)
   const [redactOrganisations, setRedactOrganisations] = useState<boolean>(true)
 
   const redact = (value?: string | number | null) => {
@@ -738,6 +747,7 @@ export default function AdminPanel() {
 
   const redactOrg = (value?: string | number | null) => {
     if (!value && value !== 0) return <span className="text-muted-foreground">████████████</span>
+    if (!privateMode) return <>{value}</>
     if (!redactOrganisations) return <>{value}</>
     return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">
@@ -747,6 +757,10 @@ export default function AdminPanel() {
   }
 
   const redactOrgName = (firstName?: string, lastName?: string) => {
+    if (!privateMode) {
+      const parts = [firstName, lastName].filter(Boolean).join(" ")
+      return parts || <span className="text-muted-foreground">████████████</span>
+    }
     if (redactOrganisations) return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
     )
@@ -845,6 +859,11 @@ export default function AdminPanel() {
 
   // ── Admin Orders state ──
   const [adminOrders, setAdminOrders] = useState<AdminOrder[]>([])
+  const [ordersPage, setOrdersPage] = useState(1)
+  const ORDERS_PER = 50
+  const [ordersTotal, setOrdersTotal] = useState<number | null>(null)
+  const [ordersQuery, setOrdersQuery] = useState("")
+  const [ordersLoading, setOrdersLoading] = useState(false)
   const [issueOrderOpen, setIssueOrderOpen] = useState(false)
   const [ioUserId, setIoUserId] = useState("")
   const [ioDesc, setIoDesc] = useState("")
@@ -903,13 +922,39 @@ export default function AdminPanel() {
   const [aiModelDialog, setAiModelDialog] = useState<AdminAIModel | null | "new">(null)
   const [aiModelName, setAiModelName] = useState("")
   const [aiModelEndpoint, setAiModelEndpoint] = useState("")
+  const [aiModelExtraEndpoints, setAiModelExtraEndpoints] = useState<Array<{id?: string; endpoint: string; apiKey?: string}>>([])
   const [aiModelApiKey, setAiModelApiKey] = useState("")
   const [aiModelType, setAiModelType] = useState("text")
   const [aiModelStatus, setAiModelStatus] = useState("active")
   const [aiModelDescription, setAiModelDescription] = useState("")
+
+  // ── Admin Users/Servers/Orgs/Tickets pagination state ──
+  const [usersPage, setUsersPage] = useState(1)
+  const USERS_PER = 50
+  const [usersTotal, setUsersTotal] = useState<number | null>(null)
+  const [usersLoading, setUsersLoading] = useState(false)
+
+  const [organisationsPage, setOrganisationsPage] = useState(1)
+  const ORGS_PER = 50
+  const [organisationsTotal, setOrganisationsTotal] = useState<number | null>(null)
+  const [organisationsLoading, setOrganisationsLoading] = useState(false)
+
+  const [serversPage, setServersPage] = useState(1)
+  const SERVERS_PER = 50
+  const [serversTotal, setServersTotal] = useState<number | null>(null)
+  const [serversLoading, setServersLoading] = useState(false)
+
+  const [ticketsPage, setTicketsPage] = useState(1)
+  const TICKETS_PER = 50
+  const [ticketsTotal, setTicketsTotal] = useState<number | null>(null)
+  const [ticketsLoading, setTicketsLoading] = useState(false)
+  const [ticketSearch, setTicketSearch] = useState("")
+  const [ticketPriorityFilter, setTicketPriorityFilter] = useState("any")
+  const [showAiTouched, setShowAiTouched] = useState(false)
   const [aiModelMaxTokens, setAiModelMaxTokens] = useState("")
   const [aiModelTags, setAiModelTags] = useState("")
   const [aiModelLoading, setAiModelLoading] = useState(false)
+  const [aiModelCooldowns, setAiModelCooldowns] = useState<any[]>([])
 
   // ── Assign AI model to user ──
   const [assignAiModel, setAssignAiModel] = useState<AdminAIModel | null>(null)
@@ -940,6 +985,47 @@ export default function AdminPanel() {
   // ── Logs ──
   const [logs, setLogs] = useState<any[]>([])
   const [logType, setLogType] = useState<"audit" | "requests" | "slow">("audit")
+  const [logsPage, setLogsPage] = useState(1)
+  const LOGS_PER = 50
+  const [logsPer, setLogsPer] = useState(LOGS_PER)
+  const [logsTotal, setLogsTotal] = useState<number | null>(null)
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsUserFilter, setLogsUserFilter] = useState("")
+
+  async function fetchLogs(page = 1, type: string = 'audit', userId = "") {
+    setLogsLoading(true)
+    try {
+      if (type === 'slow') {
+        const res = await apiFetch(API_ENDPOINTS.adminSlowQueries)
+        setLogs(Array.isArray(res) ? res : [])
+        setLogsTotal(null)
+        setLogsPage(1)
+        return
+      }
+      const url = `${API_ENDPOINTS.adminLogs}?type=${encodeURIComponent(type)}&page=${page}&per=${logsPer}${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`
+      const res: any = await apiFetch(url)
+      if (res) {
+        if (Array.isArray(res)) {
+          setLogs(res)
+          setLogsTotal(null)
+          setLogsPage(1)
+        } else {
+          setLogs(Array.isArray(res.logs) ? res.logs : [])
+          setLogsTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.logs) ? res.logs.length : 0))
+          setLogsPage(typeof res.page === 'number' ? res.page : page)
+        }
+      } else {
+        setLogs([])
+        setLogsTotal(0)
+        setLogsPage(page)
+      }
+    } catch (e) {
+      setLogs([])
+      setLogsTotal(0)
+    } finally {
+      setLogsLoading(false)
+    }
+  }
 
   // ── Egg dialog ──
   const [eggDialog, setEggDialog] = useState<AdminEgg | null | "new">(null)
@@ -1021,6 +1107,10 @@ export default function AdminPanel() {
   const [oauthApps, setOauthApps] = useState<any[]>([])
   const [fraudScanning, setFraudScanning] = useState(false)
   const [fraudScanningAll, setFraudScanningAll] = useState(false)
+  const [selectedFraudIds, setSelectedFraudIds] = useState<number[]>([])
+  const [hideSuspendedFraud, setHideSuspendedFraud] = useState<boolean>(true)
+  const [selectAllFraud, setSelectAllFraud] = useState<boolean>(false)
+  const [bulkDismissing, setBulkDismissing] = useState<boolean>(false)
 
   // ── Panel settings ──
   const [panelSettings, setPanelSettings] = useState<{
@@ -1087,11 +1177,9 @@ export default function AdminPanel() {
       setLoadedTabs((prev) => new Set([...prev, tab]))
       try {
         if (tab === "users") {
-          const data = await apiFetch(API_ENDPOINTS.adminUsers)
-          setUsers(data || [])
+          await fetchUsers(1, "")
         } else if (tab === "tickets") {
-          const data = await apiFetch(API_ENDPOINTS.adminTickets)
-          setTickets(data || [])
+          await fetchTickets(1, "", "")
         } else if (tab === "verifications") {
           const data = await apiFetch(API_ENDPOINTS.adminVerifications)
           setVerifications(data || [])
@@ -1106,20 +1194,28 @@ export default function AdminPanel() {
             .then((hb) => setNodeHeartbeats(hb || {}))
             .catch(() => { })
         } else if (tab === "organisations") {
-          const data = await apiFetch(API_ENDPOINTS.adminOrganisations)
-          setOrganisations(data || [])
+          await fetchOrganisations(1, "")
         } else if (tab === "servers") {
-          const data = await apiFetch(API_ENDPOINTS.adminServers)
-          setServers(data || [])
+          await fetchServers(1, "")
         } else if (tab === "eggs") {
           const data = await apiFetch(API_ENDPOINTS.adminEggs)
           setEggs(data || [])
         } else if (tab === "ai") {
-          const data = await apiFetch(API_ENDPOINTS.adminAiModels)
-          setAiModels(data || [])
+          const modelData = await apiFetch(API_ENDPOINTS.adminAiModels)
+          setAiModels(modelData || [])
+          try {
+            const cd = await apiFetch("/api/admin/ai/cooldowns")
+            setAiModelCooldowns(cd || [])
+          } catch {
+            setAiModelCooldowns([])
+          }
+        } else if (tab === "logs") {
+          await fetchLogs(1, logType, "")
         } else if (tab === "fraud") {
           const data = await apiFetch(API_ENDPOINTS.adminFraudAlerts)
           setFraudAlerts(data || [])
+          setSelectedFraudIds([])
+          setSelectAllFraud(false)
         } else if (tab === "roles") {
           const data = await apiFetch(API_ENDPOINTS.roles)
           setRoles(data || [])
@@ -1142,8 +1238,7 @@ export default function AdminPanel() {
           const data = await apiFetch(API_ENDPOINTS.adminPlans)
           setPlans(Array.isArray(data) ? data : [])
         } else if (tab === "orders") {
-          const data = await apiFetch(API_ENDPOINTS.adminOrders)
-          setAdminOrders(Array.isArray(data) ? data : [])
+          await fetchOrders(1, "")
           if (plans.length === 0) {
             apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
           }
@@ -1154,6 +1249,140 @@ export default function AdminPanel() {
     },
     [loadedTabs]
   )
+
+  // ── Fetch orders with pagination/search ──
+  async function fetchOrders(page = 1, q = "") {
+    setOrdersLoading(true)
+    try {
+      const url = `${API_ENDPOINTS.adminOrders}?page=${page}&q=${encodeURIComponent(q || '')}`
+      const res: any = await apiFetch(url)
+      if (res) {
+        setAdminOrders(Array.isArray(res.orders) ? res.orders : [])
+        setOrdersTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.orders) ? res.orders.length : 0))
+        setOrdersPage(typeof res.page === 'number' ? res.page : page)
+      } else {
+        setAdminOrders([])
+        setOrdersTotal(0)
+        setOrdersPage(page)
+      }
+    } catch (e) {
+      setAdminOrders([])
+      setOrdersTotal(0)
+    } finally {
+      setOrdersLoading(false)
+    }
+  }
+
+  // ── Fetch users (paged) ──
+  async function fetchUsers(page = 1, q = "") {
+    setUsersLoading(true)
+    try {
+      const url = `${API_ENDPOINTS.adminUsers}?page=${page}&q=${encodeURIComponent(q || '')}`
+      const res: any = await apiFetch(url)
+      if (res) {
+        setUsers(Array.isArray(res.users) ? res.users : [])
+        setUsersTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.users) ? res.users.length : 0))
+        setUsersPage(typeof res.page === 'number' ? res.page : page)
+      } else {
+        setUsers([])
+        setUsersTotal(0)
+        setUsersPage(page)
+      }
+    } catch (e) {
+      setUsers([])
+      setUsersTotal(0)
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  // ── Fetch organisations (paged) ──
+  async function fetchOrganisations(page = 1, q = "") {
+    setOrganisationsLoading(true)
+    try {
+      const url = `${API_ENDPOINTS.adminOrganisations}?page=${page}&q=${encodeURIComponent(q || '')}`
+      const res: any = await apiFetch(url)
+      if (res) {
+        setOrganisations(Array.isArray(res.organisations) ? res.organisations : [])
+        setOrganisationsTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.organisations) ? res.organisations.length : 0))
+        setOrganisationsPage(typeof res.page === 'number' ? res.page : page)
+      } else {
+        setOrganisations([])
+        setOrganisationsTotal(0)
+        setOrganisationsPage(page)
+      }
+    } catch (e) {
+      setOrganisations([])
+      setOrganisationsTotal(0)
+    } finally {
+      setOrganisationsLoading(false)
+    }
+  }
+
+  // ── Fetch servers (paged) ──
+  async function fetchServers(page = 1, q = "") {
+    setServersLoading(true)
+    try {
+      const url = `${API_ENDPOINTS.adminServers}?page=${page}&q=${encodeURIComponent(q || '')}`
+      const res: any = await apiFetch(url)
+      if (res) {
+        setServers(Array.isArray(res.servers) ? res.servers : [])
+        setServersTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.servers) ? res.servers.length : 0))
+        setServersPage(typeof res.page === 'number' ? res.page : page)
+      } else {
+        setServers([])
+        setServersTotal(0)
+        setServersPage(page)
+      }
+    } catch (e) {
+      setServers([])
+      setServersTotal(0)
+    } finally {
+      setServersLoading(false)
+    }
+  }
+
+  // ── Fetch tickets (paged) ──
+  async function fetchTickets(page = 1, q = "", priority = "") {
+    setTicketsLoading(true)
+    try {
+      const priorityParam = priority === 'any' ? '' : (priority || '')
+      let url = `${API_ENDPOINTS.adminTickets}?page=${page}&q=${encodeURIComponent(q || '')}&priority=${encodeURIComponent(priorityParam)}`
+      if (ticketFilter && ticketFilter !== 'all') {
+        if (ticketFilter === 'archived') {
+          url += `&status=archived`
+        } else {
+          url += `&status=${encodeURIComponent(ticketFilter)}`
+        }
+      }
+      if (showAiTouched) url += `&includeAiTouched=1`
+      const res: any = await apiFetch(url)
+      if (res) {
+        setTickets(Array.isArray(res.tickets) ? res.tickets : [])
+        setTicketsTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.tickets) ? res.tickets.length : 0))
+        setTicketsPage(typeof res.page === 'number' ? res.page : page)
+      } else {
+        setTickets([])
+        setTicketsTotal(0)
+        setTicketsPage(page)
+      }
+      setSelectedTicketIds([])
+      if (res) {
+        setTickets(Array.isArray(res.tickets) ? res.tickets : [])
+        setTicketsTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.tickets) ? res.tickets.length : 0))
+        setTicketsPage(typeof res.page === 'number' ? res.page : page)
+      } else {
+        setTickets([])
+        setTicketsTotal(0)
+        setTicketsPage(page)
+      }
+    } catch (e) {
+      setTickets([])
+      setTicketsTotal(0)
+    } finally {
+      setTicketsLoading(false)
+    }
+  }
 
   // ── Load default tab on mount ──
   useEffect(() => {
@@ -1187,6 +1416,12 @@ export default function AdminPanel() {
       (s.uuid || '').toLowerCase().includes(q) ||
       (s.nodeName || '').toLowerCase().includes(q)
     )
+  })
+
+  // ── Fraud display filtering ──
+  const displayedFraudAlerts = fraudAlerts.filter((a) => {
+    if (hideSuspendedFraud && a.suspended) return false
+    return true
   })
 
   // ── Actions ──────────────────────────────────────────────────────────────────
@@ -2155,7 +2390,7 @@ remote: ${panelUrl}`
   // ── AI Model functions ──
   function openNewAIModel() {
     setAiModelDialog("new")
-    setAiModelName(""); setAiModelEndpoint(""); setAiModelApiKey("")
+    setAiModelName(""); setAiModelEndpoint(""); setAiModelExtraEndpoints([]); setAiModelApiKey("")
     setAiModelType("text"); setAiModelStatus("active"); setAiModelDescription(""); setAiModelMaxTokens(""); setAiModelTags("")
   }
 
@@ -2163,6 +2398,7 @@ remote: ${panelUrl}`
     setAiModelDialog(m)
     setAiModelName(m.name)
     setAiModelEndpoint(m.endpoint || "")
+    setAiModelExtraEndpoints(Array.isArray(m.endpoints) ? m.endpoints.map((x: any) => ({ id: x?.id, endpoint: x.endpoint || "", apiKey: x.apiKey || "" })) : [])
     setAiModelApiKey(m.apiKey || "")
     setAiModelType(m.config?.type || "text")
     setAiModelStatus(m.config?.status || "active")
@@ -2173,9 +2409,11 @@ remote: ${panelUrl}`
 
   async function saveAIModel() {
     setAiModelLoading(true)
+    const cleanExtraEndpoints = aiModelExtraEndpoints.filter((e) => e.endpoint.trim()).map((e) => ({ id: e.id, endpoint: e.endpoint.trim(), apiKey: e.apiKey?.trim() || undefined }))
     const body = {
       name: aiModelName,
       endpoint: aiModelEndpoint || undefined,
+      endpoints: cleanExtraEndpoints.length ? cleanExtraEndpoints : undefined,
       apiKey: aiModelApiKey || undefined,
       tags: aiModelTags ? aiModelTags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
       config: {
@@ -2383,10 +2621,20 @@ remote: ${panelUrl}`
           </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setPrivateMode(true); setPrivacyDialogOpen(false) }}>
+            <Button variant="outline" onClick={() => {
+              setPrivateMode(true);
+              setRedactOrganisations(true);
+              setRedactServers(true);
+              setPrivacyDialogOpen(false);
+            }}>
               Continue with redaction
             </Button>
-            <Button onClick={() => { setPrivateMode(false); setPrivacyDialogOpen(false) }}>
+            <Button onClick={() => {
+              setPrivateMode(false);
+              setRedactOrganisations(false);
+              setRedactServers(false);
+              setPrivacyDialogOpen(false);
+            }}>
               I am not recording
             </Button>
           </DialogFooter>
@@ -2404,6 +2652,7 @@ remote: ${panelUrl}`
             <StatCard title="Open Tickets" value={stats ? String(stats.pendingTickets) : "—"} icon={MessageSquare} />
             <StatCard title="Pending KYC" value={stats ? String(stats.pendingVerifications) : "—"} icon={FileText} />
             <StatCard title="Deletion Queue" value={stats ? String(stats.pendingDeletions) : "—"} icon={Trash2} />
+            <StatCard title="Avg Response (30d)" value={stats ? formatDurationMs(stats.avgTicketResponseMs) : "N/A"} icon={Clock} />
             <StatCard title="Fraud Alerts" value={stats ? String((stats as any).fraudAlerts ?? 0) : "—"} icon={AlertTriangle} />
           </div>
 
@@ -2548,11 +2797,18 @@ remote: ${panelUrl}`
                                 {user.idVerified ? "✓" : "✗"} ID
                               </span>
                             </td>
-                            <td className="px-4 py-3">
-                              {user.suspended ? (
-                                <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Suspended</Badge>
+                            <td className="px-4 py-3 flex flex-col gap-1">
+                              <div>
+                                {user.suspended ? (
+                                  <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Suspended</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Active</Badge>
+                                )}
+                              </div>
+                              {user.supportBanned ? (
+                                <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Support Banned</Badge>
                               ) : (
-                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Active</Badge>
+                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Support OK</Badge>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -2601,6 +2857,19 @@ remote: ${panelUrl}`
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search by name or email" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
+                    <Button size="sm" onClick={() => fetchUsers(1, userSearch)}>Search</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setUserSearch(''); fetchUsers(1, '') }}>Clear</Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Page {usersPage} {usersTotal ? `of ${Math.max(1, Math.ceil(usersTotal / USERS_PER))}` : ''}</span>
+                    <Button size="sm" onClick={() => { if (usersPage > 1) fetchUsers(usersPage - 1, userSearch) }} disabled={usersPage <= 1}>Prev</Button>
+                    <Button size="sm" onClick={() => { if (!usersTotal || usersPage < Math.ceil((usersTotal || 0) / USERS_PER)) fetchUsers(usersPage + 1, userSearch) }} disabled={usersTotal ? usersPage >= Math.ceil(usersTotal / USERS_PER) : users.length < USERS_PER}>Next</Button>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -2706,6 +2975,18 @@ remote: ${panelUrl}`
                     </tbody>
                   </table>
                 </div>
+                <div className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <input value={orgSearch} onChange={(e) => setOrgSearch(e.target.value)} placeholder="Search organisations" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
+                    <Button size="sm" onClick={() => fetchOrganisations(1, orgSearch)}>Search</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setOrgSearch(''); fetchOrganisations(1, '') }}>Clear</Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Page {organisationsPage} {organisationsTotal ? `of ${Math.max(1, Math.ceil(organisationsTotal / ORGS_PER))}` : ''}</span>
+                    <Button size="sm" onClick={() => { if (organisationsPage > 1) fetchOrganisations(organisationsPage - 1, orgSearch) }} disabled={organisationsPage <= 1}>Prev</Button>
+                    <Button size="sm" onClick={() => { if (!organisationsTotal || organisationsPage < Math.ceil((organisationsTotal || 0) / ORGS_PER)) fetchOrganisations(organisationsPage + 1, orgSearch) }} disabled={organisationsTotal ? organisationsPage >= Math.ceil(organisationsTotal / ORGS_PER) : organisations.length < ORGS_PER}>Next</Button>
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
@@ -2770,9 +3051,9 @@ remote: ${panelUrl}`
                         filteredServers.map((srv, i) => (
                           <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ''}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{srv.name ? redactText(srv.name, redactServers) : "Unnamed Server"}</p>
+                              <p className="text-sm font-medium text-foreground">{srv.name ? redactText(srv.name, privateMode ? redactServers : false) : "Unnamed Server"}</p>
                               {srv.description && (
-                                <p className={redactServers ? "text-xs text-muted-foreground truncate max-w-xs blur-sm" : "text-xs text-muted-foreground truncate max-w-xs"}>{srv.description}</p>
+                                <p className={privateMode && redactServers ? "text-xs text-muted-foreground truncate max-w-xs blur-sm" : "text-xs text-muted-foreground truncate max-w-xs"}>{srv.description}</p>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -2837,6 +3118,18 @@ remote: ${panelUrl}`
                     </tbody>
                   </table>
                 </div>
+                <div className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <input value={serverSearch} onChange={(e) => setServerSearch(e.target.value)} placeholder="Search servers" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
+                    <Button size="sm" onClick={() => fetchServers(1, serverSearch)}>Search</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setServerSearch(''); fetchServers(1, '') }}>Clear</Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Page {serversPage} {serversTotal ? `of ${Math.max(1, Math.ceil(serversTotal / SERVERS_PER))}` : ''}</span>
+                    <Button size="sm" onClick={() => { if (serversPage > 1) fetchServers(serversPage - 1, serverSearch) }} disabled={serversPage <= 1}>Prev</Button>
+                    <Button size="sm" onClick={() => { if (!serversTotal || serversPage < Math.ceil((serversTotal || 0) / SERVERS_PER)) fetchServers(serversPage + 1, serverSearch) }} disabled={serversTotal ? serversPage >= Math.ceil(serversTotal / SERVERS_PER) : servers.length < SERVERS_PER}>Next</Button>
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
@@ -2845,7 +3138,7 @@ remote: ${panelUrl}`
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <div className="flex gap-2">
-                    {['all', 'opened', 'awaiting_staff_reply', 'replied', 'closed'].map((f) => (
+                    {['all', 'opened', 'awaiting_staff_reply', 'replied', 'closed', 'archived'].map((f) => (
                       <button key={f} onClick={() => setTicketFilter(f)}
                         className={`rounded-md px-3 py-1 text-xs transition-colors ${ticketFilter === f
                           ? "bg-primary/20 text-primary"
@@ -2853,6 +3146,38 @@ remote: ${panelUrl}`
                         {f === 'all' ? 'All' : f.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                       </button>
                     ))}
+                    <div className="ml-4 flex items-center gap-2">
+                      <Select onValueChange={(v) => setTicketPriorityFilter(v)} value={ticketPriorityFilter}>
+                        <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="low">Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <input value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} placeholder="Search user id or email" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input type="checkbox" checked={showAiTouched} onChange={(e) => setShowAiTouched(e.target.checked)} />
+                        <span>Include AI-handled</span>
+                      </label>
+                      <Button size="sm" onClick={() => fetchTickets(1, ticketSearch, ticketPriorityFilter)}>Search</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setTicketSearch(''); setTicketPriorityFilter('any'); setShowAiTouched(false); setTicketFilter('all'); fetchTickets(1, '', 'any') }}>Clear</Button>
+                    </div>
+                    <div className="ml-4 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{selectedTicketIds.length} selected</span>
+                      <Button size="sm" disabled={selectedTicketIds.length === 0} onClick={async () => {
+                        if (!window.confirm(`Archive ${selectedTicketIds.length} ticket(s)?`)) return;
+                        await apiFetch(API_ENDPOINTS.adminTicketsBulkArchive, { method: 'POST', body: JSON.stringify({ ids: selectedTicketIds, archived: true })});
+                        fetchTickets(1, ticketSearch, ticketPriorityFilter);
+                      }}>Archive</Button>
+                      <Button size="sm" variant="outline" disabled={selectedTicketIds.length === 0} onClick={async () => {
+                        if (!window.confirm(`Unarchive ${selectedTicketIds.length} ticket(s)?`)) return;
+                        await apiFetch(API_ENDPOINTS.adminTicketsBulkArchive, { method: 'POST', body: JSON.stringify({ ids: selectedTicketIds, archived: false })});
+                        fetchTickets(1, ticketSearch, ticketPriorityFilter);
+                      }}>Unarchive</Button>
+                    </div>
                   </div>
                   <button onClick={() => forceRefreshTab("tickets")}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
@@ -2863,6 +3188,10 @@ remote: ${panelUrl}`
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border text-xs text-muted-foreground">
+                        <th className="px-4 py-3 text-left font-medium"><input type="checkbox" checked={selectedTicketIds.length > 0 && selectedTicketIds.length === tickets.length} onChange={(e) => {
+                          if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id))
+                          else setSelectedTicketIds([])
+                        }} /></th>
                         <th className="px-4 py-3 text-left font-medium">#</th>
                         <th className="px-4 py-3 text-left font-medium">Subject</th>
                         <th className="px-4 py-3 text-left font-medium">User</th>
@@ -2884,9 +3213,18 @@ remote: ${panelUrl}`
                       ) : (
                         filteredTickets.map((ticket, i) => (
                           <tr key={ticket.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
+                            <td className="px-4 py-3">
+                              <input type="checkbox" checked={selectedTicketIds.includes(ticket.id)} onChange={(e) => {
+                                if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])])
+                                else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id))
+                              }}
+                              />
+                            </td>
                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">#{ticket.id}</td>
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
+                              <p className="text-sm font-medium text-foreground">{ticket.subject} {ticket.aiTouched && (
+                                <Badge variant="outline" className="ml-2">AI</Badge>
+                              )}</p>
                               {((ticket.messages && ticket.messages.length) || ticket.adminReply) && (
                                 <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
                                   Reply: {(ticket.messages && ticket.messages.length
@@ -2910,26 +3248,43 @@ remote: ${panelUrl}`
                               </Badge>
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="outline" className={ticketStatusColor[ticket.status] || ticketStatusColor.opened}>
-                                {ticket.status}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={ticketStatusColor[ticket.status] || ticketStatusColor.opened}>
+                                  {ticket.status}
+                                </Badge>
+                                {ticket.archived && <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">Archived</Badge>}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
                               {new Date(ticket.created).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {ticket.status !== "closed" && (
-                                <button onClick={() => openReply(ticket)} title="Reply"
+                              <div className="inline-flex items-center gap-2">
+                                {ticket.status !== "closed" && (
+                                  <button onClick={() => openReply(ticket)} title="Reply"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" title="Open in new tab"
                                   className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                  <MessageSquare className="h-3.5 w-3.5" />
-                                </button>
-                              )}
+                                  Open
+                                </a>
+                              </div>
                             </td>
                           </tr>
                         ))
                       )}
                     </tbody>
                   </table>
+                </div>
+                <div className="p-4 flex items-center justify-between gap-3">
+                  <div />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Page {ticketsPage} {ticketsTotal ? `of ${Math.max(1, Math.ceil(ticketsTotal / TICKETS_PER))}` : ''}</span>
+                    <Button size="sm" onClick={() => { if (ticketsPage > 1) fetchTickets(ticketsPage - 1, ticketSearch, ticketPriorityFilter) }} disabled={ticketsPage <= 1}>Prev</Button>
+                    <Button size="sm" onClick={() => { if (!ticketsTotal || ticketsPage < Math.ceil((ticketsTotal || 0) / TICKETS_PER)) fetchTickets(ticketsPage + 1, ticketSearch, ticketPriorityFilter) }} disabled={ticketsTotal ? ticketsPage >= Math.ceil(ticketsTotal / TICKETS_PER) : tickets.length < TICKETS_PER}>Next</Button>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -3316,7 +3671,13 @@ remote: ${panelUrl}`
                             <p className="text-xs text-muted-foreground">{Array.isArray(m.tags) ? m.tags.join(', ') : ''}</p>
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-xs truncate">
-                            {m.endpoint ? redact(m.endpoint) : <span className="italic">not set</span>}
+                            {Array.isArray(m.endpoints) && m.endpoints.length > 0 ? (
+                              <span>{m.endpoints.length} endpoints configured</span>
+                            ) : m.endpoint ? (
+                              <span>{redact(m.endpoint)}</span>
+                            ) : (
+                              <span className="italic">not set</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
@@ -3339,6 +3700,24 @@ remote: ${panelUrl}`
                     </tbody>
                   </table>
                 </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card mt-4 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-foreground">Recent AI endpoint cooldowns</div>
+                  <button onClick={() => loadTab('ai')} className="text-xs text-primary">Refresh</button>
+                </div>
+                {aiModelCooldowns.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No rate-limit cooldowns in the last 24h.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-52 overflow-y-auto">
+                    {aiModelCooldowns.map((c, i) => (
+                      <li key={i} className="rounded border border-border bg-secondary/40 px-3 py-2 text-xs">
+                        <div><strong>{c.modelName || c.modelId || 'unknown'}</strong> ({c.endpoint})</div>
+                        <div className="text-muted-foreground">{new Date(c.timestamp).toLocaleString()} · wait {Math.round((c.waitMs||0)/1000)}s</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </TabsContent>
             {/* ═══════════════ ANNOUNCEMENTS / PRODUCT UPDATES ═══════════════ */}
@@ -3448,7 +3827,7 @@ remote: ${panelUrl}`
                             if (user?.middleName) detailParts.push(user.middleName[0] + '.');
                             if (user?.lastName) detailParts.push(user.lastName[0] + '.');
                             const previewDetails = `${detailParts.join(' ')} — ${user?.email || ''}`.trim();
-                            return <div dangerouslySetInnerHTML={{ __html: buildEmailHtml(annSubject || 'Announcement Subject', annMessage || '', previewDetails) }} />
+                            return <EmailPreview title={annSubject || 'Announcement Subject'} message={annMessage || ''} details={previewDetails} />
                           })()}
                         </div>
 
@@ -3500,15 +3879,71 @@ remote: ${panelUrl}`
                   </div>
                 </div>
 
-                {fraudAlerts.length === 0 ? (
+                {displayedFraudAlerts.length === 0 ? (
                   <div className="p-8 text-center">
                     <Shield className="h-8 w-8 mx-auto text-success/60 mb-2" />
                     <p className="text-sm text-muted-foreground">No fraud alerts — all users look clean</p>
                   </div>
                 ) : (
+                  <>
+                  <div className="p-2 border-b border-border flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center text-xs text-muted-foreground gap-2">
+                        <input type="checkbox" checked={hideSuspendedFraud} onChange={(e) => setHideSuspendedFraud(e.target.checked)} className="accent-primary" />
+                        Hide suspended
+                      </label>
+                      <button
+                        onClick={() => {
+                          const nowAll = !selectAllFraud
+                          setSelectAllFraud(nowAll)
+                          if (nowAll) setSelectedFraudIds(displayedFraudAlerts.map((a) => a.id))
+                          else setSelectedFraudIds([])
+                        }}
+                        className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground"
+                      >
+                        {selectAllFraud ? 'Unselect All' : 'Select All'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (selectedFraudIds.length === 0) return
+                          if (!(await confirmAsync(`Dismiss ${selectedFraudIds.length} selected fraud alert(s)?`))) return
+                          setBulkDismissing(true)
+                          try {
+                            await apiFetch(API_ENDPOINTS.adminFraudBulkDismiss, { method: 'POST', body: JSON.stringify({ ids: selectedFraudIds }) })
+                            setFraudAlerts((prev) => prev.filter((a) => !selectedFraudIds.includes(a.id)))
+                            setSelectedFraudIds([])
+                            setSelectAllFraud(false)
+                          } catch (e: any) {
+                            alert('Failed to dismiss: ' + (e?.message || 'error'))
+                          } finally {
+                            setBulkDismissing(false)
+                          }
+                        }}
+                        disabled={selectedFraudIds.length === 0 || bulkDismissing}
+                        className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground disabled:opacity-50"
+                      >
+                        {bulkDismissing ? 'Dismissing…' : `Dismiss Selected (${selectedFraudIds.length})`}
+                      </button>
+                    </div>
+                    <div />
+                  </div>
                   <div className="divide-y divide-border">
-                    {fraudAlerts.map((alert) => (
+                    {displayedFraudAlerts.map((alert) => (
                       <div key={alert.id} className="p-4 flex items-start gap-4">
+                        <div className="flex items-start">
+                          <input
+                            type="checkbox"
+                            checked={selectedFraudIds.includes(alert.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked
+                              setSelectedFraudIds((prev) => {
+                                if (checked) return [...prev, alert.id]
+                                return prev.filter((id) => id !== alert.id)
+                              })
+                            }}
+                            className="mt-1 mr-3"
+                          />
+                        </div>
                         <div className="shrink-0 h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
                           <Shield className="h-5 w-5 text-destructive" />
                         </div>
@@ -3597,6 +4032,7 @@ remote: ${panelUrl}`
                       </div>
                     ))}
                   </div>
+                  </>
                 )}
               </div>
             </TabsContent>
@@ -3780,11 +4216,7 @@ remote: ${panelUrl}`
                           onClick={async () => {
                             setLogType(t)
                             try {
-                              const endpoint = t === 'slow'
-                                ? `${API_ENDPOINTS.adminSlowQueries}`
-                                : `${API_ENDPOINTS.adminLogs}?type=${t}&limit=200`
-                              const data = await apiFetch(endpoint)
-                              setLogs(data || [])
+                              await fetchLogs(1, t, logsUserFilter)
                             } catch { }
                           }}
                           className={`rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${logType === t
@@ -3797,17 +4229,33 @@ remote: ${panelUrl}`
                       ))}
                     </div>
                   </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const data = await apiFetch(`${API_ENDPOINTS.adminLogs}?type=${logType}&limit=200`)
-                        setLogs(data || [])
-                      } catch { }
-                    }}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {logType === 'slow' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await apiFetch(`${API_ENDPOINTS.adminSlowQueries}/clear`, { method: 'POST' })
+                            await fetchLogs(1, 'slow', logsUserFilter)
+                          } catch { }
+                        }}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        try {
+                          await fetchLogs(logsPage, logType, logsUserFilter)
+                        } catch {
+                          await fetchLogs(1, logType, logsUserFilter)
+                        }
+                      }}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -3877,6 +4325,26 @@ remote: ${panelUrl}`
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="px-4 py-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="text-xs text-muted-foreground">
+                    {logType === 'slow' ? (
+                      <>Showing last {logs.length} slow queries</>
+                    ) : (
+                      <>Page {logsPage} of {logsTotal ? Math.max(1, Math.ceil(logsTotal / logsPer)) : 1} • {logsTotal ?? logs.length} entries</>
+                    )}
+                  </div>
+                  {logType !== 'slow' && (
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={() => fetchLogs(Math.max(1, logsPage - 1), logType, logsUserFilter)} disabled={logsPage <= 1 || logsLoading}>
+                        Prev
+                      </Button>
+                      <Button size="sm" onClick={() => fetchLogs(logsPage + 1, logType, logsUserFilter)} disabled={logsTotal !== null && logsPage >= Math.ceil((logsTotal || 0) / logsPer) || logsLoading}>
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -4345,15 +4813,30 @@ Content-Type: application/json
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-medium text-foreground">Orders</p>
-                    <Badge variant="outline" className="text-xs">{adminOrders.length}</Badge>
-                  </div>
+                      <Package className="h-4 w-4 text-primary" />
+                      <p className="text-sm font-medium text-foreground">Orders</p>
+                      <Badge variant="outline" className="text-xs">{ordersTotal ?? adminOrders.length}</Badge>
+                    </div>
                   <Button size="sm" onClick={openIssueOrder}>
                     <Plus className="h-3.5 w-3.5 mr-1" /> Issue Order
                   </Button>
                 </div>
-                {adminOrders.length === 0 ? (
+                  <div className="p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <input value={ordersQuery} onChange={(e) => setOrdersQuery(e.target.value)} placeholder="Search user id or email" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
+                      <Button size="sm" onClick={() => fetchOrders(1, ordersQuery)}>Search</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setOrdersQuery(''); fetchOrders(1, '') }}>Clear</Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Page {ordersPage} {ordersTotal ? `of ${Math.max(1, Math.ceil(ordersTotal / ORDERS_PER))}` : ''}</span>
+                      <Button size="sm" onClick={() => { if (ordersPage > 1) fetchOrders(ordersPage - 1, ordersQuery) }} disabled={ordersPage <= 1}>Prev</Button>
+                      <Button size="sm" onClick={() => { if (!ordersTotal || ordersPage < Math.ceil((ordersTotal || 0) / ORDERS_PER)) fetchOrders(ordersPage + 1, ordersQuery) }} disabled={ordersTotal ? ordersPage >= Math.ceil(ordersTotal / ORDERS_PER) : adminOrders.length < ORDERS_PER}>Next</Button>
+                    </div>
+                  </div>
+
+                  {ordersLoading ? (
+                    <div className="p-4 text-sm text-muted-foreground">Loading orders…</div>
+                  ) : adminOrders.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground">No orders yet. Issue an order to assign a plan or resource pack to a user.</p>
                 ) : (
                   <div className="divide-y divide-border">
@@ -4997,19 +5480,21 @@ Content-Type: application/json
           </DialogHeader>
           {replyTicket && (
             <div className="flex flex-col gap-4 py-2">
-              <div className="rounded-lg border border-border bg-secondary/30 p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  From {replyTicket.messages && replyTicket.messages.length
-                    ? (replyTicket.messages[replyTicket.messages.length - 1].sender === 'staff' ? 'Support Team' : (replyTicket.user ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}` : `User #${replyTicket.userId}`))
-                    : replyTicket.user
-                      ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}`
-                      : `User #${replyTicket.userId}`}
-                </p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">
-                  {replyTicket.messages && replyTicket.messages.length
-                    ? replyTicket.messages[replyTicket.messages.length - 1].message
-                    : replyTicket.message}
-                </p>
+              <div className="rounded-lg border border-border bg-secondary/30 p-3 max-h-64 overflow-y-auto">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Conversation</p>
+                {Array.isArray(replyTicket.messages) && replyTicket.messages.length ? (
+                  replyTicket.messages.map((m: any, idx: number) => (
+                    <div key={idx} className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-foreground">{m.sender === 'staff' ? 'Support Team' : (replyTicket.user ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}` : `User #${replyTicket.userId}`)}</span>
+                        <span className="text-xs text-muted-foreground">{m.created ? new Date(m.created).toLocaleString() : ''}</span>
+                      </div>
+                      <div className="text-sm text-foreground whitespace-pre-wrap">{m.message}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-foreground whitespace-pre-wrap">{replyTicket.message || replyTicket.adminReply || 'No messages'}</div>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Your Reply</label>
@@ -5763,6 +6248,62 @@ Content-Type: application/json
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 placeholder="sk-..." />
             </div>
+            <div className="mt-2">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fallback Endpoints</div>
+              {aiModelExtraEndpoints.map((ep, index) => (
+                <div key={index} className="grid grid-cols-12 gap-2 items-end mt-2">
+                  <div className="col-span-4">
+                    <input
+                      value={ep.endpoint}
+                      placeholder="https://api.groq.com"
+                      onChange={(e) => {
+                        const next = [...aiModelExtraEndpoints]
+                        next[index] = { ...next[index], endpoint: e.target.value }
+                        setAiModelExtraEndpoints(next)
+                      }}
+                      className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <input
+                      value={ep.apiKey || ""}
+                      placeholder="api key"
+                      onChange={(e) => {
+                        const next = [...aiModelExtraEndpoints]
+                        next[index] = { ...next[index], apiKey: e.target.value }
+                        setAiModelExtraEndpoints(next)
+                      }}
+                      className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      value={ep.id || ""}
+                      placeholder="id (optional)"
+                      onChange={(e) => {
+                        const next = [...aiModelExtraEndpoints]
+                        next[index] = { ...next[index], id: e.target.value }
+                        setAiModelExtraEndpoints(next)
+                      }}
+                      className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => setAiModelExtraEndpoints(aiModelExtraEndpoints.filter((_, i) => i !== index))}
+                      className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive"
+                    >Remove</button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAiModelExtraEndpoints([...aiModelExtraEndpoints, { endpoint: "", apiKey: "" }])}
+                className="mt-2 rounded-lg border border-border bg-secondary/60 px-3 py-1 text-xs"
+              >Add an endpoint</button>
+              <p className="text-xs text-muted-foreground mt-1">Fallback endpoints will be tried sequentially on failure/rate-limit.</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAiModelDialog(null)} className="border-border">Cancel</Button>
@@ -6286,26 +6827,70 @@ Content-Type: application/json
                 </div>
               </div>
 
-              {/* Suspend / Unsuspend */}
-              <div className="flex justify-between items-center rounded-lg border border-border bg-secondary/20 px-4 py-3">
+              {/* Suspend / Unsuspend / Support Ban */}
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">Account Status</p>
                   <p className="text-xs text-muted-foreground">{viewUserProfile.suspended ? "This account is currently suspended." : "This account is active."}</p>
+                  <p className="text-xs mt-1 font-medium" style={{ color: viewUserProfile.supportBanned ? "#dc2626" : "#16a34a" }}>
+                    Support tickets: {viewUserProfile.supportBanned ? "BANNED" : "Allowed"}
+                  </p>
+                  {viewUserProfile.supportBanReason && (
+                    <p className="text-xs text-muted-foreground">Reason: {viewUserProfile.supportBanReason}</p>
+                  )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={viewUserProfile.suspended ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "border-destructive/30 text-destructive hover:bg-destructive/10"}
-                  onClick={async () => {
-                    if (!viewUserDialog) return
-                    await toggleSuspend(viewUserDialog)
-                    const updated = !viewUserProfile.suspended
-                    setViewUserProfile((p: any) => ({ ...p, suspended: updated }))
-                    setViewUserDialog((u) => u ? { ...u, suspended: updated } : u)
-                  }}
-                >
-                  {viewUserProfile.suspended ? <><CheckCircle className="h-3.5 w-3.5 mr-1.5" />Unsuspend</> : <><Ban className="h-3.5 w-3.5 mr-1.5" />Suspend</>}
-                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={viewUserProfile.suspended ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "border-destructive/30 text-destructive hover:bg-destructive/10"}
+                    onClick={async () => {
+                      if (!viewUserDialog) return;
+                      await toggleSuspend(viewUserDialog);
+                      const updated = !viewUserProfile.suspended;
+                      setViewUserProfile((p: any) => ({ ...p, suspended: updated }));
+                      setViewUserDialog((u) => (u ? { ...u, suspended: updated } : u));
+                    }}
+                  >
+                    {viewUserProfile.suspended ? <><CheckCircle className="h-3.5 w-3.5 mr-1.5" />Unsuspend</> : <><Ban className="h-3.5 w-3.5 mr-1.5" />Suspend</>}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={viewUserProfile.supportBanned ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "border-destructive/30 text-destructive hover:bg-destructive/10"}
+                    onClick={async () => {
+                      if (!viewUserDialog) return;
+                      const makeUnban = !!viewUserProfile.supportBanned;
+                      let reason: string | null = viewUserProfile.supportBanReason || "";
+                      if (!makeUnban) {
+                        reason = window.prompt("Reason for banning this user from support tickets:", reason || "")?.trim() || "";
+                        if (!reason) {
+                          alert("Ban reason cannot be empty.");
+                          return;
+                        }
+                      }
+
+                      try {
+                        await apiFetch(`${API_ENDPOINTS.adminUsers}/${viewUserDialog.id}`, {
+                          method: "PUT",
+                          body: JSON.stringify({
+                            supportBanned: !makeUnban,
+                            supportBanReason: makeUnban ? null : reason,
+                          }),
+                        });
+
+                        setViewUserProfile((p: any) => ({ ...p, supportBanned: !makeUnban, supportBanReason: makeUnban ? null : reason }));
+                        setViewUserDialog((u) => (u ? { ...u, supportBanned: !makeUnban } : u));
+                      } catch (err: any) {
+                        alert(`Failed to ${makeUnban ? "unban" : "ban"} user: ${err?.message || "unknown error"}`);
+                      }
+                    }}
+                  >
+                    {viewUserProfile.supportBanned ? <><CheckCircle className="h-3.5 w-3.5 mr-1.5" />Unban it</> : <><Ban className="h-3.5 w-3.5 mr-1.5" />Ban from support</>}
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}

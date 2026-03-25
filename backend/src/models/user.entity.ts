@@ -162,6 +162,12 @@ export class User {
   suspended: boolean;
 
   @Column({ default: false })
+  supportBanned: boolean;
+
+  @Column('text', { nullable: true })
+  supportBanReason?: string;
+
+  @Column({ default: false })
   deletionRequested: boolean;
 
   @Column({ default: false })

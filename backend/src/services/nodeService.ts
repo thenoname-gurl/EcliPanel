@@ -27,14 +27,15 @@ export class NodeService {
     const nodeRepo = AppDataSource.getRepository(Node);
     const node = await nodeRepo.findOneBy({ id: nodeId });
     if (!node) throw new Error('Node not found');
-    const svc = new WingsApiService(node.url, node.token);
+    const base = (node as any).backendWingsUrl || node.url;
+    const svc = new WingsApiService(base, node.token);
     this.cache.set(nodeId, svc);
     return svc;
   }
 
-  async registerNode(name: string, url: string, token: string, nodeId?: string) {
+  async registerNode(name: string, url: string, token: string, nodeId?: string, backendWingsUrl?: string) {
     const repo = AppDataSource.getRepository(Node);
-    let node = repo.create({ name, url, token, nodeId });
+    let node = repo.create({ name, url, token, nodeId, backendWingsUrl });
     node = await repo.save(node);
     this.invalidateNode(node.id);
     return node;

@@ -5,14 +5,6 @@ import { sendMail } from '../services/mailService';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 
-/*
- * A: Never lose hope!
- * B: Stay happy!
- * C: The world's largest military is nothing more than a personal guard for the billionaire class.
- *    They will commit genocide on order to enact this brutal hierarchy and use propaganda to justify it and their endless wars.
- *    Our only hope is to join together in a working class revolution and reclaim our freedom.
- * D: BASKETBALL.
-*/
 export async function createActivityLog(opts: {
   userId?: number;
   action: string;
@@ -20,6 +12,7 @@ export async function createActivityLog(opts: {
   targetType?: string;
   metadata?: Record<string, any>;
   ipAddress?: string;
+  notify?: boolean;
 }) {
   const repo = AppDataSource.getRepository(UserLog);
   const entry = repo.create({
@@ -27,7 +20,7 @@ export async function createActivityLog(opts: {
     action: opts.action,
     targetId: opts.targetId,
     targetType: opts.targetType,
-    metadata: opts.metadata,
+    metadata: opts.metadata || {},
     ipAddress: opts.ipAddress,
     timestamp: new Date(),
   });
@@ -35,14 +28,32 @@ export async function createActivityLog(opts: {
 
   (async () => {
     try {
+      if (opts.notify === false) return;
+
       if (!entry.userId) return;
       const userRepo = AppDataSource.getRepository(User);
       const targetUser = await userRepo.findOneBy({ id: entry.userId });
       if (!targetUser || !targetUser.email) return;
 
+      try {
+        const meta = (entry.metadata && typeof entry.metadata === 'object') ? { ...entry.metadata } : {};
+        if (!meta.actor) {
+          const actor = await userRepo.findOneBy({ id: entry.userId });
+          if (actor) meta.actor = { id: actor.id, name: [actor.firstName, actor.lastName].filter(Boolean).join(' ') || actor.email, email: actor.email, role: actor.role };
+        }
+        if (!meta.where && entry.targetType) meta.where = entry.targetType + (entry.targetId ? `:${entry.targetId}` : '');
+        if (entry.ipAddress) meta.ipAddress = entry.ipAddress;
+        entry.metadata = meta;
+        await repo.save(entry);
+      } catch (e) {
+        // skip
+      }
+
+      const a = (entry.action || '').toLowerCase();
       const notifKey = (() => {
-        const a = (entry.action || '').toLowerCase();
-        if (a.includes('server') || a.includes('offline') || a.includes('server:')) return 'serverAlerts';
+        if (a.startsWith('wings:') || a.includes('wings:')) return 'serverActivity';
+        if (a.includes('offline') || a.includes('failed') || a.includes('error') || a.includes('crash')) return 'serverErrors';
+        if (a.startsWith('server:') && (a.includes('delete') || a.includes('reinstall') || a.includes('create') || a.includes('stop') || a.includes('start'))) return 'serverLifecycle';
         if (a.includes('bill') || a.includes('invoice') || a.includes('payment')) return 'billing';
         if (a.includes('login') || a.includes('security') || a.includes('suspicious')) return 'security';
         if (a.includes('product') || a.includes('update') || a.includes('announcement')) return 'productUpdates';
@@ -52,13 +63,29 @@ export async function createActivityLog(opts: {
       })();
 
       if (!notifKey) return;
-      const wants = targetUser.settings?.notifications?.[notifKey];
-      const defaultPrefs: Record<string, boolean> = { serverAlerts: true, billing: true, security: true, productUpdates: false, tickets: true, aiUsage: false };
-      const enabled = typeof wants === 'boolean' ? wants : (defaultPrefs[notifKey] ?? true);
+
+      const wants = targetUser.settings?.notifications || {};
+      const defaultPrefs: Record<string, boolean> = {
+        serverAlerts: true,
+        serverLifecycle: true,
+        serverErrors: true,
+        serverActivity: false,
+        billing: true,
+        security: true,
+        productUpdates: false,
+        tickets: true,
+        aiUsage: false,
+      };
+
+      const prefValue = wants[notifKey];
+      const fallback = (notifKey.startsWith('server') && typeof wants['serverAlerts'] === 'boolean') ? wants['serverAlerts'] : undefined;
+      const enabled = typeof prefValue === 'boolean' ? prefValue : (typeof fallback === 'boolean' ? fallback : (defaultPrefs[notifKey] ?? true));
       if (!enabled) return;
 
-      const title = notifKey === 'serverAlerts' ? 'Server Alert' : notifKey === 'billing' ? 'Billing Notification' : notifKey === 'security' ? 'Security Alert' : notifKey === 'productUpdates' ? 'Product Update' : notifKey === 'tickets' ? 'Ticket Update' : 'Notification';
-      const message = `Event: ${entry.action}${entry.metadata ? ' — ' + JSON.stringify(entry.metadata) : ''}`;
+      const title = notifKey === 'serverErrors' ? 'Server Error' : notifKey === 'serverLifecycle' ? 'Server Event' : notifKey === 'serverActivity' ? 'Server Activity' : notifKey === 'billing' ? 'Billing Notification' : notifKey === 'security' ? 'Security Alert' : notifKey === 'productUpdates' ? 'Product Update' : notifKey === 'tickets' ? 'Ticket Update' : 'Notification';
+
+      const message = `Event: ${entry.action}`;
+      const details = entry.metadata ? JSON.stringify(entry.metadata, null, 2) : '';
 
       try {
         await sendMail({
@@ -66,13 +93,13 @@ export async function createActivityLog(opts: {
           from: process.env.MAIL_FROM,
           subject: `${title} — Eclipse Systems`,
           template: 'notification',
-          vars: { title, message, details: entry.metadata ? JSON.stringify(entry.metadata, null, 2) : '' }
+          vars: { title, message, details }
         });
       } catch (e) {
         console.warn('Failed to send notification email', e?.message || e);
       }
     } catch (e) {
-      // ignore any notification-side errors
+      // skip
     }
   })();
 

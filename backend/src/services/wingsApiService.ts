@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import https from 'https';
 import WebSocket from 'ws';
 
@@ -22,12 +22,14 @@ export class WingsApiService {
     };
   }
 
-  private cfg(extra?: object) {
-    const cfg: any = { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, ...extra };
+  private cfg(extra?: AxiosRequestConfig) {
+    const extraSafe = extra || {};
+    const mergedHeaders = { ...this.getAuthHeaders(), ...(extraSafe.headers || {}) };
+    const cfg: any = { ...extraSafe, headers: mergedHeaders, timeout: REQUEST_TIMEOUT };
     if (allowInvalidCerts) {
       cfg.httpsAgent = new https.Agent({ rejectUnauthorized: false });
     }
-    return cfg;
+    return cfg as AxiosRequestConfig;
   }
 
   async getSystemInfo() {
@@ -80,23 +82,38 @@ export class WingsApiService {
 
   async readFile(serverId: string, path: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/contents?file=${encodeURIComponent(path)}`;
-    return axios.get(url, { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, responseType: 'text' });
+    return axios.get(url, { ...this.cfg(), responseType: 'text' });
   }
 
   async downloadFile(serverId: string, path: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/contents?file=${encodeURIComponent(path)}`;
-    return axios.get(url, { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT, responseType: 'arraybuffer' });
+    return axios.get(url, { ...this.cfg(), responseType: 'arraybuffer' });
   }
 
-  async writeFile(serverId: string, filePath: string, content: string) {
+  async writeFile(serverId: string, filePath: string, content: any) {
     const url = `${this.baseUrl}/servers/${serverId}/files/write?file=${encodeURIComponent(filePath)}`;
-    return axios.post(url, content, {
-      headers: {
-        ...this.getAuthHeaders(),
-        'Content-Type': 'text/plain',
-      },
-      timeout: REQUEST_TIMEOUT,
-    });
+    const headers: any = {};
+    let body: any = content;
+    try {
+      if (typeof Buffer !== 'undefined' && Buffer.isBuffer(content)) {
+        headers['Content-Type'] = 'application/octet-stream';
+        body = content;
+      } else if (content instanceof ArrayBuffer) {
+        headers['Content-Type'] = 'application/octet-stream';
+        body = Buffer.from(content);
+      } else if (ArrayBuffer.isView && ArrayBuffer.isView(content)) {
+        headers['Content-Type'] = 'application/octet-stream';
+        body = Buffer.from((content as any).buffer);
+      } else {
+        headers['Content-Type'] = 'text/plain';
+        body = String(content ?? '');
+      }
+    } catch (e) {
+      headers['Content-Type'] = 'text/plain';
+      body = String(content ?? '');
+    }
+
+    return axios.post(url, body, this.cfg({ headers }));
   }
 
   async deleteFile(serverId: string, root: string, files: string[]) {
@@ -213,17 +230,27 @@ export class WingsApiService {
 
   async serverRequest(serverId: string, subpath: string, method: 'get' | 'post' | 'put' | 'delete' = 'get', data?: any) {
     const url = `${this.baseUrl}/servers/${serverId}${subpath}`;
-    const config: any = { headers: this.getAuthHeaders(), timeout: REQUEST_TIMEOUT };
-    if (method === 'get' || method === 'delete') {
-      return axios[method](url, config);
-    } else {
-      return axios[method](url, data, config);
+    const config = this.cfg();
+    if (method === 'get') {
+      return axios.get(url, config);
     }
+    if (method === 'delete') {
+      if (data) {
+        return axios.delete(url, { ...config, data });
+      }
+      return axios.delete(url, config);
+    }
+    // post / put
+    return axios[method](url, data, config);
   }
 
   connectServerWebsocket(serverId: string, onMessage: (msg: any) => void) {
     const url = this.baseUrl.replace(/^http/, 'ws') + `/servers/${serverId}/ws`;
-    const ws = new WebSocket(url, { headers: this.getAuthHeaders() });
+    const wsOptions: any = { headers: this.getAuthHeaders() };
+    if (allowInvalidCerts) {
+      wsOptions.rejectUnauthorized = false;
+    }
+    const ws = new WebSocket(url, wsOptions);
     ws.on('message', (data) => {
       try {
         const parsed = JSON.parse(data.toString());

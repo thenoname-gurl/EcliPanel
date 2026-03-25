@@ -113,7 +113,8 @@ export async function serverRoutes(app: any, prefix = '') {
     if (isAdmin) {
       const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
         try {
-          const svc = new WingsApiService(n.url, n.token);
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
           const res = await svc.getServers();
           return { node: n, servers: res.data || [] };
         } catch {
@@ -188,7 +189,8 @@ export async function serverRoutes(app: any, prefix = '') {
         const node = nodeMap.get(nodeId);
         if (!node) continue;
         nodePromises.push((async () => {
-          const svc = new WingsApiService(node.url, node.token);
+          const base = (node as any).backendWingsUrl || node.url;
+          const svc = new WingsApiService(base, node.token);
           const promises = cfgList.map(async (c) => {
             try {
               const res = await svc.getServer(c.uuid);
@@ -736,7 +738,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ...(autoAllocation ? { allocations: autoAllocation } : {}),
     });
 
-    const svc = new WingsApiService(node.url, node.token);
+          const base = (node as any).backendWingsUrl || node.url;
+          const svc = new WingsApiService(base, node.token);
     try {
       const res = await svc.createServer(wingsPayload);
       await createActivityLog({ userId: ownerId, action: 'server:create', targetId: serverUuid, targetType: 'server', metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu }, ipAddress: ctx.ip });
@@ -963,9 +966,20 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/servers/:id/files/write', async (ctx: any) => {
     const { id } = ctx.params as any;
-    const { path, content } = ctx.body as any;
     const svc = await serviceFor(id);
     try {
+      const body = ctx.body as any;
+      if (body && (body.file || body.files)) {
+        const uploadFile = Array.isArray(body.file) ? body.file[0] : body.file || (Array.isArray(body.files) ? body.files[0] : body.files);
+        const destination = body.path || body.destination || '/';
+        const ab = await uploadFile.arrayBuffer();
+        const buf = Buffer.from(ab);
+        const res = await svc.writeFile(id, destination, buf);
+        const user = ctx.user;
+        await createActivityLog({ userId: user.id, action: 'server:file:write', targetId: id, targetType: 'server', metadata: { filePath: destination }, ipAddress: ctx.ip });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      }
+      const { path, content } = ctx.body as any;
       const res = await svc.writeFile(id, path, content);
       const user = ctx.user;
       await createActivityLog({ userId: user.id, action: 'server:file:write', targetId: id, targetType: 'server', metadata: { filePath: path }, ipAddress: ctx.ip });
@@ -1487,7 +1501,7 @@ export async function serverRoutes(app: any, prefix = '') {
           ctx.set.status = 404;
           return { error: 'Source node not found' };
         }
-        svc = new WingsApiService(node.url, node.token);
+        svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
       } catch (e: any) {
         ctx.set.status = 500;
         return { error: 'Failed to resolve source node' };
@@ -1817,7 +1831,7 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: 'No node mapping for server' };
       }
       const node = mapping.node;
-      const svc = new WingsApiService(node.url, node.token);
+      const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
       const [infoResult, statsResult] = await Promise.allSettled([
         svc.getSystemInfo(),
         svc.getSystemStats(),

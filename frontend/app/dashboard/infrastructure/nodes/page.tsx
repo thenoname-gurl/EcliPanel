@@ -48,6 +48,7 @@ interface Node {
   memory?: number
   disk?: number
   cpu?: number
+  backendWingsUrl?: string
   serverLimit?: number
   createdAt?: string
 }
@@ -90,6 +91,7 @@ export default function InfraNodesPage() {
   }, [searchParams])
   const [nodeUrl, setNodeUrl] = useState("")
   const [nodeToken, setNodeToken] = useState("")
+  const [nodeBackendWingsUrl, setNodeBackendWingsUrl] = useState("")
   const [nodeIdValue, setNodeIdValue] = useState<string>("")
   const [nodeType, setNodeType] = useState("free")
   const [nodeOrgId, setNodeOrgId] = useState<string>("")
@@ -160,6 +162,7 @@ export default function InfraNodesPage() {
     }
     setNodeDialog("new")
     setNodeName(""); setNodeUrl(""); setNodeToken("")
+    setNodeBackendWingsUrl("")
     setNodeIdValue(generateDefaultNodeId())
     setNodeType("free"); setNodeOrgId("")
     setNodeUseSSL(true)
@@ -177,6 +180,7 @@ export default function InfraNodesPage() {
   function openEdit(node: Node) {
     setNodeDialog(node)
     setNodeName(node.name); setNodeUrl(node.url); setNodeToken("")
+    setNodeBackendWingsUrl((node as any).backendWingsUrl || "")
     setNodeIdValue(node.nodeId || generateDefaultNodeId())
     setNodeType(node.nodeType || "free")
     setNodeOrgId(node.organisationId ? String(node.organisationId) : "")
@@ -223,6 +227,7 @@ export default function InfraNodesPage() {
         cpu: nodeCpu ? Number(nodeCpu) : null,
         serverLimit: nodeServerLimit ? Number(nodeServerLimit) : null,
       }
+      if (nodeBackendWingsUrl) body.backendWingsUrl = nodeBackendWingsUrl
       if (nodeDialog === "new") {
         body.url = nodeUrl
         body.token = nodeToken
@@ -426,6 +431,17 @@ export default function InfraNodesPage() {
                 onChange={(e) => setNodeUrl(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 placeholder="https://wings.example.com:8080"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backend Wings URL (optional)</label>
+              <p className="text-[10px] text-muted-foreground">Optional: URL the backend should use to contact Wings (e.g. an internal LAN address). If set, backend-to-Wings traffic will use this URL while user-facing operations continue to use the public Wings URL.</p>
+              <input
+                value={nodeBackendWingsUrl}
+                onChange={(e) => setNodeBackendWingsUrl(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                placeholder="http://10.0.0.5:8080"
               />
             </div>
 

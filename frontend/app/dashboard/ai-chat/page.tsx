@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { PanelHeader } from "@/components/panel/header"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
@@ -199,9 +201,9 @@ export default function AIChatPage() {
                       : "bg-primary/15 border border-primary/20"
                   }`}
                 >
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {msg.content}
-                  </p>
+                  <div className="text-sm text-foreground leading-relaxed prose prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  </div>
                   <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>
                       {msg.timestamp.toLocaleTimeString()}

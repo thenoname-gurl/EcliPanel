@@ -18,6 +18,9 @@ export class Node {
   @Column()
   url: string;
 
+  @Column({ nullable: true, type: 'text' })
+  backendWingsUrl?: string;
+
   @Column()
   token: string;
 

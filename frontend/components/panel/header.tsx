@@ -105,31 +105,31 @@ export function PanelHeader({ title, description }: { title: string; description
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm pl-12 md:pl-6 lg:pl-6">
-        <div className="flex flex-col">
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+      <header className="panel-header flex h-16 shrink-0 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm pl-12 md:pl-6 lg:pl-6">
+        <div className="panel-header__title-group flex flex-col">
+          <h1 className="panel-header__title text-lg font-semibold text-foreground">{title}</h1>
           {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
+            <p className="panel-header__description text-xs text-muted-foreground">{description}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="panel-header__actions flex items-center gap-3">
           {/* Search */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+            className="panel-header__search-button flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
           >
-            <Search className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Search...</span>
-            <kbd className="ml-2 hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline">
-              <Command className="inline h-2.5 w-2.5" />K
+            <Search className="panel-header__search-icon h-3.5 w-3.5" />
+            <span className="panel-header__search-label hidden md:inline">Search...</span>
+            <kbd className="panel-header__search-kbd ml-2 hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline">
+              <Command className="panel-header__search-kbd-icon inline h-2.5 w-2.5" />K
             </kbd>
           </button>
 
           {/* Portal Badge */}
           <Badge
             variant="outline"
-            className="hidden border-primary/30 bg-primary/10 text-primary sm:flex"
+            className="panel-header__portal-badge hidden border-primary/30 bg-primary/10 text-primary sm:flex"
             style={{
               borderColor: portal?.color ? `${portal.color}40` : undefined,
               backgroundColor: portal?.color ? `${portal.color}15` : undefined,
@@ -141,15 +141,15 @@ export function PanelHeader({ title, description }: { title: string; description
           </Badge>
 
           {/* Notifications */}
-          <div className="relative">
+          <div className="panel-header__notifications relative">
             <button
               ref={buttonRef}
               onClick={openNotifications}
-              className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="panel-header__notifications-button relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
-              <Bell className="h-4 w-4" />
+              <Bell className="panel-header__notifications-icon h-4 w-4" />
               {notifications.length > 0 && (
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
+                <span className="panel-header__notifications-dot absolute right-1 top-1 h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
               )}
             </button>
 
@@ -158,27 +158,27 @@ export function PanelHeader({ title, description }: { title: string; description
                 <div
                   ref={(el) => { notifRef.current = el }}
                   style={{ position: 'fixed', top: notifPos.top, left: notifPos.left }}
-                  className="z-[99999] w-80 rounded-xl border border-border bg-card shadow-[0_0_30px_rgba(0,0,0,0.4)]"
+                  className="panel-header__notifications-popup z-[99999] w-80 rounded-xl border border-border bg-card shadow-[0_0_30px_rgba(0,0,0,0.4)]"
                 >
-                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                    <span className="text-sm font-medium text-foreground">Notifications</span>
+                  <div className="panel-header__notifications-header flex items-center justify-between border-b border-border px-4 py-3">
+                    <span className="panel-header__notifications-title text-sm font-medium text-foreground">Notifications</span>
                     <button
                       onClick={() => setNotifOpen(false)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      className="panel-header__notifications-close text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      <X className="h-3.5 w-3.5" />
+                      <X className="panel-header__notifications-close-icon h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <div className="max-h-72 overflow-y-auto">
+                  <div className="panel-header__notifications-list max-h-72 overflow-y-auto">
                     {notifLoading ? (
-                      <p className="px-4 py-3 text-xs text-muted-foreground">Loading...</p>
+                      <p className="panel-header__notifications-loading px-4 py-3 text-xs text-muted-foreground">Loading...</p>
                     ) : notifications.length === 0 ? (
-                      <p className="px-4 py-6 text-center text-xs text-muted-foreground">No recent activity</p>
+                      <p className="panel-header__notifications-empty px-4 py-6 text-center text-xs text-muted-foreground">No recent activity</p>
                     ) : (
                       notifications.map((n, i) => (
                         <div
                           key={n.id ?? i}
-                          className="flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
+                          className="panel-header__notification-item flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
                         >
                           <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                           <div className="flex-1 min-w-0">
@@ -209,40 +209,40 @@ export function PanelHeader({ title, description }: { title: string; description
       {/* Search Overlay */}
       {searchOpen && (
         <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-background/80 backdrop-blur-sm pt-[15vh]"
+          className="panel-header__search-overlay fixed inset-0 z-[9999] flex items-start justify-center bg-background/80 backdrop-blur-sm pt-[15vh]"
           onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false) }}
         >
-          <div className="w-full max-w-xl rounded-xl border border-border bg-card shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="panel-header__search-panel w-full max-w-xl rounded-xl border border-border bg-card shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+            <div className="panel-header__search-header flex items-center gap-3 border-b border-border px-4 py-3">
+              <Search className="panel-header__search-icon h-4 w-4 shrink-0 text-muted-foreground" />
               <input
                 ref={searchRef}
                 type="text"
                 placeholder="Search pages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                className="panel-header__search-input flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
               <button
                 onClick={() => setSearchOpen(false)}
-                className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground"
+                className="panel-header__search-close rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground"
               >
                 ESC
               </button>
             </div>
-            <div className="max-h-72 overflow-y-auto py-2">
+            <div className="panel-header__search-results max-h-72 overflow-y-auto py-2">
               {filteredPages.length === 0 ? (
-                <p className="px-4 py-6 text-center text-xs text-muted-foreground">No pages found</p>
+                <p className="panel-header__search-empty px-4 py-6 text-center text-xs text-muted-foreground">No pages found</p>
               ) : (
                 filteredPages.map((page) => (
                   <button
                     key={page.href}
                     onClick={() => { setSearchOpen(false); setSearchQuery(""); router.push(page.href) }}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors"
+                    className="panel-header__search-item flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors"
                   >
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{page.label}</p>
-                      <p className="text-xs text-muted-foreground">{page.section}</p>
+                    <div className="panel-header__search-item-text flex-1">
+                      <p className="panel-header__search-item-title text-sm text-foreground">{page.label}</p>
+                      <p className="panel-header__search-item-subtitle text-xs text-muted-foreground">{page.section}</p>
                     </div>
                   </button>
                 ))

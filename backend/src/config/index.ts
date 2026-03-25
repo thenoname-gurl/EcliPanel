@@ -15,8 +15,9 @@ const WINGS_RETRY_INITIAL = 30_000;
 const WINGS_RETRY_MAX     = 10 * 60_000;
 
 function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) {
-  const sock = new WingsSocketService(node.url, node.token);
-  const api = new WingsApiService(node.url, node.token);
+  const base = node.backendWingsUrl || node.url;
+  const sock = new WingsSocketService(base, node.token);
+  const api = new WingsApiService(base, node.token);
   sock.listenToAll().then(async () => {
     try {
       const res = await api.getServers();
