@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { PanelHeader } from "@/components/panel/header"
 import { StatCard, SectionHeader, StatusBadge } from "@/components/panel/shared"
@@ -22,7 +23,9 @@ import {
   Search,
   Ban,
   CheckCircle,
+  X,
   XCircle,
+  Bot,
   MessageSquare,
   Trash2,
   RefreshCw,
@@ -37,6 +40,7 @@ import {
   EyeOff,
   Plus,
   Copy,
+  BarChart3,
   Brain,
   UserPlus,
   Loader2,
@@ -52,6 +56,35 @@ import {
   Database,
   Check,
   CreditCard,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  UserMinus,
+  RotateCcw,
+  MoreHorizontal,
+  Play,
+  Square,
+  ExternalLink,
+  ShieldCheck,
+  List,
+  File,
+  Camera,
+  Folder,
+  Archive,
+  CheckSquare,
+  ArchiveRestore,
+  UserX,
+  Box,
+  Timer,
+  Megaphone,
+  Send,
+  Info,
+  MousePointerClick,
+  ScrollText,
+  Receipt,
+  Calendar,
+  Save,
+  Code
 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -125,6 +158,10 @@ interface AdminStats {
   pendingDeletions: number
   avgTicketResponseMs?: number | null
   avgTicketResponseSampleCount?: number | null
+  avgTicketResponseMsLast30?: number | null
+  avgTicketResponseSampleCountLast30?: number | null
+  avgTicketResponseMsGlobal?: number | null
+  avgTicketResponseSampleCountGlobal?: number | null
 }
 
 interface AdminUser {
@@ -132,15 +169,34 @@ interface AdminUser {
   firstName: string
   lastName: string
   email: string
+  avatarUrl?: string
   role?: string
   portalType: string
   emailVerified: boolean
   idVerified: boolean
   suspended: boolean
+  supportBanned?: boolean
   passkeyCount: number
   createdAt?: string
   studentVerified?: boolean
   demoUsed?: boolean
+}
+
+interface AdminVerification {
+  id: number
+  userId: number
+  status: string
+  idDocumentUrl?: string
+  selfieUrl?: string
+  user?: { firstName: string; lastName: string; email: string; avatarUrl?: string }
+}
+
+interface AdminDeletion {
+  id: number
+  userId: number
+  status: string
+  requestedAt: string
+  user?: { firstName: string; lastName: string; email: string; avatarUrl?: string }
 }
 
 interface AdminTicket {
@@ -150,6 +206,7 @@ interface AdminTicket {
   message: string
   status: string
   priority: string
+  aiTouched?: boolean
   adminReply: string | null
   created: string
   lastReply?: string
@@ -157,23 +214,6 @@ interface AdminTicket {
   assignedTo?: number
   archived?: boolean
   messages?: Array<{ sender: 'user' | 'staff'; message: string; created: string }>
-  user?: { firstName: string; lastName: string; email: string }
-}
-
-interface AdminVerification {
-  id: number
-  userId: number
-  status: string
-  idDocumentUrl?: string
-  selfieUrl?: string
-  user?: { firstName: string; lastName: string; email: string }
-}
-
-interface AdminDeletion {
-  id: number
-  userId: number
-  status: string
-  requestedAt: string
   user?: { firstName: string; lastName: string; email: string }
 }
 
@@ -209,6 +249,7 @@ interface AdminAIModel {
   id: number
   name: string
   endpoint?: string
+  endpoints?: Array<{ id?: number; endpoint?: string; apiKey?: string }>
   apiKey?: string
   tags?: string[]
   config?: {
@@ -226,8 +267,9 @@ interface AdminOrganisation {
   handle: string
   ownerId: number
   portalTier: string
+  avatarUrl?: string
   isStaff?: boolean
-  owner?: { firstName: string; lastName: string; email: string }
+  owner?: { firstName: string; lastName: string; email: string; avatarUrl?: string }
   memberCount: number
 }
 
@@ -679,6 +721,8 @@ export default function AdminPanel() {
   const [ticketFilter, setTicketFilter] = useState<string>("all")
   const [orgSearch, setOrgSearch] = useState("")
   const [serverSearch, setServerSearch] = useState("")
+  const [verificationFilter, setVerificationFilter] = useState<string>("")
+  const [deletionFilter, setDeletionFilter] = useState<string>("")
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
 
   // ── Dialogs ──
@@ -697,7 +741,8 @@ export default function AdminPanel() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState<string | null>(null)
-  const openPreview = async (url: string, title?: string) => {
+  const openPreview = async (url: string | undefined, title?: string) => {
+    if (!url) return
     setPreviewTitle(title ?? "")
     setPreviewOpen(true)
     try {
@@ -924,7 +969,7 @@ export default function AdminPanel() {
   const [aiModelDialog, setAiModelDialog] = useState<AdminAIModel | null | "new">(null)
   const [aiModelName, setAiModelName] = useState("")
   const [aiModelEndpoint, setAiModelEndpoint] = useState("")
-  const [aiModelExtraEndpoints, setAiModelExtraEndpoints] = useState<Array<{id?: string; endpoint: string; apiKey?: string}>>([])
+  const [aiModelExtraEndpoints, setAiModelExtraEndpoints] = useState<Array<{ id?: string; endpoint: string; apiKey?: string }>>([])
   const [aiModelApiKey, setAiModelApiKey] = useState("")
   const [aiModelType, setAiModelType] = useState("text")
   const [aiModelStatus, setAiModelStatus] = useState("active")
@@ -1122,9 +1167,13 @@ export default function AdminPanel() {
     registrationEnabled: boolean
     registrationNotice: string
     codeInstancesEnabled: boolean
-  }>({ registrationEnabled: true, registrationNotice: "", codeInstancesEnabled: true })
+    geoBlockCountries: string
+  }>({ registrationEnabled: true, registrationNotice: "", codeInstancesEnabled: true, geoBlockCountries: "" })
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
+  const [geoBlockMetrics, setGeoBlockMetrics] = useState<any | null>(null)
+  const [geoBlockMetricsLoading, setGeoBlockMetricsLoading] = useState(false)
+  const [geoBlockMetricsError, setGeoBlockMetricsError] = useState("")
 
   // ── Announcements / Product updates ──
   const [annSubject, setAnnSubject] = useState("")
@@ -1232,13 +1281,26 @@ export default function AdminPanel() {
           setOauthApps(Array.isArray(data) ? data : [])
         } else if (tab === "settings") {
           const data = await apiFetch(API_ENDPOINTS.adminSettings)
-          if (data)
+          if (data) {
             setPanelSettings({
               registrationEnabled: data.registrationEnabled ?? true,
               registrationNotice: data.registrationNotice ?? "",
               codeInstancesEnabled:
                 data.codeInstancesEnabled === "false" ? false : Boolean(data.codeInstancesEnabled),
+              geoBlockCountries: data.geoBlockCountries ?? "",
             })
+          }
+
+          setGeoBlockMetricsLoading(true)
+          setGeoBlockMetricsError("")
+          try {
+            const m = await apiFetch("/api/admin/geo-block/metrics")
+            setGeoBlockMetrics(m)
+          } catch (e: any) {
+            setGeoBlockMetricsError(e?.message || "Failed to load geo block metrics")
+          } finally {
+            setGeoBlockMetricsLoading(false)
+          }
         } else if (tab === "plans") {
           const data = await apiFetch(API_ENDPOINTS.adminPlans)
           setPlans(Array.isArray(data) ? data : [])
@@ -1402,8 +1464,8 @@ export default function AdminPanel() {
     ticketFilter === "all"
       ? tickets
       : ticketFilter === "archived"
-      ? tickets.filter((t) => t.archived)
-      : tickets.filter((t) => t.status === ticketFilter)
+        ? tickets.filter((t) => t.archived)
+        : tickets.filter((t) => t.status === ticketFilter)
 
   // ── Filtered organisations ──
   const filteredOrgs = organisations.filter((o) => {
@@ -1561,7 +1623,7 @@ export default function AdminPanel() {
           const list = Array.isArray(data) ? data : []
           setStaffUsers(list.filter((u) => ['admin', 'rootAdmin', '*'].includes(u.role || '')))
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setStaffLoading(false))
     }
   }
@@ -1792,7 +1854,7 @@ export default function AdminPanel() {
       setSyncingFromWings(false)
     }
   }
-  
+
   async function syncToWings() {
     setSyncingToWings(true)
     try {
@@ -2647,12 +2709,12 @@ remote: ${panelUrl}`
         <DialogContent className="border-border bg-card sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">Privacy Confirmation</DialogTitle>
-           <DialogDescription className="text-sm text-muted-foreground">
-            This admin panel contains private user data (names, emails, IDs),
-            which is prohibited from being shared with third parties (see NDA, clause 4).
-            <br />
-            To proceed, please confirm that you are not recording your screen or sharing it.
-          </DialogDescription>
+            <DialogDescription className="text-sm text-muted-foreground">
+              This admin panel contains private user data (names, emails, IDs),
+              which is prohibited from being shared with third parties (see NDA, clause 4).
+              <br />
+              To proceed, please confirm that you are not recording your screen or sharing it.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -2725,184 +2787,424 @@ remote: ${panelUrl}`
 
             {/* ═══════════════ USERS ══════════════════════════════════════════ */}
             <TabsContent value="users" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="relative">
-                    <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                      <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                      <input
-                        type="text"
-                        placeholder="Search by name or email…"
-                        value={userSearch}
-                        onChange={(e) => setUserSearch(e.target.value)}
-                        onFocus={() => setUserSearchFocused(true)}
-                        onBlur={() => setTimeout(() => setUserSearchFocused(false), 150)}
-                        className="w-full md:w-64 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-                      />
-                    </div>
-                    {userSearchFocused && userSearch.trim().length > 0 && filteredUsers.length > 0 && (
-                      <div className="absolute top-full left-0 z-50 mt-1 w-full md:w-80 max-w-[90vw] rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-                        {filteredUsers.slice(0, 3).map((u) => (
+              <div className="flex flex-col gap-4">
+
+                {/* Search & Controls Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
+                    {/* Search */}
+                    <div className="relative flex-1 max-w-md">
+                      <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Search by name or email…"
+                          value={userSearch}
+                          onChange={(e) => setUserSearch(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && fetchUsers(1, userSearch)}
+                          onFocus={() => setUserSearchFocused(true)}
+                          onBlur={() => setTimeout(() => setUserSearchFocused(false), 150)}
+                          className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+                        />
+                        {userSearch && (
                           <button
-                            key={u.id}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => { openViewUser(u); setUserSearch(""); setUserSearchFocused(false); }}
-                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors border-b border-border/40 last:border-0"
+                            onClick={() => { setUserSearch(""); fetchUsers(1, ""); }}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <div className="h-7 w-7 rounded-full bg-secondary/80 flex items-center justify-center text-xs font-semibold text-muted-foreground flex-shrink-0">
-                              {u.firstName?.[0]?.toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName)}</p>
-                              <p className="text-xs text-muted-foreground truncate">{redact(u.email)}</p>
-                            </div>
+                            <X className="h-3.5 w-3.5" />
                           </button>
-                        ))}
-                        {filteredUsers.length > 3 && (
-                          <p className="px-3 py-1.5 text-xs text-muted-foreground text-center">+{filteredUsers.length - 3} more — keep typing to narrow</p>
                         )}
                       </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => forceRefreshTab("users")}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium">User</th>
-                        <th className="px-4 py-3 text-left font-medium">Role</th>
-                        <th className="px-4 py-3 text-left font-medium">Tier</th>
-                        <th className="px-4 py-3 text-left font-medium">Verified</th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                        <th className="px-4 py-3 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            {users.length === 0 ? "Loading users…" : "No users match the search."}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredUsers.map((user) => (
-                          <tr key={user.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{redactName(user.firstName, user.lastName)}</p>
-                              <p className="text-xs text-muted-foreground">{redact(user.email)}</p>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className={
-                                user.role === "*" || user.role === "rootAdmin"
-                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                  : user.role === "admin"
-                                    ? "border-warning/30 bg-warning/10 text-warning"
-                                    : "border-border bg-secondary/50 text-muted-foreground"
-                              }>
-                                {user.role || "user"}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className={
-                                user.portalType === "enterprise"
-                                  ? "border-warning/30 bg-warning/10 text-warning"
-                                  : user.portalType === "paid" || user.portalType === "pro" || user.portalType === "educational"
-                                    ? "border-primary/30 bg-primary/10 text-primary"
-                                    : "border-border bg-secondary/50 text-muted-foreground"
-                              }>
-                                {user.portalType}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3 text-xs">
-                              <span className={user.emailVerified ? "text-emerald-400" : "text-muted-foreground"}>
-                                {user.emailVerified ? "✓" : "✗"} Email
-                              </span>
-                              <span className={user.studentVerified ? "text-emerald-400" : "text-muted-foreground"}>
-                                {user.studentVerified ? "✓" : "✗"} Student
-                              </span>
-                              {"  "}
-                              <span className={user.idVerified ? "text-emerald-400" : "text-muted-foreground"}>
-                                {user.idVerified ? "✓" : "✗"} ID
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 flex flex-col gap-1">
-                              <div>
-                                {user.suspended ? (
-                                  <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Suspended</Badge>
-                                ) : (
-                                  <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Active</Badge>
-                                )}
+
+                      {/* Search dropdown */}
+                      {userSearchFocused && userSearch.trim().length > 0 && filteredUsers.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
+                          {filteredUsers.slice(0, 5).map((u) => (
+                            <button
+                              key={u.id}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { openViewUser(u); setUserSearch(""); setUserSearchFocused(false); }}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors border-b border-border/40 last:border-0"
+                            >
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                                {u.firstName?.[0]?.toUpperCase() || "?"}
                               </div>
-                              {user.supportBanned ? (
-                                <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Support Banned</Badge>
-                              ) : (
-                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Support OK</Badge>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => openViewUser(user)} title="View full profile"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                  <Eye className="h-3.5 w-3.5" />
-                                </button>
-                                <button onClick={() => openEditUser(user)} title="Edit role/tier"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                  <UserCog className="h-3.5 w-3.5" />
-                                </button>
-                                <button onClick={() => toggleSuspend(user)} title={user.suspended ? "Unsuspend" : "Suspend"}
-                                  className={`rounded-md p-1.5 transition-colors ${user.suspended
-                                    ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400"
-                                    : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}>
-                                  {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                                </button>
-                                {user.demoUsed && (
-                                  <button onClick={() => resetDemo(user)} title="Reset demo status"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                    <RefreshCw className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                                <button onClick={() => deleteUser(user)} title="Delete account"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                                {/* Student controls */}
-                                {(user.studentVerified || user.portalType === 'educational') && (
-                                  <>
-                                    <button onClick={() => deassignStudent(user)} title="Deassign student"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                      <UserPlus className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button onClick={() => requireStudentReverify(user)} title="Require re-verify"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                      <RefreshCw className="h-3.5 w-3.5" />
-                                    </button>
-                                  </>
-                                )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName)}</p>
+                                <p className="text-xs text-muted-foreground truncate">{redact(u.email)}</p>
+                              </div>
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            </button>
+                          ))}
+                          {filteredUsers.length > 5 && (
+                            <p className="px-3 py-2 text-xs text-muted-foreground text-center bg-secondary/30">
+                              +{filteredUsers.length - 5} more results
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right controls */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {usersTotal ? `${usersTotal} user${usersTotal !== 1 ? "s" : ""}` : ""}
+                      </span>
+                      <button
+                        onClick={() => forceRefreshTab("users")}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Refresh"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="rounded-xl border border-border bg-card hidden lg:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">User</th>
+                          <th className="px-4 py-3 text-left font-medium">Role</th>
+                          <th className="px-4 py-3 text-left font-medium">Tier</th>
+                          <th className="px-4 py-3 text-left font-medium">Verification</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Users className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm text-muted-foreground">
+                                  {users.length === 0 ? "Loading users…" : "No users match your search"}
+                                </p>
                               </div>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          filteredUsers.map((user) => (
+                            <tr key={user.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {user.avatarUrl ? (
+                                    <img src={user.avatarUrl} alt={`${user.firstName || "User"} avatar`} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                                  ) : (
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                                      {user.firstName?.[0]?.toUpperCase() || "?"}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{redactName(user.firstName, user.lastName)}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{redact(user.email)}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant="outline" className={
+                                  user.role === "*" || user.role === "rootAdmin"
+                                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                    : user.role === "admin"
+                                      ? "border-warning/30 bg-warning/10 text-warning"
+                                      : "border-border bg-secondary/50 text-muted-foreground"
+                                }>
+                                  {user.role || "user"}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant="outline" className={
+                                  user.portalType === "enterprise"
+                                    ? "border-warning/30 bg-warning/10 text-warning"
+                                    : user.portalType === "paid" || user.portalType === "pro" || user.portalType === "educational"
+                                      ? "border-primary/30 bg-primary/10 text-primary"
+                                      : "border-border bg-secondary/50 text-muted-foreground"
+                                }>
+                                  {user.portalType}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {[
+                                    { label: "Email", verified: user.emailVerified },
+                                    { label: "Student", verified: user.studentVerified },
+                                    { label: "ID", verified: user.idVerified },
+                                  ].map((v) => (
+                                    <span
+                                      key={v.label}
+                                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${v.verified
+                                        ? "bg-emerald-500/10 text-emerald-400"
+                                        : "bg-secondary/50 text-muted-foreground"
+                                        }`}
+                                    >
+                                      {v.verified ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
+                                      {v.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col gap-1">
+                                  {user.suspended ? (
+                                    <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Suspended</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Active</Badge>
+                                  )}
+                                  {user.supportBanned && (
+                                    <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive text-[10px]">Support Banned</Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => openViewUser(user)} title="View profile"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={() => openEditUser(user)} title="Edit user"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <UserCog className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={() => toggleSuspend(user)} title={user.suspended ? "Unsuspend" : "Suspend"}
+                                    className={`rounded-md p-1.5 transition-colors ${user.suspended
+                                      ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400"
+                                      : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}>
+                                    {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                                  </button>
+                                  {user.demoUsed && (
+                                    <button onClick={() => resetDemo(user)} title="Reset demo"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  {(user.studentVerified || user.portalType === "educational") && (
+                                    <>
+                                      <button onClick={() => deassignStudent(user)} title="Deassign student"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        <UserMinus className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => requireStudentReverify(user)} title="Require re-verify"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                  <button onClick={() => deleteUser(user)} title="Delete account"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
-                <div className="p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search by name or email" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
-                    <Button size="sm" onClick={() => fetchUsers(1, userSearch)}>Search</Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setUserSearch(''); fetchUsers(1, '') }}>Clear</Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Page {usersPage} {usersTotal ? `of ${Math.max(1, Math.ceil(usersTotal / USERS_PER))}` : ''}</span>
-                    <Button size="sm" onClick={() => { if (usersPage > 1) fetchUsers(usersPage - 1, userSearch) }} disabled={usersPage <= 1}>Prev</Button>
-                    <Button size="sm" onClick={() => { if (!usersTotal || usersPage < Math.ceil((usersTotal || 0) / USERS_PER)) fetchUsers(usersPage + 1, userSearch) }} disabled={usersTotal ? usersPage >= Math.ceil(usersTotal / USERS_PER) : users.length < USERS_PER}>Next</Button>
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-3 lg:hidden">
+                  {filteredUsers.length === 0 ? (
+                    <div className="rounded-xl border border-border bg-card px-4 py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <Users className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          {users.length === 0 ? "Loading users…" : "No users match your search"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <div key={user.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                        {/* Card Header */}
+                        <div className="flex items-start gap-3 p-4 pb-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                            {user.firstName?.[0]?.toUpperCase() || "?"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{redactName(user.firstName, user.lastName)}</p>
+                                <p className="text-xs text-muted-foreground truncate">{redact(user.email)}</p>
+                              </div>
+                              {user.suspended ? (
+                                <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive shrink-0 text-[10px]">Suspended</Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shrink-0 text-[10px]">Active</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Details */}
+                        <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                          <div className="bg-card px-4 py-2.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Role</p>
+                            <Badge variant="outline" className={`text-[10px] ${user.role === "*" || user.role === "rootAdmin"
+                              ? "border-destructive/30 bg-destructive/10 text-destructive"
+                              : user.role === "admin"
+                                ? "border-warning/30 bg-warning/10 text-warning"
+                                : "border-border bg-secondary/50 text-muted-foreground"
+                              }`}>
+                              {user.role || "user"}
+                            </Badge>
+                          </div>
+                          <div className="bg-card px-4 py-2.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Tier</p>
+                            <Badge variant="outline" className={`text-[10px] ${user.portalType === "enterprise"
+                              ? "border-warning/30 bg-warning/10 text-warning"
+                              : user.portalType === "paid" || user.portalType === "pro" || user.portalType === "educational"
+                                ? "border-primary/30 bg-primary/10 text-primary"
+                                : "border-border bg-secondary/50 text-muted-foreground"
+                              }`}>
+                              {user.portalType}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Verification Row */}
+                        <div className="flex items-center gap-2 px-4 py-2.5 border-t border-border bg-secondary/20">
+                          {[
+                            { label: "Email", verified: user.emailVerified },
+                            { label: "Student", verified: user.studentVerified },
+                            { label: "ID", verified: user.idVerified },
+                          ].map((v) => (
+                            <span
+                              key={v.label}
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${v.verified
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : "bg-secondary/80 text-muted-foreground"
+                                }`}
+                            >
+                              {v.verified ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
+                              {v.label}
+                            </span>
+                          ))}
+                          {user.supportBanned && (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-destructive/10 text-destructive">
+                              <Ban className="h-2.5 w-2.5" />
+                              Banned
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Card Actions */}
+                        <div className="flex items-center border-t border-border divide-x divide-border">
+                          <button
+                            onClick={() => openViewUser(user)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => openEditUser(user)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                          >
+                            <UserCog className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => toggleSuspend(user)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs transition-colors ${user.suspended
+                              ? "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10"
+                              : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              }`}
+                          >
+                            {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                            <span>{user.suspended ? "Unsuspend" : "Suspend"}</span>
+                          </button>
+
+                          {/* More actions dropdown for mobile */}
+                          <div className="relative group/more">
+                            <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                            <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
+                              {user.demoUsed && (
+                                <button
+                                  onClick={() => resetDemo(user)}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  Reset demo
+                                </button>
+                              )}
+                              {(user.studentVerified || user.portalType === "educational") && (
+                                <>
+                                  <button
+                                    onClick={() => deassignStudent(user)}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  >
+                                    <UserMinus className="h-3.5 w-3.5" />
+                                    Deassign student
+                                  </button>
+                                  <button
+                                    onClick={() => requireStudentReverify(user)}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    Require re-verify
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => deleteUser(user)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors border-t border-border"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete account
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Pagination */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Page <span className="font-medium text-foreground">{usersPage}</span>
+                      {usersTotal ? (
+                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(usersTotal / USERS_PER))}</span></>
+                      ) : null}
+                      {usersTotal ? (
+                        <span className="hidden sm:inline"> · {usersTotal} total</span>
+                      ) : null}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { if (usersPage > 1) fetchUsers(usersPage - 1, userSearch); }}
+                        disabled={usersPage <= 1}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
+                        <span className="hidden sm:inline ml-1">Previous</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!usersTotal || usersPage < Math.ceil((usersTotal || 0) / USERS_PER))
+                            fetchUsers(usersPage + 1, userSearch);
+                        }}
+                        disabled={usersTotal ? usersPage >= Math.ceil(usersTotal / USERS_PER) : users.length < USERS_PER}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <span className="hidden sm:inline mr-1">Next</span>
+                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2910,590 +3212,1905 @@ remote: ${panelUrl}`
 
             {/* ═══════════════ ORGANISATIONS ══════════════════════════════════ */}
             <TabsContent value="organisations" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                    <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search organisations..."
-                      value={orgSearch}
-                      onChange={(e) => setOrgSearch(e.target.value)}
-                      className="w-52 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => forceRefreshTab("organisations")}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setRedactOrganisations(!redactOrganisations)}
-                      title={redactOrganisations ? "Unredact organisations" : "Redact organisations"}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary/10 transition-colors"
-                    >
-                      {redactOrganisations ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
+              <div className="flex flex-col gap-4">
+
+                {/* Search & Controls Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
+                    {/* Search */}
+                    <div className="relative flex-1 max-w-md">
+                      <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Search organisations…"
+                          value={orgSearch}
+                          onChange={(e) => setOrgSearch(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && fetchOrganisations(1, orgSearch)}
+                          className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+                        />
+                        {orgSearch && (
+                          <button
+                            onClick={() => { setOrgSearch(""); fetchOrganisations(1, ""); }}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right controls */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {organisationsTotal ? `${organisationsTotal} org${organisationsTotal !== 1 ? "s" : ""}` : ""}
+                      </span>
+                      <button
+                        onClick={() => setRedactOrganisations(!redactOrganisations)}
+                        title={redactOrganisations ? "Show full details" : "Redact details"}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                      >
+                        {redactOrganisations ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                      <button
+                        onClick={() => forceRefreshTab("organisations")}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Refresh"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium">Organisation</th>
-                        <th className="px-4 py-3 text-left font-medium">Handle</th>
-                        <th className="px-4 py-3 text-left font-medium">Owner</th>
-                        <th className="px-4 py-3 text-left font-medium">Tier</th>
-                        <th className="px-4 py-3 text-left font-medium">Members</th>
-                        <th className="px-4 py-3 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOrgs.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            {organisations.length === 0 ? "Loading organisations…" : "No organisations match the search."}
-                          </td>
+
+                {/* Desktop Table */}
+                <div className="rounded-xl border border-border bg-card hidden lg:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">Organisation</th>
+                          <th className="px-4 py-3 text-left font-medium">Handle</th>
+                          <th className="px-4 py-3 text-left font-medium">Owner</th>
+                          <th className="px-4 py-3 text-left font-medium">Tier</th>
+                          <th className="px-4 py-3 text-left font-medium">Members</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
                         </tr>
-                      ) : (
-                        filteredOrgs.map((org) => (
-                          <tr key={org.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{redactOrg(org.name)}</p>
-                              <p className="font-mono text-xs text-muted-foreground">ID #{redactOrg(org.id)}</p>
+                      </thead>
+                      <tbody>
+                        {filteredOrgs.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Building2 className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm text-muted-foreground">
+                                  {organisations.length === 0 ? "Loading organisations…" : "No organisations match your search"}
+                                </p>
+                              </div>
                             </td>
-                            <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-muted-foreground">{redactOrg(org.handle)}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              {org.owner ? (
-                                <div>
-                                  <p className="text-sm text-foreground">{redactOrgName(org.owner.firstName, org.owner.lastName)}</p>
-                                  <p className="text-xs text-muted-foreground">{redactOrg(org.owner.email)}</p>
+                          </tr>
+                        ) : (
+                          filteredOrgs.map((org) => (
+                            <tr key={org.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {org.avatarUrl ? (
+                                    <img src={org.avatarUrl} alt={`${org.name} logo`} className="h-8 w-8 rounded-lg object-cover shrink-0" />
+                                  ) : (
+                                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                      {org.name?.[0]?.toUpperCase() || "?"}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{redactOrg(org.name)}</p>
+                                    <p className="font-mono text-[11px] text-muted-foreground truncate">#{redactOrg(org.id)}</p>
+                                  </div>
                                 </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">{redactOrg(org.ownerId)}</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className={
-                                org.portalTier === "enterprise"
-                                  ? "border-warning/30 bg-warning/10 text-warning"
-                                  : org.portalTier === "pro"
-                                    ? "border-primary/30 bg-primary/10 text-primary"
-                                    : "border-border bg-secondary/50 text-muted-foreground"
-                              }>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                                  @{redactOrg(org.handle)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {org.owner ? (
+                                  <div className="min-w-0">
+                                    <p className="text-sm text-foreground truncate">{redactOrgName(org.owner.firstName, org.owner.lastName)}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{redactOrg(org.owner.email)}</p>
+                                  </div>
+                                ) : (
+                                  <span className="font-mono text-xs text-muted-foreground">{redactOrg(org.ownerId)}</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant="outline" className={
+                                  org.portalTier === "enterprise"
+                                    ? "border-warning/30 bg-warning/10 text-warning"
+                                    : org.portalTier === "pro"
+                                      ? "border-primary/30 bg-primary/10 text-primary"
+                                      : "border-border bg-secondary/50 text-muted-foreground"
+                                }>
+                                  {org.portalTier}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-sm font-medium text-foreground">{org.memberCount}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => openEditOrg(org)} title="Edit organisation"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={() => deleteOrg(org)} title="Delete organisation"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-3 lg:hidden">
+                  {filteredOrgs.length === 0 ? (
+                    <div className="rounded-xl border border-border bg-card px-4 py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <Building2 className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          {organisations.length === 0 ? "Loading organisations…" : "No organisations match your search"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    filteredOrgs.map((org) => (
+                      <div key={org.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                        {/* Card Header */}
+                        <div className="flex items-start gap-3 p-4 pb-3">
+                          {org.avatarUrl ? (
+                            <img src={org.avatarUrl} alt={`${org.name} logo`} className="h-10 w-10 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                              {org.name?.[0]?.toUpperCase() || "?"}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{redactOrg(org.name)}</p>
+                                <span className="inline-flex items-center rounded-md bg-secondary/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground mt-0.5">
+                                  @{redactOrg(org.handle)}
+                                </span>
+                              </div>
+                              <Badge variant="outline" className={`shrink-0 text-[10px] ${org.portalTier === "enterprise"
+                                ? "border-warning/30 bg-warning/10 text-warning"
+                                : org.portalTier === "pro"
+                                  ? "border-primary/30 bg-primary/10 text-primary"
+                                  : "border-border bg-secondary/50 text-muted-foreground"
+                                }`}>
                                 {org.portalTier}
                               </Badge>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-foreground">
-                              {org.memberCount}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => openEditOrg(org)} title="Edit organisation"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                  <Edit className="h-3.5 w-3.5" />
-                                </button>
-                                <button onClick={() => deleteOrg(org)} title="Delete organisation"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Details Grid */}
+                        <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                          <div className="bg-card px-4 py-2.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Owner</p>
+                            {org.owner ? (
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{redactOrgName(org.owner.firstName, org.owner.lastName)}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">{redactOrg(org.owner.email)}</p>
                               </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            ) : (
+                              <p className="font-mono text-[11px] text-muted-foreground truncate">{redactOrg(org.ownerId)}</p>
+                            )}
+                          </div>
+                          <div className="bg-card px-4 py-2.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Members</p>
+                            <div className="flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-sm font-semibold text-foreground">{org.memberCount}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ID row */}
+                        <div className="flex items-center gap-2 px-4 py-2 border-t border-border bg-secondary/20">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">ID</span>
+                          <span className="font-mono text-[11px] text-muted-foreground truncate">#{redactOrg(org.id)}</span>
+                        </div>
+
+                        {/* Card Actions */}
+                        <div className="flex items-center border-t border-border divide-x divide-border">
+                          <button
+                            onClick={() => openEditOrg(org)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => deleteOrg(org)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <div className="p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <input value={orgSearch} onChange={(e) => setOrgSearch(e.target.value)} placeholder="Search organisations" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
-                    <Button size="sm" onClick={() => fetchOrganisations(1, orgSearch)}>Search</Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setOrgSearch(''); fetchOrganisations(1, '') }}>Clear</Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Page {organisationsPage} {organisationsTotal ? `of ${Math.max(1, Math.ceil(organisationsTotal / ORGS_PER))}` : ''}</span>
-                    <Button size="sm" onClick={() => { if (organisationsPage > 1) fetchOrganisations(organisationsPage - 1, orgSearch) }} disabled={organisationsPage <= 1}>Prev</Button>
-                    <Button size="sm" onClick={() => { if (!organisationsTotal || organisationsPage < Math.ceil((organisationsTotal || 0) / ORGS_PER)) fetchOrganisations(organisationsPage + 1, orgSearch) }} disabled={organisationsTotal ? organisationsPage >= Math.ceil(organisationsTotal / ORGS_PER) : organisations.length < ORGS_PER}>Next</Button>
+
+                {/* Pagination */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Page <span className="font-medium text-foreground">{organisationsPage}</span>
+                      {organisationsTotal ? (
+                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(organisationsTotal / ORGS_PER))}</span></>
+                      ) : null}
+                      {organisationsTotal ? (
+                        <span className="hidden sm:inline"> · {organisationsTotal} total</span>
+                      ) : null}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { if (organisationsPage > 1) fetchOrganisations(organisationsPage - 1, orgSearch); }}
+                        disabled={organisationsPage <= 1}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
+                        <span className="hidden sm:inline ml-1">Previous</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!organisationsTotal || organisationsPage < Math.ceil((organisationsTotal || 0) / ORGS_PER))
+                            fetchOrganisations(organisationsPage + 1, orgSearch);
+                        }}
+                        disabled={organisationsTotal ? organisationsPage >= Math.ceil(organisationsTotal / ORGS_PER) : organisations.length < ORGS_PER}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <span className="hidden sm:inline mr-1">Next</span>
+                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </TabsContent>
-
             {/* ═══════════════ SERVERS ════════════════════════════════════════ */}
             <TabsContent value="servers" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                    <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search servers..."
-                      value={serverSearch}
-                      onChange={(e) => setServerSearch(e.target.value)}
-                      className="w-52 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={syncFromWings} disabled={syncingFromWings}
-                      className="h-8 gap-1 border-border text-muted-foreground">
-                      {syncingFromWings ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                      Sync from Wings
-                    </Button>
-                    <Button size="sm" onClick={() => { loadTab("nodes"); loadTab("eggs"); openCreateServer(); }}
-                      className="bg-primary text-primary-foreground h-8 gap-1">
-                      <Plus className="h-3 w-3" /> Create Server
-                    </Button>
-                    <button
-                      onClick={() => forceRefreshTab("servers")}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setRedactServers(!redactServers)}
-                      title={redactServers ? "Unredact servers" : "Redact servers"}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary/10 transition-colors"
-                    >
-                      {redactServers ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
+              <div className="flex flex-col gap-4">
+
+                {/* Search & Controls Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col gap-3 p-4">
+                    {/* Top row: Search + icon controls */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="relative flex-1 max-w-md">
+                        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+                          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="Search servers…"
+                            value={serverSearch}
+                            onChange={(e) => setServerSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && fetchServers(1, serverSearch)}
+                            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+                          />
+                          {serverSearch && (
+                            <button
+                              onClick={() => { setServerSearch(""); fetchServers(1, ""); }}
+                              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs text-muted-foreground hidden md:inline">
+                          {serversTotal ? `${serversTotal} server${serversTotal !== 1 ? "s" : ""}` : ""}
+                        </span>
+                        <button
+                          onClick={() => setRedactServers(!redactServers)}
+                          title={redactServers ? "Show full details" : "Redact details"}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        >
+                          {redactServers ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                        <button
+                          onClick={() => forceRefreshTab("servers")}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title="Refresh"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Bottom row: action buttons */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={syncFromWings}
+                        disabled={syncingFromWings}
+                        className="h-8 gap-1.5 border-border text-muted-foreground"
+                      >
+                        {syncingFromWings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        <span className="hidden sm:inline">Sync from Wings</span>
+                        <span className="sm:hidden">Sync</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => { loadTab("nodes"); loadTab("eggs"); openCreateServer(); }}
+                        className="bg-primary text-primary-foreground h-8 gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Create Server</span>
+                        <span className="sm:hidden">Create</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium">Server</th>
-                        <th className="px-4 py-3 text-left font-medium">UUID</th>
-                        <th className="px-4 py-3 text-left font-medium">Node</th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                        <th className="px-4 py-3 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredServers.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            {servers.length === 0 ? "Loading servers…" : "No servers match the search."}
-                          </td>
+
+                {/* Desktop Table */}
+                <div className="rounded-xl border border-border bg-card hidden lg:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">Server</th>
+                          <th className="px-4 py-3 text-left font-medium">UUID</th>
+                          <th className="px-4 py-3 text-left font-medium">Node</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
                         </tr>
-                      ) : (
-                        filteredServers.map((srv, i) => (
-                          <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ''}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{srv.name ? redactText(srv.name, privateMode ? redactServers : false) : "Unnamed Server"}</p>
-                              {srv.description && (
-                                <p className={privateMode && redactServers ? "text-xs text-muted-foreground truncate max-w-xs blur-sm" : "text-xs text-muted-foreground truncate max-w-xs"}>{srv.description}</p>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-muted-foreground">{(srv.uuid || '').substring(0, 12)}{srv.uuid ? '…' : ''}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground">
-                                {srv.nodeName}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className={
-                                srv.status === "running"
-                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                                  : srv.status === "starting"
-                                    ? "border-warning/30 bg-warning/10 text-warning"
-                                    : srv.status === "suspended"
-                                      ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                      : "border-border bg-secondary/50 text-muted-foreground"
-                              }>
-                                {srv.status || "unknown"}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => serverPower(srv.uuid, "start")} title="Start"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                                  <Power className="h-3.5 w-3.5" />
-                                </button>
-                                <button onClick={() => serverPower(srv.uuid, "restart")} title="Restart"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                </button>
-                                <button onClick={() => serverPower(srv.uuid, "stop")} title="Stop"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                  <Ban className="h-3.5 w-3.5" />
-                                </button>
-                                {srv.status === "suspended" ? (
-                                  <button onClick={() => unsuspendServer(srv.uuid)} title="Unsuspend"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                  </button>
-                                ) : (
-                                  <button onClick={() => suspendServer(srv.uuid)} title="Suspend"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                                    <Shield className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                                <button onClick={() => openEditServer(srv)} title="Edit server"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                                  <Edit className="h-3.5 w-3.5" />
-                                </button>
-                                <button onClick={() => deleteServer(srv.uuid)} title="Delete server"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                      </thead>
+                      <tbody>
+                        {filteredServers.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Server className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm text-muted-foreground">
+                                  {servers.length === 0 ? "Loading servers…" : "No servers match your search"}
+                                </p>
                               </div>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <input value={serverSearch} onChange={(e) => setServerSearch(e.target.value)} placeholder="Search servers" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
-                    <Button size="sm" onClick={() => fetchServers(1, serverSearch)}>Search</Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setServerSearch(''); fetchServers(1, '') }}>Clear</Button>
+                        ) : (
+                          filteredServers.map((srv, i) => {
+                            const statusConfig: Record<string, { class: string; dot: string }> = {
+                              running: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                              starting: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
+                              suspended: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
+                              stopping: { class: "border-orange-500/30 bg-orange-500/10 text-orange-400", dot: "bg-orange-400" },
+                            }
+                            const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "border-border bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" }
+
+                            return (
+                              <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="relative h-8 w-8 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
+                                      <Server className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">
+                                        {srv.name ? redactText(srv.name, privateMode ? redactServers : false) : "Unnamed Server"}
+                                      </p>
+                                      {srv.description && (
+                                        <p className={`text-xs text-muted-foreground truncate max-w-xs ${privateMode && redactServers ? "blur-sm" : ""}`}>
+                                          {srv.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    onClick={() => navigator.clipboard?.writeText(srv.uuid || "")}
+                                    title="Click to copy full UUID"
+                                    className="inline-flex items-center gap-1 rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
+                                  >
+                                    {(srv.uuid || "").substring(0, 8)}…
+                                    <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </button>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground">
+                                    {srv.nodeName || "Unknown"}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className={sc.class}>
+                                    <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                    {srv.status || "unknown"}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    {/* Power controls */}
+                                    <div className="flex items-center gap-0.5 border-r border-border pr-1 mr-1">
+                                      <button onClick={() => serverPower(srv.uuid, "start")} title="Start"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                                        <Play className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => serverPower(srv.uuid, "restart")} title="Restart"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => serverPower(srv.uuid, "stop")} title="Stop"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                                        <Square className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                    {/* Management controls */}
+                                    {srv.status === "suspended" ? (
+                                      <button onClick={() => unsuspendServer(srv.uuid)} title="Unsuspend"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                                        <CheckCircle className="h-3.5 w-3.5" />
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => suspendServer(srv.uuid)} title="Suspend"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                                        <Shield className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                    <button onClick={() => openEditServer(srv)} title="Edit server"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button onClick={() => deleteServer(srv.uuid)} title="Delete server"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Page {serversPage} {serversTotal ? `of ${Math.max(1, Math.ceil(serversTotal / SERVERS_PER))}` : ''}</span>
-                    <Button size="sm" onClick={() => { if (serversPage > 1) fetchServers(serversPage - 1, serverSearch) }} disabled={serversPage <= 1}>Prev</Button>
-                    <Button size="sm" onClick={() => { if (!serversTotal || serversPage < Math.ceil((serversTotal || 0) / SERVERS_PER)) fetchServers(serversPage + 1, serverSearch) }} disabled={serversTotal ? serversPage >= Math.ceil(serversTotal / SERVERS_PER) : servers.length < SERVERS_PER}>Next</Button>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-3 lg:hidden">
+                  {filteredServers.length === 0 ? (
+                    <div className="rounded-xl border border-border bg-card px-4 py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <Server className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          {servers.length === 0 ? "Loading servers…" : "No servers match your search"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    filteredServers.map((srv, i) => {
+                      const statusConfig: Record<string, { class: string; dot: string; bg: string }> = {
+                        running: { class: "text-emerald-400", dot: "bg-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
+                        starting: { class: "text-warning", dot: "bg-warning", bg: "bg-warning/10 border-warning/30" },
+                        suspended: { class: "text-destructive", dot: "bg-destructive", bg: "bg-destructive/10 border-destructive/30" },
+                        stopping: { class: "text-orange-400", dot: "bg-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
+                      }
+                      const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "text-muted-foreground", dot: "bg-muted-foreground", bg: "bg-secondary/50 border-border" }
+
+                      return (
+                        <div key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="rounded-xl border border-border bg-card overflow-hidden">
+                          {/* Card Header */}
+                          <div className="flex items-start gap-3 p-4 pb-3">
+                            <div className="relative h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
+                              <Server className="h-4 w-4 text-muted-foreground" />
+                              <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">
+                                    {srv.name ? redactText(srv.name, privateMode ? redactServers : false) : "Unnamed Server"}
+                                  </p>
+                                  {srv.description && (
+                                    <p className={`text-xs text-muted-foreground truncate mt-0.5 ${privateMode && redactServers ? "blur-sm" : ""}`}>
+                                      {srv.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge variant="outline" className={`shrink-0 text-[10px] ${sc.bg} ${sc.class}`}>
+                                  <span className={`mr-1 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                  {srv.status || "unknown"}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card Details */}
+                          <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                            <div className="bg-card px-4 py-2.5">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Node</p>
+                              <Badge variant="outline" className="text-[10px] border-border bg-secondary/50 text-muted-foreground">
+                                {srv.nodeName || "Unknown"}
+                              </Badge>
+                            </div>
+                            <div className="bg-card px-4 py-2.5">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">UUID</p>
+                              <button
+                                onClick={() => navigator.clipboard?.writeText(srv.uuid || "")}
+                                className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                {(srv.uuid || "").substring(0, 8)}…
+                                <Copy className="h-2.5 w-2.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Power Controls */}
+                          <div className="flex items-center justify-center gap-1 px-4 py-2.5 border-t border-border bg-secondary/20">
+                            <button onClick={() => serverPower(srv.uuid, "start")} title="Start"
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                              <Play className="h-3.5 w-3.5" />
+                              <span>Start</span>
+                            </button>
+                            <button onClick={() => serverPower(srv.uuid, "restart")} title="Restart"
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              <span>Restart</span>
+                            </button>
+                            <button onClick={() => serverPower(srv.uuid, "stop")} title="Stop"
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                              <Square className="h-3.5 w-3.5" />
+                              <span>Stop</span>
+                            </button>
+                          </div>
+
+                          {/* Management Actions */}
+                          <div className="flex items-center border-t border-border divide-x divide-border">
+                            {srv.status === "suspended" ? (
+                              <button onClick={() => unsuspendServer(srv.uuid)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                <span>Unsuspend</span>
+                              </button>
+                            ) : (
+                              <button onClick={() => suspendServer(srv.uuid)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors">
+                                <Shield className="h-3.5 w-3.5" />
+                                <span>Suspend</span>
+                              </button>
+                            )}
+                            <button onClick={() => openEditServer(srv)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+                              <Edit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button onClick={() => deleteServer(srv.uuid)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* Pagination */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Page <span className="font-medium text-foreground">{serversPage}</span>
+                      {serversTotal ? (
+                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(serversTotal / SERVERS_PER))}</span></>
+                      ) : null}
+                      {serversTotal ? (
+                        <span className="hidden sm:inline"> · {serversTotal} total</span>
+                      ) : null}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { if (serversPage > 1) fetchServers(serversPage - 1, serverSearch); }}
+                        disabled={serversPage <= 1}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
+                        <span className="hidden sm:inline ml-1">Previous</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!serversTotal || serversPage < Math.ceil((serversTotal || 0) / SERVERS_PER))
+                            fetchServers(serversPage + 1, serverSearch);
+                        }}
+                        disabled={serversTotal ? serversPage >= Math.ceil(serversTotal / SERVERS_PER) : servers.length < SERVERS_PER}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <span className="hidden sm:inline mr-1">Next</span>
+                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </TabsContent>
-
             {/* ═══════════════ TICKETS ════════════════════════════════════════ */}
             <TabsContent value="tickets" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="flex gap-2">
-                    {['all', 'opened', 'awaiting_staff_reply', 'replied', 'closed', 'archived'].map((f) => (
-                      <button key={f} onClick={() => setTicketFilterAndReload(f)}
-                        className={`rounded-md px-3 py-1 text-xs transition-colors ${ticketFilter === f
-                          ? "bg-primary/20 text-primary"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
-                        {f === 'all' ? 'All' : f.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                      </button>
-                    ))}
-                    <div className="ml-4 flex items-center gap-2">
-                      <Select onValueChange={(v) => setTicketPriorityFilter(v)} value={ticketPriorityFilter}>
-                        <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">Any</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <input value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} placeholder="Search user id or email" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <input type="checkbox" checked={showAiTouched} onChange={(e) => setShowAiTouched(e.target.checked)} />
-                        <span>Include AI-handled</span>
-                      </label>
-                      <Button size="sm" onClick={() => fetchTickets(1, ticketSearch, ticketPriorityFilter)}>Search</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setTicketSearch(''); setTicketPriorityFilter('any'); setShowAiTouched(false); setTicketFilter('all'); fetchTickets(1, '', 'any') }}>Clear</Button>
+              <div className="flex flex-col gap-4">
+
+                {/* Status Filter Tabs */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-2 p-2 sm:p-3">
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1">
+                      {["all", "opened", "awaiting_staff_reply", "replied", "closed", "archived"].map((f) => {
+                        const labels: Record<string, string> = {
+                          all: "All",
+                          opened: "Open",
+                          awaiting_staff_reply: "Awaiting Reply",
+                          replied: "Replied",
+                          closed: "Closed",
+                          archived: "Archived",
+                        }
+                        const counts: Record<string, string> = {
+                          awaiting_staff_reply: "!",
+                        }
+                        return (
+                          <button
+                            key={f}
+                            onClick={() => setTicketFilterAndReload(f)}
+                            className={`relative rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${ticketFilter === f
+                              ? "bg-primary/15 text-primary"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              }`}
+                          >
+                            {labels[f] || f}
+                            {counts[f] && ticketFilter !== f && (
+                              <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-destructive/20 text-[10px] font-bold text-destructive">
+                                {counts[f]}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
-                    <div className="ml-4 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{selectedTicketIds.length} selected</span>
-                      <Button size="sm" disabled={selectedTicketIds.length === 0} onClick={async () => {
-                        if (!window.confirm(`Archive ${selectedTicketIds.length} ticket(s)?`)) return;
-                        await apiFetch(API_ENDPOINTS.adminTicketsBulkArchive, { method: 'POST', body: JSON.stringify({ ids: selectedTicketIds, archived: true })});
-                        fetchTickets(1, ticketSearch, ticketPriorityFilter);
-                      }}>Archive</Button>
-                      <Button size="sm" variant="outline" disabled={selectedTicketIds.length === 0} onClick={async () => {
-                        if (!window.confirm(`Unarchive ${selectedTicketIds.length} ticket(s)?`)) return;
-                        await apiFetch(API_ENDPOINTS.adminTicketsBulkArchive, { method: 'POST', body: JSON.stringify({ ids: selectedTicketIds, archived: false })});
-                        fetchTickets(1, ticketSearch, ticketPriorityFilter);
-                      }}>Unarchive</Button>
-                    </div>
+                    <button
+                      onClick={() => forceRefreshTab("tickets")}
+                      className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+                      title="Refresh"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button onClick={() => forceRefreshTab("tickets")}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium"><input type="checkbox" checked={selectedTicketIds.length > 0 && selectedTicketIds.length === tickets.length} onChange={(e) => {
-                          if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id))
-                          else setSelectedTicketIds([])
-                        }} /></th>
-                        <th className="px-4 py-3 text-left font-medium">#</th>
-                        <th className="px-4 py-3 text-left font-medium">Subject</th>
-                        <th className="px-4 py-3 text-left font-medium">User</th>
-                        <th className="px-4 py-3 text-left font-medium">Dept</th>
-                        <th className="px-4 py-3 text-left font-medium">Assigned</th>
-                        <th className="px-4 py-3 text-left font-medium">Priority</th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                        <th className="px-4 py-3 text-left font-medium">Created</th>
-                        <th className="px-4 py-3 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTickets.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            {tickets.length === 0 ? "Loading tickets…" : "No tickets match the filter."}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredTickets.map((ticket, i) => (
-                          <tr key={ticket.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3">
-                              <input type="checkbox" checked={selectedTicketIds.includes(ticket.id)} onChange={(e) => {
-                                if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])])
-                                else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id))
+
+                {/* Search, Filters & Bulk Actions */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col gap-3 p-4">
+                    {/* Search row */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <div className="relative flex-1 max-w-md">
+                        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+                          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="Search by user ID or email…"
+                            value={ticketSearch}
+                            onChange={(e) => setTicketSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && fetchTickets(1, ticketSearch, ticketPriorityFilter)}
+                            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+                          />
+                          {ticketSearch && (
+                            <button
+                              onClick={() => { setTicketSearch(""); fetchTickets(1, "", ticketPriorityFilter); }}
+                              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Filters */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Select onValueChange={(v) => setTicketPriorityFilter(v)} value={ticketPriorityFilter}>
+                          <SelectTrigger className="h-8 w-[130px] text-xs border-border">
+                            <SelectValue placeholder="Priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Any Priority</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <label className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-secondary transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={showAiTouched}
+                            onChange={(e) => setShowAiTouched(e.target.checked)}
+                            className="rounded border-border"
+                          />
+                          <span className="whitespace-nowrap">AI-handled</span>
+                        </label>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setTicketSearch("");
+                            setTicketPriorityFilter("any");
+                            setShowAiTouched(false);
+                            setTicketFilter("all");
+                            fetchTickets(1, "", "any");
+                          }}
+                          className="h-8 text-xs text-muted-foreground"
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Bulk actions */}
+                    {selectedTicketIds.length > 0 && (
+                      <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-xs font-medium text-primary">{selectedTicketIds.length} selected</span>
+                        </div>
+                        <div className="h-4 w-px bg-border" />
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] gap-1"
+                            onClick={async () => {
+                              if (!window.confirm(`Archive ${selectedTicketIds.length} ticket(s)?`)) return;
+                              await apiFetch(API_ENDPOINTS.adminTicketsBulkArchive, { method: "POST", body: JSON.stringify({ ids: selectedTicketIds, archived: true }) });
+                              fetchTickets(1, ticketSearch, ticketPriorityFilter);
+                            }}
+                          >
+                            <Archive className="h-3 w-3" />
+                            Archive
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] gap-1"
+                            onClick={async () => {
+                              if (!window.confirm(`Unarchive ${selectedTicketIds.length} ticket(s)?`)) return;
+                              await apiFetch(API_ENDPOINTS.adminTicketsBulkArchive, { method: "POST", body: JSON.stringify({ ids: selectedTicketIds, archived: false }) });
+                              fetchTickets(1, ticketSearch, ticketPriorityFilter);
+                            }}
+                          >
+                            <ArchiveRestore className="h-3 w-3" />
+                            Unarchive
+                          </Button>
+                          <button
+                            onClick={() => setSelectedTicketIds([])}
+                            className="ml-1 rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Desktop Table */}
+                <div className="rounded-xl border border-border bg-card hidden xl:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedTicketIds.length > 0 && selectedTicketIds.length === tickets.length}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id));
+                                else setSelectedTicketIds([]);
                               }}
-                              />
+                              className="rounded border-border"
+                            />
+                          </th>
+                          <th className="px-4 py-3 text-left font-medium">Ticket</th>
+                          <th className="px-4 py-3 text-left font-medium">User</th>
+                          <th className="px-4 py-3 text-left font-medium">Department</th>
+                          <th className="px-4 py-3 text-left font-medium">Assigned</th>
+                          <th className="px-4 py-3 text-left font-medium">Priority</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-left font-medium">Created</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTickets.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="px-4 py-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm text-muted-foreground">
+                                  {tickets.length === 0 ? "Loading tickets…" : "No tickets match your filters"}
+                                </p>
+                              </div>
                             </td>
-                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">#{ticket.id}</td>
-                            <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">{ticket.subject} {ticket.aiTouched && (
-                                <Badge variant="outline" className="ml-2">AI</Badge>
-                              )}</p>
+                          </tr>
+                        ) : (
+                          filteredTickets.map((ticket, i) => (
+                            <tr key={ticket.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTicketIds.includes(ticket.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])]);
+                                    else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id));
+                                  }}
+                                  className="rounded border-border"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-start gap-2 min-w-0">
+                                  <span className="font-mono text-[11px] text-muted-foreground shrink-0 mt-0.5">#{ticket.id}</span>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-sm font-medium text-foreground truncate">{ticket.subject}</p>
+                                      {ticket.aiTouched && (
+                                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                                          AI
+                                        </span>
+                                      )}
+                                      {ticket.archived && (
+                                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-secondary text-muted-foreground border border-border shrink-0">
+                                          Archived
+                                        </span>
+                                      )}
+                                    </div>
+                                    {((ticket.messages && ticket.messages.length) || ticket.adminReply) && (
+                                      <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-sm">
+                                        {ticket.messages?.length
+                                          ? ticket.messages[ticket.messages.length - 1].message
+                                          : ticket.adminReply || ""}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <p className="text-xs text-foreground">
+                                  {ticket.user ? redactName(ticket.user.firstName, ticket.user.lastName) : redact(ticket.userId)}
+                                </p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs text-muted-foreground">{ticket.department || "—"}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs text-muted-foreground">{ticket.assignedTo ? `#${ticket.assignedTo}` : "—"}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant="outline" className={priorityColor[ticket.priority] || priorityColor.medium}>
+                                  {ticket.priority}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant="outline" className={ticketStatusColor[ticket.status] || ticketStatusColor.opened}>
+                                  {ticket.status?.replace(/_/g, " ")}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {new Date(ticket.created).toLocaleDateString()}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                  {ticket.status !== "closed" && (
+                                    <button onClick={() => openReply(ticket)} title="Reply"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                      <MessageSquare className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" title="Open in new tab"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Tablet Table (simplified columns) */}
+                <div className="rounded-xl border border-border bg-card hidden md:block xl:hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-3 py-3 text-left font-medium w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedTicketIds.length > 0 && selectedTicketIds.length === tickets.length}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id));
+                                else setSelectedTicketIds([]);
+                              }}
+                              className="rounded border-border"
+                            />
+                          </th>
+                          <th className="px-3 py-3 text-left font-medium">Ticket</th>
+                          <th className="px-3 py-3 text-left font-medium">Priority</th>
+                          <th className="px-3 py-3 text-left font-medium">Status</th>
+                          <th className="px-3 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTickets.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-3 py-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm text-muted-foreground">
+                                  {tickets.length === 0 ? "Loading tickets…" : "No tickets match your filters"}
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredTickets.map((ticket, i) => (
+                            <tr key={ticket.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                              <td className="px-3 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTicketIds.includes(ticket.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])]);
+                                    else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id));
+                                  }}
+                                  className="rounded border-border"
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-[11px] text-muted-foreground">#{ticket.id}</span>
+                                    <p className="text-sm font-medium text-foreground truncate">{ticket.subject}</p>
+                                    {ticket.aiTouched && (
+                                      <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 shrink-0">AI</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {ticket.user ? redactName(ticket.user.firstName, ticket.user.lastName) : redact(ticket.userId)}
+                                    {ticket.department && <> · {ticket.department}</>}
+                                    {" · "}
+                                    {new Date(ticket.created).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3">
+                                <Badge variant="outline" className={`text-[10px] ${priorityColor[ticket.priority] || priorityColor.medium}`}>
+                                  {ticket.priority}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline" className={`text-[10px] ${ticketStatusColor[ticket.status] || ticketStatusColor.opened}`}>
+                                    {ticket.status?.replace(/_/g, " ")}
+                                  </Badge>
+                                  {ticket.archived && (
+                                    <span className="text-[10px] text-muted-foreground">Archived</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="flex items-center justify-end gap-0.5">
+                                  {ticket.status !== "closed" && (
+                                    <button onClick={() => openReply(ticket)} title="Reply"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                      <MessageSquare className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer"
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-3 md:hidden">
+                  {/* Select all on mobile */}
+                  <div className="flex items-center justify-between px-1">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedTicketIds.length > 0 && selectedTicketIds.length === tickets.length}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id));
+                          else setSelectedTicketIds([]);
+                        }}
+                        className="rounded border-border"
+                      />
+                      Select all
+                    </label>
+                    {ticketsTotal ? (
+                      <span className="text-xs text-muted-foreground">{ticketsTotal} ticket{ticketsTotal !== 1 ? "s" : ""}</span>
+                    ) : null}
+                  </div>
+
+                  {filteredTickets.length === 0 ? (
+                    <div className="rounded-xl border border-border bg-card px-4 py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          {tickets.length === 0 ? "Loading tickets…" : "No tickets match your filters"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    filteredTickets.map((ticket, i) => {
+                      const isSelected = selectedTicketIds.includes(ticket.id)
+                      return (
+                        <div
+                          key={ticket.id ?? i}
+                          className={`rounded-xl border bg-card overflow-hidden transition-colors ${isSelected ? "border-primary/40 bg-primary/5" : "border-border"
+                            }`}
+                        >
+                          {/* Card Header */}
+                          <div className="flex items-start gap-3 p-4 pb-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])]);
+                                else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id));
+                              }}
+                              className="rounded border-border mt-0.5 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-mono text-[11px] text-muted-foreground">#{ticket.id}</span>
+                                    {ticket.aiTouched && (
+                                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20">AI</span>
+                                    )}
+                                    {ticket.archived && (
+                                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-secondary text-muted-foreground border border-border">Archived</span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm font-semibold text-foreground mt-0.5 line-clamp-2">{ticket.subject}</p>
+                                </div>
+                                <Badge variant="outline" className={`shrink-0 text-[10px] ${priorityColor[ticket.priority] || priorityColor.medium}`}>
+                                  {ticket.priority}
+                                </Badge>
+                              </div>
+
+                              {/* Latest reply preview */}
                               {((ticket.messages && ticket.messages.length) || ticket.adminReply) && (
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
-                                  Reply: {(ticket.messages && ticket.messages.length
+                                <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                                  {ticket.messages?.length
                                     ? ticket.messages[ticket.messages.length - 1].message
-                                    : ticket.adminReply) || ""}
+                                    : ticket.adminReply || ""}
                                 </p>
                               )}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {ticket.user ? redactName(ticket.user.firstName, ticket.user.lastName) : redact(ticket.userId)}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {ticket.department || "—"}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {ticket.assignedTo ? `#${ticket.assignedTo}` : "—"}
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className={priorityColor[ticket.priority] || priorityColor.medium}>
-                                {ticket.priority}
+                            </div>
+                          </div>
+
+                          {/* Card Details */}
+                          <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
+                            <div className="bg-card px-3 py-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Status</p>
+                              <Badge variant="outline" className={`text-[10px] ${ticketStatusColor[ticket.status] || ticketStatusColor.opened}`}>
+                                {ticket.status?.replace(/_/g, " ")}
                               </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className={ticketStatusColor[ticket.status] || ticketStatusColor.opened}>
-                                  {ticket.status}
-                                </Badge>
-                                {ticket.archived && <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">Archived</Badge>}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {new Date(ticket.created).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="inline-flex items-center gap-2">
-                                {ticket.status !== "closed" && (
-                                  <button onClick={() => openReply(ticket)} title="Reply"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                    <MessageSquare className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                                <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" title="Open in new tab"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                  Open
-                                </a>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                            <div className="bg-card px-3 py-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">User</p>
+                              <p className="text-xs text-foreground truncate">
+                                {ticket.user ? redactName(ticket.user.firstName, ticket.user.lastName) : redact(ticket.userId)}
+                              </p>
+                            </div>
+                            <div className="bg-card px-3 py-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Created</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(ticket.created).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Extra info row */}
+                          {(ticket.department || ticket.assignedTo) && (
+                            <div className="flex items-center gap-3 px-4 py-2 border-t border-border bg-secondary/20 text-xs text-muted-foreground">
+                              {ticket.department && (
+                                <span className="flex items-center gap-1">
+                                  <Folder className="h-3 w-3" />
+                                  {ticket.department}
+                                </span>
+                              )}
+                              {ticket.assignedTo && (
+                                <span className="flex items-center gap-1">
+                                  <UserCog className="h-3 w-3" />
+                                  #{ticket.assignedTo}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Card Actions */}
+                          <div className="flex items-center border-t border-border divide-x divide-border">
+                            {ticket.status !== "closed" && (
+                              <button
+                                onClick={() => openReply(ticket)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" />
+                                <span>Reply</span>
+                              </button>
+                            )}
+                            <a
+                              href={`/dashboard/tickets/${ticket.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              <span>Open</span>
+                            </a>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
-                <div className="p-4 flex items-center justify-between gap-3">
-                  <div />
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Page {ticketsPage} {ticketsTotal ? `of ${Math.max(1, Math.ceil(ticketsTotal / TICKETS_PER))}` : ''}</span>
-                    <Button size="sm" onClick={() => { if (ticketsPage > 1) fetchTickets(ticketsPage - 1, ticketSearch, ticketPriorityFilter) }} disabled={ticketsPage <= 1}>Prev</Button>
-                    <Button size="sm" onClick={() => { if (!ticketsTotal || ticketsPage < Math.ceil((ticketsTotal || 0) / TICKETS_PER)) fetchTickets(ticketsPage + 1, ticketSearch, ticketPriorityFilter) }} disabled={ticketsTotal ? ticketsPage >= Math.ceil(ticketsTotal / TICKETS_PER) : tickets.length < TICKETS_PER}>Next</Button>
+
+                {/* Pagination */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Page <span className="font-medium text-foreground">{ticketsPage}</span>
+                      {ticketsTotal ? (
+                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(ticketsTotal / TICKETS_PER))}</span></>
+                      ) : null}
+                      {ticketsTotal ? (
+                        <span className="hidden sm:inline"> · {ticketsTotal} total</span>
+                      ) : null}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { if (ticketsPage > 1) fetchTickets(ticketsPage - 1, ticketSearch, ticketPriorityFilter); }}
+                        disabled={ticketsPage <= 1}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
+                        <span className="hidden sm:inline ml-1">Previous</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!ticketsTotal || ticketsPage < Math.ceil((ticketsTotal || 0) / TICKETS_PER))
+                            fetchTickets(ticketsPage + 1, ticketSearch, ticketPriorityFilter);
+                        }}
+                        disabled={ticketsTotal ? ticketsPage >= Math.ceil(ticketsTotal / TICKETS_PER) : tickets.length < TICKETS_PER}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <span className="hidden sm:inline mr-1">Next</span>
+                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </TabsContent>
-
             {/* ═══════════════ KYC / VERIFICATIONS ════════════════════════════ */}
             <TabsContent value="verifications" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <SectionHeader title="ID Verifications" description="Review submitted KYC documents" />
-                  <button onClick={() => forceRefreshTab("verifications")}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
+              <div className="flex flex-col gap-4">
+
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">ID Verifications</p>
+                        <p className="text-xs text-muted-foreground">Review submitted KYC documents</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Pending count */}
+                      {verifications.filter((v) => v.status === "pending").length > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/20 px-2.5 py-1 text-xs font-medium text-warning">
+                          <Clock className="h-3 w-3" />
+                          <span className="hidden sm:inline">
+                            {verifications.filter((v) => v.status === "pending").length} pending
+                          </span>
+                          <span className="sm:hidden">
+                            {verifications.filter((v) => v.status === "pending").length}
+                          </span>
+                        </span>
+                      )}
+                      <button
+                        onClick={() => forceRefreshTab("verifications")}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Refresh"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium">User</th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                        <th className="px-4 py-3 text-left font-medium">Documents</th>
-                        <th className="px-4 py-3 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {verifications.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            No verification requests found.
-                          </td>
+
+                {/* Status Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-1">
+                  {(["all", "pending", "verified", "failed"] as const).map((f) => {
+                    const config: Record<string, { label: string; icon: any; color: string; activeColor: string }> = {
+                      all: { label: "All", icon: List, color: "text-muted-foreground", activeColor: "bg-secondary text-foreground" },
+                      pending: { label: "Pending", icon: Clock, color: "text-warning", activeColor: "bg-warning/15 text-warning" },
+                      verified: { label: "Verified", icon: CheckCircle, color: "text-emerald-400", activeColor: "bg-emerald-500/15 text-emerald-400" },
+                      failed: { label: "Failed", icon: XCircle, color: "text-destructive", activeColor: "bg-destructive/15 text-destructive" },
+                    }
+                    const c = config[f]
+                    const Icon = c.icon
+                    const count = f === "all" ? verifications.length : verifications.filter((v) => v.status === f).length
+                    const isActive = (verificationFilter || "all") === f
+
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => setVerificationFilter(f === "all" ? "" : f)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {c.label}
+                        <span className={`ml-0.5 text-[10px] ${isActive ? "opacity-80" : "opacity-50"}`}>
+                          {count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="rounded-xl border border-border bg-card hidden md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">User</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-left font-medium">Documents</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
                         </tr>
-                      ) : (
-                        verifications.map((v, i) => (
-                          <tr key={v.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">
-                                {v.user ? redactName(v.user.firstName, v.user.lastName) : redact(v.userId)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{redact(v.user?.email)}</p>
-                            </td>
-                            <td className="px-4 py-3">
-                              <StatusBadge status={v.status === "verified" ? "online" : v.status === "failed" ? "offline" : "pending"} />
-                            </td>
-                            <td className="px-4 py-3 flex gap-2 text-xs">
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const filtered = verificationFilter
+                            ? verifications.filter((v) => v.status === verificationFilter)
+                            : verifications
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={4} className="px-4 py-12 text-center">
+                                  <div className="flex flex-col items-center gap-2">
+                                    <ShieldCheck className="h-8 w-8 text-muted-foreground/50" />
+                                    <p className="text-sm text-muted-foreground">
+                                      {verifications.length === 0
+                                        ? "No verification requests found"
+                                        : "No verifications match this filter"}
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          }
+
+                          return filtered.map((v, i) => {
+                            const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
+                              pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning", label: "Pending" },
+                              verified: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: "Verified" },
+                              failed: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive", label: "Failed" },
+                            }
+                            const sc = statusConfig[v.status] || statusConfig.pending
+
+                            return (
+                              <tr key={v.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    {v.user?.avatarUrl ? (
+                                      <img src={v.user.avatarUrl} alt={`${v.user.firstName || "User"} avatar`} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                                        {v.user?.firstName?.[0]?.toUpperCase() || "?"}
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">
+                                        {v.user ? redactName(v.user.firstName, v.user.lastName) : redact(v.userId)}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground truncate">{redact(v.user?.email)}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className={sc.class}>
+                                    <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                    {sc.label}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    {v.idDocumentUrl && (
+                                      <button
+                                        onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, "ID Document")}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+                                      >
+                                        <FileText className="h-3 w-3 text-primary" />
+                                        ID Doc
+                                      </button>
+                                    )}
+                                    {v.selfieUrl && (
+                                      <button
+                                        onClick={() => v.selfieUrl && openPreview(v.selfieUrl, "Selfie")}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+                                      >
+                                        <Camera className="h-3 w-3 text-primary" />
+                                        Selfie
+                                      </button>
+                                    )}
+                                    {!v.idDocumentUrl && !v.selfieUrl && (
+                                      <span className="text-xs text-muted-foreground">No documents</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    {v.status === "pending" && (
+                                      <>
+                                        <button onClick={() => reviewVerification(v.id, "verified")} title="Approve"
+                                          className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                                          <CheckCircle className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button onClick={() => reviewVerification(v.id, "failed")} title="Reject"
+                                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                          <XCircle className="h-3.5 w-3.5" />
+                                        </button>
+                                      </>
+                                    )}
+                                    {v.status === "verified" && (
+                                      <button onClick={() => reviewVerification(v.id, "failed")} title="Revoke verification"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        <XCircle className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                    <button onClick={() => deleteVerification(v.id)} title="Delete record & files"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-3 md:hidden">
+                  {(() => {
+                    const filtered = verificationFilter
+                      ? verifications.filter((v) => v.status === verificationFilter)
+                      : verifications
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="rounded-xl border border-border bg-card px-4 py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <ShieldCheck className="h-8 w-8 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground">
+                              {verifications.length === 0
+                                ? "No verification requests found"
+                                : "No verifications match this filter"}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return filtered.map((v, i) => {
+                      const statusConfig: Record<string, { class: string; dot: string; label: string; borderClass: string }> = {
+                        pending: { class: "text-warning", dot: "bg-warning", label: "Pending Review", borderClass: "border-warning/30" },
+                        verified: { class: "text-emerald-400", dot: "bg-emerald-400", label: "Verified", borderClass: "border-emerald-500/30" },
+                        failed: { class: "text-destructive", dot: "bg-destructive", label: "Failed", borderClass: "border-destructive/30" },
+                      }
+                      const sc = statusConfig[v.status] || statusConfig.pending
+
+                      return (
+                        <div
+                          key={v.id ?? i}
+                          className={`rounded-xl border bg-card overflow-hidden ${v.status === "pending" ? "border-warning/20" : "border-border"
+                            }`}
+                        >
+                          {/* Pending highlight bar */}
+                          {v.status === "pending" && (
+                            <div className="h-0.5 bg-gradient-to-r from-warning/60 via-warning to-warning/60" />
+                          )}
+
+                          {/* Card Header */}
+                          <div className="flex items-start gap-3 p-4 pb-3">
+                            {v.user?.avatarUrl ? (
+                              <img src={v.user.avatarUrl} alt={`${v.user.firstName || "User"} avatar`} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="relative h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                                {v.user?.firstName?.[0]?.toUpperCase() || "?"}
+                                <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${sc.dot}`} />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">
+                                    {v.user ? redactName(v.user.firstName, v.user.lastName) : redact(v.userId)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">{redact(v.user?.email)}</p>
+                                </div>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
+                                  {sc.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Documents */}
+                          <div className="px-4 pb-3">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Documents</p>
+                            <div className="flex items-center gap-2">
                               {v.idDocumentUrl && (
-                                <a
-                                  href="#"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    const url = v.idDocumentUrl;
-                                    if (url) openPreview(url, 'ID Document')
-                                  }}
-                                  className="text-primary hover:underline cursor-pointer"
-                                >ID Doc</a>
+                                <button
+                                  onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, "ID Document")}
+                                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                                >
+                                  <FileText className="h-4 w-4 text-primary" />
+                                  <div className="text-left">
+                                    <p className="text-xs font-medium">ID Document</p>
+                                    <p className="text-[10px] text-muted-foreground">Tap to preview</p>
+                                  </div>
+                                </button>
                               )}
                               {v.selfieUrl && (
-                                <a
-                                  href="#"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    const url = v.selfieUrl;
-                                    if (url) openPreview(url, 'Selfie')
-                                  }}
-                                  className="text-primary hover:underline cursor-pointer"
-                                >Selfie</a>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                {v.status === "pending" && (
-                                  <>
-                                    <button onClick={() => reviewVerification(v.id, "verified")} title="Approve"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                                      <CheckCircle className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button onClick={() => reviewVerification(v.id, "failed")} title="Reject"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                      <XCircle className="h-3.5 w-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                                {v.status === "verified" && (
-                                  <button onClick={() => reviewVerification(v.id, "failed")} title="Revoke verification"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                    <XCircle className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                                <button onClick={() => deleteVerification(v.id)} title="Delete record & files"
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                <button
+                                  onClick={() => v.selfieUrl && openPreview(v.selfieUrl, "Selfie")}
+                                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                                >
+                                  <Camera className="h-4 w-4 text-primary" />
+                                  <div className="text-left">
+                                    <p className="text-xs font-medium">Selfie</p>
+                                    <p className="text-[10px] text-muted-foreground">Tap to preview</p>
+                                  </div>
                                 </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* ═══════════════ DELETION REQUESTS ══════════════════════════════ */}
-            <TabsContent value="deletions" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <SectionHeader title="Deletion Requests" description="Review and act on account deletion requests" />
-                  <button onClick={() => forceRefreshTab("deletions")}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium">User</th>
-                        <th className="px-4 py-3 text-left font-medium">Requested</th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                        <th className="px-4 py-3 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {deletions.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            No deletion requests found.
-                          </td>
-                        </tr>
-                      ) : (
-                        deletions.map((d, i) => (
-                          <tr key={d.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3">
-                              <p className="text-sm font-medium text-foreground">
-                                {d.user ? redactName(d.user.firstName, d.user.lastName) : redact(d.userId)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{redact(d.user?.email)}</p>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {new Date(d.requestedAt).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className={
-                                d.status === "approved"
-                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                                  : d.status === "rejected"
-                                    ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                    : "border-warning/30 bg-warning/10 text-warning"
-                              }>
-                                {d.status}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              {d.status === "pending" && (
-                                <div className="flex items-center justify-end gap-1">
-                                  <button onClick={() => reviewDeletion(d.id, "approved")} title="Approve deletion"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button onClick={() => reviewDeletion(d.id, "rejected")} title="Reject deletion"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                    <XCircle className="h-3.5 w-3.5" />
-                                  </button>
+                              )}
+                              {!v.idDocumentUrl && !v.selfieUrl && (
+                                <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-border py-3">
+                                  <p className="text-xs text-muted-foreground">No documents uploaded</p>
                                 </div>
                               )}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                          </div>
+
+                          {/* Card Actions */}
+                          <div className="flex items-center border-t border-border divide-x divide-border">
+                            {v.status === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => reviewVerification(v.id, "verified")}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  <span>Approve</span>
+                                </button>
+                                <button
+                                  onClick={() => reviewVerification(v.id, "failed")}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  <span>Reject</span>
+                                </button>
+                              </>
+                            )}
+                            {v.status === "verified" && (
+                              <button
+                                onClick={() => reviewVerification(v.id, "failed")}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                <span>Revoke</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteVerification(v.id)}
+                              className={`${v.status === "failed" ? "flex-1" : ""} flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
                 </div>
               </div>
             </TabsContent>
+            {/* ═══════════════ DELETION REQUESTS ══════════════════════════════ */}
+            <TabsContent value="deletions" className="mt-4">
+              <div className="flex flex-col gap-4">
 
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+                        <UserX className="h-4 w-4 text-destructive" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Deletion Requests</p>
+                        <p className="text-xs text-muted-foreground">Review and act on account deletion requests</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {deletions.filter((d) => d.status === "pending").length > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/20 px-2.5 py-1 text-xs font-medium text-warning">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span className="hidden sm:inline">
+                            {deletions.filter((d) => d.status === "pending").length} pending
+                          </span>
+                          <span className="sm:hidden">
+                            {deletions.filter((d) => d.status === "pending").length}
+                          </span>
+                        </span>
+                      )}
+                      <button
+                        onClick={() => forceRefreshTab("deletions")}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Refresh"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-1">
+                  {(["all", "pending", "approved", "rejected"] as const).map((f) => {
+                    const config: Record<string, { label: string; icon: any; activeColor: string }> = {
+                      all: { label: "All", icon: List, activeColor: "bg-secondary text-foreground" },
+                      pending: { label: "Pending", icon: Clock, activeColor: "bg-warning/15 text-warning" },
+                      approved: { label: "Approved", icon: CheckCircle, activeColor: "bg-emerald-500/15 text-emerald-400" },
+                      rejected: { label: "Rejected", icon: XCircle, activeColor: "bg-destructive/15 text-destructive" },
+                    }
+                    const c = config[f]
+                    const Icon = c.icon
+                    const count = f === "all" ? deletions.length : deletions.filter((d) => d.status === f).length
+                    const isActive = (deletionFilter || "all") === f
+
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => setDeletionFilter(f === "all" ? "" : f)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {c.label}
+                        <span className={`ml-0.5 text-[10px] ${isActive ? "opacity-80" : "opacity-50"}`}>
+                          {count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="rounded-xl border border-border bg-card hidden md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">User</th>
+                          <th className="px-4 py-3 text-left font-medium">Requested</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const filtered = deletionFilter
+                            ? deletions.filter((d) => d.status === deletionFilter)
+                            : deletions
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={4} className="px-4 py-12 text-center">
+                                  <div className="flex flex-col items-center gap-2">
+                                    <UserX className="h-8 w-8 text-muted-foreground/50" />
+                                    <p className="text-sm text-muted-foreground">
+                                      {deletions.length === 0
+                                        ? "No deletion requests found"
+                                        : "No requests match this filter"}
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          }
+
+                          return filtered.map((d, i) => {
+                            const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
+                              pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning", label: "Pending" },
+                              approved: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: "Approved" },
+                              rejected: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive", label: "Rejected" },
+                            }
+                            const sc = statusConfig[d.status] || statusConfig.pending
+
+                            const requestedDate = new Date(d.requestedAt)
+                            const daysAgo = Math.floor((Date.now() - requestedDate.getTime()) / (1000 * 60 * 60 * 24))
+
+                            return (
+                              <tr key={d.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    {d.user?.avatarUrl ? (
+                                      <img src={d.user.avatarUrl} alt={`${d.user.firstName || "User"} avatar`} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <div className="relative h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center text-xs font-semibold text-destructive shrink-0">
+                                        {d.user?.firstName?.[0]?.toUpperCase() || "?"}
+                                        <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">
+                                        {d.user ? redactName(d.user.firstName, d.user.lastName) : redact(d.userId)}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground truncate">{redact(d.user?.email)}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div>
+                                    <p className="text-sm text-foreground">{requestedDate.toLocaleDateString()}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : `${daysAgo} days ago`}
+                                    </p>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className={sc.class}>
+                                    <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                    {sc.label}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    {d.status === "pending" && (
+                                      <>
+                                        <button onClick={() => reviewDeletion(d.id, "approved")} title="Approve deletion"
+                                          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                          <CheckCircle className="h-3.5 w-3.5" />
+                                          <span className="hidden lg:inline">Approve</span>
+                                        </button>
+                                        <button onClick={() => reviewDeletion(d.id, "rejected")} title="Reject deletion"
+                                          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                          <XCircle className="h-3.5 w-3.5" />
+                                          <span className="hidden lg:inline">Reject</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    {d.status === "approved" && (
+                                      <span className="text-xs text-muted-foreground italic">Processed</span>
+                                    )}
+                                    {d.status === "rejected" && (
+                                      <button onClick={() => reviewDeletion(d.id, "approved")} title="Reconsider — approve deletion"
+                                        className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        <span className="hidden lg:inline">Reconsider</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-3 md:hidden">
+                  {(() => {
+                    const filtered = deletionFilter
+                      ? deletions.filter((d) => d.status === deletionFilter)
+                      : deletions
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="rounded-xl border border-border bg-card px-4 py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <UserX className="h-8 w-8 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground">
+                              {deletions.length === 0
+                                ? "No deletion requests found"
+                                : "No requests match this filter"}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return filtered.map((d, i) => {
+                      const statusConfig: Record<string, { class: string; dot: string; label: string; borderTint: string }> = {
+                        pending: { class: "text-warning", dot: "bg-warning", label: "Pending Review", borderTint: "border-warning/20" },
+                        approved: { class: "text-emerald-400", dot: "bg-emerald-400", label: "Approved", borderTint: "border-emerald-500/20" },
+                        rejected: { class: "text-destructive", dot: "bg-destructive", label: "Rejected", borderTint: "border-border" },
+                      }
+                      const sc = statusConfig[d.status] || statusConfig.pending
+
+                      const requestedDate = new Date(d.requestedAt)
+                      const daysAgo = Math.floor((Date.now() - requestedDate.getTime()) / (1000 * 60 * 60 * 24))
+
+                      return (
+                        <div
+                          key={d.id ?? i}
+                          className={`rounded-xl border bg-card overflow-hidden ${d.status === "pending" ? sc.borderTint : "border-border"
+                            }`}
+                        >
+                          {/* Pending urgency bar */}
+                          {d.status === "pending" && (
+                            <div className={`h-0.5 ${daysAgo >= 14
+                              ? "bg-gradient-to-r from-destructive/60 via-destructive to-destructive/60"
+                              : daysAgo >= 7
+                                ? "bg-gradient-to-r from-warning/60 via-warning to-warning/60"
+                                : "bg-gradient-to-r from-primary/40 via-primary to-primary/40"
+                              }`} />
+                          )}
+
+                          {/* Card Header */}
+                          <div className="flex items-start gap-3 p-4 pb-3">
+                            {d.user?.avatarUrl ? (
+                              <img src={d.user.avatarUrl} alt={`${d.user.firstName || "User"} avatar`} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="relative h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center text-sm font-semibold text-destructive shrink-0">
+                                {d.user?.firstName?.[0]?.toUpperCase() || "?"}
+                                <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${sc.dot}`} />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">
+                                    {d.user ? redactName(d.user.firstName, d.user.lastName) : redact(d.userId)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">{redact(d.user?.email)}</p>
+                                </div>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
+                                  {sc.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Request Details */}
+                          <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                            <div className="bg-card px-4 py-2.5">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Requested</p>
+                              <p className="text-xs font-medium text-foreground">{requestedDate.toLocaleDateString()}</p>
+                            </div>
+                            <div className="bg-card px-4 py-2.5">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Time Elapsed</p>
+                              <p className={`text-xs font-medium ${d.status === "pending" && daysAgo >= 14
+                                ? "text-destructive"
+                                : d.status === "pending" && daysAgo >= 7
+                                  ? "text-warning"
+                                  : "text-foreground"
+                                }`}>
+                                {daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : `${daysAgo} days ago`}
+                                {d.status === "pending" && daysAgo >= 14 && (
+                                  <span className="ml-1 text-[10px]">⚠️</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Card Actions */}
+                          <div className="flex items-center border-t border-border divide-x divide-border">
+                            {d.status === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => reviewDeletion(d.id, "approved")}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  <span>Approve Deletion</span>
+                                </button>
+                                <button
+                                  onClick={() => reviewDeletion(d.id, "rejected")}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  <span>Reject</span>
+                                </button>
+                              </>
+                            )}
+                            {d.status === "approved" && (
+                              <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground">
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                <span>Deletion processed</span>
+                              </div>
+                            )}
+                            {d.status === "rejected" && (
+                              <button
+                                onClick={() => reviewDeletion(d.id, "approved")}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                <span>Reconsider & Approve</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            </TabsContent>
             {/* ═══════════════ NODES ══════════════════════════════════════════ */}
             <TabsContent value="nodes" className="mt-4">
               <div className="flex flex-col gap-4">
@@ -3585,300 +5202,946 @@ remote: ${panelUrl}`
                 </div>
               </div>
             </TabsContent>
-
             {/* ═══════════════ EGGS ═══════════════════════════════════════════ */}
             <TabsContent value="eggs" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <h3 className="font-medium text-foreground flex items-center gap-2">
-                    <Package className="h-4 w-4 text-muted-foreground" /> Server Templates (Eggs)
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setImportEggError(""); setImportEggPreview(null); setImportEggJson(""); setImportEggUrl(""); setImportEggOpen(true) }} className="h-8 gap-1 border-border">
-                      <Upload className="h-3.5 w-3.5" /> Import Egg
-                    </Button>
-                    <Button size="sm" onClick={openNewEgg} className="bg-primary text-primary-foreground h-8 gap-1">
-                      <Plus className="h-3.5 w-3.5" /> New Egg
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={deleteAllEggs} className="border-destructive/50 text-destructive h-8 gap-1">
-                      <Trash2 className="h-3.5 w-3.5" /> Delete All
-                    </Button>
+              <div className="flex flex-col gap-4">
+
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col gap-3 p-4">
+                    {/* Top row */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Package className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Server Templates</p>
+                          <p className="text-xs text-muted-foreground">
+                            {eggs.length} egg{eggs.length !== 1 ? "s" : ""} configured
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => forceRefreshTab("eggs")}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Refresh"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setImportEggError("");
+                          setImportEggPreview(null);
+                          setImportEggJson("");
+                          setImportEggUrl("");
+                          setImportEggOpen(true);
+                        }}
+                        className="h-8 gap-1.5 border-border text-muted-foreground"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Import Egg</span>
+                        <span className="sm:hidden">Import</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={openNewEgg}
+                        className="bg-primary text-primary-foreground h-8 gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">New Egg</span>
+                        <span className="sm:hidden">New</span>
+                      </Button>
+                      <div className="flex-1" />
+                      {eggs.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={deleteAllEggs}
+                          className="h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Delete All</span>
+                          <span className="sm:hidden">Clear</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Image</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Visible</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {eggs.length === 0 ? (
-                        <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No eggs configured.</td></tr>
-                      ) : eggs.map((egg, i) => (
-                        <tr key={egg.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-foreground">{egg.name}</p>
-                            {egg.description && <p className="text-xs text-muted-foreground">{egg.description}</p>}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-xs truncate">{egg.dockerImage}</td>
-                          <td className="px-4 py-3">
-                            <button onClick={() => toggleEggVisible(egg)}
-                              className={`flex items-center gap-1 text-xs rounded-md px-2 py-1 border transition-colors ${egg.visible
-                                  ? "border-green-500/30 bg-green-500/10 text-green-400"
-                                  : "border-border bg-secondary/50 text-muted-foreground"
-                                }`}>
-                              {egg.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                              {egg.visible ? "Visible" : "Hidden"}
-                            </button>
-                          </td>
-                            <td className="px-4 py-3 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => openEditEgg(egg)}
-                                className="border-border h-7 px-2 text-xs gap-1">
-                                <Edit className="h-3 w-3" /> Edit
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => forceSyncEgg(egg)} disabled={syncingEggIds.includes(egg.id)}
-                                className="border-border h-7 px-2 text-xs gap-1">
-                                {syncingEggIds.includes(egg.id) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Sync
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => deleteEgg(egg)}
-                                className="border-destructive/50 text-destructive h-7 px-2 text-xs">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+
+                {/* Empty State */}
+                {eggs.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Package className="h-6 w-6 text-primary/60" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No eggs configured</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Create a new egg or import one to get started.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setImportEggError("");
+                          setImportEggPreview(null);
+                          setImportEggJson("");
+                          setImportEggUrl("");
+                          setImportEggOpen(true);
+                        }}
+                        className="gap-1.5"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Import
+                      </Button>
+                      <Button size="sm" onClick={openNewEgg} className="bg-primary text-primary-foreground gap-1.5">
+                        <Plus className="h-3.5 w-3.5" /> New Egg
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop Table */}
+                    <div className="rounded-xl border border-border bg-card hidden md:block">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border text-xs text-muted-foreground">
+                              <th className="px-4 py-3 text-left font-medium">Egg</th>
+                              <th className="px-4 py-3 text-left font-medium">Docker Image</th>
+                              <th className="px-4 py-3 text-left font-medium">Visibility</th>
+                              <th className="px-4 py-3 text-right font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {eggs.map((egg, i) => (
+                              <tr key={egg.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
+                                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">{egg.name}</p>
+                                      {egg.description && (
+                                        <p className="text-xs text-muted-foreground truncate max-w-xs">{egg.description}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground max-w-[200px] truncate">
+                                    {egg.dockerImage}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    onClick={() => toggleEggVisible(egg)}
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${egg.visible
+                                      ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                                      : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                                      }`}
+                                  >
+                                    {egg.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                    {egg.visible ? "Visible" : "Hidden"}
+                                  </button>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => openEditEgg(egg)}
+                                      title="Edit egg"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => forceSyncEgg(egg)}
+                                      disabled={syncingEggIds.includes(egg.id)}
+                                      title="Sync to Wings"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40"
+                                    >
+                                      {syncingEggIds.includes(egg.id)
+                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        : <RefreshCw className="h-3.5 w-3.5" />
+                                      }
+                                    </button>
+                                    <button
+                                      onClick={() => deleteEgg(egg)}
+                                      title="Delete egg"
+                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="flex flex-col gap-3 md:hidden">
+                      {eggs.map((egg, i) => (
+                        <div key={egg.id ?? i} className="rounded-xl border border-border bg-card overflow-hidden">
+                          {/* Card Header */}
+                          <div className="flex items-start gap-3 p-4 pb-3">
+                            <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
+                              <Package className="h-4 w-4 text-muted-foreground" />
                             </div>
-                          </td>
-                        </tr>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">{egg.name}</p>
+                                  {egg.description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{egg.description}</p>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => toggleEggVisible(egg)}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors shrink-0 ${egg.visible
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : "bg-secondary/50 text-muted-foreground"
+                                    }`}
+                                >
+                                  {egg.visible ? <Eye className="h-2.5 w-2.5" /> : <EyeOff className="h-2.5 w-2.5" />}
+                                  {egg.visible ? "Visible" : "Hidden"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Docker Image */}
+                          <div className="px-4 pb-3">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Docker Image</p>
+                            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2">
+                              <Box className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="font-mono text-xs text-muted-foreground truncate">{egg.dockerImage}</span>
+                              <button
+                                onClick={() => navigator.clipboard?.writeText(egg.dockerImage || "")}
+                                className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                                title="Copy image name"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Card Actions */}
+                          <div className="flex items-center border-t border-border divide-x divide-border">
+                            <button
+                              onClick={() => openEditEgg(egg)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => forceSyncEgg(egg)}
+                              disabled={syncingEggIds.includes(egg.id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                            >
+                              {syncingEggIds.includes(egg.id)
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <RefreshCw className="h-3.5 w-3.5" />
+                              }
+                              <span>Sync</span>
+                            </button>
+                            <button
+                              onClick={() => deleteEgg(egg)}
+                              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
             </TabsContent>
-
             {/* ═══════════════ AI MODELS ══════════════════════════════════════ */}
             <TabsContent value="ai" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <h3 className="font-medium text-foreground flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-muted-foreground" /> AI Models
-                    <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground ml-1">{aiModels.length}</Badge>
-                  </h3>
-                  <Button size="sm" onClick={openNewAIModel} className="bg-primary text-primary-foreground h-8 gap-1">
-                    <Plus className="h-3.5 w-3.5" /> New Model
-                  </Button>
+              <div className="flex flex-col gap-4">
+
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col gap-3 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                          <Brain className="h-4 w-4 text-violet-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">AI Models</p>
+                          <p className="text-xs text-muted-foreground">
+                            {aiModels.length} model{aiModels.length !== 1 ? "s" : ""} configured
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={openNewAIModel}
+                          className="bg-primary text-primary-foreground h-8 gap-1.5"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">New Model</span>
+                          <span className="sm:hidden">New</span>
+                        </Button>
+                        <button
+                          onClick={() => loadTab("ai")}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title="Refresh"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Type</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Tags</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Endpoint</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {aiModels.length === 0 ? (
-                        <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No AI models configured. Add one to enable AI features.</td></tr>
-                      ) : aiModels.map((m, i) => (
-                        <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20">
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-foreground">{m.name}</p>
-                            {m.config?.description && <p className="text-xs text-muted-foreground">{m.config.description}</p>}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs capitalize">
-                              {m.config?.type || "text"}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={`text-xs ${m.config?.status === "beta" ? "border-warning/30 bg-warning/10 text-warning" :
-                                m.config?.status === "disabled" ? "border-destructive/30 bg-destructive/10 text-destructive" :
-                                  "border-green-500/30 bg-green-500/10 text-green-400"
-                              }`}>
-                              {m.config?.status || "active"}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="text-xs text-muted-foreground">{Array.isArray(m.tags) ? m.tags.join(', ') : ''}</p>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-xs truncate">
-                            {Array.isArray(m.endpoints) && m.endpoints.length > 0 ? (
-                              <span>{m.endpoints.length} endpoints configured</span>
-                            ) : m.endpoint ? (
-                              <span>{redact(m.endpoint)}</span>
-                            ) : (
-                              <span className="italic">not set</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => openAssignAiModel(m)}
-                                className="border-border h-7 px-2 text-xs gap-1">
-                                <UserPlus className="h-3 w-3" /> Assign
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => openEditAIModel(m)}
-                                className="border-border h-7 px-2 text-xs gap-1">
-                                <Edit className="h-3 w-3" /> Edit
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => deleteAIModel(m)}
-                                className="border-destructive/50 text-destructive h-7 px-2 text-xs">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card mt-4 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-medium text-foreground">Recent AI endpoint cooldowns</div>
-                  <button onClick={() => loadTab('ai')} className="text-xs text-primary">Refresh</button>
-                </div>
-                {aiModelCooldowns.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No rate-limit cooldowns in the last 24h.</p>
+
+                {/* Empty State */}
+                {aiModels.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                      <Brain className="h-6 w-6 text-violet-400/60" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No AI models configured</p>
+                      <p className="text-xs text-muted-foreground mt-1">Add a model to enable AI features across your panel.</p>
+                    </div>
+                    <Button size="sm" onClick={openNewAIModel} className="bg-primary text-primary-foreground gap-1.5 mt-1">
+                      <Plus className="h-3.5 w-3.5" /> New Model
+                    </Button>
+                  </div>
                 ) : (
-                  <ul className="space-y-2 max-h-52 overflow-y-auto">
-                    {aiModelCooldowns.map((c, i) => (
-                      <li key={i} className="rounded border border-border bg-secondary/40 px-3 py-2 text-xs">
-                        <div><strong>{c.modelName || c.modelId || 'unknown'}</strong> ({c.endpoint})</div>
-                        <div className="text-muted-foreground">{new Date(c.timestamp).toLocaleString()} · wait {Math.round((c.waitMs||0)/1000)}s</div>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    {/* Desktop Table */}
+                    <div className="rounded-xl border border-border bg-card hidden lg:block">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border text-xs text-muted-foreground">
+                              <th className="px-4 py-3 text-left font-medium">Model</th>
+                              <th className="px-4 py-3 text-left font-medium">Type</th>
+                              <th className="px-4 py-3 text-left font-medium">Status</th>
+                              <th className="px-4 py-3 text-left font-medium">Tags</th>
+                              <th className="px-4 py-3 text-left font-medium">Endpoints</th>
+                              <th className="px-4 py-3 text-right font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {aiModels.map((m, i) => {
+                              const statusConfig: Record<string, { class: string; dot: string }> = {
+                                active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                                beta: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
+                                disabled: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
+                              }
+                              const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
+
+                              const typeConfig: Record<string, { class: string; icon: any }> = {
+                                text: { class: "border-blue-500/30 bg-blue-500/10 text-blue-400", icon: MessageSquare },
+                                image: { class: "border-purple-500/30 bg-purple-500/10 text-purple-400", icon: Image },
+                                code: { class: "border-amber-500/30 bg-amber-500/10 text-amber-400", icon: FileCode },
+                              }
+                              const tc = typeConfig[m.config?.type || "text"] || typeConfig.text
+                              const TypeIcon = tc.icon
+
+                              const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
+
+                              return (
+                                <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                                        <Brain className="h-3.5 w-3.5 text-violet-400" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
+                                        {m.config?.description && (
+                                          <p className="text-xs text-muted-foreground truncate max-w-xs">{m.config.description}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge variant="outline" className={`text-xs capitalize ${tc.class}`}>
+                                      <TypeIcon className="h-2.5 w-2.5 mr-1" />
+                                      {m.config?.type || "text"}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge variant="outline" className={`text-xs ${sc.class}`}>
+                                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                      {m.config?.status || "active"}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-1">
+                                      {Array.isArray(m.tags) && m.tags.length > 0 ? (
+                                        m.tags.map((tag: string) => (
+                                          <span key={tag} className="inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                            {tag}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground italic">none</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className={`h-2 w-2 rounded-full shrink-0 ${endpointCount > 0 ? "bg-emerald-400" : "bg-muted-foreground"}`} />
+                                      <span className="text-xs text-muted-foreground">
+                                        {endpointCount > 0 ? `${endpointCount} configured` : "not set"}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                      <button onClick={() => openAssignAiModel(m)} title="Assign to users"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                        <UserPlus className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => openEditAIModel(m)} title="Edit model"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => deleteAIModel(m)} title="Delete model"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Tablet Table (simplified) */}
+                    <div className="rounded-xl border border-border bg-card hidden md:block lg:hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border text-xs text-muted-foreground">
+                              <th className="px-3 py-3 text-left font-medium">Model</th>
+                              <th className="px-3 py-3 text-left font-medium">Status</th>
+                              <th className="px-3 py-3 text-right font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {aiModels.map((m, i) => {
+                              const statusConfig: Record<string, { class: string; dot: string }> = {
+                                active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                                beta: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
+                                disabled: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
+                              }
+                              const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
+                              const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
+
+                              return (
+                                <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
+                                  <td className="px-3 py-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                                        <Brain className="h-3.5 w-3.5 text-violet-400" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          <span className="capitalize">{m.config?.type || "text"}</span>
+                                          {" · "}
+                                          {endpointCount > 0 ? `${endpointCount} endpoint${endpointCount !== 1 ? "s" : ""}` : "no endpoints"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    <Badge variant="outline" className={`text-[10px] ${sc.class}`}>
+                                      <span className={`mr-1 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                      {m.config?.status || "active"}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    <div className="flex items-center justify-end gap-0.5">
+                                      <button onClick={() => openAssignAiModel(m)} title="Assign"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                        <UserPlus className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => openEditAIModel(m)} title="Edit"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={() => deleteAIModel(m)} title="Delete"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="flex flex-col gap-3 md:hidden">
+                      {aiModels.map((m, i) => {
+                        const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
+                          active: { class: "text-emerald-400", dot: "bg-emerald-400", label: "Active" },
+                          beta: { class: "text-warning", dot: "bg-warning", label: "Beta" },
+                          disabled: { class: "text-destructive", dot: "bg-destructive", label: "Disabled" },
+                        }
+                        const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
+                        const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
+
+                        return (
+                          <div key={m.id ?? i} className="rounded-xl border border-border bg-card overflow-hidden">
+                            {/* Card Header */}
+                            <div className="flex items-start gap-3 p-4 pb-3">
+                              <div className="relative h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                                <Brain className="h-4 w-4 text-violet-400" />
+                                <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground truncate">{m.name}</p>
+                                    {m.config?.description && (
+                                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{m.config.description}</p>
+                                    )}
+                                  </div>
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
+                                    {sc.label}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
+                              <div className="bg-card px-3 py-2.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Type</p>
+                                <p className="text-xs font-medium text-foreground capitalize">{m.config?.type || "text"}</p>
+                              </div>
+                              <div className="bg-card px-3 py-2.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Endpoints</p>
+                                <div className="flex items-center gap-1">
+                                  <span className={`h-1.5 w-1.5 rounded-full ${endpointCount > 0 ? "bg-emerald-400" : "bg-muted-foreground"}`} />
+                                  <span className="text-xs font-medium text-foreground">{endpointCount || "—"}</span>
+                                </div>
+                              </div>
+                              <div className="bg-card px-3 py-2.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Tags</p>
+                                <p className="text-xs text-foreground truncate">
+                                  {Array.isArray(m.tags) && m.tags.length > 0 ? m.tags.join(", ") : "—"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Tags (if many) */}
+                            {Array.isArray(m.tags) && m.tags.length > 2 && (
+                              <div className="flex items-center gap-1.5 px-4 py-2 border-t border-border bg-secondary/20 overflow-x-auto no-scrollbar">
+                                {m.tags.map((tag: string) => (
+                                  <span key={tag} className="inline-flex items-center rounded-full bg-secondary/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap shrink-0">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Card Actions */}
+                            <div className="flex items-center border-t border-border divide-x divide-border">
+                              <button
+                                onClick={() => openAssignAiModel(m)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              >
+                                <UserPlus className="h-3.5 w-3.5" />
+                                <span>Assign</span>
+                              </button>
+                              <button
+                                onClick={() => openEditAIModel(m)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={() => deleteAIModel(m)}
+                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
                 )}
+
+                {/* Cooldowns Card */}
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                        <Timer className="h-4 w-4 text-orange-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Rate Limit Cooldowns</p>
+                        <p className="text-xs text-muted-foreground">AI endpoint throttling events in the last 24h</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => loadTab("ai")}
+                      className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                      title="Refresh"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {aiModelCooldowns.length === 0 ? (
+                    <div className="flex items-center gap-3 px-4 py-6 justify-center">
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      <p className="text-sm text-muted-foreground">No rate-limit cooldowns in the last 24 hours</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Desktop cooldown list */}
+                      <div className="hidden sm:block max-h-64 overflow-y-auto divide-y divide-border">
+                        {aiModelCooldowns.map((c, i) => {
+                          const waitSec = Math.round((c.waitMs || 0) / 1000)
+                          const isLong = waitSec >= 30
+
+                          return (
+                            <div key={i} className="flex items-center gap-4 px-4 py-3 hover:bg-secondary/20 transition-colors">
+                              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isLong ? "bg-destructive/10" : "bg-orange-500/10"
+                                }`}>
+                                <Timer className={`h-3.5 w-3.5 ${isLong ? "text-destructive" : "text-orange-400"}`} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium text-foreground truncate">
+                                    {c.modelName || c.modelId || "unknown"}
+                                  </p>
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium ${isLong
+                                    ? "bg-destructive/10 text-destructive"
+                                    : "bg-orange-500/10 text-orange-400"
+                                    }`}>
+                                    {waitSec}s wait
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                                  <span className="truncate font-mono">{c.endpoint}</span>
+                                  <span>·</span>
+                                  <span className="whitespace-nowrap">{new Date(c.timestamp).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Mobile cooldown cards */}
+                      <div className="sm:hidden max-h-80 overflow-y-auto divide-y divide-border">
+                        {aiModelCooldowns.map((c, i) => {
+                          const waitSec = Math.round((c.waitMs || 0) / 1000)
+                          const isLong = waitSec >= 30
+
+                          return (
+                            <div key={i} className="px-4 py-3">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {c.modelName || c.modelId || "unknown"}
+                                </p>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium shrink-0 ${isLong
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-orange-500/10 text-orange-400"
+                                  }`}>
+                                  {waitSec}s
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground font-mono truncate">{c.endpoint}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {new Date(c.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </TabsContent>
             {/* ═══════════════ ANNOUNCEMENTS / PRODUCT UPDATES ═══════════════ */}
             <TabsContent value="announcements" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="font-medium text-foreground flex items-center gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Announcements</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Send product updates and platform announcements. Use Test to send to yourself first.</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setAnnPreview((p) => !p)}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!annSubject.trim() || !annMessage.trim()) return alert('Subject and message are required for test send');
-                        setAnnSending(true);
-                        try {
-                          const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, { method: 'POST', body: JSON.stringify({ subject: annSubject, message: annMessage, test: true }) });
-                          if (res && res.success) alert(`Test sent — ${res.recipients} recipient(s)`);
-                          else alert('Test send failed');
-                        } catch (e: any) {
-                          alert('Test send failed: ' + (e.message || e));
-                        } finally {
-                          setAnnSending(false);
-                        }
-                      }}
-                      disabled={annSending}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
-                    >
-                      Send Test
-                    </button>
+              <div className="flex flex-col gap-4">
+
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                        <Megaphone className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Announcements</p>
+                        <p className="text-xs text-muted-foreground">
+                          Send product updates and platform announcements
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setAnnPreview((p) => !p)}
+                        className={`rounded-lg p-2 transition-colors ${annPreview
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                        title={annPreview ? "Hide preview" : "Show preview"}
+                      >
+                        {annPreview ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      </button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          if (!annSubject.trim() || !annMessage.trim()) return alert("Subject and message are required for test send");
+                          setAnnSending(true);
+                          try {
+                            const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
+                              method: "POST",
+                              body: JSON.stringify({ subject: annSubject, message: annMessage, test: true }),
+                            });
+                            if (res && res.success) alert(`Test sent — ${res.recipients} recipient(s)`);
+                            else alert("Test send failed");
+                          } catch (e: any) {
+                            alert("Test send failed: " + (e.message || e));
+                          } finally {
+                            setAnnSending(false);
+                          }
+                        }}
+                        disabled={annSending || !annSubject.trim() || !annMessage.trim()}
+                        className="h-8 gap-1.5 border-border"
+                      >
+                        {annSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                        <span className="hidden sm:inline">Send Test</span>
+                        <span className="sm:hidden">Test</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Subject"
-                        value={annSubject}
-                        onChange={(e) => setAnnSubject(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none"
-                      />
+                {/* Composer + Preview */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                      <textarea
-                        placeholder="Write your announcement in Markdown..."
-                        value={annMessage}
-                        onChange={(e) => setAnnMessage(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none min-h-[320px] whitespace-pre-wrap"
-                      />
+                  {/* Composer */}
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                      <Edit className="h-3.5 w-3.5 text-primary" />
+                      <p className="text-xs font-medium text-foreground">Compose</p>
+                    </div>
+                    <div className="flex flex-col gap-4 p-4">
+                      {/* Subject */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                          Subject
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Platform Maintenance Notice"
+                          value={annSubject}
+                          onChange={(e) => setAnnSubject(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors"
+                        />
+                      </div>
 
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <input type="checkbox" checked={annForce} onChange={(e) => setAnnForce(e.target.checked)} />
-                          Force send to everyone (override preferences)
+                      {/* Message */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                            Message
+                          </label>
+                          <span className="text-[10px] text-muted-foreground">Markdown supported</span>
+                        </div>
+                        <textarea
+                          placeholder="Write your announcement…"
+                          value={annMessage}
+                          onChange={(e) => setAnnMessage(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors min-h-[280px] resize-y font-mono whitespace-pre-wrap"
+                        />
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span>{annMessage.length} characters</span>
+                          {annMessage.trim() && (
+                            <>
+                              <span>·</span>
+                              <span>~{Math.ceil(annMessage.trim().split(/\s+/).length / 200)} min read</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Options & Send */}
+                      <div className="flex flex-col gap-3 pt-1">
+                        <label className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={annForce}
+                            onChange={(e) => setAnnForce(e.target.checked)}
+                            className="rounded border-border"
+                          />
+                          <div>
+                            <p className="text-xs font-medium text-foreground">Force send to everyone</p>
+                            <p className="text-[11px] text-muted-foreground">Override user email preferences</p>
+                          </div>
                         </label>
 
-                        <div className="flex items-center gap-2">
+                        {annForce && (
+                          <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5">
+                            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-warning">
+                              This will send the email to all users regardless of their notification preferences.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             size="sm"
                             onClick={async () => {
-                              if (!annSubject.trim() || !annMessage.trim()) return alert('Subject and message are required');
-                              const ok = await confirmAsync('Send this announcement to ALL users? This will respect or override preferences based on the Force option.');
+                              if (!annSubject.trim() || !annMessage.trim()) return alert("Subject and message are required");
+                              const ok = await confirmAsync(
+                                "Send this announcement to ALL users? This will respect or override preferences based on the Force option."
+                              );
                               if (!ok) return;
                               setAnnSending(true);
                               try {
-                                const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, { method: 'POST', body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce }) });
+                                const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
+                                  method: "POST",
+                                  body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce }),
+                                });
                                 if (res && res.success) alert(`Broadcast sent — ${res.recipients} recipient(s)`);
-                                else alert('Broadcast failed');
+                                else alert("Broadcast failed");
                               } catch (e: any) {
-                                alert('Broadcast failed: ' + (e.message || e));
+                                alert("Broadcast failed: " + (e.message || e));
                               } finally {
                                 setAnnSending(false);
                               }
                             }}
-                            disabled={annSending}
+                            disabled={annSending || !annSubject.trim() || !annMessage.trim()}
                             variant="destructive"
+                            className="gap-1.5"
                           >
-                            Send Broadcast
+                            {annSending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Send className="h-3.5 w-3.5" />
+                            )}
+                            <span className="hidden sm:inline">Send Broadcast</span>
+                            <span className="sm:hidden">Broadcast</span>
                           </Button>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div>
-                      <div className="rounded-lg border border-border bg-muted p-3 h-full flex flex-col">
-                        <div className="mb-3 border-b border-border pb-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-semibold">{annSubject || 'Announcement Subject'}</div>
-                              <div className="text-xs text-muted-foreground">From: Eclipse Systems</div>
+                  {/* Preview */}
+                  <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+                    <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-3.5 w-3.5 text-primary" />
+                        <p className="text-xs font-medium text-foreground">Email Preview</p>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground rounded-full bg-secondary/50 px-2 py-0.5">
+                        Live preview
+                      </span>
+                    </div>
+
+                    <div className="flex-1 flex flex-col p-4">
+                      {/* Email header mock */}
+                      <div className="rounded-t-lg border border-border bg-secondary/30 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {annSubject || "Announcement Subject"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <span>From: Eclipse Systems</span>
+                              <span>·</span>
+                              <span>Just now</span>
                             </div>
-                            <div className="text-xs text-muted-foreground">Preview</div>
                           </div>
+                          <Badge variant="outline" className="text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-400 shrink-0">
+                            Preview
+                          </Badge>
                         </div>
+                      </div>
 
-                        <div className="overflow-y-auto pr-2">
+                      {/* Email body */}
+                      <div className="flex-1 rounded-b-lg border border-t-0 border-border bg-background overflow-y-auto">
+                        <div className="p-4">
                           {(() => {
                             const detailParts: string[] = [];
                             if (user?.firstName) detailParts.push(user.firstName);
-                            if (user?.middleName) detailParts.push(user.middleName[0] + '.');
-                            if (user?.lastName) detailParts.push(user.lastName[0] + '.');
-                            const previewDetails = `${detailParts.join(' ')} — ${user?.email || ''}`.trim();
-                            return <EmailPreview title={annSubject || 'Announcement Subject'} message={annMessage || ''} details={previewDetails} />
+                            if (user?.middleName) detailParts.push(user.middleName[0] + ".");
+                            if (user?.lastName) detailParts.push(user.lastName[0] + ".");
+                            const previewDetails = `${detailParts.join(" ")} — ${user?.email || ""}`.trim();
+                            return (
+                              <EmailPreview
+                                title={annSubject || "Announcement Subject"}
+                                message={annMessage || ""}
+                                details={previewDetails}
+                              />
+                            );
                           })()}
                         </div>
+                      </div>
 
-                        <div className="mt-auto pt-3 text-xs text-muted-foreground border-t border-border">
-                          <div>Note: This is an email preview. Final rendering may vary by mail client.</div>
-                        </div>
+                      {/* Preview footer */}
+                      <div className="flex items-start gap-2 mt-3 rounded-lg border border-border/50 bg-secondary/20 px-3 py-2">
+                        <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-muted-foreground">
+                          This is an approximate preview. Final rendering may vary by email client.
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Mobile Preview Toggle (shows below composer on small screens) */}
+                <div className="lg:hidden">
+                  {!annPreview && annMessage.trim() && (
+                    <button
+                      onClick={() => setAnnPreview(true)}
+                      className="w-full rounded-xl border border-dashed border-border bg-card/50 py-4 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
+                    >
+                      <Eye className="h-5 w-5" />
+                      <span className="text-xs font-medium">Tap to preview email</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </TabsContent>
-
             {/* ═══════════════ FRAUD DETECTION ════════════════════════════ */}
             <TabsContent value="fraud" className="mt-4">
               <div className="rounded-xl border border-border bg-card">
@@ -3924,469 +6187,957 @@ remote: ${panelUrl}`
                   </div>
                 ) : (
                   <>
-                  <div className="p-2 border-b border-border flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center text-xs text-muted-foreground gap-2">
-                        <input type="checkbox" checked={hideSuspendedFraud} onChange={(e) => setHideSuspendedFraud(e.target.checked)} className="accent-primary" />
-                        Hide suspended
-                      </label>
-                      <button
-                        onClick={() => {
-                          const nowAll = !selectAllFraud
-                          setSelectAllFraud(nowAll)
-                          if (nowAll) setSelectedFraudIds(displayedFraudAlerts.map((a) => a.id))
-                          else setSelectedFraudIds([])
-                        }}
-                        className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground"
-                      >
-                        {selectAllFraud ? 'Unselect All' : 'Select All'}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (selectedFraudIds.length === 0) return
-                          if (!(await confirmAsync(`Dismiss ${selectedFraudIds.length} selected fraud alert(s)?`))) return
-                          setBulkDismissing(true)
-                          try {
-                            await apiFetch(API_ENDPOINTS.adminFraudBulkDismiss, { method: 'POST', body: JSON.stringify({ ids: selectedFraudIds }) })
-                            setFraudAlerts((prev) => prev.filter((a) => !selectedFraudIds.includes(a.id)))
-                            setSelectedFraudIds([])
-                            setSelectAllFraud(false)
-                          } catch (e: any) {
-                            alert('Failed to dismiss: ' + (e?.message || 'error'))
-                          } finally {
-                            setBulkDismissing(false)
-                          }
-                        }}
-                        disabled={selectedFraudIds.length === 0 || bulkDismissing}
-                        className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground disabled:opacity-50"
-                      >
-                        {bulkDismissing ? 'Dismissing…' : `Dismiss Selected (${selectedFraudIds.length})`}
-                      </button>
+                    <div className="p-2 border-b border-border flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center text-xs text-muted-foreground gap-2">
+                          <input type="checkbox" checked={hideSuspendedFraud} onChange={(e) => setHideSuspendedFraud(e.target.checked)} className="accent-primary" />
+                          Hide suspended
+                        </label>
+                        <button
+                          onClick={() => {
+                            const nowAll = !selectAllFraud
+                            setSelectAllFraud(nowAll)
+                            if (nowAll) setSelectedFraudIds(displayedFraudAlerts.map((a) => a.id))
+                            else setSelectedFraudIds([])
+                          }}
+                          className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground"
+                        >
+                          {selectAllFraud ? 'Unselect All' : 'Select All'}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (selectedFraudIds.length === 0) return
+                            if (!(await confirmAsync(`Dismiss ${selectedFraudIds.length} selected fraud alert(s)?`))) return
+                            setBulkDismissing(true)
+                            try {
+                              await apiFetch(API_ENDPOINTS.adminFraudBulkDismiss, { method: 'POST', body: JSON.stringify({ ids: selectedFraudIds }) })
+                              setFraudAlerts((prev) => prev.filter((a) => !selectedFraudIds.includes(a.id)))
+                              setSelectedFraudIds([])
+                              setSelectAllFraud(false)
+                            } catch (e: any) {
+                              alert('Failed to dismiss: ' + (e?.message || 'error'))
+                            } finally {
+                              setBulkDismissing(false)
+                            }
+                          }}
+                          disabled={selectedFraudIds.length === 0 || bulkDismissing}
+                          className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground disabled:opacity-50"
+                        >
+                          {bulkDismissing ? 'Dismissing…' : `Dismiss Selected (${selectedFraudIds.length})`}
+                        </button>
+                      </div>
+                      <div />
                     </div>
-                    <div />
-                  </div>
-                  <div className="divide-y divide-border">
-                    {displayedFraudAlerts.map((alert) => (
-                      <div key={alert.id} className="p-4 flex items-start gap-4">
-                        <div className="flex items-start">
-                          <input
-                            type="checkbox"
-                            checked={selectedFraudIds.includes(alert.id)}
-                            onChange={(e) => {
-                              const checked = e.target.checked
-                              setSelectedFraudIds((prev) => {
-                                if (checked) return [...prev, alert.id]
-                                return prev.filter((id) => id !== alert.id)
-                              })
-                            }}
-                            className="mt-1 mr-3"
-                          />
-                        </div>
-                        <div className="shrink-0 h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
-                          <Shield className="h-5 w-5 text-destructive" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-foreground">
-                              {redactName(alert.firstName, alert.lastName)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{redact(alert.email)}</span>
-                            {alert.suspended && (
-                              <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">Suspended</Badge>
-                            )}
+                    <div className="divide-y divide-border">
+                      {displayedFraudAlerts.map((alert) => (
+                        <div key={alert.id} className="p-4 flex items-start gap-4">
+                          <div className="flex items-start">
+                            <input
+                              type="checkbox"
+                              checked={selectedFraudIds.includes(alert.id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked
+                                setSelectedFraudIds((prev) => {
+                                  if (checked) return [...prev, alert.id]
+                                  return prev.filter((id) => id !== alert.id)
+                                })
+                              }}
+                              className="mt-1 mr-3"
+                            />
                           </div>
-                          <p className={privateMode ? "text-xs text-destructive/80 mt-1 blur-sm" : "text-xs text-destructive/80 mt-1"}>
-                            {privateMode ? "Sensitive fraud reason redacted" : alert.fraudReason}
-                          </p>
-                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            {alert.address && <p><span className="text-foreground/60">Address:</span> {redact(alert.address)}{alert.address2 ? `, ${redact(alert.address2)}` : ''}</p>}
-                            {alert.billingCity && <p><span className="text-foreground/60">City:</span> {redact(alert.billingCity)}{alert.billingState ? `, ${redact(alert.billingState)}` : ''} {redact(alert.billingZip)}</p>}
-                            {alert.billingCountry && <p><span className="text-foreground/60">Country:</span> {redact(alert.billingCountry)}</p>}
-                            {alert.billingCompany && <p><span className="text-foreground/60">Company:</span> {redact(alert.billingCompany)}</p>}
-                            {alert.phone && <p><span className="text-foreground/60">Phone:</span> {redact(alert.phone)}</p>}
+                          <div className="shrink-0 h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                            <Shield className="h-5 w-5 text-destructive" />
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Detected {alert.fraudDetectedAt ? new Date(alert.fraudDetectedAt).toLocaleString() : "—"}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-1.5 shrink-0">
-                          <button
-                            onClick={async () => {
-                              try {
-                                await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
-                                  method: "PUT",
-                                  body: JSON.stringify({ action: "dismiss" }),
-                                });
-                                setFraudAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-                              } catch (e: any) {
-                                alert("Failed: " + e.message);
-                              }
-                            }}
-                            className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
-                          >
-                            Dismiss
-                          </button>
-                          {!alert.suspended && (
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium text-foreground">
+                                {redactName(alert.firstName, alert.lastName)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{redact(alert.email)}</span>
+                              {alert.suspended && (
+                                <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">Suspended</Badge>
+                              )}
+                            </div>
+                            <p className={privateMode ? "text-xs text-destructive/80 mt-1 blur-sm" : "text-xs text-destructive/80 mt-1"}>
+                              {privateMode ? "Sensitive fraud reason redacted" : alert.fraudReason}
+                            </p>
+                            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                              {alert.address && <p><span className="text-foreground/60">Address:</span> {redact(alert.address)}{alert.address2 ? `, ${redact(alert.address2)}` : ''}</p>}
+                              {alert.billingCity && <p><span className="text-foreground/60">City:</span> {redact(alert.billingCity)}{alert.billingState ? `, ${redact(alert.billingState)}` : ''} {redact(alert.billingZip)}</p>}
+                              {alert.billingCountry && <p><span className="text-foreground/60">Country:</span> {redact(alert.billingCountry)}</p>}
+                              {alert.billingCompany && <p><span className="text-foreground/60">Company:</span> {redact(alert.billingCompany)}</p>}
+                              {alert.phone && <p><span className="text-foreground/60">Phone:</span> {redact(alert.phone)}</p>}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Detected {alert.fraudDetectedAt ? new Date(alert.fraudDetectedAt).toLocaleString() : "—"}
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-1.5 shrink-0">
                             <button
                               onClick={async () => {
-                                if (!(await confirmAsync(`Suspend user ${alert.firstName} ${alert.lastName}?`))) return;
                                 try {
                                   await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
                                     method: "PUT",
-                                    body: JSON.stringify({ action: "suspend" }),
+                                    body: JSON.stringify({ action: "dismiss" }),
                                   });
-                                  setFraudAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, suspended: true } : a));
+                                  setFraudAlerts((prev) => prev.filter((a) => a.id !== alert.id));
                                 } catch (e: any) {
                                   alert("Failed: " + e.message);
                                 }
                               }}
-                              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
+                              className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
                             >
-                              Suspend
+                              Dismiss
                             </button>
-                          )}
-                          <button
-                            onClick={async () => {
-                              setFraudScanning(true);
-                              try {
-                                const res = await apiFetch(API_ENDPOINTS.adminFraudScan.replace(":id", String(alert.id)), { method: "POST" });
-                                if (!res.isSuspicious) {
-                                  setFraudAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-                                } else {
-                                  setFraudAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, fraudReason: res.reasons?.join('; ') } : a));
+                            {!alert.suspended && (
+                              <button
+                                onClick={async () => {
+                                  if (!(await confirmAsync(`Suspend user ${alert.firstName} ${alert.lastName}?`))) return;
+                                  try {
+                                    await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
+                                      method: "PUT",
+                                      body: JSON.stringify({ action: "suspend" }),
+                                    });
+                                    setFraudAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, suspended: true } : a));
+                                  } catch (e: any) {
+                                    alert("Failed: " + e.message);
+                                  }
+                                }}
+                                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
+                              >
+                                Suspend
+                              </button>
+                            )}
+                            <button
+                              onClick={async () => {
+                                setFraudScanning(true);
+                                try {
+                                  const res = await apiFetch(API_ENDPOINTS.adminFraudScan.replace(":id", String(alert.id)), { method: "POST" });
+                                  if (!res.isSuspicious) {
+                                    setFraudAlerts((prev) => prev.filter((a) => a.id !== alert.id));
+                                  } else {
+                                    setFraudAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, fraudReason: res.reasons?.join('; ') } : a));
+                                  }
+                                } catch (e: any) {
+                                  alert("Re-scan failed: " + e.message);
+                                } finally {
+                                  setFraudScanning(false);
                                 }
-                              } catch (e: any) {
-                                alert("Re-scan failed: " + e.message);
-                              } finally {
-                                setFraudScanning(false);
-                              }
-                            }}
-                            disabled={fraudScanning}
-                            className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
-                          >
-                            Re-scan
-                          </button>
+                              }}
+                              disabled={fraudScanning}
+                              className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
+                            >
+                              Re-scan
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
                   </>
                 )}
               </div>
             </TabsContent>
-
             {/* ═══════════════ ROLES ════════════════════════════════════ */}
             <TabsContent value="roles" className="mt-4">
-              <div className="grid gap-4 lg:grid-cols-2">
-                {/* Role list */}
+              <div className="flex flex-col gap-4">
+
+                {/* Header Bar */}
                 <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between border-b border-border p-4">
-                    <p className="text-sm font-medium text-foreground">Custom Roles</p>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => forceRefreshTab("roles")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                        <RefreshCw className="h-3.5 w-3.5" />
-                      </button>
-                      <Button size="sm" onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc("") }}
-                        className="bg-primary text-primary-foreground gap-1 h-7 px-2 text-xs">
-                        <Plus className="h-3 w-3" /> New Role
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                        <Shield className="h-4 w-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Roles & Permissions</p>
+                        <p className="text-xs text-muted-foreground">
+                          {roles.length} role{roles.length !== 1 ? "s" : ""} configured
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
+                        className="bg-primary text-primary-foreground h-8 gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">New Role</span>
+                        <span className="sm:hidden">New</span>
                       </Button>
+                      <button
+                        onClick={() => forceRefreshTab("roles")}
+                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Refresh"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                  {roles.length === 0 ? (
-                    <p className="p-6 text-sm text-muted-foreground text-center">No custom roles created yet.</p>
-                  ) : (
-                    <div className="flex flex-col divide-y divide-border">
-                      {roles.map((role) => (
-                        <div
-                          key={role.id}
-                          onClick={() => setSelectedRole(role)}
-                          className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-secondary/30 ${selectedRole?.id === role.id ? "bg-primary/10" : ""
-                            }`}
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{role.name}</p>
-                            {role.description && <p className="text-xs text-muted-foreground">{role.description}</p>}
-                            <p className="text-xs text-muted-foreground">{role.permissions?.length || 0} permission(s)</p>
-                          </div>
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              if (!(await confirmAsync(`Delete role "${role.name}"?`))) return
-                              await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" })
-                              setRoles((prev) => prev.filter((r) => r.id !== role.id))
-                              if (selectedRole?.id === role.id) setSelectedRole(null)
-                            }}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                {/* Permissions panel */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="border-b border-border p-4">
-                    <p className="text-sm font-medium text-foreground">
-                      {selectedRole ? `Permissions — ${selectedRole.name}` : "Select a role to manage permissions"}
-                    </p>
-                  </div>
-                  {!selectedRole ? (
-                    <p className="p-6 text-sm text-muted-foreground text-center">Click a role on the left.</p>
-                  ) : (
-                    <div className="flex flex-col gap-3 p-4">
-                      {/* Add permission select */}
-                      <div className="flex gap-2">
-                        <select
-                          value={newPermValue}
-                          onChange={(e) => setNewPermValue(e.target.value)}
-                          className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                {/* Main Content */}
+                <div className="grid gap-4 lg:grid-cols-5">
+
+                  {/* Role List — Left Panel */}
+                  <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                      <List className="h-3.5 w-3.5 text-primary" />
+                      <p className="text-xs font-medium text-foreground">Roles</p>
+                      <span className="ml-auto text-[10px] text-muted-foreground">{roles.length}</span>
+                    </div>
+
+                    {roles.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
+                        <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                          <Shield className="h-5 w-5 text-amber-400/60" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-foreground">No roles yet</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Create your first role to manage permissions.</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
+                          className="bg-primary text-primary-foreground gap-1.5 mt-1"
                         >
-                          <option value="">— select a permission —</option>
-                          <optgroup label="Global">
-                            <option value="*">* (full access)</option>
-                          </optgroup>
-                          <optgroup label="Servers">
-                            <option value="servers:read">servers:read</option>
-                            <option value="servers:write">servers:write</option>
-                            <option value="servers:delete">servers:delete</option>
-                            <option value="servers:*">servers:*</option>
-                          </optgroup>
-                          <optgroup label="Nodes">
-                            <option value="nodes:read">nodes:read</option>
-                            <option value="nodes:write">nodes:write</option>
-                            <option value="nodes:*">nodes:*</option>
-                          </optgroup>
-                          <optgroup label="AI">
-                            <option value="ai:chat">ai:chat</option>
-                            <option value="ai:create">ai:create</option>
-                            <option value="ai:assign">ai:assign</option>
-                            <option value="ai:*">ai:*</option>
-                          </optgroup>
-                          <optgroup label="SOC">
-                            <option value="soc:read">soc:read</option>
-                            <option value="soc:write">soc:write</option>
-                            <option value="soc:*">soc:*</option>
-                          </optgroup>
-                          <optgroup label="Orders">
-                            <option value="orders:read">orders:read</option>
-                            <option value="orders:create">orders:create</option>
-                            <option value="orders:*">orders:*</option>
-                          </optgroup>
-                          <optgroup label="Roles & Permissions">
-                            <option value="roles:read">roles:read</option>
-                            <option value="roles:create">roles:create</option>
-                            <option value="permissions:assign">permissions:assign</option>
-                          </optgroup>
-                          <optgroup label="Wings">
-                            <option value="wings:system">wings:system</option>
-                            <option value="wings:transfers">wings:transfers</option>
-                            <option value="wings:backups">wings:backups</option>
-                            <option value="wings:deauthorize">wings:deauthorize</option>
-                            <option value="wings:*">wings:*</option>
-                          </optgroup>
-                          <optgroup label="DNS / Tickets / Other">
-                            <option value="dns:read">dns:read</option>
-                            <option value="dns:write">dns:write</option>
-                            <option value="tickets:read">tickets:read</option>
-                            <option value="tickets:write">tickets:write</option>
-                          </optgroup>
-                        </select>
-                        <Button size="sm" disabled={!newPermValue.trim() || permLoading}
-                          onClick={async () => {
-                            if (!newPermValue.trim()) return
-                            setPermLoading(true)
-                            try {
-                              const data = await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions`, {
-                                method: "POST", body: JSON.stringify({ value: newPermValue.trim() })
-                              })
-                              const updated = { ...selectedRole, permissions: [...(selectedRole.permissions || []), data.perm] }
-                              setSelectedRole(updated)
-                              setRoles((prev) => prev.map((r) => r.id === updated.id ? updated : r))
-                              setNewPermValue("")
-                            } finally { setPermLoading(false) }
-                          }}
-                          className="bg-primary text-primary-foreground gap-1 h-9 px-3 text-xs shrink-0">
-                          {permLoading ? "Adding…" : <><Plus className="h-3 w-3" /> Add</>}
+                          <Plus className="h-3.5 w-3.5" /> Create Role
                         </Button>
                       </div>
-                      {/* Permission list */}
-                      {(selectedRole.permissions || []).length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No permissions yet.</p>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          {selectedRole.permissions.map((p) => (
-                            <div key={p.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-3 py-2">
-                              <span className="font-mono text-xs text-foreground">{p.value}</span>
-                              <button
-                                onClick={async () => {
-                                  await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions/${p.id}`, { method: "DELETE" })
-                                  const updated = { ...selectedRole, permissions: selectedRole.permissions.filter((x) => x.id !== p.id) }
-                                  setSelectedRole(updated)
-                                  setRoles((prev) => prev.map((r) => r.id === updated.id ? updated : r))
-                                }}
-                                className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    ) : (
+                      <div className="flex-1 overflow-y-auto">
+
+                        {/* Desktop Role List */}
+                        <div className="hidden md:flex flex-col divide-y divide-border">
+                          {roles.map((role) => {
+                            const isSelected = selectedRole?.id === role.id
+                            const permCount = role.permissions?.length || 0
+                            const hasWildcard = role.permissions?.some((p: any) => p.value === "*")
+
+                            return (
+                              <div
+                                key={role.id}
+                                onClick={() => setSelectedRole(role)}
+                                className={`flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-all group ${isSelected
+                                  ? "bg-primary/10 border-l-2 border-l-primary"
+                                  : "hover:bg-secondary/30 border-l-2 border-l-transparent"
+                                  }`}
                               >
-                                <XCircle className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
+                                      {role.name}
+                                    </p>
+                                    {hasWildcard && (
+                                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-destructive/10 text-destructive border border-destructive/20">
+                                        FULL
+                                      </span>
+                                    )}
+                                  </div>
+                                  {role.description && (
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">{role.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <Key className="h-2.5 w-2.5 text-muted-foreground" />
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {permCount} permission{permCount !== 1 ? "s" : ""}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!(await confirmAsync(`Delete role "${role.name}"?`))) return;
+                                    await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" });
+                                    setRoles((prev) => prev.filter((r) => r.id !== role.id));
+                                    if (selectedRole?.id === role.id) setSelectedRole(null);
+                                  }}
+                                  className="rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )
+                          })}
                         </div>
+
+                        {/* Mobile Role Cards */}
+                        <div className="flex flex-col gap-2 p-2 md:hidden">
+                          {roles.map((role) => {
+                            const isSelected = selectedRole?.id === role.id
+                            const permCount = role.permissions?.length || 0
+                            const hasWildcard = role.permissions?.some((p: any) => p.value === "*")
+
+                            return (
+                              <div
+                                key={role.id}
+                                onClick={() => setSelectedRole(role)}
+                                className={`rounded-lg border p-3 cursor-pointer transition-all ${isSelected
+                                  ? "border-primary/40 bg-primary/5"
+                                  : "border-border hover:border-primary/20 hover:bg-secondary/20"
+                                  }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className={`text-sm font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
+                                        {role.name}
+                                      </p>
+                                      {hasWildcard && (
+                                        <span className="rounded px-1 py-0.5 text-[10px] font-bold bg-destructive/10 text-destructive">
+                                          FULL
+                                        </span>
+                                      )}
+                                    </div>
+                                    {role.description && (
+                                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{role.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                      <Key className="h-2.5 w-2.5 text-muted-foreground" />
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {permCount} permission{permCount !== 1 ? "s" : ""}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!(await confirmAsync(`Delete role "${role.name}"?`))) return;
+                                      await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" });
+                                      setRoles((prev) => prev.filter((r) => r.id !== role.id));
+                                      if (selectedRole?.id === role.id) setSelectedRole(null);
+                                    }}
+                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Permissions Panel — Right */}
+                  <div className="lg:col-span-3 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                      <Key className="h-3.5 w-3.5 text-primary" />
+                      <p className="text-xs font-medium text-foreground">
+                        {selectedRole ? `Permissions` : "Permissions"}
+                      </p>
+                      {selectedRole && (
+                        <>
+                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs font-medium text-primary truncate">{selectedRole.name}</span>
+                          <span className="ml-auto inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                            {selectedRole.permissions?.length || 0}
+                          </span>
+                        </>
                       )}
                     </div>
-                  )}
+
+                    {!selectedRole ? (
+                      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
+                        <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center">
+                          <MousePointerClick className="h-5 w-5 text-muted-foreground/60" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-foreground">No role selected</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {roles.length > 0 ? "Select a role to manage its permissions." : "Create a role first."}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col">
+                        {/* Add permission */}
+                        <div className="p-4 border-b border-border bg-secondary/10">
+                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                            Add Permission
+                          </p>
+                          <div className="flex gap-2">
+                            <select
+                              value={newPermValue}
+                              onChange={(e) => setNewPermValue(e.target.value)}
+                              className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 cursor-pointer"
+                            >
+                              <option value="">— select a permission —</option>
+                              <optgroup label="Global">
+                                <option value="*">* (full access)</option>
+                              </optgroup>
+                              <optgroup label="Servers">
+                                <option value="servers:read">servers:read</option>
+                                <option value="servers:write">servers:write</option>
+                                <option value="servers:delete">servers:delete</option>
+                                <option value="servers:*">servers:*</option>
+                              </optgroup>
+                              <optgroup label="Nodes">
+                                <option value="nodes:read">nodes:read</option>
+                                <option value="nodes:write">nodes:write</option>
+                                <option value="nodes:*">nodes:*</option>
+                              </optgroup>
+                              <optgroup label="AI">
+                                <option value="ai:chat">ai:chat</option>
+                                <option value="ai:create">ai:create</option>
+                                <option value="ai:assign">ai:assign</option>
+                                <option value="ai:*">ai:*</option>
+                              </optgroup>
+                              <optgroup label="SOC">
+                                <option value="soc:read">soc:read</option>
+                                <option value="soc:write">soc:write</option>
+                                <option value="soc:*">soc:*</option>
+                              </optgroup>
+                              <optgroup label="Orders">
+                                <option value="orders:read">orders:read</option>
+                                <option value="orders:create">orders:create</option>
+                                <option value="orders:*">orders:*</option>
+                              </optgroup>
+                              <optgroup label="Roles & Permissions">
+                                <option value="roles:read">roles:read</option>
+                                <option value="roles:create">roles:create</option>
+                                <option value="permissions:assign">permissions:assign</option>
+                              </optgroup>
+                              <optgroup label="Wings">
+                                <option value="wings:system">wings:system</option>
+                                <option value="wings:transfers">wings:transfers</option>
+                                <option value="wings:backups">wings:backups</option>
+                                <option value="wings:deauthorize">wings:deauthorize</option>
+                                <option value="wings:*">wings:*</option>
+                              </optgroup>
+                              <optgroup label="DNS / Tickets / Other">
+                                <option value="dns:read">dns:read</option>
+                                <option value="dns:write">dns:write</option>
+                                <option value="tickets:read">tickets:read</option>
+                                <option value="tickets:write">tickets:write</option>
+                              </optgroup>
+                            </select>
+                            <Button
+                              size="sm"
+                              disabled={!newPermValue.trim() || permLoading}
+                              onClick={async () => {
+                                if (!newPermValue.trim()) return;
+                                setPermLoading(true);
+                                try {
+                                  const data = await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions`, {
+                                    method: "POST",
+                                    body: JSON.stringify({ value: newPermValue.trim() }),
+                                  });
+                                  const updated = { ...selectedRole, permissions: [...(selectedRole.permissions || []), data.perm] };
+                                  setSelectedRole(updated);
+                                  setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+                                  setNewPermValue("");
+                                } finally {
+                                  setPermLoading(false);
+                                }
+                              }}
+                              className="bg-primary text-primary-foreground gap-1.5 h-9 px-3 text-xs shrink-0"
+                            >
+                              {permLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <>
+                                  <Plus className="h-3 w-3" />
+                                  <span className="hidden sm:inline">Add</span>
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Permission list */}
+                        <div className="flex-1 overflow-y-auto">
+                          {(selectedRole.permissions || []).length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-2 py-10 px-4">
+                              <Key className="h-6 w-6 text-muted-foreground/40" />
+                              <p className="text-xs text-muted-foreground">No permissions assigned yet</p>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Group permissions by category */}
+                              {(() => {
+                                const perms = selectedRole.permissions || []
+                                const groups: Record<string, typeof perms> = {}
+
+                                perms.forEach((p: any) => {
+                                  const [cat] = p.value.split(":")
+                                  const category = p.value === "*" ? "Global" : cat.charAt(0).toUpperCase() + cat.slice(1)
+                                  if (!groups[category]) groups[category] = []
+                                  groups[category].push(p)
+                                })
+
+                                const categoryColors: Record<string, string> = {
+                                  Global: "text-destructive",
+                                  Servers: "text-blue-400",
+                                  Nodes: "text-emerald-400",
+                                  Ai: "text-violet-400",
+                                  Soc: "text-orange-400",
+                                  Orders: "text-amber-400",
+                                  Roles: "text-pink-400",
+                                  Permissions: "text-pink-400",
+                                  Wings: "text-cyan-400",
+                                  Dns: "text-teal-400",
+                                  Tickets: "text-indigo-400",
+                                }
+
+                                return (
+                                  <div className="divide-y divide-border">
+                                    {Object.entries(groups).map(([category, items]) => (
+                                      <div key={category} className="px-4 py-3">
+                                        <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${categoryColors[category] || "text-muted-foreground"}`}>
+                                          {category}
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {items.map((p: any) => {
+                                            const isWildcard = p.value === "*" || p.value.endsWith(":*")
+                                            return (
+                                              <div
+                                                key={p.id}
+                                                className={`group/perm inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${isWildcard
+                                                  ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
+                                                  : "border-border bg-secondary/20 hover:bg-secondary/40"
+                                                  }`}
+                                              >
+                                                <span className={`font-mono text-xs ${isWildcard ? "text-destructive font-medium" : "text-foreground"}`}>
+                                                  {p.value}
+                                                </span>
+                                                <button
+                                                  onClick={async () => {
+                                                    await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions/${p.id}`, { method: "DELETE" });
+                                                    const updated = { ...selectedRole, permissions: selectedRole.permissions.filter((x: any) => x.id !== p.id) };
+                                                    setSelectedRole(updated);
+                                                    setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+                                                  }}
+                                                  className="rounded p-0.5 text-muted-foreground opacity-0 group-hover/perm:opacity-100 hover:text-destructive transition-all"
+                                                >
+                                                  <X className="h-3 w-3" />
+                                                </button>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              })()}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Full access warning */}
+                        {selectedRole.permissions?.some((p: any) => p.value === "*") && (
+                          <div className="flex items-start gap-2.5 border-t border-destructive/20 bg-destructive/5 px-4 py-3">
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-destructive">
+                              This role has full access (<code className="font-mono font-bold">*</code>). Users with this role can perform any action.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </TabsContent>
-
             {/* ═══════════════ LOGS ════════════════════════════════════ */}
             <TabsContent value="logs" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm font-medium text-foreground">Audit Logs</p>
-                    <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/50 p-1">
-                      {( ["audit", "requests", "slow"] as const).map((t) => (
+              <div className="flex flex-col gap-4">
+
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col gap-3 p-4">
+                    {/* Top row */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                          <ScrollText className="h-4 w-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Audit Logs</p>
+                          <p className="text-xs text-muted-foreground">
+                            {logsTotal ? `${logsTotal} entries` : "System activity & diagnostics"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {logType === "slow" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                await apiFetch(`${API_ENDPOINTS.adminSlowQueries}/clear`, { method: "POST" });
+                                await fetchLogs(1, "slow", logsUserFilter);
+                              } catch { }
+                            }}
+                            className="h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Clear</span>
+                          </Button>
+                        )}
                         <button
-                          key={t}
                           onClick={async () => {
-                            setLogType(t)
                             try {
-                              await fetchLogs(1, t, logsUserFilter)
-                            } catch { }
+                              await fetchLogs(logsPage, logType, logsUserFilter);
+                            } catch {
+                              await fetchLogs(1, logType, logsUserFilter);
+                            }
                           }}
-                          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${logType === t
-                              ? "bg-primary/20 text-primary"
-                              : "text-muted-foreground hover:text-foreground"
-                            }`}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title="Refresh"
                         >
-                          {t === "audit" ? "Audit" : t === "requests" ? "API Requests" : "Slow Queries"}
+                          <RefreshCw className="h-4 w-4" />
                         </button>
-                      ))}
+                      </div>
+                    </div>
+
+                    {/* Log type tabs */}
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                      {(["audit", "requests", "slow"] as const).map((t) => {
+                        const config: Record<string, { label: string; icon: any; color: string }> = {
+                          audit: { label: "Audit", icon: Shield, color: "text-indigo-400" },
+                          requests: { label: "API Requests", icon: Globe, color: "text-blue-400" },
+                          slow: { label: "Slow Queries", icon: Timer, color: "text-orange-400" },
+                        }
+                        const c = config[t]
+                        const Icon = c.icon
+                        const isActive = logType === t
+
+                        return (
+                          <button
+                            key={t}
+                            onClick={async () => {
+                              setLogType(t);
+                              try {
+                                await fetchLogs(1, t, logsUserFilter);
+                              } catch { }
+                            }}
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive
+                              ? `bg-secondary ${c.color}`
+                              : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                              }`}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {c.label}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {logType === 'slow' && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await apiFetch(`${API_ENDPOINTS.adminSlowQueries}/clear`, { method: 'POST' })
-                            await fetchLogs(1, 'slow', logsUserFilter)
-                          } catch { }
-                        }}
-                        className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <button
-                      onClick={async () => {
-                        try {
-                          await fetchLogs(logsPage, logType, logsUserFilter)
-                        } catch {
-                          await fetchLogs(1, logType, logsUserFilter)
-                        }
-                      }}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="px-4 py-3 text-left font-medium">Time</th>
-                        {(logType === "audit" || logType === "requests") && (
-                          <th className="px-4 py-3 text-left font-medium">User</th>
-                        )}
-                        {logType === "audit" ? (
-                          <th className="px-4 py-3 text-left font-medium">Action</th>
-                        ) : logType === "requests" ? (
-                          <>
-                            <th className="px-4 py-3 text-left font-medium">Endpoint</th>
-                            <th className="px-4 py-3 text-left font-medium">Count</th>
-                          </>
-                        ) : (
-                          <>
-                            <th className="px-4 py-3 text-left font-medium">Duration (ms)</th>
-                            <th className="px-4 py-3 text-left font-medium">Query</th>
-                          </>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.length === 0 ? (
-                        <tr>
-                          <td colSpan={logType === "slow" ? 3 : 3} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                            No logs found.
-                          </td>
-                        </tr>
-                      ) : (
-                        logs.map((log: any, i) => (
-                          <tr key={log.id ?? i} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
-                            <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                              {new Date(log.timestamp).toLocaleString()}
-                            </td>
-                            {(logType === "audit" || logType === "requests") && (
-                              <td className="px-4 py-3">
-                                {log.username ? (
-                                  <div>
-                                    <p className="text-sm font-medium text-foreground">{redact(log.username)}</p>
-                                    <p className="text-xs text-muted-foreground">{redact(log.email)}</p>
-                                  </div>
-                                ) : (log.userId !== undefined && log.userId !== null) ? (
-                                  <span className="text-xs text-muted-foreground">{log.userId === 0 ? 'System' : redact(log.userId)}</span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </td>
-                            )}
-                            {logType === "audit" ? (
-                              <td className="px-4 py-3 font-mono text-xs text-foreground">{log.action}</td>
-                            ) : logType === "requests" ? (
-                              <>
-                                <td className="px-4 py-3 font-mono text-xs text-foreground">{log.endpoint}</td>
-                                <td className="px-4 py-3 text-xs text-muted-foreground">{log.count}</td>
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-4 py-3 font-mono text-xs text-foreground">{log.durationMs}</td>
-                                <td className="px-4 py-3 font-mono text-xs text-foreground break-words max-w-[520px]">{log.query}</td>
-                              </>
-                            )}
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
                 </div>
 
-                <div className="px-4 py-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="text-xs text-muted-foreground">
-                    {logType === 'slow' ? (
-                      <>Showing last {logs.length} slow queries</>
-                    ) : (
-                      <>Page {logsPage} of {logsTotal ? Math.max(1, Math.ceil(logsTotal / logsPer)) : 1} • {logsTotal ?? logs.length} entries</>
+                {/* Desktop Table */}
+                <div className="rounded-xl border border-border bg-card hidden md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">Time</th>
+                          {(logType === "audit" || logType === "requests") && (
+                            <th className="px-4 py-3 text-left font-medium">User</th>
+                          )}
+                          {logType === "audit" && (
+                            <th className="px-4 py-3 text-left font-medium">Action</th>
+                          )}
+                          {logType === "requests" && (
+                            <>
+                              <th className="px-4 py-3 text-left font-medium">Endpoint</th>
+                              <th className="px-4 py-3 text-left font-medium">Count</th>
+                            </>
+                          )}
+                          {logType === "slow" && (
+                            <>
+                              <th className="px-4 py-3 text-left font-medium">Duration</th>
+                              <th className="px-4 py-3 text-left font-medium">Query</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logs.length === 0 ? (
+                          <tr>
+                            <td colSpan={logType === "requests" ? 4 : 3} className="px-4 py-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <ScrollText className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm text-muted-foreground">No logs found</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          logs.map((log: any, i) => {
+                            const isSlowWarning = logType === "slow" && log.durationMs >= 1000
+                            const isSlowCritical = logType === "slow" && log.durationMs >= 5000
+
+                            return (
+                              <tr
+                                key={log.id ?? i}
+                                className={`border-b border-border/50 transition-colors hover:bg-secondary/20 group ${isSlowCritical ? "bg-destructive/5" : isSlowWarning ? "bg-warning/5" : ""
+                                  }`}
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${logType === "audit"
+                                      ? "bg-indigo-400"
+                                      : logType === "requests"
+                                        ? "bg-blue-400"
+                                        : isSlowCritical
+                                          ? "bg-destructive"
+                                          : isSlowWarning
+                                            ? "bg-warning"
+                                            : "bg-orange-400"
+                                      }`} />
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                      {new Date(log.timestamp).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {(logType === "audit" || logType === "requests") && (
+                                  <td className="px-4 py-3">
+                                    {log.username ? (
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+                                          {log.username?.[0]?.toUpperCase() || "?"}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="text-xs font-medium text-foreground truncate">{redact(log.username)}</p>
+                                          <p className="text-[11px] text-muted-foreground truncate">{redact(log.email)}</p>
+                                        </div>
+                                      </div>
+                                    ) : log.userId !== undefined && log.userId !== null ? (
+                                      <span className={`inline-flex items-center gap-1 text-xs ${log.userId === 0 ? "text-muted-foreground italic" : "text-muted-foreground"}`}>
+                                        {log.userId === 0 ? (
+                                          <>
+                                            <Bot className="h-3 w-3" />
+                                            System
+                                          </>
+                                        ) : (
+                                          redact(log.userId)
+                                        )}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                  </td>
+                                )}
+
+                                {logType === "audit" && (
+                                  <td className="px-4 py-3">
+                                    <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
+                                      {log.action}
+                                    </span>
+                                  </td>
+                                )}
+
+                                {logType === "requests" && (
+                                  <>
+                                    <td className="px-4 py-3">
+                                      <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground max-w-[300px] truncate">
+                                        {log.endpoint}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <span className="text-xs font-medium text-foreground">{log.count}</span>
+                                    </td>
+                                  </>
+                                )}
+
+                                {logType === "slow" && (
+                                  <>
+                                    <td className="px-4 py-3">
+                                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-mono font-medium ${isSlowCritical
+                                        ? "bg-destructive/10 text-destructive"
+                                        : isSlowWarning
+                                          ? "bg-warning/10 text-warning"
+                                          : "bg-orange-500/10 text-orange-400"
+                                        }`}>
+                                        {log.durationMs >= 1000
+                                          ? `${(log.durationMs / 1000).toFixed(1)}s`
+                                          : `${log.durationMs}ms`
+                                        }
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <div className="max-w-[480px]">
+                                        <p className="font-mono text-xs text-foreground break-words line-clamp-2 group-hover:line-clamp-none transition-all">
+                                          {log.query}
+                                        </p>
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="flex flex-col gap-2 md:hidden">
+                  {logs.length === 0 ? (
+                    <div className="rounded-xl border border-border bg-card px-4 py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <ScrollText className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">No logs found</p>
+                      </div>
+                    </div>
+                  ) : (
+                    logs.map((log: any, i) => {
+                      const isSlowWarning = logType === "slow" && log.durationMs >= 1000
+                      const isSlowCritical = logType === "slow" && log.durationMs >= 5000
+
+                      return (
+                        <div
+                          key={log.id ?? i}
+                          className={`rounded-xl border bg-card overflow-hidden ${isSlowCritical
+                            ? "border-destructive/30"
+                            : isSlowWarning
+                              ? "border-warning/30"
+                              : "border-border"
+                            }`}
+                        >
+                          {/* Severity bar for slow queries */}
+                          {logType === "slow" && (isSlowWarning || isSlowCritical) && (
+                            <div className={`h-0.5 ${isSlowCritical ? "bg-destructive" : "bg-warning"}`} />
+                          )}
+
+                          <div className="p-3">
+                            {/* Timestamp + type indicator */}
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`h-1.5 w-1.5 rounded-full ${logType === "audit"
+                                  ? "bg-indigo-400"
+                                  : logType === "requests"
+                                    ? "bg-blue-400"
+                                    : isSlowCritical
+                                      ? "bg-destructive"
+                                      : "bg-orange-400"
+                                  }`} />
+                                <span className="text-[11px] text-muted-foreground">
+                                  {new Date(log.timestamp).toLocaleString()}
+                                </span>
+                              </div>
+
+                              {logType === "slow" && (
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium ${isSlowCritical
+                                  ? "bg-destructive/10 text-destructive"
+                                  : isSlowWarning
+                                    ? "bg-warning/10 text-warning"
+                                    : "bg-orange-500/10 text-orange-400"
+                                  }`}>
+                                  {log.durationMs >= 1000
+                                    ? `${(log.durationMs / 1000).toFixed(1)}s`
+                                    : `${log.durationMs}ms`
+                                  }
+                                </span>
+                              )}
+
+                              {logType === "requests" && (
+                                <span className="inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                                  ×{log.count}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* User info (audit & requests) */}
+                            {(logType === "audit" || logType === "requests") && (
+                              <div className="mb-2">
+                                {log.username ? (
+                                  <div className="flex items-center gap-2">
+                                    {log.avatarUrl ? (
+                                      <img src={log.avatarUrl} alt={`${log.username} avatar`} className="h-5 w-5 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+                                        {log.username?.[0]?.toUpperCase() || "?"}
+                                      </div>
+                                    )}
+                                    <span className="text-xs font-medium text-foreground truncate">{redact(log.username)}</span>
+                                  </div>
+                                ) : log.userId !== undefined && log.userId !== null ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    {log.userId === 0 ? "System" : redact(log.userId)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
+
+                            {/* Main content */}
+                            {logType === "audit" && (
+                              <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
+                                {log.action}
+                              </span>
+                            )}
+
+                            {logType === "requests" && (
+                              <p className="font-mono text-xs text-foreground truncate">{log.endpoint}</p>
+                            )}
+
+                            {logType === "slow" && (
+                              <p className="font-mono text-[11px] text-foreground break-words line-clamp-3">
+                                {log.query}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* Pagination */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      {logType === "slow" ? (
+                        <>
+                          Showing <span className="font-medium text-foreground">{logs.length}</span> slow queries
+                        </>
+                      ) : (
+                        <>
+                          Page <span className="font-medium text-foreground">{logsPage}</span>
+                          {logsTotal ? (
+                            <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(logsTotal / logsPer))}</span></>
+                          ) : null}
+                          {logsTotal ? (
+                            <span className="hidden sm:inline"> · {logsTotal} entries</span>
+                          ) : null}
+                        </>
+                      )}
+                    </p>
+                    {logType !== "slow" && (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fetchLogs(Math.max(1, logsPage - 1), logType, logsUserFilter)}
+                          disabled={logsPage <= 1 || logsLoading}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
+                          <span className="hidden sm:inline ml-1">Previous</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fetchLogs(logsPage + 1, logType, logsUserFilter)}
+                          disabled={(logsTotal !== null && logsPage >= Math.ceil((logsTotal || 0) / logsPer)) || logsLoading}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <span className="hidden sm:inline mr-1">Next</span>
+                          <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
+                        </Button>
+                      </div>
                     )}
                   </div>
-                  {logType !== 'slow' && (
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={() => fetchLogs(Math.max(1, logsPage - 1), logType, logsUserFilter)} disabled={logsPage <= 1 || logsLoading}>
-                        Prev
-                      </Button>
-                      <Button size="sm" onClick={() => fetchLogs(logsPage + 1, logType, logsUserFilter)} disabled={logsTotal !== null && logsPage >= Math.ceil((logsTotal || 0) / logsPer) || logsLoading}>
-                        Next
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </div>
             </TabsContent>
-
             {/* ═════════════════ OAUTH ═══════════════════════════════════ */}
             <TabsContent value="oauth" className="mt-4">
               <div className="flex flex-col gap-4">
@@ -4468,9 +7219,9 @@ remote: ${panelUrl}`
                               <tr key={ep.path + ep.method} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                                 <td className="px-4 py-2.5">
                                   <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold font-mono ${ep.method === "GET" ? "bg-blue-500/15 text-blue-400" :
-                                      ep.method === "POST" ? "bg-green-500/15 text-green-400" :
-                                        ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
-                                          "bg-red-500/15 text-red-400"
+                                    ep.method === "POST" ? "bg-green-500/15 text-green-400" :
+                                      ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
+                                        "bg-red-500/15 text-red-400"
                                     }`}>{ep.method}</span>
                                 </td>
                                 <td className="px-4 py-2.5 font-mono text-xs text-foreground">{ep.path}</td>
@@ -4789,184 +7540,673 @@ Content-Type: application/json
 
             {/* ═════════════════ PLANS ═══════════════════════════════════════ */}
             <TabsContent value="plans" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-medium text-foreground">Plans</p>
-                    <Badge variant="outline" className="text-xs">{plans.length}</Badge>
+              <div className="flex flex-col gap-6 max-w-4xl">
+
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Plans</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Define resource tiers and pricing for users.
+                      {plans.length > 0 && (
+                        <span className="text-muted-foreground/60"> · {plans.length} {plans.length === 1 ? "plan" : "plans"} configured</span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={openNewPlan}>
-                      <Plus className="h-3.5 w-3.5 mr-1" /> New Plan
-                    </Button>
                     <Button size="sm" variant="outline" onClick={ensurePortalPlans} disabled={ensureLoading}>
-                      {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                      Ensure Portal Plans
+                      {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                      Sync Portal
+                    </Button>
+                    <Button size="sm" onClick={openNewPlan} className="bg-primary text-primary-foreground">
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      New Plan
                     </Button>
                   </div>
                 </div>
+
+                {/* Plans Grid */}
                 {plans.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground">No plans configured. Create one to define resource tiers for users.</p>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {plans.map((plan) => (
-                      <div key={plan.id} className="flex items-start justify-between px-4 py-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-foreground">{plan.name}</p>
-                            <Badge variant="outline" className="text-xs">{getPortalMarker(plan.type)}</Badge>
-                            {plan.isDefault && <Badge className="text-xs bg-green-500/20 text-green-400 border-green-500/30">Default</Badge>}
-                          </div>
-                          {plan.description && <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {plan.memory != null ? `${plan.memory} MB RAM` : "∞ RAM"} ·{" "}
-                            {plan.disk != null ? `${(plan.disk / 1024).toFixed(0)} GB disk` : "∞ disk"} ·{" "}
-                            {plan.cpu != null ? `${plan.cpu}% CPU` : "∞ CPU"} ·{" "}
-                            {plan.serverLimit != null ? `${plan.serverLimit} servers` : "∞ servers"} ·{" "}
-                            {plan.databases != null ? `${plan.databases} DB` : "∞ DB"} ·{" "}
-                            {plan.backups != null ? `${plan.backups} backups` : "∞ backups"} ·{" "}
-                            ${(plan.price ?? 0).toFixed(2)}/mo
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-3">
-                          <Button variant="outline" size="sm" disabled={planReapplyLoading && planReapplyId === plan.id} onClick={() => reapplyPlanLimits(plan.id)}>
-                            {planReapplyLoading && planReapplyId === plan.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Reapply limits'}
-                          </Button>
-                          <Button variant="destructive" size="sm" disabled={planReapplyLoading && planReapplyId === plan.id} onClick={() => reapplyPlanLimits(plan.id, true)}>
-                            {planReapplyLoading && planReapplyId === plan.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Force reapply'}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => openEditPlan(plan)}><Edit className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => deletePlan(plan)} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
+                  <div className="rounded-xl border border-dashed border-border bg-card">
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
+                      <div className="rounded-full bg-secondary/50 p-4">
+                        <Zap className="h-8 w-8 text-muted-foreground/30" />
                       </div>
-                    ))}
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-foreground">No plans configured</p>
+                        <p className="text-xs text-muted-foreground mt-1">Create your first plan to define resource tiers for users.</p>
+                      </div>
+                      <Button size="sm" onClick={openNewPlan} className="mt-2 bg-primary text-primary-foreground">
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        Create First Plan
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {plans.map((plan) => {
+                      const isReapplying = planReapplyLoading && planReapplyId === plan.id
+
+                      const resources = [
+                        { label: "RAM", value: plan.memory != null ? `${plan.memory} MB` : "∞", icon: "💾" },
+                        { label: "Disk", value: plan.disk != null ? `${(plan.disk / 1024).toFixed(0)} GB` : "∞", icon: "💿" },
+                        { label: "CPU", value: plan.cpu != null ? `${plan.cpu}%` : "∞", icon: "⚡" },
+                        { label: "Servers", value: plan.serverLimit != null ? `${plan.serverLimit}` : "∞", icon: "🖥️" },
+                        { label: "DBs", value: plan.databases != null ? `${plan.databases}` : "∞", icon: "🗄️" },
+                        { label: "Backups", value: plan.backups != null ? `${plan.backups}` : "∞", icon: "📦" },
+                      ]
+
+                      return (
+                        <div
+                          key={plan.id}
+                          className={`group rounded-xl border bg-card transition-all hover:shadow-md hover:border-primary/20 ${plan.isDefault ? "border-green-500/30 ring-1 ring-green-500/10" : "border-border"
+                            }`}
+                        >
+                          {/* Plan Header */}
+                          <div className="flex items-start justify-between p-4 pb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm font-semibold text-foreground truncate">{plan.name}</h3>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${plan.type === 'free'
+                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                    : plan.type === 'premium'
+                                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                      : plan.type === 'educational'
+                                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                        : 'bg-secondary text-muted-foreground border-border'
+                                  }`}>
+                                  {getPortalMarker(plan.type)}
+                                </span>
+                                {plan.isDefault && (
+                                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                                    <Check className="h-2.5 w-2.5" />
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              {plan.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.description}</p>
+                              )}
+                            </div>
+
+                            {/* Price */}
+                            <div className="text-right shrink-0 ml-3">
+                              <p className="text-lg font-bold text-foreground tabular-nums">
+                                ${(plan.price ?? 0).toFixed(2)}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground -mt-0.5">/month</p>
+                            </div>
+                          </div>
+
+                          {/* Resources Grid */}
+                          <div className="px-4 pb-3">
+                            <div className="grid grid-cols-3 gap-2">
+                              {resources.map((res) => (
+                                <div
+                                  key={res.label}
+                                  className="rounded-lg bg-secondary/30 border border-border/50 px-2.5 py-2 text-center"
+                                >
+                                  <p className="text-[10px] text-muted-foreground">{res.label}</p>
+                                  <p className={`text-xs font-semibold mt-0.5 tabular-nums ${res.value === "∞" ? "text-muted-foreground" : "text-foreground"
+                                    }`}>
+                                    {res.value}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Actions Footer */}
+                          <div className="flex items-center justify-between border-t border-border px-4 py-2.5 bg-secondary/10 rounded-b-xl">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+                                disabled={isReapplying}
+                                onClick={() => reapplyPlanLimits(plan.id)}
+                              >
+                                {isReapplying ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-3 w-3" />
+                                )}
+                                Reapply
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-orange-400/70 hover:text-orange-400 hover:bg-orange-500/10 gap-1"
+                                disabled={isReapplying}
+                                onClick={() => reapplyPlanLimits(plan.id, true)}
+                              >
+                                {isReapplying ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <AlertTriangle className="h-3 w-3" />
+                                )}
+                                Force
+                              </Button>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => openEditPlan(plan)}
+                                title="Edit plan"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => deletePlan(plan)}
+                                title="Delete plan"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
             </TabsContent>
-
             {/* ═════════════════ ORDERS ══════════════════════════════════════ */}
             <TabsContent value="orders" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-primary" />
-                      <p className="text-sm font-medium text-foreground">Orders</p>
-                      <Badge variant="outline" className="text-xs">{ordersTotal ?? adminOrders.length}</Badge>
-                    </div>
-                  <Button size="sm" onClick={openIssueOrder}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Issue Order
-                  </Button>
-                </div>
-                  <div className="p-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <input value={ordersQuery} onChange={(e) => setOrdersQuery(e.target.value)} placeholder="Search user id or email" className="rounded border border-border bg-secondary/50 px-3 py-1.5 text-sm outline-none" />
-                      <Button size="sm" onClick={() => fetchOrders(1, ordersQuery)}>Search</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setOrdersQuery(''); fetchOrders(1, '') }}>Clear</Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Page {ordersPage} {ordersTotal ? `of ${Math.max(1, Math.ceil(ordersTotal / ORDERS_PER))}` : ''}</span>
-                      <Button size="sm" onClick={() => { if (ordersPage > 1) fetchOrders(ordersPage - 1, ordersQuery) }} disabled={ordersPage <= 1}>Prev</Button>
-                      <Button size="sm" onClick={() => { if (!ordersTotal || ordersPage < Math.ceil((ordersTotal || 0) / ORDERS_PER)) fetchOrders(ordersPage + 1, ordersQuery) }} disabled={ordersTotal ? ordersPage >= Math.ceil(ordersTotal / ORDERS_PER) : adminOrders.length < ORDERS_PER}>Next</Button>
-                    </div>
-                  </div>
+              <div className="flex flex-col gap-4">
 
-                  {ordersLoading ? (
-                    <div className="p-4 text-sm text-muted-foreground">Loading orders…</div>
-                  ) : adminOrders.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground">No orders yet. Issue an order to assign a plan or resource pack to a user.</p>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {adminOrders.map((order) => (
-                      <div key={order.id} className="flex items-start justify-between px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{order.description || `Order #${order.id}`}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            User #{privateMode ? "████" : order.userId}
-                            {order.planId ? (privateMode ? " · Plan #████" : ` · Plan #${order.planId}`) : ""}
-                            {" "} · ${(order.amount ?? 0).toFixed(2)}
-                            {" "} · <span className={order.status === "active" ? "text-green-400" : "text-muted-foreground"}>{order.status}</span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Created: {new Date(order.createdAt).toLocaleDateString()}
-                            {order.expiresAt ? ` · Expires: ${new Date(order.expiresAt).toLocaleDateString()}` : ""}
-                          </p>
-                          {order.notes && <p className="text-xs text-muted-foreground italic">{order.notes}</p>}
+                {/* Header Bar */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-col gap-3 p-4">
+                    {/* Top row */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                          <Receipt className="h-4 w-4 text-emerald-400" />
                         </div>
-                        <div className="flex items-center gap-2 ml-3">
-                          <Button size="sm" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary" onClick={() => openEditOrder(order)}>
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary" onClick={() => cancelOrder(order)}>
-                            <XCircle className="h-3.5 w-3.5 text-yellow-400" />
-                          </Button>
-                          <Button size="sm" className="rounded-md p-1.5 text-destructive hover:bg-secondary" onClick={() => deleteOrder(order)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Badge variant="outline" className="text-xs capitalize shrink-0">{order.status}</Badge>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Orders</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ordersTotal ? `${ordersTotal} order${ordersTotal !== 1 ? "s" : ""}` : "Manage plans & resource packs"}
+                          </p>
                         </div>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={openIssueOrder}
+                          className="bg-primary text-primary-foreground h-8 gap-1.5"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Issue Order</span>
+                          <span className="sm:hidden">Issue</span>
+                        </Button>
+                        <button
+                          onClick={() => fetchOrders(ordersPage, ordersQuery)}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title="Refresh"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1 max-w-md">
+                        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+                          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="Search by user ID or email…"
+                            value={ordersQuery}
+                            onChange={(e) => setOrdersQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && fetchOrders(1, ordersQuery)}
+                            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+                          />
+                          {ordersQuery && (
+                            <button
+                              onClick={() => { setOrdersQuery(""); fetchOrders(1, ""); }}
+                              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                {ordersLoading ? (
+                  <div className="rounded-xl border border-border bg-card px-4 py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                      <p className="text-sm text-muted-foreground">Loading orders…</p>
+                    </div>
+                  </div>
+                ) : adminOrders.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                      <Receipt className="h-6 w-6 text-emerald-400/60" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No orders yet</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Issue an order to assign a plan or resource pack to a user.
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={openIssueOrder} className="bg-primary text-primary-foreground gap-1.5 mt-1">
+                      <Plus className="h-3.5 w-3.5" /> Issue Order
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop Table */}
+                    <div className="rounded-xl border border-border bg-card hidden md:block">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border text-xs text-muted-foreground">
+                              <th className="px-4 py-3 text-left font-medium">Order</th>
+                              <th className="px-4 py-3 text-left font-medium">User</th>
+                              <th className="px-4 py-3 text-left font-medium">Amount</th>
+                              <th className="px-4 py-3 text-left font-medium">Status</th>
+                              <th className="px-4 py-3 text-left font-medium">Dates</th>
+                              <th className="px-4 py-3 text-right font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {adminOrders.map((order) => {
+                              const statusConfig: Record<string, { class: string; dot: string }> = {
+                                active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                                pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
+                                cancelled: { class: "border-muted-foreground/30 bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" },
+                                expired: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
+                              }
+                              const sc = statusConfig[order.status] || statusConfig.pending
+
+                              return (
+                                <tr key={order.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                        <Receipt className="h-3.5 w-3.5 text-emerald-400" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">
+                                          {order.description || `Order #${order.id}`}
+                                        </p>
+                                        {order.planId && (
+                                          <p className="text-xs text-muted-foreground">
+                                            Plan #{privateMode ? "████" : order.planId}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                                      #{privateMode ? "████" : order.userId}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="text-sm font-semibold text-foreground">
+                                      ${(order.amount ?? 0).toFixed(2)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge variant="outline" className={`text-xs capitalize ${sc.class}`}>
+                                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
+                                      {order.status}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-xs text-muted-foreground">
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                                      </div>
+                                      {order.expiresAt && (
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <Clock className="h-3 w-3" />
+                                          <span>Expires {new Date(order.expiresAt).toLocaleDateString()}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={() => openEditOrder(order)}
+                                        title="Edit order"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </button>
+                                      {order.status === "active" && (
+                                        <button
+                                          onClick={() => cancelOrder(order)}
+                                          title="Cancel order"
+                                          className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors"
+                                        >
+                                          <XCircle className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => deleteOrder(order)}
+                                        title="Delete order"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="flex flex-col gap-3 md:hidden">
+                      {adminOrders.map((order) => {
+                        const statusConfig: Record<string, { class: string; dot: string; borderTint: string }> = {
+                          active: { class: "text-emerald-400", dot: "bg-emerald-400", borderTint: "border-emerald-500/20" },
+                          pending: { class: "text-warning", dot: "bg-warning", borderTint: "border-warning/20" },
+                          cancelled: { class: "text-muted-foreground", dot: "bg-muted-foreground", borderTint: "border-border" },
+                          expired: { class: "text-destructive", dot: "bg-destructive", borderTint: "border-destructive/20" },
+                        }
+                        const sc = statusConfig[order.status] || statusConfig.pending
+
+                        return (
+                          <div
+                            key={order.id}
+                            className={`rounded-xl border bg-card overflow-hidden ${order.status === "active" ? sc.borderTint : "border-border"
+                              }`}
+                          >
+                            {/* Card Header */}
+                            <div className="flex items-start gap-3 p-4 pb-3">
+                              <div className="relative h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                <Receipt className="h-4 w-4 text-emerald-400" />
+                                <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground truncate">
+                                      {order.description || `Order #${order.id}`}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      User #{privateMode ? "████" : order.userId}
+                                      {order.planId && ` · Plan #${privateMode ? "████" : order.planId}`}
+                                    </p>
+                                  </div>
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10 capitalize`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
+                                    {order.status}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
+                              <div className="bg-card px-3 py-2.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Amount</p>
+                                <p className="text-sm font-bold text-foreground">${(order.amount ?? 0).toFixed(2)}</p>
+                              </div>
+                              <div className="bg-card px-3 py-2.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Created</p>
+                                <p className="text-xs text-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
+                              </div>
+                              <div className="bg-card px-3 py-2.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Expires</p>
+                                <p className="text-xs text-foreground">
+                                  {order.expiresAt ? new Date(order.expiresAt).toLocaleDateString() : "—"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Notes (if present) */}
+                            {order.notes && (
+                              <div className="px-4 py-2.5 border-t border-border bg-secondary/20">
+                                <p className="text-[11px] text-muted-foreground italic line-clamp-2">{order.notes}</p>
+                              </div>
+                            )}
+
+                            {/* Card Actions */}
+                            <div className="flex items-center border-t border-border divide-x divide-border">
+                              <button
+                                onClick={() => openEditOrder(order)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                                <span>Edit</span>
+                              </button>
+                              {order.status === "active" && (
+                                <button
+                                  onClick={() => cancelOrder(order)}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  <span>Cancel</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => deleteOrder(order)}
+                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* Pagination */}
+                {!ordersLoading && adminOrders.length > 0 && (
+                  <div className="rounded-xl border border-border bg-card">
+                    <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Page <span className="font-medium text-foreground">{ordersPage}</span>
+                        {ordersTotal ? (
+                          <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(ordersTotal / ORDERS_PER))}</span></>
+                        ) : null}
+                        {ordersTotal ? (
+                          <span className="hidden sm:inline"> · {ordersTotal} total</span>
+                        ) : null}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { if (ordersPage > 1) fetchOrders(ordersPage - 1, ordersQuery); }}
+                          disabled={ordersPage <= 1}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
+                          <span className="hidden sm:inline ml-1">Previous</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (!ordersTotal || ordersPage < Math.ceil((ordersTotal || 0) / ORDERS_PER))
+                              fetchOrders(ordersPage + 1, ordersQuery);
+                          }}
+                          disabled={ordersTotal ? ordersPage >= Math.ceil(ordersTotal / ORDERS_PER) : adminOrders.length < ORDERS_PER}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <span className="hidden sm:inline mr-1">Next</span>
+                          <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </TabsContent>
-
             {/* ═════════════════ PANEL SETTINGS ══════════════════════════════ */}
             <TabsContent value="settings" className="mt-4">
-              <div className="flex flex-col gap-4 max-w-xl">
+              <div className="flex flex-col gap-6 max-w-3xl">
 
-                {/* Registration toggle */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                    <UserPlus className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-medium text-foreground">Registration</p>
+                {/* Section Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Panel Settings</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">Configure registration, services, and access restrictions.</p>
                   </div>
-                  <div className="flex flex-col gap-4 p-4">
-                    {/* Toggle */}
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Allow new registrations</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">When disabled the Sign Up form is hidden and the backend returns HTTP 503 for any registration attempt.</p>
+                  <div className="flex items-center gap-3">
+                    {settingsSaved && (
+                      <div className="flex items-center gap-1.5 text-xs text-green-400 animate-in fade-in slide-in-from-right-2">
+                        <Check className="h-3.5 w-3.5" />
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    <Button
+                      disabled={settingsSaving}
+                      onClick={async () => {
+                        setSettingsSaving(true)
+                        setSettingsSaved(false)
+                        try {
+                          const data = await apiFetch(API_ENDPOINTS.adminSettings, {
+                            method: "PUT",
+                            body: JSON.stringify(panelSettings),
+                          })
+                          if (data?.settings) setPanelSettings(data.settings)
+                          setSettingsSaved(true)
+                          setTimeout(() => setSettingsSaved(false), 3000)
+                          setGeoBlockMetricsLoading(true)
+                          try {
+                            const m = await apiFetch("/api/admin/geo-block/metrics")
+                            setGeoBlockMetrics(m)
+                          } catch {
+                            // ignore
+                          } finally {
+                            setGeoBlockMetricsLoading(false)
+                          }
+                        } catch (e: any) {
+                          alert(e.message || "Failed to save settings")
+                        } finally {
+                          setSettingsSaving(false)
+                        }
+                      }}
+                      className="bg-primary text-primary-foreground"
+                      size="sm"
+                    >
+                      {settingsSaving ? (
+                        <>
+                          <div className="h-3.5 w-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
+                          Saving…
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5 mr-1.5" />
+                          Save Settings
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick Toggles Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Registration Toggle */}
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.registrationEnabled ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                          <UserPlus className={`h-4 w-4 ${panelSettings.registrationEnabled ? "text-green-400" : "text-red-400"}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Registration</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {panelSettings.registrationEnabled ? "New users can sign up" : "Sign-ups are blocked (HTTP 503)"}
+                          </p>
+                        </div>
                       </div>
                       <button
                         onClick={() => setPanelSettings((s) => ({ ...s, registrationEnabled: !s.registrationEnabled }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${panelSettings.registrationEnabled ? "bg-primary" : "bg-secondary"
-                          }`}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.registrationEnabled ? "bg-green-500" : "bg-secondary"}`}
                         role="switch"
                         aria-checked={panelSettings.registrationEnabled}
                       >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.registrationEnabled ? "translate-x-5" : "translate-x-0"
-                            }`}
-                        />
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.registrationEnabled ? "translate-x-5" : "translate-x-0"}`} />
                       </button>
                     </div>
+                  </div>
 
-                    {/* Notice message */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {panelSettings.registrationEnabled ? "Notice (optional — shown as an info banner)" : "Reason shown to users"}
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={panelSettings.registrationNotice}
-                        onChange={(e) => setPanelSettings((s) => ({ ...s, registrationNotice: e.target.value }))}
-                        placeholder={panelSettings.registrationEnabled
-                          ? "e.g. This is a development build. Data may be reset."
-                          : "e.g. Registration is temporarily closed for maintenance."}
-                        className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-none"
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Supports plain text. Leave empty for no banner.
-                      </p>
+                  {/* Code Instances Toggle */}
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.codeInstancesEnabled ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                          <FileCode className={`h-4 w-4 ${panelSettings.codeInstancesEnabled ? "text-green-400" : "text-red-400"}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Code Instances</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {panelSettings.codeInstancesEnabled ? "Users can create instances" : "Creation blocked for non-admins"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setPanelSettings((s) => ({ ...s, codeInstancesEnabled: !s.codeInstancesEnabled }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.codeInstancesEnabled ? "bg-green-500" : "bg-secondary"}`}
+                        role="switch"
+                        aria-checked={panelSettings.codeInstancesEnabled}
+                      >
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.codeInstancesEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
                     </div>
+                  </div>
+                </div>
+
+                {/* Registration Notice */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-medium text-foreground">
+                      {panelSettings.registrationEnabled ? "Registration Notice" : "Registration Disabled Message"}
+                    </p>
+                    {!panelSettings.registrationEnabled && (
+                      <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                        Required
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-4 flex flex-col gap-3">
+                    <textarea
+                      rows={2}
+                      value={panelSettings.registrationNotice}
+                      onChange={(e) => setPanelSettings((s) => ({ ...s, registrationNotice: e.target.value }))}
+                      placeholder={panelSettings.registrationEnabled
+                        ? "e.g. This is a development build. Data may be reset."
+                        : "e.g. Registration is temporarily closed for maintenance."}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none transition-colors"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      {panelSettings.registrationEnabled
+                        ? "Optional info banner shown on the login/register page."
+                        : "Shown to users who try to access the registration page."}
+                    </p>
 
                     {/* Preview */}
                     {(panelSettings.registrationNotice || !panelSettings.registrationEnabled) && (
-                      <div className="flex flex-col gap-1.5">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Preview</p>
+                      <div className="flex flex-col gap-1.5 pt-1">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Live Preview</p>
                         {!panelSettings.registrationEnabled ? (
                           <div className="flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
                             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
@@ -4977,72 +8217,438 @@ Content-Type: application/json
                               )}
                             </div>
                           </div>
-                        ) : (
+                        ) : panelSettings.registrationNotice ? (
                           <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
                             <Eye className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
                             <p className="text-sm text-blue-300">{panelSettings.registrationNotice}</p>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
+                  </div>
+                </div>
 
-                    {/* Code Instances toggle */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <FileCode className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Code Instances</p>
-                      </div>
-                      <div className="flex flex-col gap-4 p-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">Allow creation of code instances</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">When disabled, users cannot create code instances; non-admins will be blocked by the backend.</p>
+                {/* Geo-Block Card — Redesigned */}
+                <div className="rounded-xl border border-border bg-card">
+                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      <p className="text-sm font-medium text-foreground">Geo-Block Rules</p>
+                    </div>
+                    {(() => {
+                      const entries = panelSettings.geoBlockCountries
+                        ? panelSettings.geoBlockCountries.split(",").map((s: string) => s.trim()).filter(Boolean)
+                        : []
+                      return entries.length > 0 ? (
+                        <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                          {entries.length} {entries.length === 1 ? "rule" : "rules"} active
+                        </span>
+                      ) : null
+                    })()}
+                  </div>
+                  <div className="flex flex-col gap-0 divide-y divide-border">
+                    {(() => {
+                      const [newCountry, setNewCountry] = React.useState("")
+                      const [newLevel, setNewLevel] = React.useState("2")
+                      const [searchFilter, setSearchFilter] = React.useState("")
+
+                      const levelConfig: Record<string, { label: string; shortLabel: string; color: string; bgColor: string; borderColor: string; description: string }> = {
+                        "1": { label: "ID Block", shortLabel: "ID", color: "text-blue-400", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/20", description: "Blocks identity verification" },
+                        "2": { label: "Free Block", shortLabel: "Free", color: "text-yellow-400", bgColor: "bg-yellow-500/10", borderColor: "border-yellow-500/20", description: "Blocks free tier services" },
+                        "3": { label: "Edu + Free Block", shortLabel: "Edu+Free", color: "text-orange-400", bgColor: "bg-orange-500/10", borderColor: "border-orange-500/20", description: "Blocks educational and free tiers" },
+                        "4": { label: "All Services (subuser)", shortLabel: "All Svc", color: "text-red-400", bgColor: "bg-red-500/10", borderColor: "border-red-500/20", description: "Blocks all services except subuser access" },
+                        "5": { label: "Registration Block", shortLabel: "Reg Block", color: "text-red-500", bgColor: "bg-red-500/15", borderColor: "border-red-500/30", description: "Completely blocks registration from this country" },
+                      }
+
+                      const entries: { country: string; level: string }[] = panelSettings.geoBlockCountries
+                        ? panelSettings.geoBlockCountries
+                          .split(",")
+                          .map((s: string) => s.trim())
+                          .filter(Boolean)
+                          .map((s: string) => {
+                            const [country, level] = s.split(":")
+                            return { country: country?.toUpperCase() || "", level: level || "0" }
+                          })
+                          .filter((e: { country: string }) => e.country.length === 2)
+                        : []
+
+                      const filteredEntries = searchFilter
+                        ? entries.filter((e) => e.country.includes(searchFilter.toUpperCase()))
+                        : entries
+
+                      const updateEntries = (newEntries: { country: string; level: string }[]) => {
+                        const str = newEntries.map((e) => `${e.country.toLowerCase()}:${e.level}`).join(",")
+                        setPanelSettings((s) => ({ ...s, geoBlockCountries: str }))
+                      }
+
+                      const addEntry = () => {
+                        const code = newCountry.trim().toUpperCase()
+                        if (code.length !== 2) return
+                        if (entries.some((e) => e.country === code)) {
+                          updateEntries(entries.map((e) => (e.country === code ? { ...e, level: newLevel } : e)))
+                        } else {
+                          updateEntries([...entries, { country: code, level: newLevel }])
+                        }
+                        setNewCountry("")
+                      }
+
+                      const removeEntry = (country: string) => {
+                        updateEntries(entries.filter((e) => e.country !== country))
+                      }
+
+                      const updateLevel = (country: string, level: string) => {
+                        updateEntries(entries.map((e) => (e.country === country ? { ...e, level } : e)))
+                      }
+
+                      return (
+                        <>
+                          {/* Level Reference — Horizontal pills */}
+                          <div className="px-4 py-3">
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Restriction Levels</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {Object.entries(levelConfig).map(([lvl, config]) => (
+                                <div
+                                  key={lvl}
+                                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border ${config.bgColor} ${config.borderColor} ${config.color}`}
+                                  title={config.description}
+                                >
+                                  <span className="font-mono font-bold">{lvl}</span>
+                                  <span className="opacity-80">{config.label}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <button
-                            onClick={() => setPanelSettings((s) => ({ ...s, codeInstancesEnabled: !s.codeInstancesEnabled }))}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${panelSettings.codeInstancesEnabled ? "bg-primary" : "bg-secondary"}`}
-                            role="switch"
-                            aria-checked={panelSettings.codeInstancesEnabled}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.codeInstancesEnabled ? "translate-x-5" : "translate-x-0"}`}
-                            />
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">Toggle to temporarily prevent users from creating resource-heavy code instances.</p>
-                      </div>
-                    </div>
 
-                    {/* Save button */}
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      {settingsSaved && (
-                        <span className="text-xs text-green-400">Settings saved</span>
-                      )}
-                      <Button
-                        disabled={settingsSaving}
-                        onClick={async () => {
-                          setSettingsSaving(true)
-                          setSettingsSaved(false)
-                          try {
-                            const data = await apiFetch(API_ENDPOINTS.adminSettings, {
-                              method: "PUT",
-                              body: JSON.stringify(panelSettings),
-                            })
-                            if (data?.settings) setPanelSettings(data.settings)
-                            setSettingsSaved(true)
-                            setTimeout(() => setSettingsSaved(false), 3000)
-                          } catch (e: any) {
-                            alert(e.message || "Failed to save settings")
-                          } finally {
-                            setSettingsSaving(false)
-                          }
-                        }}
-                        className="bg-primary text-primary-foreground"
-                        size="sm"
-                      >
-                        {settingsSaving ? "Saving…" : "Save Settings"}
-                      </Button>
+                          {/* Add Country — Compact inline form */}
+                          <div className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-shrink-0">
+                                <input
+                                  type="text"
+                                  maxLength={2}
+                                  value={newCountry}
+                                  onChange={(e) => setNewCountry(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
+                                  onKeyDown={(e) => e.key === "Enter" && addEntry()}
+                                  placeholder="CC"
+                                  className="w-16 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 uppercase font-mono text-center transition-colors"
+                                />
+                              </div>
+                              <select
+                                value={newLevel}
+                                onChange={(e) => setNewLevel(e.target.value)}
+                                className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
+                              >
+                                {Object.entries(levelConfig).map(([lvl, config]) => (
+                                  <option key={lvl} value={lvl}>
+                                    Level {lvl} — {config.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                size="sm"
+                                disabled={newCountry.trim().length !== 2}
+                                onClick={addEntry}
+                                className="bg-primary text-primary-foreground shrink-0 gap-1"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Add
+                              </Button>
+                            </div>
+                            {newCountry.length === 2 && entries.some((e) => e.country === newCountry.toUpperCase()) && (
+                              <p className="text-[11px] text-yellow-400 mt-1.5 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                This will update the existing rule for {newCountry.toUpperCase()}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Rules List */}
+                          <div className="px-4 py-3">
+                            {entries.length > 0 ? (
+                              <div className="flex flex-col gap-2">
+                                {/* Search/filter when many rules */}
+                                {entries.length > 5 && (
+                                  <div className="relative mb-1">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                    <input
+                                      type="text"
+                                      value={searchFilter}
+                                      onChange={(e) => setSearchFilter(e.target.value.replace(/[^a-zA-Z]/g, ""))}
+                                      placeholder="Filter countries…"
+                                      className="w-full rounded-lg border border-border bg-secondary/50 pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors"
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Rules grid */}
+                                <div className="rounded-lg border border-border overflow-hidden">
+                                  <div className="max-h-64 overflow-y-auto">
+                                    {filteredEntries.length === 0 ? (
+                                      <div className="py-4 text-center text-xs text-muted-foreground">
+                                        No matching countries
+                                      </div>
+                                    ) : (
+                                      <div className="divide-y divide-border">
+                                        {filteredEntries
+                                          .sort((a, b) => a.country.localeCompare(b.country))
+                                          .map((entry) => {
+                                            const config = levelConfig[entry.level] || levelConfig["1"]
+                                            return (
+                                              <div
+                                                key={entry.country}
+                                                className="flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/30 transition-colors group"
+                                              >
+                                                {/* Country code with flag-like styling */}
+                                                <div className="flex items-center justify-center w-10 h-8 rounded-md bg-secondary/60 border border-border">
+                                                  <span className="text-sm font-mono font-bold text-foreground tracking-wide">
+                                                    {entry.country}
+                                                  </span>
+                                                </div>
+
+                                                {/* Level badge */}
+                                                <div className="flex-1 min-w-0">
+                                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border ${config.bgColor} ${config.borderColor} ${config.color}`}>
+                                                    <span className="font-mono">{entry.level}</span>
+                                                    <span className="hidden sm:inline">{config.shortLabel}</span>
+                                                  </span>
+                                                </div>
+
+                                                {/* Level selector */}
+                                                <select
+                                                  value={entry.level}
+                                                  onChange={(e) => updateLevel(entry.country, e.target.value)}
+                                                  className="rounded-md border border-border bg-secondary/50 text-xs text-foreground outline-none cursor-pointer hover:border-primary/40 focus:border-primary/50 px-2 py-1 transition-colors"
+                                                >
+                                                  {Object.entries(levelConfig).map(([lvl, c]) => (
+                                                    <option key={lvl} value={lvl}>
+                                                      {lvl} — {c.label}
+                                                    </option>
+                                                  ))}
+                                                </select>
+
+                                                {/* Remove button */}
+                                                <button
+                                                  onClick={() => removeEntry(entry.country)}
+                                                  className="p-1.5 rounded-md opacity-40 hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                                                  title={`Remove ${entry.country}`}
+                                                >
+                                                  <X className="h-3.5 w-3.5" />
+                                                </button>
+                                              </div>
+                                            )
+                                          })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Summary footer */}
+                                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                                  <span>{entries.length} {entries.length === 1 ? "country" : "countries"} blocked</span>
+                                  {entries.length > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Remove all ${entries.length} geo-block rules?`)) {
+                                          setPanelSettings((s) => ({ ...s, geoBlockCountries: "" }))
+                                        }
+                                      }}
+                                      className="text-destructive/60 hover:text-destructive transition-colors"
+                                    >
+                                      Clear all
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-8 gap-2">
+                                <Globe className="h-8 w-8 text-muted-foreground/30" />
+                                <p className="text-sm text-muted-foreground">No geo-block rules</p>
+                                <p className="text-xs text-muted-foreground/60">Add a country code above to get started</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Raw value */}
+                          <details className="group">
+                            <summary className="flex items-center gap-2 px-4 py-2.5 text-[11px] text-muted-foreground cursor-pointer hover:text-foreground hover:bg-secondary/20 transition-colors select-none">
+                              <Code className="h-3 w-3" />
+                              Raw value
+                              <ChevronDown className="h-3 w-3 ml-auto transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="px-4 pb-3">
+                              <textarea
+                                rows={2}
+                                value={panelSettings.geoBlockCountries}
+                                onChange={(e) => setPanelSettings((s) => ({ ...s, geoBlockCountries: e.target.value }))}
+                                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-none transition-colors"
+                                placeholder="de:2,fr:3,ru:5"
+                              />
+                            </div>
+                          </details>
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                {/* Geo-Block Metrics — Standalone card */}
+                <div className="rounded-xl border border-border bg-card">
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById("geo-metrics-content")
+                      if (el) el.classList.toggle("hidden")
+                      const chevron = document.getElementById("geo-metrics-chevron")
+                      if (chevron) chevron.classList.toggle("rotate-180")
+                    }}
+                    className="flex items-center justify-between gap-2 w-full px-4 py-3 hover:bg-secondary/20 transition-colors rounded-t-xl"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-foreground">Geo-Block Impact & Metrics</span>
                     </div>
+                    <ChevronDown id="geo-metrics-chevron" className="h-4 w-4 text-muted-foreground transition-transform" />
+                  </button>
+                  <div id="geo-metrics-content" className="hidden border-t border-border">
+                    <div className="p-4">
+                      {geoBlockMetricsLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-8">
+                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <p className="text-sm text-muted-foreground">Loading metrics…</p>
+                        </div>
+                      ) : geoBlockMetricsError ? (
+                        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                          <p className="text-sm text-destructive">{geoBlockMetricsError}</p>
+                        </div>
+                      ) : geoBlockMetrics ? (
+                        <div className="flex flex-col gap-5">
+                          {/* Stats grid */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {[
+                              { label: "Total Users", value: geoBlockMetrics.totalUsers, icon: Users, color: "text-foreground", iconColor: "text-primary" },
+                              { label: "Reg. Blocked", sublabel: "Level ≥ 5", value: geoBlockMetrics.blocked.registration, color: "text-red-400", iconColor: "text-red-400" },
+                              { label: "ID Blocked", sublabel: "Level ≥ 1", value: geoBlockMetrics.blocked.idVerification, color: "text-blue-400", iconColor: "text-blue-400" },
+                              { label: "Free Blocked", sublabel: "Level ≥ 2", value: geoBlockMetrics.blocked.free, color: "text-yellow-400", iconColor: "text-yellow-400" },
+                              { label: "Edu Blocked", sublabel: "Level ≥ 3", value: geoBlockMetrics.blocked.educational, color: "text-orange-400", iconColor: "text-orange-400" },
+                              { label: "Subuser Only", sublabel: "Level 4", value: geoBlockMetrics.blocked.subuserOnly, color: "text-red-400", iconColor: "text-red-400" },
+                            ].map((stat, i) => (
+                              <div key={i} className="rounded-lg border border-border bg-secondary/20 px-3 py-3 hover:bg-secondary/30 transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-[11px] text-muted-foreground font-medium">{stat.label}</p>
+                                  {stat.sublabel && (
+                                    <span className="text-[9px] text-muted-foreground/60 font-mono">{stat.sublabel}</span>
+                                  )}
+                                </div>
+                                <p className={`text-2xl font-bold mt-1 ${stat.color}`}>
+                                  {stat.value ?? "—"}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Per-country breakdown */}
+                          {geoBlockMetrics.byCountry && Object.keys(geoBlockMetrics.byCountry).length > 0 && (
+                            <div className="flex flex-col gap-2">
+                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Users by Country</p>
+                              <div className="rounded-lg border border-border overflow-hidden">
+                                <div className="grid grid-cols-[56px_1fr_60px] gap-2 px-3 py-2 bg-secondary/40 border-b border-border">
+                                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Code</p>
+                                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Users</p>
+                                  <p className="text-[10px] font-medium text-muted-foreground uppercase text-right">Level</p>
+                                </div>
+                                <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                                  {Object.entries(geoBlockMetrics.byCountry)
+                                    .sort(([, a]: any, [, b]: any) => (b.users || 0) - (a.users || 0))
+                                    .map(([country, stats]: any) => (
+                                      <div key={country} className="grid grid-cols-[56px_1fr_60px] gap-2 items-center px-3 py-2 hover:bg-secondary/20 transition-colors">
+                                        <div className="flex items-center justify-center w-9 h-6 rounded bg-secondary/60 border border-border">
+                                          <span className="text-xs font-mono font-bold text-foreground">{country.toUpperCase()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-foreground tabular-nums">{stats.users}</span>
+                                          <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-[140px]">
+                                            <div
+                                              className="h-full bg-primary/70 rounded-full transition-all"
+                                              style={{ width: `${Math.min(100, (stats.users / geoBlockMetrics.totalUsers) * 100)}%` }}
+                                            />
+                                          </div>
+                                          <span className="text-[10px] text-muted-foreground tabular-nums">
+                                            {((stats.users / geoBlockMetrics.totalUsers) * 100).toFixed(1)}%
+                                          </span>
+                                        </div>
+                                        <span className="text-xs font-mono text-muted-foreground text-right">
+                                          {stats.minLevel === stats.maxLevel ? stats.minLevel : `${stats.minLevel}–${stats.maxLevel}`}
+                                        </span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-8 gap-2">
+                          <BarChart3 className="h-8 w-8 text-muted-foreground/30" />
+                          <p className="text-sm text-muted-foreground">Save settings to generate impact metrics</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sticky save bar for mobile */}
+                <div className="sm:hidden sticky bottom-4 z-10">
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-card/95 backdrop-blur-sm px-4 py-3 shadow-lg">
+                    {settingsSaved && (
+                      <div className="flex items-center gap-1.5 text-xs text-green-400">
+                        <Check className="h-3.5 w-3.5" />
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    <div className="flex-1" />
+                    <Button
+                      disabled={settingsSaving}
+                      onClick={async () => {
+                        setSettingsSaving(true)
+                        setSettingsSaved(false)
+                        try {
+                          const data = await apiFetch(API_ENDPOINTS.adminSettings, {
+                            method: "PUT",
+                            body: JSON.stringify(panelSettings),
+                          })
+                          if (data?.settings) setPanelSettings(data.settings)
+                          setSettingsSaved(true)
+                          setTimeout(() => setSettingsSaved(false), 3000)
+                          setGeoBlockMetricsLoading(true)
+                          try {
+                            const m = await apiFetch("/api/admin/geo-block/metrics")
+                            setGeoBlockMetrics(m)
+                          } catch {
+                            // ignore
+                          } finally {
+                            setGeoBlockMetricsLoading(false)
+                          }
+                        } catch (e: any) {
+                          alert(e.message || "Failed to save settings")
+                        } finally {
+                          setSettingsSaving(false)
+                        }
+                      }}
+                      className="bg-primary text-primary-foreground"
+                      size="sm"
+                    >
+                      {settingsSaving ? (
+                        <>
+                          <div className="h-3.5 w-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
+                          Saving…
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5 mr-1.5" />
+                          Save
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -5758,8 +9364,8 @@ Content-Type: application/json
                       <button key={s} type="button"
                         onClick={() => setAddNodeSsl(s === "https")}
                         className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
-                            ? "border-primary/50 bg-primary/20 text-primary"
-                            : "border-border bg-secondary/50 text-muted-foreground"
+                          ? "border-primary/50 bg-primary/20 text-primary"
+                          : "border-border bg-secondary/50 text-muted-foreground"
                           }`}>
                         {s}
                       </button>
@@ -6959,8 +10565,8 @@ Content-Type: application/json
                 key={w}
                 onClick={() => setHeartbeatDialogWindow(w)}
                 className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground"
                   }`}
               >
                 {w === "24h" ? "Last 24 hours" : "Last 7 days"}
@@ -6978,8 +10584,8 @@ Content-Type: application/json
                 <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Uptime</p>
                   <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                      : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                        : "text-red-400"
+                    : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
+                      : "text-red-400"
                     }`}>
                     {heartbeatDialogData.summary.uptime_pct}%
                   </p>
@@ -7042,8 +10648,8 @@ Content-Type: application/json
                 key={w}
                 onClick={() => setHeartbeatDialogWindow(w)}
                 className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground"
                   }`}
               >
                 {w === "24h" ? "Last 24 hours" : "Last 7 days"}
@@ -7061,8 +10667,8 @@ Content-Type: application/json
                 <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Uptime</p>
                   <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                      : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                        : "text-red-400"
+                    : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
+                      : "text-red-400"
                     }`}>
                     {heartbeatDialogData.summary.uptime_pct}%
                   </p>

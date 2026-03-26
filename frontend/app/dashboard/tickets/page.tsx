@@ -28,6 +28,8 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("")
+  const [globalAvgResponseMs, setGlobalAvgResponseMs] = useState<number | null>(null)
+  const [globalAvgResponseSampleCount, setGlobalAvgResponseSampleCount] = useState<number>(0)
 
   const loadTickets = async () => {
     setLoading(true)
@@ -58,9 +60,36 @@ export default function TicketsPage() {
     }
   }
 
+  const loadTicketStats = async () => {
+    try {
+      const data = await apiFetch(API_ENDPOINTS.ticketsStats)
+      if (data && typeof data === 'object') {
+        setGlobalAvgResponseMs(data.avgTicketResponseMs ?? null)
+        setGlobalAvgResponseSampleCount(data.avgTicketResponseSampleCountLast30 ?? 0)
+      }
+    } catch (err) {
+      console.error("failed to load ticket stats", err)
+      setGlobalAvgResponseMs(null)
+      setGlobalAvgResponseSampleCount(0)
+    }
+  }
+
   useEffect(() => {
     loadTickets()
+    loadTicketStats()
   }, [statusFilter, priorityFilter, departmentFilter])
+
+  function formatDurationMs(ms: number | null | undefined) {
+    if (ms == null || !Number.isFinite(ms)) return "N/A"
+    if (ms < 1000) return `${ms}ms`
+    const seconds = ms / 1000
+    if (seconds < 60) return `${Math.round(seconds)}s`
+    const minutes = seconds / 60
+    if (minutes < 60) return `${minutes.toFixed(1)}m`
+    const hours = minutes / 60
+    if (hours < 24) return `${hours.toFixed(1)}h`
+    return `${(hours / 24).toFixed(1)}d`
+  }
 
   const filtered = tickets.filter(
     (t) =>
@@ -71,44 +100,6 @@ export default function TicketsPage() {
   const openCount = tickets.filter((t) => !t.archived && t.status === "open").length
   const pendingCount = tickets.filter((t) => !t.archived && t.status === "pending").length
 
-  const calculateAvgResponse = (ticketRows: any[]) => {
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-    const cutoff = Date.now() - THIRTY_DAYS_MS
-    const durations: number[] = []
-
-    for (const ticket of ticketRows) {
-      const ticketCreated = new Date(ticket.created).getTime()
-      if (Number.isNaN(ticketCreated) || ticketCreated < cutoff) continue
-      if (!Array.isArray(ticket.messages) || ticket.messages.length === 0) continue
-
-      const messages = [...ticket.messages].sort((a: any, b: any) => new Date(a.created).getTime() - new Date(b.created).getTime())
-      for (let i = 0; i < messages.length - 1; i++) {
-        const msg = messages[i]
-        const next = messages[i + 1]
-        if (msg.sender === 'user' && next.sender === 'staff') {
-          const userTs = new Date(msg.created).getTime()
-          const staffTs = new Date(next.created).getTime()
-          if (!Number.isNaN(userTs) && !Number.isNaN(staffTs) && staffTs >= userTs && userTs >= cutoff) {
-            durations.push(staffTs - userTs)
-          }
-        }
-      }
-    }
-
-    if (durations.length === 0) {
-      return null
-    }
-
-    const avgMs = durations.reduce((sum, d) => sum + d, 0) / durations.length
-    const avgHours = avgMs / (1000 * 60 * 60)
-    if (avgHours >= 1) {
-      return `${avgHours.toFixed(1)}h`
-    }
-    const avgMinutes = avgMs / (1000 * 60)
-    return `${avgMinutes.toFixed(0)}m`
-  }
-
-  const avgResponse = calculateAvgResponse(tickets)
 
   return (
     <>
@@ -125,7 +116,12 @@ export default function TicketsPage() {
             <StatCard title="Open Tickets" value={openCount} icon={AlertCircle} />
             <StatCard title="Pending Reply" value={pendingCount} icon={Clock} />
             <StatCard title="Total Tickets" value={tickets.length} icon={MessageSquare} />
-            <StatCard title="Avg Response" value={avgResponse ?? 'N/A'} icon={CheckCircle} subtitle="Last 30 days" />
+            <StatCard
+              title="Avg Response (30d)"
+              value={formatDurationMs(globalAvgResponseMs)}
+              icon={CheckCircle}
+              subtitle={globalAvgResponseSampleCount > 0 ? `Based on ${globalAvgResponseSampleCount} samples` : 'No samples in 30d'}
+            />
           </div>
 
           {/* Toolbar */}

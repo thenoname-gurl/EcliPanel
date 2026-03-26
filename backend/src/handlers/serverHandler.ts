@@ -17,6 +17,7 @@ import { SocData } from '../models/socData.entity';
 import { ServerMapping } from '../models/serverMapping.entity';
 import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
+import { getGeoBlockLevel } from '../utils/eu';
 import { t } from 'elysia';
 
 export async function serverRoutes(app: any, prefix = '') {
@@ -76,7 +77,7 @@ export async function serverRoutes(app: any, prefix = '') {
     } else if (portalType === 'paid') {
       types = ['paid', 'free_and_paid'];
     } else {
-      types = ['free'];
+      types = ['free', 'free_and_paid'];
     }
 
     for (const t of types) {
@@ -99,13 +100,13 @@ export async function serverRoutes(app: any, prefix = '') {
     const configs = isAdmin
       ? await cfgRepo.find()
       : await (async () => {
-          const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({ where: { userId: user.id } });
-          const subuserUuids = subuserEntries.map(s => s.serverUuid);
-          const where: any[] = [{ userId: user.id }];
-          if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
-          const found = await cfgRepo.find({ where });
-          return found.filter((c: any) => !c.isCodeInstance);
-        })();
+        const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({ where: { userId: user.id } });
+        const subuserUuids = subuserEntries.map(s => s.serverUuid);
+        const where: any[] = [{ userId: user.id }];
+        if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
+        const found = await cfgRepo.find({ where });
+        return found.filter((c: any) => !c.isCodeInstance);
+      })();
 
     const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
     let all: any[] = [];
@@ -243,7 +244,8 @@ export async function serverRoutes(app: any, prefix = '') {
     });
 
     return unique;
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List all servers', tags: ['Servers'] }
   });
@@ -365,7 +367,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 502;
       return { error: e.message };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Get server details by id', tags: ['Servers'] }
   });
@@ -400,9 +403,9 @@ export async function serverRoutes(app: any, prefix = '') {
       const mappingMissing = errMsg.includes('No node mapping');
       if (isAdmin && (mappingMissing || status === 404 || force)) {
         try {
-          await removeServerConfig(id).catch(() => {});
-          await nodeSvc.unmapServer(id).catch(() => {});
-        } catch {}
+          await removeServerConfig(id).catch(() => { });
+          await nodeSvc.unmapServer(id).catch(() => { });
+        } catch { }
         await createActivityLog({
           userId: user.id,
           action: 'server:delete:force',
@@ -411,30 +414,53 @@ export async function serverRoutes(app: any, prefix = '') {
           metadata: { serverUuid: id, wingsError: e?.message || String(e), mappingMissing, status },
           ipAddress: ctx.ip,
         });
-        return { success: true, note: 'Removed local server config and mapping (force)'};
+        return { success: true, note: 'Removed local server config and mapping (force)' };
       }
 
       ctx.set.status = status === 404 ? 502 : status;
       const msg = e?.response?.data?.error || e?.message || 'Failed to delete server';
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:delete')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:delete')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete a server', tags: ['Servers'] }
   });
 
   app.post(prefix + '/servers', async (ctx: any) => {
     const user = ctx.user;
+    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
 
-    // PLEASE KEEP YOUR ACCOUHT SECURE OM<D LIKE SRS
-    if (!(user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
-      if (user.portalType !== 'free') {
+    const geoLevel = await getGeoBlockLevel(user.billingCountry);
+    if (!isAdmin && geoLevel >= 4) {
+      ctx.set.status = 403;
+      return { error: 'Server creation is disabled for your country under geo-block policy; you may still use subuser access.' };
+    }
+
+    let effectivePortalType = user.portalType;
+    const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
+    if (isDemoActive && user.demoOriginalPortalType) {
+      effectivePortalType = user.demoOriginalPortalType;
+    }
+
+    if (!isAdmin) {
+      if (geoLevel >= 3 && (effectivePortalType === 'free' || effectivePortalType === 'educational')) {
+        ctx.set.status = 403;
+        return { error: 'Your country is restricted from free and educational portal services.' };
+      }
+      if (geoLevel >= 2 && effectivePortalType === 'free') {
+        ctx.set.status = 403;
+        return { error: 'Your country is restricted from free portal services.' };
+      }
+
+      if (effectivePortalType !== 'free') {
         if (!user.emailVerified) {
           ctx.set.status = 403;
           return { error: 'You must verify your email before creating servers' };
         }
-        const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-        const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
+        const passkeyCount = await AppDataSource.getRepository(
+          require('../models/passkey.entity').Passkey
+        ).count({ where: { user: { id: user.id } } });
         if (passkeyCount === 0) {
           ctx.set.status = 403;
           return { error: 'You must register a passkey before creating servers' };
@@ -445,18 +471,11 @@ export async function serverRoutes(app: any, prefix = '') {
     const body = ctx.body as any;
     let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu } = body;
 
-    const ownerId: number = (userId && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*'))
-      ? userId
-      : user.id;
+    const ownerId: number = (userId && isAdmin) ? userId : user.id;
 
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    let limits: { memory?: number; disk?: number; cpu?: number; serverLimit?: number } = {};
 
-    let effectivePortalType = user.portalType;
-    let limits: any = {};
     if (!isAdmin) {
-      const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
-      effectivePortalType = isDemoActive && user.demoOriginalPortalType ? user.demoOriginalPortalType : user.portalType;
-
       if (effectivePortalType === 'enterprise' && user.nodeId) {
         const enterpriseNode = await nodeRepo().findOneBy({ id: user.nodeId });
         if (enterpriseNode) {
@@ -472,30 +491,31 @@ export async function serverRoutes(app: any, prefix = '') {
       } else {
         limits = user.limits || {};
       }
-      if (user.studentVerified && user.educationLimits) {
-        for (const [k, v] of Object.entries(user.educationLimits)) {
-          if (typeof v === 'number') {
-            limits[k] = (limits[k] || 0) + v;
-          } else {
-            limits[k] = v;
-          }
-        }
-      }
     }
 
     const memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
-    const disk   = reqDisk   != null ? Number(reqDisk)   : (limits.disk   ?? 10240);
-    const cpu    = reqCpu    != null ? Number(reqCpu)     : (limits.cpu    ?? 100);
-    let isCodeInstance = !!ctx.body?.isCodeInstance || Number(ctx.body?.eggId) === 264;
+    const disk = reqDisk != null ? Number(reqDisk) : (limits.disk ?? 10240);
+    const cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
 
-    try {
-      const settingRepo = AppDataSource.getRepository(require('../models/panelSetting.entity').PanelSetting);
+    let isCodeInstance = !!body.isCodeInstance || Number(body.eggId) === 264;
+
+    if (isCodeInstance && !isAdmin) {
+      const settingRepo = AppDataSource.getRepository(
+        require('../models/panelSetting.entity').PanelSetting
+      );
       const setting = await settingRepo.findOneBy({ key: 'codeInstancesEnabled' });
-      if (isCodeInstance && setting && setting.value === 'false' && !(user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+      if (setting?.value === 'false') {
         ctx.set.status = 403;
         return { error: 'Code instance creation is temporarily disabled by an administrator.' };
       }
-    } catch (e) { /* skip */ }
+    }
+
+    const allUserServers = !isAdmin
+      ? await cfgRepo().find({ where: { userId: ownerId } })
+      : [];
+
+    const existingCodeInstances = allUserServers.filter((s: any) => s.isCodeInstance);
+    const existingRegularServers = allUserServers.filter((s: any) => !s.isCodeInstance);
 
     if (isCodeInstance && !isAdmin) {
       const allowedPortalTypes = ['educational', 'paid', 'enterprise'];
@@ -504,29 +524,31 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: 'Code Instances are available only for educational or higher plans.' };
       }
 
-      const existingInstances = await cfgRepo().find({ where: { userId: ownerId, isCodeInstance: true } });
-      if (existingInstances.length >= 2) {
+      if (existingCodeInstances.length >= 2) {
         ctx.set.status = 403;
         return { error: 'Maximum 2 Code Instances are allowed concurrently.' };
       }
 
-      const existingMemory = existingInstances.reduce((sum, i) => sum + (i.memory || 0), 0);
-      const existingCpu = existingInstances.reduce((sum, i) => sum + (i.cpu || 0), 0);
-      const existingDisk = existingInstances.reduce((sum, i) => sum + (i.disk || 0), 0);
-      if (existingMemory + memory > 8192) {
+      const existingCIMem = existingCodeInstances.reduce((sum: number, i: any) => sum + (i.memory || 0), 0);
+      const existingCICpu = existingCodeInstances.reduce((sum: number, i: any) => sum + (i.cpu || 0), 0);
+      const existingCIDisk = existingCodeInstances.reduce((sum: number, i: any) => sum + (i.disk || 0), 0);
+
+      if (existingCIMem + memory > 8192) {
         ctx.set.status = 403;
         return { error: 'Total Code Instance memory limit is 8192 MB.' };
       }
-      if (existingCpu + cpu > 6) {
+      if (existingCICpu + cpu > 6) {
         ctx.set.status = 403;
         return { error: 'Total Code Instance CPU limit is 6 cores.' };
       }
-      if (existingDisk + disk > 102400) {
+      if (existingCIDisk + disk > 102400) {
         ctx.set.status = 403;
         return { error: 'Total Code Instance disk limit is 100000 MB.' };
       }
 
-      const usedMinutes = existingInstances.reduce((sum, i) => sum + (i.codeInstanceMinutesUsed || 0), 0);
+      const usedMinutes = existingCodeInstances.reduce(
+        (sum: number, i: any) => sum + (i.codeInstanceMinutesUsed || 0), 0
+      );
       if (usedMinutes >= 150 * 60) {
         ctx.set.status = 403;
         return { error: 'Monthly Code Instance usage limit of 150 hours reached.' };
@@ -535,52 +557,32 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!isAdmin) {
       if (limits.serverLimit != null && limits.serverLimit > 0) {
-        const userServerCount = await cfgRepo().countBy({ userId: ownerId, isCodeInstance: false });
-        if (userServerCount >= limits.serverLimit) {
+        if (existingRegularServers.length >= limits.serverLimit) {
           ctx.set.status = 403;
           return { error: `Server limit reached (${limits.serverLimit}). Delete an existing server to create a new one.` };
         }
       }
 
-      try {
-        const existingServers = await cfgRepo().find({ where: { userId: ownerId, isCodeInstance: false } });
-        const existingMemory = existingServers.reduce((sum: number, s: any) => sum + (s.memory || 0), 0);
-        const existingDisk = existingServers.reduce((sum: number, s: any) => sum + (s.disk || 0), 0);
-        const existingCpu = existingServers.reduce((sum: number, s: any) => sum + (s.cpu || 0), 0);
+      const existingMemory = existingRegularServers.reduce((sum: number, s: any) => sum + (s.memory || 0), 0);
+      const existingDisk = existingRegularServers.reduce((sum: number, s: any) => sum + (s.disk || 0), 0);
+      const existingCpu = existingRegularServers.reduce((sum: number, s: any) => sum + (s.cpu || 0), 0);
 
-        if (limits.memory != null && existingMemory + memory > limits.memory) {
-          ctx.set.status = 400;
-          return { error: `Total account memory limit exceeded. Current: ${existingMemory} MB, requested: ${memory} MB, limit: ${limits.memory} MB.` };
-        }
-        if (limits.disk != null && existingDisk + disk > limits.disk) {
-          ctx.set.status = 400;
-          return { error: `Total account disk limit exceeded. Current: ${existingDisk} MB, requested: ${disk} MB, limit: ${limits.disk} MB.` };
-        }
-        if (limits.cpu != null && existingCpu + cpu > limits.cpu) {
-          ctx.set.status = 400;
-          return { error: `Total account CPU limit exceeded. Current: ${existingCpu}%, requested: ${cpu}%, limit: ${limits.cpu}%.` };
-        }
-      } catch (e) {
-        // skip
-      }
-
-      if (limits.memory != null && memory > limits.memory) {
+      if (limits.memory != null && existingMemory + memory > limits.memory) {
         ctx.set.status = 400;
-        return { error: `Requested memory (${memory} MB) exceeds your account limit of ${limits.memory} MB.` };
+        return { error: `Total account memory limit exceeded. Current: ${existingMemory} MB, requested: ${memory} MB, limit: ${limits.memory} MB.` };
       }
-      if (limits.disk != null && disk > limits.disk) {
+      if (limits.disk != null && existingDisk + disk > limits.disk) {
         ctx.set.status = 400;
-        return { error: `Requested disk (${disk} MB) exceeds your account limit of ${limits.disk} MB.` };
+        return { error: `Total account disk limit exceeded. Current: ${existingDisk} MB, requested: ${disk} MB, limit: ${limits.disk} MB.` };
       }
-      if (limits.cpu != null && cpu > limits.cpu) {
+      if (limits.cpu != null && existingCpu + cpu > limits.cpu) {
         ctx.set.status = 400;
-        return { error: `Requested CPU (${cpu}%) exceeds your account limit of ${limits.cpu}%.` };
+        return { error: `Total account CPU limit exceeded. Current: ${existingCpu}%, requested: ${cpu}%, limit: ${limits.cpu}%.` };
       }
     }
 
     if (isCodeInstance) {
-      eggId = 264; 
-      //Note for future me: 264 is eggId of Code-Server, uh for people who self host this hf finding out ur egg id and replacing it
+      eggId = 264;
     }
 
     if (!eggId) {
@@ -598,7 +600,6 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Egg not available' };
     }
 
-    // Restrict eggs to specific portals if configured
     if (!isAdmin && Array.isArray((egg as any).allowedPortals) && (egg as any).allowedPortals.length > 0) {
       const allowed = (egg as any).allowedPortals as string[];
       const isEducational = effectivePortalType === 'educational';
@@ -617,15 +618,15 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: e.message };
     }
 
-    const nodeMemoryLimit = node.memory != null ? Number(node.memory) : undefined;
-    const nodeDiskLimit = node.disk != null ? Number(node.disk) : undefined;
-    const nodeCpuLimit = node.cpu != null ? Number(node.cpu) : undefined;
-
-    const effectiveMemoryLimit = limits.memory != null ? Number(limits.memory) : nodeMemoryLimit;
-    const effectiveDiskLimit = limits.disk != null ? Number(limits.disk) : nodeDiskLimit;
-    const effectiveCpuLimit = limits.cpu != null ? Number(limits.cpu) : nodeCpuLimit;
-
     if (!isAdmin) {
+      const nodeMemoryLimit = node.memory != null ? Number(node.memory) : undefined;
+      const nodeDiskLimit = node.disk != null ? Number(node.disk) : undefined;
+      const nodeCpuLimit = node.cpu != null ? Number(node.cpu) : undefined;
+
+      const effectiveMemoryLimit = limits.memory ?? nodeMemoryLimit;
+      const effectiveDiskLimit = limits.disk ?? nodeDiskLimit;
+      const effectiveCpuLimit = limits.cpu ?? nodeCpuLimit;
+
       if (effectiveMemoryLimit != null && memory > effectiveMemoryLimit) {
         ctx.set.status = 400;
         return { error: `Requested memory (${memory} MB) exceeds the maximum allowed (${effectiveMemoryLimit} MB).` };
@@ -638,25 +639,16 @@ export async function serverRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: `Requested CPU (${cpu}%) exceeds the maximum allowed (${effectiveCpuLimit}%).` };
       }
-
-      if (effectiveMemoryLimit == null && nodeMemoryLimit != null && memory > nodeMemoryLimit) {
-        ctx.set.status = 400;
-        return { error: `Requested memory (${memory} MB) exceeds node capacity (${nodeMemoryLimit} MB).` };
-      }
-      if (effectiveDiskLimit == null && nodeDiskLimit != null && disk > nodeDiskLimit) {
-        ctx.set.status = 400;
-        return { error: `Requested disk (${disk} MB) exceeds node capacity (${nodeDiskLimit} MB).` };
-      }
-      if (effectiveCpuLimit == null && nodeCpuLimit != null && cpu > nodeCpuLimit) {
-        ctx.set.status = 400;
-        return { error: `Requested CPU (${cpu}%) exceeds node capacity (${nodeCpuLimit}%).` };
-      }
     }
 
     let autoAllocation: Record<string, any> | null = null;
     if (node.portRangeStart && node.portRangeEnd) {
       const bindIp = node.defaultIp || '0.0.0.0';
-      const nodeConfigs = await cfgRepo().find({ where: { nodeId: node.id } });
+      const nodeConfigs = await cfgRepo().find({
+        where: { nodeId: node.id },
+        select: ['allocations'],
+      });
+
       const takenPorts = new Set<number>();
       for (const c of nodeConfigs) {
         const alloc = c.allocations as any;
@@ -666,12 +658,18 @@ export async function serverRoutes(app: any, prefix = '') {
           for (const p of ports) takenPorts.add(Number(p));
         }
       }
+
       for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
         if (!takenPorts.has(p)) {
-          autoAllocation = { default: { ip: bindIp, port: p }, mappings: { [bindIp]: [p] }, owners: { [`${bindIp}:${p}`]: ownerId } } as any;
+          autoAllocation = {
+            default: { ip: bindIp, port: p },
+            mappings: { [bindIp]: [p] },
+            owners: { [`${bindIp}:${p}`]: ownerId },
+          };
           break;
         }
       }
+
       if (!autoAllocation) {
         ctx.set.status = 503;
         return { error: 'No free ports available on this node. Contact an administrator.' };
@@ -681,9 +679,9 @@ export async function serverRoutes(app: any, prefix = '') {
     const serverUuid = uuidv4();
 
     const envObject: Record<string, string> = {};
-    for (const entry of ((egg.envVars || []) as any[])) {
+    for (const entry of (egg.envVars || []) as any[]) {
       if (typeof entry === 'string') {
-        const [k, ...rest] = (entry as string).split('=');
+        const [k, ...rest] = entry.split('=');
         if (k) envObject[k.trim()] = rest.join('=').trim();
       } else if (entry && typeof entry === 'object') {
         const k = entry.env_variable || entry.key || entry.name;
@@ -691,13 +689,13 @@ export async function serverRoutes(app: any, prefix = '') {
         if (k) envObject[String(k)] = String(v);
       }
     }
-    const envOverrides: Record<string, string> = (ctx.body as any).environment || {};
+
+    const envOverrides: Record<string, string> = body.environment || {};
     Object.assign(envObject, envOverrides);
 
-    // fun fact I have no idea how this works but it works so dont touch it
     const resolvedStartup = egg.startup.replace(
       /\{\{([^}]+)\}\}/g,
-      (_, varName: string) => envObject[varName.trim()] ?? '',
+      (_: string, varName: string) => envObject[varName.trim()] ?? '',
     );
 
     const wingsPayload = {
@@ -720,10 +718,6 @@ export async function serverRoutes(app: any, prefix = '') {
       ...(name ? { name } : {}),
     };
 
-    // Wings will immediately call back GET /remote/servers/:uuid to validate
-    // the server config. If we save after the Wings call, that remote request
-    // returns 404 and Wings aborts with a 500.
-    // Yeah wings are weird..
     await nodeSvc.mapServer(serverUuid, node.id);
     await saveServerConfig({
       uuid: serverUuid,
@@ -742,22 +736,44 @@ export async function serverRoutes(app: any, prefix = '') {
       ...(autoAllocation ? { allocations: autoAllocation } : {}),
     });
 
-          const base = (node as any).backendWingsUrl || node.url;
-          const svc = new WingsApiService(base, node.token);
+    const base = (node as any).backendWingsUrl || node.url;
+    const svc = new WingsApiService(base, node.token);
+
     try {
       const res = await svc.createServer(wingsPayload);
-      await createActivityLog({ userId: ownerId, action: 'server:create', targetId: serverUuid, targetType: 'server', metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu }, ipAddress: ctx.ip });
+
+      await createActivityLog({
+        userId: ownerId,
+        action: 'server:create',
+        targetId: serverUuid,
+        targetType: 'server',
+        metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu },
+        ipAddress: ctx.ip,
+      });
+
       return { uuid: serverUuid, nodeId: node.id, ...res.data };
     } catch (e: any) {
-      await removeServerConfig(serverUuid).catch(() => {});
-      await nodeSvc.unmapServer(serverUuid).catch(() => {});
+      await Promise.allSettled([
+        removeServerConfig(serverUuid),
+        nodeSvc.unmapServer(serverUuid),
+      ]);
       ctx.set.status = 502;
       return { error: `Wings rejected the create request: ${e.message}` };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:create')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Create a new server', tags: ['Servers'] }
+  }, {
+    beforeHandle: [authenticate, authorize('servers:create')],
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+      502: t.Object({ error: t.String() }),
+      503: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Create a new server', tags: ['Servers'] },
   });
+
   app.put(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { memory, disk, cpu, swap, environment, name } = ctx.body as any;
@@ -795,7 +811,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 502;
       return { error: e.message };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Update server settings', tags: ['Servers'] }
   });
@@ -804,7 +821,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     try {
       const svc = await serviceFor(id);
-      await svc.powerServer(id, 'kill').catch(() => {});
+      await svc.powerServer(id, 'kill').catch(() => { });
       await svc.syncServer(id, { suspended: true });
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
       await cfgRepo.update({ uuid: id }, { suspended: true });
@@ -815,7 +832,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 502;
       return { error: e.message };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Suspend a server', tags: ['Servers'] }
   });
@@ -834,7 +852,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 502;
       return { error: e.message };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Unsuspend a server', tags: ['Servers'] }
   });
@@ -859,7 +878,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:power')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:power')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Perform power action on server', tags: ['Servers'] }
   });
@@ -873,7 +893,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     await createActivityLog({ userId: user.id, action: `server:kvm:${enable ? 'enable' : 'disable'}`, targetId: id, targetType: 'server', metadata: { kvmEnabled: enable }, ipAddress: ctx.ip });
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('servers:kvm')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:kvm')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Toggle server KVM', tags: ['Servers'] }
   });
@@ -909,7 +930,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'List directory contents', tags: ['Servers'] }
   });
@@ -927,7 +949,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Read file contents', tags: ['Servers'] }
   });
@@ -950,7 +973,7 @@ export async function serverRoutes(app: any, prefix = '') {
             ctx.set.header('Content-Type', contentType);
             ctx.set.header('Content-Disposition', disposition);
           } else if (ctx.set && typeof ctx.set === 'object') {
-            try { (ctx.set as any).headers = { ...(ctx.set as any).headers, 'Content-Type': contentType, 'Content-Disposition': disposition }; } catch {}
+            try { (ctx.set as any).headers = { ...(ctx.set as any).headers, 'Content-Type': contentType, 'Content-Disposition': disposition }; } catch { }
           }
         } catch (err) {
           // skip
@@ -963,7 +986,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Download file', tags: ['Servers'] }
   });
@@ -994,7 +1018,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Write file', tags: ['Servers'] }
   });
@@ -1032,7 +1057,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete file(s)', tags: ['Servers'] }
   });
@@ -1055,7 +1081,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Create directory', tags: ['Servers'] }
   });
@@ -1077,7 +1104,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Archive files', tags: ['Servers'] }
   });
@@ -1100,7 +1128,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Rename files', tags: ['Servers'] }
   });
@@ -1133,7 +1162,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Move files', tags: ['Servers'] }
   });
@@ -1165,7 +1195,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('files:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Change file permissions', tags: ['Servers'] }
   });
@@ -1178,12 +1209,12 @@ export async function serverRoutes(app: any, prefix = '') {
     try {
       const svc = await serviceFor(id);
       const res = await svc.listServerBackups(id);
-      try { (app as any).log?.info?.({ serverUuid: id, remoteCount: Array.isArray(res.data) ? res.data.length : 0 }, 'server: listServerBackups response'); } catch {}
+      try { (app as any).log?.info?.({ serverUuid: id, remoteCount: Array.isArray(res.data) ? res.data.length : 0 }, 'server: listServerBackups response'); } catch { }
       if (Array.isArray(res.data) && res.data.length) return res.data;
       try {
         const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
         const records = await repo.find({ where: { serverUuid: id }, order: { createdAt: 'DESC' } });
-        try { (app as any).log?.info?.({ serverUuid: id, localCount: records.length, uuids: records.map((r:any)=>r.uuid) }, 'server: falling back to local persisted backup records'); } catch {}
+        try { (app as any).log?.info?.({ serverUuid: id, localCount: records.length, uuids: records.map((r: any) => r.uuid) }, 'server: falling back to local persisted backup records'); } catch { }
         return records.map((r: any) => ({
           uuid: r.uuid,
           name: r.name,
@@ -1196,14 +1227,15 @@ export async function serverRoutes(app: any, prefix = '') {
           status: r.status ?? null,
         }));
       } catch (e) {
-        try { (app as any).log?.warn?.({ err: e, serverUuid: id }, 'server: failed to read local backup records'); } catch {}
+        try { (app as any).log?.warn?.({ err: e, serverUuid: id }, 'server: failed to read local backup records'); } catch { }
         return [];
       }
     } catch (e: any) {
       if (e?.response?.status === 404) return [];
       throw e;
     }
-  }, { beforeHandle: [authenticate, authorize('backups:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('backups:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List backups', tags: ['Servers'] }
   });
@@ -1236,9 +1268,9 @@ export async function serverRoutes(app: any, prefix = '') {
         const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
         const record = repo.create({ uuid, serverUuid: id, adapter, name: (res?.data?.name) || undefined });
         await repo.save(record);
-        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: uuid }, 'server: created backup and persisted local record'); } catch {}
+        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: uuid }, 'server: created backup and persisted local record'); } catch { }
       } catch (e) {
-        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: uuid }, 'server: failed to persist created backup record'); } catch {}
+        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: uuid }, 'server: failed to persist created backup record'); } catch { }
       }
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
@@ -1252,7 +1284,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('backups:create')],
+  }, {
+    beforeHandle: [authenticate, authorize('backups:create')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Create backup', tags: ['Servers'] }
   });
@@ -1277,7 +1310,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('backups:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('backups:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Restore backup', tags: ['Servers'] }
   });
@@ -1300,14 +1334,14 @@ export async function serverRoutes(app: any, prefix = '') {
       } catch (e) {
         // skip
       }
-      try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: attempting to delete backup on node'); } catch {}
+      try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: attempting to delete backup on node'); } catch { }
       const res = await svc.serverRequest(id, `/backup/${bid}`, 'delete', { adapter });
       try {
         const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
         await repo.delete({ uuid: bid });
-        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: deleted local persisted backup record'); } catch {}
+        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: deleted local persisted backup record'); } catch { }
       } catch (e) {
-        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: bid }, 'server: failed to delete local persisted backup record'); } catch {}
+        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: bid }, 'server: failed to delete local persisted backup record'); } catch { }
       }
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
@@ -1320,7 +1354,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: msg };
     }
-  }, { beforeHandle: [authenticate, authorize('backups:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('backups:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete backup', tags: ['Servers'] }
   });
@@ -1375,7 +1410,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     await createActivityLog({ userId: user.id, action: 'server:console:command', targetId: id, targetType: 'server', metadata: { command }, ipAddress: ctx.ip });
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('commands:execute')],
+  }, {
+    beforeHandle: [authenticate, authorize('commands:execute')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Execute server command', tags: ['Servers'] }
   });
@@ -1410,9 +1446,10 @@ export async function serverRoutes(app: any, prefix = '') {
       if (e?.response?.status === 404) return [];
       throw e;
     }
-  }, { beforeHandle: [authenticate, authorize('logs:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('logs:read')],
     response: { 200: t.Array(t.String()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch server logs', tags: ['Servers','Logs'] }
+    detail: { summary: 'Fetch server logs', tags: ['Servers', 'Logs'] }
   });
 
   app.post(prefix + '/servers/:id/reinstall', async (ctx: any) => {
@@ -1423,7 +1460,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     await createActivityLog({ userId: user.id, action: 'server:reinstall', targetId: id, targetType: 'server', ipAddress: ctx.ip });
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('reinstall:execute')],
+  }, {
+    beforeHandle: [authenticate, authorize('reinstall:execute')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Reinstall server', tags: ['Servers'] }
   });
@@ -1432,7 +1470,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     return cfg?.schedules ?? [];
-  }, { beforeHandle: [authenticate, authorize('schedules:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('schedules:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List schedules', tags: ['Servers'] }
   });
@@ -1460,7 +1499,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const schedules = [...(cfg.schedules ?? []), schedule];
     await cfgRepo().update({ uuid: id }, { schedules } as any);
     return schedule;
-  }, { beforeHandle: [authenticate, authorize('schedules:create')],
+  }, {
+    beforeHandle: [authenticate, authorize('schedules:create')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Create schedule', tags: ['Servers'] }
   });
@@ -1475,7 +1515,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const schedules = (cfg.schedules ?? []).filter((s: any) => s.id !== sid);
     await cfgRepo().update({ uuid: id }, { schedules } as any);
     return { success: true };
-  }, { beforeHandle: [authenticate, authorize('schedules:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('schedules:write')],
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete schedule', tags: ['Servers'] }
   });
@@ -1486,7 +1527,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.syncServer(id, payload);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('sync:execute')],
+  }, {
+    beforeHandle: [authenticate, authorize('sync:execute')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Sync server', tags: ['Servers'] }
   });
@@ -1554,7 +1596,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = status;
       return { error: message };
     }
-  }, { beforeHandle: [authenticate, authorize('transfer:execute')],
+  }, {
+    beforeHandle: [authenticate, authorize('transfer:execute')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Transfer server', tags: ['Servers'] }
   });
@@ -1564,7 +1607,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.getServerVersion(id);
     return res.data ?? {};
-  }, { beforeHandle: [authenticate, authorize('version:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('version:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Get server software version', tags: ['Servers'] }
   });
@@ -1579,7 +1623,8 @@ export async function serverRoutes(app: any, prefix = '') {
       if (e?.response?.status === 404) return { error: 'Not supported' };
       throw e;
     }
-  }, { beforeHandle: [authenticate, authorize('servers:console')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:console')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Access server console', tags: ['Servers'] }
   });
@@ -1608,7 +1653,8 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
     return result;
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List network allocations', tags: ['Servers'] }
   });
@@ -1708,7 +1754,8 @@ export async function serverRoutes(app: any, prefix = '') {
     await cfgRepo().save(cfg);
 
     return newPorts.map(x => ({ ip: x.ip, port: x.port, is_default: false }));
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 503: t.Object({ error: t.String() }) },
     detail: { summary: 'Request additional network allocations for server (per-account limit)', tags: ['Servers'] }
   });
@@ -1774,7 +1821,8 @@ export async function serverRoutes(app: any, prefix = '') {
     await cfgRepo().save(cfg);
 
     return { success: true };
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete a network allocation from a server', tags: ['Servers'] }
   });
@@ -1790,7 +1838,8 @@ export async function serverRoutes(app: any, prefix = '') {
         if (e?.response?.status === 404) return [];
         throw e;
       }
-    }, { beforeHandle: [authenticate, authorize('servers:read')],
+    }, {
+      beforeHandle: [authenticate, authorize('servers:read')],
       response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
       detail: { summary: `Get server ${sub}`, tags: ['Servers'] }
     });
@@ -1801,7 +1850,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const socRepo = AppDataSource.getRepository(SocData);
     const latest = await socRepo.findOne({ where: { serverId: id }, order: { timestamp: 'DESC' } });
     return latest?.metrics ?? {};
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Latest server stats', tags: ['Servers'] }
   });
@@ -1819,7 +1869,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 500;
       return { error: 'Unable to build historical stats' };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Historical stats', tags: ['Servers'] }
   });
@@ -1847,7 +1898,8 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 502;
       return { error: 'Unable to retrieve node stats' };
     }
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Node-level stats', tags: ['Servers'] }
   });
@@ -1857,7 +1909,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/configuration');
     return res.data ?? {};
-  }, { beforeHandle: [authenticate, authorize('configuration:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('configuration:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Server configuration', tags: ['Servers'] }
   });
@@ -1867,7 +1920,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/script', 'post', ctx.body);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Run script', tags: ['Servers'] }
   });
@@ -1877,7 +1931,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/ws/permissions', 'post', ctx.body);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Set WS permissions', tags: ['Servers'] }
   });
@@ -1887,7 +1942,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/ws/broadcast', 'post', ctx.body);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Broadcast WS message', tags: ['Servers'] }
   });
@@ -1897,7 +1953,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/install/abort', 'post');
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Abort install', tags: ['Servers'] }
   });
@@ -1907,9 +1964,10 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/logs/install');
     return res.data ?? [];
-  }, { beforeHandle: [authenticate, authorize('logs:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('logs:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch install logs', tags: ['Servers','Logs'] }
+    detail: { summary: 'Fetch install logs', tags: ['Servers', 'Logs'] }
   });
 
   app.get(prefix + '/servers/:id/configuration/egg', async (ctx: any) => {
@@ -1917,7 +1975,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/configuration/egg');
     return res.data ?? {};
-  }, { beforeHandle: [authenticate, authorize('configuration:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('configuration:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Egg-specific configuration', tags: ['Servers'] }
   });
@@ -1928,7 +1987,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
     const res = await svc.serverRequest(id, '/configuration/egg', 'put', payload);
     return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, { beforeHandle: [authenticate, authorize('configuration:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('configuration:write')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Update egg configuration', tags: ['Servers'] }
   });
@@ -1961,7 +2021,8 @@ export async function serverRoutes(app: any, prefix = '') {
         },
       },
     };
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get startup configuration', tags: ['Servers'] }
   });
@@ -2019,7 +2080,8 @@ export async function serverRoutes(app: any, prefix = '') {
     cfg.environment = merged;
     await cfgRepo().save(cfg);
     return { success: true, environment: merged, processConfig: (cfg as any).processConfig };
-  }, { beforeHandle: [authenticate, authorize('servers:write')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Update startup configuration', tags: ['Servers'] }
   });
@@ -2033,7 +2095,8 @@ export async function serverRoutes(app: any, prefix = '') {
     const mountIds = links.map(l => l.mountId);
     const mounts = await mountRepo.findBy({ id: In(mountIds) });
     return mounts;
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List server mounts', tags: ['Servers'] }
   });
@@ -2134,7 +2197,8 @@ export async function serverRoutes(app: any, prefix = '') {
         socket: wsUrl,
       },
     };
-  }, { beforeHandle: [authenticate, authorize('servers:console')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:console')],
     response: { 200: t.Object({ data: t.Object({ token: t.String(), socket: t.String() }) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Websocket auth token', tags: ['Servers'] }
   });
@@ -2158,7 +2222,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const urlObj = (() => { try { return new URL(node.url); } catch { return null; } })();
     const nodeHost = urlObj?.hostname || node.url;
 
-    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/,'');
+    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
     const backendHost = backendBase
       ? ((() => { try { return new URL(backendBase).hostname; } catch { return backendBase; } })())
       : null;
@@ -2178,7 +2242,8 @@ export async function serverRoutes(app: any, prefix = '') {
       username,
       proxied: !!node.sftpProxyPort,
     };
-  }, { beforeHandle: [authenticate, authorize('servers:read')],
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Object({ host: t.String(), port: t.Number(), username: t.String(), proxied: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Get SFTP connection info', tags: ['Servers'] }
   });
@@ -2203,9 +2268,10 @@ export async function serverRoutes(app: any, prefix = '') {
       createdAt: cfg.createdAt,
       codeInstanceMinutesUsed: cfg.codeInstanceMinutesUsed,
     }));
-  }, { beforeHandle: [authenticate],
-      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
-      detail: { summary: 'List code instances for the current user', tags: ['Code Instances'] }
+  }, {
+    beforeHandle: [authenticate],
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List code instances for the current user', tags: ['Code Instances'] }
   });
 
   app.post(prefix + '/infrastructure/code-instances/:uuid/ping', async (ctx: any) => {
@@ -2227,9 +2293,10 @@ export async function serverRoutes(app: any, prefix = '') {
 
     await createActivityLog({ userId: user.id, action: 'codeInstance:ping', targetId: uuid, targetType: 'code-instance', ipAddress: ctx.ip });
     return { success: true };
-  }, { beforeHandle: [authenticate],
-      response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-      detail: { summary: 'Ping code instance activity', tags: ['Code Instances'] }
+  }, {
+    beforeHandle: [authenticate],
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Ping code instance activity', tags: ['Code Instances'] }
   });
 
   app.post(prefix + '/infrastructure/code-instances/:uuid/stop', async (ctx: any) => {
@@ -2248,19 +2315,20 @@ export async function serverRoutes(app: any, prefix = '') {
 
     try {
       const svc = await serviceFor(uuid);
-      await svc.powerServer(uuid, 'stop').catch(() => {});
-      await svc.serverRequest(uuid, '', 'delete').catch(() => {});
+      await svc.powerServer(uuid, 'stop').catch(() => { });
+      await svc.serverRequest(uuid, '', 'delete').catch(() => { });
     } catch (e: any) {
       // skip
     }
 
-    await removeServerConfig(uuid).catch(() => {});
-    await nodeSvc.unmapServer(uuid).catch(() => {});
+    await removeServerConfig(uuid).catch(() => { });
+    await nodeSvc.unmapServer(uuid).catch(() => { });
 
     await createActivityLog({ userId: user.id, action: 'codeInstance:stop', targetId: uuid, targetType: 'code-instance', ipAddress: ctx.ip });
     return { success: true };
-  }, { beforeHandle: [authenticate],
-      response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-      detail: { summary: 'Stop and delete code instance', tags: ['Code Instances'] }
+  }, {
+    beforeHandle: [authenticate],
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Stop and delete code instance', tags: ['Code Instances'] }
   });
 }

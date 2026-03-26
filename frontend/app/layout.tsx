@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { Suspense } from 'react'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -32,6 +33,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { Footer } from "@/components/Footer";
 import { RenderLogger } from "@/components/RenderLogger";
 import { THEMES } from "@/lib/themes";
+import GlobalQueryBanner from "@/components/GlobalQueryBanner";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const themesMap = Object.fromEntries(
@@ -78,6 +80,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
         <AuthProvider>
+          <Suspense fallback={null}>
+            <GlobalQueryBanner />
+          </Suspense>
           <RenderLogger />
           <div className="flex-1 flex flex-col min-w-0">{children}</div>
           <Footer hideOnDashboard />

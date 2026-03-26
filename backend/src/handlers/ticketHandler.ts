@@ -37,6 +37,31 @@ export async function ticketRoutes(app: any, prefix = '') {
     } catch (e) { return String(s); }
   }
 
+  function getTicketResponseDurations(ticket: any): number[] {
+    const records = Array.isArray(ticket.messages) ? ticket.messages : [];
+    const sorted = records
+      .map((m: any) => ({ sender: m.sender, created: new Date(m.created) }))
+      .filter((m: any) => m.created instanceof Date && !Number.isNaN(m.created.getTime()))
+      .sort((a: any, b: any) => a.created.getTime() - b.created.getTime());
+
+    const durations: number[] = [];
+    let lastUserMessage: Date | null = null;
+
+    for (const msg of sorted) {
+      if (msg.sender === 'user') {
+        lastUserMessage = msg.created;
+        continue;
+      }
+      if (msg.sender === 'staff' && lastUserMessage) {
+        const diff = msg.created.getTime() - lastUserMessage.getTime();
+        if (diff >= 0) durations.push(diff);
+        lastUserMessage = null;
+      }
+    }
+
+    return durations;
+  }
+
   function extractEndpoints(model: any): Array<{ base: string; apiKey?: string; id?: string }> {
     const list: Array<{ base: string; apiKey?: string; id?: string }> = [];
     try {
@@ -829,6 +854,52 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List tickets', tags: ['Tickets'] }
+  });
+
+  app.get(prefix + '/tickets/stats', async (ctx: any) => {
+    const allTickets = await repo.find();
+    const nonSpam = allTickets.filter((t: any) => !(t as any).aiMarkedSpam);
+
+    const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - WINDOW_MS;
+    const recentTickets = nonSpam.filter((t: any) => {
+      const created = new Date(t.created).getTime();
+      const updated = new Date(t.updatedAt || t.created).getTime();
+      return (!Number.isNaN(created) && created >= cutoff) || (!Number.isNaN(updated) && updated >= cutoff);
+    });
+
+    const responseDurationsLast30 = recentTickets.flatMap((t: any) => getTicketResponseDurations(t));
+    const responseDurationsAll = nonSpam.flatMap((t: any) => getTicketResponseDurations(t));
+
+    const avgTicketResponseMsLast30 = responseDurationsLast30.length > 0
+      ? Math.round(responseDurationsLast30.reduce((acc: number, v: number) => acc + v, 0) / responseDurationsLast30.length)
+      : null;
+
+    const avgTicketResponseMsGlobal = responseDurationsAll.length > 0
+      ? Math.round(responseDurationsAll.reduce((acc: number, v: number) => acc + v, 0) / responseDurationsAll.length)
+      : null;
+
+    return {
+      avgTicketResponseMs: avgTicketResponseMsLast30,
+      avgTicketResponseMsLast30,
+      avgTicketResponseSampleCountLast30: responseDurationsLast30.length,
+      avgTicketResponseMsGlobal,
+      avgTicketResponseSampleCountGlobal: responseDurationsAll.length,
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({
+        avgTicketResponseMs: t.Optional(t.Number()),
+        avgTicketResponseMsLast30: t.Optional(t.Number()),
+        avgTicketResponseSampleCountLast30: t.Number(),
+        avgTicketResponseMsGlobal: t.Optional(t.Number()),
+        avgTicketResponseSampleCountGlobal: t.Number(),
+      }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Get ticket response metrics', tags: ['Tickets'] }
   });
 
   app.post(prefix + '/tickets', async (ctx: any) => {

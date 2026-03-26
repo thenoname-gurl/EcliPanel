@@ -374,7 +374,11 @@ export default function IdentityPage() {
                   <p className="text-xs text-muted-foreground">Email</p>
                   <p className="text-sm font-medium text-foreground">{user?.email}</p>
                 </div>
-                <CheckCircle className="ml-auto h-4 w-4 text-success" />
+                {user?.emailVerified ? (
+                  <CheckCircle className="ml-auto h-4 w-4 text-success" />
+                ) : (
+                  <AlertTriangle className="ml-auto h-4 w-4 text-warning" />
+                )}
               </div>
               <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
                 <Shield className="h-5 w-5 text-muted-foreground" />

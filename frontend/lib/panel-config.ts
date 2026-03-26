@@ -229,6 +229,7 @@ export const API_ENDPOINTS = {
 
   // Tickets
   tickets: "/api/tickets",
+  ticketsStats: "/api/tickets/stats",
   ticketDetail: "/api/tickets/:id",
   ticketReply: "/api/tickets/:id/reply",
   ticketCreate: "/api/tickets/create",

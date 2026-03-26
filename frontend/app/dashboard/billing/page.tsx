@@ -32,6 +32,17 @@ export default function BillingPage() {
   const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
   const [demoUsed, setDemoUsed] = useState(false)
 
+  const portalMarkerByTier: Record<string, string> = {
+    free: "Free Portal",
+    paid: "Paid Portal",
+    educational: "Educational Portal",
+    enterprise: "Enterprise Portal",
+  }
+  const getPortalMarker = (tier?: string) => {
+    if (!tier) return "Free Portal"
+    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
+  }
+
   const userPlanType = (user?.portalType ?? user?.tier ?? 'free').toString().toLowerCase()
   const activeTierRaw = (activePlan?.plan?.type ?? userPlanType).toString().toLowerCase()
   const activeTierEffective = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
@@ -53,16 +64,6 @@ export default function BillingPage() {
         ? '$12.00'
         : 'Custom'
   const activePlanExpires = activePlan?.order?.expiresAt || null
-  const portalMarkerByTier: Record<string, string> = {
-    free: "Free Portal",
-    paid: "Paid Portal",
-    educational: "Educational Portal",
-    enterprise: "Enterprise Portal",
-  }
-  const getPortalMarker = (tier?: string) => {
-    if (!tier) return "Free Portal"
-    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
-  }
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.plans)

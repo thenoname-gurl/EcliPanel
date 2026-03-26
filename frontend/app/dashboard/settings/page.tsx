@@ -593,6 +593,11 @@ export default function SettingsPage() {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'rootAdmin' || user?.role === '*'
 
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordSaving, setPasswordSaving] = useState(false)
+
   const loadApiKeys = async () => {
     setApiLoading(true)
     try {
@@ -631,6 +636,34 @@ export default function SettingsPage() {
       loadApiKeys()
     } catch (e: any) {
       alert('Failed: ' + e.message)
+    }
+  }
+
+  const updatePassword = async () => {
+    if (!user?.id) return;
+    if (!currentPassword) return alert('Please enter your current password.');
+    if (!newPassword) return alert('Please enter a new password.');
+    if (newPassword.length < 8) return alert('New password must be at least 8 characters.');
+    if (newPassword !== confirmPassword) return alert('New password and confirmation do not match.');
+
+    setPasswordSaving(true);
+    try {
+      await apiFetch(API_ENDPOINTS.userDetail.replace(':id', String(user.id)), {
+        method: 'PUT',
+        body: JSON.stringify({
+          password: newPassword,
+          currentPassword: currentPassword,
+        }),
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      await refreshUser();
+      alert('Password updated successfully.');
+    } catch (err: any) {
+      alert('Failed to update password: ' + (err?.message || 'unknown'));
+    } finally {
+      setPasswordSaving(false);
     }
   }
 
@@ -1063,6 +1096,8 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         placeholder="Enter current password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                         className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
                       />
                     </div>
@@ -1072,6 +1107,8 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         placeholder="Enter new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
                         className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
                       />
                     </div>
@@ -1080,13 +1117,19 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                         className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
                       />
                     </div>
                   </div>
                   <div className="mt-4 flex justify-end">
-                    <button className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-                      Update Password
+                    <button
+                      onClick={updatePassword}
+                      disabled={passwordSaving}
+                      className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {passwordSaving ? 'Updating...' : 'Update Password'}
                     </button>
                   </div>
                 </div>

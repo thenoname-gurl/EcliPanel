@@ -26,6 +26,7 @@ import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
+import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel } from '../utils/eu';
 import path from 'path';
 import fs from 'fs';
 
@@ -172,13 +173,15 @@ export async function adminRoutes(app: any, prefix = '') {
       where: [{ created: MoreThanOrEqual(since) }, { updatedAt: MoreThanOrEqual(since) }],
     });
 
-    const responseDurationsLast30 = recentTickets.flatMap((t) => getTicketResponseDurations(t));
+    const nonSpamRecentTickets = recentTickets.filter((t) => !(t as any).aiMarkedSpam);
+    const responseDurationsLast30 = nonSpamRecentTickets.flatMap((t) => getTicketResponseDurations(t));
     const avgTicketResponseMsLast30 = responseDurationsLast30.length > 0
       ? Math.round(responseDurationsLast30.reduce((acc, v) => acc + v, 0) / responseDurationsLast30.length)
       : null;
 
     const allTickets = await ticketRepo.find();
-    const responseDurationsAll = allTickets.flatMap((t) => getTicketResponseDurations(t));
+    const nonSpamAllTickets = allTickets.filter((t) => !(t as any).aiMarkedSpam);
+    const responseDurationsAll = nonSpamAllTickets.flatMap((t) => getTicketResponseDurations(t));
     const avgTicketResponseMsGlobal = responseDurationsAll.length > 0
       ? Math.round(responseDurationsAll.reduce((acc, v) => acc + v, 0) / responseDurationsAll.length)
       : null;
@@ -192,6 +195,8 @@ export async function adminRoutes(app: any, prefix = '') {
       pendingVerifications,
       pendingDeletions,
       fraudAlerts,
+      avgTicketResponseMs: avgTicketResponseMsLast30,
+      avgTicketResponseSampleCount: responseDurationsLast30.length,
       avgTicketResponseMsLast30,
       avgTicketResponseSampleCountLast30: responseDurationsLast30.length,
       avgTicketResponseMsGlobal,
@@ -209,6 +214,8 @@ export async function adminRoutes(app: any, prefix = '') {
         pendingVerifications: t.Number(),
         pendingDeletions: t.Number(),
         fraudAlerts: t.Number(),
+        avgTicketResponseMs: t.Optional(t.Number()),
+        avgTicketResponseSampleCount: t.Optional(t.Number()),
         avgTicketResponseMsLast30: t.Optional(t.Number()),
         avgTicketResponseSampleCountLast30: t.Optional(t.Number()),
         avgTicketResponseMsGlobal: t.Optional(t.Number()),
@@ -1917,16 +1924,16 @@ export async function adminRoutes(app: any, prefix = '') {
       const logs = await qb.skip((p - 1) * perNum).take(perNum).getMany();
 
       const userIds = [...new Set(logs.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
-      const userMap: Record<number, { username: string; email: string }> = {};
+      const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
       if (userIds.length > 0) {
         const users = await AppDataSource.getRepository(User)
           .createQueryBuilder('u')
-          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email'])
+          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
           .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
           .getMany();
         users.forEach((u) => {
           const name = [`${u.firstName || ''}`.trim(), `${u.lastName || ''}`.trim()].filter(Boolean).join(' ').trim();
-          userMap[u.id] = { username: name || u.email || `User #${u.id}`, email: u.email };
+          userMap[u.id] = { username: name || u.email || `User #${u.id}`, email: u.email, avatarUrl: u.avatarUrl };
         });
       }
 
@@ -1945,20 +1952,27 @@ export async function adminRoutes(app: any, prefix = '') {
     const entries = await qb.skip((p - 1) * perNum).take(perNum).getMany();
 
     const userIds = [...new Set(entries.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
-    const userMap: Record<number, { username: string; email: string }> = {};
+    const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
     if (userIds.length > 0) {
       const users = await AppDataSource.getRepository(User)
         .createQueryBuilder('u')
-        .select(['u.id', 'u.firstName', 'u.lastName', 'u.email'])
+        .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
         .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
         .getMany();
-      users.forEach((u) => { userMap[u.id] = { username: `${u.firstName} ${u.lastName}`.trim(), email: u.email }; });
+      users.forEach((u) => {
+        userMap[u.id] = {
+          username: `${u.firstName} ${u.lastName}`.trim(),
+          email: u.email,
+          avatarUrl: u.avatarUrl,
+        };
+      });
     }
 
     const logs = entries.map((e) => ({
       ...e,
       username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
       email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
+      avatarUrl: e.userId === 0 ? undefined : userMap[e.userId as number]?.avatarUrl,
     }));
     return { logs, total, page: p, per: perNum };
   }, {
@@ -2287,6 +2301,7 @@ isSuspicious: true if fraudScore >= 50`;
       registrationNotice: map['registrationNotice'] || '',
       portalDescriptions: portalDescriptions || null,
       codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
+      geoBlockCountries: map['geoBlockCountries'] || '',
     };
   }, {
     response: {
@@ -2313,6 +2328,7 @@ isSuspicious: true if fraudScore >= 50`;
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
       portalDescriptions: portalDescriptions || null,
+      geoBlockCountries: map['geoBlockCountries'] || '',
     };
   }, {
     beforeHandle: authenticate,
@@ -2321,11 +2337,87 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: t.Boolean(),
         registrationNotice: t.String(),
         portalDescriptions: t.Optional(t.Any()),
+        geoBlockCountries: t.String(),
       }),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Fetch admin portal settings', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/geo-block/metrics', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const userRepo = AppDataSource.getRepository(User);
+    const users = await userRepo.find({ select: ['billingCountry'] });
+    const rules = await getGeoBlockRules();
+
+    const countryStats: Record<string, { users: number; minLevel: number; maxLevel: number }> = {};
+    let totalUsers = 0;
+    let blockedRegistration = 0;
+    let blockedIdVerification = 0;
+    let blockedFree = 0;
+    let blockedEducation = 0;
+    let blockedSubuserOnly = 0;
+
+    for (const u of users) {
+      const level = getGeoBlockLevelFromRules(u.billingCountry, rules);
+      totalUsers++;
+      const countryKey = (u.billingCountry || 'unknown').toString().trim().toLowerCase() || 'unknown';
+      if (!countryStats[countryKey]) {
+        countryStats[countryKey] = { users: 0, minLevel: Number.MAX_SAFE_INTEGER, maxLevel: 0 };
+      }
+      const c = countryStats[countryKey];
+      c.users += 1;
+      c.minLevel = Math.min(c.minLevel, level);
+      c.maxLevel = Math.max(c.maxLevel, level);
+
+      if (level >= 1) blockedIdVerification += 1;
+      if (level >= 2) blockedFree += 1;
+      if (level >= 3) blockedEducation += 1;
+      if (level === 4) blockedSubuserOnly += 1;
+      if (level >= 5) blockedRegistration += 1;
+    }
+
+    const normalizedCountryStats: Record<string, any> = {};
+    for (const [country, stats] of Object.entries(countryStats)) {
+      normalizedCountryStats[country] = {
+        users: stats.users,
+        minLevel: stats.minLevel === Number.MAX_SAFE_INTEGER ? 0 : stats.minLevel,
+        maxLevel: stats.maxLevel,
+      };
+    }
+
+    return {
+      totalUsers,
+      rules,
+      blocked: {
+        registration: blockedRegistration,
+        idVerification: blockedIdVerification,
+        free: blockedFree,
+        educational: blockedEducation,
+        subuserOnly: blockedSubuserOnly,
+      },
+      byCountry: normalizedCountryStats,
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({
+        totalUsers: t.Number(),
+        rules: t.Any(),
+        blocked: t.Object({
+          registration: t.Number(),
+          idVerification: t.Number(),
+          free: t.Number(),
+          educational: t.Number(),
+          subuserOnly: t.Number(),
+        }),
+        byCountry: t.Any(),
+      }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Retrieve Geo-block enforcement metrics', tags: ['Admin'] },
   });
 
   /**
@@ -2338,7 +2430,7 @@ isSuspicious: true if fraudScore >= 50`;
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled'];
+    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries'];
     for (const key of allowed) {
       if (body[key] !== undefined) {
         const value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
@@ -2362,6 +2454,7 @@ isSuspicious: true if fraudScore >= 50`;
         registrationNotice: map['registrationNotice'] || '',
         portalDescriptions: portalDescriptions || null,
         codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
+        geoBlockCountries: map['geoBlockCountries'] || '',
       },
     };
   }, {
@@ -2372,6 +2465,7 @@ isSuspicious: true if fraudScore >= 50`;
         registrationNotice: t.Optional(t.String()),
         portalDescriptions: t.Optional(t.Any()),
         codeInstancesEnabled: t.Optional(t.Boolean()),
+        geoBlockCountries: t.Optional(t.String()),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), settings: t.Any() }),

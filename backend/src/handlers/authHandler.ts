@@ -4,7 +4,7 @@ import { User } from '../models/user.entity';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
 import { comparePassword, hashPassword } from '../utils/password';
-import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
+import { getGeoBlockLevel, canPerformIdVerification } from '../utils/eu';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
@@ -207,6 +207,9 @@ export async function authRoutes(app: any, prefix = '') {
     }
 
 
+    const geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
+    const idVerificationAllowed = await canPerformIdVerification(user.billingCountry);
+
     ctx.log?.info?.({ userId: user.id, token: token.slice(0, 8) + '...' }, 'login succeeded, returning token');
     setAuthCookie(ctx, token);
     return {
@@ -238,6 +241,8 @@ export async function authRoutes(app: any, prefix = '') {
         orgRole: user.orgRole || 'member',
         limits: (user as any).limits || null,
         nodeId: (user as any).nodeId || null,
+        geoBlockLevel,
+        idVerificationAllowed,
       }
     };
   }, {
@@ -597,6 +602,61 @@ export async function authRoutes(app: any, prefix = '') {
       description: 'Resends the verification email to the user.',
       tags: ['Auth'],
       operationId: 'postAuthResendVerification',
+    }
+  });
+
+  app.get(prefix + '/auth/restore-email', async (ctx: any) => {
+    const { token } = ctx.query as any;
+    if (!token) {
+      ctx.set.status = 400;
+      return { error: 'Missing token' };
+    }
+
+    const data = await redisGet(`email-restore:token:${token}`);
+    if (!data) {
+      ctx.set.status = 400;
+      return { error: 'Invalid or expired token' };
+    }
+
+    let payload: any;
+    try {
+      payload = JSON.parse(data);
+    } catch (e) {
+      ctx.set.status = 400;
+      return { error: 'Invalid restore data' };
+    }
+
+    if (!payload.userId || !payload.oldEmail || !payload.newEmail) {
+      ctx.set.status = 400;
+      return { error: 'Invalid restore payload' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: Number(payload.userId) });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    user.email = payload.oldEmail;
+    user.emailVerified = true;
+
+    await userRepo.save(user);
+    await redisDel(`email-restore:token:${token}`);
+
+    const panelUrl = getPanelUrl(ctx);
+    return ctx.redirect(`${panelUrl}/dashboard?emailRestore=1`);
+  }, {
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: {
+      summary: 'Restore previous email after email change',
+      description: 'Restores old email for security after a user email change (48h window).',
+      tags: ['Auth'],
+      operationId: 'getAuthRestoreEmail',
     }
   });
 
@@ -1358,7 +1418,8 @@ export async function authRoutes(app: any, prefix = '') {
         limits: returnedLimits,
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,
-        euIdVerificationDisabled: isEUIdVerificationDisabledForCountry(user.billingCountry),
+        geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
+        idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
         demoExpiresAt: user.demoExpiresAt || null,
         demoLimits: user.demoLimits || null,
         demoUsed: user.demoUsed === true,

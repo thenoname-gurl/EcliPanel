@@ -1,12 +1,12 @@
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
-import { hashPassword } from '../utils/password';
-import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
+import { hashPassword, comparePassword } from '../utils/password';
+import { canRegister, getGeoBlockLevel } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { sendMail } from '../services/mailService';
-import { redisSet } from '../config/redis';
+import { redisSet, redisGet, redisDel } from '../config/redis';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -59,9 +59,10 @@ const userSchema = t.Object({
   avatarUrl: t.Optional(t.String()),
 });
 
-function safeUser(user: User): any {
+async function safeUser(user: User): Promise<any> {
   const { passwordHash, sessions, ...safe } = user as any;
-  safe.euIdVerificationDisabled = isEUIdVerificationDisabledForCountry(user.billingCountry);
+  safe.geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
+  safe.isGeoSubuserOnly = safe.geoBlockLevel === 4;
 
   if (safe.fraudDetectedAt instanceof Date) {
     safe.fraudDetectedAt = safe.fraudDetectedAt.toISOString();
@@ -87,6 +88,29 @@ function safeUser(user: User): any {
   return safe;
 }
 
+async function sendVerificationEmailToUser(user: User) {
+  const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+  const token = uuidv4();
+
+  await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
+  await redisSet(`email-verify:code:${user.id}`, code, 86400);
+
+  const panelUrl = process.env.PANEL_URL || 'https://panel.ecli.app';
+  const verifyUrl = `${panelUrl}/verify-email?token=${token}`;
+
+  try {
+    await sendMail({
+      to: user.email,
+      from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
+      subject: 'Verify your email - EcliPanel',
+      template: 'email-verify',
+      vars: { name: user.firstName || 'User', verifyUrl, code },
+    });
+  } catch (err) {
+    console.error('Failed to send verification email:', err);
+  }
+}
+
 export async function userRoutes(app: any, prefix = '') {
   app.post(prefix + '/users/register', async (ctx: any) => {
     try {
@@ -102,6 +126,12 @@ export async function userRoutes(app: any, prefix = '') {
 
     const valid = await validateUserRegistration(ctx, ctx);
     if (!valid) return (ctx as any).body;
+
+    if (!(await canRegister((ctx.body as any).billingCountry))) {
+      ctx.set.status = 403;
+      return { error: 'Registration is not allowed from your country under geo-block policy' };
+    }
+
     const body = ctx.body as Partial<User>;
     const userRepo = AppDataSource.getRepository(User);
     const user = userRepo.create(body);
@@ -183,7 +213,7 @@ export async function userRoutes(app: any, prefix = '') {
       console.error('Failed to auto-assign plan on register:', err);
     }
 
-    return { success: true, user: safeUser(user) };
+    return { success: true, user: await safeUser(user) };
   }, {
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     body: t.Object({
@@ -226,7 +256,7 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'User not found' };
     }
-    return safeUser(user);
+    return await safeUser(user);
   }, {
    beforeHandle: authenticate,
     response: { 200: userSchema, 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -249,7 +279,7 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return safeUser(user);
+    return await safeUser(user);
   }, {
    beforeHandle: authenticate,
     response: { 200: userSchema, 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -279,20 +309,84 @@ export async function userRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: 'Password must be at least 8 characters' };
       }
+
+      const submittedCurrentPassword = typeof payload.currentPassword === 'string' ? payload.currentPassword : undefined;
+      if (!submittedCurrentPassword && !isAdmin) {
+        ctx.set.status = 400;
+        return { error: 'Current password is required to change password' };
+      }
+
+      if (submittedCurrentPassword) {
+        const validCurrent = await comparePassword(submittedCurrentPassword, user.passwordHash);
+        if (!validCurrent) {
+          ctx.set.status = 403;
+          return { error: 'Current password is invalid' };
+        }
+      }
+
       user.passwordHash = await hashPassword(payload.password);
+      user.sessions = [];
       delete payload.password;
+      delete payload.currentPassword;
     }
-    const USER_FIELDS = ['firstName', 'middleName', 'lastName', 'displayName', 'phone',
+
+    const newEmail = typeof payload.email === 'string' ? payload.email.trim() : undefined;
+    const oldEmail = user.email;
+    let emailChanged = false;
+
+    if (newEmail && newEmail !== oldEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        ctx.set.status = 400;
+        return { error: 'Invalid email address' };
+      }
+      user.email = newEmail;
+      user.emailVerified = false;
+      emailChanged = true;
+    }
+
+    const USER_FIELDS = ['email','firstName', 'middleName', 'lastName', 'displayName', 'phone',
       'address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'settings'];
     const ADMIN_ONLY_FIELDS = ['role', 'portalType', 'nodeId', 'limits', 'settings', 'emailVerified', 'idVerified', 'suspended', 'fraudFlag', 'fraudReason'];
     const allowed = isAdmin ? [...USER_FIELDS, ...ADMIN_ONLY_FIELDS] : USER_FIELDS;
     for (const key of allowed) {
+      if (key === 'email') continue;
       if (key in payload) (user as any)[key] = payload[key];
     }
-    await userRepo.save(user);
+
+    try {
+      await userRepo.save(user);
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+        ctx.set.status = 409;
+        return { error: 'An account with that email address already exists.' };
+      }
+      throw err;
+    }
+
+    if (emailChanged) {
+      await sendVerificationEmailToUser(user);
+
+      const restoreToken = uuidv4();
+      await redisSet(`email-restore:token:${restoreToken}`, JSON.stringify({ userId: user.id, oldEmail, newEmail }), 48 * 3600);
+
+      const panelUrl = process.env.PANEL_URL || 'https://panel.ecli.app';
+      const restoreUrl = `${panelUrl}/restore-email?token=${restoreToken}`;
+      try {
+        await sendMail({
+          to: oldEmail,
+          from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
+          subject: 'Restore your previous email - EcliPanel',
+          template: 'email-restore',
+          vars: { name: user.firstName || 'User', restoreUrl, newEmail, oldEmail },
+        });
+      } catch (err) {
+        console.error('Failed to send email restore link to old email:', err);
+      }
+    }
+
     const logRepo = AppDataSource.getRepository(UserLog);
     await logRepo.save(logRepo.create({ userId: user.id, action: 'update-profile', timestamp: new Date() }));
-    return { success: true, user: safeUser(user) };
+    return { success: true, user: await safeUser(user) };
   }, {
    beforeHandle: authenticate,
     body: t.Any(),

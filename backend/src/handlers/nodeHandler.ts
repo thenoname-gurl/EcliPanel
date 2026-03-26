@@ -83,7 +83,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       return sanitizeNodes(nodes);
     }
 
-    const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free'];
+    const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
     const nodes = await nodeRepo().find({ where: { nodeType: In(types) }, relations: ['organisation'] });
     return sanitizeNodes(nodes);
   }, {beforeHandle: authenticate,

@@ -2,7 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { IDVerification } from '../models/idVerification.entity';
 import { authenticate } from '../middleware/auth';
 import { User } from '../models/user.entity';
-import { isEUIdVerificationDisabledForCountry } from '../utils/eu';
+import { canPerformIdVerification } from '../utils/eu';
 import { encryptBuffer } from '../utils/crypto';
 import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 import path from 'path';
@@ -13,9 +13,9 @@ import { t } from 'elysia';
 export async function idVerificationRoutes(app: any, prefix = '') {
   app.post(prefix + '/id-verification', async (ctx: any) => {
     const user = ctx.user as User;
-    if (isEUIdVerificationDisabledForCountry(user?.billingCountry)) {
+    if (!(await canPerformIdVerification(user?.billingCountry))) {
       ctx.set.status = 403;
-      return { error: 'ID verification is not available for EU residents' };
+      return { error: 'ID verification is not available for your country under geo-block policy' };
     }
 
     const repo = AppDataSource.getRepository(IDVerification);
