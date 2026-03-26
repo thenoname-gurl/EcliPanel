@@ -13,7 +13,7 @@ pub async fn handle_ws(ws: WebSocketUpgrade, state: GetState) -> Response {
     ws.on_upgrade(move |socket| async move {
         let socket = Arc::new(tokio::sync::Mutex::new(socket));
 
-        type ReturnType = dyn futures_util::Future<Output = Result<(), anyhow::Error>> + Send;
+        type ReturnType = dyn Future<Output = Result<(), anyhow::Error>> + Send;
         let futures: [Pin<Box<ReturnType>>; 2] = [
             // Stats Listener
             Box::pin({
@@ -50,7 +50,7 @@ pub async fn handle_ws(ws: WebSocketUpgrade, state: GetState) -> Response {
             }),
         ];
 
-        if let Err(err) = futures_util::future::try_join_all(futures).await {
+        if let Err(err) = futures::future::try_join_all(futures).await {
             tracing::debug!("error while serving stats websocket: {:?}", err);
         }
     })

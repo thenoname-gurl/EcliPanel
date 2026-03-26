@@ -1,7 +1,7 @@
 use super::configuration::string_to_option;
 use anyhow::Context;
 use compact_str::ToCompactString;
-use futures_util::StreamExt;
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,

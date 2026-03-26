@@ -35,9 +35,9 @@ static REPOSITORY: RwLock<Option<Arc<ddup_bak::repository::Repository>>> = RwLoc
 
 pub async fn get_repository(
     config: &crate::config::Config,
-) -> Arc<ddup_bak::repository::Repository> {
+) -> Result<Arc<ddup_bak::repository::Repository>, anyhow::Error> {
     if let Some(repository) = REPOSITORY.read().await.as_ref() {
-        return Arc::clone(repository);
+        return Ok(Arc::clone(repository));
     }
 
     let path = PathBuf::from(&config.system.backup_directory);
@@ -52,26 +52,23 @@ pub async fn get_repository(
                     None,
                     None,
                 )
-                .unwrap()
             })
-            .await
-            .unwrap(),
+            .await??,
         );
         *REPOSITORY.write().await = Some(Arc::clone(&repository));
 
-        repository
+        Ok(repository)
     } else {
         let repository = Arc::new(
             tokio::task::spawn_blocking(move || {
                 ddup_bak::repository::Repository::new(&path, 1024 * 1024, 0, None)
             })
-            .await
-            .unwrap(),
+            .await?,
         );
         repository.save().unwrap();
         *REPOSITORY.write().await = Some(Arc::clone(&repository));
 
-        repository
+        Ok(repository)
     }
 }
 
@@ -203,7 +200,7 @@ impl BackupFindExt for DdupBakBackup {
         config: &Arc<crate::config::Config>,
         uuid: uuid::Uuid,
     ) -> Result<bool, anyhow::Error> {
-        let repository = get_repository(config).await;
+        let repository = get_repository(config).await?;
         let path = repository.archive_path(&uuid.to_string());
 
         Ok(tokio::fs::metadata(&path).await.is_ok())
@@ -213,7 +210,7 @@ impl BackupFindExt for DdupBakBackup {
         config: &Arc<crate::config::Config>,
         uuid: uuid::Uuid,
     ) -> Result<Option<Backup>, anyhow::Error> {
-        let repository = get_repository(config).await;
+        let repository = get_repository(config).await?;
 
         if let Ok(archive) =
             tokio::task::spawn_blocking(move || repository.get_archive(&uuid.to_string())).await?
@@ -238,7 +235,7 @@ impl BackupCreateExt for DdupBakBackup {
         ignore: ignore::gitignore::Gitignore,
         ignore_raw: compact_str::CompactString,
     ) -> Result<RawServerBackup, anyhow::Error> {
-        let repository = get_repository(&server.app_state.config).await;
+        let repository = get_repository(&server.app_state.config).await?;
         let path = repository.archive_path(&uuid.to_string());
 
         let total_task = {
@@ -404,7 +401,7 @@ impl BackupExt for DdupBakBackup {
         archive_format: StreamableArchiveFormat,
         _range: Option<ByteRange>,
     ) -> Result<ApiResponse, anyhow::Error> {
-        let repository = get_repository(config).await;
+        let repository = get_repository(config).await?;
 
         let archive = self.archive.clone();
         let compression_level = config.system.backups.compression_level;
@@ -483,7 +480,7 @@ impl BackupExt for DdupBakBackup {
         total: Arc<AtomicU64>,
         _download_url: Option<compact_str::CompactString>,
     ) -> Result<(), anyhow::Error> {
-        let repository = get_repository(&server.app_state.config).await;
+        let repository = get_repository(&server.app_state.config).await?;
 
         let archive = self.archive.clone();
 
@@ -584,7 +581,7 @@ impl BackupExt for DdupBakBackup {
     }
 
     async fn delete(&self, config: &Arc<crate::config::Config>) -> Result<(), anyhow::Error> {
-        let repository = get_repository(config).await;
+        let repository = get_repository(config).await?;
 
         let uuid = self.uuid;
         tokio::task::spawn_blocking(move || -> Result<(), anyhow::Error> {
@@ -602,7 +599,7 @@ impl BackupExt for DdupBakBackup {
         &self,
         server: &crate::server::Server,
     ) -> Result<Arc<dyn VirtualReadableFilesystem>, anyhow::Error> {
-        let repository = get_repository(&server.app_state.config).await;
+        let repository = get_repository(&server.app_state.config).await?;
         let path = repository.archive_path(&self.uuid.to_string());
 
         let metadata = tokio::fs::metadata(&path).await?;
@@ -613,7 +610,7 @@ impl BackupExt for DdupBakBackup {
             metadata
                 .created()
                 .map_or_else(|_| Default::default(), |dt| dt.into()),
-            Some(get_repository(&server.app_state.config).await),
+            Some(get_repository(&server.app_state.config).await?),
         )))
     }
 }
@@ -621,7 +618,7 @@ impl BackupExt for DdupBakBackup {
 #[async_trait::async_trait]
 impl BackupCleanExt for DdupBakBackup {
     async fn clean(server: &crate::server::Server, uuid: uuid::Uuid) -> Result<(), anyhow::Error> {
-        let repository = get_repository(&server.app_state.config).await;
+        let repository = get_repository(&server.app_state.config).await?;
 
         tokio::task::spawn_blocking(move || -> Result<(), anyhow::Error> {
             repository.delete_archive(&uuid.to_string(), None)?;

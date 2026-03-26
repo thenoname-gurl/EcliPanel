@@ -8,6 +8,7 @@ pub enum JwtError {
     CloseSocket,
     Expired,
     Misc(anyhow::Error),
+    MiscStr(String),
 }
 
 impl From<anyhow::Error> for JwtError {
@@ -64,8 +65,11 @@ pub async fn handle_jwt(
                 .verify::<WebsocketJwtPayload>(message.args.first().map_or("", |v| v.as_str()))
             {
                 Ok(jwt) => {
-                    if !jwt.base.validate(&state.config.jwt).await
-                        || !jwt.permissions.has_permission(Permission::WebsocketConnect)
+                    if let Err(err) = jwt.base.validate(&state.config.jwt).await {
+                        return Err(JwtError::MiscStr(format!("invalid token: {err}")));
+                    }
+
+                    if !jwt.permissions.has_permission(Permission::WebsocketConnect)
                         || jwt.server_uuid != server.uuid
                     {
                         tracing::debug!(
@@ -105,6 +109,18 @@ pub async fn handle_jwt(
                         ))
                         .await;
 
+                    let has_console_read = jwt
+                        .permissions
+                        .has_calagopus_permission_or(Permission::ControlReadConsole, true);
+                    server
+                        .user_permissions
+                        .set_permissions(
+                            jwt.user_uuid,
+                            jwt.permissions.clone(),
+                            jwt.ignored_files.as_deref(),
+                        )
+                        .await;
+
                     if websocket_handler
                         .socket_jwt
                         .write()
@@ -118,6 +134,12 @@ pub async fn handle_jwt(
                                 [server.state.get_state().to_str().into()].into(),
                             ))
                             .await;
+
+                        if !has_console_read {
+                            websocket_handler
+                                .send_message(server.get_daemon_error("You are missing the `control.read-console` permission to view server logs and console output."))
+                                .await;
+                        }
                     }
 
                     Ok(None)
@@ -135,9 +157,11 @@ pub async fn handle_jwt(
         }
         _ => {
             if let Some(jwt) = websocket_handler.socket_jwt.read().await.as_ref() {
-                if !jwt.base.validate(&state.config.jwt).await
-                    || !jwt.permissions.has_permission(Permission::WebsocketConnect)
-                {
+                if let Err(err) = jwt.base.validate(&state.config.jwt).await {
+                    return Err(JwtError::MiscStr(format!("invalid token: {err}")));
+                }
+
+                if !jwt.permissions.has_permission(Permission::WebsocketConnect) {
                     tracing::debug!(
                         server = %server.uuid,
                         "jwt does not have permission to connect to websocket: {:?}",

@@ -42,7 +42,7 @@ impl InotifyManager {
                     }
                 }
             },
-            notify::Config::default(),
+            notify::Config::default().with_follow_symlinks(false),
         )?;
 
         Ok(Self {
@@ -70,9 +70,11 @@ impl InotifyManager {
         })
         .await??;
 
-        let mut notifiers = self.server_notifiers.lock().await;
         let notifier = InotifyServerNotifier::new(base_path);
-        notifiers.insert(uuid, notifier.clone());
+        self.server_notifiers
+            .lock()
+            .await
+            .insert(uuid, notifier.clone());
 
         Ok(notifier)
     }
@@ -94,15 +96,13 @@ impl InotifyManager {
         })
         .await??;
 
-        let mut notifiers = self.server_notifiers.lock().await;
-        notifiers.insert(uuid, notifier);
+        self.server_notifiers.lock().await.insert(uuid, notifier);
 
         Ok(())
     }
 
     pub async fn unregister_server(&self, uuid: uuid::Uuid) {
-        let mut notifiers = self.server_notifiers.lock().await;
-        if let Some(notifier) = notifiers.remove(&uuid) {
+        if let Some(notifier) = self.server_notifiers.lock().await.remove(&uuid) {
             crate::spawn_blocking_handled({
                 let path = notifier.path.clone();
                 let watcher = Arc::clone(&self.watcher);

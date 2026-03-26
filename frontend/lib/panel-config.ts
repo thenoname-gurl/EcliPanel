@@ -216,6 +216,7 @@ export const API_ENDPOINTS = {
   adminSlowQueries: "/api/admin/slow-queries",
   adminNodes: "/api/admin/nodes",
   adminFraudAlerts: "/api/admin/fraud-alerts",
+  publicWings: "/public/wings",
   adminFraudScan: "/api/admin/fraud-scan/:id",
   adminFraudScanAll: "/api/admin/fraud-scan-all",
   adminFraudAction: "/api/admin/fraud-alerts/:id",

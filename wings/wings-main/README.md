@@ -1,27 +1,22 @@
-THIS IS A MIRROR OF https://github.com/calagopus/wings/ THAT WAS USED WHILE DEVELOPING THIS VERSION!\
-LICENSE FROM LICENSE INSIDE OF WINGS APPLIES
-THIS CODE IS NOT MAINTAINED BY US AND WE RECOMMEND DOWNLOADING LATEST FROM https://github.com/calagopus/wings/
-
 ![Calagopus Logo](https://calagopus.com/fulllogo.svg)
 
 # Calagopus Wings
 
-a rewrite of [pterodactyl wings](https://github.com/pterodactyl/wings) in the rust programming language. this rewrite aims to be 100% API compatible while implementing new features and better performance.
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg?logo=rust)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/github/license/calagopus/panel?color=blue)](https://github.com/calagopus/panel/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/calagopus/panel)](https://github.com/calagopus/panel/issues)
+[![GitHub stars](https://img.shields.io/github/stars/calagopus/panel)](https://github.com/calagopus/panel/stargazers)
+[![Discord](https://img.shields.io/discord/1429911351777824892?label=discord&logo=discord&color=5865F2)](https://discord.gg/uSM8tvTxBV)
 
-[todo](https://notes.rjns.dev/workspace/cb7ccae8-0508-4f90-9161-d1e69b0ca8f0/uAVAL7iHSQpDk1SiSUPL1)
+A rewrite of [Pterodactyl Wings](https://github.com/pterodactyl/wings) in the Rust programming language. This rewrite aims to be 100% API compatible while implementing new features and better performance.
 
-## quick installation
+[Todo](https://notes.rjns.dev/workspace/cb7ccae8-0508-4f90-9161-d1e69b0ca8f0/uAVAL7iHSQpDk1SiSUPL1)
 
-### please remember to update atleast weekly
+## Installation
 
-```bash
-sudo curl -L "https://github.com/calagopus/wings/releases/latest/download/wings-rs-$(uname -m)-linux" -o /usr/local/bin/wings
-sudo chmod +x /usr/local/bin/wings
+For installation instructions, please refer to the [Docs](https://calagopus.com/docs/wings/installation).
 
-wings version
-```
-
-## added config options
+## Added Config Options
 
 ```yml
 api:
@@ -191,25 +186,25 @@ remote_query:
 ignore_panel_wings_upgrades: false
 ```
 
-## added features
+## Added Features
 
-### api
+### API
 
-- `GET /openapi.json` endpoint for getting a full OpenAPI documentation of the wings api
-- `GET /api/stats` api endpoint for seeing node usage
-- `GET /api/system/logs` api endpoint for listing all wings log files
-- `GET /api/system/logs/{file}` api endpoint for reading a wings log file
-- `POST /api/system/upgrade` api endpoint for remotely upgrading the wings binary
-- `POST /api/servers/{server}/script` api endpoint for running custom scripts async on the server
-- `POST /api/servers/{server}/ws/permissions` api endpoint for live updating user permissions on a server
-- `POST /api/servers/{server}/ws/broadcast` api endpoint for broadcasting a websocket message to multiple users
-- `POST /api/servers/{server}/install/abort` api endpoint for aborting a server installation process
-- `GET /api/servers/{server}/logs/install` api endpoint for getting server installation logs
-- `GET /api/servers/{server}/version` api endpoint for getting a version hash for a server
-- `GET /api/servers/{server}/files/fingerprints` api endpoint for getting fingerprints for many files at once
-- `GET /api/servers/{server}/files/list` api endpoint for listing files with pagination
-- `POST /api/servers/{server}/files/search` api endpoint for searching for file names/content
-- `GET /api/servers/{server}/download/directory` api endpoint for downloading directories on-the-fly as archives
+- `GET /openapi.json` endpoint for getting a full OpenAPI documentation of the wings API
+- `GET /api/stats` API endpoint for seeing node usage
+- `GET /api/system/logs` API endpoint for listing all wings log files
+- `GET /api/system/logs/{file}` API endpoint for reading a wings log file
+- `POST /api/system/upgrade` API endpoint for remotely upgrading the wings binary
+- `POST /api/servers/{server}/script` API endpoint for running custom scripts async on the server
+- `POST /api/servers/{server}/ws/permissions` API endpoint for live updating user permissions on a server
+- `POST /api/servers/{server}/ws/broadcast` API endpoint for broadcasting a websocket message to multiple users
+- `POST /api/servers/{server}/install/abort` API endpoint for aborting a server installation process
+- `GET /api/servers/{server}/logs/install` API endpoint for getting server installation logs
+- `GET /api/servers/{server}/version` API endpoint for getting a version hash for a server
+- `GET /api/servers/{server}/files/fingerprints` API endpoint for getting fingerprints for many files at once
+- `GET /api/servers/{server}/files/list` API endpoint for listing files with pagination
+- `POST /api/servers/{server}/files/search` API endpoint for searching for file names/content
+- `GET /api/servers/{server}/download/directory` API endpoint for downloading directories on-the-fly as archives
 
 ---
 
@@ -224,25 +219,25 @@ ignore_panel_wings_upgrades: false
 - allow transferring backups in server transfers
 - reworked file operations so progress can be tracked via websocket events and in the background
 
-### shell
+### Shell
 
 - add ability to connect via ssh and access server console
-- add `.wings` cli to do basic server actions like power
+- add `.wings` CLI to do basic server actions like power
 
-### sftp
+### SFTP
 
-- add support for the [check-file](https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-3) sftp extension
-- add support for the [copy-file](https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-6) sftp extension
-- add support for the [space-available](https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-4) sftp extension
-- add support for the [limits@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L524) sftp extension
-- add support for the [statvfs@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L437) sftp extension
-- add support for the [hardlink@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L478) sftp extension
-- add support for the [fsync@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L494) sftp extension
-- add support for the [lsetstat@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L508) sftp extension
-- add support for the [users-groups-by-id@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L643) sftp extension
+- add support for the [check-file](https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-3) SFTP extension
+- add support for the [copy-file](https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-6) SFTP extension
+- add support for the [space-available](https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-4) SFTP extension
+- add support for the [limits@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L524) SFTP extension
+- add support for the [statvfs@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L437) SFTP extension
+- add support for the [hardlink@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L478) SFTP extension
+- add support for the [fsync@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L494) SFTP extension
+- add support for the [lsetstat@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L508) SFTP extension
+- add support for the [users-groups-by-id@openssh.com](https://github.com/openssh/openssh-portable/blob/5f98660c51e673f521e0216c7ed20205c4af10ed/PROTOCOL#L643) SFTP extension
 - properly support egg `file_denylist`
 
-### backups
+### Backups
 
 - add [`ddup-bak`](https://github.com/0x7d8/ddup-bak) backup driver
 - add [`btrfs`](https://github.com/kdave/btrfs-progs) backup driver
@@ -251,7 +246,7 @@ ignore_panel_wings_upgrades: false
 - add ability to create `zip` and `7z` archives on `wings` backup driver
 - add ability to browse backups (for some drivers)
 
-### cli
+### CLI
 
 - add `service-install` command to automatically setup a service for wings
 

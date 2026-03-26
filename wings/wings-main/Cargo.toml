@@ -17,7 +17,6 @@ utoipa-axum = "0.2.0"
 reqwest = { version = "0.13.0", features = ["hickory-dns", "json", "multipart", "stream"] }
 tokio = { version = "1.43.0", features = ["full"] }
 chrono = { version = "0.4.40", features = ["serde"] }
-futures-util = "0.3.31"
 tokio-util = { version = "0.7.15", features = ["full"] }
 uuid = { version = "1.16.0", features = ["serde", "v4"] }
 rand = "0.9.1"

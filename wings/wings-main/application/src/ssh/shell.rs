@@ -47,9 +47,7 @@ impl ShellSession {
         let prefix = &self.state.config.system.sftp.shell.cli.name;
         writer.write_all(b"\r\n").await.unwrap_or_default();
 
-        let prelude = ansi_term::Color::Yellow
-            .bold()
-            .paint(format!("[{} Daemon]:", self.state.config.app_name));
+        let prelude = self.state.config.daemon_prelude();
 
         let mut writeln = async |line: &str| {
             writer
@@ -250,7 +248,7 @@ impl ShellSession {
                                 .await;
                         }
                     } else {
-                        writeln("You are missing the `control.kill` permission to do this.").await;
+                        writeln("You are missing the `control.stop` permission to do this.").await;
                     }
                 }
                 _ => {
@@ -504,9 +502,7 @@ impl ShellSession {
                                             .await;
                                     }
                                 } else {
-                                    let prelude = ansi_term::Color::Yellow
-                                        .bold()
-                                        .paint(format!("[{} Daemon]:", self.state.config.app_name));
+                                    let prelude = self.state.config.daemon_prelude();
 
                                     data_writer.write_all(b"\r\n").await.unwrap_or_default();
                                     data_writer
@@ -520,9 +516,7 @@ impl ShellSession {
                                         .unwrap_or_default();
                                 }
                             } else {
-                                let prelude = ansi_term::Color::Yellow
-                                    .bold()
-                                    .paint(format!("[{} Daemon]:", self.state.config.app_name));
+                                let prelude = self.state.config.daemon_prelude();
 
                                 data_writer.write_all(b"\r\n").await.unwrap_or_default();
                                 data_writer
@@ -639,22 +633,52 @@ impl ShellSession {
                 .await
                 .unwrap_or_default();
 
-            let mut log_stream = self
+            if self
                 .server
-                .read_log(Some(self.state.config.system.websocket_log_count))
-                .await;
-
+                .user_permissions
+                .has_calagopus_permission_or(self.user_uuid, Permission::ControlReadConsole, true)
+                .await
             {
-                let prelude = ansi_term::Color::Yellow
-                    .bold()
-                    .paint(format!("[{} Daemon]:", self.state.config.app_name));
+                let mut log_stream = self
+                    .server
+                    .read_log(Some(self.state.config.system.websocket_log_count))
+                    .await;
+
+                {
+                    let prelude = self.state.config.daemon_prelude();
+
+                    writer
+                        .make_writer()
+                        .write_all(
+                            format!(
+                                "{prelude} Server marked as {}...\r\n\x1b[2K",
+                                self.server.state.get_state().to_str()
+                            )
+                            .as_bytes(),
+                        )
+                        .await
+                        .unwrap_or_default();
+                }
+
+                if self.server.state.get_state() != crate::server::state::ServerState::Offline
+                    || self.state.config.api.send_offline_server_logs
+                {
+                    while let Some(Ok(line)) = log_stream.next().await {
+                        writer
+                            .make_writer()
+                            .write_all(line.as_bytes())
+                            .await
+                            .unwrap_or_default();
+                    }
+                }
+            } else {
+                let prelude = self.state.config.daemon_prelude();
 
                 writer
                     .make_writer()
                     .write_all(
                         format!(
-                            "{prelude} Server marked as {}...\r\n\x1b[2K",
-                            self.server.state.get_state().to_str()
+                            "{prelude} You are missing the `control.read-console` permission to view server logs and console output.\r\n\x1b[2K"
                         )
                         .as_bytes(),
                     )
@@ -662,156 +686,187 @@ impl ShellSession {
                     .unwrap_or_default();
             }
 
-            if self.server.state.get_state() != crate::server::state::ServerState::Offline
-                || self.state.config.api.send_offline_server_logs
-            {
-                while let Some(Ok(line)) = log_stream.next().await {
-                    writer
-                        .make_writer()
-                        .write_all(line.as_bytes())
-                        .await
-                        .unwrap_or_default();
-                }
-            }
+            let futures: [Pin<Box<dyn Future<Output = ()> + Send>>; 2] = [
+                {
+                    let mut receiver = self.server.websocket.subscribe();
+                    let state = Arc::clone(&self.state);
+                    let server = self.server.clone();
+                    let user_uuid = self.user_uuid;
+                    let mut writer = writer.make_writer();
 
-            let mut futures: Vec<Pin<Box<dyn futures_util::Future<Output = ()> + Send>>> =
-                Vec::with_capacity(2);
-
-            futures.push({
-                let mut reciever = self.server.websocket.subscribe();
-                let state = Arc::clone(&self.state);
-                let server = self.server.clone();
-                let user_uuid = self.user_uuid;
-                let mut writer = writer.make_writer();
-
-                Box::pin(async move {
-                    loop {
-                        match reciever.recv().await {
-                            Ok(message) => match message.event {
-                                WebsocketEvent::ServerInstallOutput => {
-                                    if server
-                                        .user_permissions
-                                        .has_permission(
-                                            user_uuid,
-                                            Permission::AdminWebsocketInstall,
-                                        )
-                                        .await
-                                    {
-                                        writer
-                                            .write_all(
-                                                format!("{}\r\n\x1b[2K", message.args.join(" "))
-                                                    .as_bytes(),
+                    Box::pin(async move {
+                        loop {
+                            match receiver.recv().await {
+                                Ok(message) => match message.event {
+                                    WebsocketEvent::ServerInstallOutput => {
+                                        if server
+                                            .user_permissions
+                                            .has_permission(
+                                                user_uuid,
+                                                Permission::AdminWebsocketInstall,
                                             )
-                                            .await
-                                            .unwrap_or_default();
-                                    }
-                                }
-                                WebsocketEvent::ServerTransferLogs => {
-                                    if server
-                                        .user_permissions
-                                        .has_permission(
-                                            user_uuid,
-                                            Permission::AdminWebsocketTransfer,
-                                        )
-                                        .await
-                                    {
-                                        writer
-                                            .write_all(
-                                                format!("{}\r\n\x1b[2K", message.args.join(" "))
-                                                    .as_bytes(),
-                                            )
-                                            .await
-                                            .unwrap_or_default();
-                                    }
-                                }
-                                WebsocketEvent::ServerConsoleOutput => {
-                                    writer
-                                        .write_all(
-                                            format!("{}\r\n\x1b[2K", message.args.join(" "))
-                                                .as_bytes(),
-                                        )
-                                        .await
-                                        .unwrap_or_default();
-                                }
-                                WebsocketEvent::ServerDaemonMessage => {
-                                    writer
-                                        .write_all(
-                                            format!("{}\r\n\x1b[2K", message.args.join(" "))
-                                                .as_bytes(),
-                                        )
-                                        .await
-                                        .unwrap_or_default();
-                                }
-                                WebsocketEvent::ServerStatus => {
-                                    let prelude = ansi_term::Color::Yellow
-                                        .bold()
-                                        .paint(format!("[{} Daemon]:", state.config.app_name));
-
-                                    writer
-                                        .write_all(
-                                            format!(
-                                                "{prelude} Server marked as {}...\r\n\x1b[2K",
-                                                message.args[0]
-                                            )
-                                            .as_bytes(),
-                                        )
-                                        .await
-                                        .unwrap_or_default();
-                                }
-                                _ => {}
-                            },
-                            Err(RecvError::Closed) => {
-                                tracing::debug!(
-                                    server = %server.uuid,
-                                    "websocket channel closed, stopping listener"
-                                );
-                                break;
-                            }
-                            Err(RecvError::Lagged(_)) => {
-                                tracing::debug!(
-                                    server = %server.uuid,
-                                    "websocket lagged behind, messages dropped"
-                                );
-                            }
-                        }
-                    }
-                })
-            });
-
-            futures.push({
-                let server = self.server.clone();
-                let mut writer = writer.make_writer();
-
-                Box::pin(async move {
-                    loop {
-                        if let Some(mut stdout) = server.container_stdout().await {
-                            loop {
-                                match stdout.recv().await {
-                                    Ok(stdout) => {
-                                        if let Err(err) = writer
-                                            .write_all(format!("{stdout}\r\n\x1b[2K").as_bytes())
                                             .await
                                         {
-                                            tracing::error!(error = %err, "failed to write stdout");
+                                            writer
+                                                .write_all(
+                                                    format!(
+                                                        "{}\r\n\x1b[2K",
+                                                        message.args.join(" ")
+                                                    )
+                                                    .as_bytes(),
+                                                )
+                                                .await
+                                                .unwrap_or_default();
                                         }
                                     }
-                                    Err(RecvError::Closed) => {
-                                        break;
+                                    WebsocketEvent::ServerTransferLogs => {
+                                        if server
+                                            .user_permissions
+                                            .has_permission(
+                                                user_uuid,
+                                                Permission::AdminWebsocketTransfer,
+                                            )
+                                            .await
+                                        {
+                                            writer
+                                                .write_all(
+                                                    format!(
+                                                        "{}\r\n\x1b[2K",
+                                                        message.args.join(" ")
+                                                    )
+                                                    .as_bytes(),
+                                                )
+                                                .await
+                                                .unwrap_or_default();
+                                        }
                                     }
-                                    Err(RecvError::Lagged(_)) => {
-                                        tracing::debug!(
-                                            server = %server.uuid,
-                                            "stdout lagged behind, messages dropped"
-                                        );
+                                    WebsocketEvent::ServerConsoleOutput => {
+                                        writer
+                                            .write_all(
+                                                format!("{}\r\n\x1b[2K", message.args.join(" "))
+                                                    .as_bytes(),
+                                            )
+                                            .await
+                                            .unwrap_or_default();
                                     }
+                                    WebsocketEvent::ServerDaemonMessage => {
+                                        writer
+                                            .write_all(
+                                                format!("{}\r\n\x1b[2K", message.args.join(" "))
+                                                    .as_bytes(),
+                                            )
+                                            .await
+                                            .unwrap_or_default();
+                                    }
+                                    WebsocketEvent::ServerStatus => {
+                                        let prelude = state.config.daemon_prelude();
+
+                                        writer
+                                            .write_all(
+                                                format!(
+                                                    "{prelude} Server marked as {}...\r\n\x1b[2K",
+                                                    message.args[0]
+                                                )
+                                                .as_bytes(),
+                                            )
+                                            .await
+                                            .unwrap_or_default();
+                                    }
+                                    _ => {}
+                                },
+                                Err(RecvError::Closed) => {
+                                    tracing::debug!(
+                                        server = %server.uuid,
+                                        "websocket channel closed, stopping listener"
+                                    );
+                                    break;
+                                }
+                                Err(RecvError::Lagged(_)) => {
+                                    tracing::debug!(
+                                        server = %server.uuid,
+                                        "websocket lagged behind, messages dropped"
+                                    );
                                 }
                             }
                         }
+                    })
+                },
+                {
+                    let config = self.state.config.clone();
+                    let server = self.server.clone();
+                    let user_uuid = self.user_uuid;
+                    let mut writer = writer.make_writer();
 
-                        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                    }
-                })
-            });
+                    Box::pin(async move {
+                        'outer: loop {
+                            if !server
+                                .user_permissions
+                                .has_calagopus_permission_or(
+                                    user_uuid,
+                                    Permission::ControlReadConsole,
+                                    true,
+                                )
+                                .await
+                            {
+                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                continue;
+                            }
+
+                            if let Some(mut stdout) = server.container_stdout().await {
+                                loop {
+                                    if !server
+                                        .user_permissions
+                                        .has_calagopus_permission_or(
+                                            user_uuid,
+                                            Permission::ControlReadConsole,
+                                            true,
+                                        )
+                                        .await
+                                    {
+                                        let prelude = config.daemon_prelude();
+
+                                        writer
+                                            .write_all(
+                                                format!(
+                                                    "{prelude} You are missing the `control.read-console` permission to view server logs and console output.\r\n\x1b[2K"
+                                                )
+                                                .as_bytes(),
+                                            )
+                                            .await
+                                            .unwrap_or_default();
+
+                                        continue 'outer;
+                                    }
+
+                                    match stdout.recv().await {
+                                        Ok(stdout) => {
+                                            if let Err(err) = writer
+                                                .write_all(
+                                                    format!("{stdout}\r\n\x1b[2K").as_bytes(),
+                                                )
+                                                .await
+                                            {
+                                                tracing::error!(error = %err, "failed to write stdout");
+                                            }
+                                        }
+                                        Err(RecvError::Closed) => {
+                                            break;
+                                        }
+                                        Err(RecvError::Lagged(_)) => {
+                                            tracing::debug!(
+                                                server = %server.uuid,
+                                                "stdout lagged behind, messages dropped"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+
+                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                        }
+                    })
+                },
+            ];
 
             let stdin_task = {
                 let mut data_writer = writer.make_writer();
@@ -896,7 +951,7 @@ impl ShellSession {
                 _ = stdin_task => {
                     tracing::debug!("shell stdin task finished");
                 }
-                _ = futures_util::future::join_all(futures) => {
+                _ = futures::future::join_all(futures) => {
                     tracing::debug!("shell handles finished");
                 }
             }

@@ -51,15 +51,6 @@ mod get {
         match data.game {
             Game::MinecraftJava => {
                 let mut jar: Option<PathBuf> = None;
-                for (key, value) in &server.configuration.read().await.environment {
-                    if let Some(value_str) = value.as_str()
-                        && key.contains("JAR")
-                        && value_str.contains(".jar")
-                    {
-                        jar = Some(value_str.into());
-                        break;
-                    }
-                }
 
                 if jar.is_none() {
                     'forge: {
@@ -119,6 +110,18 @@ mod get {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                if jar.is_none() {
+                    for (key, value) in &server.configuration.read().await.environment {
+                        if let Some(value_str) = value.as_str()
+                            && key.contains("JAR")
+                            && value_str.contains(".jar")
+                        {
+                            jar = Some(value_str.into());
+                            break;
                         }
                     }
                 }

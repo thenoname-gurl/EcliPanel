@@ -19,15 +19,10 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 async fn handle_request(req: Request<Body>, next: Next) -> Result<Response<Body>, StatusCode> {
     tracing::info!(
-        "http {} {}{}",
+        path = req.uri().path(),
+        query = req.uri().query().unwrap_or_default(),
+        "http {}",
         req.method().to_string().to_lowercase(),
-        req.uri().path().cyan(),
-        if let Some(query) = req.uri().query() {
-            format!("?{query}")
-        } else {
-            "".to_string()
-        }
-        .bright_cyan()
     );
 
     Ok(wings_rs::response::ACCEPT_HEADER
@@ -156,11 +151,8 @@ async fn main() {
             tracing::info!("   \\_/\\_/ |_|_| |_|\\__, |___/__ ___ ");
             tracing::info!("                    __/ | | '__/ __|");
             tracing::info!("                   |___/  | |  \\__ \\");
-            tracing::info!(
-                "{: >25} |_|  |___/",
-                format!("{} (git-{})", wings_rs::VERSION, wings_rs::GIT_COMMIT)
-            );
-            tracing::info!("github.com/calagopus/wings\n");
+            tracing::info!("{: >25} |_|  |___/", wings_rs::VERSION);
+            tracing::info!("github.com/calagopus/wings#{}\n", wings_rs::GIT_COMMIT);
         }
     }
 
@@ -372,7 +364,7 @@ async fn main() {
         .expect("Failed to install rustls crypto provider");
 
     if config.system.sftp.enabled {
-        tracing::info!("starting http/sftp server");
+        tracing::info!("starting ssh server");
 
         tokio::spawn({
             let state = Arc::clone(&state);
@@ -444,10 +436,9 @@ async fn main() {
                 };
 
                 let config = russh::server::Config {
-                    server_id: russh::SshId::Standard(format!(
-                        "SSH-2.0-Calagopus-Wings-{}",
-                        wings_rs::VERSION
-                    )),
+                    server_id: russh::SshId::Standard(
+                        format!("SSH-2.0-Calagopus-Wings-{}", wings_rs::VERSION).into(),
+                    ),
                     auth_rejection_time: std::time::Duration::from_secs(0),
                     auth_rejection_time_initial: Some(std::time::Duration::from_secs(0)),
                     maximum_packet_size: 32 * 1024,
@@ -465,15 +456,10 @@ async fn main() {
                 ));
 
                 tracing::info!(
-                    "{} listening on {} {}",
-                    "ssh server".yellow(),
-                    address.to_string().cyan(),
-                    format!(
-                        "(app@{}, {}ms)",
-                        wings_rs::VERSION,
-                        state.start_time.elapsed().as_millis()
-                    )
-                    .bright_black()
+                    "ssh server listening on {} (app@{}, {}ms)",
+                    address.to_string(),
+                    wings_rs::VERSION,
+                    state.start_time.elapsed().as_millis()
                 );
 
                 match server.run_on_address(Arc::new(config), address).await {
@@ -516,11 +502,7 @@ async fn main() {
             .context("failed to load SSL certificate and key")
             .unwrap();
 
-            tracing::info!(
-                "{} listening on {}",
-                "https server".bright_red(),
-                address.to_string().cyan(),
-            );
+            tracing::info!("https listening on {}", address.to_string());
 
             match axum_server::bind_rustls(address, config)
                 .serve(router.into_make_service_with_connect_info::<SocketAddr>())
@@ -538,11 +520,7 @@ async fn main() {
                 }
             }
         } else {
-            tracing::info!(
-                "{} listening on {}",
-                "http server".bright_red(),
-                address.to_string().cyan(),
-            );
+            tracing::info!("http listening on {}", address.to_string());
 
             match axum::serve(
                 match tokio::net::TcpListener::bind(address).await {
@@ -578,11 +556,7 @@ async fn main() {
         {
             let socket_path = &state.config.api.host;
 
-            tracing::info!(
-                "{} listening on {}",
-                "http server".bright_red(),
-                socket_path.cyan(),
-            );
+            tracing::info!("http server listening on {}", socket_path);
 
             let router = router.layer(axum::middleware::from_fn(
                 |mut req: Request, next: Next| async move {

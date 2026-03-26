@@ -1,7 +1,7 @@
-use super::permissions::Permissions;
+use super::permissions::{Permission, Permissions};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use compact_str::ToCompactString;
-use futures_util::{SinkExt, stream::SplitSink};
+use futures::{SinkExt, stream::SplitSink};
 use serde::{
     Deserialize, Deserializer, Serialize,
     de::{SeqAccess, Visitor},
@@ -32,9 +32,7 @@ pub struct WebsocketJwtPayload {
     pub user_uuid: uuid::Uuid,
     pub server_uuid: uuid::Uuid,
     pub permissions: Permissions,
-
-    #[serde(default)]
-    pub use_console_read_permission: bool,
+    pub ignored_files: Option<Vec<compact_str::CompactString>>,
 }
 
 #[derive(Debug, Clone, Copy, ToSchema, Deserialize, Serialize)]
@@ -58,6 +56,8 @@ pub enum WebsocketEvent {
     SendCommand,
     #[serde(rename = "send stats")]
     SendStats,
+    #[serde(rename = "send status")]
+    SendStatus,
     #[serde(rename = "daemon error")]
     Error,
     #[serde(rename = "jwt error")]
@@ -228,15 +228,21 @@ pub type SocketJwt = Arc<RwLock<Option<Arc<WebsocketJwtPayload>>>>;
 
 pub struct ServerWebsocketHandler {
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    state: crate::routes::State,
     socket_jwt: SocketJwt,
     closed: AtomicBool,
     binary_mode: AtomicBool,
 }
 
 impl ServerWebsocketHandler {
-    fn new(sender: Arc<Mutex<SplitSink<WebSocket, Message>>>, socket_jwt: SocketJwt) -> Self {
+    fn new(
+        sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+        state: crate::routes::State,
+        socket_jwt: SocketJwt,
+    ) -> Self {
         Self {
             sender,
+            state,
             socket_jwt,
             closed: AtomicBool::new(false),
             binary_mode: AtomicBool::new(false),
@@ -251,8 +257,34 @@ impl ServerWebsocketHandler {
         if let Some(socket_jwt) = &*self.socket_jwt.read().await {
             Ok(Arc::clone(socket_jwt))
         } else {
-            Err(anyhow::anyhow!("unable to aquire socket jwt"))
+            Err(anyhow::anyhow!("unable to acquire socket jwt"))
         }
+    }
+
+    async fn has_permission(&self, permission: Permission) -> Result<bool, anyhow::Error> {
+        let jwt = self.get_jwt().await?;
+
+        if let Err(err) = jwt.base.validate(&self.state.config.jwt).await {
+            return Err(anyhow::anyhow!("invalid token: {err}"));
+        }
+
+        Ok(jwt.permissions.has_permission(permission))
+    }
+
+    async fn has_calagopus_permission_or(
+        &self,
+        permission: Permission,
+        default: bool,
+    ) -> Result<bool, anyhow::Error> {
+        let jwt = self.get_jwt().await?;
+
+        if let Err(err) = jwt.base.validate(&self.state.config.jwt).await {
+            return Err(anyhow::anyhow!("invalid token: {err}"));
+        }
+
+        Ok(jwt
+            .permissions
+            .has_calagopus_permission_or(permission, default))
     }
 
     async fn close(&self, reason: &str) {

@@ -16,7 +16,11 @@ const nextConfig = {
         destination: `${backendUrl}/api/:path*`,
       },
       {
-        source: '/wings/:path*',
+        source: '/public/:path*',
+        destination: `${backendUrl}/public/:path*`,
+      },
+      {
+        source: '/wings/:path+',
         destination: `${wingsBase}/:path*`,
       },
       {

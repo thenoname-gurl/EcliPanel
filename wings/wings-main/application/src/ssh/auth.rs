@@ -129,7 +129,7 @@ impl russh::server::Handler for SshSession {
 
         server
             .user_permissions
-            .set_permissions(user, permissions, &ignored_files)
+            .set_permissions(user, permissions, Some(&ignored_files))
             .await;
         if self.state.config.system.sftp.activity.log_logins {
             server
@@ -215,7 +215,7 @@ impl russh::server::Handler for SshSession {
 
         server
             .user_permissions
-            .set_permissions(user, permissions, &ignored_files)
+            .set_permissions(user, permissions, Some(&ignored_files))
             .await;
         if self.state.config.system.sftp.activity.log_logins {
             server
@@ -327,7 +327,7 @@ impl russh::server::Handler for SshSession {
             None => return Err(russh::Error::WrongChannel),
         };
 
-        tracing::debug!("recieved command from exec: {}", command);
+        tracing::debug!("received command from exec: {}", command);
 
         session.channel_success(channel_id)?;
         let exec = super::exec::ExecSession {

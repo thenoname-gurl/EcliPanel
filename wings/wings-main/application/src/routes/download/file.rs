@@ -56,8 +56,8 @@ mod get {
             }
         };
 
-        if !payload.base.validate(&state.config.jwt).await {
-            return ApiResponse::error("invalid token")
+        if let Err(err) = payload.base.validate(&state.config.jwt).await {
+            return ApiResponse::error(&format!("invalid token: {err}"))
                 .with_status(StatusCode::UNAUTHORIZED)
                 .ok();
         }

@@ -74,7 +74,7 @@ impl WingsBackup {
             });
         }
 
-        let results = futures_util::future::join_all(futures).await;
+        let results = futures::future::join_all(futures).await;
         for (found, format, file_name) in results {
             if found {
                 return Ok((format, file_name));

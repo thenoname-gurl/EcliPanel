@@ -14,6 +14,8 @@ use tokio::sync::Mutex;
 pub enum Permission {
     #[serde(rename = "*")]
     All,
+    #[serde(rename = "meta.calagopus")]
+    MetaCalagopus,
 
     #[serde(rename = "websocket.connect")]
     WebsocketConnect,
@@ -87,7 +89,6 @@ pub struct UserPermissionsMap {
 impl Default for UserPermissionsMap {
     fn default() -> Self {
         let map = Arc::new(Mutex::new(HashMap::new()));
-
         let (tx, rx) = tokio::sync::broadcast::channel(32);
 
         Self {
@@ -130,6 +131,22 @@ impl UserPermissionsMap {
         }
     }
 
+    pub async fn has_calagopus_permission_or(
+        &self,
+        user_uuid: uuid::Uuid,
+        permission: Permission,
+        default: bool,
+    ) -> bool {
+        let mut map = self.map.lock().await;
+        if let Some((permissions, _, last_access)) = map.get_mut(&user_uuid) {
+            *last_access = std::time::Instant::now();
+
+            permissions.has_calagopus_permission_or(permission, default)
+        } else {
+            default
+        }
+    }
+
     pub async fn is_ignored(
         &self,
         user_uuid: uuid::Uuid,
@@ -153,7 +170,7 @@ impl UserPermissionsMap {
         &self,
         user_uuid: uuid::Uuid,
         permissions: Permissions,
-        ignored_files: &[impl AsRef<str>],
+        ignored_files: Option<&[impl AsRef<str>]>,
     ) {
         if permissions.is_empty() {
             self.map.lock().await.remove(&user_uuid);
@@ -161,19 +178,41 @@ impl UserPermissionsMap {
             return;
         }
 
-        let mut overrides = ignore::overrides::OverrideBuilder::new("/");
-        for file in ignored_files {
-            overrides.add(file.as_ref()).ok();
-        }
+        let overrides = if let Some(ignored_files) = ignored_files {
+            let mut overrides = ignore::overrides::OverrideBuilder::new("/");
+            for file in ignored_files {
+                overrides.add(file.as_ref()).ok();
+            }
 
-        self.map.lock().await.insert(
-            user_uuid,
-            (
-                permissions,
-                overrides.build().ok(),
-                std::time::Instant::now(),
-            ),
-        );
+            Some(overrides)
+        } else {
+            None
+        };
+
+        let mut map = self.map.lock().await;
+        if let Some((current_permissions, current_ignored, _)) = map.get_mut(&user_uuid) {
+            *current_permissions = permissions;
+            if let Some(overrides) = overrides {
+                *current_ignored = overrides.build().ok();
+            }
+        } else {
+            map.insert(
+                user_uuid,
+                (
+                    permissions,
+                    overrides.as_ref().and_then(|o| o.build().ok()),
+                    std::time::Instant::now(),
+                ),
+            );
+        }
+    }
+
+    pub async fn clear_permissions(&self) {
+        let mut map = self.map.lock().await;
+        for user_uuid in map.keys().copied().collect::<Vec<_>>() {
+            map.remove(&user_uuid);
+            self.removal_sender.send(user_uuid).ok();
+        }
     }
 }
 
@@ -189,6 +228,11 @@ pub struct Permissions(HashSet<Permission>);
 
 impl Permissions {
     #[inline]
+    pub fn is_calagopus(&self) -> bool {
+        self.0.contains(&Permission::MetaCalagopus)
+    }
+
+    #[inline]
     pub fn has_permission(&self, permission: Permission) -> bool {
         for p in self.0.iter().copied() {
             if permission.matches(p) {
@@ -197,6 +241,15 @@ impl Permissions {
         }
 
         false
+    }
+
+    #[inline]
+    pub fn has_calagopus_permission_or(&self, permission: Permission, default: bool) -> bool {
+        if !self.is_calagopus() {
+            return default;
+        }
+
+        self.has_permission(permission)
     }
 }
 

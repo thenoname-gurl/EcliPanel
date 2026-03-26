@@ -6,6 +6,27 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
+#[derive(Debug, Clone, Copy)]
+pub enum JwtValidateError {
+    Expired,
+    NotYetValid,
+    InvalidIssuedAt,
+    Denied,
+}
+
+impl std::fmt::Display for JwtValidateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Expired => write!(f, "token is expired"),
+            Self::NotYetValid => write!(f, "token is not yet valid"),
+            Self::InvalidIssuedAt => write!(f, "token has invalid issued at time"),
+            Self::Denied => write!(f, "token has been denied"),
+        }
+    }
+}
+
+impl std::error::Error for JwtValidateError {}
+
 #[derive(Deserialize, Serialize)]
 pub struct BasePayload {
     #[serde(rename = "iss")]
@@ -25,39 +46,39 @@ pub struct BasePayload {
 }
 
 impl BasePayload {
-    pub async fn validate(&self, client: &JwtClient) -> bool {
+    pub async fn validate(&self, client: &JwtClient) -> Result<(), JwtValidateError> {
         let now = chrono::Utc::now().timestamp();
 
         if let Some(exp) = self.expiration_time {
             if exp < now {
-                return false;
+                return Err(JwtValidateError::Expired);
             }
         } else {
-            return false;
+            return Err(JwtValidateError::Expired);
         }
 
         if let Some(nbf) = self.not_before
             && nbf > now
         {
-            return false;
+            return Err(JwtValidateError::NotYetValid);
         }
 
         if let Some(iat) = self.issued_at {
             if iat > now || iat < client.boot_time.timestamp() {
-                return false;
+                return Err(JwtValidateError::InvalidIssuedAt);
             }
         } else {
-            return false;
+            return Err(JwtValidateError::InvalidIssuedAt);
         }
 
         if let Some(expired_until) = client.denied_jtokens.read().await.get(&self.jwt_id)
             && let Some(issued) = self.issued_at
             && issued < expired_until.timestamp()
         {
-            return false;
+            return Err(JwtValidateError::Denied);
         }
 
-        true
+        Ok(())
     }
 }
 

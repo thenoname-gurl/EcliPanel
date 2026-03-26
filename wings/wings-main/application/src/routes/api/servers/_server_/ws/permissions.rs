@@ -48,7 +48,7 @@ mod post {
                 .set_permissions(
                     user_permission.user,
                     user_permission.permissions,
-                    &user_permission.ignored_files,
+                    Some(&user_permission.ignored_files),
                 )
                 .await;
         }

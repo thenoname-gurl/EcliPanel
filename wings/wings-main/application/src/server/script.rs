@@ -1,7 +1,7 @@
 use super::configuration::string_to_option;
 use crate::server::installation::InstallationScript;
 use anyhow::Context;
-use futures_util::StreamExt;
+use futures::StreamExt;
 use rand::distr::SampleString;
 use std::{collections::HashMap, fs::Permissions, path::Path, sync::Arc};
 

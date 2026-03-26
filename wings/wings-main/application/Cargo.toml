@@ -1,13 +1,13 @@
 [package]
 name = "wings-rs"
 rust-version = { workspace = true }
-version = "1.0.0-pre.6"
+version = "1.0.0-pre.8"
 edition = "2024"
 
 [dependencies]
 unrar = { path = "../unrar-rs" }
 tracing = "0.1.41"
-tracing-subscriber = { version = "=0.3.19", features = ["chrono"] } # temporary pin to avoid new ansi escaping
+tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
 tracing-appender = "0.2.3"
 anyhow = { workspace = true }
 axum = { workspace = true }
@@ -20,13 +20,12 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
-colored = "3.0.0"
 chrono = { workspace = true }
+colored = "3.0.0"
 nestify = "0.3.3"
 rayon = "1.10.0"
 serde_norway = "0.9.42"
 serde_default = "0.2.0"
-futures-util = { workspace = true }
 tokio-util = { workspace = true }
 uuid = { workspace = true }
 rand = { workspace = true }
@@ -43,7 +42,7 @@ rustls = { version = "0.23.27", features = ["aws-lc-rs"] }
 ignore = { version = "0.4.23", features = ["simd-accel"] }
 sha1 = "0.10.6"
 futures = "0.3.31"
-russh = "0.57.0"
+russh = "0.58.0"
 russh-sftp = "2.1.1"
 md5 = "0.8.0"
 human_bytes = "0.4.3"
@@ -88,9 +87,6 @@ sntpc-net-tokio = "1.0.1"
 sntpc = { version = "0.8.1", features = ["std"] }
 libz-ng-sys = "=1.1.23" # temporary pin due to riscv64 issues
 notify = "8.2.0"
-
-[target.'cfg(unix)'.dependencies]
-users = "0.11.0"
 
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
 tikv-jemallocator = "0.6.0"

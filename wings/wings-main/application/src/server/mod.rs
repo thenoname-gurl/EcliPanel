@@ -1,6 +1,6 @@
 use bollard::secret::ContainerStateStatusEnum;
 use compact_str::ToCompactString;
-use futures_util::StreamExt;
+use futures::StreamExt;
 use serde_json::json;
 use std::{
     collections::HashMap,
@@ -807,9 +807,7 @@ impl Server {
     }
 
     pub fn log_daemon_with_prelude(&self, message: &str) {
-        let prelude = ansi_term::Color::Yellow
-            .bold()
-            .paint(format!("[{} Daemon]:", self.app_state.config.app_name));
+        let prelude = self.app_state.config.daemon_prelude();
 
         self.websocket
             .send(websocket::WebsocketMessage::new(

@@ -62,16 +62,23 @@ pub async fn handle_message(
                 ))
                 .await;
         }
+        WebsocketEvent::SendStatus => {
+            websocket_handler
+                .send_message(WebsocketMessage::new(
+                    WebsocketEvent::ServerStatus,
+                    [server.state.get_state().to_str().into()].into(),
+                ))
+                .await;
+        }
         WebsocketEvent::SendServerLogs => {
             if server.state.get_state() != crate::server::state::ServerState::Offline
                 || state.config.api.send_offline_server_logs
             {
                 let socket_jwt = websocket_handler.get_jwt().await?;
 
-                if socket_jwt.use_console_read_permission
-                    && !socket_jwt
-                        .permissions
-                        .has_permission(Permission::ControlReadConsole)
+                if !socket_jwt
+                    .permissions
+                    .has_calagopus_permission_or(Permission::ControlReadConsole, true)
                 {
                     return Ok(());
                 }

@@ -1,7 +1,7 @@
 use super::configuration::process::ProcessConfigurationStartup;
 use bollard::container::MemoryStatsStats;
 use compact_str::ToCompactString;
-use futures_util::StreamExt;
+use futures::StreamExt;
 use std::sync::Arc;
 use tokio::{
     io::AsyncWriteExt,
