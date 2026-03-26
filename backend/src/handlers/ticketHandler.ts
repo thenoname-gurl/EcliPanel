@@ -180,16 +180,35 @@ export async function ticketRoutes(app: any, prefix = '') {
       l.push(`Ticket ID: ${ticket.id ?? ''}`);
       l.push(`Ticket priority: ${ticket.priority ?? ''}`);
       l.push(`Ticket department: ${ticket.department ?? ''}`);
+      l.push(`Ticket status: ${ticket.status ?? ''}`);
+      l.push(`Ticket subject: ${ticket.subject ?? ''}`);
       return l.join('\n');
     };
 
     const conversationMessages = (): { role: string; content: string }[] =>
-      (Array.isArray(ticket.messages) ? ticket.messages : []).map((h: any) => ({
-        role: h.sender === 'user' ? 'user' : 'assistant', content: h.message,
-      }));
+      (Array.isArray(ticket.messages) ? ticket.messages : [])
+        .filter((h: any) => h.sender === 'user' || h.sender === 'staff')
+        .map((h: any) => ({
+          role: h.sender === 'user' ? 'user' : 'assistant', content: h.message,
+        }));
 
-    interface Directive { escalate: boolean; spam: boolean; close: boolean; sets: Record<string, string>; }
-    const empty = (): Directive => ({ escalate: false, spam: false, close: false, sets: {} });
+    const fullConversationText = (): string =>
+      (Array.isArray(ticket.messages) ? ticket.messages : [])
+        .map((m: any) => `[${m.sender}] ${m.message || ''}`).join('\n');
+
+    interface Directive {
+      escalate: boolean;
+      spam: boolean;
+      close: boolean;
+      sets: Record<string, string>;
+      internalNote: string | null;
+      confidence: 'high' | 'medium' | 'low';
+    }
+
+    const empty = (): Directive => ({
+      escalate: false, spam: false, close: false, sets: {},
+      internalNote: null, confidence: 'medium',
+    });
 
     const extractFallback = (text: string): Directive => {
       const d = empty();
@@ -216,13 +235,60 @@ export async function ticketRoutes(app: any, prefix = '') {
       return d;
     };
 
+    const SHELL_CMDS = [
+      'sudo', 'systemctl', 'docker', 'service', 'journalctl', 'cd', 'nano', 'vim',
+      'cat', 'tail', 'grep', 'curl', 'wget', 'apt', 'yum', 'kill', 'reboot',
+      'shutdown', 'wings', 'ssh', 'scp', 'rsync', 'chmod', 'chown', 'mount',
+      'umount', 'fdisk', 'mkfs', 'iptables', 'ufw', 'firewall-cmd', 'nftables',
+      'rm', 'mv', 'cp', 'ln', 'tar', 'gzip', 'unzip', 'pip', 'npm', 'node',
+      'python', 'php', 'mysql', 'psql', 'redis-cli', 'mongosh', 'htop', 'top',
+      'ps', 'netstat', 'ss', 'lsof', 'df', 'du', 'free', 'dmesg', 'modprobe',
+    ];
+    const shellCmdPattern = new RegExp(
+      `(?:^|\\n)\\s*(?:\\$|#|>)?\\s*(?:${SHELL_CMDS.join('|')})\\s+.+`, 'gi'
+    );
+    const ESCALATION_REPLACEMENT = '\n> _[This step requires infrastructure team action — it has been escalated automatically.]_\n';
+
+    const sanitizeShellCommands = (text: string): { text: string; wasFiltered: boolean } => {
+      let result = text;
+      let wasFiltered = false;
+
+      const codeBlockPattern = /`{1,3}(?:bash|sh|shell|terminal|console|ssh|zsh|ksh|fish|powershell|cmd)?\s*\n[\s\S]*?`{1,3}/gi;
+      const afterCodeBlock = result.replace(codeBlockPattern, ESCALATION_REPLACEMENT);
+      if (afterCodeBlock !== result) { result = afterCodeBlock; wasFiltered = true; }
+
+      const afterInline = result.replace(shellCmdPattern, ESCALATION_REPLACEMENT);
+      if (afterInline !== result) { result = afterInline; wasFiltered = true; }
+
+      const backtickCmd = new RegExp(
+        `\`(?:${SHELL_CMDS.join('|')})\\s+[^\`]+\``, 'gi'
+      );
+      const afterBacktick = result.replace(backtickCmd, '`[escalated to infrastructure team]`');
+      if (afterBacktick !== result) { result = afterBacktick; wasFiltered = true; }
+
+      const runPattern = new RegExp(
+        `(?:run|execute|type|enter|use the command|issue the command)\\s*[:"]?\\s*(?:${SHELL_CMDS.join('|')})\\s+[^.\\n]+`, 'gi'
+      );
+      const afterRun = result.replace(runPattern, 'contact our infrastructure team for this step');
+      if (afterRun !== result) { result = afterRun; wasFiltered = true; }
+
+      const hostActionPattern = /(?:^|\n)\s*(?:host action|server-side|node-level|root action)[:\s].+(?:\n(?!\s*(?:panel action|$)).+)*/gi;
+      const afterHost = result.replace(hostActionPattern, ESCALATION_REPLACEMENT);
+      if (afterHost !== result) { result = afterHost; wasFiltered = true; }
+
+      const sshConditional = /(?:if you have|assuming you have|with|using your)\s+(?:ssh|root|shell|terminal|node|host)\s+access[^.]*\./gi;
+      const afterSshCond = result.replace(sshConditional, 'Our infrastructure team will handle any server-side steps.');
+      if (afterSshCond !== result) { result = afterSshCond; wasFiltered = true; }
+
+      return { text: result.trim(), wasFiltered };
+    };
+
     const apply = async (reply: string, dir: Directive) => {
       if (!Array.isArray(ticket.messages)) ticket.messages = [];
       const ts = now();
 
-      const outageDetected = hasOutage(reply) || hasOutage(
-        (Array.isArray(ticket.messages) ? ticket.messages : []).map((m: any) => m.message || '').join(' ')
-      );
+      const allText = reply + ' ' + fullConversationText();
+      const outageDetected = hasOutage(allText);
       if (outageDetected) {
         dir.escalate = true;
         if (!dir.sets.priority) dir.sets.priority = 'urgent';
@@ -257,10 +323,7 @@ export async function ticketRoutes(app: any, prefix = '') {
         const v = dir.sets.priority.toLowerCase();
         const current = (ticket.priority || '').toLowerCase();
         if (ALLOWED_PRIORITIES.includes(v)) {
-          if (current !== v) {
-            ticket.priority = v;
-            changes.applied.priority = v;
-          }
+          if (current !== v) { ticket.priority = v; changes.applied.priority = v; }
         } else {
           changes.rejected.priority = dir.sets.priority;
         }
@@ -270,10 +333,7 @@ export async function ticketRoutes(app: any, prefix = '') {
         const match = ALLOWED_DEPARTMENTS.find(d => d.toLowerCase() === dir.sets.department.toLowerCase());
         const current = (ticket.department || '').toLowerCase();
         if (match) {
-          if (current !== match.toLowerCase()) {
-            ticket.department = match;
-            changes.applied.department = match;
-          }
+          if (current !== match.toLowerCase()) { ticket.department = match; changes.applied.department = match; }
         } else {
           changes.rejected.department = dir.sets.department;
         }
@@ -284,12 +344,23 @@ export async function ticketRoutes(app: any, prefix = '') {
       ticket.adminReply = safe;
 
       const appliedEntries = Object.entries(changes.applied);
-      if (appliedEntries.length) {
-        const summary = appliedEntries.map(([k, v]) => `${k}=${v}`).join(', ');
-        const reason = outageDetected ? ' (node-wide outage detected)' : '';
+      if (appliedEntries.length || outageDetected || dir.escalate) {
+        const parts: string[] = [];
+        if (appliedEntries.length) parts.push(`applied changes: ${appliedEntries.map(([k, v]) => `${k}=${v}`).join(', ')}`);
+        if (outageDetected) parts.push('node-wide outage detected');
+        if (dir.escalate) parts.push('escalated to human staff');
+        if (dir.confidence === 'low') parts.push('low confidence reply');
         ticket.messages.push({
           sender: 'system',
-          message: `System: AI applied changes: ${summary}${reason}`,
+          message: `System: AI ${parts.join('; ')}.`,
+          created: ts,
+        });
+      }
+
+      if (dir.internalNote) {
+        ticket.messages.push({
+          sender: 'system',
+          message: `AI Internal Note: ${dir.internalNote}`,
           created: ts,
         });
       }
@@ -298,10 +369,16 @@ export async function ticketRoutes(app: any, prefix = '') {
       ticket.status = dir.escalate || changes.applied.priority === 'urgent' ? 'awaiting_staff_reply' : 'replied';
       await repo.save(ticket);
 
-      if (appliedEntries.length) await log(uid, 'ticket:ai:set', tid, { changes, outageDetected });
-      if (outageDetected) await log(uid, 'ticket:ai:force-outage', tid, { reason: 'outage_detected' });
-      if (dir.escalate) await log(uid, 'ticket:ai:escalate', tid, { reason: 'AI suggested escalation' });
-      else await log(uid, 'ticket:ai:reply', tid, { modelId: undefined });
+      const logMeta: Record<string, any> = { modelId: undefined, confidence: dir.confidence };
+      if (appliedEntries.length) logMeta.changes = changes;
+      if (outageDetected) logMeta.outageDetected = true;
+      if (dir.escalate) logMeta.escalated = true;
+      if (dir.internalNote) logMeta.internalNote = dir.internalNote;
+
+      const action = dir.escalate ? 'ticket:ai:escalate'
+        : appliedEntries.length ? 'ticket:ai:set'
+          : 'ticket:ai:reply';
+      await log(uid, action, tid, logMeta);
     };
 
     try {
@@ -310,70 +387,191 @@ export async function ticketRoutes(app: any, prefix = '') {
       const model = await selectModelForUser(user);
       if (!model) { await log(uid, 'ticket:ai:skipped', tid, { reason: 'no_model_configured' }); return; }
 
-      const plans = await planRepo.find({ order: { price: 'ASC' } });
-      const planSummary = plans.length ? plans.map((p: any) => {
-        const features = p.features && typeof p.features === 'object' ? JSON.stringify(p.features) : 'none';
-        const priceText = (p.type && String(p.type).toLowerCase() === 'enterprise') ? 'varies' : `$${p.price}/mo`;
-        return `- ${p.name} (${p.type}) ${priceText}: memory=${p.memory ?? 'n/a'}MB, disk=${p.disk ?? 'n/a'}MB, cpu=${p.cpu ?? 'n/a'}, servers=${p.serverLimit ?? 'n/a'}, databases=${p.databases ?? 'n/a'}, backups=${p.backups ?? 'n/a'}, ports=${p.portCount ?? 'n/a'}, features=${features}`;
-      }).join('\n') : 'Plan table is empty.';
+      let planSummary = 'Plan table is empty.';
+      try {
+        const plans = await planRepo.find({ order: { price: 'ASC' } });
+        if (plans.length) {
+          planSummary = plans.map((p: any) => {
+            const features = p.features && typeof p.features === 'object' ? JSON.stringify(p.features) : 'none';
+            const priceText = (p.type && String(p.type).toLowerCase() === 'enterprise') ? 'varies' : `$${p.price}/mo`;
+            return `- ${p.name} (${p.type}) ${priceText}: memory=${p.memory ?? 'n/a'}MB, disk=${p.disk ?? 'n/a'}MB, cpu=${p.cpu ?? 'n/a'}, servers=${p.serverLimit ?? 'n/a'}, databases=${p.databases ?? 'n/a'}, backups=${p.backups ?? 'n/a'}, ports=${p.portCount ?? 'n/a'}, features=${features}`;
+          }).join('\n');
+        }
+      } catch { /* skip */ }
 
-      const stage1System = `
-STRICT RULES — NEVER VIOLATE:
-1. NEVER suggest, show, or reference any SSH commands, shell commands, root actions, terminal commands, or node-level/host-level operations. This includes but is not limited to: systemctl, docker, cd, nano, vim, cat, tail, grep, journalctl, wings, sudo, apt, yum, curl, wget, service, reboot, shutdown, kill, or ANY command that would be typed into a terminal/console/SSH session.
-2. ONLY suggest actions the user can perform through the EcliPanel web dashboard UI (clicking buttons, navigating pages, editing files through the panel file manager, using panel restart/stop/start buttons).
-3. If an issue REQUIRES node-level/host-level/SSH intervention to resolve, do NOT provide those commands. Instead, clearly tell the user: "This requires intervention from our infrastructure team. We are escalating this ticket and our team will handle it from here." Then explain what the user can check from the panel in the meantime.
-4. NEVER say "if you have SSH access" or "if you have root access" — assume the user does NOT and must NOT run host commands.
+      // STAGE 1 aka Intent Classification & Routing
 
-Reply guidelines:
-- Provide 2-5 short, actionable panel-level steps (exact page paths, button names).
-  Example: "Panel action: Go to /dashboard/servers/[id] → Files → edit server.properties → set eula=true → Save → Press Restart".
-- Include a short overview of where in the panel to find common features and settings:
-  * /dashboard: account summary, usage, and quick links.
-  * /dashboard/servers: list of servers, status, actions, and console links.
-  * /dashboard/billing: plan details, usage, invoices, and upgrade options.
-  * /dashboard/organisations: users, roles, and team permissions.
-  * /dashboard/ai: AI model controls and automation rules.
-- Mention plan categories when relevant and include a brief outline of actual plan schema:
-  * Current plan catalog (from DB): ${planSummary}
-- Explain student plan activation flow:
-  1) Go to /dashboard/billing.
-  2) Click "Connect with Hack Club" (or GitHub if configured).
-  3) Complete OAuth consent and allow access.
-  4) The system verifies eligibility and converts user to educational portal (if approved).
-  5) If not approved, ask them to submit documentation to contact@eclipsesystems.org.
-- If you cannot resolve the issue confidently, say so clearly and explain why human staff are needed.
-- Do not invent or assume details not present in the ticket. If required details are missing, ask for them (server ID, exact error text).
-- For critical node-wide failures (node offline, network partition, host unreachable), clearly state that the infrastructure team has been notified and will handle it. Give the user only panel-level checks they can do while waiting.
-- Include links when relevant: /dashboard, /dashboard/servers, /dashboard/servers/[id], /dashboard/billing, /dashboard/organisations, /dashboard/ai, /dashboard/settings, /dashboard/identity, /infrastructure/code-instances, /dashboard/activity
-- Keep any "All-in-One Guide" compact and near the end under a clear heading.
-- Include official status page if relevant: https://status.eclipsesystems.org/
-- Include official sales email if relevant: contact@eclipsesystems.org
-- Include official legal email if relevant: legal@eclipsesystems.org
-- Dont offer any billing or purchase actions, just link to the billing page (/dashboard/billing) and provide sales email
-- Main panel link is: https://ecli.app/
-- Official domains are: ecli.app, eclipsesystems.org, eclipsesystems.top. Do not reference any other domains and dont reference subdomains of ecli.app.
-- Node domain: n(count).eclipsesystems.org, example n1.eclipsesystems.org
+      const stage1System = `You are a ticket intent classifier for EcliPanel (game/app server hosting).
+Analyze the ticket conversation and classify it.
 
-IMPORTANT: Do NOT include any control tokens ([ESCALATE], [SPAM], [CLOSE], [SET ...]) in your reply.
-Write a helpful, natural response to the user only.`;
+Output JSON only:
+{
+  "intent": "technical" | "billing" | "sales" | "account" | "abuse" | "spam" | "outage" | "general",
+  "subIntent": string,
+  "severity": "critical" | "high" | "medium" | "low",
+  "needsHumanExpertise": boolean,
+  "isSpam": boolean,
+  "isOutage": boolean,
+  "missingInfo": string[],
+  "suggestedDepartment": "${ALLOWED_DEPARTMENTS.join('" | "')}",
+  "suggestedPriority": "${ALLOWED_PRIORITIES.join('" | "')}",
+  "summary": "one-line summary of the issue"
+}
+
+Rules:
+- "isOutage": true if any mention of node down, node offline, multiple servers unreachable, host unreachable, service-wide failure.
+- "needsHumanExpertise": true if the issue requires SSH/root/node access, billing disputes, refunds, legal, security incidents, or anything that cannot be resolved through the web panel alone.
+- "missingInfo": list specific details the user hasn't provided but we need (server ID, error message, node name, etc). Empty array if sufficient.
+- "severity": "critical" for outages/data-loss, "high" for service-degraded, "medium" for feature issues, "low" for questions/general.
+- Be conservative with spam detection — only flag obvious spam/abuse.`;
 
       const stage1Messages = [
         { role: 'system', content: stage1System },
+        { role: 'system', content: `Context:\n${buildContext()}` },
+        ...conversationMessages(),
+        { role: 'user', content: 'Classify this ticket. Output JSON only.' },
+      ];
+
+      interface IntentResult {
+        intent: string; subIntent: string; severity: string;
+        needsHumanExpertise: boolean; isSpam: boolean; isOutage: boolean;
+        missingInfo: string[]; suggestedDepartment: string; suggestedPriority: string;
+        summary: string;
+      }
+
+      let intent: IntentResult | null = null;
+      try {
+        const raw = await callModel(model, stage1Messages, 300, 15_000);
+        const parsed = parseJson(raw);
+        if (parsed && typeof parsed === 'object') {
+          intent = {
+            intent: String(parsed.intent || 'general'),
+            subIntent: String(parsed.subIntent || ''),
+            severity: String(parsed.severity || 'medium'),
+            needsHumanExpertise: Boolean(parsed.needsHumanExpertise),
+            isSpam: Boolean(parsed.isSpam),
+            isOutage: Boolean(parsed.isOutage),
+            missingInfo: Array.isArray(parsed.missingInfo) ? parsed.missingInfo.map(String) : [],
+            suggestedDepartment: String(parsed.suggestedDepartment || ''),
+            suggestedPriority: String(parsed.suggestedPriority || ''),
+            summary: String(parsed.summary || ''),
+          };
+        }
+      } catch { /* skip */ }
+
+      await log(uid, 'ticket:ai:stage1:intent', tid, { intent });
+
+      if (intent?.isSpam) {
+        const dir = empty();
+        dir.spam = true;
+        dir.internalNote = `Intent classifier flagged as spam. Summary: ${intent.summary}`;
+        await apply('This ticket has been flagged and closed. If you believe this is an error, please contact contact@eclipsesystems.org.', dir);
+        return;
+      }
+
+      if (intent?.isOutage && intent?.severity === 'critical') {
+        const dir = empty();
+        dir.escalate = true;
+        dir.sets.priority = 'urgent';
+        dir.sets.department = 'Technical Support';
+        dir.confidence = 'high';
+        dir.internalNote = `Intent classifier detected critical outage. Summary: ${intent.summary}`;
+        const outageReply = `We've detected that this appears to be a node-level outage. Our infrastructure team has been notified and this ticket has been escalated to Priority: Urgent.
+
+**What you can check from the panel while you wait:**
+1. **Panel action:** Go to /wings — confirm the affected node shows as offline/unavailable.
+2. **Panel action:** Check https://status.eclipsesystems.org/ for any known ongoing incidents.
+3. **Panel action:** Go to /dashboard/servers — check if all your servers on that node show as offline.
+
+Our team will investigate and provide an update as soon as possible. You do not need to take any further action — we'll reply here with a status update.
+
+If you need immediate assistance, you can also reach us at contact@eclipsesystems.org.`;
+        await apply(outageReply, dir);
+        return;
+      }
+
+
+      // STAGE 2 aka Generate User-Facing Reply
+
+      const intentContext = intent ? `
+AI Intent Analysis (use this to guide your reply):
+- Intent: ${intent.intent} / ${intent.subIntent}
+- Severity: ${intent.severity}
+- Needs human expertise: ${intent.needsHumanExpertise}
+- Missing info from user: ${intent.missingInfo.length ? intent.missingInfo.join(', ') : 'none'}
+- Summary: ${intent.summary}
+${intent.needsHumanExpertise ? '\nIMPORTANT: This issue requires human expertise. Provide what panel-level guidance you can, then clearly state the infrastructure/support team will handle the rest. Do NOT attempt to fully resolve it.' : ''}
+${intent.missingInfo.length ? `\nIMPORTANT: Ask the user for these missing details: ${intent.missingInfo.join(', ')}` : ''}` : '';
+
+      const stage2System = `You are the EcliPanel support assistant. Be concise, factual and helpful.
+
+ABSOLUTE RULES — VIOLATION IS FORBIDDEN:
+1. NEVER include SSH commands, shell commands, root actions, terminal commands, or ANY node/host-level operations in your reply. This includes: ${SHELL_CMDS.slice(0, 20).join(', ')}, or ANY command typed into a terminal.
+2. NEVER say "if you have SSH access", "if you have root access", "connect via SSH", "on the host machine", "on the node", "in the terminal". These phrases are BANNED.
+3. ONLY suggest actions performable through the EcliPanel web dashboard: clicking buttons, navigating pages, using the panel file manager, panel restart/stop/start buttons, panel console.
+4. If resolution REQUIRES node/host/SSH action, say EXACTLY: "This requires our infrastructure team. We've escalated this and our team will handle it." Then list ONLY panel-level checks the user can do while waiting.
+5. The panel console (/dashboard/servers/[id] → Console) is a GAME SERVER console, NOT a system terminal. Users can type game commands there (like Minecraft commands), NOT system commands.
+
+Panel navigation reference:
+- /dashboard — account summary, usage, quick links
+- /dashboard/servers — server list, status, actions
+- /dashboard/servers/[id] — specific server: Console, Files, Databases, Schedules, Settings, Startup
+- /dashboard/servers/[id] → Files — file manager (edit configs like server.properties, spigot.yml etc)
+- /dashboard/servers/[id] → Startup — startup parameters, Java version, server jar
+- /dashboard/servers/[id] → Settings — rename, reinstall, transfer
+- /dashboard/billing — plans, invoices, upgrades
+- /dashboard/organisations — team management, roles
+- /dashboard/ai — AI settings
+- /dashboard/settings — account settings
+- /dashboard/identity — identity verification
+- /dashboard/activity — activity logs
+- /infrastructure/code-instances — code server instances
+- /wings — node status overview
+- Status page: https://status.eclipsesystems.org/
+- Sales/support email: contact@eclipsesystems.org
+- Legal email: legal@eclipsesystems.org
+- Main panel: https://ecli.app/
+- Official domains: ecli.app, eclipsesystems.org, eclipsesystems.top
+- Node domains: n[number].eclipsesystems.org (e.g. n1.eclipsesystems.org)
+
+Plan catalog:
+${planSummary}
+
+Student plan activation:
+1. Go to /dashboard/billing
+2. Click "Connect with Hack Club" (or GitHub if configured)
+3. Complete OAuth consent
+4. System verifies eligibility and converts to educational portal
+5. If not approved, submit documentation to contact@eclipsesystems.org
+
+Reply guidelines:
+- Provide 2-5 numbered panel-level steps with exact page paths and button names.
+- If you cannot resolve confidently, say so and explain why human staff are needed.
+- Do not invent details. Ask for missing info if needed.
+- Do not offer billing/purchase actions — link to /dashboard/billing and provide sales email.
+- Keep any summary guide compact at the end.
+${intentContext}
+
+IMPORTANT: Do NOT include control tokens ([ESCALATE], [SPAM], [CLOSE], [SET ...]).
+Write ONLY the user-facing reply.`;
+
+      const stage2Messages = [
+        { role: 'system', content: stage2System },
         { role: 'system', content: `User & Ticket context:\n${buildContext()}` },
         ...conversationMessages(),
         {
           role: 'user',
           content: reason === 'creation'
-            ? `A user opened this ticket. Provide a helpful staff reply addressing the subject: "${ticket.subject}". Be confident and actionable. Remember: ONLY panel-level actions, NEVER SSH/root/terminal commands.`
-            : 'The user just replied to an existing ticket. Provide a helpful staff reply to move the issue forward. Be confident and actionable. Remember: ONLY panel-level actions, NEVER SSH/root/terminal commands.',
+            ? `A user opened this ticket with subject: "${ticket.subject}". Provide a helpful staff reply. ONLY panel-level actions. NEVER terminal/SSH/root commands.`
+            : 'The user replied to this ticket. Provide a helpful staff reply to move the issue forward. ONLY panel-level actions. NEVER terminal/SSH/root commands.',
         },
       ];
 
       let aiReply: string;
       try {
-        aiReply = await callModel(model, stage1Messages, 800, 60_000);
+        aiReply = await callModel(model, stage2Messages, 800, 60_000);
       } catch (err: any) {
-        await log(uid, 'ticket:ai:skipped', tid, { reason: 'stage1_failed', error: String(err?.message ?? err) });
+        await log(uid, 'ticket:ai:skipped', tid, { reason: 'stage2_failed', error: String(err?.message ?? err) });
         throw err;
       }
 
@@ -384,53 +582,55 @@ Write a helpful, natural response to the user only.`;
 
       aiReply = aiReply.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
 
-      const shellPatterns = [
-        /`{1,3}(?:bash|sh|shell|terminal|console|ssh)?\n[\s\S]*?`{1,3}/gi,
-        /(?:^|\n)\s*(?:sudo|systemctl|docker|service|journalctl|cd |nano |vim |cat |tail |grep |curl |wget |apt |yum |kill |reboot|shutdown|wings )\s+.+/gi,
-        /\$\s+\S+/g,
-        /#\s+(?:sudo|systemctl|docker|service|cd|nano|vim|cat|tail|grep|curl|wget|apt|yum|kill|reboot|shutdown|wings)\s+.+/gi,
-      ];
-      let filtered = aiReply;
-      for (const pat of shellPatterns) {
-        filtered = filtered.replace(pat, '\n> _[This step requires infrastructure team action — it has been escalated automatically.]_\n');
-      }
-      const wasFiltered = filtered !== aiReply;
+      const sanitized = sanitizeShellCommands(aiReply);
+      aiReply = sanitized.text;
+      const wasFiltered = sanitized.wasFiltered;
+
       if (wasFiltered) {
-        aiReply = filtered.trim();
+        await log(uid, 'ticket:ai:stage2:filtered', tid, { reason: 'shell_commands_stripped' });
       }
 
-      const stage2System = `
-You are a ticket-control classifier. You receive a support conversation and an AI-generated reply.
-Output a JSON object with control directives. Nothing else.
+      // STAGE 3 aka Control Directive Classification
+
+      const stage3System = `You are a ticket-control classifier for EcliPanel support.
+You receive: ticket conversation, AI intent analysis, and the AI-generated reply.
+Output a JSON object with control directives. NOTHING else — no markdown, no explanation.
+
+{
+  "escalate": boolean,
+  "spam": boolean,
+  "close": boolean,
+  "sets": { "priority"?: string, "department"?: string },
+  "internalNote": string | null,
+  "confidence": "high" | "medium" | "low"
+}
 
 Rules:
-- "escalate": true if the issue requires human staff (node outages, critical failures, AI cannot resolve, user lacks access, any node/host-level action is needed).
-- "spam": true if the ticket is clearly spam or abuse.
-- "close": true if the issue is fully resolved (will be marked for human verification).
-- "sets": object of field updates. Supported keys:
-    "priority": one of ${ALLOWED_PRIORITIES.join(', ')}
-    "department": one of ${ALLOWED_DEPARTMENTS.join(', ')}
-  Only include keys that SHOULD CHANGE from the current values.
-  Current priority: "${ticket.priority || ''}"
-  Current department: "${ticket.department || ''}"
-  Do NOT include a key if it already matches the current value.
+- "escalate": true if human staff must act (node/host issues, SSH needed, billing disputes, security, AI cannot resolve, outage).
+- "spam": true ONLY for obvious spam/abuse (gibberish, ads, phishing).
+- "close": true ONLY if the issue is definitively resolved in the reply. Be conservative.
+- "sets": ONLY include keys that should CHANGE.
+  Current priority: "${ticket.priority || 'medium'}"
+  Current department: "${ticket.department || 'General'}"
+  Allowed priorities: ${ALLOWED_PRIORITIES.join(', ')}
+  Allowed departments: ${ALLOWED_DEPARTMENTS.join(', ')}
+  If a value already matches current, DO NOT include it.
+- "internalNote": brief note for human staff if escalating (why, what to check). null if not needed.
+- "confidence": how confident the AI reply resolves the issue.
+  "high" = clear resolution provided, "medium" = partial help, "low" = mostly guessing or asking for info.
 
-Example output:
-{"escalate":false,"spam":false,"close":false,"sets":{"priority":"urgent","department":"Technical Support"}}
+${intent ? `Intent analysis from Stage 1: ${JSON.stringify(intent)}` : ''}`;
 
-No actions needed:
-{"escalate":false,"spam":false,"close":false,"sets":{}}`;
-
-      const stage2Messages = [
-        { role: 'system', content: stage2System },
+      const stage3Messages = [
+        { role: 'system', content: stage3System },
         ...conversationMessages(),
         { role: 'assistant', content: aiReply },
-        { role: 'user', content: 'Analyze the full conversation and assistant reply above. Output the control JSON only.' },
+        { role: 'user', content: 'Output the control directive JSON for this ticket. JSON only, no other text.' },
       ];
 
       let directive: Directive;
       try {
-        const raw = await callModel(model, stage2Messages, 200, 20_000);
+        const raw = await callModel(model, stage3Messages, 250, 20_000);
         const parsed = parseJson(raw);
         if (parsed && typeof parsed === 'object') {
           directive = {
@@ -438,6 +638,8 @@ No actions needed:
             spam: Boolean(parsed.spam),
             close: Boolean(parsed.close),
             sets: parsed.sets && typeof parsed.sets === 'object' ? parsed.sets : {},
+            internalNote: parsed.internalNote ? String(parsed.internalNote) : null,
+            confidence: ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'medium',
           };
         } else {
           directive = extractFallback(aiReply);
@@ -446,15 +648,98 @@ No actions needed:
         directive = extractFallback(aiReply);
       }
 
-      if (wasFiltered) {
-        directive.escalate = true;
+      if (wasFiltered) directive.escalate = true;
+      if (intent?.needsHumanExpertise) directive.escalate = true;
+      if (intent?.isOutage) { directive.escalate = true; directive.sets.priority = directive.sets.priority || 'urgent'; }
+
+      await log(uid, 'ticket:ai:stage3:directive', tid, { directive, wasFiltered, intentOverrides: { wasFiltered, needsHuman: intent?.needsHumanExpertise, isOutage: intent?.isOutage } });
+
+      // STAGE 4 aka Reply Quality Gate 
+
+      const replyLength = aiReply.length;
+      const needsQualityCheck = directive.confidence === 'low'
+        || replyLength < 80
+        || replyLength > 2500
+        || wasFiltered;
+
+      if (needsQualityCheck) {
+        const stage4System = `You are a quality reviewer for AI-generated support replies at EcliPanel.
+Review the reply for these issues and output JSON:
+
+{
+  "passesQuality": boolean,
+  "issues": string[],
+  "containsShellCommands": boolean,
+  "containsInventedInfo": boolean,
+  "containsWrongLinks": boolean,
+  "suggestedFix": string | null
+}
+
+Check for:
+1. Shell/SSH/terminal/root commands (systemctl, docker, sudo, etc) — these are FORBIDDEN.
+2. Invented information not supported by the ticket context.
+3. Links to domains other than ecli.app, eclipsesystems.org, eclipsesystems.top, or status.eclipsesystems.org.
+4. Promises about refunds, SLAs, uptime guarantees the AI shouldn't make.
+5. Reply is too short to be helpful (< 2 sentences) or too verbose.
+6. References to "SSH access", "root access", "terminal", "command line" in any form.
+
+Official domains: ecli.app, eclipsesystems.org, eclipsesystems.top
+Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /infrastructure/*`;
+
+        const stage4Messages = [
+          { role: 'system', content: stage4System },
+          { role: 'system', content: `Ticket context:\n${buildContext()}` },
+          { role: 'user', content: `Review this AI reply:\n\n---\n${aiReply}\n---\n\nOutput quality check JSON only.` },
+        ];
+
+        try {
+          const raw = await callModel(model, stage4Messages, 200, 15_000);
+          const parsed = parseJson(raw);
+          if (parsed && typeof parsed === 'object') {
+            const passes = Boolean(parsed.passesQuality);
+            const hasShell = Boolean(parsed.containsShellCommands);
+            const hasInvented = Boolean(parsed.containsInventedInfo);
+            const hasWrongLinks = Boolean(parsed.containsWrongLinks);
+            const issues = Array.isArray(parsed.issues) ? parsed.issues : [];
+
+            await log(uid, 'ticket:ai:stage4:quality', tid, { passes, issues, hasShell, hasInvented, hasWrongLinks });
+
+            if (hasShell) {
+              const reSanitized = sanitizeShellCommands(aiReply);
+              aiReply = reSanitized.text;
+              directive.escalate = true;
+              if (!directive.internalNote) directive.internalNote = '';
+              directive.internalNote += ' Quality gate caught shell commands after initial filter.';
+            }
+
+            if (hasWrongLinks) {
+              aiReply = aiReply.replace(/https?:\/\/(?!(?:ecli\.app|eclipsesystems\.org|eclipsesystems\.top|status\.eclipsesystems\.org))[^\s)>\]]+/gi, '[link removed]');
+            }
+
+            if (!passes && issues.length > 2) {
+              directive.confidence = 'low';
+              directive.escalate = true;
+              if (!directive.internalNote) directive.internalNote = '';
+              directive.internalNote += ` Quality gate failed: ${issues.join('; ')}`;
+            }
+          }
+        } catch {
+          await log(uid, 'ticket:ai:stage4:error', tid, { reason: 'quality_check_failed' });
+        }
       }
 
       await apply(aiReply, directive);
 
     } catch (e: any) {
-      await log(0, 'ticket:ai:error', tid, { error: String(e?.message ?? e) });
+      await log(0, 'ticket:ai:error', tid, { error: String(e?.message ?? e), details: e?.details || null });
       console.error('AI handler error', e);
+      try {
+        ticket.aiDisabled = true;
+        ticket.aiTouched = true;
+        await repo.save(ticket);
+      } catch (saveErr) {
+        console.error('Failed to set ticket.aiDisabled on AI error', saveErr);
+      }
     }
   }
 
@@ -495,9 +780,21 @@ No actions needed:
       ? await repo.find({ order: { created: 'DESC' } })
       : await repo.find({ where: { userId: user.id }, order: { created: 'DESC' } });
 
+    const statusIsArchived = statusFilter === 'archived';
+
+    const statusMatch = (ticketStatus: string, filter: string) => {
+      const ts = String(ticketStatus || '').toLowerCase();
+      if (!ts) return false;
+      if (filter === 'opened') return ['open', 'opened'].includes(ts);
+      if (filter === 'awaiting_staff_reply') return ['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'].includes(ts);
+      if (filter === 'replied') return ts === 'replied';
+      if (filter === 'closed') return ts === 'closed';
+      return ts === filter;
+    };
+
     let filtered = tickets;
-    if (statusFilter) {
-      filtered = filtered.filter((t: any) => (t.status || '').toString().toLowerCase() === statusFilter);
+    if (statusFilter && !statusIsArchived) {
+      filtered = filtered.filter((t: any) => statusMatch(t.status, statusFilter));
     }
     if (priorityFilter) {
       filtered = filtered.filter((t: any) => (t.priority || '').toString().toLowerCase() === priorityFilter);
@@ -506,7 +803,7 @@ No actions needed:
       filtered = filtered.filter((t: any) => (t.department || '').toString().toLowerCase() === departmentFilter);
     }
 
-    if (archiveOnly === 'true' || archiveOnly === '1' || archiveOnly === 'yes' || statusFilter === 'archived') {
+    if (archiveOnly === 'true' || archiveOnly === '1' || archiveOnly === 'yes' || statusIsArchived) {
       filtered = filtered.filter((t: any) => t.archived === true);
     } else if (includeArchived === 'true' || includeArchived === '1' || includeArchived === 'yes') {
       // skip
@@ -572,7 +869,7 @@ No actions needed:
               const res = await requestWithFallback({ model, path: '/v1/chat/completions', method: 'post', data: { model: resolveProviderModelId(model), messages: [{ role: 'system', content: classifierSys }, { role: 'user', content: classifierUsr }], max_tokens: 120 }, timeoutMs: 20_000 });
               const raw = String(res?.data?.choices?.[0]?.message?.content ?? '').trim();
               let parsed: any = null;
-              try { parsed = JSON.parse(raw); } catch { const m = raw.match(/\{[\s\S]*\}/); if (m) try { parsed = JSON.parse(m[0]); } catch {} }
+              try { parsed = JSON.parse(raw); } catch { const m = raw.match(/\{[\s\S]*\}/); if (m) try { parsed = JSON.parse(m[0]); } catch { } }
               const isUrgent = Boolean(parsed?.urgent) || Boolean(parsed?.high) || /urgent/i.test(raw) || /high priority/i.test(raw);
               if (!isUrgent) {
                 const now = new Date();

@@ -81,6 +81,30 @@ function requireAdminCtx(ctx: any): true | { error: string } {
   return true;
 }
 
+function normalizeTicketStatus(status: any): string {
+  const s = String(status || '').toLowerCase();
+  if (['open', 'opened'].includes(s)) return 'opened';
+  if (['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'].includes(s)) return 'awaiting_staff_reply';
+  if (['replied'].includes(s)) return 'replied';
+  if (['closed'].includes(s)) return 'closed';
+  return s || 'opened';
+}
+
+function sanitizeForDb(s: string | null | undefined) {
+  if (s == null) return s;
+  try {
+    let out = String(s);
+    out = out.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+    out = out.replace(/[\u2190-\u21FF]/g, '->');
+    out = out.replace(/≥/g, '>=').replace(/≤/g, '<=');
+    out = out.replace(/©/g, '(c)').replace(/®/g, '(r)');
+    out = out.replace(/([\uD800-\uDBFF][\uDC00-\uDFFF])/g, '?');
+    return out;
+  } catch (e) {
+    return String(s);
+  }
+}
+
 function getTicketResponseDurations(ticket: Ticket): number[] {
   const records = Array.isArray(ticket.messages) ? ticket.messages : [];
   const sorted = records
@@ -605,7 +629,14 @@ export async function adminRoutes(app: any, prefix = '') {
       if (s === 'archived') {
         qb = qb.andWhere('t.archived = :ar', { ar: true });
       } else {
-        qb = qb.andWhere('t.status = :s', { s });
+        const statusMap: Record<string, string[]> = {
+          opened: ['open', 'opened'],
+          awaiting_staff_reply: ['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'],
+          replied: ['replied'],
+          closed: ['closed'],
+        };
+        const statusValues = statusMap[s] ?? [s];
+        qb = qb.andWhere('t.status IN (:...s)', { s: statusValues });
         qb = qb.andWhere('t.archived = :ar', { ar: false });
       }
     } else if (archived === 'true' || archived === '1' || archived === 'yes') {
@@ -657,12 +688,64 @@ export async function adminRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    const { status, adminReply, archived } = ctx.body as any;
-    if (status) ticket.status = status;
-    if (adminReply !== undefined) ticket.adminReply = adminReply;
+
+    const {
+      status,
+      priority,
+      reply,
+      replyAs,
+      adminReply,
+      archived,
+      assignedTo,
+      department,
+      aiDisabled,
+      aiTouched,
+    } = ctx.body as any;
+
+    const now = new Date();
+    const previousStatus = ticket.status;
+
+    if (priority) ticket.priority = priority;
+    if (assignedTo != null) ticket.assignedTo = Number(assignedTo);
+    if (typeof department === 'string') ticket.department = department;
+    if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
+    if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
     if (archived !== undefined) ticket.archived = Boolean(archived);
-    await ticketRepo.save(ticket);
-    return { success: true, ticket };
+
+    if (status) {
+      const nextStatus = normalizeTicketStatus(status);
+      if (nextStatus !== ticket.status) {
+        ticket.status = nextStatus;
+        if (!Array.isArray(ticket.messages)) ticket.messages = [];
+        ticket.messages.push({
+          sender: 'staff',
+          message: `System: status changed from ${previousStatus || 'unknown'} to ${nextStatus}.`,
+          created: now,
+        });
+      }
+    }
+
+    if (!Array.isArray(ticket.messages)) ticket.messages = [];
+
+    if (typeof reply === 'string' && reply.trim()) {
+      const cleanReply = sanitizeForDb(reply.trim());
+      const sender = replyAs === 'user' ? 'user' : 'staff';
+      ticket.messages.push({ sender, message: cleanReply, created: now });
+      if (sender === 'staff') {
+        ticket.adminReply = cleanReply;
+      }
+      if (!status) ticket.status = sender === 'staff' ? 'replied' : 'awaiting_staff_reply';
+    } else if (adminReply !== undefined) {
+      ticket.adminReply = String(adminReply);
+    }
+
+    // status can still be set by admin reply options in the modal
+    if (status) {
+      ticket.status = normalizeTicketStatus(status);
+    }
+
+    const saved = await ticketRepo.save(ticket);
+    return { success: true, ticket: saved };
   }, {
     beforeHandle: authenticate,
     schema: {

@@ -1349,13 +1349,11 @@ export default function AdminPanel() {
       const priorityParam = priority === 'any' ? '' : (priority || '')
       let url = `${API_ENDPOINTS.adminTickets}?page=${page}&q=${encodeURIComponent(q || '')}&priority=${encodeURIComponent(priorityParam)}`
       if (ticketFilter && ticketFilter !== 'all') {
-        if (ticketFilter === 'archived') {
-          url += `&status=archived`
-        } else {
-          url += `&status=${encodeURIComponent(ticketFilter)}`
-        }
+        url += `&status=${encodeURIComponent(ticketFilter)}`
       }
       if (showAiTouched) url += `&includeAiTouched=1`
+      if (ticketFilter === 'archived') url += `&archived=1`
+
       const res: any = await apiFetch(url)
       if (res) {
         setTickets(Array.isArray(res.tickets) ? res.tickets : [])
@@ -1367,21 +1365,17 @@ export default function AdminPanel() {
         setTicketsPage(page)
       }
       setSelectedTicketIds([])
-      if (res) {
-        setTickets(Array.isArray(res.tickets) ? res.tickets : [])
-        setTicketsTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.tickets) ? res.tickets.length : 0))
-        setTicketsPage(typeof res.page === 'number' ? res.page : page)
-      } else {
-        setTickets([])
-        setTicketsTotal(0)
-        setTicketsPage(page)
-      }
     } catch (e) {
       setTickets([])
       setTicketsTotal(0)
     } finally {
       setTicketsLoading(false)
     }
+  }
+
+  const setTicketFilterAndReload = async (f: string) => {
+    setTicketFilter(f)
+    await fetchTickets(1, ticketSearch, ticketPriorityFilter)
   }
 
   // ── Load default tab on mount ──
@@ -1400,7 +1394,11 @@ export default function AdminPanel() {
 
   // ── Filtered tickets ──
   const filteredTickets =
-    ticketFilter === "all" ? tickets : tickets.filter((t) => t.status === ticketFilter)
+    ticketFilter === "all"
+      ? tickets
+      : ticketFilter === "archived"
+      ? tickets.filter((t) => t.archived)
+      : tickets.filter((t) => t.status === ticketFilter)
 
   // ── Filtered organisations ──
   const filteredOrgs = organisations.filter((o) => {
@@ -3139,7 +3137,7 @@ remote: ${panelUrl}`
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <div className="flex gap-2">
                     {['all', 'opened', 'awaiting_staff_reply', 'replied', 'closed', 'archived'].map((f) => (
-                      <button key={f} onClick={() => setTicketFilter(f)}
+                      <button key={f} onClick={() => setTicketFilterAndReload(f)}
                         className={`rounded-md px-3 py-1 text-xs transition-colors ${ticketFilter === f
                           ? "bg-primary/20 text-primary"
                           : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
