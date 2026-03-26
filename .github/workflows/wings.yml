@@ -63,14 +63,14 @@ jobs:
 
       - name: Prepare binary with platform name
         run: |
-          mkdir -p dist
-          cp "target/${{ matrix.target }}/release/$BIN_NAME" "dist/$BIN_NAME-${{ matrix.build }}"
+          mkdir -p "dist/${{ env.PROJECT_NAME }}-${{ matrix.build }}"
+          cp "target/${{ matrix.target }}/release/$BIN_NAME" "dist/${{ env.PROJECT_NAME }}-${{ matrix.build }}/${BIN_NAME}-${{ matrix.build }}"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PROJECT_NAME }}-${{ matrix.build }}
-          path: dist/${{ env.BIN_NAME }}-${{ matrix.build }}
+          path: dist/${{ env.PROJECT_NAME }}-${{ matrix.build }}
 
   create-multiarch-image:
     name: Create multi-arch Docker image
