@@ -114,6 +114,9 @@ nestify::nest! {
             pub kvm_passthrough_enabled: bool,
 
             #[serde(default)]
+            pub rootless: Option<bool>,
+
+            #[serde(default)]
             #[schema(inline)]
             pub seccomp: #[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde)] pub struct ServerConfigurationContainerSeccomp {
                 #[serde(default)]
@@ -156,7 +159,8 @@ impl ServerConfiguration {
                 .to_compact_string(),
             read_only: true,
         });
-        if !config.system.user.rootless.enabled {
+        let rootless = self.container.rootless.unwrap_or(config.system.user.rootless.enabled);
+        if !rootless {
             mounts.push(Mount {
                 default: false,
                 target: "/sys/class/dmi/id/product_uuid".into(),
@@ -221,11 +225,13 @@ impl ServerConfiguration {
             });
         }
 
+        let vmount_prefix = config.vmount_path(self.uuid).to_string_lossy().to_string();
         for mount in &self.mounts {
-            if config
-                .allowed_mounts
-                .iter()
-                .all(|m| !mount.source.starts_with(&**m))
+            if !mount.source.starts_with(&vmount_prefix)
+                && config
+                    .allowed_mounts
+                    .iter()
+                    .all(|m| !mount.source.starts_with(&**m))
             {
                 continue;
             }
@@ -591,15 +597,18 @@ impl ServerConfiguration {
             entrypoint: self.entrypoint.clone(),
             image: Some(self.container.image.trim_end_matches('~').to_string()),
             env: Some(self.environment(config)),
-            user: Some(if config.system.user.rootless.enabled {
-                format!(
-                    "{}:{}",
-                    config.system.user.rootless.container_uid,
-                    config.system.user.rootless.container_gid
-                )
-            } else {
-                format!("{}:{}", config.system.user.uid, config.system.user.gid)
-            }),
+            user: {
+                let rootless = self.container.rootless.unwrap_or(config.system.user.rootless.enabled);
+                Some(if rootless {
+                    format!(
+                        "{}:{}",
+                        config.system.user.rootless.container_uid,
+                        config.system.user.rootless.container_gid
+                    )
+                } else {
+                    format!("{}:{}", config.system.user.uid, config.system.user.gid)
+                })
+            },
             labels: Some(labels),
             attach_stdin: Some(true),
             attach_stdout: Some(true),

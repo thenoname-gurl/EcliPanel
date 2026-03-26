@@ -35,13 +35,6 @@ interface PublicWingsResponse {
   summary: { total_nodes: number; total_checks: number; average_uptime_pct: number }
 }
 
-function getUptimeMeta(uptimePct: number | undefined) {
-  const pct = typeof uptimePct === 'number' ? uptimePct : 0
-  if (pct > 97) return { textClass: 'text-emerald-400', color: '#22c55e', status: 'Online' }
-  if (pct < 95) return { textClass: 'text-red-400', color: '#ef4444', status: 'Offline' }
-  return { textClass: 'text-yellow-400', color: '#eab308', status: 'Degraded' }
-}
-
 function BinaryStrip() {
   const [binary, setBinary] = useState("")
 
@@ -75,12 +68,31 @@ function TerminalBlock({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Helper function to get uptime color class
+function getUptimeColorClass(uptime: number): string {
+  if (uptime >= 97) return 'text-emerald-400'
+  if (uptime >= 95) return 'text-yellow-400'
+  return 'text-red-400'
+}
+
+// Helper function to get uptime color hex
+function getUptimeColorHex(uptime: number): string {
+  if (uptime >= 97) return '#34d399'
+  if (uptime >= 95) return '#facc15'
+  return '#f87171'
+}
+
 function NodeSparkline({ data, compact = true }: { data: HeartbeatPoint[]; compact?: boolean }) {
   const W = 300
   const H = compact ? 38 : 88
   const pts = compact ? data.slice(-120) : data
   const last = pts[pts.length - 1]
   const recent5 = pts.slice(-5)
+  const isOffline = !last || last.status !== "ok"
+  const isDegraded = !isOffline && recent5.some((p) => p.status !== "ok")
+  const statusColor = isOffline ? "#ef4444" : isDegraded ? "#eab308" : "#22c55e"
+  const statusText = isOffline ? "Offline" : isDegraded ? "Degraded" : "Online"
+  const statusTextClass = isOffline ? "text-red-400" : isDegraded ? "text-yellow-400" : "text-emerald-400"
   const validMs = pts.filter((p) => p.responseMs != null).map((p) => p.responseMs!)
   const maxMs = Math.max(...validMs, 100)
   let path = ""
@@ -95,12 +107,6 @@ function NodeSparkline({ data, compact = true }: { data: HeartbeatPoint[]; compa
 
   const uptimePct = pts.length > 0 ? Math.round((pts.filter((p) => p.status === "ok").length / pts.length) * 1000) / 10 : 100
 
-  const meta = getUptimeMeta(uptimePct)
-
-  const statusColor = meta.color
-  const statusText = meta.status
-  const statusTextClass = meta.textClass
-
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -109,7 +115,7 @@ function NodeSparkline({ data, compact = true }: { data: HeartbeatPoint[]; compa
           <span className={`font-mono text-xs font-medium ${statusTextClass}`}>{statusText}</span>
           {last?.responseMs != null && <span className="font-mono text-xs text-purple-400/60">{last.responseMs}ms</span>}
         </div>
-        <span className="font-mono text-xs text-purple-400/60">{uptimePct}% up</span>
+        <span className={`font-mono text-xs ${getUptimeColorClass(uptimePct)}`}>{uptimePct}% up</span>
       </div>
 
       {pts.length > 0 ? (
@@ -216,7 +222,7 @@ export default function WingsStatusPage() {
               </p>
               <p>
                 <span className="text-pink-400">AVG_UPTIME:</span>{' '}
-                <span className={getUptimeMeta(status?.summary.average_uptime_pct).textClass}>
+                <span className={getUptimeColorClass(status?.summary.average_uptime_pct ?? 0)}>
                   {status?.summary.average_uptime_pct?.toFixed(1) ?? '...'}%
                 </span>
               </p>
@@ -247,7 +253,7 @@ export default function WingsStatusPage() {
             </div>
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-4 text-center backdrop-blur-sm">
               <p className="font-mono text-xs text-purple-400/60">Avg Uptime</p>
-              <p className={`mt-1 font-mono text-xl sm:text-2xl font-bold ${getUptimeMeta(status?.summary.average_uptime_pct).textClass}`}>
+              <p className={`mt-1 font-mono text-xl sm:text-2xl font-bold ${getUptimeColorClass(status?.summary.average_uptime_pct ?? 0)}`}>
                 {status?.summary.average_uptime_pct?.toFixed(1) ?? '-'}%
               </p>
             </div>
@@ -295,7 +301,7 @@ export default function WingsStatusPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-xs text-purple-400/60">Uptime</p>
-                    <p className={`font-mono text-xl sm:text-2xl font-bold ${getUptimeMeta(node.summary.uptime_pct).textClass}`}>
+                    <p className={`font-mono text-xl sm:text-2xl font-bold ${getUptimeColorClass(node.summary.uptime_pct)}`}>
                       {node.summary.uptime_pct}%
                     </p>
                   </div>

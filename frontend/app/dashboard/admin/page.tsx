@@ -202,6 +202,7 @@ interface AdminEgg {
   allowedPortals?: string[]
   updateUrl?: string
   visible: boolean
+  rootless?: boolean
 }
 
 interface AdminAIModel {
@@ -245,6 +246,7 @@ interface AdminServer {
     invocation?: string
     build?: { memory_limit?: number; disk_space?: number; cpu_limit?: number; swap?: number; io_weight?: number; oom_disabled?: boolean }
     docker?: { image?: string }
+    autoSyncOnEggChange?: boolean
   }
 }
 
@@ -1047,7 +1049,9 @@ export default function AdminPanel() {
   const [eggInstallContainer, setEggInstallContainer] = useState("")
   const [eggInstallEntrypoint, setEggInstallEntrypoint] = useState("bash")
   const [eggInstallScript, setEggInstallScript] = useState("")
+  const [eggRootless, setEggRootless] = useState(false)
   const [eggLoading, setEggLoading] = useState(false)
+  const [syncingEggIds, setSyncingEggIds] = useState<number[]>([])
 
   // ── Import Egg dialog ──
   const [importEggOpen, setImportEggOpen] = useState(false)
@@ -1079,6 +1083,7 @@ export default function AdminPanel() {
   const [esEditFqdnVal, setEsEditFqdnVal] = useState("")
   const [esEggId, setEsEggId] = useState<string | undefined>(undefined)
   const [esReinstalling, setEsReinstalling] = useState(false)
+  const [esAutoSyncOnEggChange, setEsAutoSyncOnEggChange] = useState<boolean>(true)
 
   // ── Create Server dialog ──
   const [createServerOpen, setCreateServerOpen] = useState(false)
@@ -1707,6 +1712,14 @@ export default function AdminPanel() {
     if (eggs.length === 0) {
       apiFetch(API_ENDPOINTS.adminEggs).then((data: any) => setEggs(data || [])).catch(() => { })
     }
+    try {
+      const full = await apiFetch(`/api/servers/${srv.uuid}`)
+      if (full && full.configuration) {
+        setEsAutoSyncOnEggChange(full.configuration.autoSyncOnEggChange !== false)
+      }
+    } catch {
+      // skip
+    }
   }
 
   async function saveEditServer() {
@@ -1728,6 +1741,7 @@ export default function AdminPanel() {
           startup: esStartup || undefined,
           allocations: esAllocations,
           eggId: esEggId && esEggId !== "none" ? Number(esEggId) : undefined,
+          autoSyncOnEggChange: esAutoSyncOnEggChange,
         }),
       })
       setServers((prev) => prev.map((s) =>
@@ -2245,6 +2259,7 @@ remote: ${panelUrl}`
     setEggAllowedPortals([])
     setEggProcessStop("stop"); setEggProcessDone("")
     setEggInstallContainer(""); setEggInstallEntrypoint("bash"); setEggInstallScript("")
+    setEggRootless(false)
   }
 
   function openEditEgg(egg: AdminEgg) {
@@ -2270,6 +2285,7 @@ remote: ${panelUrl}`
     setEggInstallContainer(egg.installScript?.container || "")
     setEggInstallEntrypoint(egg.installScript?.entrypoint || "bash")
     setEggInstallScript(egg.installScript?.script || "")
+    setEggRootless(Boolean(egg.rootless))
   }
 
   async function saveEgg() {
@@ -2324,6 +2340,7 @@ remote: ${panelUrl}`
       features: features.length ? features : undefined,
       fileDenylist: fileDenylist.length ? fileDenylist : undefined,
       allowedPortals: eggAllowedPortals,
+      rootless: eggRootless,
       visible: eggVisible,
     }
     try {
@@ -2337,6 +2354,25 @@ remote: ${panelUrl}`
       setEggDialog(null)
     } finally {
       setEggLoading(false)
+    }
+  }
+
+  async function forceSyncEgg(egg: AdminEgg) {
+    if (!confirm(`Force-sync all servers using egg "${egg.name}"?`)) return
+    setSyncingEggIds(prev => [...prev, egg.id])
+    try {
+      const res = await apiFetch(`/api/admin/eggs/${egg.id}/sync`, { method: 'POST', body: JSON.stringify({ respectOptOut: false }) })
+      if (res && res.results) {
+        const failed = res.results.filter((r: any) => r.status !== 'synced' && r.status !== 'skipped_opt_out')
+        if (failed.length === 0) alert(`Sync requested for ${res.total} servers.`)
+        else alert(`Sync completed: ${res.total} total, ${failed.length} failures.`)
+      } else {
+        alert('Sync request sent')
+      }
+    } catch (e: any) {
+      alert('Sync failed: ' + (e?.message || String(e)))
+    } finally {
+      setSyncingEggIds(prev => prev.filter(id => id !== egg.id))
     }
   }
 
@@ -3599,11 +3635,15 @@ remote: ${panelUrl}`
                               {egg.visible ? "Visible" : "Hidden"}
                             </button>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                            <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
                               <Button size="sm" variant="outline" onClick={() => openEditEgg(egg)}
                                 className="border-border h-7 px-2 text-xs gap-1">
                                 <Edit className="h-3 w-3" /> Edit
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => forceSyncEgg(egg)} disabled={syncingEggIds.includes(egg.id)}
+                                className="border-border h-7 px-2 text-xs gap-1">
+                                {syncingEggIds.includes(egg.id) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Sync
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => deleteEgg(egg)}
                                 className="border-destructive/50 text-destructive h-7 px-2 text-xs">
@@ -6489,6 +6529,10 @@ Content-Type: application/json
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={eggVisible} onChange={(e) => setEggVisible(e.target.checked)} className="accent-primary" />
                   <span className="text-sm text-foreground">Visible to users</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={eggRootless} onChange={(e) => setEggRootless(e.target.checked)} className="accent-primary" />
+                  <span className="text-sm text-foreground">Launch in rootless mode</span>
                 </label>
               </>
             )}

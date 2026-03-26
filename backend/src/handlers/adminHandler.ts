@@ -1319,7 +1319,7 @@ export async function adminRoutes(app: any, prefix = '') {
   app.put(prefix + '/admin/servers/:id', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
     const serverId = ctx.params.id as string;
-    const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated } = ctx.body as any;
+    const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated, autoSyncOnEggChange } = ctx.body as any;
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
@@ -1378,6 +1378,7 @@ export async function adminRoutes(app: any, prefix = '') {
         cfg.allocations = null as any;
       }
     }
+    if (autoSyncOnEggChange !== undefined) cfg.autoSyncOnEggChange = Boolean(autoSyncOnEggChange);
     await cfgRepo.save(cfg);
     const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
     if (node) {
@@ -1406,6 +1407,7 @@ export async function adminRoutes(app: any, prefix = '') {
         allocations: t.Optional(t.Any()),
         eggId: t.Optional(t.Any()),
         hibernated: t.Optional(t.Boolean()),
+        autoSyncOnEggChange: t.Optional(t.Boolean()),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), server: t.Any() }),

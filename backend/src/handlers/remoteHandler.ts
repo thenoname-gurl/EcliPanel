@@ -172,6 +172,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
         hugepages_passthrough_enabled: false,
         kvm_passthrough_enabled: false,
         seccomp: { remove_allowed: [] },
+        rootless: !!(egg?.rootless ?? false),
       },
       auto_kill: { enabled: false, seconds: 0 },
       auto_start_behavior: 'unless_stopped',

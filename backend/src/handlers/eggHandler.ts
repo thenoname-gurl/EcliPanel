@@ -3,6 +3,7 @@ import { Egg } from '../models/egg.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
+import { nodeService } from '../services/nodeService';
 
 function requireAdminCtx(ctx: any): boolean {
   const user = ctx.user as User | undefined;
@@ -84,14 +85,30 @@ export async function eggRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/admin/eggs', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { name, description, dockerImage, startup, envVars, configFiles, visible, allowedPortals } = ctx.body as any;
+    const { name, description, dockerImage, startup, envVars, configFiles, visible, allowedPortals, rootless } = ctx.body as any;
     if (!name || !dockerImage || !startup) {
       ctx.set.status = 400;
       return { error: 'name, dockerImage and startup are required' };
     }
-    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true, allowedPortals });
+    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true, allowedPortals, rootless: !!rootless });
     await repo().save(egg);
     ctx.set.status = 201;
+
+    void (async () => {
+      try {
+        const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+        const configs = await cfgRepo.findBy({ eggId: egg.id });
+        for (const c of configs) {
+          try {
+            if (c.autoSyncOnEggChange === false) continue;
+            const svc = await nodeService.getServiceForNode(c.nodeId).catch(() => null);
+            if (!svc) continue;
+            await svc.syncServer(c.uuid, {}).catch(() => {});
+          } catch (_) {}
+        }
+      } catch (_) {}
+    })();
+
     return egg;
   }, {
    beforeHandle: authenticate,
@@ -128,6 +145,7 @@ export async function eggRoutes(app: any, prefix = '') {
       name, description, author, dockerImage, dockerImages, startup,
       envVars, configFiles, processConfig, installScript, features,
       fileDenylist, updateUrl, visible, allowedPortals,
+      rootless,
     } = ctx.body as any;
     if (name !== undefined) egg.name = name;
     if (description !== undefined) egg.description = description;
@@ -144,8 +162,25 @@ export async function eggRoutes(app: any, prefix = '') {
     if (updateUrl !== undefined) egg.updateUrl = updateUrl;
     if (visible !== undefined) egg.visible = visible;
     if (allowedPortals !== undefined) egg.allowedPortals = allowedPortals;
+    if (rootless !== undefined) egg.rootless = !!rootless;
 
     await repo().save(egg);
+
+    void (async () => {
+      try {
+        const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+        const configs = await cfgRepo.findBy({ eggId: egg.id });
+        for (const c of configs) {
+          try {
+            if (c.autoSyncOnEggChange === false) continue;
+            const svc = await nodeService.getServiceForNode(c.nodeId).catch(() => null);
+            if (!svc) continue;
+            await svc.syncServer(c.uuid, {}).catch(() => {});
+          } catch (_) {}
+        }
+      } catch (_) {}
+    })();
+
     return egg;
   }, {
    beforeHandle: authenticate,
@@ -184,6 +219,46 @@ export async function eggRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Delete an egg', tags: ['Eggs'] },
+  });
+
+  app.post(prefix + '/admin/eggs/:id/sync', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const eggId = Number(ctx.params.id);
+    const { respectOptOut = false } = ctx.body as any;
+    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+    const configs = await cfgRepo.findBy({ eggId });
+    const results: any[] = [];
+    for (const c of configs) {
+      try {
+        if (respectOptOut && c.autoSyncOnEggChange === false) {
+          results.push({ uuid: c.uuid, status: 'skipped_opt_out' });
+          continue;
+        }
+        const svc = await nodeService.getServiceForNode(c.nodeId).catch(() => null);
+        if (!svc) {
+          results.push({ uuid: c.uuid, status: 'node_service_unavailable' });
+          continue;
+        }
+        await svc.syncServer(c.uuid, {});
+        results.push({ uuid: c.uuid, status: 'synced' });
+      } catch (e: any) {
+        results.push({ uuid: c.uuid, status: 'error', error: e?.message ?? String(e) });
+      }
+    }
+    return { total: configs.length, results };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ respectOptOut: t.Optional(t.Boolean()) }),
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Force-sync all servers for an egg (admin)', tags: ['Eggs'] },
   });
 
   app.delete(prefix + '/admin/eggs', async (ctx) => {
@@ -347,11 +422,28 @@ export async function eggRoutes(app: any, prefix = '') {
       features,
       fileDenylist,
       updateUrl,
+      rootless: Boolean(raw?.meta?.rootless ?? raw?.rootless ?? false),
       visible: true,
     });
 
     await repo().save(egg);
     ctx.set.status = 201;
+
+    void (async () => {
+      try {
+        const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+        const configs = await cfgRepo.findBy({ eggId: egg.id });
+        for (const c of configs) {
+          try {
+            if (c.autoSyncOnEggChange === false) continue;
+            const svc = await nodeService.getServiceForNode(c.nodeId).catch(() => null);
+            if (!svc) continue;
+            await svc.syncServer(c.uuid, {}).catch(() => {});
+          } catch (_) {}
+        }
+      } catch (_) {}
+    })();
+
     return egg;
   }, {
    beforeHandle: authenticate,

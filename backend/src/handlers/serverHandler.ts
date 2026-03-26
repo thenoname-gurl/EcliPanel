@@ -326,6 +326,9 @@ export async function serverRoutes(app: any, prefix = '') {
       const svc = await serviceFor(id);
       const res = await svc.getServer(id);
       const norm = normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined);
+      if (cfg && norm && norm.configuration) {
+        norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
+      }
       return { ...norm, node: nodeName, sftp: sftpInfo };
     } catch (e: any) {
       if (cfg) {
@@ -354,6 +357,7 @@ export async function serverRoutes(app: any, prefix = '') {
             invocation: cfg.startup,
             environment: cfg.environment,
             allocations: cfg.allocations,
+            autoSyncOnEggChange: cfg.autoSyncOnEggChange,
           },
         });
         return { ...norm, node: nodeName, sftp: sftpInfo };

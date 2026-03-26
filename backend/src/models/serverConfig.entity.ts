@@ -61,6 +61,9 @@ export class ServerConfig {
   @Column({ default: false })
   skipEggScripts: boolean;
 
+  @Column({ default: true })
+  autoSyncOnEggChange: boolean;
+
   @Column('json', { nullable: true })
   allocations?: Record<string, any>;
 

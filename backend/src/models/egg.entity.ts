@@ -67,6 +67,9 @@ export class Egg {
   @Column({ default: true })
   visible: boolean;
 
+  @Column({ default: false })
+  rootless: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
