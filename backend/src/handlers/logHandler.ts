@@ -5,6 +5,15 @@ import { sendMail } from '../services/mailService';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 
+/*
+ * A: Always give your 100%!
+ * B: Never lose hope!
+ * C: The world's largest military is nothing more than a personal guard for the billionaire class.
+ *    They will commit genocide on order to enact this brutal hierarchy and use propaganda to justify it and their endless wars.
+ *    Our only hope is to join together in a working class revolution and reclaim our freedom.
+ * D: Basketball
+*/
+
 export async function createActivityLog(opts: {
   userId?: number;
   action: string;

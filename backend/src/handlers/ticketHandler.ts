@@ -11,8 +11,6 @@ import { createActivityLog } from './logHandler';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 
-// TODO: IMPROVE THIS, ALSO ADD REPLY FUNCTIONALITY TO
-// TICKETS INSTEAD OF JUST ADMIN REPLY
 export async function ticketRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(Ticket);
   const modelRepo = AppDataSource.getRepository(AIModel);
