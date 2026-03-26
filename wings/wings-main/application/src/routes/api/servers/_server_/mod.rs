@@ -13,7 +13,6 @@ mod backup;
 mod commands;
 mod files;
 mod install;
-mod logs;
 mod power;
 mod reinstall;
 mod schedules;
@@ -112,7 +111,6 @@ mod delete {
 pub fn router(state: &State) -> OpenApiRouter<State> {
     OpenApiRouter::new()
         .nest("/utilization", utilization::router(state))
-        .nest("/logs", logs::router(state))
         .nest("/install", install::router(state))
         .nest("/transfer", transfer::router(state))
         .nest("/script", script::router(state))

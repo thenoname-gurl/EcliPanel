@@ -17,7 +17,7 @@ impl crate::commands::CliCommand<VersionArgs> for VersionCommand {
                 println!(
                     "github.com/calagopus/wings {} ({})",
                     crate::full_version(),
-                    crate::TARGET
+                    crate::target_env()
                 );
                 if !crate::bins::FUSEQUOTA_VERSION.is_empty() {
                     println!(

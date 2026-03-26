@@ -152,7 +152,7 @@ async fn main() {
             tracing::info!("                    __/ | | '__/ __|");
             tracing::info!("                   |___/  | |  \\__ \\");
             tracing::info!("{: >25} |_|  |___/", wings_rs::VERSION);
-            tracing::info!("github.com/calagopus/wings#{}\n", wings_rs::GIT_COMMIT);
+            tracing::info!("github.com/calagopus/wings#{}\n", wings_rs::git_commit());
         }
     }
 

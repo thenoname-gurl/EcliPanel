@@ -18,17 +18,24 @@ pub mod utils;
 pub use payload::Payload;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const GIT_COMMIT: &str = option_env!("CARGO_GIT_COMMIT").unwrap_or("unknown");
-pub const GIT_BRANCH: &str = option_env!("CARGO_GIT_BRANCH").unwrap_or("unknown");
-pub const TARGET: &str = option_env!("CARGO_TARGET").unwrap_or("unknown");
+pub fn git_commit() -> &'static str {
+    option_env!("CARGO_GIT_COMMIT").unwrap_or("unknown")
+}
+pub fn git_branch() -> &'static str {
+    option_env!("CARGO_GIT_BRANCH").unwrap_or("unknown")
+}
+pub fn target_env() -> &'static str {
+    option_env!("CARGO_TARGET").unwrap_or("unknown")
+}
 
 pub const BUFFER_SIZE: usize = 32 * 1024;
 
 pub fn full_version() -> String {
-    if GIT_BRANCH == "unknown" {
+    let branch = git_branch();
+    if branch == "unknown" {
         VERSION.to_string()
     } else {
-        format!("{VERSION}:{GIT_COMMIT}@{GIT_BRANCH}")
+        format!("{VERSION}:{commit}@{branch}", commit = git_commit(), branch = branch)
     }
 }
 
