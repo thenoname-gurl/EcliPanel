@@ -1,45 +1,399 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { Activity, Cpu, MemoryStick, HardDrive, Network } from "lucide-react"
-import { MiniStat, ChartCard, LoadingState } from "./serverTabShared"
+import { cn } from "@/lib/utils"
+import { 
+  Activity, 
+  Cpu, 
+  MemoryStick, 
+  HardDrive, 
+  Network, 
+  RefreshCw,
+  TrendingUp,
+  Server,
+  Wifi,
+  ChevronDown,
+  ChevronUp
+} from "lucide-react"
+import { 
+  MiniStat, 
+  ChartCard, 
+  LoadingState, 
+  EmptyState,
+  SectionHeader,
+  ToggleGroup,
+  CardGrid,
+  ProgressStat,
+  ChartCardSkeleton
+} from "./serverTabShared"
 import { formatBytes } from "./serverTabHelpers"
 
-export function StatsTab({ serverId, server: serverProp }: { serverId: string; server: any }) {
+interface StatsTabProps {
+  serverId: string
+  server: any
+}
+
+type TimeWindow = "1h" | "6h" | "24h" | "7d"
+
+interface ChartDataPoint {
+  time: string
+  ts: number
+  cpu: number
+  memMB: number
+  diskMB: number
+  rxMB: number
+  txMB: number
+}
+
+const TIME_WINDOW_OPTIONS: { value: TimeWindow; label: string }[] = [
+  { value: "1h", label: "1H" },
+  { value: "6h", label: "6H" },
+  { value: "24h", label: "24H" },
+  { value: "7d", label: "7D" },
+]
+
+const CHART_COLORS = {
+  cpu: "#3b82f6",
+  mem: "#8b5cf6",
+  disk: "#f59e0b",
+  rx: "#22c55e",
+  tx: "#ef4444",
+}
+
+function CustomTooltipContent({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  
+  const fmtLabel = (typeof label === 'number' || /^\d{13}$/.test(String(label)))
+    ? new Date(Number(label)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : String(label)
+  
+  const unitFor = (key: string) => (key === 'cpu' ? '%' : key.endsWith('MB') ? ' MB' : '')
+  
+  return (
+    <div className="rounded-lg border border-border bg-popover/95 backdrop-blur px-3 py-2 shadow-lg">
+      <p className="text-xs text-muted-foreground mb-1.5 font-medium">{fmtLabel}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} className="text-xs flex items-center gap-2" style={{ color: p.color }}>
+          <span 
+            className="w-2 h-2 rounded-full" 
+            style={{ backgroundColor: p.color }} 
+          />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-mono font-medium">
+            {p.value}{p.unit || unitFor(p.dataKey) || ''}
+          </span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+interface ChartProps {
+  data: ChartDataPoint[]
+  recharts: any
+}
+
+function CpuChart({ data, recharts }: ChartProps) {
+  const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } = recharts
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.cpu} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={CHART_COLORS.cpu} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis 
+          dataKey="ts" 
+          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false}
+          interval="preserveStartEnd"
+          minTickGap={50}
+        />
+        <YAxis 
+          domain={[0, 100]} 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false} 
+          unit="%" 
+          width={40}
+        />
+        <Tooltip content={<CustomTooltipContent />} />
+        <Area 
+          type="monotone" 
+          dataKey="cpu" 
+          name="CPU" 
+          stroke={CHART_COLORS.cpu} 
+          fill="url(#cpuGrad)" 
+          strokeWidth={2} 
+          unit="%" 
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+function MemoryChart({ data, recharts }: ChartProps) {
+  const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } = recharts
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.mem} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={CHART_COLORS.mem} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis 
+          dataKey="ts" 
+          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false}
+          interval="preserveStartEnd"
+          minTickGap={50}
+        />
+        <YAxis 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false} 
+          unit=" MB"
+          width={50}
+        />
+        <Tooltip content={<CustomTooltipContent />} />
+        <Area 
+          type="monotone" 
+          dataKey="memMB" 
+          name="Memory" 
+          stroke={CHART_COLORS.mem} 
+          fill="url(#memGrad)" 
+          strokeWidth={2} 
+          unit=" MB" 
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+function DiskChart({ data, recharts }: ChartProps) {
+  const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } = recharts
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.disk} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={CHART_COLORS.disk} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis 
+          dataKey="ts" 
+          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false}
+          interval="preserveStartEnd"
+          minTickGap={50}
+        />
+        <YAxis 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false} 
+          unit=" MB"
+          width={50}
+        />
+        <Tooltip content={<CustomTooltipContent />} />
+        <Area 
+          type="monotone" 
+          dataKey="diskMB" 
+          name="Disk" 
+          stroke={CHART_COLORS.disk} 
+          fill="url(#diskGrad)" 
+          strokeWidth={2} 
+          unit=" MB" 
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+function NetworkChart({ data, recharts }: ChartProps) {
+  const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = recharts
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="rxGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.rx} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={CHART_COLORS.rx} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="txGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.tx} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={CHART_COLORS.tx} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis 
+          dataKey="ts" 
+          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false}
+          interval="preserveStartEnd"
+          minTickGap={50}
+        />
+        <YAxis 
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
+          tickLine={false} 
+          axisLine={false} 
+          unit=" MB"
+          width={50}
+        />
+        <Tooltip content={<CustomTooltipContent />} />
+        <Legend 
+          wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
+          iconSize={8}
+        />
+        <Area 
+          type="monotone" 
+          dataKey="rxMB" 
+          name="Download" 
+          stroke={CHART_COLORS.rx} 
+          fill="url(#rxGrad)" 
+          strokeWidth={2} 
+          unit=" MB" 
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+        <Area 
+          type="monotone" 
+          dataKey="txMB" 
+          name="Upload" 
+          stroke={CHART_COLORS.tx} 
+          fill="url(#txGrad)" 
+          strokeWidth={2} 
+          unit=" MB" 
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+interface NodeInfoProps {
+  nodeInfo: any
+}
+
+function NodeInfoPanel({ nodeInfo }: NodeInfoProps) {
+  const [expanded, setExpanded] = useState(false)
+  
+  if (!nodeInfo || Object.keys(nodeInfo).length === 0) return null
+
+  const nodeCpu = nodeInfo?.cpu?.used ?? null
+  const nodeMemUsed = nodeInfo?.memory?.used ?? null
+  const nodeMemTotal = nodeInfo?.memory?.total ?? null
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-secondary/20 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Server className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Node System</h3>
+        </div>
+        {expanded ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+      
+      {expanded && (
+        <div className="p-3 sm:p-4 pt-0 border-t border-border">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {nodeCpu !== null && (
+              <ProgressStat
+                label="Node CPU"
+                value={Number(nodeCpu)}
+                max={100}
+                unit="%"
+                color={CHART_COLORS.cpu}
+                formatValue={(v) => v.toFixed(1)}
+              />
+            )}
+            {nodeMemUsed !== null && nodeMemTotal !== null && (
+              <ProgressStat
+                label="Node Memory"
+                value={nodeMemUsed}
+                max={nodeMemTotal}
+                color={CHART_COLORS.mem}
+                formatValue={(v) => formatBytes(v)}
+              />
+            )}
+            {(nodeInfo.version || nodeInfo.kernel_version) && (
+              <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Version</p>
+                <p className="text-xs sm:text-sm font-mono font-medium text-foreground truncate">
+                  {nodeInfo.version || nodeInfo.kernel_version || "—"}
+                </p>
+              </div>
+            )}
+            {(nodeInfo.architecture || nodeInfo.arch) && (
+              <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Architecture</p>
+                <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
+                  {nodeInfo.architecture || nodeInfo.arch}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   const [history, setHistory] = useState<any[]>([])
   const [live, setLive] = useState<any>(null)
   const [nodeInfo, setNodeInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [timeWindow, setTimeWindow] = useState<"1h" | "6h" | "24h" | "7d">("1h")
-  const [localPoints, setLocalPoints] = useState<any[]>([])
-  const [Area, setArea] = useState<any>(null)
-  const [ResponsiveContainer, setResponsiveContainer] = useState<any>(null)
-  const [XAxis, setXAxis] = useState<any>(null)
-  const [YAxis, setYAxis] = useState<any>(null)
-  const [CartesianGrid, setCartesianGrid] = useState<any>(null)
-  const [Tooltip, setTooltip] = useState<any>(null)
-  const [AreaChart, setAreaChart] = useState<any>(null)
-  const [Legend, setLegend] = useState<any>(null)
-  const [rechartsReady, setRechartsReady] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("1h")
+  const [localPoints, setLocalPoints] = useState<ChartDataPoint[]>([])
+  const [recharts, setRecharts] = useState<any>(null)
+  const [activeChart, setActiveChart] = useState<"cpu" | "memory" | "disk" | "network">("cpu")
 
   useEffect(() => {
     import("recharts").then((mod) => {
-      setArea(() => mod.Area)
-      setResponsiveContainer(() => mod.ResponsiveContainer)
-      setXAxis(() => mod.XAxis)
-      setYAxis(() => mod.YAxis)
-      setCartesianGrid(() => mod.CartesianGrid)
-      setTooltip(() => mod.Tooltip)
-      setAreaChart(() => mod.AreaChart)
-      setLegend(() => mod.Legend)
-      setRechartsReady(true)
+      setRecharts(mod)
     })
   }, [])
 
-  const loadData = useCallback(async () => {
-    console.debug('[StatsTab] loadData', { serverId, timeWindow })
+  const loadData = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true)
+    
     try {
       const [histData, liveData, nodeData] = await Promise.all([
         apiFetch(API_ENDPOINTS.serverStatsHistory.replace(":id", serverId) + `?window=${timeWindow}`).catch(() => []),
@@ -51,6 +405,7 @@ export function StatsTab({ serverId, server: serverProp }: { serverId: string; s
       setNodeInfo(nodeData)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [serverId, timeWindow])
 
@@ -60,14 +415,15 @@ export function StatsTab({ serverId, server: serverProp }: { serverId: string; s
   }, [loadData])
 
   useEffect(() => {
-    const interval = setInterval(loadData, 15000)
+    const interval = setInterval(() => loadData(), 15000)
     return () => clearInterval(interval)
   }, [loadData])
 
   useEffect(() => {
     const r = serverProp?.resources
     if (!r || (r.cpu_absolute == null && r.memory_bytes == null)) return
-    const point = {
+    
+    const point: ChartDataPoint = {
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       ts: Date.now(),
       cpu: Number((r.cpu_absolute ?? 0).toFixed(1)),
@@ -76,13 +432,14 @@ export function StatsTab({ serverId, server: serverProp }: { serverId: string; s
       rxMB: Math.round(((r.network?.rx_bytes ?? 0) / 1024 / 1024) * 100) / 100,
       txMB: Math.round(((r.network?.tx_bytes ?? 0) / 1024 / 1024) * 100) / 100,
     }
+    
     setLocalPoints((prev) => {
       const next = [...prev, point]
       return next.length > 120 ? next.slice(-120) : next
     })
   }, [serverProp?.resources])
 
-  const chartData = useMemo(() => {
+  const chartData = useMemo((): ChartDataPoint[] => {
     return history.map((entry: any) => {
       const m = entry.metrics || {}
       const cpu = m.cpu_absolute ?? m.cpu ?? m.proc?.cpu?.total ?? 0
@@ -91,6 +448,7 @@ export function StatsTab({ serverId, server: serverProp }: { serverId: string; s
       const rxBytes = m.network?.rx_bytes ?? m.network?.rx ?? 0
       const txBytes = m.network?.tx_bytes ?? m.network?.tx ?? 0
       const ts = new Date(entry.timestamp).getTime()
+      
       return {
         time: new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         ts,
@@ -103,11 +461,15 @@ export function StatsTab({ serverId, server: serverProp }: { serverId: string; s
     })
   }, [history])
 
-  const nodeCpu = nodeInfo?.cpu?.used ?? null
-  const nodeMemUsed = nodeInfo?.memory?.used ?? null
-  const nodeMemTotal = nodeInfo?.memory?.total ?? null
+  const effectiveChartData = useMemo(
+    () => chartData.length > 0 ? chartData : localPoints,
+    [chartData, localPoints]
+  )
 
-  const liveSource = (live && (live.cpu_absolute != null || live.memory_bytes != null)) ? live : (serverProp?.resources ?? null)
+  const liveSource = (live && (live.cpu_absolute != null || live.memory_bytes != null)) 
+    ? live 
+    : (serverProp?.resources ?? null)
+  
   const liveCpu = liveSource?.cpu_absolute ?? liveSource?.proc?.cpu?.total ?? 0
   const liveMem = liveSource?.memory_bytes ?? liveSource?.proc?.memory?.total ?? 0
   const liveMemLimit = liveSource?.memory_limit_bytes ?? liveSource?.proc?.memory?.limit ?? 0
@@ -115,209 +477,136 @@ export function StatsTab({ serverId, server: serverProp }: { serverId: string; s
   const liveNetRx = liveSource?.network?.rx_bytes ?? 0
   const liveNetTx = liveSource?.network?.tx_bytes ?? 0
 
-  const effectiveChartData = useMemo(() => chartData.length > 0 ? chartData : localPoints, [chartData, localPoints])
+  if (loading && !recharts) {
+    return <LoadingState message="Loading statistics..." />
+  }
 
-  if (loading && !rechartsReady) return <LoadingState />
-
-  const windowOpts: { value: "1h" | "6h" | "24h" | "7d"; label: string }[] = [
-    { value: "1h", label: "1 Hour" },
-    { value: "6h", label: "6 Hours" },
-    { value: "24h", label: "24 Hours" },
-    { value: "7d", label: "7 Days" },
+  const chartTabs = [
+    { value: "cpu" as const, label: "CPU", icon: Cpu },
+    { value: "memory" as const, label: "Memory", icon: MemoryStick },
+    { value: "disk" as const, label: "Disk", icon: HardDrive },
+    { value: "network" as const, label: "Network", icon: Network },
   ]
 
-  const chartColors = {
-    cpu: "#3b82f6",
-    mem: "#8b5cf6",
-    disk: "#f59e0b",
-    rx: "#22c55e",
-    tx: "#ef4444",
-  }
-
-  const CustomTooltipContent = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null
-    const fmtLabel = (typeof label === 'number' || /^\\b\d{13}\b$/.test(String(label)))
-      ? new Date(Number(label)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : String(label)
-    const unitFor = (key: string) => (key === 'cpu' ? '%' : key.endsWith('MB') ? ' MB' : '')
-    return (
-      <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-md">
-        <p className="text-xs text-muted-foreground mb-1">{fmtLabel}</p>
-        {payload.map((p: any) => (
-          <p key={p.dataKey} className="text-xs" style={{ color: p.color }}>
-            {p.name}: {p.value}{p.unit || unitFor(p.dataKey) || ''}
-          </p>
-        ))}
-      </div>
-    )
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <SectionHeader title="Resource Usage" icon={Activity} />
+        
         <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Resource Usage</h3>
-        </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/30 p-0.5">
-          {windowOpts.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setTimeWindow(opt.value)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                timeWindow === opt.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <ToggleGroup
+            options={TIME_WINDOW_OPTIONS}
+            value={timeWindow}
+            onChange={setTimeWindow}
+          />
+          
+          <button
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="p-2 rounded-lg border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <MiniStat label="CPU" value={`${Number(liveCpu).toFixed(1)}%`} color={chartColors.cpu} />
-        <MiniStat label="Memory" value={formatBytes(liveMem)} sub={liveMemLimit ? `/ ${formatBytes(liveMemLimit)}` : undefined} color={chartColors.mem} />
-        <MiniStat label="Disk" value={formatBytes(liveDisk)} color={chartColors.disk} />
-        <MiniStat label="Net ↑" value={formatBytes(liveNetTx)} color={chartColors.tx} />
-        <MiniStat label="Net ↓" value={formatBytes(liveNetRx)} color={chartColors.rx} />
-      </div>
+      {/* Live Stats */}
+      <CardGrid columns={5}>
+        <MiniStat 
+          label="CPU" 
+          value={`${Number(liveCpu).toFixed(1)}%`} 
+          color={CHART_COLORS.cpu} 
+        />
+        <MiniStat 
+          label="Memory" 
+          value={formatBytes(liveMem)} 
+          sub={liveMemLimit ? `/ ${formatBytes(liveMemLimit)}` : undefined} 
+          color={CHART_COLORS.mem} 
+        />
+        <MiniStat 
+          label="Disk" 
+          value={formatBytes(liveDisk)} 
+          color={CHART_COLORS.disk} 
+        />
+        <MiniStat 
+          label="Net ↑" 
+          value={formatBytes(liveNetTx)} 
+          color={CHART_COLORS.tx} 
+        />
+        <MiniStat 
+          label="Net ↓" 
+          value={formatBytes(liveNetRx)} 
+          color={CHART_COLORS.rx} 
+        />
+      </CardGrid>
 
-      {rechartsReady && effectiveChartData.length > 0 ? (
+      {/* Charts */}
+      {recharts && effectiveChartData.length > 0 ? (
         <>
-          <ChartCard title="CPU Usage (%)" icon={Cpu}>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={effectiveChartData}>
-                <defs>
-                  <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColors.cpu} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={chartColors.cpu} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="ts" tickFormatter={(v:any)=> new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} unit="%" />
-                <Tooltip content={<CustomTooltipContent />} />
-                <Area type="monotone" dataKey="cpu" name="CPU" stroke={chartColors.cpu} fill="url(#cpuGrad)" strokeWidth={2} unit="%" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
+          {/* Mobile: Tabbed charts */}
+          <div className="sm:hidden">
+            <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1">
+              {chartTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveChart(tab.value)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors",
+                    activeChart === tab.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary/50 text-muted-foreground"
+                  )}
+                >
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            
+            <ChartCard 
+              title={chartTabs.find(t => t.value === activeChart)?.label || ""}
+              icon={chartTabs.find(t => t.value === activeChart)?.icon || Cpu}
+            >
+              {activeChart === "cpu" && <CpuChart data={effectiveChartData} recharts={recharts} />}
+              {activeChart === "memory" && <MemoryChart data={effectiveChartData} recharts={recharts} />}
+              {activeChart === "disk" && <DiskChart data={effectiveChartData} recharts={recharts} />}
+              {activeChart === "network" && <NetworkChart data={effectiveChartData} recharts={recharts} />}
+            </ChartCard>
+          </div>
 
-          <ChartCard title="Memory Usage (MB)" icon={MemoryStick}>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={effectiveChartData}>
-                <defs>
-                  <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColors.mem} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={chartColors.mem} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="ts" tickFormatter={(v:any)=> new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} unit=" MB" />
-                <Tooltip content={<CustomTooltipContent />} />
-                <Area type="monotone" dataKey="memMB" name="Memory" stroke={chartColors.mem} fill="url(#memGrad)" strokeWidth={2} unit=" MB" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Disk Usage (MB)" icon={HardDrive}>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={effectiveChartData}>
-                <defs>
-                  <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColors.disk} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={chartColors.disk} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="ts" tickFormatter={(v:any)=> new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} unit=" MB" />
-                <Tooltip content={<CustomTooltipContent />} />
-                <Area type="monotone" dataKey="diskMB" name="Disk" stroke={chartColors.disk} fill="url(#diskGrad)" strokeWidth={2} unit=" MB" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Network Traffic (MB)" icon={Network}>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={effectiveChartData}>
-                <defs>
-                  <linearGradient id="rxGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColors.rx} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={chartColors.rx} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="txGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColors.tx} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={chartColors.tx} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="ts" tickFormatter={(v:any)=> new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} tickLine={false} axisLine={false} unit=" MB" />
-                <Tooltip content={<CustomTooltipContent />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="rxMB" name="Download (RX)" stroke={chartColors.rx} fill="url(#rxGrad)" strokeWidth={2} unit=" MB" dot={false} />
-                <Area type="monotone" dataKey="txMB" name="Upload (TX)" stroke={chartColors.tx} fill="url(#txGrad)" strokeWidth={2} unit=" MB" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
+          {/* Desktop: All charts */}
+          <div className="hidden sm:grid sm:grid-cols-2 gap-4">
+            <ChartCard title="CPU Usage" icon={Cpu}>
+              <CpuChart data={effectiveChartData} recharts={recharts} />
+            </ChartCard>
+            
+            <ChartCard title="Memory Usage" icon={MemoryStick}>
+              <MemoryChart data={effectiveChartData} recharts={recharts} />
+            </ChartCard>
+            
+            <ChartCard title="Disk Usage" icon={HardDrive}>
+              <DiskChart data={effectiveChartData} recharts={recharts} />
+            </ChartCard>
+            
+            <ChartCard title="Network Traffic" icon={Network}>
+              <NetworkChart data={effectiveChartData} recharts={recharts} />
+            </ChartCard>
+          </div>
         </>
       ) : !loading ? (
-        effectiveChartData.length > 0 ? (
-          <div className="rounded-xl border border-border bg-secondary/10 p-4 text-center">
-            <p className="text-xs text-muted-foreground">Showing live data — historical data accumulates over time.</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-secondary/10 p-8 text-center">
-            <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No data available yet.</p>
-            <p className="text-xs text-muted-foreground mt-1">Stats are collected while the server is running. Check back in a few minutes.</p>
-          </div>
-        )
+        <EmptyState
+          icon={Activity}
+          title="No data available"
+          message="Stats are collected while the server is running. Check back in a few minutes."
+        />
       ) : (
-        <LoadingState />
-      )}
-
-      {nodeInfo && Object.keys(nodeInfo).length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Cpu className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Node System</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {nodeCpu !== null && (
-              <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Node CPU</p>
-                <p className="text-sm font-mono font-medium text-foreground">{Number(nodeCpu).toFixed(1)}%</p>
-                <div className="mt-1.5 h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.min(Number(nodeCpu), 100)}%` }} />
-                </div>
-              </div>
-            )}
-            {nodeMemUsed !== null && nodeMemTotal !== null && (
-              <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Node Memory</p>
-                <p className="text-sm font-mono font-medium text-foreground">{formatBytes(nodeMemUsed)} / {formatBytes(nodeMemTotal)}</p>
-                <div className="mt-1.5 h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${Math.min((nodeMemUsed / nodeMemTotal) * 100, 100)}%` }} />
-                </div>
-              </div>
-            )}
-            {(nodeInfo.version || nodeInfo.kernel_version) && (
-              <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Version</p>
-                <p className="text-sm font-mono font-medium text-foreground">{nodeInfo.version || nodeInfo.kernel_version || "\u2014"}</p>
-              </div>
-            )}
-            {(nodeInfo.architecture || nodeInfo.arch) && (
-              <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Architecture</p>
-                <p className="text-sm font-mono font-medium text-foreground">{nodeInfo.architecture || nodeInfo.arch}</p>
-              </div>
-            )}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <ChartCardSkeleton />
+          <ChartCardSkeleton />
         </div>
       )}
+
+      <NodeInfoPanel nodeInfo={nodeInfo} />
     </div>
   )
 }

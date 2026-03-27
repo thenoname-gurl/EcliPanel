@@ -1,22 +1,360 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Send, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import {
+  Send,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  Trash2,
+  RefreshCw,
+  Copy,
+  Check,
+  Terminal,
+  Wifi,
+  WifiOff,
+  X,
+  History,
+  ChevronRight
+} from "lucide-react"
 
-export function ConsoleTab({ serverId }: { serverId: string }) {
+interface ConsoleTabProps {
+  serverId: string
+}
+
+interface StatusBadgeProps {
+  connected: boolean
+  connectionState: string
+}
+
+function StatusBadge({ connected, connectionState }: StatusBadgeProps) {
+  const state = connectionState?.toLowerCase() || ""
+  
+  const getStatusConfig = () => {
+    if (connected || state === "running" || state === "connected") {
+      return {
+        icon: <Wifi className="h-3 w-3" />,
+        label: "Connected",
+        className: "border-green-500/50 text-green-400 bg-black/60"
+      }
+    }
+    if (state === "connecting" || state === "starting") {
+      return {
+        icon: <Loader2 className="h-3 w-3 animate-spin" />,
+        label: state.charAt(0).toUpperCase() + state.slice(1),
+        className: "border-yellow-500/50 text-yellow-400 bg-black/60"
+      }
+    }
+    if (state === "stopping") {
+      return {
+        icon: <Loader2 className="h-3 w-3 animate-spin" />,
+        label: "Stopping",
+        className: "border-orange-500/50 text-orange-400 bg-black/60"
+      }
+    }
+    return {
+      icon: <WifiOff className="h-3 w-3" />,
+      label: state ? state.charAt(0).toUpperCase() + state.slice(1) : "Disconnected",
+      className: "border-red-500/50 text-red-400 bg-black/60"
+    }
+  }
+
+  const config = getStatusConfig()
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "text-[10px] backdrop-blur-sm gap-1.5 px-2 py-0.5 font-medium",
+        config.className
+      )}
+    >
+      {config.icon}
+      {config.label}
+    </Badge>
+  )
+}
+
+interface HistoryPanelProps {
+  history: string[]
+  onSelect: (cmd: string) => void
+  onClose: () => void
+}
+
+function HistoryPanel({ history, onSelect, onClose }: HistoryPanelProps) {
+  if (history.length === 0) {
+    return (
+      <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 p-4 rounded-md border border-border bg-background shadow-xl text-center">
+        <p className="text-sm text-muted-foreground">No command history</p>
+        <button
+          onClick={onClose}
+          className="mt-2 text-xs text-primary hover:underline"
+        >
+          Close
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 rounded-md border border-border bg-background shadow-xl max-h-48 overflow-y-auto">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border sticky top-0 bg-secondary/50">
+        <span className="text-xs font-medium text-muted-foreground">Recent Commands</span>
+        <button 
+          onClick={onClose} 
+          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <div className="p-1">
+        {history.slice(0, 20).map((cmd, i) => (
+          <button
+            key={i}
+            onClick={() => { onSelect(cmd); onClose() }}
+            className="w-full text-left px-3 py-2 text-sm font-mono truncate text-foreground hover:bg-secondary/20 rounded transition-colors flex items-center gap-2"
+          >
+            <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">{cmd}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+interface MobileInputProps {
+  value: string
+  onChange: (v: string) => void
+  onSend: () => void
+  onHistoryToggle: () => void
+  historyOpen: boolean
+  disabled: boolean
+}
+
+function MobileCommandInput({
+  value, onChange, onSend, onHistoryToggle, historyOpen, disabled
+}: MobileInputProps) {
+  return (
+    <div className="flex items-center gap-2 border-t border-border bg-background px-3 py-2.5">
+      <button
+        onClick={onHistoryToggle}
+        className={cn(
+          "flex items-center justify-center rounded-md p-2 transition-colors flex-shrink-0",
+          historyOpen 
+            ? "bg-primary text-primary-foreground" 
+            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+        )}
+      >
+        <History className="h-4 w-4" />
+      </button>
+      
+      <div className="flex-1 flex items-center gap-2 rounded-md border border-border bg-input px-3 py-1.5">
+        <Terminal className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter command..."
+          disabled={disabled}
+          className="flex-1 bg-transparent py-1 text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && value.trim()) {
+              onSend()
+            }
+          }}
+        />
+      </div>
+      
+      <button
+        onClick={onSend}
+        disabled={!value.trim() || disabled}
+        className={cn(
+          "flex items-center justify-center rounded-md p-2 transition-colors flex-shrink-0",
+          value.trim() && !disabled
+            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+            : "bg-secondary text-muted-foreground"
+        )}
+      >
+        <Send className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
+interface ToolbarProps {
+  connected: boolean
+  connectionState: string
+  isFullscreen: boolean
+  onFullscreenToggle: () => void
+  onClear: () => void
+  onReconnect: () => void
+  onCopy: () => void
+  copied: boolean
+  reconnecting: boolean
+}
+
+function ConsoleToolbar({
+  connected, connectionState, isFullscreen, onFullscreenToggle,
+  onClear, onReconnect, onCopy, copied, reconnecting
+}: ToolbarProps) {
+  return (
+    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center gap-2">
+        <Terminal className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground hidden sm:inline">Console</span>
+        <StatusBadge connected={connected} connectionState={connectionState} />
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onCopy}
+          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          title="Copy console output"
+        >
+          {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+          <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+        </button>
+        
+        <button
+          onClick={onClear}
+          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          title="Clear console"
+        >
+          <Trash2 className="h-3 w-3" />
+          <span className="hidden sm:inline">Clear</span>
+        </button>
+        
+        <button
+          onClick={onReconnect}
+          disabled={reconnecting}
+          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
+          title="Reconnect"
+        >
+          <RefreshCw className={cn("h-3 w-3", reconnecting && "animate-spin")} />
+        </button>
+        
+        <button
+          onClick={onFullscreenToggle}
+          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const termRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<any>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const fitRef = useRef<any>(null)
   const inputBuf = useRef("")
+  const containerRef = useRef<HTMLDivElement>(null)
+  const consoleOutputRef = useRef<string[]>([])
+
   const [connected, setConnected] = useState(false)
   const [connectionState, setConnectionState] = useState<string>("disconnected")
+  const [connectedHintShown, setConnectedHintShown] = useState(false)
+  const [mobileCmd, setMobileCmd] = useState("")
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [reconnecting, setReconnecting] = useState(false)
+  const [commandHistory, setCommandHistory] = useState<string[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [terminalReady, setTerminalReady] = useState(false)
 
   const normalizeDaemonText = (v: string) => v.replace(/\[Pterodactyl Daemon\]/g, "[Daemon]")
+
+  const addToOutput = useCallback((text: string) => {
+    consoleOutputRef.current.push(text)
+    if (consoleOutputRef.current.length > 1000) {
+      consoleOutputRef.current = consoleOutputRef.current.slice(-500)
+    }
+  }, [])
+
+  const sendCommand = useCallback((cmd: string) => {
+    if (!cmd.trim()) return
+    
+    setCommandHistory(prev => {
+      const filtered = prev.filter(c => c !== cmd)
+      return [cmd, ...filtered].slice(0, 100)
+    })
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ event: "send command", args: [cmd] }))
+    } else {
+      apiFetch(API_ENDPOINTS.serverCommands.replace(":id", serverId), {
+        method: "POST",
+        body: JSON.stringify({ command: cmd }),
+      }).catch((err: any) => {
+        xtermRef.current?.writeln(`\x1b[31m[ERROR] ${err.message}\x1b[0m`)
+      })
+    }
+    
+    xtermRef.current?.writeln(`\x1b[90m> ${cmd}\x1b[0m`)
+    addToOutput(`> ${cmd}`)
+  }, [serverId, addToOutput])
+
+  const copyOutput = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(consoleOutputRef.current.join("\n"))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      const text = consoleOutputRef.current.join("\n")
+      const textarea = document.createElement("textarea")
+      textarea.value = text
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }, [])
+
+  const clearConsole = useCallback(() => {
+    xtermRef.current?.clear()
+    consoleOutputRef.current = []
+    xtermRef.current?.writeln("\x1b[90mConsole cleared.\x1b[0m")
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return
+    
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen?.() ||
+        (containerRef.current as any).webkitRequestFullscreen?.()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen?.() ||
+        (document as any).webkitExitFullscreen?.()
+      setIsFullscreen(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+      setTimeout(() => fitRef.current?.fit(), 100)
+    }
+    
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+    
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -60,6 +398,7 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
         disableStdin: false,
         scrollback: 5000,
         cursorStyle: "underline",
+        allowProposedApi: true,
       })
 
       const fitAddon = new FitAddon()
@@ -67,8 +406,11 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
       term.loadAddon(fitAddon)
       term.loadAddon(new WebLinksAddon())
       term.open(termRef.current)
-      fitAddon.fit()
+      
+      setTimeout(() => fitAddon.fit(), 50)
+      
       xtermRef.current = term
+      setTerminalReady(true)
 
       const history: string[] = []
       let historyIdx = -1
@@ -83,6 +425,7 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
             history.unshift(cmd)
             if (history.length > 200) history.pop()
             historyIdx = -1
+            setCommandHistory(prev => [cmd, ...prev.filter(c => c !== cmd)].slice(0, 100))
 
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ event: "send command", args: [cmd] }))
@@ -94,6 +437,7 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
                 term.writeln(`\x1b[31m[ERROR] ${err.message}\x1b[0m`)
               })
             }
+            addToOutput(`> ${cmd}`)
           }
           inputBuf.current = ""
           return
@@ -149,6 +493,7 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
           }
           if (domEvent.ctrlKey && code === 76) {
             term.clear()
+            consoleOutputRef.current = []
             return
           }
           return
@@ -172,13 +517,14 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
 
       term.writeln("\x1b[90mConnecting to server console...\x1b[0m")
       setConnectionState("connecting")
-      term.focus()
 
       async function connect() {
         if (cancelled) return
         if (isConnecting) return
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return
         isConnecting = true
+        setReconnecting(true)
+        
         try {
           const creds = await apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
           const socketUrl = creds?.data?.socket
@@ -186,24 +532,26 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
 
           if (!socketUrl || !token) {
             term.writeln("\x1b[31mFailed to obtain WebSocket credentials.\x1b[0m")
+            setReconnecting(false)
+            isConnecting = false
             return
           }
 
           if (cancelled) return
 
-          console.debug('server console websocket url:', socketUrl)
-
           try {
             ws = new WebSocket(socketUrl)
           } catch (err: any) {
-            term.writeln(`\x1b[31mWebSocket construction failed: ${err.message || err}\x1b[0m`)
-            console.error('failed to create WebSocket', err)
+            term.writeln(`\x1b[31mWebSocket error: ${err.message || err}\x1b[0m`)
+            setReconnecting(false)
+            isConnecting = false
             return
           }
           wsRef.current = ws
 
           ws.onopen = () => {
             isConnecting = false
+            setReconnecting(false)
             if (cancelled) return
             retryCount = 0
             lastAttempt = Date.now()
@@ -218,19 +566,27 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
               switch (msg.event) {
                 case "auth success":
                   setConnected(true)
-                  term.writeln("\x1b[32mConnected.\x1b[0m Type commands directly.\r\n")
+                  setConnectionState("connected")
+                  if (!connectedHintShown) {
+                    term.writeln("\x1b[32mConnected.\x1b[0m Type commands directly.\r\n")
+                    setConnectedHintShown(true)
+                  }
                   ws!.send(JSON.stringify({ event: "send logs", args: [] }))
                   ws!.send(JSON.stringify({ event: "send stats", args: [] }))
                   break
                 case "console output":
                   for (const line of msg.args || []) {
                     const raw = typeof line === "string" ? line : JSON.stringify(line)
-                    term.writeln(normalizeDaemonText(raw))
+                    const normalized = normalizeDaemonText(raw)
+                    term.writeln(normalized)
+                    addToOutput(normalized.replace(/\x1b\[[0-9;]*m/g, ""))
                   }
                   break
                 case "install output":
                   for (const line of msg.args || []) {
-                    term.writeln(`\x1b[33m[Install]\x1b[0m ${normalizeDaemonText(String(line))}`)
+                    const text = `[Install] ${normalizeDaemonText(String(line))}`
+                    term.writeln(`\x1b[33m${text}\x1b[0m`)
+                    addToOutput(text)
                   }
                   break
                 case "status":
@@ -239,10 +595,18 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
                     term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(raw)}`)
                     setConnectionState(raw)
                     const s = raw.toLowerCase()
-                    if (s === "connected") setConnected(true)
-                    else if (s === "connecting") setConnected(false)
-                    else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired")) setConnected(false)
-                  } catch (e) {
+                    if (s === "running" || s === "connected") {
+                      setConnected(true)
+                      if (!connectedHintShown) {
+                        setConnectedHintShown(true)
+                      }
+                    } else if (s === "connecting" || s === "starting") {
+                      setConnected(false)
+                    } else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired") || s === "offline" || s === "stopped") {
+                      setConnected(false)
+                      setConnectedHintShown(false)
+                    }
+                  } catch {
                     term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(String(msg.args?.[0] || ""))}`)
                   }
                   break
@@ -277,23 +641,23 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
             }
           }
 
-          ws.onerror = (ev) => {
+          ws.onerror = () => {
             if (!cancelled) {
-              term.writeln("\x1b[31mWebSocket error (see console).\x1b[0m")
-              console.error('websocket error event', ev)
+              term.writeln("\x1b[31mWebSocket error occurred\x1b[0m")
             }
           }
 
           ws.onclose = (ev) => {
             isConnecting = false
+            setReconnecting(false)
             if (!cancelled) {
               setConnected(false)
-              term.writeln(`\x1b[90mDisconnected from console (code ${ev.code} ${ev.reason || ''}).\x1b[0m`)
-              console.debug('ws closed', ev)
+              term.writeln(`\x1b[90mDisconnected (${ev.code}${ev.reason ? `: ${ev.reason}` : ''})\x1b[0m`)
+              
               if (ev.code === 1006) {
                 retryCount++
                 if (retryCount > MAX_RETRIES) {
-                  term.writeln(`\x1b[31mToo many reconnect attempts (${retryCount}). Stopping retries.\x1b[0m`)
+                  term.writeln(`\x1b[31mMax reconnection attempts reached\x1b[0m`)
                   return
                 }
                 if (reconnectTimer) return
@@ -301,7 +665,7 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
                 const sinceLast = now - (lastAttempt || 0)
                 const backoff = Math.min(BASE_DELAY * Math.pow(2, retryCount - 1), MAX_DELAY)
                 const delay = Math.max(backoff, sinceLast < 1000 ? BASE_DELAY : 0)
-                term.writeln(`\x1b[33mAbnormal disconnect detected — reconnecting in ${Math.round(delay/1000)}s...\x1b[0m`)
+                term.writeln(`\x1b[33mReconnecting in ${Math.round(delay/1000)}s...\x1b[0m`)
                 reconnectTimer = setTimeout(() => {
                   reconnectTimer = null
                   if (!cancelled) {
@@ -313,94 +677,139 @@ export function ConsoleTab({ serverId }: { serverId: string }) {
             }
           }
         } catch (err: any) {
-          term.writeln(`\x1b[31mFailed to connect: ${err.message || err}\x1b[0m`)
+          term.writeln(`\x1b[31mConnection failed: ${err.message || err}\x1b[0m`)
+          isConnecting = false
+          setReconnecting(false)
         }
       }
 
       connect()
     })()
 
-    const onResize = () => fitRef.current?.fit()
+    const onResize = () => {
+      setTimeout(() => fitRef.current?.fit(), 50)
+    }
     window.addEventListener("resize", onResize)
+
+    const onOrientationChange = () => {
+      setTimeout(() => fitRef.current?.fit(), 100)
+    }
+    window.addEventListener("orientationchange", onOrientationChange)
 
     return () => {
       cancelled = true
       window.removeEventListener("resize", onResize)
+      window.removeEventListener("orientationchange", onOrientationChange)
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
       ws?.close()
       wsRef.current = null
       term?.dispose()
       xtermRef.current = null
     }
-  }, [serverId])
+  }, [serverId, addToOutput])
 
-  const [mobileCmd, setMobileCmd] = useState("")
+  const handleReconnect = useCallback(() => {
+    if (reconnecting) return
+    wsRef.current?.close()
+    wsRef.current = null
+    setConnected(false)
+    setConnectedHintShown(false)
+    setConnectionState("connecting")
+    xtermRef.current?.writeln("\x1b[90mReconnecting...\x1b[0m")
+    
+    setReconnecting(true)
+    setTimeout(() => {
+      window.location.reload()
+    }, 100)
+  }, [reconnecting])
+
+  const handleMobileSend = useCallback(() => {
+    if (!mobileCmd.trim()) return
+    sendCommand(mobileCmd.trim())
+    setMobileCmd("")
+  }, [mobileCmd, sendCommand])
 
   return (
-    <div className="relative">
-      <div className="w-full max-w-full min-w-0">
+    <div
+      ref={containerRef}
+      className={cn(
+        "flex flex-col relative",
+        isFullscreen && "fixed inset-0 z-50 bg-background"
+      )}
+    >
+      {/* Toolbar */}
+      <ConsoleToolbar
+        connected={connected}
+        connectionState={connectionState}
+        isFullscreen={isFullscreen}
+        onFullscreenToggle={toggleFullscreen}
+        onClear={clearConsole}
+        onReconnect={handleReconnect}
+        onCopy={copyOutput}
+        copied={copied}
+        reconnecting={reconnecting}
+      />
+
+      {/* Terminal */}
+      <div className="flex-1 relative min-h-0 bg-[#0a0a0a]">
         <div
           ref={termRef}
-          className="h-[300px] sm:h-[550px] cursor-text w-full max-w-full min-w-0 overflow-auto"
+          className={cn(
+            "w-full cursor-text overflow-hidden",
+            isFullscreen 
+              ? "h-[calc(100vh-120px)]" 
+              : "h-[300px] sm:h-[400px] md:h-[550px]"
+          )}
           onClick={() => xtermRef.current?.focus()}
         />
+        
+        {/* Loading */}
+        {!terminalReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading console...</span>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="absolute top-2 right-2 z-10">
-        <Badge
-          variant="outline"
-          className={
-            connected
-              ? "border-green-500/50 text-green-400 text-[10px] bg-black/60 backdrop-blur-sm"
-              : connectionState && connectionState.toLowerCase() === "connecting"
-              ? "border-yellow-500/50 text-yellow-400 text-[10px] bg-black/60 backdrop-blur-sm"
-              : "border-red-500/50 text-red-400 text-[10px] bg-black/60 backdrop-blur-sm"
-          }
-        >
-          {connectionState ? (connectionState.charAt(0).toUpperCase() + connectionState.slice(1)) : (connected ? "Connected" : "Disconnected")}
-        </Badge>
-      </div>
-      <div className="flex sm:hidden border-t border-border bg-zinc-950">
-        <input
-          type="text"
+
+      {/* Mobile */}
+      <div className="relative sm:hidden">
+        {showHistory && (
+          <HistoryPanel
+            history={commandHistory}
+            onSelect={(cmd) => setMobileCmd(cmd)}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
+        
+        <MobileCommandInput
           value={mobileCmd}
-          onChange={(e) => setMobileCmd(e.target.value)}
-          placeholder="Type command..."
-          className="flex-1 bg-transparent px-3 py-2.5 text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && mobileCmd.trim()) {
-              const cmd = mobileCmd.trim()
-              if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ event: "send command", args: [cmd] }))
-              } else {
-                apiFetch(API_ENDPOINTS.serverCommands.replace(":id", serverId), {
-                  method: "POST",
-                  body: JSON.stringify({ command: cmd }),
-                }).catch(() => {})
-              }
-              xtermRef.current?.writeln(`> ${cmd}`)
-              setMobileCmd("")
-            }
-          }}
+          onChange={setMobileCmd}
+          onSend={handleMobileSend}
+          onHistoryToggle={() => setShowHistory(!showHistory)}
+          historyOpen={showHistory}
+          disabled={!terminalReady}
         />
-        <button
-          onClick={() => {
-            if (!mobileCmd.trim()) return
-            const cmd = mobileCmd.trim()
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({ event: "send command", args: [cmd] }))
-            } else {
-              apiFetch(API_ENDPOINTS.serverCommands.replace(":id", serverId), {
-                method: "POST",
-                body: JSON.stringify({ command: cmd }),
-              }).catch(() => {})
-            }
-            xtermRef.current?.writeln(`> ${cmd}`)
-            setMobileCmd("")
-          }}
-          className="px-3 text-muted-foreground hover:text-foreground"
-        >
-          <Send className="h-4 w-4" />
-        </button>
+      </div>
+
+      {/* Desktop */}
+      <div className="hidden sm:flex items-center gap-2 border-t border-border bg-secondary/10 px-4 py-2.5">
+        <Terminal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-xs text-muted-foreground">
+          Type commands directly in the console above
+        </span>
+        <span className="text-muted-foreground/50 mx-2">•</span>
+        <span className="text-xs text-muted-foreground">
+          <kbd className="px-1.5 py-0.5 bg-secondary rounded text-[10px] font-mono">Ctrl+C</kbd>
+          <span className="ml-1.5">Cancel</span>
+        </span>
+        <span className="text-muted-foreground/50 mx-2">•</span>
+        <span className="text-xs text-muted-foreground">
+          <kbd className="px-1.5 py-0.5 bg-secondary rounded text-[10px] font-mono">Ctrl+L</kbd>
+          <span className="ml-1.5">Clear</span>
+        </span>
       </div>
     </div>
   )

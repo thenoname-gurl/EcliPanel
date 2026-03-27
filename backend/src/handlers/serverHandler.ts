@@ -444,6 +444,14 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     if (!isAdmin) {
+      const passkeyCount = await AppDataSource.getRepository(
+        require('../models/passkey.entity').Passkey
+      ).count({ where: { user: { id: user.id } } });
+      if (passkeyCount === 0) {
+        ctx.set.status = 403;
+        return { error: 'You must register a passkey before creating servers' };
+      }
+
       if (geoLevel >= 3 && (effectivePortalType === 'free' || effectivePortalType === 'educational')) {
         ctx.set.status = 403;
         return { error: 'Your country is restricted from free and educational portal services.' };
@@ -457,13 +465,6 @@ export async function serverRoutes(app: any, prefix = '') {
         if (!user.emailVerified) {
           ctx.set.status = 403;
           return { error: 'You must verify your email before creating servers' };
-        }
-        const passkeyCount = await AppDataSource.getRepository(
-          require('../models/passkey.entity').Passkey
-        ).count({ where: { user: { id: user.id } } });
-        if (passkeyCount === 0) {
-          ctx.set.status = 403;
-          return { error: 'You must register a passkey before creating servers' };
         }
       }
     }
@@ -956,30 +957,49 @@ export async function serverRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/servers/:id/files/download', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path } = ctx.query as any;
+    const { id } = ctx.params;
+    const { path } = ctx.query;
+
+    if (!path) {
+      ctx.set.status = 400;
+      return { error: 'path query param required' };
+    }
+
     const svc = await serviceFor(id);
 
     try {
+      // CRITICAL: downloadFile MUST return ArrayBuffer, not string
       const res = await svc.downloadFile(id, path);
-      const filename = (path || '').split('/').pop() || 'download';
-      const contentType = res.headers['content-type'] || 'application/octet-stream';
-      const disposition = `attachment; filename="${encodeURIComponent(filename)}"`;
-      try {
-        return new Response(res.data, { headers: { 'Content-Type': contentType, 'Content-Disposition': disposition } });
-      } catch (e) {
-        try {
-          if (ctx.set && typeof ctx.set.header === 'function') {
-            ctx.set.header('Content-Type', contentType);
-            ctx.set.header('Content-Disposition', disposition);
-          } else if (ctx.set && typeof ctx.set === 'object') {
-            try { (ctx.set as any).headers = { ...(ctx.set as any).headers, 'Content-Type': contentType, 'Content-Disposition': disposition }; } catch { }
-          }
-        } catch (err) {
-          // skip
-        }
-        return res.data;
+      const filename = path.split('/').pop() || 'download';
+      const contentType = res.headers?.['content-type'] || 'application/octet-stream';
+
+      // Ensure we have raw binary bytes
+      let body: Uint8Array;
+
+      if (res.data instanceof ArrayBuffer) {
+        body = new Uint8Array(res.data);
+      } else if (ArrayBuffer.isView(res.data)) {
+        // Already a typed array view (Uint8Array, Buffer, etc.)
+        body = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
+      } else if (typeof res.data === 'string') {
+        // THIS IS THE PROBLEM - if we get here, downloadFile is returning text
+        // This will corrupt binary files! Fix downloadFile to use responseType: 'arraybuffer'
+        console.error('WARNING: downloadFile returned string instead of ArrayBuffer - binary corruption will occur!');
+        // Cannot reliably convert back - the damage is done
+        body = new TextEncoder().encode(res.data);
+      } else {
+        ctx.set.status = 500;
+        return { error: 'Unexpected response data type from Wings' };
       }
+
+      return new Response(Buffer.from(body), {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+          'Content-Length': String(body.byteLength),
+        },
+      });
     } catch (e: any) {
       const status = e?.response?.status || 500;
       const msg = e?.response?.data?.error || e?.message || 'Failed to download file';
@@ -988,29 +1008,148 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:read')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Download file', tags: ['Servers'] }
+    query: t.Object({ path: t.String() }),
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Download file', tags: ['Servers'] },
+  });
+
+  app.post(prefix + '/servers/:id/files/upload', async (ctx: any) => {
+    const { id } = ctx.params;
+    const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
+    if (!pathParam) {
+      ctx.set.status = 400;
+      return { error: 'path query param required' };
+    }
+
+    const svc = await serviceFor(id);
+
+    try {
+      const contentType = String(ctx.request?.headers?.get('content-type') || '').toLowerCase();
+      if (!contentType || !contentType.includes('octet-stream')) {
+        ctx.set.status = 415;
+        return { error: 'Unsupported media type; expected application/octet-stream' };
+      }
+
+      const rawBody = await ctx.request.arrayBuffer();
+      const binaryData = new Uint8Array(rawBody);
+
+      const res = await svc.writeFile(id, pathParam, binaryData);
+
+      const user = (ctx as any).store?.user ?? (ctx as any).user;
+      if (user?.id) {
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:file:upload',
+          targetId: id,
+          targetType: 'server',
+          metadata: { filePath: pathParam, size: binaryData.byteLength },
+          ipAddress: ctx.ip,
+        });
+      }
+
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    } catch (e: any) {
+      const status = e?.response?.status || 500;
+      const msg = e?.response?.data?.error || e?.message || 'File upload failed';
+      ctx.set.status = status;
+      return { error: msg };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      415: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Upload a binary file to server path', tags: ['Servers'] },
   });
 
   app.post(prefix + '/servers/:id/files/write', async (ctx: any) => {
-    const { id } = ctx.params as any;
+    const { id } = ctx.params;
     const svc = await serviceFor(id);
+
     try {
       const body = ctx.body as any;
+      const user = (ctx as any).store?.user ?? (ctx as any).user;
+
+      // ── Multipart file upload ──
       if (body && (body.file || body.files)) {
-        const uploadFile = Array.isArray(body.file) ? body.file[0] : body.file || (Array.isArray(body.files) ? body.files[0] : body.files);
-        const destination = body.path || body.destination || '/';
-        const ab = await uploadFile.arrayBuffer();
-        const buf = Buffer.from(ab);
-        const res = await svc.writeFile(id, destination, buf);
-        const user = ctx.user;
-        await createActivityLog({ userId: user.id, action: 'server:file:write', targetId: id, targetType: 'server', metadata: { filePath: destination }, ipAddress: ctx.ip });
+        const uploadFile =
+          (Array.isArray(body.file) ? body.file[0] : body.file) ||
+          (Array.isArray(body.files) ? body.files[0] : body.files);
+
+        if (!uploadFile || typeof uploadFile.arrayBuffer !== 'function') {
+          ctx.set.status = 400;
+          return { error: 'Invalid or missing file in upload' };
+        }
+
+        const destination = (body.path || body.destination || '/').replace(/\/+$/, '');
+        const fileName = uploadFile.name || 'upload';
+        const filePath = destination.endsWith('/') ? `${destination}${fileName}` : `${destination}/${fileName}`;
+
+        // CRITICAL: Get raw binary as Uint8Array - NOT Buffer
+        const arrayBuffer = await uploadFile.arrayBuffer();
+        const binaryData = new Uint8Array(arrayBuffer);
+
+        // Pass raw bytes to writeFile
+        const res = await svc.writeFile(id, filePath, binaryData);
+
+        if (user?.id) {
+          await createActivityLog({
+            userId: user.id,
+            action: 'server:file:write',
+            targetId: id,
+            targetType: 'server',
+            metadata: { filePath },
+            ipAddress: ctx.ip,
+          });
+        }
+
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
       }
-      const { path, content } = ctx.body as any;
-      const res = await svc.writeFile(id, path, content);
-      const user = ctx.user;
-      await createActivityLog({ userId: user.id, action: 'server:file:write', targetId: id, targetType: 'server', metadata: { filePath: path }, ipAddress: ctx.ip });
+
+      // ── JSON body — text content write ──
+      const { path: filePath, content } = body;
+
+      if (!filePath) {
+        ctx.set.status = 400;
+        return { error: 'path is required' };
+      }
+
+      // Convert content to raw bytes
+      let binaryData: Uint8Array;
+      if (typeof content === 'string') {
+        binaryData = new TextEncoder().encode(content);
+      } else if (content instanceof ArrayBuffer) {
+        binaryData = new Uint8Array(content);
+      } else if (ArrayBuffer.isView(content)) {
+        binaryData = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+      } else {
+        binaryData = new TextEncoder().encode(String(content ?? ''));
+      }
+
+      const res = await svc.writeFile(id, filePath, binaryData);
+
+      if (user?.id) {
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:file:write',
+          targetId: id,
+          targetType: 'server',
+          metadata: { filePath },
+          ipAddress: ctx.ip,
+        });
+      }
+
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
       const status = e?.response?.status || 500;
@@ -1020,8 +1159,14 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Write file', tags: ['Servers'] }
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Write file', tags: ['Servers'] },
   });
 
   app.post(prefix + '/servers/:id/files/delete', async (ctx: any) => {

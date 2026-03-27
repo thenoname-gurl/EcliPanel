@@ -9,27 +9,39 @@ const allowInvalidCerts = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
 export class WingsApiService {
   private baseUrl: string;
   private token: string;
+  private httpsAgent: https.Agent | undefined;
 
   constructor(baseUrl: string, token: string) {
     const clean = baseUrl.replace(/\/+$/, '');
     this.baseUrl = clean.endsWith('/api') ? clean : clean + '/api';
     this.token = token;
+
+    if (allowInvalidCerts) {
+      this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    }
   }
 
-  private getAuthHeaders() {
+  private getAuthHeaders(): Record<string, string> {
     return {
       Authorization: `Bearer ${this.token}`,
     };
   }
 
-  private cfg(extra?: AxiosRequestConfig) {
+  private cfg(extra?: AxiosRequestConfig): AxiosRequestConfig {
     const extraSafe = extra || {};
     const mergedHeaders = { ...this.getAuthHeaders(), ...(extraSafe.headers || {}) };
-    const cfg: any = { ...extraSafe, headers: mergedHeaders, timeout: REQUEST_TIMEOUT };
-    if (allowInvalidCerts) {
-      cfg.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+    const config: AxiosRequestConfig = {
+      ...extraSafe,
+      headers: mergedHeaders,
+      timeout: REQUEST_TIMEOUT,
+    };
+
+    if (this.httpsAgent) {
+      config.httpsAgent = this.httpsAgent;
     }
-    return cfg as AxiosRequestConfig;
+
+    return config;
   }
 
   async getSystemInfo() {
@@ -76,44 +88,62 @@ export class WingsApiService {
     return axios.post(`${this.baseUrl}/servers/${serverId}/kvm`, { enable }, this.cfg());
   }
 
-  async listServerFiles(serverId: string) {
-    return this.serverRequest(serverId, '/files');
+  async listServerFiles(serverId: string, directory: string = '/') {
+    const url = `${this.baseUrl}/servers/${serverId}/files/list-directory`;
+    return axios.get(url, this.cfg({ params: { directory } }));
   }
 
   async readFile(serverId: string, path: string) {
-    const url = `${this.baseUrl}/servers/${serverId}/files/contents?file=${encodeURIComponent(path)}`;
-    return axios.get(url, { ...this.cfg(), responseType: 'text' });
+    const url = `${this.baseUrl}/servers/${serverId}/files/contents`;
+    return axios.get(url, this.cfg({
+      params: { file: path },
+      responseType: 'text',
+    }));
   }
 
   async downloadFile(serverId: string, path: string) {
-    const url = `${this.baseUrl}/servers/${serverId}/files/contents?file=${encodeURIComponent(path)}`;
-    return axios.get(url, { ...this.cfg(), responseType: 'arraybuffer' });
+    const url = `${this.baseUrl}/servers/${serverId}/files/contents`;
+    return axios.get(url, this.cfg({
+      params: { file: path },
+      responseType: 'arraybuffer',
+    }));
   }
 
-  async writeFile(serverId: string, filePath: string, content: any) {
-    const url = `${this.baseUrl}/servers/${serverId}/files/write?file=${encodeURIComponent(filePath)}`;
-    const headers: any = {};
-    let body: any = content;
-    try {
-      if (typeof Buffer !== 'undefined' && Buffer.isBuffer(content)) {
-        headers['Content-Type'] = 'application/octet-stream';
-        body = content;
-      } else if (content instanceof ArrayBuffer) {
-        headers['Content-Type'] = 'application/octet-stream';
-        body = Buffer.from(content);
-      } else if (ArrayBuffer.isView && ArrayBuffer.isView(content)) {
-        headers['Content-Type'] = 'application/octet-stream';
-        body = Buffer.from((content as any).buffer);
-      } else {
-        headers['Content-Type'] = 'text/plain';
-        body = String(content ?? '');
-      }
-    } catch (e) {
-      headers['Content-Type'] = 'text/plain';
+  async writeFile(serverId: string, filePath: string, content: Uint8Array | ArrayBuffer | Buffer | string) {
+    const url = `${this.baseUrl}/servers/${serverId}/files/write`;
+
+    let body: Buffer | string;
+    let contentType: string;
+
+    if (content instanceof Uint8Array || ArrayBuffer.isView(content)) {
+      const view = content as Uint8Array;
+      body = Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+      contentType = 'application/octet-stream';
+    } else if (content instanceof ArrayBuffer) {
+      body = Buffer.from(content);
+      contentType = 'application/octet-stream';
+    } else if (typeof Buffer !== 'undefined' && Buffer.isBuffer(content)) {
+      body = content;
+      contentType = 'application/octet-stream';
+    } else if (typeof content === 'string') {
+      body = content;
+      contentType = 'text/plain; charset=utf-8';
+    } else {
       body = String(content ?? '');
+      contentType = 'text/plain; charset=utf-8';
     }
 
-    return axios.post(url, body, this.cfg({ headers }));
+    return axios.post(url, body, this.cfg({
+      params: { file: filePath },
+      headers: {
+        'Content-Type': contentType,
+      },
+      transformRequest: contentType === 'application/octet-stream'
+        ? [(data: any) => data]
+        : undefined,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    }));
   }
 
   async deleteFile(serverId: string, root: string, files: string[]) {
@@ -176,6 +206,17 @@ export class WingsApiService {
     }
   }
 
+  async deleteServerBackup(serverId: string, backupId: string) {
+    try {
+      return await this.serverRequest(serverId, `/backup/${backupId}`, 'delete');
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        return this.serverRequest(serverId, `/backups/${backupId}`, 'delete');
+      }
+      throw err;
+    }
+  }
+
   async executeServerCommand(serverId: string, command: string) {
     return this.serverRequest(serverId, '/commands', 'post', { commands: [command] });
   }
@@ -228,38 +269,56 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/stats');
   }
 
-  async serverRequest(serverId: string, subpath: string, method: 'get' | 'post' | 'put' | 'delete' = 'get', data?: any) {
+  async serverRequest(
+    serverId: string,
+    subpath: string,
+    method: 'get' | 'post' | 'put' | 'delete' = 'get',
+    data?: any
+  ) {
     const url = `${this.baseUrl}/servers/${serverId}${subpath}`;
     const config = this.cfg();
-    if (method === 'get') {
-      return axios.get(url, config);
+
+    switch (method) {
+      case 'get':
+        return axios.get(url, config);
+      case 'delete':
+        return data ? axios.delete(url, { ...config, data }) : axios.delete(url, config);
+      case 'post':
+        return axios.post(url, data, config);
+      case 'put':
+        return axios.put(url, data, config);
+      default:
+        throw new Error(`Unsupported method: ${method}`);
     }
-    if (method === 'delete') {
-      if (data) {
-        return axios.delete(url, { ...config, data });
-      }
-      return axios.delete(url, config);
-    }
-    // post / put
-    return axios[method](url, data, config);
   }
 
-  connectServerWebsocket(serverId: string, onMessage: (msg: any) => void) {
+  connectServerWebsocket(serverId: string, onMessage: (msg: any) => void, onError?: (err: Error) => void) {
     const url = this.baseUrl.replace(/^http/, 'ws') + `/servers/${serverId}/ws`;
-    const wsOptions: any = { headers: this.getAuthHeaders() };
+
+    const wsOptions: WebSocket.ClientOptions = {
+      headers: this.getAuthHeaders(),
+    };
+
     if (allowInvalidCerts) {
       wsOptions.rejectUnauthorized = false;
     }
+
     const ws = new WebSocket(url, wsOptions);
+
     ws.on('message', (data) => {
       try {
         const parsed = JSON.parse(data.toString());
         onMessage(parsed);
-      } catch (e) {
+      } catch {
         onMessage(data);
       }
     });
-    ws.on('error', (err) => console.error('Wings websocket error', err));
+
+    ws.on('error', (err) => {
+      console.error('Wings websocket error:', err);
+      onError?.(err);
+    });
+
     return ws;
   }
 }

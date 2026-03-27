@@ -52,12 +52,13 @@ function buildMessages(ticket: any) {
       ai: !!m.ai,
       content: m.message,
       timestamp: m.created || m.createdAt || ticket.created,
+      avatar: m.avatarUrl || m.userAvatar || ticket.user?.avatarUrl || ticket.userAvatar || undefined,
     }))
   }
 
   const msgs: { id: string; sender: string; senderRole: "user" | "staff" | "system"; ai?: boolean; content: string; timestamp: string }[] = []
   if (ticket?.message) {
-    msgs.push({ id: "msg-initial", sender: ticket.userName || "You", senderRole: "user", content: ticket.message, timestamp: ticket.created })
+    msgs.push({ id: "msg-initial", sender: ticket.userName || "You", senderRole: "user", content: ticket.message, timestamp: ticket.created, avatar: ticket.user?.avatarUrl || ticket.userAvatar || undefined })
   }
   if (ticket?.adminReply) {
     msgs.push({ id: "msg-reply", sender: "Support Team", senderRole: "staff", content: ticket.adminReply, timestamp: ticket.updatedAt || ticket.created })
@@ -688,7 +689,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
 
         {/* Messages Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
-          <div className="flex flex-col justify-start min-h-full max-w-3xl mx-auto p-4 sm:p-6">
+          <div className="flex flex-col justify-end min-h-full max-w-3xl mx-auto p-4 sm:p-6">
             {/* Change notifications */}
             {changeNotifications.length > 0 && (
               <div className="flex flex-col gap-1 mb-3">
@@ -731,7 +732,13 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                       className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full border ${isStaff ? "border-primary/30 bg-primary/10" : "border-border bg-secondary"
                         }`}
                     >
-                      {isStaff ? <Shield className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" /> : <User className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />}
+                      {msg.avatar ? (
+                        <img src={msg.avatar} alt={`${msg.sender} avatar`} className="h-full w-full object-cover rounded-full" />
+                      ) : isStaff ? (
+                        <Shield className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+                      ) : (
+                        <User className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                      )}
                     </div>
                   ) : (
                     <div className="w-7 sm:w-8 shrink-0" />

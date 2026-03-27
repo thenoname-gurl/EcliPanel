@@ -2,12 +2,6 @@ import net from 'net';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 
-/**
- * SFTP TCP Proxy Service
- *
- * NOTE: THIS IS NOT FULLY TESTED!!
- */
-
 interface ProxyEntry {
   nodeId: number;
   server: net.Server;
@@ -20,7 +14,7 @@ function urlToHost(nodeUrl: string): string {
   try {
     return new URL(nodeUrl).hostname;
   } catch {
-    return nodeUrl;
+    return nodeUrl.replace(/[:\/].*$/, '');
   }
 }
 
@@ -37,35 +31,49 @@ function startProxy(node: Node): void {
   stopProxy(node.id);
 
   const server = net.createServer((client) => {
-    const remote = net.createConnection({ host: targetHost, port: targetPort }, () => {
+    let cleaned = false;
+
+    const remote = net.createConnection({ host: targetHost, port: targetPort });
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      client.unpipe(remote);
+      remote.unpipe(client);
+      if (!client.destroyed) client.destroy();
+      if (!remote.destroyed) remote.destroy();
+    };
+
+    remote.once('connect', () => {
+      if (cleaned) return;
       client.pipe(remote);
       remote.pipe(client);
     });
 
-    const cleanup = () => {
-      try { client.destroy(); } catch { /* skip */ }
-      try { remote.destroy(); } catch { /* skip */ }
-    };
+    client.on('error', () => cleanup());
+    client.once('close', cleanup);
 
-    client.on('error', cleanup);
-    client.on('close', cleanup);
     remote.on('error', (err) => {
       console.error(`sftp-proxy [node ${node.id}]: remote error: ${err.message}`);
       cleanup();
     });
-    remote.on('close', cleanup);
+    remote.once('close', cleanup);
   });
 
-  server.on('error', (err: any) => {
+  server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`sftp-proxy [node ${node.id}]: port ${listenPort} already in use — skipping`);
+      console.error(
+        `sftp-proxy [node ${node.id}]: port ${listenPort} already in use — skipping`,
+      );
     } else {
       console.error(`sftp-proxy [node ${node.id}]: server error: ${err.message}`);
     }
   });
 
   server.listen(listenPort, '0.0.0.0', () => {
-    console.log(`sftp-proxy [node ${node.id} "${node.name}"]: listening on :${listenPort} → ${targetHost}:${targetPort}`);
+    console.log(
+      `sftp-proxy [node ${node.id} "${node.name}"]: listening on :${listenPort} → ${targetHost}:${targetPort}`,
+    );
   });
 
   proxies.set(node.id, { nodeId: node.id, server, proxyPort: listenPort });
@@ -76,7 +84,9 @@ function stopProxy(nodeId: number): void {
   if (!entry) return;
   try {
     entry.server.close();
-  } catch { /* skip */ }
+  } catch {
+    /* skip */
+  }
   proxies.delete(nodeId);
 }
 
@@ -100,10 +110,9 @@ export async function refreshAllSftpProxies(): Promise<void> {
     const nodes = await nodeRepo.find();
     const nodeIds = new Set(nodes.map((n) => n.id));
 
-    for (const [id] of proxies) {
-      if (!nodeIds.has(id)) {
-        stopProxy(id);
-      }
+    const stale = [...proxies.keys()].filter((id) => !nodeIds.has(id));
+    for (const id of stale) {
+      stopProxy(id);
     }
 
     for (const node of nodes) {

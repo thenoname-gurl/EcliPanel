@@ -15,12 +15,19 @@ export async function initMail() {
   const secure = (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
   const user = process.env.SMTP_USER || process.env.MAIL_USER;
   const pass = process.env.SMTP_PASS || process.env.MAIL_PASS;
+  const allowInvalidTls = (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
 
   transporter = nodemailer.createTransport({
     host,
     port,
     secure,
     auth: user || pass ? { user, pass } : undefined,
+    tls: allowInvalidTls
+      ? {
+          rejectUnauthorized: false,
+          checkServerIdentity: () => undefined,
+        }
+      : undefined,
   });
   await transporter.verify();
 }

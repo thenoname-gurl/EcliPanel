@@ -38,10 +38,13 @@ export async function apiFetch(
 
   const url = path.startsWith("http") ? path : `${base}${path}`;
 
+
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (!headers["Content-Type"] && !(options.body instanceof FormData) && options.body !== undefined && options.body !== null) {
+  if (options.body instanceof FormData) {
+    if (headers["Content-Type"]) delete headers["Content-Type"];
+  } else if (!headers["Content-Type"] && options.body !== undefined && options.body !== null) {
     headers["Content-Type"] = "application/json";
   }
 

@@ -1,118 +1,244 @@
 import { authenticate } from '../middleware/auth';
-// Peak code that surely works!
-export interface RawRequest { params?: any; query?: any; headers?: any; url?: string; }
+import { AppDataSource } from '../config/typeorm';
+import { Node } from '../models/node.entity';
+import { WingsApiService } from '../services/wingsApiService';
+import { socEmitter } from '../services/socSocketService';
+import { aiEmitter } from '../services/aiSocketService';
+
+export interface RawRequest {
+  params?: any;
+  query?: any;
+  headers?: any;
+  url?: string;
+  user?: any;
+  apiKey?: any;
+}
 
 export async function handleSocConnection(app: any, socket: any, req: RawRequest) {
   try {
     await authenticate(req as any);
   } catch {
+    sendError(socket, 'Authentication failed');
     socket.close();
     return;
   }
-  const user = (req as any).user;
-  const apiKey = (req as any).apiKey;
+
+  const user = req.user;
+  const apiKey = req.apiKey;
+
   if (!user && !apiKey) {
+    sendError(socket, 'No valid credentials');
     socket.close();
     return;
   }
 
   let allowedIds: string[] | null = null;
-  if (!user || (!(user.role === 'admin' || user.role === '*') && !apiKey)) {
-    const { nodeService } = require('../services/nodeService');
-    const nodeSvc: any = nodeService;
-    const nodesRepo = require('../config/typeorm').AppDataSource.getRepository(require('../models/node.entity').Node);
-    const nodes = await nodesRepo.find({ where: user && user.org ? { organisation: { id: user.org.id } } : {} });
-    allowedIds = [];
-    for (const n of nodes) {
-      const svc = new (require('../services/wingsApiService').WingsApiService)(n.url, n.token);
-      try {
-        const res = await svc.getServers();
-        const servs = res.data || [];
-        for (const s of servs) {
-          if (user && (user.role === 'admin' || user.role === '*')) {
-            allowedIds.push(s.uuid);
-          } else if (user && s.owner === user.id) {
-            allowedIds.push(s.uuid);
-          } else if (apiKey && apiKey.user && apiKey.user.id === s.owner) {
-            allowedIds.push(s.uuid);
-          }
-        }
-      } catch {}
-    }
+  const isAdmin = user?.role === 'admin' || user?.role === '*' || apiKey?.type === 'admin';
+
+  if (!isAdmin) {
+    allowedIds = await getAllowedServerIds(user, apiKey);
   }
 
-  const { socEmitter } = require('../services/socSocketService');
   const listener = (data: any) => {
-    if (allowedIds && data.serverId && !allowedIds.includes(data.serverId)) return;
-    try { socket.send(JSON.stringify({ type: 'soc:update', data })); } catch {};
+    if (allowedIds && data.serverId && !allowedIds.includes(data.serverId)) {
+      return;
+    }
+
+    try {
+      socket.send(JSON.stringify({ type: 'soc:update', data }));
+    } catch (err) {
+      console.error('Failed to send SOC update:', err);
+    }
   };
+
   socEmitter.on('update', listener);
+
   socket.on('close', () => {
     socEmitter.off('update', listener);
   });
+
+  socket.on('error', (err: any) => {
+    console.error('SOC socket error:', err);
+    socEmitter.off('update', listener);
+  });
+
+  try {
+    socket.send(JSON.stringify({ type: 'connected', timestamp: Date.now() }));
+  } catch {}
 }
 
 export async function handleAiConnection(app: any, socket: any, req: RawRequest) {
   try {
     await authenticate(req as any);
   } catch {
+    sendError(socket, 'Authentication failed');
     socket.close();
     return;
   }
-  const user = (req as any).user;
-  const apiKey = (req as any).apiKey;
+
+  const user = req.user;
+  const apiKey = req.apiKey;
+
   if (!user && !apiKey) {
+    sendError(socket, 'No valid credentials');
     socket.close();
     return;
   }
-  const { aiEmitter } = require('../services/aiSocketService');
+
+  const isAdmin = user?.role === 'admin' || user?.role === '*' || apiKey?.type === 'admin';
+
   const listener = (data: any) => {
-    if (user && (user.role === 'admin' || user.role === '*')) {
-      // send
+    let allowed = false;
+
+    if (isAdmin) {
+      allowed = true;
     } else if (user && data.userId === user.id) {
-      // send
-    } else if (user && user.org && data.organisationId === user.org.id) {
-      // send
-    } else if (apiKey && apiKey.type === 'admin') {
-      // send
-    } else if (apiKey && apiKey.user && data.userId === apiKey.user.id) {
-      // send
-    } else {
-      return;
+      allowed = true;
+    } else if (user?.org && data.organisationId === user.org.id) {
+      allowed = true;
+    } else if (apiKey?.user && data.userId === apiKey.user.id) {
+      allowed = true;
     }
-    try { socket.send(JSON.stringify({ type: 'ai:usage', data })); } catch {};
+
+    if (!allowed) return;
+
+    try {
+      socket.send(JSON.stringify({ type: 'ai:usage', data }));
+    } catch (err) {
+      console.error('Failed to send AI usage:', err);
+    }
   };
+
   aiEmitter.on('usage', listener);
+
   socket.on('close', () => {
     aiEmitter.off('usage', listener);
   });
+
+  socket.on('error', (err: any) => {
+    console.error('AI socket error:', err);
+    aiEmitter.off('usage', listener);
+  });
+
+  try {
+    socket.send(JSON.stringify({ type: 'connected', timestamp: Date.now() }));
+  } catch {}
 }
 
 export async function handleServerConnection(app: any, socket: any, req: RawRequest) {
   try {
     await authenticate(req as any);
   } catch {
+    sendError(socket, 'Authentication failed');
     socket.close();
     return;
   }
-  if (!(req as any).user && !(req as any).apiKey) {
+
+  if (!req.user && !req.apiKey) {
+    sendError(socket, 'No valid credentials');
     socket.close();
     return;
   }
-  const nodeSvc = require('./../services/nodeService').nodeService;
-  const serverId = (req.params as any).id;
+
+  const serverId = req.params?.id;
+  if (!serverId) {
+    sendError(socket, 'Missing server ID');
+    socket.close();
+    return;
+  }
+
+  let remoteWs: any = null;
+
   try {
-    const svc: any = await nodeSvc.getServiceForServer(serverId);
-    const remote = svc.connectServerWebsocket(serverId, (msg: any) => {
-      try { socket.send(JSON.stringify(msg)); } catch {};
+    const { nodeService } = require('../services/nodeService');
+    const svc = await nodeService.getServiceForServer(serverId);
+
+    if (!svc) {
+      sendError(socket, 'Server not found or node unavailable');
+      socket.close();
+      return;
+    }
+
+    remoteWs = svc.connectServerWebsocket(serverId, (msg: any) => {
+      try {
+        const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        socket.send(text);
+      } catch (err) {
+        console.error('Failed to forward Wings message:', err);
+      }
     });
+
     socket.on('message', (m: any) => {
-      try { remote.send(m); } catch {};
+      if (!remoteWs) return;
+      try {
+        const text = typeof m === 'string' ? m : m.toString();
+        remoteWs.send(text);
+      } catch (err) {
+        console.error('Failed to send to Wings:', err);
+      }
     });
+
     socket.on('close', () => {
-      try { remote.close(); } catch {};
+      if (remoteWs) {
+        try {
+          remoteWs.close();
+        } catch {}
+        remoteWs = null;
+      }
     });
-  } catch (e) {
+
+    socket.on('error', (err: any) => {
+      console.error('Server socket error:', err);
+      if (remoteWs) {
+        try {
+          remoteWs.close();
+        } catch {}
+        remoteWs = null;
+      }
+    });
+
+  } catch (err) {
+    console.error('Failed to connect to server:', err);
+    sendError(socket, 'Failed to connect to server');
     socket.close();
   }
+}
+
+async function getAllowedServerIds(user: any, apiKey: any): Promise<string[]> {
+  const allowedIds: string[] = [];
+
+  try {
+    const nodesRepo = AppDataSource.getRepository(Node);
+    
+    const whereClause = user?.org ? { organisation: { id: user.org.id } } : {};
+    const nodes = await nodesRepo.find({ where: whereClause });
+
+    for (const node of nodes) {
+      try {
+        const svc = new WingsApiService(node.url, node.token);
+        const res = await svc.getServers();
+        const servers = res.data || [];
+
+        for (const server of servers) {
+          if (user && server.owner === user.id) {
+            allowedIds.push(server.uuid);
+          } else if (apiKey?.user && server.owner === apiKey.user.id) {
+            allowedIds.push(server.uuid);
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to get servers from node ${node.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to get allowed server IDs:', err);
+  }
+
+  return allowedIds;
+}
+
+function sendError(socket: any, message: string) {
+  try {
+    socket.send(JSON.stringify({ type: 'error', message }));
+  } catch {}
 }
