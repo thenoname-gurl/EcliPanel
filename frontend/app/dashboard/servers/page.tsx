@@ -453,6 +453,7 @@ function ResourceSlider({
   onChange: (v: number) => void; format: (v: number) => string; formatMax?: (v: number) => string; color: string
 }) {
   const pct = ((value - min) / (max - min)) * 100
+  const clampedPct = Math.max(0, Math.min(100, pct))
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -464,8 +465,12 @@ function ResourceSlider({
       </div>
       <div className="relative">
         <div className="h-2 rounded-full bg-border/60 overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-150 ${color.replace("text-", "bg-")}/60`} style={{ width: `${pct}%` }} />
+          <div className={`h-full rounded-full transition-all duration-150 ${color.replace("text-", "bg-")}/60`} style={{ width: `${clampedPct}%` }} />
         </div>
+        <div
+          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border border-white bg-white dark:border-slate-800 dark:bg-slate-200 shadow-md pointer-events-none"
+          style={{ left: `calc(${clampedPct}% - 0.375rem)` }}
+        />
         <input
           type="range"
           min={min}

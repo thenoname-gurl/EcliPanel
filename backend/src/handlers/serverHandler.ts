@@ -2149,10 +2149,30 @@ export async function serverRoutes(app: any, prefix = '') {
     const eggProc = egg?.processConfig || {};
     const cfgProc = (cfg as any).processConfig || {};
     const proc: Record<string, any> = { ...eggProc, ...cfgProc };
+
+    const selectedDockerImage = cfg.dockerImage || egg?.dockerImage || '';
+    const dockerImageOptions: Array<{ label: string; value: string }> = [];
+
+    if (egg?.dockerImages && typeof egg.dockerImages === 'object') {
+      for (const [key, value] of Object.entries(egg.dockerImages)) {
+        dockerImageOptions.push({ label: String(key), value: String(value) });
+      }
+    }
+
+    if (egg?.dockerImage) {
+      const exists = dockerImageOptions.some((option) => option.value === egg.dockerImage);
+      if (!exists) dockerImageOptions.unshift({ label: 'Default', value: egg.dockerImage });
+    }
+
+    if (selectedDockerImage && !dockerImageOptions.some((option) => option.value === selectedDockerImage)) {
+      dockerImageOptions.unshift({ label: 'Custom', value: selectedDockerImage });
+    }
+
     return {
       environment: cfg.environment || {},
       startup: cfg.startup || '',
-      dockerImage: cfg.dockerImage || '',
+      dockerImage: selectedDockerImage,
+      dockerImageOptions,
       envVars: egg?.envVars || [],
       eggName: egg?.name || null,
       processConfig: {
@@ -2174,10 +2194,10 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(prefix + '/servers/:id/startup', async (ctx: any) => {
     const { id } = ctx.params as any;
-    const { environment, processConfig: incomingProcCfg } = ctx.body as any;
-    if (!environment && !incomingProcCfg) {
+    const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as any;
+    if (!environment && !incomingProcCfg && dockerImage === undefined) {
       ctx.set.status = 400;
-      return { error: 'environment or processConfig is required' };
+      return { error: 'environment, processConfig, or dockerImage is required' };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -2186,12 +2206,32 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Server not found' };
     }
 
+    const user = ctx.user;
+    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+
     const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
     const editableKeys = new Set<string>();
     if (egg?.envVars) {
       for (const v of egg.envVars as any[]) {
         if (v.user_editable) editableKeys.add(v.env_variable || v.key || v.name);
       }
+    }
+
+    if (dockerImage !== undefined) {
+      const allowedImages = new Set<string>();
+      if (egg?.dockerImage) allowedImages.add(String(egg.dockerImage));
+      if (egg?.dockerImages && typeof egg.dockerImages === 'object') {
+        for (const v of Object.values(egg.dockerImages)) {
+          allowedImages.add(String(v));
+        }
+      }
+
+      if (!isAdmin && allowedImages.size > 0 && !allowedImages.has(String(dockerImage))) {
+        ctx.set.status = 403;
+        return { error: 'Invalid docker image selection' };
+      }
+
+      cfg.dockerImage = String(dockerImage);
     }
 
     const merged = { ...(cfg.environment || {}) };

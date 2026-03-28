@@ -26,6 +26,13 @@ function getPanelUrl(ctx: any): string {
   }
 }
 
+function getBackendUrl(ctx: any): string {
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/+$/, '');
+  const proto = ctx.headers['x-forwarded-proto'] || 'http';
+  const host = ctx.headers['host'];
+  return `${proto}://${host}`;
+}
+
 function randomToken(bytes = 32) {
   return require('crypto').randomBytes(bytes).toString('hex');
 }
@@ -1031,7 +1038,7 @@ export async function authRoutes(app: any, prefix = '') {
     if (!isStudent) {
       ctx.log.warn({ userId, eduData }, 'GitHub Education API did not confirm student status');
       const panelUrl = getPanelUrl(ctx);
-      return { redirect: `${panelUrl}/?studentVerified=0` };
+      return { redirect: `${panelUrl}/dashboard/identity?studentVerified=0` };
     }
 
     const { Plan } = require('../models/plan.entity');
@@ -1056,7 +1063,7 @@ export async function authRoutes(app: any, prefix = '') {
     }
     await redisDel(`github-student-state:${state}`);
     const panelUrl = getPanelUrl(ctx);
-    return ctx.redirect(`${panelUrl}/?studentVerified=1`);
+    return ctx.redirect(`${panelUrl}/dashboard/identity?studentVerified=1`);
   }, {
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: {
@@ -1072,7 +1079,8 @@ export async function authRoutes(app: any, prefix = '') {
     const state = randomToken(16);
     await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
     const clientId = process.env.HACKCLUB_CLIENT_ID;
-    const redirectUri = process.env.HACKCLUB_REDIRECT_URI || `${getPanelUrl(ctx)}/api/auth/hackclub/callback`;
+    const redirectUri = process.env.HACKCLUB_REDIRECT_URI
+      || `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
     if (!clientId) {
       ctx.set.status = 500;
       return { error: 'Hack Club client id not configured' };
@@ -1112,7 +1120,8 @@ export async function authRoutes(app: any, prefix = '') {
 
     const clientId = process.env.HACKCLUB_CLIENT_ID;
     const clientSecret = process.env.HACKCLUB_CLIENT_SECRET;
-    const redirectUri = process.env.HACKCLUB_REDIRECT_URI || `${getPanelUrl(ctx)}/api/auth/hackclub/callback`;
+    const redirectUri = process.env.HACKCLUB_REDIRECT_URI
+      || `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
     if (!clientId || !clientSecret) {
       ctx.set.status = 500;
       return { error: 'Hack Club OAuth not configured' };
@@ -1153,9 +1162,10 @@ export async function authRoutes(app: any, prefix = '') {
 
     if (!isStudent) {
       ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');
-      const panelUrl = getPanelUrl(ctx);
       await redisDel(`hackclub-student-state:${state}`);
-      return { redirect: `${panelUrl}/?studentVerified=0` };
+      const panelUrl = getPanelUrl(ctx);
+      ctx.set.redirect = `${panelUrl}/dashboard/identity?studentVerified=0`;
+      return;
     }
 
     const { Plan } = require('../models/plan.entity');
@@ -1195,7 +1205,8 @@ export async function authRoutes(app: any, prefix = '') {
 
     await redisDel(`hackclub-student-state:${state}`);
     const panelUrl = getPanelUrl(ctx);
-    return ctx.redirect(`${panelUrl}/?studentVerified=1`);
+    ctx.set.redirect = `${panelUrl}/?studentVerified=1`;
+    return;
   }, {
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: {

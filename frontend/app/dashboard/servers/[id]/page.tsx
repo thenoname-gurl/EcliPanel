@@ -1337,12 +1337,16 @@ function StartupTab({ serverId }: { serverId: string }) {
   const [startup, setStartup] = useState<any>(null)
   const [editedEnv, setEditedEnv] = useState<Record<string, string>>({})
   const [donePatterns, setDonePatterns] = useState<string[]>([])
+  const [selectedDockerImage, setSelectedDockerImage] = useState<string>("")
+  const [dockerImageOptions, setDockerImageOptions] = useState<{ label: string; value: string }[]>([])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverStartup.replace(":id", serverId))
       .then((data) => {
         setStartup(data)
         setEditedEnv(data?.environment || {})
+        setSelectedDockerImage(data?.dockerImage || "")
+        setDockerImageOptions(Array.isArray(data?.dockerImageOptions) ? data.dockerImageOptions : [])
         const patterns = data?.processConfig?.startup?.done
         setDonePatterns(Array.isArray(patterns) ? patterns.map(String) : patterns ? [String(patterns)] : [""])
       })
@@ -1351,6 +1355,11 @@ function StartupTab({ serverId }: { serverId: string }) {
   }, [serverId])
 
   const saveEnv = async () => {
+    if (dockerImageOptions.length > 0 && !selectedDockerImage) {
+      alert('Please select a Docker image before saving.')
+      return
+    }
+
     setSaving(true)
     try {
       await apiFetch(API_ENDPOINTS.serverStartup.replace(":id", serverId), {
@@ -1358,6 +1367,7 @@ function StartupTab({ serverId }: { serverId: string }) {
         body: JSON.stringify({
           environment: editedEnv,
           processConfig: { startup: { done: donePatterns.filter(p => p.length > 0) } },
+          dockerImage: selectedDockerImage || undefined,
         }),
       })
       alert("Saved.")
@@ -1384,8 +1394,27 @@ function StartupTab({ serverId }: { serverId: string }) {
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <InfoRow label="Egg" value={startup.eggName || "—"} />
-            <InfoRow label="Docker Image" value={startup.dockerImage || "—"} mono />
+            <InfoRow label="Docker Image" value={selectedDockerImage || "—"} mono />
           </div>
+
+          {dockerImageOptions.length > 0 ? (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select Docker Image</label>
+              <select
+                value={selectedDockerImage}
+                onChange={(e) => setSelectedDockerImage(e.target.value)}
+                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="" disabled>Select image…</option>
+                {dockerImageOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label} ({option.value})</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No alternate docker images are configured for this egg.</p>
+          )}
+
           {startup.startup && (
             <div className="rounded-lg border border-border bg-secondary/30 p-3">
               <p className="text-[10px] text-muted-foreground mb-1">Startup Command</p>
@@ -1436,7 +1465,7 @@ function StartupTab({ serverId }: { serverId: string }) {
           title="Environment Variables"
           icon={Variable}
           action={
-            <Button size="sm" onClick={saveEnv} disabled={saving}>
+            <Button size="sm" onClick={saveEnv} disabled={saving || (dockerImageOptions.length > 0 && !selectedDockerImage)}>
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
               Save
             </Button>

@@ -579,7 +579,7 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
   }
 
   if (loading) return <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>
-
+  
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card">
@@ -2379,8 +2379,8 @@ remote: ${panelUrl}`
     } : undefined
 
     // Build install script
-    const installScript = eggInstallContainer.trim() ? {
-      container: eggInstallContainer.trim(),
+    const installScript = (eggInstallContainer.trim() || eggInstallScript.trim()) ? {
+      container: eggInstallContainer.trim() || undefined,
       entrypoint: eggInstallEntrypoint.trim() || "bash",
       script: eggInstallScript,
     } : undefined
