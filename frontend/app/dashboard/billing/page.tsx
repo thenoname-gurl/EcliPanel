@@ -19,6 +19,8 @@ import {
   ArrowRight,
 } from "lucide-react"
 
+const HACKCLUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED === 'true'
+const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED === 'true'
 
 export default function BillingPage() {
   const { user, refreshUser } = useAuth()
@@ -364,19 +366,22 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    {planCard.type === 'educational' && (
+                    {(planCard.type === 'educational' && user?.portalType !== 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED)) && (
                       <button
                         onClick={async () => {
                           try {
-                            const res:any = await apiFetch(API_ENDPOINTS.hackclubStudentStart, { method: 'GET' })
+                            const endpoint = HACKCLUB_STUDENT_ENABLED
+                              ? API_ENDPOINTS.hackclubStudentStart
+                              : API_ENDPOINTS.githubStudentStart
+                            const res:any = await apiFetch(endpoint, { method: 'GET' })
                             if (res?.redirect) window.location.href = res.redirect
                           } catch (e:any) {
-                            alert(e?.message || 'Failed to start Hack Club flow')
+                            alert(e?.message || 'Failed to start student verification flow')
                           }
                         }}
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
-                        Connect Hack Club
+                        Connect {HACKCLUB_STUDENT_ENABLED ? 'Hack Club' : 'GitHub'}
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     )}

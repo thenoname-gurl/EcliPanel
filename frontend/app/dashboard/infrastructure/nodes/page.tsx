@@ -123,7 +123,12 @@ export default function InfraNodesPage() {
     setLoading(true)
     try {
       const data = await apiFetch(API_ENDPOINTS.nodes)
-      setNodes(data || [])
+      const nodesData = Array.isArray(data?.nodes)
+        ? data.nodes
+        : Array.isArray(data)
+          ? data
+          : []
+      setNodes(nodesData)
     } catch {
       // silently fail
     } finally {
@@ -133,7 +138,12 @@ export default function InfraNodesPage() {
 
   useEffect(() => {
     loadNodes()
-    apiFetch(API_ENDPOINTS.adminOrganisations).then((d) => setOrgs(d || [])).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminOrganisations)
+      .then((d: any) => {
+        const orgList = Array.isArray(d?.organisations) ? d.organisations : Array.isArray(d) ? d : []
+        setOrgs(orgList)
+      })
+      .catch(() => {})
   }, [loadNodes])
 
   useEffect(() => {
@@ -313,7 +323,7 @@ export default function InfraNodesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {nodes.map((node) => {
+              {(Array.isArray(nodes) ? nodes : []).map((node) => {
                 const meta = NODE_TYPE_META[node.nodeType] || NODE_TYPE_META.free
                 return (
                   <div
@@ -504,7 +514,7 @@ export default function InfraNodesPage() {
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 >
                   <option value="">— None —</option>
-                  {orgs.map((o) => (
+                  {(Array.isArray(orgs) ? orgs : []).map((o) => (
                     <option key={o.id} value={String(o.id)}>{o.name} (@{o.handle})</option>
                   ))}
                 </select>

@@ -66,8 +66,13 @@ export default function SocPage() {
 
   // Load users + orgs for dropdowns on mount
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.adminUsers).then((d) => setUsers(d || [])).catch(() => {})
-    apiFetch(API_ENDPOINTS.adminOrganisations).then((d) => setOrgs(d || [])).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminUsers).then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => {})
+    apiFetch(API_ENDPOINTS.adminOrganisations)
+      .then((d: any) => {
+        const orgList = Array.isArray(d?.organisations) ? d.organisations : Array.isArray(d) ? d : []
+        setOrgs(orgList)
+      })
+      .catch(() => {})
     fetchOverview()
   }, [])
 
