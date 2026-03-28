@@ -481,18 +481,6 @@ export const NAVIGATION: NavSection[] = [
         icon: Shield,
         badge: "Staff",
       },
-      {
-        label: "Roles",
-        href: "/dashboard/roles",
-        icon: Shield,
-        badge: "Staff",
-      },
-      {
-        label: "SOC",
-        href: "/dashboard/soc",
-        icon: Activity,
-        badge: "Staff",
-      },
     ],
   },
 ]

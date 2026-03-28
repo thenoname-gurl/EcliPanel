@@ -106,7 +106,7 @@ export default function TicketsPage() {
       <PanelHeader title="Support Tickets" description="Manage your support requests" />
       {user?.supportBanned && (
         <div className="mx-6 my-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          You are banned from creating or interacting with support tickets. Reason: {user.supportBanReason || 'No reason provided'}. Contact contact@eclipsesystems.org to appeal.
+          You are banned from creating or interacting with support tickets. Reason: {user?.supportBanReason || 'No reason provided'}. Contact contact@eclipsesystems.org to appeal.
         </div>
       )}
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
