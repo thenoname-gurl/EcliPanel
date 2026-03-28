@@ -139,3 +139,11 @@ pre, code, .overflow-x-auto {
     overflow-x: hidden;
   }
 }
+
+.guide-highlight {
+  position: relative;
+  z-index: 9999 !important;
+  outline: 3px solid rgba(56, 189, 248, 0.85);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35), 0 0 20px rgba(56, 189, 248, 0.35);
+  transition: outline 150ms ease, box-shadow 150ms ease;
+}

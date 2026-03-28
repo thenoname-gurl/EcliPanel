@@ -197,7 +197,9 @@ export default function BillingPage() {
 
   return (
     <>
-      <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
+      <div data-guide-id="billing-panel">
+        <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
+      </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
           {/* Demo */}

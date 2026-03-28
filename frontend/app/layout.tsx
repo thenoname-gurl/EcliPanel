@@ -34,6 +34,7 @@ import { Footer } from "@/components/Footer";
 import { RenderLogger } from "@/components/RenderLogger";
 import { THEMES } from "@/lib/themes";
 import GlobalQueryBanner from "@/components/GlobalQueryBanner";
+import Guide from "@/components/Guide";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const themesMap = Object.fromEntries(
@@ -80,6 +81,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
         <AuthProvider>
+          <Suspense fallback={null}>
+            <Guide />
+          </Suspense>
           <Suspense fallback={null}>
             <GlobalQueryBanner />
           </Suspense>

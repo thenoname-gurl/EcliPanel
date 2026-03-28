@@ -1434,6 +1434,7 @@ export async function authRoutes(app: any, prefix = '') {
         demoExpiresAt: user.demoExpiresAt || null,
         demoLimits: user.demoLimits || null,
         demoUsed: user.demoUsed === true,
+        guideShown: (user as any).guideShown === true,
       },
     };
   }, {

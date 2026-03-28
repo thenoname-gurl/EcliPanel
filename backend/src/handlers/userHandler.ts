@@ -467,6 +467,39 @@ export async function userRoutes(app: any, prefix = '') {
     detail: { summary: 'Upload or update user avatar', tags: ['Users'] }
   });
 
+  app.post(prefix + '/users/:id/guide', async (ctx: any) => {
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: Number(ctx.params['id']) });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    if (requester.id !== user.id && requester.role !== 'admin') {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const body = ctx.body as any;
+    const shown = body && typeof body.shown === 'boolean' ? body.shown : true;
+    (user as any).guideShown = shown === true;
+    await userRepo.save(user);
+
+    const logRepo = AppDataSource.getRepository(UserLog);
+    await logRepo.save(logRepo.create({ userId: user.id, action: shown ? 'guide:shown' : 'guide:reset', timestamp: new Date() }));
+
+    return { success: true, user: await safeUser(user) };
+  }, {
+   beforeHandle: authenticate,
+    body: t.Any(),
+    response: { 200: t.Object({ success: t.Boolean(), user: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Set or clear guide shown flag for a user', tags: ['Users'] }
+  });
+
   app.get(prefix + '/users/:id/servers', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user as User;

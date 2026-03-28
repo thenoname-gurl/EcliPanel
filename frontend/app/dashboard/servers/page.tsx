@@ -279,6 +279,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Minecraft Server"
+                data-guide-id="new-server-name"
                 className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all"
               />
             </div>
@@ -297,6 +298,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                   <select
                     value={eggId}
                     onChange={(e) => setEggId(e.target.value)}
+                    data-guide-id="new-server-template"
                     className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all appearance-none cursor-pointer"
                   >
                     {eggs.map((egg) => (
@@ -320,6 +322,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                   <select
                     value={nodeId ?? ""}
                     onChange={(e) => setNodeId(Number(e.target.value))}
+                    data-guide-id="new-server-node"
                     className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all appearance-none cursor-pointer"
                   >
                     {nodes.map((n) => (
@@ -333,7 +336,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
             </div>
 
             {/* Resources */}
-            <div className="space-y-4 rounded-2xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/20 p-4 sm:p-5">
+            <div data-guide-id="new-server-resources" className="space-y-4 rounded-2xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/20 p-4 sm:p-5">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Resources</p>
@@ -429,6 +432,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
             </button>
             <button
               type="submit"
+              data-guide-id="new-server-deploy"
               disabled={creating || !canCreate}
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all"
             >
@@ -513,7 +517,7 @@ function ServerCard({
     : 0
 
   return (
-    <div className="group relative rounded-2xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+    <div data-guide-id="server-card" className="group relative rounded-2xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
       {/* Top accent bar */}
       <div className={`h-0.5 w-full ${isOnline ? "bg-gradient-to-r from-emerald-500/80 via-emerald-400/50 to-transparent" : "bg-gradient-to-r from-zinc-500/40 to-transparent"}`} />
 
@@ -850,6 +854,7 @@ export default function ServersPage() {
               )}
             </div>
             <button
+              data-guide-id="servers-new"
               onClick={() => setShowNewModal(true)}
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] transition-all w-full sm:w-auto"
             >

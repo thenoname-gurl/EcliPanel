@@ -28,7 +28,19 @@ import {
   Edit,
   Trash2,
   Loader2,
-  BookOpen
+  BookOpen,
+  ChevronRight,
+  Settings,
+  Lock,
+  CreditCard,
+  MapPin,
+  Phone,
+  Building,
+  Camera,
+  Check,
+  X,
+  Sparkles,
+  HelpCircle,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
@@ -56,9 +68,89 @@ const AVAILABLE_PERMISSIONS = [
   "users:write",
 ] as const;
 
-// THEMES and applyTheme are provided from /lib/themes
+function FormInput({
+  label,
+  type = "text",
+  placeholder,
+  value,
+  onChange,
+  icon: Icon,
+  className = "",
+}: {
+  label: string;
+  type?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  icon?: React.ElementType;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 ${className}`}>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="relative">
+        {Icon && (
+          <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+        )}
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-lg border border-border bg-secondary/30 ${Icon ? "pl-10" : "px-3"} pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:bg-secondary/50 transition-all`}
+        />
+      </div>
+    </div>
+  );
+}
 
-// Passkey manager component
+function SettingsCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 sm:p-6 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function SettingRow({
+  icon: Icon,
+  title,
+  description,
+  action,
+  className = "",
+}: {
+  icon?: React.ElementType;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3 sm:p-4 ${className}`}>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {Icon && (
+          <div className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground truncate">{title}</p>
+          {description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{description}</p>
+          )}
+        </div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
 function PasskeyManager() {
   const { user } = useAuth();
   const [passkeys, setPasskeys] = useState<any[]>([]);
@@ -74,59 +166,84 @@ function PasskeyManager() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => {
+    if (user) load();
+  }, [user]);
 
   const updatePasskeyName = async (id: number, name: string) => {
     try {
-      await apiFetch(API_ENDPOINTS.passkeyUpdate.replace(':id', String(id)), {
-        method: 'PUT',
+      await apiFetch(API_ENDPOINTS.passkeyUpdate.replace(":id", String(id)), {
+        method: "PUT",
         body: JSON.stringify({ name: String(name).trim() }),
       });
       setEditingPasskeyId(null);
-      setEditingPasskeyName('');
+      setEditingPasskeyName("");
       load();
     } catch (e: any) {
-      alert('Failed: ' + e.message);
+      alert("Failed: " + e.message);
     }
   };
 
   const addPasskey = async () => {
     if (!user) return;
     if (typeof window === "undefined" || !window.isSecureContext || !navigator.credentials) {
-      alert("Passkey registration requires a secure connection (HTTPS).\n\nAccess the panel via https:// or configure a TLS certificate.");
+      alert(
+        "Passkey registration requires a secure connection (HTTPS).\n\nAccess the panel via https:// or configure a TLS certificate."
+      );
       return;
     }
     const initialCount = passkeys.length;
     setRegistering(true);
     try {
-      const opts = await apiFetch(API_ENDPOINTS.passkeyRegisterChallenge, { method: "POST", body: JSON.stringify({}) });
+      const opts = await apiFetch(API_ENDPOINTS.passkeyRegisterChallenge, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
         ...opts,
-        challenge: Uint8Array.from(atob(opts.challenge.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)),
-        user: { ...opts.user, id: Uint8Array.from(atob(opts.user.id.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)) },
+        challenge: Uint8Array.from(
+          atob(opts.challenge.replace(/-/g, "+").replace(/_/g, "/")),
+          (c) => c.charCodeAt(0)
+        ),
+        user: {
+          ...opts.user,
+          id: Uint8Array.from(
+            atob(opts.user.id.replace(/-/g, "+").replace(/_/g, "/")),
+            (c) => c.charCodeAt(0)
+          ),
+        },
         excludeCredentials: (opts.excludeCredentials || []).map((c: any) => ({
           ...c,
-          id: Uint8Array.from(atob(c.id.replace(/-/g, "+").replace(/_/g, "/")), (x) => x.charCodeAt(0)),
+          id: Uint8Array.from(
+            atob(c.id.replace(/-/g, "+").replace(/_/g, "/")),
+            (x) => x.charCodeAt(0)
+          ),
         })),
       };
-      const credential = await navigator.credentials.create({ publicKey: publicKeyOptions }) as PublicKeyCredential | null;
+      const credential = (await navigator.credentials.create({
+        publicKey: publicKeyOptions,
+      })) as PublicKeyCredential | null;
       if (!credential) throw new Error("Registration cancelled");
       const attestation = credential.response as AuthenticatorAttestationResponse;
-      // helper: encode ArrayBuffer to base64url (same as login page)
       const toB64url = (buf: ArrayBuffer) =>
         btoa(String.fromCharCode(...new Uint8Array(buf)))
-          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
       const attestationResponse = {
         id: credential.id,
         rawId: toB64url(credential.rawId),
         response: {
           clientDataJSON: toB64url(attestation.clientDataJSON),
           attestationObject: toB64url(attestation.attestationObject),
-          transports: attestation.getTransports?.() || ['internal'],
+          transports: attestation.getTransports?.() || ["internal"],
         },
         type: credential.type,
       };
-      await apiFetch(API_ENDPOINTS.passkeyRegister, { method: "POST", body: JSON.stringify({ attestationResponse }) });
+      await apiFetch(API_ENDPOINTS.passkeyRegister, {
+        method: "POST",
+        body: JSON.stringify({ attestationResponse }),
+      });
       if (initialCount === 0) {
         window.location.reload();
         return;
@@ -150,85 +267,118 @@ function PasskeyManager() {
   };
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="mt-4 flex flex-col gap-2">
       {typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials) && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
-          <Shield className="h-5 w-5 shrink-0 text-destructive" />
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <Shield className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-foreground">HTTPS required</p>
-            <p className="text-xs text-muted-foreground">
-              Passkey registration requires a secure connection. Access the panel via <span className="font-mono">https://</span> or set up a TLS certificate.
+            <p className="text-xs font-medium text-foreground">HTTPS required</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Passkey registration requires a secure connection.
             </p>
           </div>
         </div>
       )}
+
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-8">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading passkeys...
         </div>
       ) : passkeys.length === 0 ? (
-        <div className="flex items-center gap-4 rounded-lg border border-warning/30 bg-warning/5 p-4">
-          <Shield className="h-5 w-5 shrink-0 text-warning" />
-          <div>
-            <p className="text-sm font-medium text-foreground">No passkeys registered</p>
-            <p className="text-xs text-muted-foreground">Your account has no additional authentication factors. Register a passkey to protect your account.</p>
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/10 p-6 text-center">
+          <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-warning" />
           </div>
+          <p className="text-sm font-medium text-foreground">No passkeys registered</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Add a passkey to secure your account with biometric or hardware authentication.
+          </p>
         </div>
       ) : (
-        passkeys.map((pk) => (
-          <div key={pk.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-            <div className="flex items-center gap-3">
-              <KeyRound className="h-5 w-5 text-primary" />
-              <div>
-                {editingPasskeyId === pk.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={editingPasskeyName}
-                      onChange={(e) => setEditingPasskeyName(e.target.value)}
-                      className="rounded border border-border bg-input px-2 py-1 text-sm"
-                    />
-                    <button
-                      className="rounded border border-primary px-2 py-1 text-xs text-primary"
-                      onClick={() => updatePasskeyName(pk.id, editingPasskeyName)}
-                    >Save</button>
-                    <button
-                      className="rounded border border-border px-2 py-1 text-xs"
-                      onClick={() => { setEditingPasskeyId(null); setEditingPasskeyName(''); }}
-                    >Cancel</button>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-foreground">{pk.name || `Passkey #${pk.id}`}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{pk.credentialID?.slice(0, 20)}…</p>
-                  </>
-                )}
+        <div className="flex flex-col gap-2">
+          {passkeys.map((pk) => (
+            <div
+              key={pk.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3"
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <KeyRound className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  {editingPasskeyId === pk.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={editingPasskeyName}
+                        onChange={(e) => setEditingPasskeyName(e.target.value)}
+                        className="flex-1 min-w-0 rounded border border-border bg-input px-2 py-1 text-sm"
+                        autoFocus
+                      />
+                      <button
+                        className="shrink-0 rounded p-1.5 text-primary hover:bg-primary/10"
+                        onClick={() => updatePasskeyName(pk.id, editingPasskeyName)}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-secondary"
+                        onClick={() => {
+                          setEditingPasskeyId(null);
+                          setEditingPasskeyName("");
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {pk.name || `Passkey #${pk.id}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {pk.credentialID?.slice(0, 16)}…
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-1.5">
               {editingPasskeyId !== pk.id && (
-                <button
-                  onClick={() => { setEditingPasskeyId(pk.id); setEditingPasskeyName(pk.name || `Passkey #${pk.id}`); }}
-                  className="rounded-md p-2 text-muted-foreground hover:bg-secondary/10 hover:text-foreground transition-colors"
-                >
-                  <Edit className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => {
+                      setEditingPasskeyId(pk.id);
+                      setEditingPasskeyName(pk.name || `Passkey #${pk.id}`);
+                    }}
+                    className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => removePasskey(pk.id)}
+                    className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
-              <button
-                onClick={() => removePasskey(pk.id)}
-                className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
+
       <button
         onClick={addPasskey}
-        disabled={registering || (typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials))}
-        className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2.5 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={
+          registering ||
+          (typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials))
+        }
+        className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
-        {registering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        {registering ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Plus className="h-4 w-4" />
+        )}
         {registering ? "Waiting for device..." : "Register New Passkey"}
       </button>
     </div>
@@ -258,7 +408,9 @@ function SshKeyManager() {
     }
   };
 
-  useEffect(() => { loadKeys(); }, []);
+  useEffect(() => {
+    loadKeys();
+  }, []);
 
   const handleAdd = async () => {
     if (!name.trim() || !publicKey.trim()) return;
@@ -284,7 +436,7 @@ function SshKeyManager() {
     if (!confirm("Remove this SSH key from your account?")) return;
     try {
       await apiFetch(API_ENDPOINTS.sshKeyDelete.replace(":id", String(id)), { method: "DELETE" });
-      setKeys(k => k.filter((x: any) => x.id !== id));
+      setKeys((k) => k.filter((x: any) => x.id !== id));
     } catch (e: any) {
       alert("Failed to remove key: " + e.message);
     }
@@ -293,7 +445,10 @@ function SshKeyManager() {
   const updateSshKeyName = async (id: number, newName: string) => {
     if (!newName.trim()) return;
     try {
-      await apiFetch(API_ENDPOINTS.sshKeyUpdate.replace(":id", String(id)), { method: "PUT", body: JSON.stringify({ name: newName.trim() }) });
+      await apiFetch(API_ENDPOINTS.sshKeyUpdate.replace(":id", String(id)), {
+        method: "PUT",
+        body: JSON.stringify({ name: newName.trim() }),
+      });
       setEditingSshKeyId(null);
       setEditingSshKeyName("");
       loadKeys();
@@ -303,99 +458,123 @@ function SshKeyManager() {
   };
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="mt-4 flex flex-col gap-2">
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-8">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading keys...
         </div>
-      ) : keys.length === 0 ? (
-        <div className="rounded-lg border border-border bg-secondary/20 p-4 text-center">
-          <Key className="h-6 w-6 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No SSH keys registered</p>
-          <p className="text-xs text-muted-foreground/60 mt-0.5">Add a key to enable passwordless SFTP login on all your servers.</p>
+      ) : keys.length === 0 && !showForm ? (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/10 p-6 text-center">
+          <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+            <Key className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground">No SSH keys</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Add SSH keys for passwordless SFTP access to your servers.
+          </p>
         </div>
       ) : (
-        keys.map((k: any) => (
-          <div key={k.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <KeyRound className="h-5 w-5 text-primary shrink-0" />
-              <div className="min-w-0">
-                {editingSshKeyId === k.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={editingSshKeyName}
-                      onChange={(e) => setEditingSshKeyName(e.target.value)}
-                      className="rounded border border-border bg-input px-2 py-1 text-sm"
-                    />
-                    <button className="rounded border border-primary px-2 py-1 text-xs text-primary" onClick={() => updateSshKeyName(k.id, editingSshKeyName)}>Save</button>
-                    <button className="rounded border border-border px-2 py-1 text-xs" onClick={() => { setEditingSshKeyId(null); setEditingSshKeyName(''); }}>Cancel</button>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-foreground">{k.name}</p>
-                    {k.fingerprint && (
-                      <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{k.fingerprint}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground/60">Added {new Date(k.createdAt).toLocaleDateString()}</p>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {editingSshKeyId !== k.id && (
-                <button
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary/10 transition-colors"
-                  onClick={() => { setEditingSshKeyId(k.id); setEditingSshKeyName(k.name || ''); }}
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-              )}
-              <button
-              onClick={() => handleDelete(k.id)}
-              className="ml-4 shrink-0 rounded-lg border border-destructive/30 bg-transparent px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+        <div className="flex flex-col gap-2">
+          {keys.map((k: any) => (
+            <div
+              key={k.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <KeyRound className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  {editingSshKeyId === k.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={editingSshKeyName}
+                        onChange={(e) => setEditingSshKeyName(e.target.value)}
+                        className="flex-1 min-w-0 rounded border border-border bg-input px-2 py-1 text-sm"
+                        autoFocus
+                      />
+                      <button
+                        className="shrink-0 rounded p-1.5 text-primary hover:bg-primary/10"
+                        onClick={() => updateSshKeyName(k.id, editingSshKeyName)}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-secondary"
+                        onClick={() => {
+                          setEditingSshKeyId(null);
+                          setEditingSshKeyName("");
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
+                      {k.fingerprint && (
+                        <p className="text-xs font-mono text-muted-foreground truncate">
+                          {k.fingerprint}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              {editingSshKeyId !== k.id && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    onClick={() => {
+                      setEditingSshKeyId(k.id);
+                      setEditingSshKeyName(k.name || "");
+                    }}
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(k.id)}
+                    className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-        ))
       )}
 
       {showForm ? (
-        <div className="rounded-lg border border-border bg-secondary/20 p-4 flex flex-col gap-3">
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-foreground">Label</label>
-              <input
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-all"
-                placeholder="e.g. MacBook Pro, Work Laptop"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-foreground">Public Key</label>
+        <div className="rounded-lg border border-border bg-secondary/10 p-4 flex flex-col gap-3">
+          {error && (
+            <p className="text-xs text-destructive bg-destructive/10 rounded p-2">{error}</p>
+          )}
+          <FormInput label="Label" value={name} onChange={setName} placeholder="e.g. MacBook Pro" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Public Key</label>
             <textarea
               value={publicKey}
-              onChange={e => setPublicKey(e.target.value)}
+              onChange={(e) => setPublicKey(e.target.value)}
               rows={3}
-              className="rounded-lg border border-border bg-input px-4 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-all resize-none"
+              className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 transition-all resize-none"
               placeholder="ssh-ed25519 AAAA... or ssh-rsa AAAA..."
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex gap-2">
             <button
-              onClick={() => { setShowForm(false); setError(null); }}
-              className="rounded-lg border border-border bg-secondary/50 px-4 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+              onClick={() => {
+                setShowForm(false);
+                setError(null);
+              }}
+              className="flex-1 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
             >
               Cancel
             </button>
             <button
               onClick={handleAdd}
               disabled={adding || !name.trim() || !publicKey.trim()}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
             >
               {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Add Key
@@ -405,7 +584,7 @@ function SshKeyManager() {
       ) : (
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+          className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
           Add SSH Key
@@ -426,96 +605,168 @@ function TwoFactorManager() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [disableToken, setDisableToken] = useState("");
 
-  useEffect(() => { setEnabled(!!user?.twoFactorEnabled); }, [user]);
+  useEffect(() => {
+    setEnabled(!!user?.twoFactorEnabled);
+  }, [user]);
 
   const startSetup = async () => {
     setLoading(true);
     try {
-      const res: any = await apiFetch(API_ENDPOINTS.twoFactorSetup, { method: 'GET' });
+      const res: any = await apiFetch(API_ENDPOINTS.twoFactorSetup, { method: "GET" });
       setSecret(res.secret);
       setOtpauth(res.otpauth_url);
-      const d = await QRCode.toDataURL(res.otpauth_url || '');
+      const d = await QRCode.toDataURL(res.otpauth_url || "");
       setQrDataUrl(d);
-    } catch (e: any) { alert(e.message || 'Failed to start setup'); }
+    } catch (e: any) {
+      alert(e.message || "Failed to start setup");
+    }
     setLoading(false);
   };
 
   const verifyAndEnable = async () => {
-    if (!secret) return alert('Missing secret');
+    if (!secret) return alert("Missing secret");
     setLoading(true);
     try {
-      const res: any = await apiFetch(API_ENDPOINTS.twoFactorVerify, { method: 'POST', body: JSON.stringify({ token, secret }) });
+      const res: any = await apiFetch(API_ENDPOINTS.twoFactorVerify, {
+        method: "POST",
+        body: JSON.stringify({ token, secret }),
+      });
       setRecoveryCodes(res.recoveryCodes || null);
       await refreshUser();
       setEnabled(true);
       setSecret(null);
       setOtpauth(null);
       setQrDataUrl(null);
-      alert('Two-factor enabled — save your recovery codes now.');
-    } catch (e: any) { alert(e.message || 'Failed to verify'); }
+      alert("Two-factor enabled — save your recovery codes now.");
+    } catch (e: any) {
+      alert(e.message || "Failed to verify");
+    }
     setLoading(false);
   };
 
   const disable2fa = async () => {
-    if (!confirm('Disable two-factor authentication?')) return;
+    if (!confirm("Disable two-factor authentication?")) return;
     setLoading(true);
     try {
-      await apiFetch(API_ENDPOINTS.twoFactorDisable, { method: 'POST', body: JSON.stringify({ token: disableToken }) });
+      await apiFetch(API_ENDPOINTS.twoFactorDisable, {
+        method: "POST",
+        body: JSON.stringify({ token: disableToken }),
+      });
       await refreshUser();
       setEnabled(false);
-      alert('Two-factor disabled');
-    } catch (e: any) { alert(e.message || 'Failed to disable'); }
+      alert("Two-factor disabled");
+    } catch (e: any) {
+      alert(e.message || "Failed to disable");
+    }
     setLoading(false);
   };
 
   return (
-    <div className="mt-4 grid grid-cols-1 gap-3">
+    <div className="mt-4 flex flex-col gap-3">
       {!enabled ? (
-        <div className="rounded-lg border border-border p-4">
-          <p className="text-sm text-foreground">Two-factor is not enabled for your account.</p>
+        <div className="rounded-lg border border-border bg-secondary/20 p-4">
           {!secret ? (
-            <div className="mt-3">
-              <button onClick={startSetup} className="rounded bg-primary px-3 py-1 text-sm text-primary-foreground">Enable Two-Factor</button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Two-factor is not enabled</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Add an extra layer of security to your account.
+                </p>
+              </div>
+              <button
+                onClick={startSetup}
+                disabled={loading}
+                className="w-full sm:w-auto shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+              >
+                {loading ? "Loading..." : "Enable 2FA"}
+              </button>
             </div>
           ) : (
-            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <div>
-                {qrDataUrl && <img src={qrDataUrl} alt="TOTP QR" className="h-40 w-40" />}
-                <p className="text-xs text-muted-foreground mt-2">Scan the QR with your authenticator app or enter this secret manually:</p>
-                <code className="block font-mono text-xs p-2 mt-1 rounded border bg-secondary/20">{secret}</code>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-3">
+                {qrDataUrl && (
+                  <img src={qrDataUrl} alt="TOTP QR" className="h-36 w-36 rounded-lg" />
+                )}
+                <p className="text-xs text-muted-foreground text-center max-w-xs">
+                  Scan with your authenticator app or enter the secret manually:
+                </p>
+                <code className="block w-full font-mono text-xs p-2 rounded border bg-secondary/30 break-all text-center select-all">
+                  {secret}
+                </code>
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Enter code from app</label>
-                <input value={token} onChange={(e) => setToken(e.target.value)} className="w-full rounded border border-border px-3 py-2 mt-2" />
-                <div className="mt-3 flex gap-2">
-                  <button onClick={verifyAndEnable} className="rounded bg-primary px-4 py-2 text-sm text-primary-foreground">Verify & Enable</button>
-                  <button onClick={() => { setSecret(null); setOtpauth(null); setQrDataUrl(null); }} className="rounded border px-4 py-2 text-sm">Cancel</button>
+              <div className="flex flex-col gap-2">
+                <FormInput
+                  label="Verification Code"
+                  value={token}
+                  onChange={setToken}
+                  placeholder="Enter 6-digit code"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSecret(null);
+                      setOtpauth(null);
+                      setQrDataUrl(null);
+                    }}
+                    className="flex-1 rounded-lg border border-border py-2.5 text-sm text-foreground hover:bg-secondary active:scale-[0.98] transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={verifyAndEnable}
+                    disabled={loading || !token}
+                    className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+                  >
+                    {loading ? "Verifying..." : "Verify & Enable"}
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-border p-4">
-          <p className="text-sm text-foreground">Two-factor is enabled for your account.</p>
-          <div className="mt-3">
-            <label className="text-sm font-medium text-foreground">Use an authenticator app or passkey to sign in. To disable, enter a current authenticator code.</label>
-            <input value={disableToken} onChange={(e) => setDisableToken(e.target.value)} className="w-full rounded border border-border px-3 py-2 mt-2" placeholder="Current authenticator code" />
-            <div className="mt-3 flex gap-2">
-              <button onClick={disable2fa} className="rounded bg-destructive px-4 py-2 text-sm text-destructive-foreground">Disable 2FA</button>
-              <button onClick={async () => { alert('If you lost recovery codes, re-enable 2FA to generate new ones.'); }} className="rounded border px-4 py-2 text-sm">Recovery Codes</button>
+        <div className="rounded-lg border border-border bg-secondary/20 p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+              <Check className="h-4 w-4 text-green-500" />
             </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Two-factor is enabled</p>
+              <p className="text-xs text-muted-foreground">Your account is secured with 2FA.</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <FormInput
+              label="Enter code to disable"
+              value={disableToken}
+              onChange={setDisableToken}
+              placeholder="6-digit code"
+            />
+            <button
+              onClick={disable2fa}
+              disabled={loading || !disableToken}
+              className="rounded-lg bg-destructive py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+            >
+              {loading ? "Disabling..." : "Disable 2FA"}
+            </button>
           </div>
         </div>
       )}
 
       {recoveryCodes && (
-        <div className="rounded-lg border border-border p-4">
-          <h5 className="text-sm font-medium text-foreground">Recovery Codes</h5>
-          <p className="text-xs text-muted-foreground mt-1">Save these one-time use recovery codes in a safe place. Each can be used once to sign in.</p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+          <h5 className="text-sm font-medium text-foreground mb-2">Recovery Codes</h5>
+          <p className="text-xs text-muted-foreground mb-3">
+            Save these codes securely. Each can be used once.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
             {recoveryCodes.map((c, i) => (
-              <code key={i} className="font-mono text-xs rounded border p-2">{c}</code>
+              <code
+                key={i}
+                className="font-mono text-xs rounded border bg-secondary/30 p-2 text-center select-all"
+              >
+                {c}
+              </code>
             ))}
           </div>
         </div>
@@ -524,45 +775,70 @@ function TwoFactorManager() {
   );
 }
 
-// helper component for displaying sessions
 function SessionList() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      apiFetch(API_ENDPOINTS.sessions.replace(':userId', user.id.toString()))
+      setLoading(true);
+      apiFetch(API_ENDPOINTS.sessions.replace(":userId", user.id.toString()))
         .then((data) => setSessions(data.sessions || []))
-        .catch(() => {});
+        .catch(() => { })
+        .finally(() => setLoading(false));
     }
   }, [user]);
 
   const revoke = async (id: string) => {
     try {
-      await apiFetch(API_ENDPOINTS.sessionLogout, { method: 'POST', body: JSON.stringify({ sessionId: id, userId: user?.id }) });
+      await apiFetch(API_ENDPOINTS.sessionLogout, {
+        method: "POST",
+        body: JSON.stringify({ sessionId: id, userId: user?.id }),
+      });
       setSessions((prev) => prev.filter((s) => s !== id));
     } catch {
-      // ignore
+      // skip
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-8">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading sessions...
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="mt-4 flex flex-col gap-2">
       {sessions.map((sessionId) => (
-        <div key={sessionId} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-          <div className="flex items-center gap-3">
-            <Globe className="h-5 w-5 text-muted-foreground" />
-            <div>
+        <div
+          key={sessionId}
+          className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="shrink-0 w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">Session {sessionId.slice(0, 8)}...</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  Session {sessionId.slice(0, 8)}...
+                </p>
                 {user?.sessionId === sessionId && (
-                  <Badge className="bg-success/20 text-success border-0 text-[10px]">Current</Badge>
+                  <Badge className="bg-green-500/20 text-green-500 border-0 text-[10px] px-1.5">
+                    Current
+                  </Badge>
                 )}
               </div>
             </div>
           </div>
           {user?.sessionId !== sessionId && (
-            <button onClick={() => revoke(sessionId)} className="text-xs text-destructive hover:underline">
+            <button
+              onClick={() => revoke(sessionId)}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.98]"
+            >
               Revoke
             </button>
           )}
@@ -573,112 +849,120 @@ function SessionList() {
 }
 
 export default function SettingsPage() {
-  const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('tab') || 'profile')
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<string>(
+    () => searchParams.get("tab") || "profile"
+  );
   useEffect(() => {
-    const tab = searchParams.get('tab')
-    if (tab) setActiveTab(tab)
-  }, [searchParams])
+    const tab = searchParams.get("tab");
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
-  const [showApiKey, setShowApiKey] = useState(false)
-  const [activeTheme, setActiveTheme] = useState("Eclipse Purple")
-  const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
-  const { user, refreshUser } = useAuth()
+  const [activeTheme, setActiveTheme] = useState("Eclipse Purple");
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
+  const { user, refreshUser } = useAuth();
 
-  const [apiKeys, setApiKeys] = useState<any[]>([])
-  const [apiLoading, setApiLoading] = useState(true)
-  const [newKeyName, setNewKeyName] = useState("")
-  const [newKeyType, setNewKeyType] = useState("client")
-  const [newKeyPerms, setNewKeyPerms] = useState<string[]>([])
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [apiLoading, setApiLoading] = useState(true);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyType, setNewKeyType] = useState("client");
+  const [newKeyPerms, setNewKeyPerms] = useState<string[]>([]);
+  const [showApiForm, setShowApiForm] = useState(false);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'rootAdmin' || user?.role === '*'
+  const isAdmin = user?.role === "admin" || user?.role === "rootAdmin" || user?.role === "*";
 
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const loadApiKeys = async () => {
-    setApiLoading(true)
+    setApiLoading(true);
     try {
-      const data = await apiFetch(API_ENDPOINTS.apiKeysMy)
-      setApiKeys(Array.isArray(data) ? data : [])
+      const data = await apiFetch(API_ENDPOINTS.apiKeysMy);
+      setApiKeys(Array.isArray(data) ? data : []);
     } catch {
-      setApiKeys([])
+      setApiKeys([]);
     } finally {
-      setApiLoading(false)
+      setApiLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    if (user) loadApiKeys()
-  }, [user])
+    if (user) loadApiKeys();
+  }, [user]);
 
   const createApiKey = async () => {
     try {
-      if (!user?.id) throw new Error('User not loaded');
+      if (!user?.id) throw new Error("User not loaded");
       const body: any = { name: newKeyName, type: newKeyType, userId: user.id };
       if (newKeyPerms.length > 0) body.permissions = newKeyPerms;
-      const res = await apiFetch(API_ENDPOINTS.apiKeys, { method: 'POST', body: JSON.stringify(body) });
-      alert('Key: ' + res.apiKey);
-      setNewKeyName('');
+      const res = await apiFetch(API_ENDPOINTS.apiKeys, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      alert("Key created: " + res.apiKey);
+      setNewKeyName("");
       setNewKeyPerms([]);
+      setShowApiForm(false);
       loadApiKeys();
     } catch (e: any) {
-      alert('Failed: ' + e.message);
+      alert("Failed: " + e.message);
     }
-  }
+  };
 
   const revokeApiKey = async (id: number) => {
-    if (!confirm('Revoke key?')) return
+    if (!confirm("Revoke this API key?")) return;
     try {
-      await apiFetch(API_ENDPOINTS.apiKeyDetail.replace(':id', id.toString()), { method: 'DELETE' })
-      loadApiKeys()
+      await apiFetch(API_ENDPOINTS.apiKeyDetail.replace(":id", id.toString()), {
+        method: "DELETE",
+      });
+      loadApiKeys();
     } catch (e: any) {
-      alert('Failed: ' + e.message)
+      alert("Failed: " + e.message);
     }
-  }
+  };
 
   const updatePassword = async () => {
     if (!user?.id) return;
-    if (!currentPassword) return alert('Please enter your current password.');
-    if (!newPassword) return alert('Please enter a new password.');
-    if (newPassword.length < 8) return alert('New password must be at least 8 characters.');
-    if (newPassword !== confirmPassword) return alert('New password and confirmation do not match.');
+    if (!currentPassword) return alert("Please enter your current password.");
+    if (!newPassword) return alert("Please enter a new password.");
+    if (newPassword.length < 8) return alert("New password must be at least 8 characters.");
+    if (newPassword !== confirmPassword) return alert("Passwords do not match.");
 
     setPasswordSaving(true);
     try {
-      await apiFetch(API_ENDPOINTS.userDetail.replace(':id', String(user.id)), {
-        method: 'PUT',
+      await apiFetch(API_ENDPOINTS.userDetail.replace(":id", String(user.id)), {
+        method: "PUT",
         body: JSON.stringify({
           password: newPassword,
           currentPassword: currentPassword,
         }),
       });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       await refreshUser();
-      alert('Password updated successfully.');
+      alert("Password updated successfully.");
     } catch (err: any) {
-      alert('Failed to update password: ' + (err?.message || 'unknown'));
+      alert("Failed to update password: " + (err?.message || "unknown"));
     } finally {
       setPasswordSaving(false);
     }
-  }
+  };
 
-  const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
+  const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null);
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
     paid: "Paid Portal",
     enterprise: "Enterprise Portal",
-  }
+  };
   const getPortalMarker = (tier?: string) => {
-    if (!tier) return "Free Portal"
-    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
-  }
-  const activeTier = String(activePlan?.plan?.type ?? user?.tier ?? "free").toLowerCase()
-  const portal = PORTALS[activeTier as keyof typeof PORTALS] ?? PORTALS.free
+    if (!tier) return "Free Portal";
+    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal";
+  };
+  const activeTier = String(activePlan?.plan?.type ?? user?.tier ?? "free").toLowerCase();
+
   const [form, setForm] = useState({
     displayName: user?.displayName || "",
     firstName: user?.firstName || "",
@@ -693,33 +977,32 @@ export default function SettingsPage() {
     billingState: user?.billingState || "",
     billingZip: user?.billingZip || "",
     billingCountry: user?.billingCountry || "",
-  })
+  });
 
-  // sync form when user loads
   useEffect(() => {
-    if (user) setForm({
-      displayName: user.displayName || "",
-      firstName: user.firstName || "",
-      middleName: user.middleName || "",
-      lastName: user.lastName || "",
-      email: user.email || "",
-      address: user.address || "",
-      address2: user.address2 || "",
-      phone: user.phone || "",
-      billingCompany: user.billingCompany || "",
-      billingCity: user.billingCity || "",
-      billingState: user.billingState || "",
-      billingZip: user.billingZip || "",
-      billingCountry: user.billingCountry || "",
-    });
+    if (user)
+      setForm({
+        displayName: user.displayName || "",
+        firstName: user.firstName || "",
+        middleName: user.middleName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        address: user.address || "",
+        address2: user.address2 || "",
+        phone: user.phone || "",
+        billingCompany: user.billingCompany || "",
+        billingCity: user.billingCity || "",
+        billingState: user.billingState || "",
+        billingZip: user.billingZip || "",
+        billingCountry: user.billingCountry || "",
+      });
   }, [user]);
 
-  // restore saved theme + editor settings from backend
   useEffect(() => {
-    const saved = user?.settings?.theme?.name || localStorage.getItem('eclipseTheme');
+    const saved = user?.settings?.theme?.name || localStorage.getItem("eclipseTheme");
     if (saved) {
       setActiveTheme(saved);
-      const theme = THEMES.find(t => t.name === saved);
+      const theme = THEMES.find((t) => t.name === saved);
       if (theme) applyTheme(theme);
     }
 
@@ -738,43 +1021,76 @@ export default function SettingsPage() {
       });
       await refreshUser();
     } catch (err: any) {
-      console.error('Failed to save settings', err);
-      alert('Failed to save settings: ' + (err?.message || 'unknown'));
+      console.error("Failed to save settings", err);
+      alert("Failed to save settings: " + (err?.message || "unknown"));
     }
   };
 
-  const DEFAULT_NOTIFICATION_PREFS: Record<string, { label: string; desc: string; enabled: boolean }> = {
-    serverAlerts: { label: 'Server Alerts', desc: 'Get notified when servers go offline or have issues (legacy umbrella, very noisy)', enabled: true },
-    serverLifecycle: { label: 'Server Events (create/stop/start/reinstall/delete)', desc: 'Important lifecycle changes for your servers', enabled: true },
-    serverErrors: { label: 'Server Errors & Failures', desc: 'Notify on crashes, failed installs, and errors', enabled: true },
-    serverActivity: { label: 'Server Activity (verbose)', desc: 'Verbose Wings lifecycle events (can be noisy)', enabled: false },
-    billing: { label: 'Billing Notifications', desc: 'Receive invoices and payment reminders', enabled: true },
-    security: { label: 'Security Alerts', desc: 'Login attempts and security-related events', enabled: true },
-    productUpdates: { label: 'Product Updates', desc: 'New features and platform announcements', enabled: false },
-    tickets: { label: 'Ticket Responses', desc: 'Notify when support tickets get a reply', enabled: true },
-    aiUsage: { label: 'AI Usage Reports', desc: 'Weekly summary of your AI credit usage', enabled: false },
+  const DEFAULT_NOTIFICATION_PREFS: Record<
+    string,
+    { label: string; desc: string; enabled: boolean }
+  > = {
+    serverAlerts: {
+      label: "Server Alerts",
+      desc: "Notifications when servers go offline",
+      enabled: true,
+    },
+    serverLifecycle: {
+      label: "Server Events",
+      desc: "Create, stop, start, delete events",
+      enabled: true,
+    },
+    serverErrors: { label: "Server Errors", desc: "Crashes and failures", enabled: true },
+    serverActivity: {
+      label: "Verbose Activity",
+      desc: "Detailed lifecycle events",
+      enabled: false,
+    },
+    billing: { label: "Billing", desc: "Invoices and payments", enabled: true },
+    security: { label: "Security", desc: "Login attempts and alerts", enabled: true },
+    productUpdates: {
+      label: "Product Updates",
+      desc: "New features and announcements",
+      enabled: false,
+    },
+    tickets: { label: "Tickets", desc: "Support ticket replies", enabled: true },
+    aiUsage: { label: "AI Usage", desc: "Weekly AI credit summary", enabled: false },
   };
 
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>(() => {
     try {
       const fromUser = user?.settings?.notifications || {};
-      return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce((acc, k) => {
-        acc[k] = typeof fromUser[k] === 'boolean' ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled;
-        return acc;
-      }, {} as Record<string, boolean>);
+      return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce(
+        (acc, k) => {
+          acc[k] =
+            typeof fromUser[k] === "boolean" ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled;
+          return acc;
+        },
+        {} as Record<string, boolean>
+      );
     } catch {
-      return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce((acc, k) => ({ ...acc, [k]: DEFAULT_NOTIFICATION_PREFS[k].enabled }), {} as Record<string, boolean>);
+      return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce(
+        (acc, k) => ({ ...acc, [k]: DEFAULT_NOTIFICATION_PREFS[k].enabled }),
+        {} as Record<string, boolean>
+      );
     }
   });
 
   useEffect(() => {
-    // re-sync when user loads/changes
     if (user) {
       const fromUser = user?.settings?.notifications || {};
-      setNotificationPrefs(Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce((acc, k) => {
-        acc[k] = typeof fromUser[k] === 'boolean' ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled;
-        return acc;
-      }, {} as Record<string, boolean>));
+      setNotificationPrefs(
+        Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce(
+          (acc, k) => {
+            acc[k] =
+              typeof fromUser[k] === "boolean"
+                ? fromUser[k]
+                : DEFAULT_NOTIFICATION_PREFS[k].enabled;
+            return acc;
+          },
+          {} as Record<string, boolean>
+        )
+      );
     }
   }, [user?.settings]);
 
@@ -782,9 +1098,11 @@ export default function SettingsPage() {
     setActiveTheme(themeName);
     const theme = THEMES.find((t) => t.name === themeName);
     if (theme) applyTheme(theme);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('eclipseTheme', themeName);
-      try { document.cookie = `eclipseTheme=${encodeURIComponent(themeName)}; path=/`; } catch (e) {}
+    if (typeof window !== "undefined") {
+      localStorage.setItem("eclipseTheme", themeName);
+      try {
+        document.cookie = `eclipseTheme=${encodeURIComponent(themeName)}; path=/`;
+      } catch (e) { }
     }
     await saveUserSettings({ theme: { name: themeName } });
   };
@@ -798,216 +1116,229 @@ export default function SettingsPage() {
   useEffect(() => {
     apiFetch(API_ENDPOINTS.orders)
       .then(async (data) => {
-        const orderList = Array.isArray(data) ? data : []
-        const planOrder = orderList.find((o: any) => o.status === "active" && o.planId)
+        const orderList = Array.isArray(data) ? data : [];
+        const planOrder = orderList.find((o: any) => o.status === "active" && o.planId);
         if (!planOrder) {
-          setActivePlan(null)
-          return
+          setActivePlan(null);
+          return;
         }
         try {
-          const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
-          setActivePlan({ plan, order: planOrder })
+          const plan = await apiFetch(
+            API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId))
+          );
+          setActivePlan({ plan, order: planOrder });
         } catch {
-          setActivePlan(null)
+          setActivePlan(null);
         }
       })
-      .catch(() => setActivePlan(null))
-  }, [])
+      .catch(() => setActivePlan(null));
+  }, []);
+
+  const showGuideAgain = async () => {
+    if (!user?.id) return;
+    try {
+      await apiFetch(API_ENDPOINTS.userGuide.replace(":id", String(user.id)), {
+        method: "POST",
+        body: JSON.stringify({ shown: false }),
+      });
+      const params = new URLSearchParams(window.location.search);
+      params.set("guide", "true");
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + "?" + params.toString()
+      );
+      window.location.reload();
+    } catch (e: any) {
+      alert("Failed: " + (e.message || e));
+    }
+  };
 
   return (
     <>
-      <PanelHeader title="Account Settings" description="Manage your account preferences and security" />
-      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
-        <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
+      <PanelHeader title="Settings" description="Manage your account" />
+
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-4 p-3 sm:p-6 max-w-4xl mx-auto pb-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="flex gap-2 overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
-              <TabsTrigger value="profile" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
-                Profile
-              </TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
-                Security
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
-                Notifications
-              </TabsTrigger>
-              <TabsTrigger value="api" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
-                API
-              </TabsTrigger>
-              <TabsTrigger value="appearance" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
-                Appearance
-              </TabsTrigger>
-              <TabsTrigger value="editor" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap">
-                Editor
-              </TabsTrigger>
-            </TabsList>
+            <div className="sticky top-0 z-10 -mx-3 sm:-mx-6 px-3 sm:px-6 pb-1 pt-0.5 bg-background/80 backdrop-blur-xl">
+              <TabsList className="flex w-full gap-0.5 sm:gap-1 overflow-x-auto scrollbar-none bg-secondary/30 border border-border rounded-xl p-1">
+                {[
+                  { value: "profile", icon: User, label: "Profile", guideId: "settings-profile" },
+                  { value: "security", icon: Lock, label: "Security", guideId: "settings-security" },
+                  { value: "notifications", icon: Bell, label: "Alerts", guideId: "settings-notifications" },
+                  { value: "api", icon: Code, label: "API" },
+                  { value: "appearance", icon: Palette, label: "Theme", guideId: "settings-appearance" },
+                  { value: "editor", icon: Settings, label: "Editor", guideId: "settings-editor" },
+                ].map((tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    data-guide-id={tab.guideId}
+                    className="flex-1 min-w-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg py-2 sm:py-2 text-[11px] sm:text-xs font-medium transition-all gap-1 sm:gap-1.5"
+                  >
+                    <tab.icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{tab.label}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
 
-            {/* Profile */}
-            <TabsContent value="profile" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
-                <SectionHeader title="Profile Information" description="Update your personal details" />
-
-                {/* Avatar upload */}
-                <div className="mt-4 mb-6 flex items-center gap-4">
-                  <div className="h-16 w-16 rounded-full bg-secondary/50 border border-border flex items-center justify-center overflow-hidden">
-                    {user?.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-2xl font-bold text-muted-foreground">{user?.firstName?.[0]?.toUpperCase()}</span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-1">Profile Picture</p>
-                    <label className="cursor-pointer">
-                      <span className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors">
-                        Upload Photo
-                      </span>
+            <TabsContent value="profile" className="mt-4 space-y-4">
+              <SettingsCard>
+                <div className="flex flex-col items-center gap-4 sm:flex-row">
+                  <div className="relative">
+                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-border flex items-center justify-center overflow-hidden">
+                      {user?.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt="avatar"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl font-bold text-muted-foreground">
+                          {user?.firstName?.[0]?.toUpperCase() || "?"}
+                        </span>
+                      )}
+                    </div>
+                    <label className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors shadow-lg active:scale-95">
+                      <Camera className="h-4 w-4" />
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
                         className="hidden"
                         onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (!file || !user?.id) return
+                          const file = e.target.files?.[0];
+                          if (!file || !user?.id) return;
                           try {
-                            const fd = new FormData()
-                            fd.append("file", file)
-                            await apiFetch(API_ENDPOINTS.userAvatar.replace(":id", String(user.id)), { method: "POST", body: fd })
-                            await refreshUser()
+                            const fd = new FormData();
+                            fd.append("file", file);
+                            await apiFetch(
+                              API_ENDPOINTS.userAvatar.replace(":id", String(user.id)),
+                              { method: "POST", body: fd }
+                            );
+                            await refreshUser();
                           } catch (err: any) {
-                            alert("Upload failed: " + err.message)
+                            alert("Upload failed: " + err.message);
                           }
                         }}
                       />
                     </label>
-                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG or WebP. 256×256.</p>
+                  </div>
+                  <div className="text-center sm:text-left flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-foreground truncate">
+                      {user?.displayName || user?.firstName || "User"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+                    <div className="flex items-center justify-center sm:justify-start gap-2 mt-2 flex-wrap">
+                      <Badge className="bg-primary/20 text-primary border-0 text-xs">
+                        {getPortalMarker(activePlan?.plan?.type ?? activeTier)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">ID: {user?.id}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Display Name</label>
-                    <input
-                      type="text"
-                      placeholder="How you appear in the panel"
-                      value={form.displayName}
-                      onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Email Address</label>
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                </div>
+              </SettingsCard>
 
-                {/* Legal Name Section */}
-                <div className="mt-8 mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">Legal Name</h3>
-                  <p className="text-xs text-muted-foreground">Used for billing and ID verification. Must match your government ID.</p>
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-4">Basic Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <FormInput
+                    label="Display Name"
+                    value={form.displayName}
+                    onChange={(v) => setForm({ ...form, displayName: v })}
+                    placeholder="How you appear in the panel"
+                    icon={User}
+                  />
+                  <FormInput
+                    label="Email Address"
+                    type="email"
+                    value={form.email}
+                    onChange={(v) => setForm({ ...form, email: v })}
+                    icon={Mail}
+                  />
                 </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">First Name</label>
-                    <input
-                      type="text"
-                      value={form.firstName}
-                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Middle Name</label>
-                    <input
-                      type="text"
-                      placeholder="Optional"
-                      value={form.middleName}
-                      onChange={(e) => setForm({ ...form, middleName: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Last Name</label>
-                    <input
-                      type="text"
-                      value={form.lastName}
-                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                </div>
+              </SettingsCard>
 
-                {/* Billing Information Section */}
-                <div className="mt-8 mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">Billing Information</h3>
-                  <p className="text-xs text-muted-foreground">Used for invoices and payment processing.</p>
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Legal Name</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Used for billing and verification
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <FormInput
+                    label="First Name"
+                    value={form.firstName}
+                    onChange={(v) => setForm({ ...form, firstName: v })}
+                  />
+                  <FormInput
+                    label="Middle Name"
+                    value={form.middleName}
+                    onChange={(v) => setForm({ ...form, middleName: v })}
+                    placeholder="Optional"
+                  />
+                  <FormInput
+                    label="Last Name"
+                    value={form.lastName}
+                    onChange={(v) => setForm({ ...form, lastName: v })}
+                  />
                 </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Street Address</label>
-                    <input
-                      type="text"
-                      value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Address Line 2</label>
-                    <input
-                      type="text"
-                      placeholder="Apt, Suite, Unit (optional)"
-                      value={form.address2}
-                      onChange={(e) => setForm({ ...form, address2: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Company</label>
-                    <input
-                      type="text"
-                      placeholder="Optional"
-                      value={form.billingCompany}
-                      onChange={(e) => setForm({ ...form, billingCompany: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">City</label>
-                    <input
-                      type="text"
-                      value={form.billingCity}
-                      onChange={(e) => setForm({ ...form, billingCity: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">State / Province</label>
-                    <input
-                      type="text"
-                      value={form.billingState}
-                      onChange={(e) => setForm({ ...form, billingState: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">ZIP / Postal Code</label>
-                    <input
-                      type="text"
-                      value={form.billingZip}
-                      onChange={(e) => setForm({ ...form, billingZip: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Country</label>
+              </SettingsCard>
+
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Billing Information</h3>
+                <p className="text-xs text-muted-foreground mb-4">For invoices and payments</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <FormInput
+                    label="Street Address"
+                    value={form.address}
+                    onChange={(v) => setForm({ ...form, address: v })}
+                    icon={MapPin}
+                    className="sm:col-span-2"
+                  />
+                  <FormInput
+                    label="Address Line 2"
+                    value={form.address2}
+                    onChange={(v) => setForm({ ...form, address2: v })}
+                    placeholder="Apt, Suite (optional)"
+                    className="sm:col-span-2"
+                  />
+                  <FormInput
+                    label="Company"
+                    value={form.billingCompany}
+                    onChange={(v) => setForm({ ...form, billingCompany: v })}
+                    placeholder="Optional"
+                    icon={Building}
+                  />
+                  <FormInput
+                    label="Phone"
+                    type="tel"
+                    value={form.phone}
+                    onChange={(v) => setForm({ ...form, phone: v })}
+                    placeholder="+1 (555) 000-0000"
+                    icon={Phone}
+                  />
+                  <FormInput
+                    label="City"
+                    value={form.billingCity}
+                    onChange={(v) => setForm({ ...form, billingCity: v })}
+                  />
+                  <FormInput
+                    label="State / Province"
+                    value={form.billingState}
+                    onChange={(v) => setForm({ ...form, billingState: v })}
+                  />
+                  <FormInput
+                    label="ZIP / Postal Code"
+                    value={form.billingZip}
+                    onChange={(v) => setForm({ ...form, billingZip: v })}
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Country</label>
                     <select
                       value={form.billingCountry}
                       onChange={(e) => setForm({ ...form, billingCountry: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
+                      className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
                     >
                       <option value="">Select country</option>
                       {COUNTRIES.map((country) => (
@@ -1017,436 +1348,530 @@ export default function SettingsPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Phone Number</label>
-                    <input
-                      type="tel"
-                      placeholder="+1 (555) 000-0000"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Account ID</label>
-                    <div className="flex items-center gap-2 rounded-lg border border-border bg-input px-4 py-2.5">
-                      <span className="font-mono text-sm text-muted-foreground">{user?.id}</span>
-                      <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-foreground">Current Plan</label>
-                    <div className="flex items-center gap-2 rounded-lg border border-border bg-input px-4 py-2.5">
-                      <portal.icon className="h-4 w-4" style={{ color: portal.color }} />
-                      <span className="text-sm text-foreground">{getPortalMarker(activePlan?.plan?.type ?? activeTier)}</span>
-                      <Badge className="ml-auto bg-primary/20 text-primary border-0 text-[10px]">Active</Badge>
-                    </div>
-                  </div>
-                </div>
                 <div className="mt-6 flex justify-end">
                   <button
                     onClick={async () => {
                       try {
-                        await apiFetch(API_ENDPOINTS.userDetail.replace(":id", user?.id?.toString() ?? ''), {
-                          method: "PUT",
-                          body: JSON.stringify({
-                            displayName: form.displayName || undefined,
-                            firstName: form.firstName,
-                            middleName: form.middleName || undefined,
-                            lastName: form.lastName,
-                            email: form.email,
-                            address: form.address,
-                            address2: form.address2 || undefined,
-                            phone: form.phone || undefined,
-                            billingCompany: form.billingCompany || undefined,
-                            billingCity: form.billingCity || undefined,
-                            billingState: form.billingState || undefined,
-                            billingZip: form.billingZip || undefined,
-                            billingCountry: form.billingCountry || undefined,
-                          }),
-                        });
+                        await apiFetch(
+                          API_ENDPOINTS.userDetail.replace(
+                            ":id",
+                            user?.id?.toString() ?? ""
+                          ),
+                          {
+                            method: "PUT",
+                            body: JSON.stringify({
+                              displayName: form.displayName || undefined,
+                              firstName: form.firstName,
+                              middleName: form.middleName || undefined,
+                              lastName: form.lastName,
+                              email: form.email,
+                              address: form.address,
+                              address2: form.address2 || undefined,
+                              phone: form.phone || undefined,
+                              billingCompany: form.billingCompany || undefined,
+                              billingCity: form.billingCity || undefined,
+                              billingState: form.billingState || undefined,
+                              billingZip: form.billingZip || undefined,
+                              billingCountry: form.billingCountry || undefined,
+                            }),
+                          }
+                        );
                         await refreshUser();
                         alert("Profile updated");
                       } catch (err: any) {
                         alert("Failed to save: " + err.message);
                       }
                     }}
-                    className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors active:scale-[0.98]"
                   >
                     <Save className="h-4 w-4" />
                     Save Changes
                   </button>
                 </div>
+              </SettingsCard>
+
+              <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <HelpCircle className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Need help?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Replay the setup guide to explore all features.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={showGuideAgain}
+                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Show Guide Again
+                </button>
               </div>
             </TabsContent>
 
-            {/* Security */}
-            <TabsContent value="security" className="mt-4">
-              <div className="flex flex-col gap-4">
-                <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
-                  <SectionHeader title="Password" description="Change your account password" />
-                  <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-foreground">Current Password</label>
-                      <input
-                        type="password"
-                        placeholder="Enter current password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                      />
-                    </div>
-                    <div />
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-foreground">New Password</label>
-                      <input
-                        type="password"
-                        placeholder="Enter new password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-foreground">Confirm Password</label>
-                      <input
-                        type="password"
-                        placeholder="Confirm new password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      onClick={updatePassword}
-                      disabled={passwordSaving}
-                      className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      {passwordSaving ? 'Updating...' : 'Update Password'}
-                    </button>
+            <TabsContent value="security" className="mt-4 space-y-4">
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-4">Change Password</h3>
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                  <FormInput
+                    label="Current Password"
+                    type="password"
+                    value={currentPassword}
+                    onChange={setCurrentPassword}
+                    placeholder="Enter current password"
+                    icon={Lock}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <FormInput
+                      label="New Password"
+                      type="password"
+                      value={newPassword}
+                      onChange={setNewPassword}
+                      placeholder="Enter new password"
+                    />
+                    <FormInput
+                      label="Confirm Password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      placeholder="Confirm new password"
+                    />
                   </div>
                 </div>
-
-                <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
-                  <SectionHeader title="Passkeys &amp; Two-Factor Security" description="Use a passkey as your second factor or primary login method" />
-                  <PasskeyManager />
-
-                  {/* Two-Factor (TOTP) management */}
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-foreground">Two-Factor Authentication (TOTP)</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Protect your account with an authenticator app (Google Authenticator, Authy, etc.). You can also use passkeys or recovery codes.</p>
-                    <div className="mt-4">
-                      <TwoFactorManager />
-                    </div>
-                  </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={updatePassword}
+                    disabled={passwordSaving}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
+                  >
+                    {passwordSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    Update Password
+                  </button>
                 </div>
+              </SettingsCard>
 
-                <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
-                  <SectionHeader title="SSH Public Keys" description="Keys used for passwordless SFTP / SSH authentication on your servers" />
-                  <SshKeyManager />
-                </div>
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Passkeys</h3>
+                <p className="text-xs text-muted-foreground">
+                  Secure your account with biometric or hardware keys
+                </p>
+                <PasskeyManager />
+              </SettingsCard>
 
-                <div className="rounded-xl border border-border bg-card p-6">
-                  <SectionHeader title="Active Sessions" description="Manage your logged in devices" />
-                  <SessionList />
-                </div>
-                <div className="mt-4 flex justify-end gap-4">
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  Two-Factor Authentication
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Use an authenticator app for additional security
+                </p>
+                <TwoFactorManager />
+              </SettingsCard>
+
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">SSH Keys</h3>
+                <p className="text-xs text-muted-foreground">
+                  Passwordless SFTP/SSH access to your servers
+                </p>
+                <SshKeyManager />
+              </SettingsCard>
+
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Active Sessions</h3>
+                <p className="text-xs text-muted-foreground">Manage your logged-in devices</p>
+                <SessionList />
+                <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-end">
                   <button
                     onClick={async () => {
                       try {
-                        await apiFetch(API_ENDPOINTS.sessionLogoutAll, { method: 'POST', body: JSON.stringify({ userId: user?.id }) });
-                        alert('Logged out of all sessions');
+                        await apiFetch(API_ENDPOINTS.sessionLogoutAll, {
+                          method: "POST",
+                          body: JSON.stringify({ userId: user?.id }),
+                        });
+                        alert("Logged out of all sessions");
                       } catch (e: any) {
-                        alert('Failed: ' + e.message);
+                        alert("Failed: " + e.message);
                       }
                     }}
-                    className="text-xs text-destructive hover:underline"
+                    className="rounded-lg border border-border px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors active:scale-[0.98]"
                   >
                     Logout everywhere
                   </button>
                   <button
                     onClick={async () => {
+                      if (!confirm("Request account deletion? This cannot be undone.")) return;
                       try {
-                        await apiFetch(API_ENDPOINTS.deletionRequests, { method: 'POST' });
-                        alert('Deletion request sent');
+                        await apiFetch(API_ENDPOINTS.deletionRequests, { method: "POST" });
+                        alert("Deletion request submitted");
                       } catch (e: any) {
-                        alert('Failed: ' + e.message);
+                        alert("Failed: " + e.message);
                       }
                     }}
-                    className="rounded-lg bg-destructive px-6 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+                    className="rounded-lg bg-destructive px-4 py-2 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors active:scale-[0.98]"
                   >
                     Request Account Deletion
                   </button>
                 </div>
-              </div>
+              </SettingsCard>
             </TabsContent>
 
-            {/* Notifications */}
-            <TabsContent value="notifications" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
-                <SectionHeader title="Notification Preferences" description="Choose what you want to be notified about" />
-                <div className="mt-6 flex flex-col gap-4">
+            <TabsContent value="notifications" className="mt-4 space-y-4">
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  Notification Preferences
+                </h3>
+                <div className="flex flex-col gap-2">
                   {Object.keys(DEFAULT_NOTIFICATION_PREFS).map((key) => {
                     const info = DEFAULT_NOTIFICATION_PREFS[key];
                     const enabled = !!notificationPrefs[key];
                     return (
-                      <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                        <div className="flex items-center gap-3">
-                          <Bell className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{info.label}</p>
-                            <p className="text-xs text-muted-foreground">{info.desc}</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={enabled}
-                          onCheckedChange={async (v) => {
-                            const newPrefs = { ...notificationPrefs, [key]: !!v };
-                            setNotificationPrefs(newPrefs);
-                            try {
-                              await saveUserSettings({ notifications: newPrefs });
-                            } catch (e: any) {
-                              // revert on failure
-                              setNotificationPrefs(notificationPrefs);
-                              alert('Failed to save notification preferences: ' + (e?.message || 'unknown'));
-                            }
-                          }}
-                        />
-                      </div>
+                      <SettingRow
+                        key={key}
+                        icon={Bell}
+                        title={info.label}
+                        description={info.desc}
+                        action={
+                          <Switch
+                            checked={enabled}
+                            onCheckedChange={async (v) => {
+                              const newPrefs = { ...notificationPrefs, [key]: !!v };
+                              setNotificationPrefs(newPrefs);
+                              try {
+                                await saveUserSettings({ notifications: newPrefs });
+                              } catch (e: any) {
+                                setNotificationPrefs(notificationPrefs);
+                                alert("Failed to save: " + (e?.message || "unknown"));
+                              }
+                            }}
+                          />
+                        }
+                      />
                     );
                   })}
                 </div>
-              </div>
+              </SettingsCard>
             </TabsContent>
 
-            {/* API */}
-            <TabsContent value="api" className="mt-4">
-              <div className="flex flex-col gap-4">
-                <div className="rounded-xl border border-border bg-card p-6">
-                  <SectionHeader title="API Keys" description="Manage your API access keys" />
-                  <div className="mt-4 flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                      <input
-                        type="text"
-                        placeholder="Key name"
-                        value={newKeyName}
-                        onChange={(e) => setNewKeyName(e.target.value)}
-                        className="rounded border border-border px-3 py-2"
-                      />
+            <TabsContent value="api" className="mt-4 space-y-4">
+              <SettingsCard>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">API Keys</h3>
+                    <p className="text-xs text-muted-foreground">Manage programmatic access</p>
+                  </div>
+                  {!showApiForm && (
+                    <button
+                      onClick={() => setShowApiForm(true)}
+                      className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors active:scale-[0.98]"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">New Key</span>
+                      <span className="sm:hidden">New</span>
+                    </button>
+                  )}
+                </div>
+
+                {showApiForm && (
+                  <div className="rounded-lg border border-border bg-secondary/10 p-4 mb-4 space-y-3">
+                    <FormInput
+                      label="Key Name"
+                      value={newKeyName}
+                      onChange={setNewKeyName}
+                      placeholder="e.g. Production API"
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Key Type</label>
                       <select
                         value={newKeyType}
                         onChange={(e) => setNewKeyType(e.target.value)}
-                        className="rounded border border-border bg-input px-3 py-2 text-sm text-foreground outline-none"
+                        className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none"
                       >
                         <option value="client">Client</option>
                         {isAdmin && <option value="admin">Admin</option>}
                       </select>
-                      {newKeyType === 'client' && (
-                        <div className="grid grid-cols-2 gap-1 rounded border border-border bg-secondary/20 p-3">
+                    </div>
+                    {newKeyType === "client" && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Permissions
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 rounded-lg border border-border bg-secondary/20 p-3 max-h-48 overflow-y-auto">
                           {AVAILABLE_PERMISSIONS.map((perm) => (
-                            <label key={perm} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <label
+                              key={perm}
+                              className="flex items-center gap-2 text-xs cursor-pointer py-1"
+                            >
                               <input
                                 type="checkbox"
                                 checked={newKeyPerms.includes(perm)}
                                 onChange={(e) => {
-                                  if (e.target.checked) setNewKeyPerms((p) => [...p, perm])
-                                  else setNewKeyPerms((p) => p.filter((x) => x !== perm))
+                                  if (e.target.checked)
+                                    setNewKeyPerms((p) => [...p, perm]);
+                                  else setNewKeyPerms((p) => p.filter((x) => x !== perm));
                                 }}
-                                className="accent-primary"
+                                className="accent-primary h-4 w-4"
                               />
-                              <span className="text-muted-foreground hover:text-foreground transition-colors">{perm}</span>
+                              <span className="text-muted-foreground">{perm}</span>
                             </label>
                           ))}
                         </div>
-                      )}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setShowApiForm(false);
+                          setNewKeyName("");
+                          setNewKeyPerms([]);
+                        }}
+                        className="flex-1 rounded-lg border border-border py-2.5 text-sm text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                      >
+                        Cancel
+                      </button>
                       <button
                         onClick={createApiKey}
-                        className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                        disabled={!newKeyName.trim()}
+                        className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
                       >
-                        <Code className="h-4 w-4" /> Generate New Key
+                        Create Key
                       </button>
                     </div>
-
-                    <div className="rounded-xl border border-border bg-card p-4">
-                      {apiLoading ? (
-                        <p>Loading keys...</p>
-                      ) : apiKeys.length === 0 ? (
-                        <p>No API keys found</p>
-                      ) : (
-                        <ul className="flex flex-col gap-2">
-                          {apiKeys.map((k) => (
-                            <li key={k.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3">
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{k.name}</p>
-                                <p className="text-xs text-muted-foreground">{k.type} &bull; {k.permissions?.join(', ')}</p>
-                              </div>
-                              <button
-                                onClick={() => revokeApiKey(k.id)}
-                                className="text-destructive text-xs"
-                              >
-                                Revoke
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="rounded-xl border border-border bg-card p-6">
-                  <SectionHeader title="API Documentation" description="Quick reference for the Eclipse API" />
+                {apiLoading ? (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-8">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading keys...
+                  </div>
+                ) : apiKeys.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/10 p-6 text-center">
+                    <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+                      <Code className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">No API keys</p>
+                    <p className="text-xs text-muted-foreground">
+                      Create a key to access the API programmatically.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {apiKeys.map((k) => (
+                      <div
+                        key={k.id}
+                        className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {k.type} • {k.permissions?.length || 0} permissions
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => revokeApiKey(k.id)}
+                          className="shrink-0 rounded-lg px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.98]"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SettingsCard>
+
+              <SettingsCard>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">API Documentation</h3>
+                    <p className="text-xs text-muted-foreground">Explore the Eclipse API</p>
+                  </div>
                   <button
-                    onClick={() => window.open('https://backend.ecli.app/openapi', '_blank')}
-                    className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    onClick={() => window.open("https://backend.ecli.app/openapi", "_blank")}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm text-foreground hover:bg-secondary/80 transition-colors active:scale-[0.98]"
                   >
-                    <BookOpen className="h-4 w-4" /> View API Docs
+                    <BookOpen className="h-4 w-4" />
+                    View Docs
                   </button>
                 </div>
-              </div>
+              </SettingsCard>
             </TabsContent>
 
-            {/* Appearance */}
-            <TabsContent value="appearance" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6 min-w-0 box-border overflow-hidden">
-                <SectionHeader title="Theme Settings" description="Customize the panel appearance" />
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <TabsContent value="appearance" className="mt-4 space-y-4">
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-4">Theme</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {THEMES.map((theme) => {
                     const isActive = activeTheme === theme.name;
                     return (
-                    <button
-                      key={theme.name}
-                      onClick={() => updateTheme(theme.name)}
-                      className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all ${
-                        isActive
-                          ? "border-primary/50 bg-primary/5 shadow-[0_0_15px_var(--glow)]"
-                          : "border-border bg-secondary/30 hover:border-primary/20"
-                      }`}
-                    >
-                      <div className="flex gap-1.5">
-                        <div className="h-8 w-8 rounded-md" style={{ backgroundColor: theme.bg, border: "1px solid var(--border)" }} />
-                        <div className="h-8 w-8 rounded-md" style={{ backgroundColor: theme.primary }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{theme.name}</p>
-                        {isActive && <p className="text-[10px] text-primary">Active</p>}
-                      </div>
-                    </button>
+                      <button
+                        key={theme.name}
+                        onClick={() => updateTheme(theme.name)}
+                        className={`relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-all active:scale-[0.97] ${isActive
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : "border-border bg-secondary/20 hover:border-primary/30 hover:bg-secondary/40"
+                          }`}
+                      >
+                        <div className="flex gap-1">
+                          <div
+                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-md shadow-sm"
+                            style={{
+                              backgroundColor: theme.bg,
+                              border: "1px solid var(--border)",
+                            }}
+                          />
+                          <div
+                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-md shadow-sm"
+                            style={{ backgroundColor: theme.primary }}
+                          />
+                        </div>
+                        <span className="text-[11px] sm:text-xs font-medium text-foreground leading-tight text-center">
+                          {theme.name}
+                        </span>
+                        {isActive && (
+                          <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                          </div>
+                        )}
+                      </button>
                     );
                   })}
                 </div>
-
-              </div>
+              </SettingsCard>
             </TabsContent>
 
-            {/* Editor */}
-            <TabsContent value="editor" className="mt-4">
-              <div className="rounded-xl border border-border bg-card p-6">
-                <SectionHeader
-                  title="Code Editor"
-                  description="Configure editor behavior and AI-assisted suggestions"
-                  action={
-                    <button
-                      onClick={() => updateEditorSettings(DEFAULT_EDITOR_SETTINGS)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80"
-                    >
-                      Reset to defaults
-                    </button>
-                  }
-                />
-                <div className="mt-6 grid grid-cols-1 gap-4">
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">AI assistant (inline suggestions)</p>
-                      <p className="text-xs text-muted-foreground">Show inline code completions generated by AI.</p>
-                      <p className="text-xs text-muted-foreground">Note: This is a beta feature and may not work in all scenarios.</p>
-                    </div>
-                    <Switch checked={!!editorSettings.aiAssistant} onCheckedChange={(v) => updateEditorSettings({ aiAssistant: v })} />
+            <TabsContent value="editor" className="mt-4 space-y-4">
+              <SettingsCard>
+                <div className="flex items-center justify-between mb-4 gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Editor Settings</h3>
+                    <p className="text-xs text-muted-foreground">Configure code editor behavior</p>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Auto indent</p>
-                      <p className="text-xs text-muted-foreground">Automatically indent new lines.</p>
-                    </div>
-                    <Switch checked={!!editorSettings.autoIndent} onCheckedChange={(v) => updateEditorSettings({ autoIndent: v })} />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Font size</p>
-                      <p className="text-xs text-muted-foreground">Controls editor font size (in px).</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={8}
-                      max={24}
-                      value={editorSettings.fontSize ?? DEFAULT_EDITOR_SETTINGS.fontSize}
-                      onChange={(e) => updateEditorSettings({ fontSize: Number(e.target.value) })}
-                      className="w-20 rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Font family</p>
-                      <p className="text-xs text-muted-foreground">Choose the editor font.</p>
-                    </div>
+                  <button
+                    onClick={() => updateEditorSettings(DEFAULT_EDITOR_SETTINGS)}
+                    className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <SettingRow
+                    icon={Sparkles}
+                    title="AI Assistant"
+                    description="Inline code completions (beta)"
+                    action={
+                      <Switch
+                        checked={!!editorSettings.aiAssistant}
+                        onCheckedChange={(v) => updateEditorSettings({ aiAssistant: v })}
+                      />
+                    }
+                  />
+                  <SettingRow
+                    title="Auto Indent"
+                    description="Automatically indent new lines"
+                    action={
+                      <Switch
+                        checked={!!editorSettings.autoIndent}
+                        onCheckedChange={(v) => updateEditorSettings({ autoIndent: v })}
+                      />
+                    }
+                  />
+                  <SettingRow
+                    title="Show Minimap"
+                    description="Display code minimap"
+                    action={
+                      <Switch
+                        checked={!!editorSettings.minimap}
+                        onCheckedChange={(v) => updateEditorSettings({ minimap: v })}
+                      />
+                    }
+                  />
+                  <SettingRow
+                    title="Format on Paste"
+                    description="Auto-format pasted code"
+                    action={
+                      <Switch
+                        checked={!!editorSettings.formatOnPaste}
+                        onCheckedChange={(v) => updateEditorSettings({ formatOnPaste: v })}
+                      />
+                    }
+                  />
+                  <SettingRow
+                    title="Format on Type"
+                    description="Auto-format while typing"
+                    action={
+                      <Switch
+                        checked={!!editorSettings.formatOnType}
+                        onCheckedChange={(v) => updateEditorSettings({ formatOnType: v })}
+                      />
+                    }
+                  />
+                  <SettingRow
+                    title="Font Size"
+                    description="Editor font size (px)"
+                    action={
+                      <input
+                        type="number"
+                        min={8}
+                        max={24}
+                        value={editorSettings.fontSize ?? DEFAULT_EDITOR_SETTINGS.fontSize}
+                        onChange={(e) =>
+                          updateEditorSettings({ fontSize: Number(e.target.value) })
+                        }
+                        className="w-16 rounded-lg border border-border bg-secondary/30 px-2 py-1.5 text-sm text-center text-foreground outline-none focus:border-primary/50 transition-all"
+                      />
+                    }
+                  />
+                  <SettingRow
+                    title="Tab Size"
+                    description="Spaces per tab"
+                    action={
+                      <input
+                        type="number"
+                        min={1}
+                        max={8}
+                        value={editorSettings.tabSize ?? DEFAULT_EDITOR_SETTINGS.tabSize}
+                        onChange={(e) =>
+                          updateEditorSettings({ tabSize: Number(e.target.value) })
+                        }
+                        className="w-16 rounded-lg border border-border bg-secondary/30 px-2 py-1.5 text-sm text-center text-foreground outline-none focus:border-primary/50 transition-all"
+                      />
+                    }
+                  />
+                  <div className="flex flex-col gap-1.5 p-3 sm:p-4 rounded-lg border border-border/50 bg-secondary/20">
+                    <span className="text-sm font-medium text-foreground">Font Family</span>
                     <select
-                      value={editorSettings.fontFamily ?? DEFAULT_EDITOR_SETTINGS.fontFamily}
-                      onChange={(e) => updateEditorSettings({ fontFamily: e.target.value })}
-                      className="w-56 rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
+                      value={
+                        editorSettings.fontFamily ?? DEFAULT_EDITOR_SETTINGS.fontFamily
+                      }
+                      onChange={(e) =>
+                        updateEditorSettings({ fontFamily: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
                     >
-                      <option value='"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, monospace'>JetBrains Mono / Fira Code</option>
-                      <option value='"Source Code Pro", "Menlo", "Consolas", "Courier New", monospace'>Source Code Pro</option>
+                      <option value='"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, monospace'>
+                        JetBrains Mono / Fira Code
+                      </option>
+                      <option value='"Source Code Pro", "Menlo", "Consolas", "Courier New", monospace'>
+                        Source Code Pro
+                      </option>
                       <option value='"Arial", "Helvetica", sans-serif'>Arial / Sans</option>
                     </select>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Show minimap</p>
-                      <p className="text-xs text-muted-foreground">Toggle the editor minimap panel.</p>
-                    </div>
-                    <Switch checked={!!editorSettings.minimap} onCheckedChange={(v) => updateEditorSettings({ minimap: v })} />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Tab size</p>
-                      <p className="text-xs text-muted-foreground">Number of spaces inserted when pressing Tab.</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      max={8}
-                      value={editorSettings.tabSize ?? DEFAULT_EDITOR_SETTINGS.tabSize}
-                      onChange={(e) => updateEditorSettings({ tabSize: Number(e.target.value) })}
-                      className="w-20 rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 focus:shadow-[0_0_10px_var(--glow)] transition-all"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Format on paste</p>
-                      <p className="text-xs text-muted-foreground">Automatically format code when pasting.</p>
-                    </div>
-                    <Switch checked={!!editorSettings.formatOnPaste} onCheckedChange={(v) => updateEditorSettings({ formatOnPaste: v })} />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Format on type</p>
-                      <p className="text-xs text-muted-foreground">Automatically format as you type.</p>
-                    </div>
-                    <Switch checked={!!editorSettings.formatOnType} onCheckedChange={(v) => updateEditorSettings({ formatOnType: v })} />
-                  </div>
                 </div>
-              </div>
+              </SettingsCard>
             </TabsContent>
           </Tabs>
         </div>
       </ScrollArea>
     </>
-  )
+  );
 }

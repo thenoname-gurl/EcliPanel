@@ -542,10 +542,12 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <>
-      <PanelHeader
-        title={server.name || server.uuid?.slice(0, 8) || "Server"}
-        description={`${server.uuid || id}`}
-      />
+      <div data-guide-id="server-header">
+        <PanelHeader
+          title={server.name || server.uuid?.slice(0, 8) || "Server"}
+          description={`${server.uuid || id}`}
+        />
+      </div>
       
       <ScrollArea className="flex-1 overflow-x-hidden">
         <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 max-w-full">
@@ -586,7 +588,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Resource Stats */}
-          <ResourceStats resources={server.resources} />
+          <div data-guide-id="server-resources">
+            <ResourceStats resources={server.resources} />
+          </div>
 
           {/* Tab Navigation */}
           <TabNavigation
@@ -1388,7 +1392,7 @@ function StartupTab({ serverId }: { serverId: string }) {
   ])
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div data-guide-id="startup-tab" className="p-4 sm:p-6 space-y-6">
       {/* Startup Info */}
       <CollapsibleSection title="Server Configuration" icon={Variable} defaultOpen>
         <div className="space-y-3">

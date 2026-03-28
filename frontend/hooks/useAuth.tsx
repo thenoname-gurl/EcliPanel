@@ -53,6 +53,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .then((data) => {
         setUser(data.user);
         try {
+          if (typeof window !== 'undefined' && data?.user && data.user.guideShown === false) {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('guide') !== 'true') {
+              (async () => {
+                try {
+                  await apiFetch(API_ENDPOINTS.userGuide.replace(':id', String(data.user.id)), {
+                    method: 'POST',
+                    body: JSON.stringify({ shown: true }),
+                  });
+                } catch (e) {}
+                params.set('guide', 'true');
+                const newUrl = window.location.pathname + '?' + params.toString();
+                window.history.replaceState({}, '', newUrl);
+                apiFetch(API_ENDPOINTS.session, { method: 'GET' }).then((d) => setUser(d.user)).catch(() => {});
+              })();
+            }
+          }
+        } catch (e) {}
+        try {
           if (typeof window !== 'undefined' && data?.user?.settings?.theme?.name) {
             document.cookie = `eclipseTheme=${encodeURIComponent(data.user.settings.theme.name)}; path=/`;
           }

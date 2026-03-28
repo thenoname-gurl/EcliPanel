@@ -86,6 +86,7 @@ export const API_ENDPOINTS = {
   users: "/api/users",
   userRegister: "/api/users/register",
   userDetail: "/api/users/:id",
+  userGuide: "/api/users/:id/guide",
 
   // Organisations
   organisations: "/api/organisations",

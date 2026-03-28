@@ -161,7 +161,7 @@ export default function IdentityPage() {
             const badgeBg = allRequired ? 'bg-success/10' : 'bg-warning/10';
             const badgeText = allRequired ? 'text-success' : 'text-warning';
             return (
-              <div className={`flex items-center gap-4 rounded-xl border ${borderColor} ${bgColor} p-5`}>
+              <div data-guide-id="identity-student" className={`flex items-center gap-4 rounded-xl border ${borderColor} ${bgColor} p-5`}>
                 <div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBg}`}>
                   {allRequired ? <CheckCircle className={`h-6 w-6 ${iconText}`} /> : <Fingerprint className={`h-6 w-6 ${iconText}`} />}
                 </div>

@@ -187,4 +187,7 @@ export class User {
 
   @Column({ nullable: true })
   avatarUrl?: string;
+
+  @Column({ default: false })
+  guideShown: boolean;
 }

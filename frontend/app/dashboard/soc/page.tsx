@@ -133,7 +133,9 @@ export default function SocPage() {
 
   return (
     <>
-      <PanelHeader title="SOC Dashboard" description="Security Operations Center — metrics, plans & usage" />
+      <div data-guide-id="soc-dashboard">
+        <PanelHeader title="SOC Dashboard" description="Security Operations Center — metrics, plans & usage" />
+      </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-5 p-6">
 
