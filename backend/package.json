@@ -22,6 +22,8 @@
     "@simplewebauthn/server": "latest",
     "srvx": "latest",
     "axios": "latest",
+    "dompurify": "latest",
+    "brace-expansion": "latest",
     "base64url": "latest",
     "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
