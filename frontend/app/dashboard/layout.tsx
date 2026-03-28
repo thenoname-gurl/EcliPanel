@@ -34,7 +34,7 @@ export default function DashboardLayout({
     return null;
   }
 
-  const hideFooter = pathname?.startsWith("/dashboard/ai-chat")
+  const hideFooter = pathname?.startsWith("/dashboard/ai-chat") || pathname?.startsWith("/dashboard/tickets/")
 
   return (
     <div className="flex h-screen overflow-hidden bg-background min-w-0">
