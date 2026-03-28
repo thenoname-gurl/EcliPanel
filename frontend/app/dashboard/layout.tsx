@@ -56,7 +56,7 @@ export default function DashboardLayout({
         )}
 
         <EnforcementBanner />
-        <div className={"flex-1 min-h-0 " + (hideFooter ? "" : "pb-20") }>
+        <div className={"flex-1 min-h-0"}>
           {children}
         </div>
         <Footer dashboard hideOnPathname={hideFooter} />
