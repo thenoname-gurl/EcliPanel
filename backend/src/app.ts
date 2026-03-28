@@ -299,7 +299,6 @@ app.onError((ctx: any) => {
   return new Response(JSON.stringify({ error: ctx.error?.message ?? 'Request error' }), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
 });
 
-
 declare module 'elysia' {
   interface Elysia {
     jwt: {
@@ -312,19 +311,56 @@ declare module 'elysia' {
 
 const _rateBuckets = new Map<string, { count: number; resetAt: number }>();
 app.onRequest((ctx: any) => {
-  const req = ctx.request as Request | undefined;
+  const req: Request = ctx.request;
+  const headers = req?.headers;
 
-  const normalize = (value: string | null | undefined) =>
-    value?.trim().replace(/^\[|\]$/g, '') || undefined;
+  const getHeader = (name: string): string | null => {
+    try {
+      return headers?.get?.(name) ?? null;
+    } catch {
+      return null;
+    }
+  };
 
-  const cfIPv6 = normalize(req?.headers?.get('cf-connecting-ipv6'));
-  const cfIP = normalize(req?.headers?.get('cf-connecting-ip'));
-  const xForwardedFor = normalize(req?.headers?.get('x-forwarded-for'))
-    ?.split(',')
-    .map((ipEntry) => ipEntry.trim())
-    .find((v) => !!v);
-  const xRealIP = normalize(req?.headers?.get('x-real-ip'));
-  const remoteAddr = (ctx.server?.requestIP?.(req))?.address;
+  const normalize = (value: string | null | undefined): string | undefined => {
+    if (!value) return undefined;
+    const trimmed = value.trim().replace(/^\[|\]$/g, '');
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
+
+  const cfIPv6 = normalize(getHeader('cf-connecting-ipv6'));
+  const cfIP = normalize(getHeader('cf-connecting-ip'));
+
+  const xForwardedFor = normalize(
+    getHeader('x-forwarded-for')
+      ?.split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)[0]
+  );
+
+  const xRealIP = normalize(getHeader('x-real-ip'));
+
+  let remoteAddr: string | undefined;
+  try {
+    const server = (ctx as any).server ?? (app as any).server;
+    if (server?.requestIP) {
+      const ipInfo = server.requestIP(req);
+      remoteAddr = ipInfo?.address ?? undefined;
+    }
+  } catch {
+    // skip
+  }
+
+  if (!remoteAddr) {
+    try {
+      const builtinIP = (ctx as any).ip;
+      if (builtinIP && builtinIP !== 'unknown' && builtinIP !== 'null') {
+        remoteAddr = builtinIP;
+      }
+    } catch {
+      // skip
+    }
+  }
 
   const ip: string =
     cfIPv6 ||
@@ -333,6 +369,30 @@ app.onRequest((ctx: any) => {
     xRealIP ||
     remoteAddr ||
     'unknown';
+
+  try { (ctx as any).ip = ip; } catch { /* skip */ }
+  try { (ctx.request as any).ip = ip; } catch { /* skip */ }
+  try {
+    (ctx as any).clientIP = ip;
+  } catch {
+    /* skip */
+  }
+  try {
+    (ctx as any).store = (ctx as any).store || {};
+    (ctx as any).store.clientIP = ip;
+  } catch {
+    /* skip */
+  }
+
+  if (ip === 'unknown') {
+    console.warn('[IP Resolution Failed]', {
+      cfIPv6: getHeader('cf-connecting-ipv6'),
+      cfIP: getHeader('cf-connecting-ip'),
+      xForwardedFor: getHeader('x-forwarded-for'),
+      xRealIP: getHeader('x-real-ip'),
+    });
+  }
+
   const now = Date.now();
   let bucket = _rateBuckets.get(ip);
   if (!bucket || now > bucket.resetAt) {
@@ -341,26 +401,39 @@ app.onRequest((ctx: any) => {
   } else {
     bucket.count++;
   }
+
   if (bucket.count > 500) {
-    const origin = (ctx.request as Request)?.headers?.get?.('origin') || (process.env.FRONTEND_URL || '*');
+    const origin =
+      getHeader('origin') || process.env.FRONTEND_URL || '*';
     return new Response(JSON.stringify({ error: 'Too many requests' }), {
       status: 429,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Headers':
+          'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+        'Access-Control-Expose-Headers':
+          'Content-Type, Content-Length, Cache-Control',
+      },
     });
   }
+
   try {
-    const authHeader = ctx.request?.headers?.get('authorization') || '';
-    const qToken = (ctx.query as any)?.token as string | undefined;
-    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : qToken;
+    const authHeader = getHeader('authorization') || '';
+    const qToken = (ctx as any).query?.token as string | undefined;
+    const rawToken = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : qToken;
     if (rawToken) {
       try {
         const decoded = (app as any).jwt.verify(rawToken) as any;
-        ctx.user = decoded;
-      } catch (e) {
+        (ctx as any).user = decoded;
+      } catch {
         // skip
       }
     }
-  } catch (e) {
+  } catch {
     // skip
   }
 });
