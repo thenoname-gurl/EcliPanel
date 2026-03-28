@@ -313,9 +313,25 @@ declare module 'elysia' {
 const _rateBuckets = new Map<string, { count: number; resetAt: number }>();
 app.onRequest((ctx: any) => {
   const req = ctx.request as Request | undefined;
+
+  const normalize = (value: string | null | undefined) =>
+    value?.trim().replace(/^\[|\]$/g, '') || undefined;
+
+  const cfIPv6 = normalize(req?.headers?.get('cf-connecting-ipv6'));
+  const cfIP = normalize(req?.headers?.get('cf-connecting-ip'));
+  const xForwardedFor = normalize(req?.headers?.get('x-forwarded-for'))
+    ?.split(',')
+    .map((ipEntry) => ipEntry.trim())
+    .find((v) => !!v);
+  const xRealIP = normalize(req?.headers?.get('x-real-ip'));
+  const remoteAddr = (ctx.server?.requestIP?.(req))?.address;
+
   const ip: string =
-    req?.headers?.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    (ctx.server?.requestIP?.(req))?.address ||
+    cfIPv6 ||
+    cfIP ||
+    xForwardedFor ||
+    xRealIP ||
+    remoteAddr ||
     'unknown';
   const now = Date.now();
   let bucket = _rateBuckets.get(ip);

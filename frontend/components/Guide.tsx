@@ -243,7 +243,8 @@ function useUrlChange() {
         window.addEventListener("popstate", handlePopState);
 
         const pollInterval = setInterval(() => {
-            const currentUrl = window.location.pathname + window.location.search;
+            const currentUrl =
+                window.location.pathname + window.location.search;
             setUrl((prev) => (prev !== currentUrl ? currentUrl : prev));
         }, 100);
 
@@ -269,7 +270,10 @@ function WelcomeScreen({
         <div className="fixed inset-0 z-[200001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300">
                 <div className="relative h-32 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent overflow-hidden">
-                    <div className="absolute inset-0 bg-[url('/assets/icons/logo.png')] bg-center bg-no-repeat opacity-10" style={{ backgroundSize: '120px' }} />
+                    <div
+                        className="absolute inset-0 bg-[url('/assets/icons/logo.png')] bg-center bg-no-repeat opacity-10"
+                        style={{ backgroundSize: "120px" }}
+                    />
                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
                 </div>
 
@@ -289,7 +293,7 @@ function WelcomeScreen({
                             Welcome to Eclipse Systems!
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            We're thrilled to have you here
+                            We&apos;re thrilled to have you here
                         </p>
                     </div>
 
@@ -301,7 +305,9 @@ function WelcomeScreen({
                                     Quick Setup Guide
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    We'll walk you through setting up your account, configuring your profile, and creating your first server.
+                                    We&apos;ll walk you through setting up your
+                                    account, configuring your profile, and
+                                    creating your first server.
                                 </p>
                             </div>
                         </div>
@@ -338,7 +344,9 @@ function WelcomeScreen({
                     </div>
 
                     <p className="text-center text-[10px] text-muted-foreground/60 mt-4">
-                        Made with <Heart className="w-3 h-3 inline text-red-500" /> by EclipseSystems Team
+                        Made with{" "}
+                        <Heart className="w-3 h-3 inline text-red-500" /> by
+                        EclipseSystems Team
                     </p>
                 </div>
             </div>
@@ -366,7 +374,7 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
 
                     <div className="text-center mb-6">
                         <h1 className="text-xl font-bold text-foreground mb-1">
-                            You're All Set!
+                            You&apos;re All Set!
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             Congratulations on completing the guide
@@ -379,17 +387,21 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                                 <Zap className="w-4 h-4 text-green-500" />
                             </div>
                             <span className="font-semibold text-sm text-foreground">
-                                What you've learned:
+                                What you&apos;ve learned:
                             </span>
                         </div>
                         <ul className="space-y-2 text-xs text-muted-foreground">
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
-                                <span>Setting up account security & passkeys</span>
+                                <span>
+                                    Setting up account security & passkeys
+                                </span>
                             </li>
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
-                                <span>Customizing your profile & preferences</span>
+                                <span>
+                                    Customizing your profile & preferences
+                                </span>
                             </li>
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
@@ -397,7 +409,9 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                             </li>
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
-                                <span>Using the console, files & databases</span>
+                                <span>
+                                    Using the console, files & databases
+                                </span>
                             </li>
                         </ul>
                     </div>
@@ -409,7 +423,8 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                                 Need help?
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Check out our documentation or open a support ticket anytime. We're here to help!
+                                Check out our documentation or open a support
+                                ticket anytime. We&apos;re here to help!
                             </p>
                         </div>
                     </div>
@@ -423,7 +438,8 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                     </button>
 
                     <p className="text-center text-[10px] text-muted-foreground/60 mt-4">
-                        Good luck & happy hosting! <Heart className="w-3 h-3 inline text-red-500" />
+                        Good luck & happy hosting!{" "}
+                        <Heart className="w-3 h-3 inline text-red-500" />
                     </p>
                 </div>
             </div>
@@ -442,9 +458,12 @@ export default function Guide() {
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
     const [minimized, setMinimized] = useState(false);
     const [searching, setSearching] = useState(false);
+    const [navigating, setNavigating] = useState(false);
     const activeTargetRef = useRef<HTMLElement | null>(null);
     const observerRef = useRef<MutationObserver | null>(null);
     const retryTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
+
+    const navigatedForStepRef = useRef<number | null>(null);
 
     const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
 
@@ -478,7 +497,10 @@ export default function Guide() {
                 e.preventDefault();
                 setStep((s) => {
                     const newStep = Math.min(s + 1, steps.length - 1);
-                    if (newStep === steps.length - 1 && s === steps.length - 1) {
+                    if (
+                        newStep === steps.length - 1 &&
+                        s === steps.length - 1
+                    ) {
                         setPhase("complete");
                     }
                     return newStep;
@@ -499,9 +521,48 @@ export default function Guide() {
         retryTimeoutsRef.current = [];
     }, []);
 
+    const teardown = useCallback(() => {
+        if (activeTargetRef.current) {
+            activeTargetRef.current.classList.remove("guide-highlight");
+            activeTargetRef.current = null;
+        }
+        document
+            .querySelectorAll(".guide-highlight")
+            .forEach((el) => el.classList.remove("guide-highlight"));
+
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+            observerRef.current = null;
+        }
+
+        clearRetryTimeouts();
+        navigatedForStepRef.current = null;
+
+        setTargetRect(null);
+        setSearching(false);
+        setNavigating(false);
+        setMinimized(false);
+
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("guide")) {
+                url.searchParams.delete("guide");
+                window.history.replaceState(
+                    {},
+                    "",
+                    url.pathname + (url.search || "")
+                );
+            }
+        } catch {
+            /* skip */
+        }
+    }, [clearRetryTimeouts]);
+
     const findAndHighlightTarget = useCallback(
         (selector: string, stepIndex: number): boolean => {
-            const target = document.querySelector(selector) as HTMLElement | null;
+            const target = document.querySelector(
+                selector
+            ) as HTMLElement | null;
 
             if (target) {
                 const rect = target.getBoundingClientRect();
@@ -510,7 +571,10 @@ export default function Guide() {
                     return false;
                 }
 
-                if (activeTargetRef.current && activeTargetRef.current !== target) {
+                if (
+                    activeTargetRef.current &&
+                    activeTargetRef.current !== target
+                ) {
                     activeTargetRef.current.classList.remove("guide-highlight");
                 }
 
@@ -536,6 +600,7 @@ export default function Guide() {
                 retryTimeoutsRef.current.push(t1, t2, t3);
 
                 setSearching(false);
+                setNavigating(false);
 
                 try {
                     const attachAutoAdvance = () => {
@@ -545,9 +610,13 @@ export default function Guide() {
                         if (el.tagName.toLowerCase() === "select") {
                             const onChange = () =>
                                 setStep((s) =>
-                                    s === stepIndex ? Math.min(s + 1, steps.length - 1) : s
+                                    s === stepIndex
+                                        ? Math.min(s + 1, steps.length - 1)
+                                        : s
                                 );
-                            el.addEventListener("change", onChange, { once: true });
+                            el.addEventListener("change", onChange, {
+                                once: true,
+                            });
                             return;
                         }
 
@@ -557,9 +626,13 @@ export default function Guide() {
                         ) {
                             const onClick = () =>
                                 setStep((s) =>
-                                    s === stepIndex ? Math.min(s + 1, steps.length - 1) : s
+                                    s === stepIndex
+                                        ? Math.min(s + 1, steps.length - 1)
+                                        : s
                                 );
-                            el.addEventListener("click", onClick, { once: true });
+                            el.addEventListener("click", onClick, {
+                                once: true,
+                            });
                             return;
                         }
 
@@ -572,15 +645,23 @@ export default function Guide() {
                             ) {
                                 let settled = false;
                                 const onInput = () => {
-                                    const val = (el as HTMLInputElement).value || "";
+                                    const val =
+                                        (el as HTMLInputElement).value || "";
                                     if (val.trim().length > 0 && !settled) {
                                         settled = true;
                                         setStep((s) =>
-                                            s === stepIndex ? Math.min(s + 1, steps.length - 1) : s
+                                            s === stepIndex
+                                                ? Math.min(
+                                                    s + 1,
+                                                    steps.length - 1
+                                                )
+                                                : s
                                         );
                                     }
                                 };
-                                el.addEventListener("input", onInput, { passive: true });
+                                el.addEventListener("input", onInput, {
+                                    passive: true,
+                                });
                                 return;
                             }
                         }
@@ -590,25 +671,48 @@ export default function Guide() {
                             ranges.forEach((r) => {
                                 const fn = () =>
                                     setStep((s) =>
-                                        s === stepIndex ? Math.min(s + 1, steps.length - 1) : s
+                                        s === stepIndex
+                                            ? Math.min(
+                                                s + 1,
+                                                steps.length - 1
+                                            )
+                                            : s
                                     );
-                                r.addEventListener("input", fn, { once: true });
+                                r.addEventListener("input", fn, {
+                                    once: true,
+                                });
                             });
                             return;
                         }
 
-                        if (el.dataset && el.dataset.guideId === "server-card") {
+                        if (
+                            el.dataset &&
+                            el.dataset.guideId === "server-card"
+                        ) {
                             const onDocClick = (ev: MouseEvent) => {
                                 const targetNode = ev.target as Node | null;
                                 if (!targetNode) return;
                                 if (el.contains(targetNode)) {
                                     setStep((s) =>
-                                        s === stepIndex ? Math.min(s + 1, steps.length - 1) : s
+                                        s === stepIndex
+                                            ? Math.min(
+                                                s + 1,
+                                                steps.length - 1
+                                            )
+                                            : s
                                     );
-                                    document.removeEventListener("click", onDocClick, true);
+                                    document.removeEventListener(
+                                        "click",
+                                        onDocClick,
+                                        true
+                                    );
                                 }
                             };
-                            document.addEventListener("click", onDocClick, true);
+                            document.addEventListener(
+                                "click",
+                                onDocClick,
+                                true
+                            );
                         }
                     };
 
@@ -663,12 +767,20 @@ export default function Guide() {
         setTargetRect(null);
         setSearching(false);
 
-        if (stepConfig?.route) {
-            if (!isOnCorrectRoute(stepConfig.route)) {
+        const onCorrectRoute = stepConfig?.route
+            ? isOnCorrectRoute(stepConfig.route)
+            : true;
+
+        if (stepConfig?.route && !onCorrectRoute) {
+            if (navigatedForStepRef.current !== step) {
+                navigatedForStepRef.current = step;
+                setNavigating(true);
                 router.push(stepConfig.route);
-                return;
             }
+            return;
         }
+
+        setNavigating(false);
 
         if (!stepConfig?.target) {
             return;
@@ -684,7 +796,8 @@ export default function Guide() {
         const observer = new MutationObserver((mutations) => {
             const shouldCheck = mutations.some(
                 (mutation) =>
-                    (mutation.type === "childList" && mutation.addedNodes.length > 0) ||
+                    (mutation.type === "childList" &&
+                        mutation.addedNodes.length > 0) ||
                     mutation.type === "attributes"
             );
 
@@ -733,6 +846,10 @@ export default function Guide() {
                 observerRef.current = null;
             }
             clearRetryTimeouts();
+            if (activeTargetRef.current) {
+                activeTargetRef.current.classList.remove("guide-highlight");
+                activeTargetRef.current = null;
+            }
         };
     }, [
         step,
@@ -744,6 +861,10 @@ export default function Guide() {
         isOnCorrectRoute,
         clearRetryTimeouts,
     ]);
+
+    useEffect(() => {
+        navigatedForStepRef.current = null;
+    }, [step]);
 
     useEffect(() => {
         const updateRect = () => {
@@ -775,6 +896,9 @@ export default function Guide() {
                 activeTargetRef.current.classList.remove("guide-highlight");
                 activeTargetRef.current = null;
             }
+            document
+                .querySelectorAll(".guide-highlight")
+                .forEach((el) => el.classList.remove("guide-highlight"));
             if (observerRef.current) {
                 observerRef.current.disconnect();
             }
@@ -800,21 +924,20 @@ export default function Guide() {
     }, []);
 
     const handleCloseGuide = useCallback(() => {
+        teardown();
         setShow(false);
         setPhase("welcome");
         setStep(0);
-        if (activeTargetRef.current) {
-            activeTargetRef.current.classList.remove("guide-highlight");
-            activeTargetRef.current = null;
-        }
-        setTargetRect(null);
-    }, []);
+    }, [teardown]);
 
     if (!show) return null;
 
     if (phase === "welcome") {
         const welcomeJsx = (
-            <WelcomeScreen onStart={handleStartGuide} onSkip={handleCloseGuide} />
+            <WelcomeScreen
+                onStart={handleStartGuide}
+                onSkip={handleCloseGuide}
+            />
         );
         return portalEl ? createPortal(welcomeJsx, portalEl) : welcomeJsx;
     }
@@ -830,8 +953,8 @@ export default function Guide() {
     const isLast = step === steps.length - 1;
     const isFirst = step === 0;
 
-    const needsNavigation =
-        currentStep.route && !isOnCorrectRoute(currentStep.route);
+    const offRoute =
+        !!currentStep.route && !isOnCorrectRoute(currentStep.route);
 
     if (minimized) {
         const minimizedJsx = (
@@ -982,32 +1105,50 @@ export default function Guide() {
                             </div>
                         )}
 
-                        {searching && currentStep.target && !needsNavigation && (
+                        {navigating && (
                             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                <span>Looking for element...</span>
+                                <span>Navigating...</span>
                             </div>
                         )}
 
-                        {!searching &&
-                            !targetRect &&
+                        {!navigating &&
+                            searching &&
                             currentStep.target &&
-                            !needsNavigation && (
-                                <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-600 dark:text-amber-500">
-                                    <Info className="w-3 h-3" />
-                                    <span>Element not visible on this page</span>
+                            !offRoute && (
+                                <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Looking for element...</span>
                                 </div>
                             )}
 
-                        {needsNavigation && (
+                        {!navigating && offRoute && (
                             <button
                                 className="mt-2 w-full h-7 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center justify-center gap-1.5"
-                                onClick={() => router.push(currentStep.route || "/")}
+                                onClick={() => {
+                                    if (currentStep.route) {
+                                        navigatedForStepRef.current = null;
+                                        router.push(currentStep.route);
+                                    }
+                                }}
                             >
                                 <ArrowRight className="w-3 h-3" />
-                                Navigate to this page
+                                Go to this page
                             </button>
                         )}
+
+                        {!navigating &&
+                            !searching &&
+                            !targetRect &&
+                            currentStep.target &&
+                            !offRoute && (
+                                <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-600 dark:text-amber-500">
+                                    <Info className="w-3 h-3" />
+                                    <span>
+                                        Element not visible on this page
+                                    </span>
+                                </div>
+                            )}
 
                         <div className="mt-3 flex items-center gap-1.5">
                             <button
