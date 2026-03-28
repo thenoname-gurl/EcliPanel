@@ -12,7 +12,6 @@ import { orderRoutes } from '../handlers/orderHandler';
 import { socRoutes } from '../handlers/socHandler';
 import { aiRoutes } from '../handlers/aiHandler';
 import { serverRoutes } from '../handlers/serverHandler';
-import { wingsRoutes } from '../handlers/wingsHandler';
 import { nodeRoutes } from '../handlers/nodeHandler';
 import { apiKeyRoutes } from '../handlers/apiKeyHandler';
 import { ticketRoutes } from '../handlers/ticketHandler';
@@ -41,7 +40,6 @@ export function registerRoutes(app: any) {
     socRoutes(app, '/api');
     aiRoutes(app, '/api');
     serverRoutes(app, '/api');
-    wingsRoutes(app, '/api');
     nodeRoutes(app, '/api');
     apiKeyRoutes(app, '/api');
     ticketRoutes(app, '/api');
