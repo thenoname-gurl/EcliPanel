@@ -133,9 +133,11 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [memory, setMemory] = useState<number>(1024)
   const [disk, setDisk] = useState<number>(10240)
   const [cpu, setCpu] = useState<number>(100)
+  const [kvmPassthroughEnabled, setKvmPassthroughEnabled] = useState<boolean>(false)
 
   const rawPlanName = (user as any)?.portalType || user?.tier || "free"
   const planName = ["educational", "edu"].includes(String(rawPlanName).toLowerCase()) ? "educational" : String(rawPlanName).toLowerCase()
+  const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.session)
@@ -148,7 +150,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
       })
       .catch(() => {})
 
-    apiFetch(API_ENDPOINTS.eggs)
+    apiFetch(isAdmin ? API_ENDPOINTS.adminEggs : API_ENDPOINTS.eggs)
       .then((data) => {
         const list = Array.isArray(data) ? data : []
         const allowedEggs = list.filter((egg: any) => {
@@ -182,7 +184,15 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
     try {
       await apiFetch(API_ENDPOINTS.servers, {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), eggId: Number(eggId), memory, disk, cpu, nodeId }),
+        body: JSON.stringify({
+          name: name.trim(),
+          eggId: Number(eggId),
+          memory,
+          disk,
+          cpu,
+          nodeId,
+          kvmPassthroughEnabled: isAdmin ? kvmPassthroughEnabled : undefined,
+        }),
       })
       onCreated()
       onClose()
@@ -416,6 +426,18 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
               )}
             </div>
 
+            {isAdmin && (
+              <div className="flex items-center justify-center gap-2 text-sm text-foreground">
+                <input
+                  id="new-server-kvm"
+                  type="checkbox"
+                  checked={kvmPassthroughEnabled}
+                  onChange={(e) => setKvmPassthroughEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
+                />
+                <label htmlFor="new-server-kvm">Enable KVM Passthrough</label>
+              </div>
+            )}
             <p className="text-[11px] text-muted-foreground/70 text-center">
               A port will be auto-assigned from the node&apos;s allocation pool.
             </p>

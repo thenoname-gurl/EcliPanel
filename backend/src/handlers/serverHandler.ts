@@ -356,7 +356,7 @@ export async function serverRoutes(app: any, prefix = '') {
             uuid: cfg.uuid,
             meta: { name: cfg.name, description: cfg.description },
             build: { memory_limit: cfg.memory, disk_space: cfg.disk, cpu_limit: cfg.cpu, swap: cfg.swap, io_weight: cfg.ioWeight },
-            container: { image: cfg.dockerImage },
+            container: { image: cfg.dockerImage, kvm_passthrough_enabled: cfg.kvmPassthroughEnabled ?? false },
             invocation: cfg.startup,
             environment: cfg.environment,
             allocations: cfg.allocations,
@@ -471,9 +471,15 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const body = ctx.body as any;
-    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu } = body;
+    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled } = body;
 
     const ownerId: number = (userId && isAdmin) ? userId : user.id;
+    if (kvmPassthroughEnabled && !isAdmin) {
+      ctx.set.status = 403;
+      return { error: 'Only admins may enable KVM during creation' };
+    }
+
+    kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
 
     let limits: { memory?: number; disk?: number; cpu?: number; serverLimit?: number } = {};
 
@@ -716,6 +722,7 @@ export async function serverRoutes(app: any, prefix = '') {
       container: {
         image: egg.dockerImage,
         startup: resolvedStartup,
+        kvm_passthrough_enabled: kvmPassthroughEnabled,
       },
       ...(name ? { name } : {}),
     };
@@ -734,6 +741,7 @@ export async function serverRoutes(app: any, prefix = '') {
       cpu,
       eggId: egg.id,
       isCodeInstance,
+      kvmPassthroughEnabled,
       lastActivityAt: isCodeInstance ? new Date() : undefined,
       ...(autoAllocation ? { allocations: autoAllocation } : {}),
     });
@@ -778,7 +786,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
-    const { memory, disk, cpu, swap, environment, name } = ctx.body as any;
+    const { memory, disk, cpu, swap, environment, name, kvmPassthroughEnabled } = ctx.body as any;
     try {
       const svc = await serviceFor(id);
 
@@ -791,6 +799,7 @@ export async function serverRoutes(app: any, prefix = '') {
       if (Object.keys(build).length) syncPayload.build = build;
       if (environment !== undefined) syncPayload.environment = environment;
       if (name !== undefined) syncPayload.name = name;
+      if (kvmPassthroughEnabled !== undefined) syncPayload.kvm_passthrough_enabled = Boolean(kvmPassthroughEnabled);
 
       await svc.syncServer(id, syncPayload);
 
@@ -803,6 +812,7 @@ export async function serverRoutes(app: any, prefix = '') {
         if (swap !== undefined) existing.swap = Number(swap);
         if (environment !== undefined) Object.assign(existing.environment ??= {}, environment);
         if (name !== undefined) existing.name = name;
+        if (kvmPassthroughEnabled !== undefined) existing.kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
         await cfgRepo.save(existing);
       }
 
@@ -886,18 +896,39 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'Perform power action on server', tags: ['Servers'] }
   });
 
-  // TODO: Test KVM on servers
   app.post(prefix + '/servers/:id/kvm', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { enable } = ctx.body as any;
-    const svc = await serviceFor(id);
-    const res = await svc.toggleKvm(id, enable);
+
     const user = ctx.user;
+    if (!user || !(user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin')) {
+      ctx.set.status = 403;
+      return { error: 'Insufficient permissions (admin only)' };
+    }
+
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    cfg.kvmPassthroughEnabled = Boolean(enable);
+    await cfgRepo.save(cfg);
+
+    try {
+      const svc = await serviceFor(id);
+      await svc.syncServer(id, {});
+    } catch (e: any) {
+      ctx.set.status = 502;
+      return { error: `KVM toggle failed: ${e?.message || 'unable to sync to node'}` };
+    }
+
     await createActivityLog({ userId: user.id, action: `server:kvm:${enable ? 'enable' : 'disable'}`, targetId: id, targetType: 'server', metadata: { kvmEnabled: enable }, ipAddress: ctx.ip });
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    return { success: true };
   }, {
     beforeHandle: [authenticate, authorize('servers:kvm')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Toggle server KVM', tags: ['Servers'] }
   });
 

@@ -55,6 +55,9 @@ export class ServerConfig {
   @Column({ default: false })
   oomDisabled: boolean;
 
+  @Column({ default: false })
+  kvmPassthroughEnabled: boolean;
+
   @Column({ nullable: true })
   eggId?: number;
 

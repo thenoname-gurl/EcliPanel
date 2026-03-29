@@ -170,7 +170,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
         image,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         hugepages_passthrough_enabled: false,
-        kvm_passthrough_enabled: false,
+        kvm_passthrough_enabled: cfg.kvmPassthroughEnabled || false,
         seccomp: { remove_allowed: [] },
         rootless: !!(egg?.rootless ?? false),
       },
@@ -858,6 +858,7 @@ export async function saveServerConfig(params: {
   ioWeight?: number;
   eggId?: number;
   skipEggScripts?: boolean;
+  kvmPassthroughEnabled?: boolean;
   allocations?: Record<string, any>;
   processConfig?: Record<string, any>;
   isCodeInstance?: boolean;
@@ -890,6 +891,7 @@ export async function saveServerConfig(params: {
       hibernated: params.hibernated ?? false,
       eggId: params.eggId,
       skipEggScripts: params.skipEggScripts ?? false,
+      kvmPassthroughEnabled: params.kvmPassthroughEnabled ?? false,
       allocations: params.allocations ?? null,
       processConfig: params.processConfig ?? null,
       isCodeInstance: params.isCodeInstance ?? false,
@@ -907,6 +909,7 @@ export async function saveServerConfig(params: {
   keep.dockerImage = params.dockerImage ?? keep.dockerImage;
   keep.startup = params.startup ?? keep.startup;
   keep.environment = params.environment ?? keep.environment;
+  keep.kvmPassthroughEnabled = params.kvmPassthroughEnabled ?? keep.kvmPassthroughEnabled;
   keep.memory = params.memory;
   keep.disk = params.disk;
   keep.cpu = params.cpu;

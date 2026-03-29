@@ -4,7 +4,6 @@ import { useRef, useState, useEffect, useCallback } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   Send,
@@ -251,6 +250,169 @@ function ConsoleToolbar({
   )
 }
 
+/**
+ * Fix ANSI escape sequences that have lost their ESC[ prefix entirely
+ * This handles serial console corruption where \x1b[ gets stripped
+ * 
+ * Examples of corrupted output this fixes:
+ * - "0m" -> "\x1b[0m" (reset)
+ * - "1m" -> "\x1b[1m" (bold)
+ * - "32m" -> "\x1b[32m" (green)
+ * - "1;32m" -> "\x1b[1;32m" (bold green)
+ * - "0C" -> "\x1b[0C" (cursor forward)
+ * - "?25l" -> "\x1b[?25l" (hide cursor)
+ * - "?7l" -> "\x1b[?7l" (disable line wrap)
+ */
+function fixCorruptedAnsiCodes(text: string): string {
+  if (!text) return ''
+  
+  // Quick check: if we already have proper escape sequences and few broken ones, skip
+  const hasProperEsc = /\x1b\[/.test(text)
+  
+  // Count bare SGR codes like "0m", "1m", "32m" that aren't preceded by ESC[
+  const brokenSgrPattern = /(?<!\x1b\[)(?<![0-9;])([0-9]{1,3}(?:;[0-9]{1,3})*)m/g
+  const brokenSgrMatches = text.match(brokenSgrPattern) || []
+  
+  // Check for indicators of corrupted ANSI output
+  const hasBrokenDec = /(?<!\x1b\[)\?[0-9]+[hlsr]/i.test(text)
+  const hasBrokenCursor = /(?<!\x1b\[)(?<![0-9])[0-9]{1,3}[ABCDEFGHJKST](?![a-z])/i.test(text)
+  
+  // If text has proper escapes and very few broken patterns, probably fine
+  if (hasProperEsc && brokenSgrMatches.length < 3 && !hasBrokenDec && !hasBrokenCursor) {
+    return text
+  }
+  
+  // If fewer than 3 broken SGR codes and no other broken patterns, probably not corrupted
+  if (brokenSgrMatches.length < 3 && !hasBrokenDec && !hasBrokenCursor) {
+    return text
+  }
+  
+  let result = text
+  
+  // 1. Fix DEC private mode sequences: ?25l -> \x1b[?25l, ?7l -> \x1b[?7l, ?7h -> \x1b[?7h
+  result = result.replace(/(?<!\x1b\[)\?([0-9]+)([hlsr])/gi, '\x1b[?$1$2')
+  
+  // 2. Fix cursor movement and erase sequences
+  // Must handle: 0C (cursor forward), 2J (erase display), 1A (cursor up), etc.
+  // Be careful not to match things like "PC" or other text
+  result = result.replace(/(?<!\x1b\[)(?<![A-Za-z])([0-9]{1,3})([ABCDEFGHJKST])(?![a-zA-Z])/g, '\x1b[$1$2')
+  
+  // 3. Fix SGR (Select Graphic Rendition) sequences for colors/styles
+  // Process in a loop because we may have consecutive codes like "0m1m1m"
+  // which needs to become "\x1b[0m\x1b[1m\x1b[1m"
+  let prevResult
+  let iterations = 0
+  const maxIterations = 100 // Safety limit
+  
+  do {
+    prevResult = result
+    // Match: start of string or after non-digit/semicolon, then digits with optional semicolons, then 'm'
+    // Negative lookbehind ensures we don't match already-fixed sequences
+    result = result.replace(/(?<!\x1b\[)(?<![0-9;])([0-9]{1,3}(?:;[0-9]{1,3})*)m/, '\x1b[$1m')
+    iterations++
+  } while (result !== prevResult && iterations < maxIterations)
+  
+  return result
+}
+
+/**
+ * Clean up serial console output artifacts
+ * Removes cursor position reports, device status responses, and other noise
+ */
+function cleanSerialOutput(text: string): string {
+  if (!text) return ''
+  
+  let cleaned = text
+
+  // Remove cursor position reports (CPR) - responses to DSR queries
+  // Format: ESC[row;colR or malformed [row;colR
+  cleaned = cleaned.replace(/\x1b\[[\d;]*R/g, '')
+  cleaned = cleaned.replace(/\[[\d;]+R/g, '')
+  
+  // Remove Device Status Report requests (DSR)
+  cleaned = cleaned.replace(/\x1b\[[\d;]*n/g, '')
+  
+  // Remove Primary Device Attributes responses
+  cleaned = cleaned.replace(/\x1b\[\?[\d;]*c/g, '')
+  
+  // Remove Secondary Device Attributes responses
+  cleaned = cleaned.replace(/\x1b\[>[\d;]*c/g, '')
+  
+  // Remove DECID responses
+  cleaned = cleaned.replace(/\x1b\/Z/g, '')
+  
+  // Clean up OSC (Operating System Command) sequences - window titles, etc.
+  // Format: ESC]...BEL or ESC]...ESC\
+  cleaned = cleaned.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?/g, '')
+  
+  // Remove null bytes
+  cleaned = cleaned.replace(/\x00/g, '')
+  
+  // Remove other problematic control characters (keep common ones like \t, \n, \r)
+  cleaned = cleaned.replace(/[\x01-\x08\x0B\x0C\x0E-\x1A\x1C-\x1F]/g, '')
+  
+  return cleaned
+}
+
+/**
+ * Normalize daemon text and fix partially broken escape sequences
+ * This handles cases where [ is present but ESC is missing
+ */
+function normalizeDaemonText(text: string): string {
+  if (!text) return ''
+  
+  let normalized = text
+  
+  // Replace verbose daemon prefix with shorter version
+  normalized = normalized.replace(/\[Pterodactyl Daemon\]/g, "[Daemon]")
+  
+  // Fix escape sequences that have [ but lost ESC: [0m -> \x1b[0m
+  // This pattern looks for [ followed by valid ANSI parameters and command letter
+  // Negative lookbehind ensures we don't double-fix already correct sequences
+  normalized = normalized.replace(/(?<!\x1b)\[([0-9;]+)([mABCDEFGHJKSTfsu])/g, '\x1b[$1$2')
+  
+  // Fix DEC private mode with bracket but no ESC: [?25l -> \x1b[?25l
+  normalized = normalized.replace(/(?<!\x1b)\[\?([0-9]+)([hlsr])/gi, '\x1b[?$1$2')
+  
+  return normalized
+}
+
+/**
+ * Strip all ANSI codes for plain text storage/copying
+ */
+function stripAnsiText(text: string): string {
+  return text
+    // Remove CSI sequences (ESC[ followed by parameters and command)
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, "")
+    // Remove OSC sequences (ESC] followed by content and BEL)
+    .replace(/\x1b\][^\x07]*\x07/g, "")
+    // Remove other escape sequences (DCS, PM, APC)
+    .replace(/\x1b[PX^_].*?\x1b\\/g, "")
+    // Remove any remaining simple escape sequences
+    .replace(/\x1b./g, "")
+}
+
+/**
+ * Full processing pipeline for console output
+ * Applies all fixes in the correct order
+ */
+function processConsoleOutput(text: string): string {
+  if (!text) return ''
+  
+  // Step 1: Fix completely corrupted ANSI codes (missing ESC[)
+  // This handles cases like "0m1m32m" -> "\x1b[0m\x1b[1m\x1b[32m"
+  let processed = fixCorruptedAnsiCodes(text)
+  
+  // Step 2: Fix partially broken codes (has [ but missing ESC)
+  // This handles cases like "[0m" -> "\x1b[0m"
+  processed = normalizeDaemonText(processed)
+  
+  // Step 3: Clean serial console artifacts (CPR, DSR responses, etc.)
+  processed = cleanSerialOutput(processed)
+  
+  return processed
+}
+
 export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const termRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<any>(null)
@@ -270,8 +432,6 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [terminalReady, setTerminalReady] = useState(false)
-
-  const normalizeDaemonText = (v: string) => v.replace(/\[Pterodactyl Daemon\]/g, "[Daemon]")
 
   const addToOutput = useCallback((text: string) => {
     consoleOutputRef.current.push(text)
@@ -299,7 +459,6 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
       })
     }
     
-    xtermRef.current?.writeln(`\x1b[90m> ${cmd}\x1b[0m`)
     addToOutput(`> ${cmd}`)
   }, [serverId, addToOutput])
 
@@ -393,12 +552,21 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           magenta: "#a855f7",
           cyan: "#06b6d4",
           white: "#e4e4e7",
+          brightBlack: "#3f3f46",
+          brightRed: "#f87171",
+          brightGreen: "#4ade80",
+          brightYellow: "#facc15",
+          brightBlue: "#60a5fa",
+          brightMagenta: "#c084fc",
+          brightCyan: "#22d3ee",
+          brightWhite: "#fafafa",
         },
         convertEol: true,
         disableStdin: false,
         scrollback: 5000,
         cursorStyle: "underline",
         allowProposedApi: true,
+        windowsMode: false,
       })
 
       const fitAddon = new FitAddon()
@@ -574,25 +742,42 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   ws!.send(JSON.stringify({ event: "send logs", args: [] }))
                   ws!.send(JSON.stringify({ event: "send stats", args: [] }))
                   break
+                  
                 case "console output":
                   for (const line of msg.args || []) {
                     const raw = typeof line === "string" ? line : JSON.stringify(line)
-                    const normalized = normalizeDaemonText(raw)
-                    term.writeln(normalized)
-                    addToOutput(normalized.replace(/\x1b\[[0-9;]*m/g, ""))
+                    
+                    // Process the output through our ANSI fixing pipeline
+                    const processed = processConsoleOutput(raw)
+                    
+                    // Skip empty lines that result from cleaning
+                    if (processed.trim() || processed.includes('\n')) {
+                      term.write(processed)
+                      // Only add newline if the line doesn't already end with one
+                      if (!processed.endsWith('\n') && !processed.endsWith('\r')) {
+                        term.write('\r\n')
+                      }
+                      addToOutput(stripAnsiText(processed))
+                    }
                   }
                   break
+                  
                 case "install output":
                   for (const line of msg.args || []) {
-                    const text = `[Install] ${normalizeDaemonText(String(line))}`
-                    term.writeln(`\x1b[33m${text}\x1b[0m`)
-                    addToOutput(text)
+                    const processed = processConsoleOutput(String(line))
+                    const text = `[Install] ${processed}`
+                    if (text.trim()) {
+                      term.writeln(`\x1b[33m${text}\x1b[0m`)
+                      addToOutput(stripAnsiText(text))
+                    }
                   }
                   break
+                  
                 case "status":
                   try {
                     const raw = String(msg.args?.[0] || "")
-                    term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(raw)}`)
+                    const processed = processConsoleOutput(raw)
+                    term.writeln(`\x1b[36m[Status]\x1b[0m ${processed}`)
                     setConnectionState(raw)
                     const s = raw.toLowerCase()
                     if (s === "running" || s === "connected") {
@@ -607,19 +792,31 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                       setConnectedHintShown(false)
                     }
                   } catch {
-                    term.writeln(`\x1b[36m[Status]\x1b[0m ${normalizeDaemonText(String(msg.args?.[0] || ""))}`)
+                    const raw = String(msg.args?.[0] || "")
+                    const processed = processConsoleOutput(raw)
+                    term.writeln(`\x1b[36m[Status]\x1b[0m ${processed}`)
                   }
                   break
+                  
                 case "daemon message":
-                  term.writeln(`\x1b[33m[Daemon]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
+                  const dmMsg = processConsoleOutput(msg.args?.join(" ") || "")
+                  if (dmMsg.trim()) {
+                    term.writeln(`\x1b[33m[Daemon]\x1b[0m ${dmMsg}`)
+                  }
                   break
+                  
                 case "daemon error":
-                  term.writeln(`\x1b[31m[Error]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
+                  const errMsg = processConsoleOutput(msg.args?.join(" ") || "")
+                  if (errMsg.trim()) {
+                    term.writeln(`\x1b[31m[Error]\x1b[0m ${errMsg}`)
+                  }
                   break
+                  
                 case "jwt error":
-                  term.writeln(`\x1b[31m[Auth Error]\x1b[0m ${normalizeDaemonText(msg.args?.join(" ") || "")}`)
+                  term.writeln(`\x1b[31m[Auth Error]\x1b[0m ${processConsoleOutput(msg.args?.join(" ") || "")}`)
                   setConnected(false)
                   break
+                  
                 case "token expiring":
                   apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
                     .then((c) => {
@@ -629,15 +826,20 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                     })
                     .catch(() => {})
                   break
+                  
                 case "token expired":
                   term.writeln("\x1b[31mSession expired. Reconnecting...\x1b[0m")
                   setConnected(false)
                   break
+                  
                 default:
                   break
               }
             } catch {
-              term.writeln(normalizeDaemonText(String(ev.data)))
+              const processed = processConsoleOutput(String(ev.data))
+              if (processed.trim()) {
+                term.writeln(processed)
+              }
             }
           }
 
@@ -706,7 +908,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
       term?.dispose()
       xtermRef.current = null
     }
-  }, [serverId, addToOutput])
+  }, [serverId, addToOutput, connectedHintShown])
 
   const handleReconnect = useCallback(() => {
     if (reconnecting) return
@@ -774,7 +976,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         )}
       </div>
 
-      {/* Mobile */}
+      {/* Mobile Input */}
       <div className="relative sm:hidden">
         {showHistory && (
           <HistoryPanel
@@ -794,7 +996,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         />
       </div>
 
-      {/* Desktop */}
+      {/* Desktop Hint */}
       <div className="hidden sm:flex items-center gap-2 border-t border-border bg-secondary/10 px-4 py-2.5">
         <Terminal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <span className="text-xs text-muted-foreground">
