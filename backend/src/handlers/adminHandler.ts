@@ -650,6 +650,7 @@ export async function adminRoutes(app: any, prefix = '') {
       qb = qb.andWhere('t.archived = :ar', { ar: true });
     } else {
       qb = qb.andWhere('t.archived = :ar', { ar: false });
+      qb = qb.andWhere('(t.status != :closed OR t.aiClosed = :aiTrue)', { closed: 'closed', aiTrue: true });
     }
 
     if (q && String(q).trim() !== '') {

@@ -1,8 +1,11 @@
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
+import cron from 'node-cron';
 
 export async function runStudentReverifyJob() {
+  const jobId = Date.now();
+  console.log(`[StudentReverify:${jobId}] Running reverify job...`);
   try {
     const userRepo = AppDataSource.getRepository(User);
     const logRepo = AppDataSource.getRepository(UserLog);
@@ -39,18 +42,21 @@ export async function runStudentReverifyJob() {
       }
     }
   } catch (e) {
-    console.error('studentReverifyJob error', e);
+    console.log(`[StudentReverify:${jobId}] Error running reverify job:`, e);
   }
+  console.log(`[StudentReverify:${jobId}] Finished reverify job...`);
 }
 
-export function scheduleStudentReverifyJob() {
-  runStudentReverifyJob().catch(() => {});
+export async function scheduleStudentReverifyJob() {
+  console.log('Starting student reverify job...');
+
+  await runStudentReverifyJob().catch((e) => {console.log('Error running student reverify job', e)});
   try {
-    setInterval(() => {
-      runStudentReverifyJob().catch(() => {});
-    }, 24 * 60 * 60 * 1000);
+    cron.schedule('0 0 * * *', async () => {
+      await runStudentReverifyJob().catch((e) => {console.log('Error running student reverify job', e)});
+    });
   } catch (e) {
-    // skip
+    console.error('Failed to schedule student reverify job via cron', e);
   }
 }
 

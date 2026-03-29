@@ -10,6 +10,12 @@ export async function cleanupOrders() {
   await orderRepo.createQueryBuilder().delete().where('expiresAt < :cutoff', { cutoff }).execute();
 }
 
+export async function cleanupSocData() {
+  const socRepo = AppDataSource.getRepository(SocData);
+  const socCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await socRepo.createQueryBuilder().delete().where('timestamp < :cutoff', { cutoff: socCutoff }).execute();
+}
+
 export async function cleanupLogs() {
   const logRepo = AppDataSource.getRepository(UserLog);
   const cutoff = new Date();
@@ -22,9 +28,7 @@ export async function cleanupLogs() {
   const usageRepo = AppDataSource.getRepository(require('../models/aiUsage.entity').AIUsage);
   await usageRepo.createQueryBuilder().delete().where('timestamp < :cutoff', { cutoff }).execute();
 
-  const socRepo = AppDataSource.getRepository(SocData);
-  const socCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  await socRepo.createQueryBuilder().delete().where('timestamp < :cutoff', { cutoff: socCutoff }).execute();
+  await cleanupSocData();
 }
 
 export function startRetentionJobs() {

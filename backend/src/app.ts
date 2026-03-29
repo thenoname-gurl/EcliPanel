@@ -11,6 +11,8 @@ import { setupConfig } from './config';
 import { AppDataSource } from './config/typeorm';
 import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
 import { scheduleCodeInstanceIdleJob } from './jobs/codeInstanceIdleJob';
+import { scheduleMetricsCollectionJob } from './jobs/metricsCollectionJob';
+import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
@@ -438,12 +440,47 @@ app.onRequest((ctx: any) => {
   }
 });
 
+let __isElysiaRestarting = false;
+
+async function scheduleHourlyElysiaRestart() {
+  if (process.env.ELYSIA_HOURLY_RESTART === 'false') {
+    console.info('[Elysia Restart] Hourly Elysia restart disabled via ELYSIA_HOURLY_RESTART=false');
+    return;
+  }
+
+  const host = process.env.HOST || '0.0.0.0';
+  const port = Number(process.env.PORT || 3000);
+
+  console.info('[Elysia Restart] Scheduling hourly Elysia restart job (0 * * * *)');
+  cron.schedule('0 * * * *', async () => {
+    if (__isElysiaRestarting) {
+      console.warn('[Elysia Restart] Skip hour restart because already in progress');
+      return;
+    }
+
+    __isElysiaRestarting = true;
+    console.warn('[Elysia Restart] Hourly restart triggered');
+    try {
+      await app.stop();
+      console.info('[Elysia Restart] Elysia stopped. Starting again');
+      await app.listen({ host, port });
+      console.info(`[Elysia Restart] Elysia started  again and is listening at ${host}:${port}`);
+    } catch (err) {
+      console.error('[Elysia Restart] Self-restart failed', err);
+    } finally {
+      __isElysiaRestarting = false;
+    }
+  });
+}
+
 export async function initApp() {
   await setupConfig(app);
   setupMiddleware(app);
   registerRoutes(app);
-  try { scheduleStudentReverifyJob(); } catch (e) { /* skip */ }
-  try { scheduleCodeInstanceIdleJob(); } catch (e) { /* skip */ }
+  try { scheduleStudentReverifyJob(); } catch (e) { console.error('Failed to schedule student reverify job:', e); }
+  try { scheduleCodeInstanceIdleJob(); } catch (e) { console.error('Failed to schedule code instance idle job:', e); }
+  try { scheduleMetricsCollectionJob(); } catch (e) { console.error('Failed to schedule metrics collection job:', e); }
+  try { scheduleHourlyElysiaRestart(); } catch (e) { console.error('Failed to schedule hourly Elysia restart job:', e); }
 }
 
 app.get('/health', async (ctx: any) => {

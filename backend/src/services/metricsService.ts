@@ -10,9 +10,12 @@ function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {})
   }
   if (typeof obj !== 'object') return out;
   for (const [k, v] of Object.entries(obj)) {
-    const p = prefix ? `${prefix}.${k}` : k;
-    if (typeof v === 'number') out[p] = v;
-    else if (typeof v === 'object' && v !== null) flattenMetrics(v, p + '.', out);
+    const p = k === '' ? prefix : (prefix ? `${prefix}.${k}` : k);
+    if (typeof v === 'number') {
+      out[p] = v;
+    } else if (typeof v === 'object' && v !== null) {
+      flattenMetrics(v, p, out);
+    }
   }
   return out;
 }
@@ -20,20 +23,32 @@ function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {})
 function unflatten(flat: Record<string, number>) {
   const out: any = {};
   for (const [k, v] of Object.entries(flat)) {
-    const parts = k.split('.');
+    const parts = k.split('.').filter((part) => part !== '');
     let cur = out;
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
-      if (i === parts.length - 1) cur[p] = v;
-      else { cur[p] = cur[p] ?? {}; cur = cur[p]; }
+      if (i === parts.length - 1) {
+        cur[p] = v;
+      } else {
+        cur[p] = cur[p] ?? {};
+        cur = cur[p];
+      }
     }
   }
   return out;
 }
 
 export async function fetchHistorical(serverId: string, windowKey = '1h', points = 60) {
-  const hours = windowKey === '7d' ? 24 * 7 : windowKey === '24h' ? 24 : windowKey === '6h' ? 6 : 1;
-  const windowMs = hours * 3_600_000;
+  const minutes =
+    windowKey === '7d' ? 24 * 60 * 7 :
+    windowKey === '24h' ? 24 * 60 :
+    windowKey === '6h' ? 6 * 60 :
+    windowKey === '1h' ? 60 :
+    windowKey === '10m' ? 10 :
+    windowKey === '5m' ? 5 :
+    windowKey === 'live' ? 1 :
+    60;
+  const windowMs = minutes * 60_000;
   const since = new Date(Date.now() - windowMs);
   const repo = AppDataSource.getRepository(SocData);
   const rows = await repo.find({ where: { serverId, timestamp: MoreThanOrEqual(since) } as any, order: { timestamp: 'ASC' } });

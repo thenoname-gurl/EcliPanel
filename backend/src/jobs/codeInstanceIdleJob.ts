@@ -3,11 +3,13 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { nodeService } from '../services/nodeService';
 import { removeServerConfig } from '../handlers/remoteHandler';
 import { createActivityLog } from '../handlers/logHandler';
+import cron from 'node-cron';
 
 const INACTIVITY_MS = 30 * 60 * 1000;
-const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 export async function runCodeInstanceIdleJob() {
+  const jobId = Date.now();
+  console.log(`[CodeInstance:${jobId}] Running idle job...`);
   try {
     const cutoff = new Date(Date.now() - INACTIVITY_MS);
     const codeInstances = await AppDataSource.getRepository(ServerConfig).find({ where: { isCodeInstance: true } });
@@ -40,18 +42,21 @@ export async function runCodeInstanceIdleJob() {
       }
     }
   } catch (e) {
-    console.error('codeInstanceIdleJob error', e);
+    console.log(`[CodeInstance:${jobId}] Error running idle job:`, e);
   }
+  console.log(`[CodeInstance:${jobId}] Finished idle job...`);
 }
 
-export function scheduleCodeInstanceIdleJob() {
-  runCodeInstanceIdleJob().catch(() => {});
+export async function scheduleCodeInstanceIdleJob() {
+  console.log('Starting code instance idle job...');
+
+  await runCodeInstanceIdleJob().catch((e) => {console.log('Error running code instance idle job', e)});
   try {
-    setInterval(() => {
-      runCodeInstanceIdleJob().catch(() => {});
-    }, CHECK_INTERVAL_MS);
+    cron.schedule('*/5 * * * *', async () => {
+      await runCodeInstanceIdleJob().catch((e) => {console.log('Error running code instance idle job', e)});
+    });
   } catch (e) {
-    // skip
+    console.error('Failed to schedule code instance idle job via cron', e);
   }
 }
 

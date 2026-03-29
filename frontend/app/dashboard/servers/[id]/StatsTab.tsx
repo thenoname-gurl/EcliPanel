@@ -35,7 +35,7 @@ interface StatsTabProps {
   server: any
 }
 
-type TimeWindow = "1h" | "6h" | "24h" | "7d"
+type TimeWindow = "live" | "5m" | "10m" | "1h" | "6h" | "24h" | "7d"
 
 interface ChartDataPoint {
   time: string
@@ -48,6 +48,9 @@ interface ChartDataPoint {
 }
 
 const TIME_WINDOW_OPTIONS: { value: TimeWindow; label: string }[] = [
+  { value: "live", label: "Live" },
+  { value: "5m", label: "5m" },
+  { value: "10m", label: "10m" },
   { value: "1h", label: "1H" },
   { value: "6h", label: "6H" },
   { value: "24h", label: "24H" },
@@ -382,6 +385,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   const [refreshing, setRefreshing] = useState(false)
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("1h")
   const [localPoints, setLocalPoints] = useState<ChartDataPoint[]>([])
+  const [liveHistory, setLiveHistory] = useState<ChartDataPoint[]>([])
   const [recharts, setRecharts] = useState<any>(null)
   const [activeChart, setActiveChart] = useState<"cpu" | "memory" | "disk" | "network">("cpu")
 
@@ -393,13 +397,26 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
 
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true)
-    
+
     try {
-      const [histData, liveData, nodeData] = await Promise.all([
-        apiFetch(API_ENDPOINTS.serverStatsHistory.replace(":id", serverId) + `?window=${timeWindow}`).catch(() => []),
+      const [liveData, nodeData] = await Promise.all([
         apiFetch(API_ENDPOINTS.serverStats.replace(":id", serverId)).catch(() => null),
         apiFetch(API_ENDPOINTS.serverStatsNode.replace(":id", serverId)).catch(() => null),
       ])
+
+      const points = timeWindow === "5m" ? 15 : timeWindow === "10m" ? 30 : 60
+      let histData: any[] = []
+
+      if (timeWindow === "live") {
+        if (liveData && (liveData.cpu_absolute != null || liveData.memory_bytes != null || liveData.disk_bytes != null)) {
+          histData = [{ timestamp: new Date().toISOString(), metrics: liveData }]
+        } else {
+          histData = await apiFetch(API_ENDPOINTS.serverStatsHistory.replace(":id", serverId) + `?window=5m&points=15`).catch(() => [])
+        }
+      } else {
+        histData = await apiFetch(API_ENDPOINTS.serverStatsHistory.replace(":id", serverId) + `?window=${timeWindow}&points=${points}`).catch(() => [])
+      }
+
       setHistory(Array.isArray(histData) ? histData : [])
       setLive(liveData)
       setNodeInfo(nodeData)
@@ -415,7 +432,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   }, [loadData])
 
   useEffect(() => {
-    const interval = setInterval(() => loadData(), 15000)
+    const interval = setInterval(() => loadData(), 20000)
     return () => clearInterval(interval)
   }, [loadData])
 
@@ -439,6 +456,30 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
     })
   }, [serverProp?.resources])
 
+  useEffect(() => {
+    if (!live || (live.cpu_absolute == null && live.memory_bytes == null)) return
+
+    const point: ChartDataPoint = {
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      ts: Date.now(),
+      cpu: Number((live.cpu_absolute ?? live.proc?.cpu?.total ?? 0).toFixed ? (live.cpu_absolute ?? live.proc?.cpu?.total ?? 0).toFixed(1) : (live.cpu_absolute ?? live.proc?.cpu?.total ?? 0)),
+      memMB: Math.round((live.memory_bytes ?? live.proc?.memory?.total ?? 0) / 1024 / 1024),
+      diskMB: Math.round((live.disk_bytes ?? live.disk ?? 0) / 1024 / 1024),
+      rxMB: Math.round(((live.network?.rx_bytes ?? live.network?.rx ?? 0) / 1024 / 1024) * 100) / 100,
+      txMB: Math.round(((live.network?.tx_bytes ?? live.network?.tx ?? 0) / 1024 / 1024) * 100) / 100,
+    }
+
+    setLiveHistory((prev) => {
+      const next = [...prev]
+      if (next.length > 0 && Math.abs(point.ts - next[next.length - 1].ts) < 60000) {
+        next[next.length - 1] = point
+      } else {
+        next.push(point)
+      }
+      return next.length > 120 ? next.slice(-120) : next
+    })
+  }, [live])
+
   const chartData = useMemo((): ChartDataPoint[] => {
     return history.map((entry: any) => {
       const m = entry.metrics || {}
@@ -461,14 +502,53 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
     })
   }, [history])
 
-  const effectiveChartData = useMemo(
-    () => chartData.length > 0 ? chartData : localPoints,
-    [chartData, localPoints]
-  )
+  const preferredLiveSource = useMemo(() => {
+    if (serverProp?.resources && (serverProp.resources.cpu_absolute != null || serverProp.resources.memory_bytes != null)) {
+      return serverProp.resources
+    }
+    if (live && (live.cpu_absolute != null || live.memory_bytes != null)) {
+      return live
+    }
+    return null
+  }, [live, serverProp?.resources])
 
-  const liveSource = (live && (live.cpu_absolute != null || live.memory_bytes != null)) 
-    ? live 
-    : (serverProp?.resources ?? null)
+  const livePoint = useMemo<ChartDataPoint | null>(() => {
+    const source = preferredLiveSource
+
+    if (!source || (source.cpu_absolute == null && source.memory_bytes == null && source.disk_bytes == null)) {
+      return null
+    }
+
+    return {
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      ts: Date.now(),
+      cpu: Number((source.cpu_absolute ?? source.proc?.cpu?.total ?? 0).toFixed ? (source.cpu_absolute ?? source.proc?.cpu?.total ?? 0).toFixed(1) : (source.cpu_absolute ?? source.proc?.cpu?.total ?? 0)),
+      memMB: Math.round((source.memory_bytes ?? source.proc?.memory?.total ?? 0) / 1024 / 1024),
+      diskMB: Math.round((source.disk_bytes ?? source.disk ?? 0) / 1024 / 1024),
+      rxMB: Math.round(((source.network?.rx_bytes ?? source.network?.rx ?? 0) / 1024 / 1024) * 100) / 100,
+      txMB: Math.round(((source.network?.tx_bytes ?? source.network?.tx ?? 0) / 1024 / 1024) * 100) / 100,
+    }
+  }, [preferredLiveSource])
+
+  const effectiveChartData = useMemo<ChartDataPoint[]>(() => {
+    if (timeWindow === "live") {
+      return liveHistory
+    }
+
+    const base = chartData.length > 0 ? chartData : localPoints
+    if (!livePoint) return base
+
+    if (base.length === 0) return [livePoint]
+
+    const last = base[base.length - 1]
+    if (Math.abs(livePoint.ts - last.ts) < 60000) {
+      return [...base.slice(0, -1), livePoint]
+    }
+
+    return [...base, livePoint]
+  }, [timeWindow, chartData, localPoints, liveHistory, livePoint])
+
+  const liveSource = preferredLiveSource
   
   const liveCpu = liveSource?.cpu_absolute ?? liveSource?.proc?.cpu?.total ?? 0
   const liveMem = liveSource?.memory_bytes ?? liveSource?.proc?.memory?.total ?? 0

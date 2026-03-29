@@ -1,4 +1,5 @@
 import { WingsApiService } from '../services/wingsApiService';
+import { extractStats } from '../services/metricsCollector';
 import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
@@ -1992,6 +1993,17 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/servers/:id/stats', async (ctx: any) => {
     const { id } = ctx.params as any;
+
+    try {
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/stats');
+      if (res?.data && typeof res.data === 'object') {
+        return extractStats(res.data);
+      }
+    } catch (e) {
+      // skip
+    }
+
     const socRepo = AppDataSource.getRepository(SocData);
     const latest = await socRepo.findOne({ where: { serverId: id }, order: { timestamp: 'DESC' } });
     return latest?.metrics ?? {};
@@ -2005,9 +2017,44 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     const { window: w = '1h', points: p = '60' } = ctx.query as any;
     const points = Math.max(12, Math.min(1440, Number(p) || 60));
+
     try {
-      const { fetchHistorical } = await import('../services/metricsService');
-      const rows = await fetchHistorical(id, w, points);
+      let rows: Array<{ timestamp: string; metrics: Record<string, any> }> = [];
+      let liveData: Record<string, any> | null = null;
+
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.serverRequest(id, '/stats');
+        if (res?.data && typeof res.data === 'object') {
+          liveData = extractStats(res.data);
+        }
+      } catch {
+        // skip
+      }
+
+      if (w === 'live') {
+        if (liveData) {
+          return [{ timestamp: new Date().toISOString(), metrics: liveData }];
+        }
+
+        const { fetchHistorical } = await import('../services/metricsService');
+        rows = await fetchHistorical(id, '5m', points);
+      } else {
+        const { fetchHistorical } = await import('../services/metricsService');
+        rows = await fetchHistorical(id, w, points);
+      }
+
+      if (liveData) {
+        if (rows.length === 0) {
+          rows.push({ timestamp: new Date().toISOString(), metrics: liveData });
+        } else {
+          rows[rows.length - 1].metrics = liveData;
+          rows[rows.length - 1].timestamp = new Date().toISOString();
+        }
+      } else if (w === 'live' && rows.length > 0) {
+        rows.pop();
+      }
+
       return rows;
     } catch (e: any) {
       console.error('stats history error', e);
@@ -2020,7 +2067,6 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'Historical stats', tags: ['Servers'] }
   });
 
-  // TODO: Actually fix this
   app.get(prefix + '/servers/:id/stats/node', async (ctx: any) => {
     const { id } = ctx.params as any;
     try {
