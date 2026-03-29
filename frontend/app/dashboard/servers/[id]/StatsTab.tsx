@@ -469,17 +469,34 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
           return
         }
 
-        const first = rows[0]?.metrics ?? {}
-        const last = rows[rows.length - 1]?.metrics ?? {}
+        const getDyn = (row: any, key: 'rx' | 'tx') => {
+          const net = row.metrics?.network ?? row.network ?? {}
+          return Number(net[`${key}_bytes`] ?? net[key] ?? 0)
+        }
 
-        const firstRx = first.network?.rx_bytes ?? first.network?.rx ?? 0
-        const firstTx = first.network?.tx_bytes ?? first.network?.tx ?? 0
-        const lastRx = last.network?.rx_bytes ?? last.network?.rx ?? 0
-        const lastTx = last.network?.tx_bytes ?? last.network?.tx ?? 0
+        let rxTotal = 0
+        let txTotal = 0
+
+        let prevRx = getDyn(rows[0], 'rx')
+        let prevTx = getDyn(rows[0], 'tx')
+
+        for (let i = 1; i < rows.length; i++) {
+          const currentRx = getDyn(rows[i], 'rx')
+          const currentTx = getDyn(rows[i], 'tx')
+
+          const deltaRx = currentRx - prevRx
+          const deltaTx = currentTx - prevTx
+
+          if (deltaRx > 0) rxTotal += deltaRx
+          if (deltaTx > 0) txTotal += deltaTx
+
+          prevRx = currentRx
+          prevTx = currentTx
+        }
 
         setSevenDayTraffic({
-          rx: Math.max(0, Number(lastRx) - Number(firstRx)),
-          tx: Math.max(0, Number(lastTx) - Number(firstTx)),
+          rx: Math.max(0, rxTotal),
+          tx: Math.max(0, txTotal),
         })
       } catch {
         if (active) setSevenDayTraffic({ rx: 0, tx: 0 })

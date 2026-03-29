@@ -27,15 +27,19 @@ export async function eggRoutes(app: any, prefix = '') {
   const repo = () => AppDataSource.getRepository(Egg);
 
   app.get(prefix + '/eggs', async (ctx) => {
-    const eggs = await repo().find({ where: { visible: true }, order: { name: 'ASC' } });
-    return eggs;
+    const user = (ctx as any).user;
+    const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*');
+    if (isAdmin) {
+      return await repo().find({ order: { name: 'ASC' } });
+    }
+    return await repo().find({ where: { visible: true }, order: { name: 'ASC' } });
   }, {
    beforeHandle: authenticate,
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
     },
-    detail: { summary: 'List visible eggs', tags: ['Eggs'] },
+    detail: { summary: 'List visible eggs (admins see all)', tags: ['Eggs'] },
   });
 
   app.get(prefix + '/eggs/:id', async (ctx) => {

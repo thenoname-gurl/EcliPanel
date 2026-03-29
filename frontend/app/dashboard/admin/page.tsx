@@ -1139,6 +1139,7 @@ export default function AdminPanel() {
   const [csMemory, setCsMemory] = useState("1024")
   const [csDisk, setCsDisk] = useState("10240")
   const [csCpu, setCsCpu] = useState("100")
+  const [csKvmPassthroughEnabled, setCsKvmPassthroughEnabled] = useState(false)
   const [csLoading, setCsLoading] = useState(false)
   const [csError, setCsError] = useState("")
 
@@ -1876,6 +1877,7 @@ export default function AdminPanel() {
     setCsMemory("1024")
     setCsDisk("10240")
     setCsCpu("100")
+    setCsKvmPassthroughEnabled(false)
     setCsError("")
     setCreateServerOpen(true)
   }
@@ -1894,6 +1896,7 @@ export default function AdminPanel() {
           memory: Number(csMemory),
           disk: Number(csDisk),
           cpu: Number(csCpu),
+          kvmPassthroughEnabled: !!csKvmPassthroughEnabled,
         }),
       })
       setCreateServerOpen(false)
@@ -9101,6 +9104,11 @@ Content-Type: application/json
                   <input type="number" min="5" value={csCpu} onChange={(e) => setCsCpu(e.target.value)}
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
+                <label htmlFor="cs-kvm-passthrough" className="text-sm text-foreground">Enable KVM passthrough</label>
               </div>
             </div>
             {csError && <p className="text-xs text-destructive">{csError}</p>}

@@ -85,7 +85,7 @@ export class WingsApiService {
   }
 
   async toggleKvm(serverId: string, enable: boolean) {
-    return axios.post(`${this.baseUrl}/servers/${serverId}/kvm`, { enable }, this.cfg());
+    return this.syncServer(serverId, { kvm_passthrough_enabled: Boolean(enable) });
   }
 
   async listServerFiles(serverId: string, directory: string = '/') {

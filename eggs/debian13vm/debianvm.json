@@ -1,0 +1,92 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2027-01-01T00:00:00+00:00",
+    "name": "QEMU - Debian 13 VM",
+    "author": "noname@ecli.app",
+    "description": "Run a full Debian 13 (Trixie) virtual machine using QEMU\/KVM. SSH is forwarded to the server's primary allocation port. Uses cloud images for automatic provisioning.",
+    "features": null,
+    "docker_images": {
+        "QEMU Debian 13": "thenoname/debian13:latest"
+    },
+    "file_denylist": [],
+    "startup": "echo \"Starting QEMU Debian 13 VM...\"",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"VM is ready\"\r\n}",
+        "logs": "{}",
+        "stop": "shutdown now"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!\/bin\/bash\r\necho \"Installation container ready. VM disk will be created on first boot.\"\r\nexit 0",
+            "container": "debian:bookworm-slim",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "VM Memory (MB)",
+            "description": "Amount of RAM allocated to the virtual machine in megabytes.",
+            "env_variable": "VM_MEMORY",
+            "default_value": "2048",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|numeric|min:512|max:65536",
+            "field_type": "text"
+        },
+        {
+            "name": "VM CPU Cores",
+            "description": "Number of CPU cores allocated to the virtual machine.",
+            "env_variable": "VM_CORES",
+            "default_value": "2",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|numeric|min:1|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "VM Disk Size",
+            "description": "Size of the virtual disk (e.g., 20G, 50G, 100G).",
+            "env_variable": "VM_DISK_SIZE",
+            "default_value": "20G",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:10",
+            "field_type": "text"
+        },
+        {
+            "name": "Root Password",
+            "description": "Root and debian user password for the VM. Change this!",
+            "env_variable": "ROOT_PASSWORD",
+            "default_value": "changeme",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|min:4|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Use Cloud Image",
+            "description": "Use cloud image for automatic provisioning (1=yes, 0=no\/use ISO).",
+            "env_variable": "USE_CLOUD_IMAGE",
+            "default_value": "1",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|in:0,1",
+            "field_type": "text"
+        },
+        {
+            "name": "Cloud Image URL",
+            "description": "URL to the Debian 13 cloud image (qcow2 format).",
+            "env_variable": "CLOUD_IMAGE_URL",
+            "default_value": "https:\/\/cloud.debian.org\/images\/cloud\/trixie\/daily\/latest\/debian-13-generic-amd64-daily.qcow2",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|url",
+            "field_type": "text"
+        }
+    ]
+}

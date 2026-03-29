@@ -13,9 +13,10 @@ Interested on how this project looks? Check out showcase [by clicking here](/SHO
 
 
 > ⚠️ **Open Source (Non‑Commercial Only)**  
-> This project is open source under a **non‑commercial license**.  
+> This project is open source under a **non‑commercial license**. 
 > The source code is fully available, but commercial use is restricted to  
 > **EclipseSystems (Misiu LLC)** and **Maksym Huzun**.
+> Overview: https://ecli.app/license and [LICENSE](/LICENSE)
 >
 > **AI Usage Transparency:**  
 > We maintain a strict *0% AI‑generated backend policy*.
