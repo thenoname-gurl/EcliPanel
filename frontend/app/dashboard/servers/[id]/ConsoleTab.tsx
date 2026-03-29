@@ -523,8 +523,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
     let retryCount = 0
     let lastAttempt = 0
     let isConnecting = false
-    const BASE_DELAY = 5000
-    const MAX_DELAY = 60000
+    const RECONNECT_DELAYS = [1000, 3000, 5000]
     const MAX_RETRIES = 10
 
     ;(async () => {
@@ -863,10 +862,8 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   return
                 }
                 if (reconnectTimer) return
-                const now = Date.now()
-                const sinceLast = now - (lastAttempt || 0)
-                const backoff = Math.min(BASE_DELAY * Math.pow(2, retryCount - 1), MAX_DELAY)
-                const delay = Math.max(backoff, sinceLast < 1000 ? BASE_DELAY : 0)
+                const idx = Math.min(retryCount - 1, RECONNECT_DELAYS.length - 1)
+                const delay = RECONNECT_DELAYS[idx]
                 term.writeln(`\x1b[33mReconnecting in ${Math.round(delay/1000)}s...\x1b[0m`)
                 reconnectTimer = setTimeout(() => {
                   reconnectTimer = null
