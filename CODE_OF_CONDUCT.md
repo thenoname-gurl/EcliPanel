@@ -1,7 +1,7 @@
 # EclipseSystems Community Code of Conduct
 Version 1.0 - 2026  
 A project of Misiu LLC  
-Authorized steward: Maksym Huzun (noname@eclipsesystems.org)
+Authorized steward: Maksym Huzun (noname@ecli.app)
 
 This project is built on respect, clarity, and professionalism. To maintain a
 safe and productive environment for all contributors and users, the following
@@ -40,7 +40,7 @@ and authorized stewards designated by Maksym Huzun.
 For general conduct concerns, please contact:
 
 **Maksym Huzun**  
-noname@eclipsesystems.org
+noname@ecli.app
 
 Reports will be handled confidentially and respectfully.
 

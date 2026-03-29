@@ -101,7 +101,7 @@ async function sendVerificationEmailToUser(user: User) {
   try {
     await sendMail({
       to: user.email,
-      from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
+      from: process.env.SMTP_FROM || 'noreply@ecli.app',
       subject: 'Verify your email - EcliPanel',
       template: 'email-verify',
       vars: { name: user.firstName || 'User', verifyUrl, code },
@@ -158,7 +158,7 @@ export async function userRoutes(app: any, prefix = '') {
       const verifyUrl = `${panelUrl}/verify-email?token=${token}`;
       await sendMail({
         to: user.email,
-        from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
+        from: process.env.SMTP_FROM || 'noreply@ecli.app',
         subject: 'Verify your email - EcliPanel',
         template: 'email-verify',
         vars: { name: user.firstName || 'User', verifyUrl, code },
@@ -374,7 +374,7 @@ export async function userRoutes(app: any, prefix = '') {
       try {
         await sendMail({
           to: oldEmail,
-          from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
+          from: process.env.SMTP_FROM || 'noreply@ecli.app',
           subject: 'Restore your previous email - EcliPanel',
           template: 'email-restore',
           vars: { name: user.firstName || 'User', restoreUrl, newEmail, oldEmail },

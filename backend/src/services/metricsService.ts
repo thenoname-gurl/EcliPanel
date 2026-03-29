@@ -1,6 +1,6 @@
 import { AppDataSource } from '../config/typeorm';
 import { SocData } from '../models/socData.entity';
-import { MoreThanOrEqual } from 'typeorm';
+import { MoreThanOrEqual, LessThan } from 'typeorm';
 
 function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {}) {
   if (obj == null) return out;
@@ -49,9 +49,21 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
     windowKey === 'live' ? 1 :
     60;
   const windowMs = minutes * 60_000;
-  const since = new Date(Date.now() - windowMs);
+
+  const now = Date.now();
+  const truncNow = Math.floor(now / 60_000) * 60_000;
+  const since = new Date(truncNow - windowMs);
+  const until = windowKey === 'live' ? new Date(now) : new Date(truncNow);
+
   const repo = AppDataSource.getRepository(SocData);
-  const rows = await repo.find({ where: { serverId, timestamp: MoreThanOrEqual(since) } as any, order: { timestamp: 'ASC' } });
+  const rows = await repo.find({
+    where: {
+      serverId,
+      timestamp: MoreThanOrEqual(since),
+      ...(windowKey === 'live' ? {} : { timestamp: LessThan(until) }),
+    } as any,
+    order: { timestamp: 'ASC' },
+  });
 
   if (!rows || rows.length === 0) return [];
 
@@ -59,7 +71,7 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
   const bucketSize = Math.max(1000, Math.ceil(windowMs / points));
   const buckets: Array<Record<string, { sum: number; count: number }>> = [];
   const bucketTimes: number[] = [];
-  const bucketCount = Math.ceil(windowMs / bucketSize) + 1;
+  const bucketCount = Math.ceil(windowMs / bucketSize);
   for (let i = 0; i < bucketCount; i++) {
     buckets.push({});
     bucketTimes.push(start + i * bucketSize);

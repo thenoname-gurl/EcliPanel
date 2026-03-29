@@ -65,11 +65,23 @@ const CHART_COLORS = {
   tx: "#ef4444",
 }
 
+function formatTimeValue(value: number | string) {
+  const ts = Number(value)
+  if (Number.isNaN(ts)) return String(value)
+  const d = new Date(ts)
+  const hasSeconds = d.getSeconds() !== 0
+  return d.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: hasSeconds ? '2-digit' : undefined,
+  })
+}
+
 function CustomTooltipContent({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   
   const fmtLabel = (typeof label === 'number' || /^\d{13}$/.test(String(label)))
-    ? new Date(Number(label)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? formatTimeValue(label)
     : String(label)
   
   const unitFor = (key: string) => (key === 'cpu' ? '%' : key.endsWith('MB') ? ' MB' : '')
@@ -113,7 +125,7 @@ function CpuChart({ data, recharts }: ChartProps) {
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
         <XAxis 
           dataKey="ts" 
-          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tickFormatter={(v: any) => formatTimeValue(v)} 
           tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
           tickLine={false} 
           axisLine={false}
@@ -160,7 +172,7 @@ function MemoryChart({ data, recharts }: ChartProps) {
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
         <XAxis 
           dataKey="ts" 
-          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tickFormatter={(v: any) => formatTimeValue(v)} 
           tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
           tickLine={false} 
           axisLine={false}
@@ -206,7 +218,7 @@ function DiskChart({ data, recharts }: ChartProps) {
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
         <XAxis 
           dataKey="ts" 
-          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tickFormatter={(v: any) => formatTimeValue(v)} 
           tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
           tickLine={false} 
           axisLine={false}
@@ -256,7 +268,7 @@ function NetworkChart({ data, recharts }: ChartProps) {
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
         <XAxis 
           dataKey="ts" 
-          tickFormatter={(v: any) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+          tickFormatter={(v: any) => formatTimeValue(v)} 
           tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} 
           tickLine={false} 
           axisLine={false}
@@ -380,9 +392,12 @@ function NodeInfoPanel({ nodeInfo }: NodeInfoProps) {
 export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   const [history, setHistory] = useState<any[]>([])
   const [live, setLive] = useState<any>(null)
+  const [liveResources, setLiveResources] = useState<any>(serverProp?.resources ?? null)
   const [nodeInfo, setNodeInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  const [sevenDayTraffic, setSevenDayTraffic] = useState({ rx: 0, tx: 0 })
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("1h")
   const [localPoints, setLocalPoints] = useState<ChartDataPoint[]>([])
   const [liveHistory, setLiveHistory] = useState<ChartDataPoint[]>([])
@@ -404,7 +419,14 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
         apiFetch(API_ENDPOINTS.serverStatsNode.replace(":id", serverId)).catch(() => null),
       ])
 
-      const points = timeWindow === "5m" ? 15 : timeWindow === "10m" ? 30 : 60
+      const points =
+        timeWindow === "5m" ? 60 :
+        timeWindow === "10m" ? 120 :
+        timeWindow === "1h" ? 720 :
+        timeWindow === "6h" ? 4320 :
+        timeWindow === "24h" ? 14400 :
+        timeWindow === "7d" ? 201600 :
+        60
       let histData: any[] = []
 
       if (timeWindow === "live") {
@@ -437,7 +459,60 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   }, [loadData])
 
   useEffect(() => {
-    const r = serverProp?.resources
+    let active = true
+
+    const load7DayTraffic = async () => {
+      try {
+        const rows = await apiFetch(API_ENDPOINTS.serverStatsHistory.replace(':id', serverId) + '?window=7d&points=168').catch(() => [])
+        if (!active || !Array.isArray(rows) || rows.length < 2) {
+          if (active) setSevenDayTraffic({ rx: 0, tx: 0 })
+          return
+        }
+
+        const first = rows[0]?.metrics ?? {}
+        const last = rows[rows.length - 1]?.metrics ?? {}
+
+        const firstRx = first.network?.rx_bytes ?? first.network?.rx ?? 0
+        const firstTx = first.network?.tx_bytes ?? first.network?.tx ?? 0
+        const lastRx = last.network?.rx_bytes ?? last.network?.rx ?? 0
+        const lastTx = last.network?.tx_bytes ?? last.network?.tx ?? 0
+
+        setSevenDayTraffic({
+          rx: Math.max(0, Number(lastRx) - Number(firstRx)),
+          tx: Math.max(0, Number(lastTx) - Number(firstTx)),
+        })
+      } catch {
+        if (active) setSevenDayTraffic({ rx: 0, tx: 0 })
+      }
+    }
+
+    load7DayTraffic()
+    const interval = setInterval(load7DayTraffic, 5 * 60 * 1000)
+
+    return () => { active = false; clearInterval(interval) }
+  }, [serverId])
+
+  useEffect(() => {
+    setLiveResources(serverProp?.resources ?? null)
+  }, [serverProp?.resources])
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const detail = await apiFetch(API_ENDPOINTS.serverDetail.replace(":id", serverId))
+        if (detail?.resources) {
+          setLiveResources(detail.resources)
+        }
+      } catch {
+        // skip
+      }
+    }, 8000)
+
+    return () => clearInterval(interval)
+  }, [serverId])
+
+  useEffect(() => {
+    const r = liveResources
     if (!r || (r.cpu_absolute == null && r.memory_bytes == null)) return
     
     const point: ChartDataPoint = {
@@ -491,7 +566,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
       const ts = new Date(entry.timestamp).getTime()
       
       return {
-        time: new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        time: formatTimeValue(entry.timestamp),
         ts,
         cpu: Number(cpu.toFixed ? cpu.toFixed(1) : cpu),
         memMB: Math.round(memBytes / 1024 / 1024),
@@ -503,14 +578,17 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   }, [history])
 
   const preferredLiveSource = useMemo(() => {
-    if (serverProp?.resources && (serverProp.resources.cpu_absolute != null || serverProp.resources.memory_bytes != null)) {
-      return serverProp.resources
+    if (liveResources && (liveResources.cpu_absolute != null || liveResources.memory_bytes != null)) {
+      return liveResources
     }
     if (live && (live.cpu_absolute != null || live.memory_bytes != null)) {
       return live
     }
+    if (serverProp?.resources && (serverProp.resources.cpu_absolute != null || serverProp.resources.memory_bytes != null)) {
+      return serverProp.resources
+    }
     return null
-  }, [live, serverProp?.resources])
+  }, [liveResources, live, serverProp?.resources])
 
   const livePoint = useMemo<ChartDataPoint | null>(() => {
     const source = preferredLiveSource
@@ -520,7 +598,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
     }
 
     return {
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: formatTimeValue(Date.now()),
       ts: Date.now(),
       cpu: Number((source.cpu_absolute ?? source.proc?.cpu?.total ?? 0).toFixed ? (source.cpu_absolute ?? source.proc?.cpu?.total ?? 0).toFixed(1) : (source.cpu_absolute ?? source.proc?.cpu?.total ?? 0)),
       memMB: Math.round((source.memory_bytes ?? source.proc?.memory?.total ?? 0) / 1024 / 1024),
@@ -535,18 +613,12 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
       return liveHistory
     }
 
-    const base = chartData.length > 0 ? chartData : localPoints
-    if (!livePoint) return base
-
-    if (base.length === 0) return [livePoint]
-
-    const last = base[base.length - 1]
-    if (Math.abs(livePoint.ts - last.ts) < 60000) {
-      return [...base.slice(0, -1), livePoint]
+    if (chartData.length > 0) {
+      return chartData
     }
 
-    return [...base, livePoint]
-  }, [timeWindow, chartData, localPoints, liveHistory, livePoint])
+    return localPoints
+  }, [timeWindow, chartData, localPoints, liveHistory])
 
   const liveSource = preferredLiveSource
   
@@ -617,6 +689,20 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
           label="Net ↓" 
           value={formatBytes(liveNetRx)} 
           color={CHART_COLORS.rx} 
+        />
+      </CardGrid>
+
+      {/* Total Traffic */}
+      <CardGrid columns={2}>
+        <MiniStat
+          label="7d Download Traffic"
+          value={formatBytes(sevenDayTraffic.rx)}
+          color={CHART_COLORS.rx}
+        />
+        <MiniStat
+          label="7d Upload Traffic"
+          value={formatBytes(sevenDayTraffic.tx)}
+          color={CHART_COLORS.tx}
         />
       </CardGrid>
 

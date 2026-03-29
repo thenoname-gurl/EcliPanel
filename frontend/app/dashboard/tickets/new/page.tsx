@@ -70,7 +70,7 @@ export default function NewTicketPage() {
 
             {user?.supportBanned && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                You are banned from creating support tickets. Reason: {user.supportBanReason || 'No reason provided'}. Contact contact@eclipsesystems.org to appeal.
+                You are banned from creating support tickets. Reason: {user.supportBanReason || 'No reason provided'}. Contact contact@ecli.app to appeal.
               </div>
             )}
 

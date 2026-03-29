@@ -379,8 +379,8 @@ export default function WingsStatusPage() {
         <footer className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
           <p className="font-mono text-xs text-purple-400/50">
             Need help? Email{" "}
-            <a href="mailto:contact@eclipsesystems.org" className="text-pink-400 hover:underline">
-              contact@eclipsesystems.org
+            <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
+              contact@ecli.app
             </a>{" "}
             or go to{" "}
             <Link href="/dashboard" className="text-pink-400 hover:underline">
