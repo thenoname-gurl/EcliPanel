@@ -401,8 +401,8 @@ export default function Error({
         <footer className="rounded-lg border border-red-500/20 bg-black/40 p-6 backdrop-blur-sm">
           <p className="font-mono text-xs text-red-400/50">
             Persistent errors? Email{" "}
-            <a href="mailto:contact@eclipsesystems.org" className="text-pink-400 hover:underline">
-              contact@eclipsesystems.org
+            <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
+              contact@ecli.app
             </a>{" "}
             or return to{" "}
             <Link href="/" className="text-pink-400 hover:underline">

@@ -249,7 +249,7 @@ export default function Home() {
             <div className="text-purple-400">
               <p className="text-gray-500">eclipse@systems ~ % ./connect --community</p>
               <p className="mt-2"><span className="text-pink-400">INIT</span> handshake...</p>
-              <p><span className="text-pink-400">RESOLVING:</span> eclipsesystems.org</p>
+              <p><span className="text-pink-400">RESOLVING:</span> ecli.app</p>
               <p>
                 <span className="text-pink-400">STATUS:</span>{' '}
                 <span className={
@@ -431,8 +431,8 @@ export default function Home() {
         <footer id="contact" className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
           <p className="font-mono text-xs text-purple-400/50">
             Want a custom setup? Email{" "}
-            <a href="mailto:contact@eclipsesystems.org" className="text-pink-400 hover:underline">
-              contact@eclipsesystems.org
+            <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
+              contact@ecli.app
             </a>{" "}
             or go to{" "}
             <Link href="/dashboard" className="text-pink-400 hover:underline">

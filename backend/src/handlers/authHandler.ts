@@ -291,7 +291,7 @@ export async function authRoutes(app: any, prefix = '') {
     const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
     await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
     try {
-      await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code } });
+      await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@ecli.app', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code } });
     } catch (err) { ctx.log?.error?.({ err }, 'Failed to send TFA email'); }
     return { success: true };
   }, {
@@ -509,7 +509,7 @@ export async function authRoutes(app: any, prefix = '') {
     try {
       await sendMail({
         to: user.email,
-        from: process.env.SMTP_FROM || 'noreply@eclipsesystems.org',
+        from: process.env.SMTP_FROM || 'noreply@ecli.app',
         subject: 'Verify your email — EcliPanel',
         template: 'email-verify',
         vars: { name: user.firstName || 'User', verifyUrl, code },

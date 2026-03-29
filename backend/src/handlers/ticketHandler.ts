@@ -488,7 +488,7 @@ Rules:
         const dir = empty();
         dir.spam = true;
         dir.internalNote = `Intent classifier flagged as spam. Summary: ${intent.summary}`;
-        await apply('This ticket has been flagged and closed. If you believe this is an error, please contact contact@eclipsesystems.org.', dir);
+        await apply('This ticket has been flagged and closed. If you believe this is an error, please contact contact@ecli.app.', dir);
         return;
       }
 
@@ -503,12 +503,12 @@ Rules:
 
 **What you can check from the panel while you wait:**
 1. **Panel action:** Go to /wings — confirm the affected node shows as offline/unavailable.
-2. **Panel action:** Check https://status.eclipsesystems.org/ for any known ongoing incidents.
+2. **Panel action:** Check https://status.ecli.app/ for any known ongoing incidents.
 3. **Panel action:** Go to /dashboard/servers — check if all your servers on that node show as offline.
 
 Our team will investigate and provide an update as soon as possible. You do not need to take any further action — we'll reply here with a status update.
 
-If you need immediate assistance, you can also reach us at contact@eclipsesystems.org.`;
+If you need immediate assistance, you can also reach us at contact@ecli.app.`;
         await apply(outageReply, dir);
         return;
       }
@@ -550,12 +550,12 @@ Panel navigation reference:
 - /dashboard/activity — activity logs
 - /infrastructure/code-instances — code server instances
 - /wings — node status overview
-- Status page: https://status.eclipsesystems.org/
-- Sales/support email: contact@eclipsesystems.org
-- Legal email: legal@eclipsesystems.org
+- Status page: https://status.ecli.app/
+- Sales/support email: contact@ecli.app
+- Legal email: legal@ecli.app
 - Main panel: https://ecli.app/
-- Official domains: ecli.app, eclipsesystems.org, eclipsesystems.top
-- Node domains: n[number].eclipsesystems.org (e.g. n1.eclipsesystems.org)
+- Official domains: ecli.app, ecli.app, eclipsesystems.top
+- Node domains: n[number].ecli.app (e.g. n1.ecli.app)
 
 Plan catalog:
 ${planSummary}
@@ -565,7 +565,7 @@ Student plan activation:
 2. Click "Connect with Hack Club" (or GitHub if configured)
 3. Complete OAuth consent
 4. System verifies eligibility and converts to educational portal
-5. If not approved, submit documentation to contact@eclipsesystems.org
+5. If not approved, submit documentation to contact@ecli.app
 
 Reply guidelines:
 - Provide 2-5 numbered panel-level steps with exact page paths and button names.
@@ -701,12 +701,12 @@ Review the reply for these issues and output JSON:
 Check for:
 1. Shell/SSH/terminal/root commands (systemctl, docker, sudo, etc) — these are FORBIDDEN.
 2. Invented information not supported by the ticket context.
-3. Links to domains other than ecli.app, eclipsesystems.org, eclipsesystems.top, or status.eclipsesystems.org.
+3. Links to domains other than ecli.app, ecli.app, eclipsesystems.top, or status.ecli.app.
 4. Promises about refunds, SLAs, uptime guarantees the AI shouldn't make.
 5. Reply is too short to be helpful (< 2 sentences) or too verbose.
 6. References to "SSH access", "root access", "terminal", "command line" in any form.
 
-Official domains: ecli.app, eclipsesystems.org, eclipsesystems.top
+Official domains: ecli.app, ecli.app, eclipsesystems.top
 Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /infrastructure/*`;
 
         const stage4Messages = [
@@ -942,7 +942,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
               const isUrgent = Boolean(parsed?.urgent) || Boolean(parsed?.high) || /urgent/i.test(raw) || /high priority/i.test(raw);
               if (!isUrgent) {
                 const now = new Date();
-                const note = sanitizeForDb('This ticket appears to be outside free-plan support. If you need urgent or high-priority support please upgrade your plan at /dashboard/billing or contact sales at contact@eclipsesystems.org. The ticket has been closed.');
+                const note = sanitizeForDb('This ticket appears to be outside free-plan support. If you need urgent or high-priority support please upgrade your plan at /dashboard/billing or contact sales at contact@ecli.app. The ticket has been closed.');
                 if (!Array.isArray(saved.messages)) saved.messages = [];
                 saved.messages.push({ sender: 'staff', message: note, created: now, ai: true });
                 saved.adminReply = note;

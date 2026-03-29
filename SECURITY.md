@@ -1,7 +1,7 @@
 # EclipseSystems Security Policy
 Version 1.1 - 2026  
 A project of Misiu LLC  
-Authorized steward: Maksym Huzun (noname@eclipsesystems.org)
+Authorized steward: Maksym Huzun (noname@ecli.app)
 
 Security is a core priority for EclipseSystems. We welcome responsible
 disclosure of vulnerabilities and appreciate the efforts of security
@@ -16,9 +16,9 @@ responsibly.
 
 Instead, send a detailed report to:
 
-**security@eclipsesystems.org** (24h SLA) 
+**security@ecli.app** (24h SLA) 
 or  
-**noname@eclipsesystems.org**
+**noname@ecli.app**
 or 
 **Github Security Advisory**
 

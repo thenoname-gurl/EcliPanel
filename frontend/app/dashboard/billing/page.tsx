@@ -270,7 +270,7 @@ export default function BillingPage() {
                 description={activePlan.plan.description || "Plan applied by administrator"}
                 action={
                   <a
-                    href="mailto:sales@eclipsesystems.org"
+                    href="mailto:sales@ecli.app"
                     className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
                   >
                     Manage Subscription
@@ -327,7 +327,7 @@ export default function BillingPage() {
               description="Your active plan and features. To upgrade or change, contact your administrator."
               action={
                 <a
-                  href="mailto:sales@eclipsesystems.org"
+                  href="mailto:sales@ecli.app"
                   className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
                 >
                   Request Change
@@ -389,7 +389,7 @@ export default function BillingPage() {
                     )}
                     {!planCard.isActive && planCard.type !== 'free' && planCard.type !== 'educational' && (
                       <a
-                        href="mailto:sales@eclipsesystems.org"
+                        href="mailto:sales@ecli.app"
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
                         Contact Sales

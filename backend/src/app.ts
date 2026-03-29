@@ -31,7 +31,7 @@ const app = new Elysia()
         description: 'EcliPanel Backend documentation',
         contact: {
           name: 'EclipseSystems Support',
-          email: 'contact@eclipsesystems.org',
+          email: 'contact@ecli.app',
           url: 'https://ecli.app',
         },
       },
