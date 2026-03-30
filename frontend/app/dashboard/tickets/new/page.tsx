@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Send } from "lucide-react"
 import { PanelHeader } from "@/components/panel/header"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
@@ -40,9 +41,10 @@ export default function NewTicketPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <PanelHeader title="New Ticket" description="Submit a support request" />
-      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
+    <FeatureGuard feature="ticketing">
+      <div className="flex h-screen flex-col bg-background">
+        <PanelHeader title="New Ticket" description="Submit a support request" />
+        <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="mx-auto max-w-2xl p-6 space-y-6">
           {/* Back */}
           <button
@@ -177,5 +179,6 @@ export default function NewTicketPage() {
         </div>
       </ScrollArea>
     </div>
+    </FeatureGuard>
   )
 }

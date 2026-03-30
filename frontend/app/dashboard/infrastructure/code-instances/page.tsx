@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { PanelHeader } from "@/components/panel/header"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -99,9 +100,10 @@ export default function CodeInstancesPage() {
   }
 
   return (
-    <>
-      <ScrollArea className="h-screen">
-      <PanelHeader title="Code Instances" description="Temporary Code-Server instances; inactive instances are deleted after 30 minutes of inactivity." />
+    <FeatureGuard feature="codeInstances">
+      <>
+        <ScrollArea className="h-screen">
+        <PanelHeader title="Code Instances" description="Temporary Code-Server instances; inactive instances are deleted after 30 minutes of inactivity." />
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">Temporary Code-Server instances allows you to run a temporary development environment.</div>
@@ -187,5 +189,6 @@ export default function CodeInstancesPage() {
       </div>
     </ScrollArea>
     </>
+  </FeatureGuard>
   )
 }

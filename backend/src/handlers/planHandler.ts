@@ -3,6 +3,7 @@ import { t } from 'elysia';
 import { Plan } from '../models/plan.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { requireFeature } from '../middleware/featureToggle';
 
 function isAdmin(ctx: any): boolean {
   const user = (ctx as any).user as User | undefined;
@@ -14,7 +15,8 @@ function isAdmin(ctx: any): boolean {
 export async function planRoutes(app: any, prefix = '') {
   const planRepo = () => AppDataSource.getRepository(Plan);
 
-  app.get(prefix + '/plans', async (_ctx) => {
+  app.get(prefix + '/plans', async (ctx) => {
+    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const plans = await planRepo().find({ order: { price: 'ASC' } });
     return plans;
   }, {
@@ -23,6 +25,7 @@ export async function planRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/plans/:id', async (ctx) => {
+    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
@@ -39,6 +42,7 @@ export async function planRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const plans = await planRepo().find({ order: { price: 'ASC' } });
     return plans;
   }, {

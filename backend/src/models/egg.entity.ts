@@ -68,6 +68,9 @@ export class Egg {
   visible: boolean;
 
   @Column({ default: false })
+  requiresKvm: boolean;
+
+  @Column({ default: false })
   rootless: boolean;
 
   @CreateDateColumn()

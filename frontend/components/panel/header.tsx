@@ -2,20 +2,53 @@
 
 import { Bell, Search, Command, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { PORTALS, NAVIGATION, API_ENDPOINTS } from "@/lib/panel-config"
+import { PORTALS, NAVIGATION, API_ENDPOINTS, type NavItem, type FeatureFlag, type PortalTier } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { apiFetch } from "@/lib/api-client"
 
-const ALL_PAGES = NAVIGATION.flatMap((section) =>
-  section.items.map((item: any) => ({
+type SearchPageItem = {
+  label: string
+  href: string
+  section: string
+  requiredTier?: PortalTier
+  feature?: FeatureFlag
+  badge?: string
+}
+
+const ALL_PAGES: SearchPageItem[] = NAVIGATION.flatMap((section) =>
+  section.items.map((item) => ({
     label: item.label,
     href: item.href,
     section: section.title,
+    requiredTier: item.requiredTier,
+    feature: item.feature,
+    badge: item.badge,
   }))
 )
+
+const tierOrder: Record<string, number> = { free: 0, basic: 1, pro: 1, paid: 1, educational: 1, enterprise: 2 }
+
+function isUserAllowedByPlan(item: { requiredTier?: PortalTier }, userTier?: string): boolean {
+  if (!item.requiredTier) return true
+  const userTierRank = tierOrder[userTier ?? "free"] ?? 0
+  const requiredRank = tierOrder[item.requiredTier] ?? 0
+  return userTierRank >= requiredRank
+}
+
+function toBool(value: any): boolean {
+  if (value === false || value === 'false' || value === 0 || value === '0') return false
+  return value === true || value === 'true' || value === 1 || value === '1' || Boolean(value)
+}
+
+function isItemVisible(item: SearchPageItem | NavItem, user: any, featureToggles: Record<FeatureFlag, boolean>): boolean {
+  if (item.badge === 'Staff' && !(user?.role === 'admin' || user?.role === 'rootAdmin' || user?.role === '*')) return false
+  if (item.feature && !toBool(featureToggles[item.feature])) return false
+  if (!isUserAllowedByPlan(item, user?.tier)) return false
+  return true
+}
 
 export function PanelHeader({
   title,
@@ -28,6 +61,16 @@ export function PanelHeader({
   const router = useRouter()
   const portal = PORTALS[user?.tier as keyof typeof PORTALS] ?? PORTALS.free
 
+  const [featureToggles, setFeatureToggles] = useState<Record<FeatureFlag, boolean>>({
+    registration: true,
+    codeInstances: true,
+    billing: true,
+    ai: true,
+    dns: true,
+    ticketing: true,
+    oauth: true,
+  })
+
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
@@ -37,6 +80,59 @@ export function PanelHeader({
   const [notifLoading, setNotifLoading] = useState(false)
   const notifRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.panelSettings)
+      .then((data) => {
+        if (data?.featureToggles && typeof data.featureToggles === "object") {
+          setFeatureToggles((prev) => ({
+            ...prev,
+            ...data.featureToggles,
+          }))
+        }
+      })
+      .catch(() => {
+        // skippy
+      })
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        const incoming = e?.detail?.featureToggles ?? e?.detail ?? null
+        if (!incoming || typeof incoming !== 'object') return
+        setFeatureToggles((prev) => ({
+          ...prev,
+          ...Object.entries(incoming).reduce((acc: any, [k, v]) => {
+            acc[k] = toBool(v)
+            return acc
+          }, {}),
+        }))
+      } catch (err) {
+        // skip
+      }
+    }
+
+    window.addEventListener('panelSettingsUpdated', handler as EventListener)
+
+    const id = setInterval(() => {
+      apiFetch(API_ENDPOINTS.panelSettings)
+        .then((data) => {
+          if (data?.featureToggles && typeof data.featureToggles === "object") {
+            setFeatureToggles((prev) => ({
+              ...prev,
+              ...data.featureToggles,
+            }))
+          }
+        })
+        .catch(() => {})
+    }, 15000)
+
+    return () => {
+      window.removeEventListener('panelSettingsUpdated', handler as EventListener)
+      clearInterval(id)
+    }
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -92,14 +188,16 @@ export function PanelHeader({
     }
   }, [notifOpen, user, notifications.length])
 
+  const visiblePages = ALL_PAGES.filter((p) => isItemVisible(p, user, featureToggles))
+
   const filteredPages =
     searchQuery.length > 0
-      ? ALL_PAGES.filter(
+      ? visiblePages.filter(
           (p) =>
             p.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.section.toLowerCase().includes(searchQuery.toLowerCase())
         )
-      : ALL_PAGES.slice(0, 8)
+      : visiblePages.slice(0, 8)
 
   return (
     <>
@@ -157,7 +255,7 @@ export function PanelHeader({
             {notifOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-[999] bg-background/60 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none"
+                  className="fixed inset-0 z-[200001] bg-background/60 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none"
                   onClick={() => setNotifOpen(false)}
                 />
 
@@ -166,7 +264,7 @@ export function PanelHeader({
                     notifRef.current = el
                   }}
                   className="
-                    fixed inset-x-3 top-[60px] z-[1000]
+                    fixed inset-x-3 top-[60px] z-[200002]
                     sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2
                     w-auto sm:w-80
                     rounded-xl border border-border bg-card

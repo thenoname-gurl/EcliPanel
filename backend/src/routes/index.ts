@@ -25,8 +25,58 @@ import { serverSubuserRoutes } from '../handlers/serverSubuserHandler';
 import { wsProxyRoutes } from '../handlers/wsProxyHandler';
 import { sshKeyRoutes } from '../handlers/sshKeyHandler';
 import { publicRoutes } from '../handlers/publicHandler';
+import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
+
 export function registerRoutes(app: any) {
+    app.onRequest(async (ctx: any) => {
+      const requestUrl = String(ctx.request.url || '');
+      let path = requestUrl;
+      try {
+        path = new URL(requestUrl, 'http://localhost').pathname;
+      } catch {
+        // skip
+      }
+
+      const checks: Array<{ prefix: string; feature: string; matcher?: (p: string) => boolean }> = [
+        { prefix: '/api/ai', feature: 'ai' },
+        { prefix: '/api/tickets', feature: 'ticketing' },
+        { prefix: '/api/admin/tickets', feature: 'ticketing' },
+        { prefix: '/api/orders', feature: 'billing' },
+        { prefix: '/api/admin/orders', feature: 'billing' },
+        { prefix: '/api/plans', feature: 'billing' },
+        { prefix: '/api/infrastructure/code-instances', feature: 'codeInstances' },
+        { prefix: '/api/oauth', feature: 'oauth' },
+        { prefix: '/api/users/register', feature: 'registration' },
+      ];
+
+      for (const check of checks) {
+        if (path.startsWith(check.prefix)) {
+          const enabled = await isFeatureEnabled(check.feature);
+          if (!enabled) {
+            ctx.set.status = 503;
+            return { error: `Feature '${check.feature}' is disabled` };h
+          }
+        }
+      }
+
+      if (path.startsWith('/api/organisations/') && path.includes('/dns/')) {
+        const enabled = await isFeatureEnabled('dns');
+        if (!enabled) {
+          ctx.set.status = 503;
+          return { error: "Feature 'dns' is disabled" };
+        }
+      }
+
+      if (path.startsWith('/.well-known/oauth-authorization-server')) {
+        const enabled = await isFeatureEnabled('oauth');
+        if (!enabled) {
+          ctx.set.status = 503;
+          return { error: "Feature 'oauth' is disabled" };
+        }
+      }
+    });
+
     app.get('/favicon.ico', () => new Response(null, { status: 204 }));
     userRoutes(app, '/api');
     sessionRoutes(app, '/api');

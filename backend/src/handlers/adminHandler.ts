@@ -27,6 +27,7 @@ import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
 import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel } from '../utils/eu';
+import { getPanelFeatureToggles } from '../utils/featureToggles';
 import path from 'path';
 import fs from 'fs';
 
@@ -2297,12 +2298,14 @@ isSuspicious: true if fraudScore >= 50`;
     if (map['portalDescriptions']) {
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
+    const featureToggles = await getPanelFeatureToggles();
     return {
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
       portalDescriptions: portalDescriptions || null,
       codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
       geoBlockCountries: map['geoBlockCountries'] || '',
+      featureToggles,
     };
   }, {
     response: {
@@ -2315,6 +2318,16 @@ isSuspicious: true if fraudScore >= 50`;
     detail: { summary: 'Fetch public portal settings', tags: ['Admin'] },
   });
 
+  app.get(prefix + '/public/features', async (_ctx) => {
+    const featureToggles = await getPanelFeatureToggles();
+    return { featureToggles };
+  }, {
+    response: {
+      200: t.Object({ featureToggles: t.Record(t.String(), t.Boolean()) }),
+    },
+    detail: { summary: 'Public feature flags (no auth)', tags: ['Public'] },
+  });
+
   app.get(prefix + '/admin/settings', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
@@ -2325,11 +2338,14 @@ isSuspicious: true if fraudScore >= 50`;
     if (map['portalDescriptions']) {
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
+    const featureToggles = await getPanelFeatureToggles();
     return {
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
+      codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
       portalDescriptions: portalDescriptions || null,
       geoBlockCountries: map['geoBlockCountries'] || '',
+      featureToggles,
     };
   }, {
     beforeHandle: authenticate,
@@ -2337,7 +2353,10 @@ isSuspicious: true if fraudScore >= 50`;
       200: t.Object({
         registrationEnabled: t.Boolean(),
         registrationNotice: t.String(),
+        codeInstancesEnabled: t.Boolean(),
         portalDescriptions: t.Optional(t.Any()),
+        geoBlockCountries: t.String(),
+        featureToggles: t.Record(t.String(), t.Boolean()),
         geoBlockCountries: t.String(),
       }),
       401: t.Object({ error: t.String() }),
@@ -2441,6 +2460,11 @@ isSuspicious: true if fraudScore >= 50`;
     if (body.portalDescriptions !== undefined) {
       await repo.save({ key: 'portalDescriptions', value: JSON.stringify(body.portalDescriptions) });
     }
+    if (body.featureToggles !== undefined) {
+      const current = await getPanelFeatureToggles();
+      const merged = { ...current, ...(body.featureToggles || {}) };
+      await repo.save({ key: 'panelFeatureToggles', value: JSON.stringify(merged) });
+    }
     const rows = await repo.find();
     const map: Record<string, string> = {};
     for (const r of rows) map[r.key] = r.value;
@@ -2448,6 +2472,7 @@ isSuspicious: true if fraudScore >= 50`;
     if (map['portalDescriptions']) {
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
+    const featureToggles = await getPanelFeatureToggles();
     return {
       success: true,
       settings: {
@@ -2456,6 +2481,7 @@ isSuspicious: true if fraudScore >= 50`;
         portalDescriptions: portalDescriptions || null,
         codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
         geoBlockCountries: map['geoBlockCountries'] || '',
+        featureToggles,
       },
     };
   }, {
@@ -2467,6 +2493,7 @@ isSuspicious: true if fraudScore >= 50`;
         portalDescriptions: t.Optional(t.Any()),
         codeInstancesEnabled: t.Optional(t.Boolean()),
         geoBlockCountries: t.Optional(t.String()),
+        featureToggles: t.Optional(t.Record(t.String(), t.Boolean())),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), settings: t.Any() }),

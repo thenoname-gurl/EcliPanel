@@ -1095,6 +1095,7 @@ export default function AdminPanel() {
   const [eggInstallEntrypoint, setEggInstallEntrypoint] = useState("bash")
   const [eggInstallScript, setEggInstallScript] = useState("")
   const [eggRootless, setEggRootless] = useState(false)
+  const [eggRequiresKvm, setEggRequiresKvm] = useState(false)
   const [eggLoading, setEggLoading] = useState(false)
   const [syncingEggIds, setSyncingEggIds] = useState<number[]>([])
 
@@ -1169,7 +1170,22 @@ export default function AdminPanel() {
     registrationNotice: string
     codeInstancesEnabled: boolean
     geoBlockCountries: string
-  }>({ registrationEnabled: true, registrationNotice: "", codeInstancesEnabled: true, geoBlockCountries: "" })
+    featureToggles: Record<string, boolean>
+  }>({
+    registrationEnabled: true,
+    registrationNotice: "",
+    codeInstancesEnabled: true,
+    geoBlockCountries: "",
+    featureToggles: {
+      registration: true,
+      codeInstances: true,
+      billing: true,
+      ai: true,
+      dns: true,
+      ticketing: true,
+      oauth: true,
+    },
+  })
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [geoBlockMetrics, setGeoBlockMetrics] = useState<any | null>(null)
@@ -1289,6 +1305,15 @@ export default function AdminPanel() {
               codeInstancesEnabled:
                 data.codeInstancesEnabled === "false" ? false : Boolean(data.codeInstancesEnabled),
               geoBlockCountries: data.geoBlockCountries ?? "",
+              featureToggles: {
+                registration: true,
+                codeInstances: true,
+                billing: true,
+                ai: true,
+                dns: true,
+                ticketing: true,
+                ...(data.featureToggles || {}),
+              },
             })
           }
 
@@ -2325,6 +2350,7 @@ remote: ${panelUrl}`
     setEggProcessStop("stop"); setEggProcessDone("")
     setEggInstallContainer(""); setEggInstallEntrypoint("bash"); setEggInstallScript("")
     setEggRootless(false)
+    setEggRequiresKvm(false)
   }
 
   function openEditEgg(egg: AdminEgg) {
@@ -2351,6 +2377,7 @@ remote: ${panelUrl}`
     setEggInstallEntrypoint(egg.installScript?.entrypoint || "bash")
     setEggInstallScript(egg.installScript?.script || "")
     setEggRootless(Boolean(egg.rootless))
+    setEggRequiresKvm(Boolean(egg.requiresKvm))
   }
 
   async function saveEgg() {
@@ -2406,6 +2433,7 @@ remote: ${panelUrl}`
       fileDenylist: fileDenylist.length ? fileDenylist : undefined,
       allowedPortals: eggAllowedPortals,
       rootless: eggRootless,
+      requiresKvm: eggRequiresKvm,
       visible: eggVisible,
     }
     try {
@@ -2762,30 +2790,32 @@ remote: ${panelUrl}`
                 { value: "users", label: "Users" },
                 { value: "organisations", label: "Organisations" },
                 { value: "servers", label: "Servers" },
-                { value: "tickets", label: "Tickets" },
+                { value: "tickets", label: "Tickets", feature: "ticketing" },
                 { value: "verifications", label: "KYC" },
                 { value: "deletions", label: "Deletions" },
                 { value: "nodes", label: "Nodes" },
                 { value: "eggs", label: "Eggs" },
-                { value: "ai", label: "AI Models" },
+                { value: "ai", label: "AI Models", feature: "ai" },
                 { value: "announcements", label: "Announcements" },
                 { value: "fraud", label: "Fraud" },
                 { value: "roles", label: "Roles" },
                 { value: "logs", label: "Logs" },
-                { value: "oauth", label: "OAuth" },
+                { value: "oauth", label: "OAuth", feature: "oauth" },
                 { value: "databases", label: "Databases" },
                 { value: "plans", label: "Plans" },
                 { value: "orders", label: "Orders" },
                 { value: "settings", label: "Settings" },
-              ].map((t) => (
-                <TabsTrigger
-                  key={t.value}
-                  value={t.value}
-                  className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap"
-                >
-                  {t.label}
-                </TabsTrigger>
-              ))}
+              ]
+                .filter((t) => !t.feature || panelSettings.featureToggles[t.feature])
+                .map((t) => (
+                  <TabsTrigger
+                    key={t.value}
+                    value={t.value}
+                    className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap"
+                  >
+                    {t.label}
+                  </TabsTrigger>
+                ))}
             </TabsList>
 
             {/* ═══════════════ USERS ══════════════════════════════════════════ */}
@@ -8089,6 +8119,14 @@ Content-Type: application/json
                             body: JSON.stringify(panelSettings),
                           })
                           if (data?.settings) setPanelSettings(data.settings)
+                          try {
+                            const fresh = await apiFetch(API_ENDPOINTS.panelSettings)
+                            const toggles = fresh?.featureToggles ?? data?.featureToggles ?? data?.settings?.featureToggles ?? panelSettings?.featureToggles
+                            if (fresh?.featureToggles && typeof fresh.featureToggles === 'object') {
+                              setPanelSettings((s) => ({ ...s, featureToggles: { ...(s.featureToggles || {}), ...(fresh.featureToggles || {}) } }))
+                            }
+                            window.dispatchEvent(new CustomEvent('panelSettingsUpdated', { detail: { featureToggles: toggles } }))
+                          } catch (err) {}
                           setSettingsSaved(true)
                           setTimeout(() => setSettingsSaved(false), 3000)
                           setGeoBlockMetricsLoading(true)
@@ -8173,6 +8211,41 @@ Content-Type: application/json
                       >
                         <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.codeInstancesEnabled ? "translate-x-5" : "translate-x-0"}`} />
                       </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-card p-4 col-span-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { key: 'ai', label: 'AI', note: 'AI control plane and models' },
+                        { key: 'billing', label: 'Billing', note: 'Order and plan management' },
+                        { key: 'dns', label: 'DNS', note: 'Organisation DNS zone management' },
+                        { key: 'ticketing', label: 'Ticketing', note: 'Support tickets and chat logs' },
+                        { key: 'oauth', label: 'OAuth', note: 'OAuth client and token server' },
+                      ].map((t) => (
+                        <div key={t.key} className="rounded-lg border border-border p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{t.label}</p>
+                              <p className="text-xs text-muted-foreground">{t.note}</p>
+                            </div>
+                            <button
+                              onClick={() => setPanelSettings((s) => ({
+                                ...s,
+                                featureToggles: {
+                                  ...s.featureToggles,
+                                  [t.key]: !s.featureToggles[t.key],
+                                },
+                              }))}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles[t.key] ? 'bg-green-500' : 'bg-secondary'}`}
+                              role="switch"
+                              aria-checked={panelSettings.featureToggles[t.key]}
+                            >
+                              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles[t.key] ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -8620,6 +8693,14 @@ Content-Type: application/json
                             body: JSON.stringify(panelSettings),
                           })
                           if (data?.settings) setPanelSettings(data.settings)
+                          try {
+                            const fresh = await apiFetch(API_ENDPOINTS.panelSettings)
+                            const toggles = fresh?.featureToggles ?? data?.featureToggles ?? data?.settings?.featureToggles ?? panelSettings?.featureToggles
+                            if (fresh?.featureToggles && typeof fresh.featureToggles === 'object') {
+                              setPanelSettings((s) => ({ ...s, featureToggles: { ...(s.featureToggles || {}), ...(fresh.featureToggles || {}) } }))
+                            }
+                            window.dispatchEvent(new CustomEvent('panelSettingsUpdated', { detail: { featureToggles: toggles } }))
+                          } catch (err) {}
                           setSettingsSaved(true)
                           setTimeout(() => setSettingsSaved(false), 3000)
                           setGeoBlockMetricsLoading(true)
@@ -10147,6 +10228,10 @@ Content-Type: application/json
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={eggRootless} onChange={(e) => setEggRootless(e.target.checked)} className="accent-primary" />
                   <span className="text-sm text-foreground">Launch in rootless mode</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={eggRequiresKvm} onChange={(e) => setEggRequiresKvm(e.target.checked)} className="accent-primary" />
+                  <span className="text-sm text-foreground">Requires KVM (enables KVM virtualization for this template)</span>
                 </label>
               </>
             )}

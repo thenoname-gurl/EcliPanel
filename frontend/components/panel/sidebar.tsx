@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,7 +13,8 @@ import {
   Mail,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { NAVIGATION, BRAND, type NavItem } from "@/lib/panel-config"
+import { NAVIGATION, BRAND, type NavItem, API_ENDPOINTS } from "@/lib/panel-config"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -82,10 +83,93 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
 
   const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
 
+  const toBool = (value: any): boolean => {
+    if (value === false || value === 'false' || value === 0 || value === '0') return false
+    return value === true || value === 'true' || value === 1 || value === '1' || Boolean(value)
+  }
+
+  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>({
+    registration: true,
+    codeInstances: true,
+    billing: true,
+    ai: true,
+    dns: true,
+    ticketing: true,
+    oauth: true,
+  })
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.panelSettings)
+      .then((data) => {
+        if (data?.featureToggles && typeof data.featureToggles === 'object') {
+          setFeatureToggles((prev) => ({
+            registration: true,
+            codeInstances: true,
+            billing: true,
+            ai: true,
+            dns: true,
+            ticketing: true,
+            oauth: true,
+            ...prev,
+            ...Object.entries(data.featureToggles).reduce((acc: any, [k, v]) => {
+              acc[k] = toBool(v)
+              return acc
+            }, {}),
+          }))
+        }
+      })
+      .catch(() => {
+        // skip
+      })
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        const incoming = e?.detail?.featureToggles ?? e?.detail ?? null
+        if (!incoming || typeof incoming !== 'object') return
+        setFeatureToggles((prev) => ({
+          ...prev,
+          ...Object.entries(incoming).reduce((acc: any, [k, v]) => {
+            acc[k] = toBool(v)
+            return acc
+          }, {}),
+        }))
+      } catch (err) {
+        // SWALLOW THE MALLLOW /j
+      }
+    }
+
+    window.addEventListener('panelSettingsUpdated', handler as EventListener)
+
+    const id = setInterval(() => {
+      apiFetch(API_ENDPOINTS.panelSettings)
+        .then((data) => {
+          if (data?.featureToggles && typeof data.featureToggles === 'object') {
+            setFeatureToggles((prev) => ({
+              ...prev,
+              ...Object.entries(data.featureToggles).reduce((acc: any, [k, v]) => {
+                acc[k] = toBool(v)
+                return acc
+              }, {}),
+            }))
+          }
+        })
+        .catch(() => {})
+    }, 15000)
+
+    return () => {
+      window.removeEventListener('panelSettingsUpdated', handler as EventListener)
+      clearInterval(id)
+    }
+  }, [])
+
   const isLocked = (item: NavItem) => {
     if (!user) return false
 
     if (item.badge === 'Staff' && !isAdmin) return true
+
+    if (item.feature && !toBool(featureToggles[item.feature])) return true
 
     if (!item.requiredTier) return false
 
@@ -143,7 +227,11 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
       <ScrollArea className="min-h-0 flex-1 py-3">
         <nav className="flex flex-col gap-1 px-3">
           {NAVIGATION.map((section) => {
-            const visibleItems = section.items.filter((item) => !(item.badge === 'Staff' && !isAdmin));
+            const visibleItems = section.items.filter((item) => {
+              if (item.badge === 'Staff' && !isAdmin) return false
+              if (item.feature && !toBool(featureToggles[item.feature])) return false
+              return true
+            })
             if (visibleItems.length === 0) return null
 
             return (

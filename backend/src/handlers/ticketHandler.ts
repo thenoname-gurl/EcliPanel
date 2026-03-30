@@ -3,6 +3,7 @@ import { Ticket } from '../models/ticket.entity';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 import axios from 'axios';
+import { requireFeature } from '../middleware/featureToggle';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
 import { AIModelOrg } from '../models/aiModelOrg.entity';
@@ -785,6 +786,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
   };
 
   app.get(prefix + '/tickets', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ticketing'); if (f !== true) return f;
     const user = ctx.user;
     const statusFilter = String(ctx.query?.status || '').toLowerCase();
     const priorityFilter = String(ctx.query?.priority || '').toLowerCase();
@@ -857,6 +859,8 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
   });
 
   app.get(prefix + '/tickets/stats', async (ctx: any) => {
+    requireFeature(ctx, 'ticketing');
+
     const allTickets = await repo.find();
     const nonSpam = allTickets.filter((t: any) => !(t as any).aiMarkedSpam);
 

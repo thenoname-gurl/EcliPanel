@@ -2,22 +2,14 @@ import { AppDataSource } from '../config/typeorm';
 import { t } from 'elysia';
 import { SshKey } from '../models/sshKey.entity';
 import { authenticate } from '../middleware/auth';
+import {
+  parseSshPublicKey,
+  fingerprintSshPublicKey,
+  isSupportedSshKeyType,
+} from '../utils/sshKey';
 
 function sshKeyRepo() {
   return AppDataSource.getRepository(SshKey);
-}
-
-async function fingerprintPublicKey(publicKey: string): Promise<string | null> {
-  try {
-    const crypto = require('crypto');
-    const parts = publicKey.trim().split(/\s+/);
-    if (parts.length < 2) return null;
-    const keyMaterial = Buffer.from(parts[1], 'base64');
-    const hash = crypto.createHash('sha256').update(keyMaterial).digest('base64').replace(/=+$/, '');
-    return `SHA256:${hash}`;
-  } catch {
-    return null;
-  }
 }
 
 export async function sshKeyRoutes(app: any, prefix = '') {
@@ -42,13 +34,17 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     }
 
     const trimmed = publicKey.trim();
+    const parsed = parseSshPublicKey(trimmed);
 
-    if (!/^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519|sk-ecdsa-sha2-nistp256)\s/.test(trimmed)) {
+    if (!parsed || !isSupportedSshKeyType(parsed.type)) {
       ctx.set.status = 400;
-      return { error: 'Invalid public key format. Supported types: ssh-rsa, ssh-ed25519, ecdsa-sha2-nistp256/384/521' };
+      return {
+        error:
+          'Invalid public key format. Supported types: ssh-rsa, ssh-ed25519, ecdsa-sha2-nistp256/384/521, sk-ssh-ed25519, sk-ecdsa-sha2-nistp256, and Openssh certificates',
+      };
     }
 
-    const fingerprint = await fingerprintPublicKey(trimmed);
+    const fingerprint = fingerprintSshPublicKey(trimmed);
 
     const existing = await sshKeyRepo().findOneBy({ userId: (ctx as any).user.id, fingerprint: fingerprint ?? undefined });
     if (existing) {

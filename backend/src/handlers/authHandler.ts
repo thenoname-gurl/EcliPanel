@@ -627,7 +627,8 @@ export async function authRoutes(app: any, prefix = '') {
 
     let payload: any;
     try {
-      payload = JSON.parse(data);
+      const jsonString = typeof data === 'string' ? data : data?.toString?.('utf8') || '';
+      payload = JSON.parse(jsonString);
     } catch (e) {
       ctx.set.status = 400;
       return { error: 'Invalid restore data' };
@@ -1164,7 +1165,8 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');
       await redisDel(`hackclub-student-state:${state}`);
       const panelUrl = getPanelUrl(ctx);
-      ctx.set.redirect = `${panelUrl}/dashboard/identity?studentVerified=0`;
+      ctx.set.status = 302;
+      ctx.set.headers['Location'] = `${panelUrl}/dashboard/identity?studentVerified=0`;
       return;
     }
 
@@ -1205,7 +1207,8 @@ export async function authRoutes(app: any, prefix = '') {
 
     await redisDel(`hackclub-student-state:${state}`);
     const panelUrl = getPanelUrl(ctx);
-    ctx.set.redirect = `${panelUrl}/?studentVerified=1`;
+    ctx.set.status = 302;
+    ctx.set.headers['Location'] = `${panelUrl}/?studentVerified=1`;
     return;
   }, {
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },

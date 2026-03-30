@@ -4,6 +4,7 @@ import { AIModelUser } from '../models/aiModelUser.entity';
 import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
+import { requireFeature } from '../middleware/featureToggle';
 import axios from 'axios';
 import { redisClient } from '../config/redis';
 import { createActivityLog } from './logHandler';
@@ -117,6 +118,7 @@ export async function aiRoutes(app: any, prefix = '') {
   }
 
   app.post(prefix + '/ai/models', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAdmin(ctx);
     if (adminCheck !== true) return adminCheck;
     const body = ctx.body as Partial<AIModel>;
@@ -129,6 +131,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/ai/models', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const models = await modelRepo.find();
     const safe = models.map((m: any) => {
       const { apiKey, endpoint, ...rest } = m || {};
@@ -142,6 +145,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/ai/models/:id/link-user', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAdmin(ctx);
     if (adminCheck !== true) return adminCheck;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
@@ -172,6 +176,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/ai/models/:id/link-org', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAdmin(ctx);
     if (adminCheck !== true) return adminCheck;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
@@ -194,6 +199,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/ai/my-models', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const links = await modelUserRepo.find({ where: { user: { id: user.id } }, relations: ['model'] });
     const models = links.map((l) => {
@@ -214,6 +220,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/ai/use', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const { modelId, tokens = 0, requests = 0 } = ctx.body as any;
     let limits: any = {};
@@ -256,6 +263,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/ai/chat', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const { message, modelId, systemPrompt, history } = ctx.body as any;
     if (!message) {
@@ -315,6 +323,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/ai/openai/v1/chat/completions', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const body = ctx.body || {};
 
@@ -370,6 +379,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/ai/openai/v1/completions', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const body = ctx.body || {};
 
@@ -425,6 +435,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.all(prefix + '/ai/proxy/:id/*', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
       ctx.set.status = 404;
@@ -493,6 +504,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/ai/models', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAdmin(ctx);
     if (adminCheck !== true) return adminCheck;
     const models = await modelRepo.find();
@@ -503,6 +515,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/ai/cooldowns', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAdmin(ctx);
     if (adminCheck !== true) return adminCheck;
     try {

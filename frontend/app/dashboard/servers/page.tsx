@@ -134,6 +134,8 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [disk, setDisk] = useState<number>(10240)
   const [cpu, setCpu] = useState<number>(100)
   const [kvmPassthroughEnabled, setKvmPassthroughEnabled] = useState<boolean>(false)
+  const [startup, setStartup] = useState<string>("")
+  const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([])
 
   const rawPlanName = (user as any)?.portalType || user?.tier || "free"
   const planName = ["educational", "edu"].includes(String(rawPlanName).toLowerCase()) ? "educational" : String(rawPlanName).toLowerCase()
@@ -175,6 +177,32 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
       .finally(() => setNodesLoading(false))
   }, [])
 
+  useEffect(() => {
+    try {
+      const sel = eggs.find((e) => String(e.id) === String(eggId)) as any
+      if (sel) {
+        if (sel.requiresKvm || sel.requires_kvm) {
+          setKvmPassthroughEnabled(true)
+        }
+        setStartup(sel.startup || "")
+
+        const defaults = Array.isArray(sel.envVars) ? sel.envVars : []
+        const parsedEnv = defaults.map((entry: any) => {
+          if (typeof entry === "string") {
+            const [key, ...rest] = entry.split("=")
+            return { key: (key || "").trim(), value: rest.join("=").trim() }
+          }
+          const key = entry?.env_variable || entry?.key || entry?.name || ""
+          const value = entry?.default_value ?? entry?.defaultValue ?? entry?.value ?? ""
+          return { key: String(key), value: String(value) }
+        })
+        setEnvVars(parsedEnv)
+      }
+    } catch {
+      // skip
+    }
+  }, [eggId, eggs])
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) { setError("Server name is required."); return }
@@ -182,6 +210,31 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
     setCreating(true)
     setError(null)
     try {
+      const sel = eggs.find((e) => String(e.id) === String(eggId)) as any
+      const defaultStartup = sel ? sel.startup || "" : ""
+      const finalStartup = defaultStartup
+      const finalKvm = (sel && (sel.requiresKvm || sel.requires_kvm)) ? true : (isAdmin ? kvmPassthroughEnabled : undefined)
+
+      const envObject: Record<string, string> = {}
+
+      const eggVars = Array.isArray(sel?.envVars) ? sel.envVars : []
+      for (const entry of eggVars as any[]) {
+        if (typeof entry === "string") {
+          const [key, ...rest] = entry.split("=")
+          if (key) envObject[key.trim()] = rest.join("=").trim()
+          continue
+        }
+        const key = entry?.env_variable || entry?.key || entry?.name
+        const value = entry?.default_value ?? entry?.defaultValue ?? entry?.value ?? ""
+        if (key) envObject[String(key)] = String(value)
+      }
+
+      for (const row of envVars) {
+        if (row.key.trim()) {
+          envObject[row.key.trim()] = row.value
+        }
+      }
+
       await apiFetch(API_ENDPOINTS.servers, {
         method: "POST",
         body: JSON.stringify({
@@ -191,7 +244,9 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
           disk,
           cpu,
           nodeId,
-          kvmPassthroughEnabled: isAdmin ? kvmPassthroughEnabled : undefined,
+          kvmPassthroughEnabled: finalKvm,
+          startup: finalStartup,
+          environment: envObject,
         }),
       })
       onCreated()
@@ -230,6 +285,8 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
   const canCreate = name.trim() && eggId && !eggsLoading && eggs.length > 0 && !nodesLoading && nodes.length > 0 &&
     (user ? (user.emailVerified && (user.passkeyCount ?? 0) > 0) : true)
+
+  const selectedEgg = eggs.find((e) => String(e.id) === String(eggId)) as any
 
   return (
     <div
@@ -345,6 +402,62 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
               </div>
             </div>
 
+            {/* Startup */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Startup Command</label>
+              <textarea
+                value={startup}
+                readOnly
+                rows={1}
+                className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                placeholder="Using egg default startup command"
+              />
+              <p className="text-[10px] text-muted-foreground/80">This is default startup command for the selected egg.</p>
+            </div>
+
+            {/* Environment */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Environment Variables</label>
+                <button
+                  type="button"
+                  onClick={() => setEnvVars((prev) => [...prev, { key: "", value: "" }])}
+                  className="px-2 py-1 text-xs rounded-lg border border-border/50 bg-muted/30 text-foreground hover:bg-muted/50"
+                >
+                  Add variable
+                </button>
+              </div>
+              {envVars.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No environment variables configured. Add one to override defaults or define new values.</p>
+              ) : (
+                <div className="space-y-2">
+                  {envVars.map((row, idx) => (
+                    <div key={`env-${idx}`} className="grid grid-cols-12 gap-2">
+                      <input
+                        value={row.key}
+                        onChange={(e) => setEnvVars((prev) => prev.map((item, i) => i === idx ? { ...item, key: e.target.value } : item))}
+                        placeholder="KEY"
+                        className="col-span-5 rounded-xl border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                      />
+                      <input
+                        value={row.value}
+                        onChange={(e) => setEnvVars((prev) => prev.map((item, i) => i === idx ? { ...item, value: e.target.value } : item))}
+                        placeholder="value"
+                        className="col-span-6 rounded-xl border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEnvVars((prev) => prev.filter((_, i) => i !== idx))}
+                        className="col-span-1 rounded-xl border border-border/50 text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Resources */}
             <div data-guide-id="new-server-resources" className="space-y-4 rounded-2xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/20 p-4 sm:p-5">
               <div className="flex items-center gap-2">
@@ -426,7 +539,12 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
               )}
             </div>
 
-            {isAdmin && (
+            {selectedEgg && (selectedEgg.requiresKvm || selectedEgg.requires_kvm) ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-foreground">
+                <input id="new-server-kvm" type="checkbox" checked={true} disabled className="h-4 w-4 rounded border-border bg-secondary/50 text-primary" />
+                <label htmlFor="new-server-kvm">KVM Virtualization (required)</label>
+              </div>
+            ) : isAdmin ? (
               <div className="flex items-center justify-center gap-2 text-sm text-foreground">
                 <input
                   id="new-server-kvm"
@@ -435,9 +553,9 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                   onChange={(e) => setKvmPassthroughEnabled(e.target.checked)}
                   className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
                 />
-                <label htmlFor="new-server-kvm">Enable KVM Passthrough</label>
+                <label htmlFor="new-server-kvm">Enable KVM Virtualization</label>
               </div>
-            )}
+            ) : null}
             <p className="text-[11px] text-muted-foreground/70 text-center">
               A port will be auto-assigned from the node&apos;s allocation pool.
             </p>

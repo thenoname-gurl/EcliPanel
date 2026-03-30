@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { PanelHeader } from "@/components/panel/header"
 import { StatusBadge, StatCard } from "@/components/panel/shared"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/api-client"
@@ -102,8 +103,9 @@ export default function TicketsPage() {
 
 
   return (
-    <>
-      <PanelHeader title="Support Tickets" description="Manage your support requests" />
+    <FeatureGuard feature="ticketing">
+      <>
+        <PanelHeader title="Support Tickets" description="Manage your support requests" />
       {user?.supportBanned && (
         <div className="mx-6 my-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           You are banned from creating or interacting with support tickets. Reason: {user?.supportBanReason || 'No reason provided'}. Contact contact@ecli.app to appeal.
@@ -228,5 +230,6 @@ export default function TicketsPage() {
         </div>
       </ScrollArea>
     </>
+  </FeatureGuard>
   )
 }

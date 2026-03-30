@@ -278,6 +278,7 @@ export const API_ENDPOINTS = {
   adminEggs: "/api/admin/eggs",
   adminSettings: "/api/admin/settings",
   panelSettings: "/api/panel/settings",
+  publicFeatures: "/api/public/features",
   adminEggDetail: "/api/admin/eggs/:id",
   adminEggImport: "/api/admin/eggs/import",
 
@@ -367,12 +368,15 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
+export type FeatureFlag = 'registration' | 'codeInstances' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'oauth'
+
 export interface NavItem {
   label: string
   href: string
   icon: LucideIcon
   badge?: string
   requiredTier?: PortalTier
+  feature?: FeatureFlag
   children?: NavItem[]
 }
 
@@ -415,6 +419,7 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/infrastructure/code-instances",
         icon: Server,
         requiredTier: "educational",
+        feature: "codeInstances",
       },
       {
         label: "Nodes",
@@ -433,11 +438,13 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/ai-studio",
         icon: Sparkles,
         requiredTier: "paid",
+        feature: "ai",
       },
       {
         label: "AI Chat",
         href: "/dashboard/ai-chat",
         icon: MessageSquare,
+        feature: "ai",
       },
     ],
   },
@@ -449,6 +456,7 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/tickets",
         icon: Ticket,
         requiredTier: "free",
+        feature: "ticketing",
       },
     ],
   },
@@ -464,6 +472,7 @@ export const NAVIGATION: NavSection[] = [
         label: "Billing",
         href: "/dashboard/billing",
         icon: CreditCard,
+        feature: "billing",
       },
       {
         label: "Settings",

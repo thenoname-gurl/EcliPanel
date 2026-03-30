@@ -474,10 +474,6 @@ export async function serverRoutes(app: any, prefix = '') {
     let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled } = body;
 
     const ownerId: number = (userId && isAdmin) ? userId : user.id;
-    if (kvmPassthroughEnabled && !isAdmin) {
-      ctx.set.status = 403;
-      return { error: 'Only admins may enable KVM during creation' };
-    }
 
     kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
 
@@ -603,6 +599,14 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Egg not found' };
     }
+
+    if (egg.requiresKvm) {
+      kvmPassthroughEnabled = true;
+    } else if (kvmPassthroughEnabled && !isAdmin) {
+      ctx.set.status = 403;
+      return { error: 'Only admins may enable KVM during creation' };
+    }
+
     if (!egg.visible && !isAdmin && egg.id !== 264) {
       ctx.set.status = 403;
       return { error: 'Egg not available' };
@@ -701,10 +705,13 @@ export async function serverRoutes(app: any, prefix = '') {
     const envOverrides: Record<string, string> = body.environment || {};
     Object.assign(envObject, envOverrides);
 
-    const resolvedStartup = egg.startup.replace(
-      /\{\{([^}]+)\}\}/g,
-      (_: string, varName: string) => envObject[varName.trim()] ?? '',
-    );
+    const requestedStartup = typeof body.startup === 'string' ? body.startup.trim() : '';
+    const resolvedStartup = requestedStartup || (typeof egg.startup === 'string'
+      ? egg.startup.replace(
+          /\{\{([^}]+)\}\}/g,
+          (_: string, varName: string) => envObject[varName.trim()] ?? '',
+        )
+      : '');
 
     const wingsPayload = {
       uuid: serverUuid,
@@ -787,6 +794,27 @@ export async function serverRoutes(app: any, prefix = '') {
   app.put(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { memory, disk, cpu, swap, environment, name, kvmPassthroughEnabled } = ctx.body as any;
+
+    const user = ctx.user;
+    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+
+    if (kvmPassthroughEnabled !== undefined && !isAdmin) {
+      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+      const existing = await cfgRepo.findOneBy({ uuid: id });
+      const eggRepoInstance = AppDataSource.getRepository(require('../models/egg.entity').Egg);
+      const egg = existing?.eggId ? await eggRepoInstance.findOneBy({ id: existing.eggId }) : null;
+
+      if (egg?.requiresKvm) {
+        if (!kvmPassthroughEnabled) {
+          ctx.set.status = 403;
+          return { error: 'This egg requires KVM and it cannot be disabled.' };
+        }
+      } else {
+        ctx.set.status = 403;
+        return { error: 'Only admins may modify KVM passthrough on an existing server.' };
+      }
+    }
+
     try {
       const svc = await serviceFor(id);
 

@@ -2,6 +2,7 @@
 
 import { PanelHeader } from "@/components/panel/header"
 import { SectionHeader } from "@/components/panel/shared"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { useEffect, useState, useRef } from "react"
@@ -158,8 +159,9 @@ export default function AIStudioPage() {
   }
 
   return (
-    <>
-      <PanelHeader title="AI Studio" description="AI-powered tools for server management" />
+    <FeatureGuard feature="ai">
+      <>
+        <PanelHeader title="AI Studio" description="AI-powered tools for server management" />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
 
@@ -360,5 +362,6 @@ export default function AIStudioPage() {
         </div>
       </ScrollArea>
     </>
+  </FeatureGuard>
   )
 }

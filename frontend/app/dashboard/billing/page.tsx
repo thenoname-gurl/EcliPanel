@@ -2,6 +2,7 @@
 
 import { PanelHeader } from "@/components/panel/header"
 import { StatCard, SectionHeader } from "@/components/panel/shared"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { PORTALS, API_ENDPOINTS } from "@/lib/panel-config"
@@ -196,8 +197,9 @@ export default function BillingPage() {
   const showDemoPanel = !!user && (demoActive || (!demoUsed && !isEnterprisePortal))
 
   return (
-    <>
-      <div data-guide-id="billing-panel">
+    <FeatureGuard feature="billing">
+      <>
+        <div data-guide-id="billing-panel">
         <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
       </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
@@ -468,5 +470,6 @@ export default function BillingPage() {
         </div>
       </ScrollArea>
     </>
+  </FeatureGuard>
   )
 }

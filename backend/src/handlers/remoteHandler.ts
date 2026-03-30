@@ -37,6 +37,7 @@ import { Node } from '../models/node.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { UserLog } from '../models/userLog.entity';
 import { User } from '../models/user.entity';
+import { parseSshPublicKey, fingerprintSshPublicKey, isSupportedSshKeyType } from '../utils/sshKey';
 import { Egg } from '../models/egg.entity';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
@@ -533,7 +534,10 @@ export async function remoteRoutes(app: any, prefix: string) {
       // ID LOOKS UGLY SO LETS JUST USE EMAIL, ALSO USERNAME IS A BIT MISLEADING BECAUSE 
       // ITS NOT REALLY A USERNAME ITS AN EMAIL BUT WHATEVER
       const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ email: userPart });
+      const user = await userRepo
+        .createQueryBuilder('user')
+        .where('LOWER(user.email) = LOWER(:email)', { email: userPart })
+        .getOne();
       if (!user) {
         ctx.set.status = 403;
         return { errors: [{ code: 'Forbidden', detail: 'Unknown user' }] };
@@ -552,37 +556,25 @@ export async function remoteRoutes(app: any, prefix: string) {
         const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
 
         const submittedKey = password.trim();
-        const submittedParts = submittedKey.split(/\s+/);
-        if (submittedParts.length < 2) {
+        const parsedSubmitted = parseSshPublicKey(submittedKey);
+
+        if (!parsedSubmitted || !isSupportedSshKeyType(parsedSubmitted.type)) {
           ctx.set.status = 403;
           return { errors: [{ code: 'Forbidden', detail: 'Invalid public key format' }] };
         }
 
-        const submittedType = submittedParts[0];
-        const submittedMaterial = submittedParts[1];
-
-        function keyFingerprint(key: string): string | null {
-          try {
-            const keyParts = key.trim().split(/\s+/);
-            if (keyParts.length < 2) return null;
-            const keyMaterial = Buffer.from(keyParts[1], 'base64');
-            const hash = crypto.createHash('sha256').update(keyMaterial).digest('base64').replace(/=+$/, '');
-            return `SHA256:${hash}`;
-          } catch {
-            return null;
-          }
-        }
-
-        const submittedFinger = keyFingerprint(submittedKey);
+        const submittedFinger = fingerprintSshPublicKey(submittedKey);
 
         const matched = userKeys.some((k: any) => {
-          const storedKey = k.publicKey?.trim() ?? '';
-          const storedParts = storedKey.split(/\s+/);
-          const storedMaterial = storedParts[1] ?? '';
+          const storedKey = (k.publicKey ?? '').trim();
+          const parsedStored = parseSshPublicKey(storedKey);
+          if (!parsedStored) return false;
+
           if (k.fingerprint && submittedFinger && k.fingerprint === submittedFinger) {
             return true;
           }
-          return storedParts[0] === submittedType && storedMaterial === submittedMaterial;
+
+          return parsedStored.type === parsedSubmitted.type && parsedStored.material === parsedSubmitted.material;
         });
 
         if (!matched) {

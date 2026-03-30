@@ -30,6 +30,7 @@ import { OAuthAuthCode } from '../models/oauthAuthCode.entity';
 import { OAuthToken } from '../models/oauthToken.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { requireFeature } from '../middleware/featureToggle';
 import { hashPassword, comparePassword } from '../utils/password';
 
 function randomToken(bytes = 32) {
@@ -70,7 +71,8 @@ const REFRESH_TOKEN_TTL = 30 * 86400;
 const AUTH_CODE_TTL = 600;
 
 export async function oauthWellKnownRoutes(app: any, prefix = '') {
-  app.get(prefix + '/.well-known/oauth-authorization-server', async (_ctx) => {
+  app.get(prefix + '/.well-known/oauth-authorization-server', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const base = process.env.PANEL_API_URL || process.env.PANEL_URL || 'https://panel.ecli.app';
     return {
       issuer: base,
@@ -98,6 +100,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   const tokenRepo = AppDataSource.getRepository(OAuthToken);
 
   app.post(prefix + '/oauth/apps', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const owner = (ctx as any).user as User;
     const {
       name,
@@ -169,6 +172,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/oauth/apps', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const apps = await appRepo.find({
       where: { owner: { id: user.id } },
@@ -193,6 +197,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/oauth/apps/:clientId', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const { clientId } = ctx.params as any;
     const oauthApp = await appRepo.findOne({ where: { clientId }, relations: ['owner'] });
     if (!oauthApp || !oauthApp.active) {
@@ -216,6 +221,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/oauth/apps/:id', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const id = Number(ctx.params['id']);
     const oauthApp = await appRepo.findOne({ where: { id }, relations: ['owner'] });
@@ -247,6 +253,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/oauth/apps/:id/rotate-secret', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const id = Number(ctx.params['id']);
     const oauthApp = await appRepo.findOne({ where: { id }, relations: ['owner'] });
@@ -275,6 +282,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/oauth/apps/:id', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const id = Number(ctx.params['id']);
     const oauthApp = await appRepo.findOne({ where: { id }, relations: ['owner'] });
@@ -295,6 +303,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/oauth/authorize', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const {
       client_id,
       redirect_uri,
@@ -362,6 +371,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/oauth/authorize', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const {
       client_id,
@@ -428,6 +438,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/oauth/token', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const body = ctx.body as any;
     const { grant_type } = body;
 
@@ -640,6 +651,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/oauth/token/revoke', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const { token, client_id, client_secret } = ctx.body as any;
     if (!token || !client_id || !client_secret) {
       ctx.set.status = 400;
@@ -682,6 +694,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/oauth/userinfo', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const oauthToken = (ctx as any).oauthToken as OAuthToken | undefined;
     const user = (ctx as any).user as User | undefined;
 
@@ -737,6 +750,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/oauth/token/introspect', async (ctx) => {
+    const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const { token, client_id, client_secret } = ctx.body as any;
     if (!token || !client_id || !client_secret) {
       ctx.set.status = 400;

@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { Order } from '../models/order.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
+import { requireFeature } from '../middleware/featureToggle';
 import { t } from 'elysia';
 import PDFDocument from 'pdfkit';
 import stream from 'stream';
@@ -143,6 +144,7 @@ export async function orderRoutes(app: any, prefix = '') {
   const orderRepo = AppDataSource.getRepository(Order);
 
   app.post(prefix + '/orders', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const user = ctx.user as any;
     const body = ctx.body as Partial<Order>;
 
@@ -173,6 +175,7 @@ export async function orderRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/orders', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const user = ctx.user as any;
     let rows: any[] = [];
     if (user.org && (user.orgRole === 'admin' || user.orgRole === 'owner')) {

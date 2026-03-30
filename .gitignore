@@ -56,3 +56,6 @@ frontend/public/assets/icons/*.mp4
 
 # Legal Documents
 *.pdf
+
+# Systemd unit files
+systemd/*

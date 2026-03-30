@@ -4,6 +4,7 @@ import { OrganisationDnsZone } from '../models/organisationDnsZone.entity';
 import { OrganisationInvite } from '../models/organisationInvite.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
+import { requireFeature } from '../middleware/featureToggle';
 import { User } from '../models/user.entity';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -134,6 +135,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/organisations/:id/dns/zones', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;
@@ -164,6 +166,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/organisations/:id/dns/zones', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;
@@ -206,6 +209,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/organisations/:id/dns/zones/:zoneId', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;
@@ -269,6 +273,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/organisations/:id/dns/zones/:zoneId/records', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     try {
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
       if (!org) {
@@ -337,6 +342,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/organisations/:id/dns/zones/:zoneId/records/:recordId', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     try {
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
       if (!org) {
@@ -406,6 +412,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/organisations/:id/dns/zones/:zoneId/records/:recordId', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;
@@ -442,6 +449,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/organisations/:id/dns/zones/:zoneId', async (ctx: any) => {
+    const f = await requireFeature(ctx, 'dns'); if (f !== true) return f;
     const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;

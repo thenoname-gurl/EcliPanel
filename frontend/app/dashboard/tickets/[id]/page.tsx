@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/panel/shared"
 import { PanelHeader } from "@/components/panel/header"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -715,8 +716,9 @@ export default function TicketDetailPage({
   )
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Top-level flex container: full height, no scroll on the page itself */}
+    <FeatureGuard feature="ticketing">
+      <div className="h-full flex flex-col overflow-hidden">
+        {/* Top-level flex container: full height, no scroll on the page itself */}
       <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Main Column */}
         <div className="flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden">
@@ -1150,5 +1152,6 @@ export default function TicketDetailPage({
         }
       `}</style>
     </div>
+    </FeatureGuard>
   )
 }

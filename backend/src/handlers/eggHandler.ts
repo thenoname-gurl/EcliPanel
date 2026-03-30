@@ -89,12 +89,12 @@ export async function eggRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/admin/eggs', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { name, description, dockerImage, startup, envVars, configFiles, visible, allowedPortals, rootless } = ctx.body as any;
+    const { name, description, dockerImage, startup, envVars, configFiles, visible, allowedPortals, rootless, requiresKvm } = ctx.body as any;
     if (!name || !dockerImage || !startup) {
       ctx.set.status = 400;
       return { error: 'name, dockerImage and startup are required' };
     }
-    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true, allowedPortals, rootless: !!rootless });
+    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true, allowedPortals, rootless: !!rootless, requiresKvm: !!requiresKvm });
     await repo().save(egg);
     ctx.set.status = 201;
 
@@ -150,6 +150,7 @@ export async function eggRoutes(app: any, prefix = '') {
       envVars, configFiles, processConfig, installScript, features,
       fileDenylist, updateUrl, visible, allowedPortals,
       rootless,
+      requiresKvm,
     } = ctx.body as any;
     if (name !== undefined) egg.name = name;
     if (description !== undefined) egg.description = description;
@@ -167,6 +168,7 @@ export async function eggRoutes(app: any, prefix = '') {
     if (visible !== undefined) egg.visible = visible;
     if (allowedPortals !== undefined) egg.allowedPortals = allowedPortals;
     if (rootless !== undefined) egg.rootless = !!rootless;
+    if (requiresKvm !== undefined) egg.requiresKvm = !!requiresKvm;
 
     await repo().save(egg);
 
@@ -427,6 +429,7 @@ export async function eggRoutes(app: any, prefix = '') {
       fileDenylist,
       updateUrl,
       rootless: Boolean(raw?.meta?.rootless ?? raw?.rootless ?? false),
+      requiresKvm: Boolean(raw?.requires_kvm ?? raw?.requiresKvm ?? false),
       visible: true,
     });
 

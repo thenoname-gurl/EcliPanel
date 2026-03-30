@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { FeatureGuard } from "@/components/panel/feature-guard"
 
 export default function DnsPage() {
   const router = useRouter()
@@ -19,5 +20,9 @@ export default function DnsPage() {
     router.replace('/dashboard/organisations')
   }, [user, router])
 
-  return <div className="p-6 text-sm text-muted-foreground">Redirecting to organisation DNS…</div>
+  return (
+    <FeatureGuard feature="dns">
+      <div className="p-6 text-sm text-muted-foreground">Redirecting to organisation DNS…</div>
+    </FeatureGuard>
+  )
 }
