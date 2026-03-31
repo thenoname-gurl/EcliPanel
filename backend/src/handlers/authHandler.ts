@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
+import { generateCaptcha } from '../utils/captcha';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { sendMail } from '../services/mailService';
 import crypto from 'crypto';
@@ -518,6 +519,19 @@ export async function authRoutes(app: any, prefix = '') {
       console.error('Failed to send verification email:', err);
     }
   }
+
+  app.get(prefix + '/auth/captcha', async () => {
+    return generateCaptcha();
+  }, {
+    response: {
+      200: t.Object({ token: t.String(), image: t.String() })
+    },
+    detail: {
+      summary: 'Get a simple registration captcha',
+      tags: ['Auth'],
+      operationId: 'getAuthCaptcha',
+    },
+  });
 
   app.get(prefix + '/auth/verify-email', async (ctx: any) => {
     const { token } = ctx.query as any;

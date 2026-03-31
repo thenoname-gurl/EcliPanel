@@ -4,6 +4,7 @@ import { PanelSetting } from '../models/panelSetting.entity';
 export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   registration: true,
   tempEmailFilter: true,
+  captcha: true,
   codeInstances: true,
   billing: true,
   ai: true,

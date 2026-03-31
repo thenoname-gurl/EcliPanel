@@ -22,19 +22,38 @@ export default function RegisterPage() {
     billingCountry: "",
     middleName: "",
     phone: "",
+    captchaAnswer: "",
+    captchaToken: "",
   });
+
+  const [captchaImage, setCaptchaImage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [panelSettings, setPanelSettings] = useState<{ registrationEnabled: boolean; registrationNotice: string } | null>(null);
+  const [panelSettings, setPanelSettings] = useState<{ registrationEnabled: boolean; registrationNotice: string; featureToggles?: Record<string, boolean> } | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.panelSettings)
       .then((data) => setPanelSettings(data))
       .catch(() => setPanelSettings({ registrationEnabled: true, registrationNotice: "" }));
+
+    const loadCaptcha = () => {
+      apiFetch('/api/auth/captcha')
+        .then((data: any) => {
+          if (data?.token) {
+            setForm((prev) => ({ ...prev, captchaToken: data.token }));
+            setCaptchaImage(data.image || "");
+          }
+        })
+        .catch(() => {
+          setCaptchaImage("");
+        });
+    };
+
+    loadCaptcha();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -217,6 +236,47 @@ export default function RegisterPage() {
               aria-required="true"
               className="col-span-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
             />
+
+            {panelSettings?.featureToggles?.captcha && (
+              <div className="col-span-full rounded-lg border border-border bg-secondary/10 p-3 space-y-2">
+                {captchaImage ? (
+                  <img
+                    src={captchaImage}
+                    alt="captcha"
+                    className="mx-auto h-16 w-full object-contain"
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground">Unable to load captcha at this time.</p>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    name="captchaAnswer"
+                    type="text"
+                    placeholder="Captcha answer *"
+                    value={form.captchaAnswer}
+                    onChange={handleChange}
+                    required
+                    aria-required="true"
+                    className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      apiFetch('/api/auth/captcha').then((data: any) => {
+                        if (data?.token) {
+                          setForm((prev) => ({ ...prev, captchaToken: data.token, captchaAnswer: '' }));
+                          setCaptchaImage(data.image || '');
+                        }
+                      }).catch(() => {});
+                    }}
+                    className="rounded border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-secondary"
+                  >
+                    Reload
+                  </button>
+                </div>
+              </div>
+            )}
+
             <select
               name="billingCountry"
               value={form.billingCountry}
