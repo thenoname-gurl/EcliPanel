@@ -229,7 +229,9 @@ export async function userRoutes(app: any, prefix = '') {
       billingState: t.Optional(t.String()),
       billingZip: t.String(),
       billingCountry: t.String(),
-      phone: t.Optional(t.String())
+      phone: t.Optional(t.String()),
+      captchaAnswer: t.Optional(t.String()),
+      captchaToken: t.Optional(t.String()),
     }),
     response: {
       200: t.Object({ success: t.Boolean(), user: userSchema }),

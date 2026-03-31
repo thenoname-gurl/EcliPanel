@@ -283,13 +283,18 @@ const _jwtSecret = process.env.JWT_SECRET || 'changeme';
 
 app.onError((ctx: any) => {
   let status = 500;
-  if (typeof ctx.code === 'number' && ctx.code >= 100 && ctx.code < 600) {
+
+  if (ctx.error && typeof ctx.error.status === 'number' && ctx.error.status >= 100 && ctx.error.status < 600) {
+    status = ctx.error.status;
+  } else if (typeof ctx.code === 'number' && ctx.code >= 100 && ctx.code < 600) {
     status = ctx.code;
   }
-  if (ctx.error.status == 404) {
+
+  if (status === 404) {
     const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
     return new Response(JSON.stringify({ error: 'Route not found' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }
+
   const log = (app as any).log || console;
   if (status >= 500) {
     log.error({ err: ctx.error, url: ctx.request.url }, 'Unhandled server error');

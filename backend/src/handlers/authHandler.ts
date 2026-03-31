@@ -10,6 +10,7 @@ import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
 import { generateCaptcha } from '../utils/captcha';
+import { isFeatureEnabled } from '../utils/featureToggles';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { sendMail } from '../services/mailService';
 import crypto from 'crypto';
@@ -520,7 +521,12 @@ export async function authRoutes(app: any, prefix = '') {
     }
   }
 
-  app.get(prefix + '/auth/captcha', async () => {
+  app.get(prefix + '/auth/captcha', async (ctx: any) => {
+    const captchaEnabled = await isFeatureEnabled('captcha');
+    if (!captchaEnabled) {
+      ctx.set.status = 503;
+      return { error: "Feature 'captcha' is disabled" };
+    }
     return generateCaptcha();
   }, {
     response: {

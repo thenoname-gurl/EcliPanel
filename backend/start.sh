@@ -38,6 +38,9 @@ export HACKCLUB_CLIENT_ID=${HACKCLUB_CLIENT_ID:-""}
 export HACKCLUB_CLIENT_SECRET=${HACKCLUB_CLIENT_SECRET:-""}
 export HACKCLUB_REDIRECT_URI=${HACKCLUB_REDIRECT_URI:-""}
 
+export CAPTCHA_SECRET=${CAPTCHA_SECRET:-""}
+
+
 echo "--- environment loaded ---"
 
 if command -v bun >/dev/null 2>&1; then
