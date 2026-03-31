@@ -999,7 +999,7 @@ export default function SettingsPage() {
   }, [user]);
 
   useEffect(() => {
-    const saved = user?.settings?.theme?.name || localStorage.getItem("eclipseTheme");
+    const saved = user?.settings?.theme?.name;
     if (saved) {
       setActiveTheme(saved);
       const theme = THEMES.find((t) => t.name === saved);
@@ -1098,12 +1098,6 @@ export default function SettingsPage() {
     setActiveTheme(themeName);
     const theme = THEMES.find((t) => t.name === themeName);
     if (theme) applyTheme(theme);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("eclipseTheme", themeName);
-      try {
-        document.cookie = `eclipseTheme=${encodeURIComponent(themeName)}; path=/`;
-      } catch (e) { }
-    }
     await saveUserSettings({ theme: { name: themeName } });
   };
 

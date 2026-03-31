@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Suspense } from 'react'
+import { headers } from 'next/headers'
+import { API_ENDPOINTS } from '@/lib/panel-config'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -36,7 +38,10 @@ import { THEMES } from "@/lib/themes";
 import GlobalQueryBanner from "@/components/GlobalQueryBanner";
 import Guide from "@/components/Guide";
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const hdrs = await headers();
+  const cookieHeader = hdrs.get('cookie') || '';
+
   const themesMap = Object.fromEntries(
     THEMES.map((t) => [
       t.name,
@@ -54,23 +59,38 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         "--sidebar-primary": t.primary,
         "--border": t.border,
         "--chart-1": t.primary,
+        ...(t as any).foreground ? {"--foreground": (t as any).foreground} : {},
+        ...(t as any).cardForeground ? {"--card-foreground": (t as any).cardForeground} : {},
       },
     ])
   );
 
+  let themeName: string | null = null;
+  try {
+    const res = await fetch(API_ENDPOINTS.session, {
+      headers: { cookie: cookieHeader },
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      themeName = data?.user?.settings?.theme?.name || null;
+    }
+  } catch (e) {
+    // skippy
+  }
+
   const inlineScript = `(() => {
     try {
-      const m = document.cookie.match(/(?:^|; )eclipseTheme=([^;]+)/);
-      const name = m && decodeURIComponent(m[1]);
-      if (!name) return;
       const themes = ${JSON.stringify(themesMap)};
-      const vars = themes[name];
+      const finalName = ${JSON.stringify(themeName)};
+      if (!finalName) return;
+      const vars = themes[finalName];
       if (!vars) return;
       const r = document.documentElement;
       for (const k in vars) {
         r.style.setProperty(k, vars[k]);
       }
-      r.setAttribute('data-eclipse-theme', name);
+      r.setAttribute('data-eclipse-theme', finalName);
     } catch (e) { /* ignore */ }
   })();`;
 

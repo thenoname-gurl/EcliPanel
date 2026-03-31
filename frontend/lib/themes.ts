@@ -10,6 +10,8 @@ export const THEMES = [
     accentFg: "#c4b5fd",
     glow: "#8b5cf680",
     border: "#2a2545",
+    foreground: "#e8e4f0",
+    cardForeground: "#e8e4f0",
   },
   {
     name: "Cyber Blue",
@@ -22,6 +24,8 @@ export const THEMES = [
     accentFg: "#a5f3fc",
     glow: "#06b6d480",
     border: "#1a2e3a",
+    foreground: "#e8e4f0",
+    cardForeground: "#e8e4f0",
   },
   {
     name: "Neon Green",
@@ -34,6 +38,8 @@ export const THEMES = [
     accentFg: "#a7f3d0",
     glow: "#10b98180",
     border: "#1a3028",
+    foreground: "#e8e4f0",
+    cardForeground: "#e8e4f0",
   },
   {
     name: "Solar Orange",
@@ -46,6 +52,8 @@ export const THEMES = [
     accentFg: "#fde68a",
     glow: "#f59e0b80",
     border: "#333018",
+    foreground: "#e8e4f0",
+    cardForeground: "#e8e4f0",
   },
   {
     name: "Ruby Red",
@@ -58,18 +66,64 @@ export const THEMES = [
     accentFg: "#fca5a5",
     glow: "#ef444480",
     border: "#331818",
+    foreground: "#e8e4f0",
+    cardForeground: "#e8e4f0",
   },
   {
     name: "Arctic White",
     primary: "#8b5cf6",
     bg: "#f4f3f9",
     card: "#ffffff",
-    secondary: "#ede9f5",
-    sidebar: "#f0eef8",
-    accent: "#ddd6fe",
-    accentFg: "#5b21b6",
+    secondary: "#e8e7f0",
+    sidebar: "#f1eff8",
+    accent: "#d8d1ff",
+    accentFg: "#4f46e5",
     glow: "#8b5cf640",
-    border: "#d4c8f0",
+    border: "#c9b7ef",
+    foreground: "#1f2937",
+    cardForeground: "#0f172a",
+  },
+  {
+    name: "Arctic Snow",
+    primary: "#0ea5e9",
+    bg: "#fbfbff",
+    card: "#ffffff",
+    secondary: "#f1f5ff",
+    sidebar: "#f8faff",
+    accent: "#bae6fd",
+    accentFg: "#0369a1",
+    glow: "#0ea5e980",
+    border: "#dbeafe",
+    foreground: "#1e293b",
+    cardForeground: "#0f172a",
+  },
+  {
+    name: "Frost Beam",
+    primary: "#22d3ee",
+    bg: "#fdfdff",
+    card: "#ffffff",
+    secondary: "#ecfeff",
+    sidebar: "#f6feff",
+    accent: "#a5f3fc",
+    accentFg: "#0f766e",
+    glow: "#22d3ee80",
+    border: "#c8fbff",
+    foreground: "#1f2937",
+    cardForeground: "#0f172a",
+  },
+  {
+    name: "Nordic Light",
+    primary: "#818cf8",
+    bg: "#fafbff",
+    card: "#ffffff",
+    secondary: "#f3f4ff",
+    sidebar: "#f7f8ff",
+    accent: "#c7d2fe",
+    accentFg: "#4338ca",
+    glow: "#818cf880",
+    border: "#e0e7ff",
+    foreground: "#111827",
+    cardForeground: "#0f172a",
   },
 ] as const;
 
@@ -91,7 +145,10 @@ export function applyTheme(theme: Theme) {
   root.style.setProperty('--sidebar-primary', theme.primary as string);
   root.style.setProperty('--border', theme.border as string);
   root.style.setProperty('--chart-1', theme.primary as string);
-  try {
-    localStorage.setItem('eclipseTheme', theme.name);
-  } catch {}
+  if ((theme as any).foreground) {
+    root.style.setProperty('--foreground', (theme as any).foreground);
+  }
+  if ((theme as any).cardForeground) {
+    root.style.setProperty('--card-foreground', (theme as any).cardForeground);
+  }
 }

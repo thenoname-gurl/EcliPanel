@@ -50,6 +50,146 @@ function isItemVisible(item: SearchPageItem | NavItem, user: any, featureToggles
   return true
 }
 
+function NotificationDropdown({
+  isOpen,
+  onClose,
+  notifications,
+  loading,
+  buttonRef,
+  router,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  notifications: any[]
+  loading: boolean
+  buttonRef: React.RefObject<HTMLButtonElement>
+  router: ReturnType<typeof useRouter>
+}) {
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ top: 0, right: 0 })
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      })
+    }
+  }, [isOpen, buttonRef])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        !(buttonRef.current && buttonRef.current.contains(target))
+      ) {
+        onClose()
+      }
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [isOpen, onClose, buttonRef])
+
+  if (!isOpen || !mounted) return null
+
+  const dropdownContent = (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-[99999] bg-background/60 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none"
+        onClick={onClose}
+      />
+
+      {/* Dropdown */}
+      <div
+        ref={dropdownRef}
+        style={{
+          position: 'fixed',
+          top: position.top,
+          right: position.right,
+        }}
+        className="
+          z-[100000]
+          w-80
+          rounded-xl border border-border bg-card
+          shadow-[0_0_30px_rgba(0,0,0,0.3)]
+          max-h-96
+          flex flex-col
+        "
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
+          <span className="text-sm font-medium text-foreground">
+            Notifications
+          </span>
+          <button
+            onClick={onClose}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-5 w-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <Bell className="h-8 w-8 text-muted-foreground/30" />
+              <p className="text-xs text-muted-foreground">
+                No recent activity
+              </p>
+            </div>
+          ) : (
+            notifications.map((n, i) => (
+              <div
+                key={n.id ?? i}
+                className="flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
+              >
+                <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-foreground truncate">
+                    {n.action || n.event || "Account event"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {n.timestamp
+                      ? new Date(n.timestamp).toLocaleString()
+                      : ""}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="border-t border-border px-4 py-2.5 shrink-0">
+          <button
+            onClick={() => {
+              onClose()
+              router.push("/dashboard/activity")
+            }}
+            className="text-xs text-primary hover:underline"
+          >
+            View all activity →
+          </button>
+        </div>
+      </div>
+    </>
+  )
+
+  return createPortal(dropdownContent, document.body)
+}
+
 export function PanelHeader({
   title,
   description,
@@ -78,8 +218,7 @@ export function PanelHeader({
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [notifLoading, setNotifLoading] = useState(false)
-  const notifRef = useRef<HTMLDivElement | null>(null)
-  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.panelSettings)
@@ -153,22 +292,6 @@ export function PanelHeader({
     if (searchOpen) setTimeout(() => searchRef.current?.focus(), 50)
   }, [searchOpen])
 
-  useEffect(() => {
-    if (!notifOpen) return
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (
-        notifRef.current &&
-        !notifRef.current.contains(target) &&
-        !(buttonRef.current && buttonRef.current.contains(target))
-      ) {
-        setNotifOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [notifOpen])
-
   const openNotifications = useCallback(async () => {
     const willOpen = !notifOpen
     setNotifOpen(willOpen)
@@ -201,7 +324,7 @@ export function PanelHeader({
 
   return (
     <>
-      <header className="flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-border bg-card/50 px-3 sm:px-6 backdrop-blur-sm pl-12 md:pl-6 lg:pl-6 z-10">
+      <header className="flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-border bg-card/50 px-3 sm:px-6 backdrop-blur-sm pl-12 md:pl-6 lg:pl-6">
         <div className="flex flex-col min-w-0">
           <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">
             {title}
@@ -240,106 +363,31 @@ export function PanelHeader({
             {portal.name}
           </Badge>
 
-          <div className="relative">
-            <button
-              ref={buttonRef}
-              onClick={openNotifications}
-              className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Bell className="h-4 w-4" />
-              {notifications.length > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
-              )}
-            </button>
-
-            {notifOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-[200001] bg-background/60 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none"
-                  onClick={() => setNotifOpen(false)}
-                />
-
-                <div
-                  ref={(el) => {
-                    notifRef.current = el
-                  }}
-                  className="
-                    fixed inset-x-3 top-[60px] z-[200002]
-                    sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2
-                    w-auto sm:w-80
-                    rounded-xl border border-border bg-card
-                    shadow-[0_0_30px_rgba(0,0,0,0.3)]
-                    max-h-[70vh] sm:max-h-96
-                    flex flex-col
-                  "
-                >
-                  <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
-                    <span className="text-sm font-medium text-foreground">
-                      Notifications
-                    </span>
-                    <button
-                      onClick={() => setNotifOpen(false)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto overscroll-contain">
-                    {notifLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="h-5 w-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                      </div>
-                    ) : notifications.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 gap-2">
-                        <Bell className="h-8 w-8 text-muted-foreground/30" />
-                        <p className="text-xs text-muted-foreground">
-                          No recent activity
-                        </p>
-                      </div>
-                    ) : (
-                      notifications.map((n, i) => (
-                        <div
-                          key={n.id ?? i}
-                          className="flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
-                        >
-                          <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-foreground truncate">
-                              {n.action || n.event || "Account event"}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {n.timestamp
-                                ? new Date(n.timestamp).toLocaleString()
-                                : ""}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="border-t border-border px-4 py-2.5 shrink-0">
-                    <button
-                      onClick={() => {
-                        setNotifOpen(false)
-                        router.push("/dashboard/activity")
-                      }}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      View all activity →
-                    </button>
-                  </div>
-                </div>
-              </>
+          <button
+            ref={buttonRef}
+            onClick={openNotifications}
+            className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Bell className="h-4 w-4" />
+            {notifications.length > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
             )}
-          </div>
+          </button>
+
+          <NotificationDropdown
+            isOpen={notifOpen}
+            onClose={() => setNotifOpen(false)}
+            notifications={notifications}
+            loading={notifLoading}
+            buttonRef={buttonRef}
+            router={router}
+          />
         </div>
       </header>
 
       {searchOpen && (
         <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-background/80 backdrop-blur-sm pt-[10vh] sm:pt-[15vh] px-3 sm:px-0"
+          className="fixed inset-0 z-[99999] flex items-start justify-center bg-background/80 backdrop-blur-sm pt-[10vh] sm:pt-[15vh] px-3 sm:px-0"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSearchOpen(false)
           }}

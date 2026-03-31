@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/panel-config";
+import { THEMES, applyTheme } from "@/lib/themes";
 
 interface User {
   id: number;
@@ -52,6 +53,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     apiFetch(API_ENDPOINTS.session, { method: "GET" })
       .then((data) => {
         setUser(data.user);
+
+        if (data?.user?.settings?.theme?.name) {
+          const themeName = data.user.settings.theme.name;
+          const theme = THEMES.find((t) => t.name === themeName);
+          if (theme) {
+            applyTheme(theme);
+          }
+        }
+
         try {
           if (typeof window !== 'undefined' && data?.user && data.user.guideShown === false) {
             const params = new URLSearchParams(window.location.search);
@@ -69,11 +79,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 apiFetch(API_ENDPOINTS.session, { method: 'GET' }).then((d) => setUser(d.user)).catch(() => {});
               })();
             }
-          }
-        } catch (e) {}
-        try {
-          if (typeof window !== 'undefined' && data?.user?.settings?.theme?.name) {
-            document.cookie = `eclipseTheme=${encodeURIComponent(data.user.settings.theme.name)}; path=/`;
           }
         } catch (e) {}
         if (typeof window !== 'undefined') {
@@ -149,6 +154,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       const session = await apiFetch(API_ENDPOINTS.session, opts);
       setUser(session.user);
+      if (session?.user?.settings?.theme?.name) {
+        const themeName = session.user.settings.theme.name;
+        const theme = THEMES.find((t) => t.name === themeName);
+        if (theme) {
+          applyTheme(theme);
+        }
+      }
     } catch {
       // skip
     }

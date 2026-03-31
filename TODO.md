@@ -5,10 +5,10 @@
 [] Better AI integration
  - [x] Code Copilot (auto tab)
  - [] AI Access to console and files?
-[] Better DNS Management?
- - [] Make DNS work with Cloudflare
+[x] Better DNS Management?
+ - [x] Make DNS work with Cloudflare
 [] Spark Analyzer for Minecraft Templates
 [] EULA Agreement pop up for Minecraft Templates
-[] Create all notification types from settings and make them actually work
+[x] Create all notification types from settings and make them actually work
 
 ([] Maybe own wings system so we don't relly on third party? If so also in rust?)
