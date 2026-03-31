@@ -8287,6 +8287,37 @@ Content-Type: application/json
                     </div>
                   </div>
 
+                  {/* Temp Email Filter Toggle */}
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.featureToggles?.tempEmailFilter ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                          <Shield className={`h-4 w-4 ${panelSettings.featureToggles?.tempEmailFilter ? "text-green-400" : "text-red-400"}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Temp Email Filter</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {panelSettings.featureToggles?.tempEmailFilter ? "Disposable emails are blocked" : "Disposable emails are allowed"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setPanelSettings((s) => ({
+                          ...s,
+                          featureToggles: {
+                            ...s.featureToggles,
+                            tempEmailFilter: !s.featureToggles?.tempEmailFilter,
+                          },
+                        }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles?.tempEmailFilter ? "bg-green-500" : "bg-secondary"}`}
+                        role="switch"
+                        aria-checked={panelSettings.featureToggles?.tempEmailFilter}
+                      >
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles?.tempEmailFilter ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="rounded-xl border border-border bg-card p-4 col-span-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[

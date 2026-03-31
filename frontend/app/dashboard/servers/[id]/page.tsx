@@ -230,23 +230,71 @@ interface PowerActionsProps {
 function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer, kvmEnabled, kvmLoading, onToggleKvm }: PowerActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
 
   const isRunning = server.status === "running" || server.status === "online"
   const isStopped = server.status === "stopped" || server.status === "offline"
   const isHibernated = server.status === "hibernated"
   const isPowerable = isRunning || server.status === "starting" || server.status === "stopping"
 
+  const computePosition = useCallback(() => {
+    if (!buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    const menuWidth = 180
+    const menuHeight = 200
+    const pad = 8
+
+    let top = rect.bottom + 4
+    let left = rect.right - menuWidth
+
+    // keep within horizontal bounds
+    if (left < pad) left = pad
+    if (left + menuWidth > window.innerWidth - pad) {
+      left = window.innerWidth - menuWidth - pad
+    }
+
+    // if it would overflow below, show above
+    if (top + menuHeight > window.innerHeight - pad) {
+      top = rect.top - menuHeight - 4
+      if (top < pad) top = pad
+    }
+
+    setMenuPos({ top, left })
+  }, [])
+
   useEffect(() => {
+    if (!menuOpen) return
+
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
         setMenuOpen(false)
       }
     }
-    if (menuOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-      return () => document.removeEventListener("mousedown", handleClickOutside)
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false)
+    }
+    const handleDismiss = () => setMenuOpen(false)
+
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleKey)
+    window.addEventListener("scroll", handleDismiss, true)
+    window.addEventListener("resize", handleDismiss)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKey)
+      window.removeEventListener("scroll", handleDismiss, true)
+      window.removeEventListener("resize", handleDismiss)
     }
   }, [menuOpen])
+
+  const toggleMenu = () => {
+    if (!menuOpen) computePosition()
+    setMenuOpen((v) => !v)
+  }
 
   return (
     <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
@@ -272,61 +320,82 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
         <span className="hidden sm:inline ml-1.5">Stop</span>
       </Button>
 
-      <div className="relative" ref={menuRef}>
+      <div className="relative">
         <Button
+          ref={buttonRef}
           size="sm"
           variant="outline"
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="h-8 px-2"
+          onClick={toggleMenu}
+          className={cn("h-8 px-2", menuOpen && "bg-secondary")}
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
         >
           <MoreVertical className="h-3.5 w-3.5" />
         </Button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 z-50 w-[180px] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95">
-            <button
-              onClick={() => { onAction("restart"); setMenuOpen(false) }}
-              disabled={powerLoading || !isPowerable || isHibernated}
-              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          <>
+            {/* backdrop – closes menu on tap */}
+            <div
+              className="fixed inset-0 z-[9998]"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden="true"
+            />
+
+            <div
+              ref={menuRef}
+              className="fixed z-[9999] w-[180px] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+              style={menuPos ? { top: menuPos.top, left: menuPos.left } : undefined}
+              role="menu"
             >
-              <RotateCcw className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Restart</span>
-            </button>
-            <button
-              onClick={() => { onAction("kill"); setMenuOpen(false) }}
-              disabled={powerLoading || !isPowerable || isHibernated}
-              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Power className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Kill</span>
-            </button>
-            {canTransfer && onTransfer && (
-              <>
-                <div className="my-1 h-px bg-border" />
-                <button
-                  onClick={() => { onTransfer(); setMenuOpen(false) }}
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
-                >
-                  <Repeat className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">Transfer</span>
-                </button>
-              </>
-            )}
-            {onToggleKvm && (
-              <>
-                <div className="my-1 h-px bg-border" />
-                <button
-                  onClick={() => { onToggleKvm(); setMenuOpen(false) }}
-                  disabled={powerLoading || kvmLoading}
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Monitor className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-1 text-left truncate">{kvmEnabled ? "Disable KVM" : "Enable KVM"}</span>
-                  {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
-                </button>
-              </>
-            )}
-          </div>
+              <button
+                onClick={() => { onAction("restart"); setMenuOpen(false) }}
+                disabled={powerLoading || !isPowerable || isHibernated}
+                className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                role="menuitem"
+              >
+                <RotateCcw className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Restart</span>
+              </button>
+              <button
+                onClick={() => { onAction("kill"); setMenuOpen(false) }}
+                disabled={powerLoading || !isPowerable || isHibernated}
+                className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                role="menuitem"
+              >
+                <Power className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Kill</span>
+              </button>
+              {canTransfer && onTransfer && (
+                <>
+                  <div className="my-1 h-px bg-border" role="separator" />
+                  <button
+                    onClick={() => { onTransfer(); setMenuOpen(false) }}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
+                    role="menuitem"
+                  >
+                    <Repeat className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">Transfer</span>
+                  </button>
+                </>
+              )}
+              {onToggleKvm && (
+                <>
+                  <div className="my-1 h-px bg-border" role="separator" />
+                  <button
+                    onClick={() => { onToggleKvm(); setMenuOpen(false) }}
+                    disabled={powerLoading || kvmLoading}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    role="menuitem"
+                  >
+                    <Monitor className="h-4 w-4 flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">{kvmEnabled ? "Disable KVM" : "Enable KVM"}</span>
+                    {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+                  </button>
+                </>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -634,7 +703,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 w-full min-w-0">
           {/* Server Header */}
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full flex-shrink-0 animate-pulse", statusColor.split(" ")[1])} />
               <div className="min-w-0 flex-1 overflow-hidden">
@@ -1966,7 +2035,6 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
       setTimeout(() => setLaunchNotice(null), 4000)
       return
     }
-    // ssh:// URI format: ssh://user@host:port
     const sshUri = `ssh://${encodeURIComponent(user)}@${host}:${port}`
     window.open(sshUri, "_blank")
     setLaunchNotice("Opening SSH client… If nothing happened, copy the command above and use your terminal.")
@@ -1982,7 +2050,6 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
       setTimeout(() => setLaunchNotice(null), 4000)
       return
     }
-    // sftp:// URI format: sftp://user@host:port
     const sftpUri = `sftp://${encodeURIComponent(user)}@${host}:${port}`
     window.open(sftpUri, "_blank")
     setLaunchNotice("Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app.")

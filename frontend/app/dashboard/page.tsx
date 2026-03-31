@@ -26,6 +26,38 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
+function formatSocActivity(item: any) {
+  const metric = item?.metrics || {}
+  const title =
+    item?.action ||
+    metric.alert ||
+    metric.threat ||
+    metric.warn ||
+    (item?.serverId ? `Server ${item.serverId} metrics` : "SOC event")
+
+  const details: string[] = []
+
+  if (item?.target) details.push(item.target)
+  if (item?.serverId) details.push(`Server ${item.serverId}`)
+
+  if (metric.cpu_absolute != null) details.push(`CPU ${Math.round(Number(metric.cpu_absolute))}%`)
+  if (metric.memory_bytes != null) details.push(`RAM ${formatBytes(Number(metric.memory_bytes))}`)
+  if (metric.disk_bytes != null) details.push(`Disk ${formatBytes(Number(metric.disk_bytes))}`)
+
+  const network = metric.network || {}
+  if (network.rx_bytes != null || network.tx_bytes != null) {
+    const rx = network.rx_bytes != null ? formatBytes(Number(network.rx_bytes)) : "0 B"
+    const tx = network.tx_bytes != null ? formatBytes(Number(network.tx_bytes)) : "0 B"
+    details.push(`Net ${rx} / ${tx}`)
+  }
+
+  return {
+    title,
+    details: details.join(" • "),
+    time: item?.timestamp ? new Date(item.timestamp).toLocaleTimeString() : "Unknown time",
+  }
+}
+
 export default function SOCDashboard() {
   const { user } = useAuth();
   if (!user) {
@@ -259,21 +291,29 @@ export default function SOCDashboard() {
               <div className="rounded-xl border border-border bg-card p-5">
                 <SectionHeader title="Recent Activity" />
                 <div className="mt-4 flex flex-col gap-3">
-                  {recentActivity.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-start gap-3 text-sm"
-                    >
-                      <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                      <div className="flex-1">
-                        <p className="text-foreground">{item.action}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.target} &middot;{" "}
-                          {new Date(item.timestamp).toLocaleTimeString()}
-                        </p>
-                      </div>
+                  {recentActivity.length === 0 ? (
+                    <div className="rounded-lg border border-border/50 bg-secondary/10 p-4 text-center">
+                      <p className="text-xs text-muted-foreground">No recent activity available.</p>
                     </div>
-                  ))}
+                  ) : (
+                    recentActivity.map((item) => {
+                      const { title, details, time } = formatSocActivity(item)
+                      return (
+                        <div
+                          key={item.id || item.timestamp}
+                          className="flex items-start gap-3 rounded-lg border border-border/50 bg-secondary/10 p-3 text-sm"
+                        >
+                          <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          <div className="flex-1">
+                            <p className="text-foreground leading-snug">{title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {details ? `${details} • ` : ""}{time}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </div>
