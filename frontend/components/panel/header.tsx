@@ -57,13 +57,17 @@ function NotificationDropdown({
   loading,
   buttonRef,
   router,
+  onMarkAll,
+  onMarkOne,
 }: {
   isOpen: boolean
   onClose: () => void
   notifications: any[]
   loading: boolean
-  buttonRef: React.RefObject<HTMLButtonElement>
+  buttonRef: React.RefObject<HTMLButtonElement | null>
   router: ReturnType<typeof useRouter>
+  onMarkAll: () => void
+  onMarkOne: (id: number) => void
 }) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ top: 0, right: 0 })
@@ -130,12 +134,20 @@ function NotificationDropdown({
           <span className="text-sm font-medium text-foreground">
             Notifications
           </span>
-          <button
-            onClick={onClose}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onMarkAll}
+              className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Mark all read
+            </button>
+            <button
+              onClick={onClose}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -154,7 +166,10 @@ function NotificationDropdown({
             notifications.map((n, i) => (
               <div
                 key={n.id ?? i}
-                className="flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-secondary/30 transition-colors"
+                className={
+                  "flex items-start gap-3 border-b border-border/50 px-4 py-3 last:border-0 transition-colors " +
+                  (n.isRead ? "" : "bg-secondary/20")
+                }
               >
                 <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <div className="flex-1 min-w-0">
@@ -163,10 +178,18 @@ function NotificationDropdown({
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {n.timestamp
-                      ? new Date(n.timestamp).toLocaleString()
+                      ? new Date(n.timestamp).toLocaleDateString()
                       : ""}
                   </p>
                 </div>
+                {!n.isRead && (
+                  <button
+                    onClick={() => onMarkOne(n.id)}
+                    className="text-[10px] text-muted-foreground hover:text-foreground"
+                  >
+                    Mark read
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -217,6 +240,7 @@ export function PanelHeader({
 
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [notifLoading, setNotifLoading] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -234,6 +258,29 @@ export function PanelHeader({
         // skippy
       })
   }, [])
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) {
+      setUnreadCount(0)
+      return
+    }
+
+    try {
+      const data = await apiFetch(
+        API_ENDPOINTS.userDetail.replace(":id", user.id.toString()) +
+          "/logs/unread-count"
+      )
+      setUnreadCount(typeof data?.unread === "number" ? data.unread : 0)
+    } catch {
+      setUnreadCount(0)
+    }
+  }, [user])
+
+  useEffect(() => {
+    fetchUnreadCount()
+    const id = setInterval(fetchUnreadCount, 15000)
+    return () => clearInterval(id)
+  }, [fetchUnreadCount])
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -295,21 +342,67 @@ export function PanelHeader({
   const openNotifications = useCallback(async () => {
     const willOpen = !notifOpen
     setNotifOpen(willOpen)
-    if (willOpen && user && notifications.length === 0) {
+    if (willOpen && user) {
       setNotifLoading(true)
       try {
         const data = await apiFetch(
           API_ENDPOINTS.userDetail.replace(":id", user.id.toString()) +
-            "/logs"
+            "/logs?limit=8"
         )
-        setNotifications(Array.isArray(data) ? data.slice(0, 8) : [])
+        const items = Array.isArray(data) ? data : []
+        setNotifications(items)
+
+        await apiFetch(
+          API_ENDPOINTS.userDetail.replace(":id", user.id.toString()) +
+            "/logs/read-all",
+          {
+            method: "PATCH",
+          }
+        )
+        setUnreadCount(0)
+
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
       } catch {
         setNotifications([])
       } finally {
         setNotifLoading(false)
       }
     }
-  }, [notifOpen, user, notifications.length])
+  }, [notifOpen, user])
+
+  const markAllRead = async () => {
+    if (!user) return
+
+    try {
+      await apiFetch(
+        API_ENDPOINTS.userDetail.replace(":id", user.id.toString()) +
+          "/logs/read-all",
+        { method: "PATCH" }
+      )
+      setUnreadCount(0)
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    } catch {
+      // ignore
+    }
+  }
+
+  const markNotificationRead = async (logId: number) => {
+    if (!user) return
+
+    try {
+      await apiFetch(
+        API_ENDPOINTS.userDetail.replace(":id", user.id.toString()) +
+          `/logs/${logId}/read`,
+        { method: "PATCH" }
+      )
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === logId ? { ...n, isRead: true } : n))
+      )
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    } catch {
+      // ignore
+    }
+  }
 
   const visiblePages = ALL_PAGES.filter((p) => isItemVisible(p, user, featureToggles))
 
@@ -369,7 +462,7 @@ export function PanelHeader({
             className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <Bell className="h-4 w-4" />
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
             )}
           </button>
@@ -381,6 +474,8 @@ export function PanelHeader({
             loading={notifLoading}
             buttonRef={buttonRef}
             router={router}
+            onMarkAll={markAllRead}
+            onMarkOne={markNotificationRead}
           />
         </div>
       </header>

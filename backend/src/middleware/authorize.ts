@@ -45,16 +45,40 @@ export function authorize(required: string) {
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
         const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
 
-        if (serverUuid) {
-            const whereAny: any[] = [];
-            whereAny.push({ userId: user.id, serverUuid });
-            if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
-            const sub = await subuserRepo.findOne({ where: whereAny });
-            if (sub) {
-              const permNeeded = required.split(':')[1];
-              if (!permNeeded || permNeeded === '*') return;
-              if (Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes(permNeeded))) return;
+        const serverSubuserGrant = (sub: any, requiredPerm: string) => {
+          if (!sub || !Array.isArray(sub.permissions)) return false;
+          if (sub.permissions.includes('*')) return true;
+
+          const serverPermissionMap: Record<string, string[]> = {
+            read: ['console', 'files', 'backups', 'startup', 'settings', 'databases', 'schedules'],
+            write: ['files', 'backups', 'startup', 'settings', 'databases', 'schedules'],
+            console: ['console'],
+            backups: ['backups'],
+            power: [],
+            settings: ['settings'],
+            databases: ['databases'],
+            schedules: ['schedules'],
+          };
+
+          if (requiredPerm && serverPermissionMap[requiredPerm]) {
+            if (sub.permissions.some((p: string) => serverPermissionMap[requiredPerm].includes(p))) {
+              return true;
             }
+          }
+
+          return sub.permissions.includes(requiredPerm);
+        };
+
+        if (serverUuid) {
+          const whereAny: any[] = [];
+          whereAny.push({ userId: user.id, serverUuid });
+          if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
+          const sub = await subuserRepo.findOne({ where: whereAny });
+          if (sub) {
+            const permNeeded = required.split(':')[1];
+            if (!permNeeded || permNeeded === '*') return;
+            if (serverSubuserGrant(sub, permNeeded)) return;
+          }
 
           try {
             const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -66,6 +90,34 @@ export function authorize(required: string) {
         } else {
           const anySub = await subuserRepo.findOne({ where: user.email ? [{ userId: user.id }, { userEmail: user.email }] : { userId: user.id } });
           if (anySub) return;
+        }
+      } catch (e) {
+        // skip
+      }
+    }
+
+    if (required.startsWith('files:')) {
+      try {
+        const { ServerSubuser } = require('../models/serverSubuser.entity');
+        const subuserRepo = AppDataSource.getRepository(ServerSubuser);
+        const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
+
+        if (serverUuid) {
+          const whereAny: any[] = [];
+          whereAny.push({ userId: user.id, serverUuid });
+          if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
+          const sub = await subuserRepo.findOne({ where: whereAny });
+          if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files'))) {
+            return;
+          }
+
+          try {
+            const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+            const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
+            if (cfg && cfg.userId === user.id) return;
+          } catch (e) {
+            // skip
+          }
         }
       } catch (e) {
         // skip

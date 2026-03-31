@@ -1,28 +1,47 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Server,
   LogIn,
+  LogOut,
   CreditCard,
   Shield,
   Ticket,
   Cpu,
   Filter,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Clock,
+  Globe,
+  Activity,
+  FileText,
+  User,
+  Loader2,
+  AlertCircle,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Hash,
+  Box,
+  UserPlus,
+  Calendar,
 } from "lucide-react"
 
 const typeIcons: Record<string, typeof Server> = {
   server: Server,
   auth: LogIn,
   login: LogIn,
-  logout: LogIn,
-  register: LogIn,
+  logout: LogOut,
+  register: UserPlus,
   billing: CreditCard,
   security: Shield,
   support: Ticket,
@@ -30,25 +49,134 @@ const typeIcons: Record<string, typeof Server> = {
 }
 
 const typeColors: Record<string, string> = {
-  server: "text-chart-2",
-  auth: "text-primary",
-  login: "text-primary",
-  logout: "text-muted-foreground",
-  register: "text-success",
-  billing: "text-success",
-  security: "text-warning",
-  support: "text-info",
-  compute: "text-chart-4",
+  server: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  auth: "text-primary bg-primary/10 border-primary/20",
+  login: "text-green-400 bg-green-400/10 border-green-400/20",
+  logout: "text-orange-400 bg-orange-400/10 border-orange-400/20",
+  register: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+  billing: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
+  security: "text-red-400 bg-red-400/10 border-red-400/20",
+  support: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+  compute: "text-cyan-400 bg-cyan-400/10 border-cyan-400/20",
+}
+
+const typeBadgeColors: Record<string, string> = {
+  server: "border-blue-500/30 text-blue-400 bg-blue-500/5",
+  auth: "border-primary/30 text-primary bg-primary/5",
+  login: "border-green-500/30 text-green-400 bg-green-500/5",
+  logout: "border-orange-500/30 text-orange-400 bg-orange-500/5",
+  register: "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
+  billing: "border-yellow-500/30 text-yellow-400 bg-yellow-500/5",
+  security: "border-red-500/30 text-red-400 bg-red-500/5",
+  support: "border-purple-500/30 text-purple-400 bg-purple-500/5",
+  compute: "border-cyan-500/30 text-cyan-400 bg-cyan-500/5",
 }
 
 function guessType(action: string): string {
-  if (/login|logout|register|passkey/.test(action)) return action.includes("login") ? "login" : action.includes("logout") ? "logout" : "register"
-  if (/server|start|stop|restart/.test(action)) return "server"
-  if (/billing|payment|invoice|order/.test(action)) return "billing"
-  if (/key|2fa|security|password/.test(action)) return "security"
-  if (/ticket|support/.test(action)) return "support"
-  if (/compute|instance/.test(action)) return "compute"
+  const a = action.toLowerCase()
+  if (a.includes("logout") || a.includes("log_out") || a.includes("signout")) return "logout"
+  if (a.includes("login") || a.includes("log_in") || a.includes("signin")) return "login"
+  if (a.includes("register") || a.includes("signup") || a.includes("sign_up")) return "register"
+  if (/passkey|2fa|mfa|otp/.test(a)) return "security"
+  if (/server|start|stop|restart|power|console/.test(a)) return "server"
+  if (/billing|payment|invoice|order|subscription|credit/.test(a)) return "billing"
+  if (/key|security|password|token/.test(a)) return "security"
+  if (/ticket|support/.test(a)) return "support"
+  if (/compute|instance|vm|container/.test(a)) return "compute"
   return "auth"
+}
+
+function formatTimeAgo(timestamp: string): string {
+  const now = new Date()
+  const then = new Date(timestamp)
+  const diffMs = now.getTime() - then.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return "Just now"
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return then.toLocaleDateString()
+}
+
+function formatAction(action: string): string {
+  return action
+    .replace(/[_-]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+}
+
+function InfoItem({ icon: Icon, label, value, mono, copyable }: {
+  icon?: any
+  label: string
+  value: string
+  mono?: boolean
+  copyable?: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    if (copyable && value && value !== "-") {
+      navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden",
+        copyable && value !== "-" && "cursor-pointer hover:bg-secondary/40 active:bg-secondary/50 transition-colors"
+      )}
+      onClick={handleCopy}
+    >
+      <div className="flex items-center gap-1.5 mb-1 min-w-0">
+        {Icon && <Icon className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
+        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{label}</p>
+        {copyable && value !== "-" && (
+          <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
+            {copied ? "✓" : ""}
+          </span>
+        )}
+      </div>
+      <p className={cn(
+        "text-xs sm:text-sm text-foreground truncate",
+        mono && "font-mono text-[10px] sm:text-xs"
+      )}>
+        {value || "-"}
+      </p>
+    </div>
+  )
+}
+
+function EmptyState({ icon: Icon = AlertCircle, title, message }: {
+  icon?: any
+  title?: string
+  message: string
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center">
+      <div className="rounded-full bg-secondary/50 p-4 mb-4">
+        <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+      </div>
+      {title && <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>}
+      <p className="text-xs sm:text-sm text-muted-foreground max-w-xs">{message}</p>
+    </div>
+  )
+}
+
+function LoadingState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 sm:py-16">
+      <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-muted-foreground mb-3" />
+      <p className="text-xs sm:text-sm text-muted-foreground">Loading activity...</p>
+    </div>
+  )
 }
 
 export default function AccountActivity() {
@@ -59,6 +187,7 @@ export default function AccountActivity() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [selectedLog, setSelectedLog] = useState<any | null>(null)
+  const [expandedLogs, setExpandedLogs] = useState<Set<string | number>>(new Set())
   const LOGS_PER = 50
 
   const loadLogs = async (pageNumber = 1) => {
@@ -72,13 +201,9 @@ export default function AccountActivity() {
       setLogs(items)
       setHasMore(items.length === LOGS_PER)
       setPage(pageNumber)
-      if (pageNumber === 1) {
-        setSelectedLog(items[0] ?? null)
-      }
     } catch {
       setLogs([])
       setHasMore(false)
-      setSelectedLog(null)
     } finally {
       setLoading(false)
     }
@@ -93,197 +218,443 @@ export default function AccountActivity() {
     return guessType(item.action ?? "") === filter
   })
 
-  const filterTypes = ["server", "login", "billing", "security", "support", "compute"]
+  const toggleExpand = (id: string | number) => {
+    setExpandedLogs(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const filterTypes = [
+    { key: "server", label: "Server" },
+    { key: "login", label: "Login" },
+    { key: "logout", label: "Logout" },
+    { key: "billing", label: "Billing" },
+    { key: "security", label: "Security" },
+    { key: "support", label: "Support" },
+  ]
+
+  // Stats from current page data
+  const pageStats = {
+    onPage: displayLogs.length,
+    today: logs.filter(l => {
+      if (!l.timestamp) return false
+      const d = new Date(l.timestamp)
+      const now = new Date()
+      return d.toDateString() === now.toDateString()
+    }).length,
+    logins: logs.filter(l => guessType(l.action ?? "") === "login").length,
+    servers: logs.filter(l => guessType(l.action ?? "") === "server").length,
+  }
 
   return (
-    <>
-      <div data-guide-id="activity-dashboard">
-        <PanelHeader title="Account Activity" description="SOC audit trail and account events" />
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div data-guide-id="activity-dashboard" className="flex-shrink-0">
+        <PanelHeader title="Account Activity" description="Security audit trail and account events" />
       </div>
-      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
-        <div className="flex flex-col gap-6 p-6">
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setFilter(null)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                !filter
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
-              }`}
-            >
-              <Filter className="h-3.5 w-3.5" />
-              All Events
-            </button>
-            {filterTypes.map((type) => {
-              const Icon = typeIcons[type] ?? Server
-              return (
-                <button
-                  key={type}
-                  onClick={() => setFilter(filter === type ? null : type)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    filter === type
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="hidden capitalize sm:inline">{type}</span>
-                </button>
-              )
-            })}
-          </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Page {page}</span>
-            <div className="flex gap-2">
-              <button
-                disabled={page <= 1 || loading}
-                onClick={() => loadLogs(Math.max(1, page - 1))}
-                className="rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                disabled={!hasMore || loading}
-                onClick={() => loadLogs(page + 1)}
-                className="rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col gap-4 sm:gap-6 p-3 sm:p-4 md:p-6 w-full min-w-0">
+
+          {/* Stats Cards - showing page-relevant stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 min-w-0">
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Current Page</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.onPage}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Page {page}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Today</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.today}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">On this page</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <LogIn className="h-4 w-4 text-green-400 flex-shrink-0" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Logins</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.logins}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">On this page</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Server className="h-4 w-4 text-purple-400 flex-shrink-0" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Server Events</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.servers}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">On this page</p>
             </div>
           </div>
 
-          {/* Activity Timeline */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            {loading ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Loading activity…</p>
-            ) : displayLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No activity found.</p>
-            ) : (
-              <>
-                <div className="flex flex-col">
-                  {displayLogs.map((item, idx) => {
+          {/* Filters */}
+          <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-2 mb-3 min-w-0">
+              <Filter className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium text-foreground">Filter Events</span>
+              {filter && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setFilter(null)}
+                  className="ml-auto h-6 px-2 text-xs text-muted-foreground hover:text-foreground flex-shrink-0"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 min-w-0">
+              <button
+                onClick={() => setFilter(null)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
+                  !filter
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border bg-secondary/30 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                )}
+              >
+                <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span>All</span>
+              </button>
+              {filterTypes.map(({ key, label }) => {
+                const Icon = typeIcons[key] ?? Server
+                const isActive = filter === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(isActive ? null : key)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
+                      isActive
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Activity List */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-border bg-secondary/20 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="text-sm font-medium text-foreground truncate">Activity Log</span>
+                <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                  {displayLogs.length} shown
+                </Badge>
+              </div>
+              {/* Pagination */}
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
+                  Page {page}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page <= 1 || loading}
+                  onClick={() => loadLogs(Math.max(1, page - 1))}
+                  className="h-7 sm:h-8 px-2"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!hasMore || loading}
+                  onClick={() => loadLogs(page + 1)}
+                  className="h-7 sm:h-8 px-2"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="min-w-0">
+              {loading ? (
+                <LoadingState />
+              ) : displayLogs.length === 0 ? (
+                <EmptyState
+                  icon={Activity}
+                  title="No Activity Found"
+                  message={filter ? `No ${filter} events recorded yet.` : "No activity has been recorded for your account yet."}
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {displayLogs.map((item) => {
                     const type = guessType(item.action ?? "")
                     const Icon = typeIcons[type] ?? Server
-                    const iconColor = typeColors[type] ?? "text-primary"
-                    const selected = selectedLog?.id === item.id
+                    const colorClasses = typeColors[type] ?? typeColors.auth
+                    const badgeColor = typeBadgeColors[type] ?? typeBadgeColors.auth
+                    const isExpanded = expandedLogs.has(item.id)
+                    const isSelected = selectedLog?.id === item.id
 
                     return (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedLog(item)}
-                      className={`flex w-full gap-4 rounded-md p-3 text-left transition ${selected ? "border border-primary/40 bg-primary/10" : "border border-border bg-card hover:bg-secondary/60"}`}
-                    >
-                      {/* Timeline line */}
-                      <div className="flex flex-col items-center">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary/50">
-                          <Icon className={`h-4 w-4 ${iconColor}`} />
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "transition-colors",
+                          isSelected && "bg-primary/5"
+                        )}
+                      >
+                        {/* Main Row */}
+                        <div
+                          className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 cursor-pointer hover:bg-secondary/30 min-w-0"
+                          onClick={() => toggleExpand(item.id)}
+                        >
+                          {/* Icon */}
+                          <div className={cn(
+                            "flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg border",
+                            colorClasses
+                          )}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0 overflow-hidden">
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 flex-1 overflow-hidden">
+                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate min-w-0">
+                                    {formatAction(item.action ?? "Unknown action")}
+                                  </p>
+                                  <Badge variant="outline" className={cn("text-[10px] flex-shrink-0", badgeColor)}>
+                                    {type}
+                                  </Badge>
+                                </div>
+                                {item.target && (
+                                  <p className="mt-0.5 text-xs text-muted-foreground truncate">{item.target}</p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="text-right hidden sm:block">
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.timestamp ? formatTimeAgo(item.timestamp) : ""}
+                                  </p>
+                                  {item.ipAddress && (
+                                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                      {item.ipAddress}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedLog(isSelected ? null : item)
+                                    }}
+                                    className={cn(
+                                      "h-7 w-7 p-0",
+                                      isSelected && "bg-primary/10 text-primary"
+                                    )}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Mobile timestamp */}
+                            <div className="flex items-center gap-2 mt-1.5 sm:hidden flex-wrap">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {item.timestamp ? formatTimeAgo(item.timestamp) : "-"}
+                                </span>
+                              </div>
+                              {item.ipAddress && (
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-[10px] text-muted-foreground font-mono truncate">
+                                    {item.ipAddress}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        {idx < displayLogs.length - 1 && (
-                          <div className="w-px flex-1 bg-border" />
+
+                        {/* Expanded Details */}
+                        {isExpanded && (
+                          <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 min-w-0 overflow-hidden">
+                            <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 ml-10 sm:ml-12 min-w-0 overflow-hidden">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                                <InfoItem
+                                  icon={Activity}
+                                  label="Action"
+                                  value={item.action || "Unknown"}
+                                />
+                                <InfoItem
+                                  icon={Box}
+                                  label="Target Type"
+                                  value={item.targetType || "-"}
+                                />
+                                <InfoItem
+                                  icon={Hash}
+                                  label="Target ID"
+                                  value={item.targetId?.toString() || "-"}
+                                  mono
+                                  copyable
+                                />
+                                <InfoItem
+                                  icon={Clock}
+                                  label="Timestamp"
+                                  value={item.timestamp ? new Date(item.timestamp).toLocaleString() : "-"}
+                                />
+                                <InfoItem
+                                  icon={Globe}
+                                  label="IP Address"
+                                  value={item.ipAddress || "-"}
+                                  mono
+                                  copyable
+                                />
+                                <InfoItem
+                                  icon={User}
+                                  label="User ID"
+                                  value={item.userId?.toString() || "-"}
+                                  mono
+                                />
+                              </div>
+
+                              {item.metadata && Object.keys(item.metadata).length > 0 && (
+                                <div className="pt-2 border-t border-border min-w-0 overflow-hidden">
+                                  <p className="text-xs text-muted-foreground mb-2">Metadata</p>
+                                  <div className="rounded-md border border-border bg-background overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                      <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
+                                        {JSON.stringify(item.metadata, null, 2)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-foreground capitalize">
-                              {item.action ?? "Unknown action"}
-                            </p>
-                            {item.target && (
-                              <p className="mt-0.5 text-xs text-muted-foreground">{item.target}</p>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-xs text-muted-foreground">
-                              {item.timestamp
-                                ? `${new Date(item.timestamp).toLocaleDateString()} ${new Date(item.timestamp).toLocaleTimeString()}`
-                                : ""}
-                            </span>
-                            {item.ipAddress && (
-                              <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-[10px]">
-                                IP: {item.ipAddress}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {selectedLog && (
-                <div className="rounded-xl border border-border bg-card p-4 mt-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-foreground">Selected Log Details</h3>
-                    <button
-                      onClick={() => setSelectedLog(null)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Action</p>
-                      <p className="text-sm text-foreground">{selectedLog.action || 'Unknown'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Target Type</p>
-                      <p className="text-sm text-foreground">{selectedLog.targetType || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Target ID</p>
-                      <p className="text-sm text-foreground">{selectedLog.targetId || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Timestamp</p>
-                      <p className="text-sm text-foreground">{selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">IP Address</p>
-                      <p className="text-sm text-foreground">{selectedLog.ipAddress || '-'}</p>
-                    </div>
-                  </div>
-                  {selectedLog.metadata && (
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground">Metadata</p>
-                      <pre className="mt-1 rounded-md border border-border bg-secondary/50 p-2 text-xs font-mono overflow-x-auto">
-                        {JSON.stringify(selectedLog.metadata, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-
-                  <div className="mt-4 border-t border-border pt-4">
-                    <p className="text-xs text-muted-foreground">All Properties</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs">
-                      {Object.entries(selectedLog).map(([key, value]) => (
-                        <div key={key} className="rounded-lg border border-border bg-secondary/50 p-2">
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{key}</p>
-                          <p className="mt-1 font-mono text-[11px] text-foreground break-words">{typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground">Raw JSON</p>
-                    <pre className="mt-1 rounded-md border border-border bg-secondary/50 p-2 text-xs font-mono overflow-x-auto">
-                      {JSON.stringify(selectedLog, null, 2)}
-                    </pre>
-                  </div>
+                    )
+                  })}
                 </div>
               )}
-            </>
-          )}
+            </div>
+
+            {/* Footer Pagination */}
+            {!loading && displayLogs.length > 0 && (
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-t border-border bg-secondary/10 min-w-0">
+                <span className="text-xs text-muted-foreground truncate">
+                  Page {page} • {displayLogs.length} events
+                </span>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page <= 1 || loading}
+                    onClick={() => loadLogs(Math.max(1, page - 1))}
+                    className="h-8 px-2 sm:px-3 text-xs"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Prev</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!hasMore || loading}
+                    onClick={() => loadLogs(page + 1)}
+                    className="h-8 px-2 sm:px-3 text-xs"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="h-3.5 w-3.5 sm:ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Selected Log Detail Panel */}
+          {selectedLog && (
+            <div className="rounded-xl border border-primary/30 bg-card overflow-hidden min-w-0">
+              <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-border bg-primary/5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Eye className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium text-foreground truncate">Event Details</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedLog(null)}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground flex-shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+                {/* Quick Info Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
+                  <InfoItem icon={Activity} label="Action" value={selectedLog.action || "Unknown"} />
+                  <InfoItem icon={Box} label="Target Type" value={selectedLog.targetType || "-"} />
+                  <InfoItem icon={Hash} label="Target ID" value={selectedLog.targetId?.toString() || "-"} mono copyable />
+                  <InfoItem icon={Clock} label="Timestamp" value={selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : "-"} />
+                  <InfoItem icon={Globe} label="IP Address" value={selectedLog.ipAddress || "-"} mono copyable />
+                  <InfoItem icon={User} label="User ID" value={selectedLog.userId?.toString() || "-"} mono />
+                </div>
+
+                {/* All Properties */}
+                <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">All Properties</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                    {Object.entries(selectedLog).map(([key, value]) => (
+                      <div key={key} className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{key}</p>
+                        <p className="mt-1 font-mono text-[10px] sm:text-xs text-foreground break-all line-clamp-2">
+                          {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? "-")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Raw JSON */}
+                <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Raw JSON</p>
+                  <div className="rounded-md border border-border bg-background overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
+                        {JSON.stringify(selectedLog, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </ScrollArea>
-    </>
+      </div>
+    </div>
   )
 }
-

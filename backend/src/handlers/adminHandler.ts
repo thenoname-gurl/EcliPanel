@@ -2299,11 +2299,12 @@ isSuspicious: true if fraudScore >= 50`;
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
     const featureToggles = await getPanelFeatureToggles();
+    const codeInstancesEnabled = map['codeInstancesEnabled'] !== 'false';
     return {
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
       portalDescriptions: portalDescriptions || null,
-      codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
+      codeInstancesEnabled,
       geoBlockCountries: map['geoBlockCountries'] || '',
       featureToggles,
     };
@@ -2313,9 +2314,12 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: t.Boolean(),
         registrationNotice: t.String(),
         portalDescriptions: t.Optional(t.Any()),
+        codeInstancesEnabled: t.Boolean(),
+        featureToggles: t.Record(t.String(), t.Boolean()),
+        geoBlockCountries: t.String(),
       }),
     },
-    detail: { summary: 'Fetch public portal settings', tags: ['Admin'] },
+    detail: { summary: 'Fetch public portal settings (no auth)', tags: ['Public'] },
   });
 
   app.get(prefix + '/public/features', async (_ctx) => {
@@ -2339,10 +2343,11 @@ isSuspicious: true if fraudScore >= 50`;
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
     const featureToggles = await getPanelFeatureToggles();
+    const codeInstancesEnabled = map['codeInstancesEnabled'] !== 'false';
     return {
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
-      codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
+      codeInstancesEnabled,
       portalDescriptions: portalDescriptions || null,
       geoBlockCountries: map['geoBlockCountries'] || '',
       featureToggles,
@@ -2357,7 +2362,6 @@ isSuspicious: true if fraudScore >= 50`;
         portalDescriptions: t.Optional(t.Any()),
         geoBlockCountries: t.String(),
         featureToggles: t.Record(t.String(), t.Boolean()),
-        geoBlockCountries: t.String(),
       }),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),

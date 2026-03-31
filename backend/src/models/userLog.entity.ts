@@ -22,6 +22,10 @@ export class UserLog {
   @Column('json', { nullable: true })
   metadata?: Record<string, any>;
 
+  @Column({ default: false })
+  @Index()
+  isRead: boolean;
+
   @Column({ nullable: true, type: 'text' })
   ipAddress?: string;
 

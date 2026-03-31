@@ -64,6 +64,7 @@ import {
   AlertCircle,
   Monitor,
   Shield,
+  ExternalLink,
 } from "lucide-react"
 
 const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default: m.ConsoleTab })))
@@ -84,13 +85,13 @@ function InfoRow({ label, value, mono, copyable }: { label: string; value: strin
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0",
+        "rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden",
         copyable && "cursor-pointer hover:bg-secondary/30 active:bg-secondary/40 transition-colors"
       )}
       onClick={handleCopy}
     >
-      <div className="flex items-center justify-between gap-1">
-        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 truncate">{label}</p>
+      <div className="flex items-center justify-between gap-1 min-w-0">
+        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 truncate min-w-0">{label}</p>
         {copyable && (
           <span className="text-[10px] text-muted-foreground flex-shrink-0">
             {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
@@ -98,14 +99,14 @@ function InfoRow({ label, value, mono, copyable }: { label: string; value: strin
         )}
       </div>
       <p className={cn(
-        "text-xs sm:text-sm text-foreground truncate",
+        "text-xs sm:text-sm text-foreground truncate min-w-0",
         mono && "font-mono"
       )}>{value}</p>
     </div>
   )
 }
 
-function EmptyState({ icon: Icon = Info, title, message, action }: { 
+function EmptyState({ icon: Icon = Info, title, message, action }: {
   icon?: any
   title?: string
   message: string
@@ -117,7 +118,7 @@ function EmptyState({ icon: Icon = Info, title, message, action }: {
         <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
       </div>
       {title && <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>}
-      <p className="text-xs sm:text-sm text-muted-foreground max-w-xs">{message}</p>
+      <p className="text-xs sm:text-sm text-muted-foreground max-w-xs break-words">{message}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -130,10 +131,10 @@ function SectionHeader({ title, icon: Icon, action, className }: {
   className?: string
 }) {
   return (
-    <div className={cn("flex items-center justify-between gap-2", className)}>
-      <div className="flex items-center gap-2 min-w-0">
+    <div className={cn("flex items-center justify-between gap-2 min-w-0", className)}>
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {Icon && <Icon className="h-4 w-4 text-primary flex-shrink-0" />}
-        <h3 className="text-sm font-semibold text-foreground truncate">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground truncate min-w-0">{title}</h3>
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
     </div>
@@ -143,10 +144,10 @@ function SectionHeader({ title, icon: Icon, action, className }: {
 function KvmBanner({ compact = false }: { compact?: boolean }) {
   return (
     <div className={cn(
-      "rounded-lg border border-indigo-500/20 bg-indigo-500/5",
+      "rounded-lg border border-indigo-500/20 bg-indigo-500/5 overflow-hidden",
       compact ? "p-2.5" : "p-3 sm:p-4"
     )}>
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-2.5 min-w-0">
         <div className={cn(
           "rounded-md bg-indigo-500/10 flex items-center justify-center flex-shrink-0",
           compact ? "p-1.5" : "p-2"
@@ -161,7 +162,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
             KVM Virtualization Active
           </p>
           <p className={cn(
-            "text-indigo-400/70 mt-0.5",
+            "text-indigo-400/70 mt-0.5 break-words",
             compact ? "text-[10px]" : "text-[10px] sm:text-xs"
           )}>
             This server runs as a full virtual machine. File management and console may behave differently than container-based servers.
@@ -174,23 +175,23 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
 
 function KvmInfoNotice({ message }: { message: string }) {
   return (
-    <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 px-3 py-2.5 flex items-start gap-2">
+    <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 px-3 py-2.5 flex items-start gap-2 overflow-hidden">
       <Shield className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-      <p className="text-[10px] sm:text-xs text-indigo-300/80 leading-relaxed">{message}</p>
+      <p className="text-[10px] sm:text-xs text-indigo-300/80 leading-relaxed break-words min-w-0">{message}</p>
     </div>
   )
 }
 
-function CollapsibleSection({ 
-  title, 
-  icon: Icon, 
-  defaultOpen = false, 
-  children 
-}: { 
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  defaultOpen = false,
+  children
+}: {
   title: string
   icon?: any
   defaultOpen?: boolean
-  children: React.ReactNode 
+  children: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
 
@@ -198,16 +199,16 @@ function CollapsibleSection({
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-secondary/20 active:bg-secondary/30 transition-colors"
+        className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-secondary/20 active:bg-secondary/30 transition-colors min-w-0"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {Icon && <Icon className="h-4 w-4 text-primary flex-shrink-0" />}
-          <span className="text-sm font-semibold text-foreground truncate">{title}</span>
+          <span className="text-sm font-semibold text-foreground truncate min-w-0">{title}</span>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
       </button>
       {open && (
-        <div className="p-3 sm:p-4 pt-0 border-t border-border">
+        <div className="p-3 sm:p-4 pt-0 border-t border-border overflow-hidden">
           {children}
         </div>
       )}
@@ -248,7 +249,7 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
   }, [menuOpen])
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
       <Button
         size="sm"
         variant="outline"
@@ -282,22 +283,22 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
         </Button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95">
+          <div className="absolute right-0 top-full mt-1 z-50 w-[180px] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95">
             <button
               onClick={() => { onAction("restart"); setMenuOpen(false) }}
               disabled={powerLoading || !isPowerable || isHibernated}
               className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <RotateCcw className="h-4 w-4" />
-              Restart
+              <RotateCcw className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Restart</span>
             </button>
             <button
               onClick={() => { onAction("kill"); setMenuOpen(false) }}
               disabled={powerLoading || !isPowerable || isHibernated}
               className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <Power className="h-4 w-4" />
-              Kill
+              <Power className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Kill</span>
             </button>
             {canTransfer && onTransfer && (
               <>
@@ -306,8 +307,8 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
                   onClick={() => { onTransfer(); setMenuOpen(false) }}
                   className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
                 >
-                  <Repeat className="h-4 w-4" />
-                  Transfer
+                  <Repeat className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Transfer</span>
                 </button>
               </>
             )}
@@ -319,9 +320,9 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
                   disabled={powerLoading || kvmLoading}
                   className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Monitor className="h-4 w-4" />
-                  <span className="flex-1 text-left">{kvmEnabled ? "Disable KVM" : "Enable KVM"}</span>
-                  {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <Monitor className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-1 text-left truncate">{kvmEnabled ? "Disable KVM" : "Enable KVM"}</span>
+                  {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
                 </button>
               </>
             )}
@@ -361,9 +362,9 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
   }, [activeTab])
 
   return (
-    <div 
+    <div
       ref={scrollRef}
-      className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 overflow-x-auto scrollbar-none -mx-3 sm:mx-0 px-3 sm:px-1"
+      className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 overflow-x-auto scrollbar-none min-w-0"
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       {tabs.map((tab) => (
@@ -395,32 +396,32 @@ function ResourceStats({ resources }: ResourceStatsProps) {
   if (!resources) return null
 
   const stats = [
-    { 
-      label: "CPU", 
+    {
+      label: "CPU",
       value: `${(resources.cpu_absolute ?? 0).toFixed(1)}%`,
       color: "#3b82f6"
     },
-    { 
-      label: "Memory", 
+    {
+      label: "Memory",
       value: formatBytes(resources.memory_bytes ?? 0),
       color: "#8b5cf6"
     },
-    { 
-      label: "Disk", 
+    {
+      label: "Disk",
       value: formatBytes(resources.disk_bytes ?? 0),
       color: "#f59e0b"
     },
-    { 
-      label: "Net ↑↓", 
+    {
+      label: "Net ↑↓",
       value: `${formatBytes(resources.network?.tx_bytes ?? 0)} / ${formatBytes(resources.network?.rx_bytes ?? 0)}`,
       color: "#22c55e"
     },
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0">
       {stats.map((stat) => (
-        <MiniStat 
+        <MiniStat
           key={stat.label}
           label={stat.label}
           value={stat.value}
@@ -588,7 +589,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         </div>
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground mb-1">Server Not Found</h2>
-          <p className="text-sm text-muted-foreground">The server you're looking for doesn't exist or is unavailable.</p>
+          <p className="text-sm text-muted-foreground">The server you&apos;re looking for doesn&apos;t exist or is unavailable.</p>
         </div>
         <Button variant="outline" onClick={() => router.push("/dashboard/servers")}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Servers
@@ -622,31 +623,30 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   ]
 
   return (
-    <>
-      <div data-guide-id="server-header">
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div data-guide-id="server-header" className="flex-shrink-0">
         <PanelHeader
           title={server.name || server.uuid?.slice(0, 8) || "Server"}
           description={`${server.uuid || id}`}
         />
       </div>
-      
-      <ScrollArea className="flex-1 overflow-x-hidden">
-        <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 max-w-full overflow-hidden">
+
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 w-full min-w-0">
           {/* Server Header */}
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
-            {/* Server Info Row */}
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full flex-shrink-0 animate-pulse", statusColor.split(" ")[1])} />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-foreground truncate">{server.name || "Unnamed Server"}</p>
                 <p className="text-[10px] text-muted-foreground truncate font-mono hidden sm:block">{server.uuid || id}</p>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                <Badge variant="outline" className={cn("text-[10px] sm:text-xs", statusColor.split(" ")[0])}>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Badge variant="outline" className={cn("text-[10px] sm:text-xs whitespace-nowrap", statusColor.split(" ")[0])}>
                   {server.status || "unknown"}
                 </Badge>
                 {isKvm && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs border-indigo-500/30 text-indigo-400 bg-indigo-500/5">
+                  <Badge variant="outline" className="text-[10px] sm:text-xs border-indigo-500/30 text-indigo-400 bg-indigo-500/5 whitespace-nowrap">
                     <Monitor className="h-3 w-3 mr-1" />
                     KVM
                   </Badge>
@@ -654,8 +654,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
 
-            {/* Power Controls */}
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 min-w-0">
               <PowerActions
                 server={server}
                 powerLoading={powerLoading}
@@ -670,7 +669,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 size="sm"
                 variant="ghost"
                 onClick={loadServer}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 flex-shrink-0"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
@@ -678,19 +677,21 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Resource Stats */}
-          <div data-guide-id="server-resources">
+          <div data-guide-id="server-resources" className="min-w-0">
             <ResourceStats resources={server.resources} />
           </div>
 
           {/* Tab Navigation */}
-          <TabNavigation
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+          <div className="min-w-0 overflow-hidden">
+            <TabNavigation
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </div>
 
           {/* Tab Content */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0">
+          <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 w-full">
             {activeTab === "console" && (
               <Suspense fallback={<LoadingState message="Loading console..." />}>
                 <ConsoleTabLazy serverId={id} />
@@ -722,25 +723,25 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             {activeTab === "settings" && <SettingsTab serverId={id} server={server} onDelete={deleteServer} reload={loadServer} isKvm={isKvm} />}
           </div>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Power Confirmation Dialog */}
-      <Dialog open={powerDialogOpen} onOpenChange={(open) => { 
-        if (!open) { setPowerDialogOpen(false); setPendingPowerAction(null) } 
+      <Dialog open={powerDialogOpen} onOpenChange={(open) => {
+        if (!open) { setPowerDialogOpen(false); setPendingPowerAction(null) }
       }}>
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">Confirm {pendingPowerAction?.charAt(0).toUpperCase()}{pendingPowerAction?.slice(1)}</DialogTitle>
           </DialogHeader>
           <div className="py-3">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground break-words">
               Are you sure you want to <span className="font-medium text-foreground">{pendingPowerAction}</span> the server?
             </p>
             {pendingPowerAction === 'kill' && (
               <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive">
+                  <p className="text-xs text-destructive break-words min-w-0">
                     Killing a server forcibly terminates its process. Data loss may occur.
                   </p>
                 </div>
@@ -753,17 +754,17 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             )}
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => { setPowerDialogOpen(false); setPendingPowerAction(null) }} 
+            <Button
+              variant="outline"
+              onClick={() => { setPowerDialogOpen(false); setPendingPowerAction(null) }}
               disabled={powerLoading}
               className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button 
-              variant={pendingPowerAction === 'kill' ? 'destructive' : 'default'} 
-              onClick={doConfirmedPowerAction} 
+            <Button
+              variant={pendingPowerAction === 'kill' ? 'destructive' : 'default'}
+              onClick={doConfirmedPowerAction}
               disabled={powerLoading}
               className="w-full sm:w-auto"
             >
@@ -775,15 +776,15 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       </Dialog>
 
       {/* Transfer Dialog */}
-      <Dialog open={transferDialogOpen} onOpenChange={(open) => { 
-        if (!open) { setTransferDialogOpen(false); setTransferNodeId(null); setTransferError(null) } 
+      <Dialog open={transferDialogOpen} onOpenChange={(open) => {
+        if (!open) { setTransferDialogOpen(false); setTransferNodeId(null); setTransferError(null) }
       }}>
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">Transfer Server</DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground break-words">
               Select the destination node to transfer this server to.
             </p>
             {isKvm && (
@@ -806,7 +807,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             </div>
             {transferError && (
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-xs text-destructive">{transferError}</p>
+                <p className="text-xs text-destructive break-words">{transferError}</p>
               </div>
             )}
             <p className="text-xs text-muted-foreground">
@@ -814,16 +815,16 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setTransferDialogOpen(false)} 
+            <Button
+              variant="outline"
+              onClick={() => setTransferDialogOpen(false)}
               disabled={transferLoading}
               className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button 
-              onClick={doTransfer} 
+            <Button
+              onClick={doTransfer}
               disabled={transferLoading || !transferNodeId}
               className="w-full sm:w-auto"
             >
@@ -833,7 +834,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }
 
@@ -920,7 +921,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
         title="Databases"
         icon={Database}
@@ -934,18 +935,18 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       />
 
       {showForm && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3">
+        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 overflow-hidden">
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Label (optional)</label>
             <input
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
               placeholder="e.g. Primary DB"
               value={formLabel}
               onChange={e => setFormLabel(e.target.value)}
             />
           </div>
           {createError && (
-            <div className="p-2 rounded-lg bg-destructive/10 text-xs text-destructive">{createError}</div>
+            <div className="p-2 rounded-lg bg-destructive/10 text-xs text-destructive break-words">{createError}</div>
           )}
           <div className="flex gap-2">
             <Button size="sm" onClick={createDb} disabled={creating}>
@@ -960,11 +961,11 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       {databases.length === 0 ? (
         <EmptyState icon={Database} message="No databases configured." />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           {databases.map((db: any) => (
-            <div key={db.id} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3">
-              <div className="flex items-start justify-between gap-2 sm:gap-3">
-                <div className="min-w-0 flex-1">
+            <div key={db.id} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-2 sm:gap-3 min-w-0">
+                <div className="min-w-0 flex-1 overflow-hidden">
                   <p className="text-sm font-medium text-foreground truncate">
                     {db.label || db.name}
                   </p>
@@ -1000,23 +1001,25 @@ function DatabasesTab({ serverId }: { serverId: string }) {
               </div>
 
               {creds[db.id] && (
-                <div className="rounded-lg bg-background border border-border p-2.5 sm:p-3 space-y-2 overflow-hidden">
+                <div className="rounded-lg bg-background border border-border p-2.5 sm:p-3 space-y-2 min-w-0 overflow-hidden">
                   {[
                     { label: "Host", value: `${creds[db.id].host}:${creds[db.id].port}`, key: `host-${db.id}` },
-                    { label: "Database", value: creds[db.id].name, key: `db-${db.id}` },
-                    { label: "Username", value: creds[db.id].username, key: `user-${db.id}` },
-                    { label: "Password", value: creds[db.id].password, key: `pass-${db.id}`, sensitive: true },
+                    { label: "DB", value: creds[db.id].name, key: `db-${db.id}` },
+                    { label: "User", value: creds[db.id].username, key: `user-${db.id}` },
+                    { label: "Pass", value: creds[db.id].password, key: `pass-${db.id}`, sensitive: true },
                     { label: "JDBC", value: creds[db.id].jdbc, key: `jdbc-${db.id}` },
                   ].map(row => (
-                    <div key={row.key} className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] sm:text-xs text-muted-foreground w-16 sm:w-20 flex-shrink-0">{row.label}</span>
-                      <code className="text-[10px] sm:text-xs bg-secondary/40 rounded px-2 py-1 flex-1 truncate font-mono min-w-0">
-                        {row.sensitive ? '••••••••' : row.value}
-                      </code>
+                    <div key={row.key} className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground w-10 sm:w-14 flex-shrink-0">{row.label}</span>
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <span className="text-[10px] sm:text-xs bg-secondary/40 rounded px-1.5 sm:px-2 py-0.5 font-mono block truncate">
+                          {row.sensitive ? '••••••••' : row.value}
+                        </span>
+                      </div>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0 flex-shrink-0"
+                        className="h-6 w-6 p-0 flex-shrink-0"
                         onClick={() => copyText(row.value, row.key)}
                       >
                         {copied === row.key ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
@@ -1037,14 +1040,14 @@ function SchedulesTab({ serverId }: { serverId: string }) {
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ 
-    name: "", 
-    cron_minute: "*", 
-    cron_hour: "*", 
-    cron_day_of_month: "*", 
-    cron_month: "*", 
-    cron_day_of_week: "*", 
-    is_active: true 
+  const [form, setForm] = useState({
+    name: "",
+    cron_minute: "*",
+    cron_hour: "*",
+    cron_day_of_month: "*",
+    cron_month: "*",
+    cron_day_of_week: "*",
+    is_active: true
   })
   const [creating, setCreating] = useState(false)
 
@@ -1090,8 +1093,11 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 
   if (loading) return <LoadingState />
 
+  const cronLabels = ["Min", "Hr", "Day", "Mon", "Wk"] as const
+  const cronFields = ["cron_minute", "cron_hour", "cron_day_of_month", "cron_month", "cron_day_of_week"] as const
+
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
         title="Schedules"
         icon={Clock}
@@ -1105,7 +1111,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       />
 
       {showForm && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4">
+        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Name</label>
             <input
@@ -1113,29 +1119,29 @@ function SchedulesTab({ serverId }: { serverId: string }) {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Daily restart"
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Cron Expression</label>
-            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-              {(["cron_minute", "cron_hour", "cron_day_of_month", "cron_month", "cron_day_of_week"] as const).map((field) => (
-                <div key={field} className="space-y-1">
-                  <label className="text-[9px] sm:text-[10px] text-muted-foreground capitalize block text-center truncate">
-                    {field.replace("cron_", "").replace(/_/g, " ").slice(0, 3)}
+            <div className="grid grid-cols-5 gap-1 sm:gap-2">
+              {cronFields.map((field, idx) => (
+                <div key={field} className="space-y-1 min-w-0">
+                  <label className="text-[9px] sm:text-[10px] text-muted-foreground block text-center">
+                    {cronLabels[idx]}
                   </label>
                   <input
                     type="text"
                     value={form[field]}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full rounded-md border border-border bg-input px-1.5 sm:px-2 py-2 text-xs sm:text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full rounded-md border border-border bg-input px-1 py-2 text-xs sm:text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
                   />
                 </div>
               ))}
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             <Button size="sm" onClick={createSchedule} disabled={creating}>
               {creating && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
@@ -1149,10 +1155,10 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       {schedules.length === 0 ? (
         <EmptyState icon={Clock} message="No schedules configured." />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           {schedules.map((sched: any) => (
-            <div key={sched.id} className="flex items-start justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 sm:p-4">
-              <div className="min-w-0 flex-1">
+            <div key={sched.id} className="flex items-start justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-foreground truncate">{sched.name || "Unnamed"}</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-mono mt-1 truncate">
                   {sched.cron_minute} {sched.cron_hour} {sched.cron_day_of_month} {sched.cron_month} {sched.cron_day_of_week}
@@ -1161,7 +1167,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                   <Badge variant="outline" className={cn("text-[10px]", sched.is_active ? "text-green-400" : "text-muted-foreground")}>
                     {sched.is_active ? "Active" : "Inactive"}
                   </Badge>
-                  <span className="text-[10px] text-muted-foreground truncate">
+                  <span className="text-[10px] text-muted-foreground truncate min-w-0">
                     Last: {sched.last_run_at ? new Date(sched.last_run_at).toLocaleString() : "Never"}
                   </span>
                 </div>
@@ -1196,9 +1202,9 @@ function NetworkTab({ serverId }: { serverId: string }) {
     setRequesting(true)
     setRequestError(null)
     try {
-      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), { 
-        method: 'POST', 
-        body: JSON.stringify({ count: 1 }) 
+      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
+        method: 'POST',
+        body: JSON.stringify({ count: 1 })
       })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
@@ -1214,9 +1220,9 @@ function NetworkTab({ serverId }: { serverId: string }) {
     const key = `${ip}:${port}`
     setDeleting(key)
     try {
-      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), { 
-        method: 'DELETE', 
-        body: JSON.stringify({ ip, port }) 
+      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
+        method: 'DELETE',
+        body: JSON.stringify({ ip, port })
       })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
@@ -1230,7 +1236,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
         title="Network Allocations"
         icon={Network}
@@ -1244,7 +1250,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
       />
 
       {requestError && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs sm:text-sm text-destructive">
+        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs sm:text-sm text-destructive break-words">
           {requestError}
         </div>
       )}
@@ -1252,17 +1258,17 @@ function NetworkTab({ serverId }: { serverId: string }) {
       {allocations.length === 0 ? (
         <EmptyState icon={Network} message="No network allocations found." />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           {allocations.map((alloc: any, i: number) => {
             const key = `${alloc.ip}:${alloc.port}`
             return (
-              <div key={i} className="flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <span className="font-mono text-xs sm:text-sm text-foreground truncate">
+              <div key={i} className="flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                    <span className="font-mono text-xs sm:text-sm text-foreground truncate min-w-0 break-all">
                       {alloc.fqdn || alloc.ip}:{alloc.port}
                     </span>
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap">
                       {alloc.is_default ? "Primary" : "Secondary"}
                     </Badge>
                   </div>
@@ -1271,10 +1277,10 @@ function NetworkTab({ serverId }: { serverId: string }) {
                   )}
                 </div>
                 {!alloc.is_default && (
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
-                    onClick={() => deassignPort(alloc.ip, alloc.port)} 
+                    onClick={() => deassignPort(alloc.ip, alloc.port)}
                     disabled={deleting === key}
                     className="flex-shrink-0 h-8 px-2 sm:px-3"
                   >
@@ -1359,7 +1365,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
         title="Backups"
         icon={HardDrive}
@@ -1375,23 +1381,23 @@ function BackupsTab({ serverId }: { serverId: string }) {
       {backups.length === 0 ? (
         <EmptyState icon={HardDrive} message="No backups found. Create one to get started." />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           {backups.map((backup: any) => {
             const isLocked = backup.locked || backup.is_locked
-            const inProgress = (backup.progress != null && Number(backup.progress) > 0 && Number(backup.progress) < 100) || 
+            const inProgress = (backup.progress != null && Number(backup.progress) > 0 && Number(backup.progress) < 100) ||
               (backup.status && ["running", "in-progress", "processing"].includes(String(backup.status).toLowerCase()))
 
             return (
-              <div key={backup.uuid || backup.id} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-foreground truncate">
+              <div key={backup.uuid || backup.id} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden">
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate min-w-0">
                         {backup.displayName || backup.display_name || backup.name || "Backup"}
                       </p>
                       {isLocked && <Lock className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />}
                     </div>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
                       {formatBytes(backup.bytes || 0)} • {backup.created_at ? new Date(backup.created_at).toLocaleString() : "—"}
                     </p>
                     {backup.is_successful === false && (
@@ -1403,9 +1409,9 @@ function BackupsTab({ serverId }: { serverId: string }) {
                 {inProgress && (
                   <div className="space-y-1">
                     <div className="h-2 bg-border rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary transition-all" 
-                        style={{ width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%` }} 
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%` }}
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground">
@@ -1422,10 +1428,10 @@ function BackupsTab({ serverId }: { serverId: string }) {
                   <Button size="sm" variant="outline" onClick={() => lockBackup(String(backup.uuid || backup.id), !isLocked)} className="h-8 px-2">
                     {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="destructive" 
-                    onClick={() => deleteBackup(String(backup.uuid || backup.id))} 
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteBackup(String(backup.uuid || backup.id))}
                     disabled={isLocked}
                     className="h-8 px-2 sm:px-3"
                   >
@@ -1498,35 +1504,35 @@ function StartupTab({ serverId }: { serverId: string }) {
   ])
 
   return (
-    <div data-guide-id="startup-tab" className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+    <div data-guide-id="startup-tab" className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
       {/* Startup Info */}
       <CollapsibleSection title="Server Configuration" icon={Variable} defaultOpen>
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <InfoRow label="Egg" value={startup.eggName || "—"} />
             <InfoRow label="Docker Image" value={selectedDockerImage || "—"} mono />
           </div>
 
           {dockerImageOptions.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select Docker Image</label>
               <select
                 value={selectedDockerImage}
                 onChange={(e) => setSelectedDockerImage(e.target.value)}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
               >
                 <option value="" disabled>Select image…</option>
                 {dockerImageOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label} ({option.value})</option>
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">No alternate docker images are configured for this egg.</p>
+            <p className="text-xs text-muted-foreground break-words">No alternate docker images are configured for this egg.</p>
           )}
 
           {startup.startup && (
-            <div className="rounded-lg border border-border bg-secondary/30 p-3 overflow-hidden">
+            <div className="rounded-lg border border-border bg-secondary/30 p-3 min-w-0 overflow-hidden">
               <p className="text-[10px] text-muted-foreground mb-1">Startup Command</p>
               <p className="text-[10px] sm:text-xs font-mono text-foreground break-all">{startup.startup}</p>
             </div>
@@ -1536,12 +1542,12 @@ function StartupTab({ serverId }: { serverId: string }) {
 
       {/* Detection Patterns */}
       <CollapsibleSection title="Startup Detection" icon={Activity}>
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
+        <div className="space-y-3 min-w-0">
+          <p className="text-xs text-muted-foreground break-words">
             Patterns matched against console output to detect startup completion.
           </p>
           {donePatterns.map((pattern, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className="flex items-center gap-2 min-w-0">
               <input
                 type="text"
                 value={pattern}
@@ -1570,7 +1576,7 @@ function StartupTab({ serverId }: { serverId: string }) {
       </CollapsibleSection>
 
       {/* Environment Variables */}
-      <div className="space-y-3">
+      <div className="space-y-3 min-w-0">
         <SectionHeader
           title="Environment Variables"
           icon={Variable}
@@ -1582,7 +1588,7 @@ function StartupTab({ serverId }: { serverId: string }) {
           }
         />
 
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           {[...allKeys].map((key) => {
             const def = envVarDefs.find((v: any) => (v.env_variable || v.key || v.name) === key)
             const isEditable = def ? !!def.user_editable : true
@@ -1590,24 +1596,24 @@ function StartupTab({ serverId }: { serverId: string }) {
             const name = def?.name || key
 
             return (
-              <div key={key} className="rounded-lg border border-border bg-secondary/10 p-3">
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-2 flex-wrap">
-                  <span className="text-xs font-semibold text-foreground">{name}</span>
-                  <Badge variant="outline" className="text-[10px] font-mono max-w-[150px] sm:max-w-none truncate">{key}</Badge>
+              <div key={key} className="rounded-lg border border-border bg-secondary/10 p-3 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-1.5 mb-2 flex-wrap min-w-0">
+                  <span className="text-xs font-semibold text-foreground truncate min-w-0">{name}</span>
+                  <Badge variant="outline" className="text-[10px] font-mono truncate max-w-[40vw] sm:max-w-none">{key}</Badge>
                   {!isEditable && (
-                    <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0">Read Only</Badge>
+                    <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap">Read Only</Badge>
                   )}
                 </div>
-                {description && <p className="text-[10px] sm:text-xs text-muted-foreground mb-2">{description}</p>}
+                {description && <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 break-words">{description}</p>}
                 <input
                   type="text"
                   value={editedEnv[key] ?? ""}
                   onChange={(e) => setEditedEnv((prev) => ({ ...prev, [key]: e.target.value }))}
                   disabled={!isEditable}
                   className={cn(
-                    "w-full rounded-lg border border-border px-3 py-2 text-xs sm:text-sm font-mono outline-none",
-                    isEditable 
-                      ? "bg-input text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary" 
+                    "w-full rounded-lg border border-border px-3 py-2 text-xs sm:text-sm font-mono outline-none min-w-0",
+                    isEditable
+                      ? "bg-input text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       : "bg-secondary/50 text-muted-foreground cursor-not-allowed"
                   )}
                 />
@@ -1637,15 +1643,15 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
   if (loading) return <LoadingState />
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader title="Mounts" icon={Box} />
 
       {isKvm && (
-        <KvmInfoNotice message="KVM filesystem is managed by cloud-init and may not display correctly in this panel. Use the VM console or SSH/SFTP to inspect guest filesystem state." />
+        <KvmInfoNotice message="KVM filesystem is managed by cloud-init and may not display correctly in this panel." />
       )}
 
       {!isKvm && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground break-words">
           Mounts bind host directories into your server container.
         </p>
       )}
@@ -1653,23 +1659,23 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
       {mounts.length === 0 ? (
         <EmptyState icon={Box} message="No mounts configured. Mounts are managed by administrators." />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           {mounts.map((mount: any, i: number) => (
-            <div key={mount.id || i} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div key={mount.id || i} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <Box className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-medium text-foreground truncate">{mount.name || `Mount ${i + 1}`}</span>
+                <span className="text-sm font-medium text-foreground truncate min-w-0">{mount.name || `Mount ${i + 1}`}</span>
                 {mount.read_only && (
-                  <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0">Read Only</Badge>
+                  <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap">Read Only</Badge>
                 )}
               </div>
-              {mount.description && <p className="text-xs text-muted-foreground">{mount.description}</p>}
+              {mount.description && <p className="text-xs text-muted-foreground break-words">{mount.description}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="rounded border border-border bg-secondary/30 p-2 min-w-0">
+                <div className="rounded border border-border bg-secondary/30 p-2 min-w-0 overflow-hidden">
                   <span className="text-[10px] text-muted-foreground">Source</span>
                   <p className="text-xs font-mono text-foreground truncate">{mount.source || "—"}</p>
                 </div>
-                <div className="rounded border border-border bg-secondary/30 p-2 min-w-0">
+                <div className="rounded border border-border bg-secondary/30 p-2 min-w-0 overflow-hidden">
                   <span className="text-[10px] text-muted-foreground">Target</span>
                   <p className="text-xs font-mono text-foreground truncate">{mount.target || "—"}</p>
                 </div>
@@ -1707,18 +1713,18 @@ function ActivityTab({ serverId }: { serverId: string }) {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader title="Activity Log" icon={Activity} />
 
       {logs.length === 0 ? (
         <EmptyState icon={Activity} message="No activity recorded yet." />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           {logs.map((log) => (
-            <div key={log.id} className="flex items-start gap-2.5 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3">
+            <div key={log.id} className="flex items-start gap-2.5 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden">
               <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-foreground">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-xs sm:text-sm text-foreground truncate">
                   {actionLabels[log.action] || log.action}
                 </p>
                 {log.metadata?.command && (
@@ -1726,7 +1732,7 @@ function ActivityTab({ serverId }: { serverId: string }) {
                     $ {log.metadata.command}
                   </p>
                 )}
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1.5 text-[10px] text-muted-foreground">
                   <span>User #{log.userId}</span>
                   {log.ipAddress && <span className="hidden sm:inline">• {log.ipAddress}</span>}
                   <span>• {new Date(log.timestamp).toLocaleString()}</span>
@@ -1803,7 +1809,7 @@ function SubusersTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
         title="Subusers"
         icon={Users}
@@ -1817,9 +1823,9 @@ function SubusersTab({ serverId }: { serverId: string }) {
       />
 
       {showAdd && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4">
-          {error && <div className="p-2 rounded-lg bg-destructive/10 text-xs text-destructive">{error}</div>}
-          
+        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
+          {error && <div className="p-2 rounded-lg bg-destructive/10 text-xs text-destructive break-words">{error}</div>}
+
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Email</label>
             <input
@@ -1827,15 +1833,15 @@ function SubusersTab({ serverId }: { serverId: string }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@example.com"
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Permissions</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
               {PERMISSIONS.map((p) => (
-                <label key={p.key} className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2 rounded-lg border border-border hover:bg-secondary/30 transition-colors">
+                <label key={p.key} className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2 rounded-lg border border-border hover:bg-secondary/30 transition-colors min-w-0">
                   <input
                     type="checkbox"
                     checked={selectedPerms.includes(p.key)}
@@ -1851,7 +1857,7 @@ function SubusersTab({ serverId }: { serverId: string }) {
               ))}
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} disabled={adding}>
               {adding && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
@@ -1865,10 +1871,10 @@ function SubusersTab({ serverId }: { serverId: string }) {
       {subusers.length === 0 ? (
         <EmptyState icon={Users} message="No subusers added yet." />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           {subusers.map((su) => (
-            <div key={su.id} className="flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3">
-              <div className="min-w-0 flex-1">
+            <div key={su.id} className="flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-foreground truncate">
                   {su.userEmail || su.email || `User #${su.userId}`}
                 </p>
@@ -1889,7 +1895,7 @@ function SubusersTab({ serverId }: { serverId: string }) {
   )
 }
 
-function SettingsTab({ serverId, server, onDelete, reload, isKvm }: { 
+function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
   serverId: string
   server: any
   onDelete: () => void
@@ -1897,6 +1903,7 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
   isKvm?: boolean
 }) {
   const [reinstalling, setReinstalling] = useState(false)
+  const [launchNotice, setLaunchNotice] = useState<string | null>(null)
 
   const [primaryAlloc, setPrimaryAlloc] = useState<any>(
     server?.allocations?.find((a: any) => a.is_default) || server?.allocations?.[0] || null
@@ -1940,14 +1947,56 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
     }
   }
 
+  const sftpHost = isKvm ? (primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp?.host || "—") : (server.sftp?.host || "—")
+  const sftpPort = isKvm ? String(primaryAlloc?.port || server.sftp?.port || "") : String(server.sftp?.port || "")
+  const sftpUser = server.sftp?.username || (isKvm ? "root" : "—")
+  const sftpCmd = isKvm
+    ? `sftp root@${sftpHost} -P ${sftpPort}`
+    : `sftp ${server.sftp?.username}@${server.sftp?.host} -P ${server.sftp?.port}`
+  const sshCmd = isKvm
+    ? `ssh root@${sftpHost} -p ${sftpPort}`
+    : `ssh ${server.sftp?.username}@${server.sftp?.host} -p ${server.sftp?.port}`
+
+  const launchSsh = () => {
+    const host = sftpHost
+    const port = sftpPort
+    const user = sftpUser
+    if (!host || host === "—" || !port) {
+      setLaunchNotice("SSH connection details are not available.")
+      setTimeout(() => setLaunchNotice(null), 4000)
+      return
+    }
+    // ssh:// URI format: ssh://user@host:port
+    const sshUri = `ssh://${encodeURIComponent(user)}@${host}:${port}`
+    window.open(sshUri, "_blank")
+    setLaunchNotice("Opening SSH client… If nothing happened, copy the command above and use your terminal.")
+    setTimeout(() => setLaunchNotice(null), 5000)
+  }
+
+  const launchSftp = () => {
+    const host = sftpHost
+    const port = sftpPort
+    const user = sftpUser
+    if (!host || host === "—" || !port) {
+      setLaunchNotice("SFTP connection details are not available.")
+      setTimeout(() => setLaunchNotice(null), 4000)
+      return
+    }
+    // sftp:// URI format: sftp://user@host:port
+    const sftpUri = `sftp://${encodeURIComponent(user)}@${host}:${port}`
+    window.open(sftpUri, "_blank")
+    setLaunchNotice("Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app.")
+    setTimeout(() => setLaunchNotice(null), 5000)
+  }
+
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
       {/* KVM Status Banner */}
       {isKvm && <KvmBanner />}
 
       {/* Server Info */}
       <CollapsibleSection title="Server Information" icon={Info} defaultOpen>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
           <InfoRow label="UUID" value={server.uuid || serverId} mono copyable />
           <InfoRow label="Name" value={server.name || "—"} />
           <InfoRow label="Status" value={server.status || "—"} />
@@ -1961,83 +2010,109 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
       {/* SFTP/SSH Access */}
       {server.sftp && (
         <CollapsibleSection title="External Access" icon={Network}>
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <InfoRow
-                label="Host"
-                value={isKvm ? (primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp.host) : server.sftp.host}
-                mono
-                copyable
-              />
-              <InfoRow
-                label="Port"
-                value={isKvm ? String(primaryAlloc?.port || server.sftp.port) : String(server.sftp.port)}
-                mono
-                copyable
-              />
-              <InfoRow
-                label="Username"
-                value={server.sftp.username || (isKvm ? "root" : "—")}
-                mono
-                copyable
-              />
+              <InfoRow label="Host" value={sftpHost} mono copyable />
+              <InfoRow label="Port" value={sftpPort} mono copyable />
+              <InfoRow label="Username" value={sftpUser} mono copyable />
             </div>
+
+            {/* Launch Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={launchSsh}
+                className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-9 sm:h-8 px-3"
+              >
+                <Terminal className="h-3.5 w-3.5 mr-2" />
+                Launch SSH
+                <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={launchSftp}
+                className="flex-1 sm:flex-none border-blue-500/30 text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/20 h-9 sm:h-8 px-3"
+              >
+                <Folder className="h-3.5 w-3.5 mr-2" />
+                Launch SFTP
+                <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
+              </Button>
+            </div>
+
+            {/* Launch notice toast */}
+            {launchNotice && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 flex items-start gap-2 animate-in fade-in-0 slide-in-from-top-2 overflow-hidden">
+                <Info className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[10px] sm:text-xs text-amber-300/80 leading-relaxed break-words min-w-0">{launchNotice}</p>
+              </div>
+            )}
+
             {server.sftp.username && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-[10px] sm:text-xs font-mono bg-secondary/50 border border-border rounded px-2.5 sm:px-3 py-2 overflow-x-auto whitespace-nowrap min-w-0">
-                    {isKvm
-                      ? `sftp root@${primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp.host} -P ${primaryAlloc?.port || server.sftp.port}`
-                      : `sftp ${server.sftp.username}@${server.sftp.host} -P ${server.sftp.port}`}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 h-8 w-8 p-0"
-                    onClick={() => navigator.clipboard.writeText(isKvm
-                      ? `sftp root@${primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp.host} -P ${primaryAlloc?.port || server.sftp.port}`
-                      : `sftp ${server.sftp.username}@${server.sftp.host} -P ${server.sftp.port}`)}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
+              <div className="space-y-2 min-w-0">
+                {/* SSH command */}
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">SSH Command</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex-1 min-w-0 rounded border border-border bg-secondary/50 overflow-hidden">
+                      <div className="overflow-x-auto scrollbar-none">
+                        <code className="text-[10px] sm:text-xs font-mono block px-2.5 py-2 whitespace-nowrap">
+                          {sshCmd}
+                        </code>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 h-8 w-8 p-0"
+                      onClick={() => navigator.clipboard.writeText(sshCmd)}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-[10px] sm:text-xs font-mono bg-secondary/50 border border-border rounded px-2.5 sm:px-3 py-2 overflow-x-auto whitespace-nowrap min-w-0">
-                    {isKvm
-                      ? `ssh root@${primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp.host} -p ${primaryAlloc?.port || server.sftp.port}`
-                      : `ssh ${server.sftp.username}@${server.sftp.host} -p ${server.sftp.port}`}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 h-8 w-8 p-0"
-                    onClick={() => navigator.clipboard.writeText(isKvm
-                      ? `ssh root@${primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp.host} -p ${primaryAlloc?.port || server.sftp.port}`
-                      : `ssh ${server.sftp.username}@${server.sftp.host} -p ${server.sftp.port}`)}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
+                {/* SFTP command */}
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">SFTP Command</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex-1 min-w-0 rounded border border-border bg-secondary/50 overflow-hidden">
+                      <div className="overflow-x-auto scrollbar-none">
+                        <code className="text-[10px] sm:text-xs font-mono block px-2.5 py-2 whitespace-nowrap">
+                          {sftpCmd}
+                        </code>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 h-8 w-8 p-0"
+                      onClick={() => navigator.clipboard.writeText(sftpCmd)}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
 
             {isKvm ? (
-              <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 p-3 space-y-2">
-                <div className="flex items-start gap-2">
+              <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 p-3 space-y-2 min-w-0 overflow-hidden">
+                <div className="flex items-start gap-2 min-w-0">
                   <Monitor className="h-4 w-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
                     <p className="text-xs font-medium text-indigo-300">KVM Access Notes</p>
-                    <ul className="text-[10px] sm:text-xs text-indigo-400/70 space-y-1 list-disc list-inside">
-                      <li>Use the primary allocation (host:port above) for SSH/SFTP</li>
-                      <li>Default credentials: <code className="bg-indigo-500/10 px-1 rounded">root</code> / <code className="bg-indigo-500/10 px-1 rounded">changeme</code></li>
-                      <li>Filesystem is managed by cloud-init inside the VM</li>
-                      <li>Panel file controls may not reflect guest filesystem state</li>
+                    <ul className="text-[10px] sm:text-xs text-indigo-400/70 space-y-1 list-disc pl-4">
+                      <li>Use the primary allocation for SSH/SFTP</li>
+                      <li className="break-all">Default: <code className="bg-indigo-500/10 px-1 rounded">root</code> / <code className="bg-indigo-500/10 px-1 rounded">changeme</code></li>
+                      <li>Filesystem managed by cloud-init</li>
+                      <li>Panel files may not reflect guest state</li>
                     </ul>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Use your panel password or SSH key to authenticate.</p>
+              <p className="text-xs text-muted-foreground break-words">Use your panel password or SSH key to authenticate.</p>
             )}
           </div>
         </CollapsibleSection>
@@ -2046,7 +2121,7 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
       {/* Build Configuration */}
       {server.build && (
         <CollapsibleSection title="Resource Limits" icon={Cpu}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
             <InfoRow label="Memory" value={`${server.build.memory_limit || 0} MB`} />
             <InfoRow label="Disk" value={`${server.build.disk_space || 0} MB`} />
             <InfoRow label="CPU" value={`${server.build.cpu_limit || 0}%`} />
@@ -2058,22 +2133,22 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
       )}
 
       {/* Danger Zone */}
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 sm:p-4 md:p-6 space-y-4">
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 sm:p-4 md:p-6 space-y-4 overflow-hidden">
         <div>
           <h3 className="text-sm font-semibold text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-            Danger Zone
+            <span className="truncate">Danger Zone</span>
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-1 break-words">
             These actions are irreversible. Proceed with caution.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
-            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto" 
-            onClick={handleReinstall} 
+            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto"
+            onClick={handleReinstall}
             disabled={reinstalling}
           >
             {reinstalling && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}

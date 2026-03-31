@@ -2,6 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { PanelHeader } from "@/components/panel/header"
 import { StatCard, SectionHeader, StatusBadge } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -771,6 +772,8 @@ export default function AdminPanel() {
 
   const [privateMode, setPrivateMode] = useState(true)
   const [privacyDialogOpen, setPrivacyDialogOpen] = useState(true)
+  const [pendingViewUserDialog, setPendingViewUserDialog] = useState<AdminUser | null>(null)
+  const [viewUserQueryHandled, setViewUserQueryHandled] = useState(false)
   const [redactServers, setRedactServers] = useState<boolean>(true)
   const [redactOrganisations, setRedactOrganisations] = useState<boolean>(true)
 
@@ -1307,7 +1310,9 @@ export default function AdminPanel() {
               geoBlockCountries: data.geoBlockCountries ?? "",
               featureToggles: {
                 registration: true,
-                codeInstances: true,
+                codeInstances: data.codeInstancesEnabled !== false
+                  ? (data.featureToggles?.codeInstances ?? true)
+                  : false,
                 billing: true,
                 ai: true,
                 dns: true,
@@ -1369,24 +1374,30 @@ export default function AdminPanel() {
   // ── Fetch users (paged) ──
   async function fetchUsers(page = 1, q = "") {
     setUsersLoading(true)
+    let loadedUsers: any[] = []
     try {
       const url = `${API_ENDPOINTS.adminUsers}?page=${page}&q=${encodeURIComponent(q || '')}`
       const res: any = await apiFetch(url)
       if (res) {
-        setUsers(Array.isArray(res.users) ? res.users : [])
-        setUsersTotal(typeof res.total === 'number' ? res.total : (Array.isArray(res.users) ? res.users.length : 0))
+        const usersData = Array.isArray(res.users) ? res.users : []
+        loadedUsers = usersData
+        setUsers(usersData)
+        setUsersTotal(typeof res.total === 'number' ? res.total : usersData.length)
         setUsersPage(typeof res.page === 'number' ? res.page : page)
       } else {
+        loadedUsers = []
         setUsers([])
         setUsersTotal(0)
         setUsersPage(page)
       }
     } catch (e) {
+      loadedUsers = []
       setUsers([])
       setUsersTotal(0)
     } finally {
       setUsersLoading(false)
     }
+    return loadedUsers
   }
 
   // ── Fetch organisations (paged) ──
@@ -1471,10 +1482,51 @@ export default function AdminPanel() {
     await fetchTickets(1, ticketSearch, ticketPriorityFilter)
   }
 
-  // ── Load default tab on mount ──
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // ── Load default tab on mount and honor ?viewUser=123 query ──
   useEffect(() => {
-    loadTab("users")
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    const tab = searchParams.get("tab") || "users"
+    const viewUserId = Number(searchParams.get("viewUser") || "")
+
+    if (viewUserQueryHandled) return
+    if (!Number.isFinite(viewUserId) || viewUserId <= 0) return
+
+    const openFromQuery = async () => {
+      await loadTab(tab)
+
+      let selectedUser: AdminUser | null = null
+      const existingUser = users.find((u) => u.id === viewUserId)
+      if (existingUser) {
+        selectedUser = existingUser
+      } else {
+        const fetchedUsers = await fetchUsers(1, "")
+        const match = Array.isArray(fetchedUsers)
+          ? fetchedUsers.find((u: any) => u.id === viewUserId)
+          : null
+        selectedUser = match ? match : ({ id: viewUserId } as AdminUser)
+      }
+
+      if (!selectedUser) {
+        setViewUserQueryHandled(true)
+        return
+      }
+
+      if (privacyDialogOpen) {
+        setPendingViewUserDialog(selectedUser)
+      } else {
+        openViewUser(selectedUser)
+      }
+
+      setViewUserQueryHandled(true)
+      const params = new URLSearchParams(Array.from(searchParams.entries()))
+      params.delete("viewUser")
+      router.replace(`${window.location.pathname}?${params.toString()}`)
+    }
+
+    openFromQuery()
+  }, [searchParams, privacyDialogOpen, users, viewUserQueryHandled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filtered users ──
   const filteredUsers = users.filter((u) => {
@@ -2714,7 +2766,13 @@ remote: ${panelUrl}`
             Sensitive data is currently <strong>{privateMode ? "hidden" : "visible"}</strong>.
             {privateMode ? "" : ""}
           </span>
-          <Button size="sm" variant="outline" onClick={() => setPrivacyDialogOpen(true)}>
+          <Button size="sm" variant="outline" onClick={() => {
+            if (viewUserDialog) {
+              setPendingViewUserDialog(viewUserDialog);
+              setViewUserDialog(null);
+            }
+            setPrivacyDialogOpen(true);
+          }}>
             {privateMode ? "Confirm to reveal" : "Re-hide private data"}
           </Button>
         </div>
@@ -2753,6 +2811,10 @@ remote: ${panelUrl}`
               setRedactOrganisations(true);
               setRedactServers(true);
               setPrivacyDialogOpen(false);
+              if (pendingViewUserDialog) {
+                openViewUser(pendingViewUserDialog);
+                setPendingViewUserDialog(null);
+              }
             }}>
               Continue with redaction
             </Button>
@@ -2761,6 +2823,10 @@ remote: ${panelUrl}`
               setRedactOrganisations(false);
               setRedactServers(false);
               setPrivacyDialogOpen(false);
+              if (pendingViewUserDialog) {
+                openViewUser(pendingViewUserDialog);
+                setPendingViewUserDialog(null);
+              }
             }}>
               I am not recording
             </Button>
@@ -8204,7 +8270,14 @@ Content-Type: application/json
                         </div>
                       </div>
                       <button
-                        onClick={() => setPanelSettings((s) => ({ ...s, codeInstancesEnabled: !s.codeInstancesEnabled }))}
+                        onClick={() => setPanelSettings((s) => ({
+                          ...s,
+                          codeInstancesEnabled: !s.codeInstancesEnabled,
+                          featureToggles: {
+                            ...s.featureToggles,
+                            codeInstances: !s.featureToggles?.codeInstances,
+                          },
+                        }))}
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.codeInstancesEnabled ? "bg-green-500" : "bg-secondary"}`}
                         role="switch"
                         aria-checked={panelSettings.codeInstancesEnabled}
@@ -8222,6 +8295,7 @@ Content-Type: application/json
                         { key: 'dns', label: 'DNS', note: 'Organisation DNS zone management' },
                         { key: 'ticketing', label: 'Ticketing', note: 'Support tickets and chat logs' },
                         { key: 'oauth', label: 'OAuth', note: 'OAuth client and token server' },
+                        { key: 'codeInstances', label: 'Code Instances', note: 'Temporary code-server access' },
                       ].map((t) => (
                         <div key={t.key} className="rounded-lg border border-border p-3">
                           <div className="flex items-start justify-between gap-3">

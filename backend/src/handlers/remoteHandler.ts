@@ -586,11 +586,27 @@ export async function remoteRoutes(app: any, prefix: string) {
         return { errors: [{ code: 'Forbidden', detail: 'Unsupported authentication type' }] };
       }
 
-      const configs = await repo().find({ where: { nodeId: node.id, userId: user.id } });
-      const cfg = configs.find(c => c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
+      const configs = await repo().find({ where: { nodeId: node.id } });
+      let cfg = configs.find(c => c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
       if (!cfg) {
         ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Server not found or not owned by user' }] };
+        return { errors: [{ code: 'Forbidden', detail: 'Server not found' }] };
+      }
+
+      const isOwner = cfg.userId === user.id;
+      let isSubuser = false;
+      if (!isOwner) {
+        const { ServerSubuser } = require('../models/serverSubuser.entity');
+        const subuserRepo = AppDataSource.getRepository(ServerSubuser);
+        const sub = await subuserRepo.findOne({ where: { serverUuid: cfg.uuid, userId: user.id } });
+        if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files') || sub.permissions.includes('console'))) {
+          isSubuser = true;
+        }
+      }
+
+      if (!isOwner && !isSubuser) {
+        ctx.set.status = 403;
+        return { errors: [{ code: 'Forbidden', detail: 'Server not found or not authorized for user' }] };
       }
 
       if (cfg.suspended) {

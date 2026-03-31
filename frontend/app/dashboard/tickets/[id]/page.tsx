@@ -44,7 +44,18 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
+function getTicketUserName(ticket: any) {
+  if (ticket?.userName) return ticket.userName
+  if (ticket?.user?.displayName) return ticket.user.displayName
+  if (ticket?.user?.firstName || ticket?.user?.lastName) {
+    return `${ticket.user.firstName || ""} ${ticket.user.lastName || ""}`.trim()
+  }
+  if (ticket?.user?.email) return ticket.user.email
+  return "You"
+}
+
 function buildMessages(ticket: any) {
+  const userName = getTicketUserName(ticket)
   if (Array.isArray(ticket?.messages) && ticket.messages.length) {
     return ticket.messages.map((m: any, idx: number) => ({
       id: `msg-${idx}`,
@@ -53,7 +64,7 @@ function buildMessages(ticket: any) {
           ? "Support Team"
           : m.sender === "system"
             ? "Information"
-            : ticket.userName || "You",
+            : userName,
       senderRole:
         m.sender === "staff"
           ? "staff"
@@ -76,7 +87,7 @@ function buildMessages(ticket: any) {
   if (ticket?.message) {
     msgs.push({
       id: "msg-initial",
-      sender: ticket.userName || "You",
+      sender: userName,
       senderRole: "user",
       content: ticket.message,
       timestamp: ticket.created,
@@ -724,13 +735,6 @@ export default function TicketDetailPage({
         <div className="flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden">
           {/* Ticket Header Bar */}
           <div className="shrink-0 flex items-start gap-2 sm:gap-3 border-b border-border px-3 py-2.5 sm:px-6 sm:py-4 bg-card/30">
-            <Link
-              href="/dashboard/tickets"
-              className="mt-0.5 sm:mt-1 rounded-lg border border-border bg-card p-1.5 sm:p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground shrink-0 active:scale-95"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Link>
-
             <div className="flex-1 min-w-0">
               <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground leading-snug line-clamp-1 sm:line-clamp-2">
                 {ticket.subject}
@@ -802,6 +806,43 @@ export default function TicketDetailPage({
               </button>
             </div>
           </div>
+
+          {/* Admin user info */}
+          {isAdmin && ticket?.user && (
+            <div className="mx-3 mb-4 rounded-lg border border-border bg-secondary/20 p-3 text-sm text-foreground">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ticket Owner</h2>
+                <Link
+                  href={`/dashboard/admin?viewUser=${ticket.user.id}`}
+                  className="text-xs text-primary hover:underline"
+                >
+                  View full profile
+                </Link>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Name</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {ticket.user.displayName || `${ticket.user.firstName || ''} ${ticket.user.lastName || ''}`.trim() || "(unknown)"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium text-foreground">{ticket.user.email}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Role</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {ticket.user.role || ticket.user.orgRole || "user"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Portal</p>
+                  <p className="text-sm font-medium text-foreground">{ticket.user.portalType || "unknown"}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Mobile Details Bottom Sheet */}
           {showMobileDetails && (

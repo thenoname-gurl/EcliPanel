@@ -32,6 +32,7 @@ export async function createActivityLog(opts: {
     metadata: opts.metadata || {},
     ipAddress: opts.ipAddress,
     timestamp: new Date(),
+    isRead: false,
   });
   await repo.save(entry);
 
@@ -141,7 +142,7 @@ export async function logRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const { limit = '50', offset = '0', action, targetType } = ctx.query as any;
+    const { limit = '50', offset = '0', action, targetType, unread } = ctx.query as any;
     const logRepo = AppDataSource.getRepository(UserLog);
     const qb = logRepo.createQueryBuilder('log')
       .where('log.userId = :userId', { userId })
@@ -150,12 +151,79 @@ export async function logRoutes(app: any, prefix = '') {
       .take(Math.min(Number(limit), 200));
     if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
     if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
+    if (typeof unread !== 'undefined') {
+      const unreadVal = String(unread).toLowerCase();
+      qb.andWhere('log.isRead = :isRead', { isRead: unreadVal === '1' || unreadVal === 'true' || unreadVal === 'yes' ? false : true });
+    }
     const logs = await qb.getMany();
     return logs;
   }, {
    beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Fetch activity logs for a given user', tags: ['Logs'] }
+  });
+
+  app.get(prefix + '/users/:id/logs/unread-count', async (ctx: any) => {
+    const userId = Number(ctx.params['id']);
+    const requester = ctx.user as any;
+    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    const logRepo = AppDataSource.getRepository(UserLog);
+    const unread = await logRepo.createQueryBuilder('log')
+      .where('log.userId = :userId', { userId })
+      .andWhere('log.isRead = :isRead', { isRead: false })
+      .getCount();
+
+    return { unread };
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Object({ unread: t.Number() }), 403: t.Object({ error: t.String() }) },
+    detail: { summary: 'Get unread user log count', tags: ['Logs'] }
+  });
+
+  app.patch(prefix + '/users/:id/logs/read-all', async (ctx: any) => {
+    const userId = Number(ctx.params['id']);
+    const requester = ctx.user as any;
+    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    const logRepo = AppDataSource.getRepository(UserLog);
+    await logRepo.createQueryBuilder()
+      .update(UserLog)
+      .set({ isRead: true })
+      .where('userId = :userId', { userId })
+      .execute();
+    return { success: true };
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 403: t.Object({ error: t.String() }) },
+    detail: { summary: 'Mark all user logs as read', tags: ['Logs'] }
+  });
+
+  app.patch(prefix + '/users/:id/logs/:logId/read', async (ctx: any) => {
+    const userId = Number(ctx.params['id']);
+    const logId = Number(ctx.params['logId']);
+    const requester = ctx.user as any;
+    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    const logRepo = AppDataSource.getRepository(UserLog);
+    const log = await logRepo.findOneBy({ id: logId, userId });
+    if (!log) {
+      ctx.set.status = 404;
+      return { error: 'Not found' };
+    }
+    log.isRead = true;
+    await logRepo.save(log);
+    return { success: true, log };
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Any(), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Mark a single log notification as read', tags: ['Logs'] }
   });
 
   app.get(prefix + '/servers/:id/logs', async (ctx: any) => {

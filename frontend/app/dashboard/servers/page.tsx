@@ -34,6 +34,11 @@ import {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+function toBool(value: any): boolean {
+  if (value === false || value === "false" || value === 0 || value === "0") return false
+  return value === true || value === "true" || value === 1 || value === "1" || Boolean(value)
+}
+
 function formatUptime(ms: number) {
   if (!ms || ms <= 0) return "—"
   const seconds = Math.floor(ms / 1000)
@@ -895,6 +900,49 @@ export default function ServersPage() {
   const [showNewModal, setShowNewModal] = useState(false)
   const [showCodeModal, setShowCodeModal] = useState(false)
   const [powerLoading, setPowerLoading] = useState<string | null>(null)
+  const [codeInstancesEnabled, setCodeInstancesEnabled] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadFeatureToggles = async () => {
+      try {
+        const data = await apiFetch(API_ENDPOINTS.panelSettings)
+        if (!mounted) return
+
+        const value =
+          data?.featureToggles?.codeInstances ??
+          data?.codeInstancesEnabled ??
+          false
+
+        setCodeInstancesEnabled(toBool(value))
+      } catch {
+        setCodeInstancesEnabled(false)
+      }
+    }
+
+    const onSettingsUpdate = (e: any) => {
+      try {
+        const incoming = e?.detail?.featureToggles ?? e?.detail ?? null
+        if (!incoming || typeof incoming !== "object") return
+        if (incoming.codeInstances !== undefined) {
+          setCodeInstancesEnabled(toBool(incoming.codeInstances))
+        }
+      } catch {
+        // skip
+      }
+    }
+
+    loadFeatureToggles()
+    window.addEventListener("panelSettingsUpdated", onSettingsUpdate)
+    const interval = window.setInterval(loadFeatureToggles, 15000)
+
+    return () => {
+      mounted = false
+      window.removeEventListener("panelSettingsUpdated", onSettingsUpdate)
+      clearInterval(interval)
+    }
+  }, [])
 
   const loadServers = useCallback(async () => {
     setLoading(true)
@@ -993,14 +1041,25 @@ export default function ServersPage() {
                 </button>
               )}
             </div>
-            <button
-              data-guide-id="servers-new"
-              onClick={() => setShowNewModal(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] transition-all w-full sm:w-auto"
-            >
-              <Plus className="h-4 w-4" />
-              New Server
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              {codeInstancesEnabled && (
+                <button
+                  onClick={() => setShowCodeModal(true)}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2 text-sm font-medium hover:bg-primary/10 transition-all"
+                >
+                  <Server className="h-4 w-4" />
+                  Code Instances
+                </button>
+              )}
+              <button
+                data-guide-id="servers-new"
+                onClick={() => setShowNewModal(true)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] transition-all w-full sm:w-auto"
+              >
+                <Plus className="h-4 w-4" />
+                New Server
+              </button>
+            </div>
           </div>
 
           {/* Loading */}

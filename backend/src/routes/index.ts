@@ -55,7 +55,7 @@ export function registerRoutes(app: any) {
           const enabled = await isFeatureEnabled(check.feature);
           if (!enabled) {
             ctx.set.status = 503;
-            return { error: `Feature '${check.feature}' is disabled` };h
+            return { error: `Feature '${check.feature}' is disabled` };
           }
         }
       }

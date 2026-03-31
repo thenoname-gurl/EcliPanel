@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/typeorm';
 import { Ticket } from '../models/ticket.entity';
+import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 import axios from 'axios';
@@ -988,7 +989,30 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
+
+    const output: any = { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
+
+    if (adminRoles.includes(user.role)) {
+      const ticketUser = await AppDataSource.getRepository(User).findOneBy({ id: ticket.userId });
+      if (ticketUser) {
+        output.user = {
+          id: ticketUser.id,
+          firstName: ticketUser.firstName,
+          lastName: ticketUser.lastName,
+          displayName: ticketUser.displayName,
+          email: ticketUser.email,
+          role: ticketUser.role,
+          orgRole: ticketUser.orgRole,
+          portalType: ticketUser.portalType,
+          avatarUrl: ticketUser.avatarUrl,
+          suspended: ticketUser.suspended,
+          supportBanned: ticketUser.supportBanned,
+        };
+        output.userName = ticketUser.displayName || `${ticketUser.firstName} ${ticketUser.lastName}`.trim() || ticketUser.email;
+      }
+    }
+
+    return output;
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
