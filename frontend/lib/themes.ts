@@ -125,6 +125,20 @@ export const THEMES = [
     foreground: "#111827",
     cardForeground: "#0f172a",
   },
+  {
+    name: "Voters 7 Mystery",
+    primary: "#9CA3AF",
+    bg: "#050507",
+    card: "#0b0b0d",
+    secondary: "#0a0a0b",
+    sidebar: "#070708",
+    accent: "#374151",
+    accentFg: "#e6e7e9",
+    glow: "#9CA3AF40",
+    border: "#121214",
+    foreground: "#e6e7e9",
+    cardForeground: "#e6e7e9",
+  },
 ] as const;
 
 export type Theme = (typeof THEMES)[number];

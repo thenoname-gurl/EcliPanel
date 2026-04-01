@@ -1,207 +1,360 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { apiFetch } from "@/lib/api-client";
-import { API_ENDPOINTS } from "@/lib/panel-config";
-import { THEMES, applyTheme } from "@/lib/themes";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { apiFetch } from "@/lib/api-client"
+import { API_ENDPOINTS } from "@/lib/panel-config"
+import { THEMES, applyTheme } from "@/lib/themes"
+import { Loader2 } from "lucide-react"
 
 interface User {
-  id: number;
-  email: string;
-  firstName?: string;
-  middleName?: string;
-  lastName?: string;
-  displayName?: string;
-  address?: string;
-  address2?: string;
-  phone?: string;
-  billingCompany?: string;
-  billingCity?: string;
-  billingState?: string;
-  billingZip?: string;
-  billingCountry?: string;
-  tier?: string;
-  role?: string;
-  sessionId?: string;
-  org?: { id: number; name: string; handle: string } | null;
-  orgRole?: string;
-  emailVerified?: boolean;
-  studentVerified?: boolean;
-  passkeyCount?: number;
-  avatarUrl?: string;
-  euIdVerificationDisabled?: boolean;
-  settings?: Record<string, any>;
+  id: number
+  email: string
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  displayName?: string
+  address?: string
+  address2?: string
+  phone?: string
+  billingCompany?: string
+  billingCity?: string
+  billingState?: string
+  billingZip?: string
+  billingCountry?: string
+  tier?: string
+  role?: string
+  sessionId?: string
+  org?: { id: number; name: string; handle: string } | null
+  orgRole?: string
+  emailVerified?: boolean
+  studentVerified?: boolean
+  passkeyCount?: number
+  avatarUrl?: string
+  euIdVerificationDisabled?: boolean
+  settings?: Record<string, any>
+  guideShown?: boolean
 }
 
 interface AuthContextType {
-  user: User | null | undefined;
-  login: (email: string, password: string) => Promise<any>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-  isLoggedIn: boolean;
+  user: User | null | undefined
+  login: (email: string, password: string) => Promise<any>
+  logout: () => Promise<void>
+  refreshUser: () => Promise<void>
+  isLoggedIn: boolean
+  isLoading: boolean
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type AuthState = "initializing" | "authenticated" | "unauthenticated" | "logging-in" | "logging-out"
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+function hasCompletedGuide(user: User | null | undefined): boolean {
+  if (!user) return true
+  return user.guideShown === true || user.settings?.guideShown === true
+}
+
+function applyUserTheme(user: User | null | undefined): void {
+  if (!user?.settings?.theme?.name) return
+  const theme = THEMES.find((t) => t.name === user.settings!.theme.name)
+  if (theme) {
+    applyTheme(theme)
+  }
+}
+
+function getUrlParams(): URLSearchParams {
+  if (typeof window === "undefined") return new URLSearchParams()
+  return new URLSearchParams(window.location.search)
+}
+
+function updateUrlParams(params: URLSearchParams): void {
+  if (typeof window === "undefined") return
+  const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "")
+  window.history.replaceState({}, "", newUrl)
+}
+
+function AuthLoadingScreen({ message = "Loading..." }: { message?: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4 p-6">
+        <div className="relative">
+          <div className="h-12 w-12 rounded-full border-2 border-primary/20" />
+          <Loader2 className="absolute inset-0 h-12 w-12 animate-spin text-primary" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-foreground">{message}</p>
+          <p className="text-xs text-muted-foreground mt-1">Please wait...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
-  const router = useRouter();
-  const pathname = usePathname();
+  const [user, setUser] = useState<User | null | undefined>(undefined)
+  const [authState, setAuthState] = useState<AuthState>("initializing")
+  const router = useRouter()
+  const pathname = usePathname()
+  
+  const guideCheckPerformed = useRef(false)
+  const isCheckingGuide = useRef(false)
+
+  const checkAndPromptGuide = useCallback(async (currentUser: User): Promise<void> => {
+    if (isCheckingGuide.current) return
+    
+    if (hasCompletedGuide(currentUser)) {
+      guideCheckPerformed.current = true
+      return
+    }
+
+    const params = getUrlParams()
+    if (params.get("guide") === "true") {
+      guideCheckPerformed.current = true
+      return
+    }
+
+    isCheckingGuide.current = true
+
+    try {
+      await apiFetch(
+        API_ENDPOINTS.userGuide.replace(":id", String(currentUser.id)),
+        {
+          method: "POST",
+          body: JSON.stringify({ shown: true }),
+        }
+      )
+
+      params.set("guide", "true")
+      updateUrlParams(params)
+
+      if (typeof window !== "undefined") {
+        try {
+          window.dispatchEvent(new PopStateEvent("popstate"))
+        } catch {
+          try {
+            window.dispatchEvent(new Event("popstate"))
+          } catch {}
+        }
+      }
+
+      guideCheckPerformed.current = true
+    } catch (error) {
+      console.error("[useAuth] Failed to mark guide as shown:", error)
+    } finally {
+      isCheckingGuide.current = false
+    }
+  }, [])
+
+  const handleStudentVerificationCallback = useCallback((): void => {
+    if (typeof window === "undefined") return
+
+    const params = getUrlParams()
+    const sv = params.get("studentVerified")
+
+    if (sv === null) return
+
+    if (sv === "1") {
+      setTimeout(() => {
+        alert("Student status verified! Educational limits have been applied to your account.")
+      }, 100)
+    } else {
+      setTimeout(() => {
+        alert("OAuth did not return student status. Please try again or contact support.")
+      }, 100)
+    }
+
+    params.delete("studentVerified")
+    updateUrlParams(params)
+  }, [])
+
+  const refreshUser = useCallback(async (token?: string): Promise<void> => {
+    try {
+      const opts: RequestInit & { headers?: Record<string, string> } = { method: "GET" }
+      if (token) {
+        opts.headers = { Authorization: `Bearer ${token}` }
+      }
+
+      const session = await apiFetch(API_ENDPOINTS.session, opts)
+      
+      if (session?.user) {
+        setUser(session.user)
+        applyUserTheme(session.user)
+        setAuthState("authenticated")
+      } else {
+        setUser(null)
+        setAuthState("unauthenticated")
+      }
+    } catch (error) {
+      console.error("[useAuth] Failed to refresh user:", error)
+    }
+  }, [])
+
+
+  const login = useCallback(async (email: string, password: string): Promise<any> => {
+    setAuthState("logging-in")
+
+    try {
+      const data = await apiFetch(API_ENDPOINTS.login, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (data.twoFactorRequired) {
+        setAuthState("unauthenticated")
+        return data
+      }
+
+      if (typeof window !== "undefined") {
+        if (data.token) {
+          localStorage.setItem("token", data.token)
+        } else {
+          localStorage.removeItem("token")
+        }
+      }
+
+      if (data.user) {
+        setUser(data.user)
+        applyUserTheme(data.user)
+        setAuthState("authenticated")
+
+        guideCheckPerformed.current = false
+
+        await checkAndPromptGuide(data.user)
+
+        return { ok: true, user: data.user }
+      }
+
+      await refreshUser(data.token)
+
+      const session = await apiFetch(API_ENDPOINTS.session, { method: "GET" })
+      if (session?.user) {
+        guideCheckPerformed.current = false
+        await checkAndPromptGuide(session.user)
+      }
+
+      return { ok: true }
+    } catch (error: any) {
+      setAuthState("unauthenticated")
+      throw error
+    }
+  }, [refreshUser, checkAndPromptGuide])
+
+  const logout = useCallback(async (): Promise<void> => {
+    setAuthState("logging-out")
+
+    try {
+      await apiFetch(API_ENDPOINTS.logout, { method: "POST" })
+    } catch {
+      // skip
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token")
+    }
+
+    setUser(null)
+    guideCheckPerformed.current = false
+    setAuthState("unauthenticated")
+
+    router.push("/login")
+  }, [router])
 
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.session, { method: "GET" })
-      .then((data) => {
-        setUser(data.user);
+    let mounted = true
 
-        if (data?.user?.settings?.theme?.name) {
-          const themeName = data.user.settings.theme.name;
-          const theme = THEMES.find((t) => t.name === themeName);
-          if (theme) {
-            applyTheme(theme);
+    const initializeAuth = async () => {
+      try {
+        const data = await apiFetch(API_ENDPOINTS.session, { method: "GET" })
+
+        if (!mounted) return
+
+        if (data?.user) {
+          setUser(data.user)
+          applyUserTheme(data.user)
+          setAuthState("authenticated")
+
+          handleStudentVerificationCallback()
+
+          if (!guideCheckPerformed.current) {
+            await checkAndPromptGuide(data.user)
           }
+        } else {
+          setUser(null)
+          setAuthState("unauthenticated")
         }
-
-        try {
-          if (typeof window !== 'undefined' && data?.user && data.user.guideShown === false) {
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('guide') !== 'true') {
-              (async () => {
-                try {
-                  await apiFetch(API_ENDPOINTS.userGuide.replace(':id', String(data.user.id)), {
-                    method: 'POST',
-                    body: JSON.stringify({ shown: true }),
-                  });
-                } catch (e) {}
-                params.set('guide', 'true');
-                const newUrl = window.location.pathname + '?' + params.toString();
-                window.history.replaceState({}, '', newUrl);
-                apiFetch(API_ENDPOINTS.session, { method: 'GET' }).then((d) => setUser(d.user)).catch(() => {});
-              })();
-            }
-          }
-        } catch (e) {}
-        if (typeof window !== 'undefined') {
-          const params = new URLSearchParams(window.location.search);
-          const sv = params.get('studentVerified');
-          if (sv !== null) {
-            if (sv === '1') {
-              alert('Student status verified! Educational limits applied.');
-            } else {
-              alert('GitHub did not return student status.');
-            }
-            params.delete('studentVerified');
-            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-            window.history.replaceState({}, '', newUrl);
-            apiFetch(API_ENDPOINTS.session, { method: 'GET' }).then((d) => setUser(d.user)).catch(() => {});
-          }
-        }
-      })
-      .catch(() => {
-        setUser(null);
-      });
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    const data = await apiFetch(API_ENDPOINTS.login, {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    console.debug('[useAuth] login response', data);
-    if (data.twoFactorRequired) return data;
-    if (data.token) {
-      if (typeof window !== 'undefined') {
-        console.debug('[useAuth] storing token to localStorage', data.token.slice(0,8) + '...');
-        localStorage.setItem('token', data.token);
-        console.debug('[useAuth] localStorage.token now', localStorage.getItem('token')?.slice(0,8) + '...');
-      }
-    } else {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
+      } catch (error) {
+        if (!mounted) return
+        console.error("[useAuth] Initial session fetch failed:", error)
+        setUser(null)
+        setAuthState("unauthenticated")
       }
     }
-    if (data.user) {
-      setUser(data.user);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    try {
-      await refreshUser(data.token);
-      return { ok: true };
-    } catch (e) {
-      console.debug('[useAuth] failed to fetch session after login', e);
-      return data;
-    }
-  };
 
-  const logout = async () => {
-    try {
-      await apiFetch(API_ENDPOINTS.logout, { method: "POST" });
-    } catch {
-      // skip
-    }
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-    }
-    setUser(null);
-    router.push("/login");
-  };
+    initializeAuth()
 
-  const refreshUser = async (token?: string) => {
-    try {
-      const opts: any = { method: 'GET' };
-      if (token) {
-        opts.headers = { Authorization: `Bearer ${token}` };
-      }
-      const session = await apiFetch(API_ENDPOINTS.session, opts);
-      setUser(session.user);
-      if (session?.user?.settings?.theme?.name) {
-        const themeName = session.user.settings.theme.name;
-        const theme = THEMES.find((t) => t.name === themeName);
-        if (theme) {
-          applyTheme(theme);
-        }
-      }
-    } catch {
-      // skip
+    return () => {
+      mounted = false
     }
-  };
+  }, [checkAndPromptGuide, handleStudentVerificationCallback])
+
+  useEffect(() => {
+    if (authState !== "authenticated" || !user || !pathname) return
+
+    const authPages = ["/", "/register", "/login"]
+    const isAuthPage = authPages.some(
+      (page) => pathname === page || pathname.startsWith("/login")
+    )
+
+    if (isAuthPage) {
+      router.replace("/dashboard")
+    }
+  }, [authState, user, pathname, router])
+
+  useEffect(() => {
+    if (!user || authState !== "authenticated") return
+    if (guideCheckPerformed.current) return
+
+    checkAndPromptGuide(user)
+  }, [user, authState, checkAndPromptGuide])
 
   const value: AuthContextType = {
     user,
     login,
     logout,
     refreshUser,
-    isLoggedIn: !!user,
-  };
+    isLoggedIn: authState === "authenticated" && !!user,
+    isLoading: authState === "initializing" || authState === "logging-in" || authState === "logging-out",
+  }
 
-  useEffect(() => {
-    if (user && typeof window !== 'undefined' && pathname) {
-      if (
-        pathname === '/' ||
-        pathname === '/register' ||
-        pathname.startsWith('/login')
-      ) {
-        router.replace('/dashboard');
-      }
+  const renderLoadingState = () => {
+    switch (authState) {
+      case "initializing":
+        return <AuthLoadingScreen message="Checking session..." />
+      case "logging-in":
+        return <AuthLoadingScreen message="Signing in..." />
+      case "logging-out":
+        return <AuthLoadingScreen message="Signing out..." />
+      default:
+        return null
     }
-  }, [user, pathname, router]);
+  }
 
   return (
     <AuthContext.Provider value={value}>
       <div className="min-h-screen">
-        {user === undefined && (
-          <div className="w-full p-2 text-center text-sm text-muted-foreground bg-secondary/10">Fetching session data from server...</div>
-        )}
-        {children}
+        {renderLoadingState()}
+        <div className={authState === "initializing" ? "opacity-0" : "opacity-100 transition-opacity duration-200"}>
+          {children}
+        </div>
       </div>
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
+  const ctx = useContext(AuthContext)
   if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error("useAuth must be used within AuthProvider")
   }
-  return ctx;
+  return ctx
 }
