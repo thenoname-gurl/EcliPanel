@@ -249,6 +249,8 @@ export const API_ENDPOINTS = {
 
   // alias for current user
   me: "/api/users/me",
+  userUpdate: "/api/users/:id",
+  userFavorites: "/api/users/me/favorites",
 
   // Admin
   adminStats: "/api/admin/stats",

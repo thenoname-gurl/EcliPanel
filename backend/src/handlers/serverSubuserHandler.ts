@@ -7,7 +7,7 @@ import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { createActivityLog } from './logHandler';
 
-const VALID_PERMISSIONS = ['console', 'files', 'backups', 'startup', 'settings', 'databases', 'schedules'];
+const VALID_PERMISSIONS = ['console', 'files', 'backups', 'startup', 'settings', 'databases', 'schedules', 'subusersd', 'activity', 'stats', 'network', 'mounts'];
 
 async function canManageSubusers(ctx: any, serverUuid: string): Promise<boolean> {
   const user = (ctx as any).user as User;
@@ -47,12 +47,19 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/subusers', async (ctx) => {
     const { id } = ctx.params as any;
     const user = (ctx as any).user as User;
-    if (!(await canManageSubusers(ctx, id))) {
-      ctx.set.status = 403;
-      return { error: 'Only server owner or admin can manage subusers' };
-    }
-
     const { email, permissions } = ctx.body as any;
+    let actingAsSubuser: any = null;
+    if (!(await canManageSubusers(ctx, id))) {
+      const whereAny: any[] = [];
+      whereAny.push({ userId: (user as any).id, serverUuid: id });
+      if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id });
+      actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
+
+      if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
+        ctx.set.status = 403;
+        return { error: 'Only server owner, staff, or authorized subusers can manage subusers' };
+      }
+    }
     if (!email) {
       ctx.set.status = 400;
       return { error: 'email is required' };
@@ -73,10 +80,13 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
       ctx.set.status = 409;
       return { error: 'User is already a subuser of this server' };
     }
+    const providedPerms = Array.isArray(permissions) ? permissions : ['console'];
+    const allowedPermSet = actingAsSubuser && Array.isArray(actingAsSubuser.permissions)
+      ? new Set(actingAsSubuser.permissions)
+      : null;
 
-    const validPerms = Array.isArray(permissions)
-      ? permissions.filter((p: string) => VALID_PERMISSIONS.includes(p))
-      : ['console'];
+    const validPerms = providedPerms.filter((p: string) => VALID_PERMISSIONS.includes(p) && (!allowedPermSet || allowedPermSet.has(p)));
+    if (validPerms.length === 0) validPerms.push('console');
 
     const entry = subuserRepo().create({
       serverUuid: id,
@@ -105,9 +115,17 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
   app.put(prefix + '/servers/:id/subusers/:subId', async (ctx) => {
     const { id, subId } = ctx.params as any;
     const user = (ctx as any).user as User;
+    let actingAsSubuser: any = null;
     if (!(await canManageSubusers(ctx, id))) {
-      ctx.set.status = 403;
-      return { error: 'Only server owner or admin can manage subusers' };
+      const whereAny: any[] = [];
+      whereAny.push({ userId: (user as any).id, serverUuid: id });
+      if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id });
+      actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
+
+      if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
+        ctx.set.status = 403;
+        return { error: 'Only server owner, staff, or authorized subusers can manage subusers' };
+      }
     }
 
     const entry = await subuserRepo().findOneBy({ id: Number(subId), serverUuid: id });
@@ -116,13 +134,27 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
       return { error: 'Subuser not found' };
     }
 
-    const { permissions } = ctx.body as any;
+    const { permissions, locked } = ctx.body as any;
     if (!Array.isArray(permissions)) {
       ctx.set.status = 400;
       return { error: 'permissions array required' };
     }
 
-    entry.permissions = permissions.filter((p: string) => VALID_PERMISSIONS.includes(p));
+    const providedPerms = Array.isArray(permissions) ? permissions : [];
+    const allowedPermSet = actingAsSubuser && Array.isArray(actingAsSubuser.permissions)
+      ? new Set(actingAsSubuser.permissions)
+      : null;
+
+    const filtered = providedPerms.filter((p: string) => VALID_PERMISSIONS.includes(p) && (!allowedPermSet || allowedPermSet.has(p)));
+    entry.permissions = filtered.length > 0 ? filtered : ['console'];
+
+    if (typeof locked !== 'undefined') {
+      if (!(await canManageSubusers(ctx, id))) {
+        ctx.set.status = 403;
+        return { error: 'Only server owner or staff can change locked status' };
+      }
+      entry.locked = !!locked;
+    }
     await subuserRepo().save(entry);
 
     await createActivityLog({
@@ -150,9 +182,24 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
       return { error: 'Subuser not found' };
     }
 
-    if (!(await canManageSubusers(ctx, id)) && entry.userId !== user.id) {
-      ctx.set.status = 403;
-      return { error: 'Only server owner, admin, or the subuser themselves can remove this entry' };
+    if (!(await canManageSubusers(ctx, id))) {
+      if (entry.userId === user.id) {
+        // skip
+      } else {
+        const whereAny: any[] = [];
+        whereAny.push({ userId: (user as any).id, serverUuid: id });
+        if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id });
+        const actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
+        if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
+          ctx.set.status = 403;
+          return { error: 'Only server owner, admin, or authorized subusers can remove this entry' };
+        }
+
+        if (entry.locked) {
+          ctx.set.status = 403;
+          return { error: 'This subuser is locked and cannot be removed by other subusers' };
+        }
+      }
     }
 
     await subuserRepo().delete({ id: entry.id });

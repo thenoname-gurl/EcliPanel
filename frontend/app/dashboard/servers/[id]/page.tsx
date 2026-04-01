@@ -1,6 +1,7 @@
 "use client"
 
 import { use, useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "@/lib/editor-settings"
@@ -71,62 +72,110 @@ const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default:
 const StatsTabLazy = lazy(() => import("./StatsTab").then((m) => ({ default: m.StatsTab })))
 const FilesTabLazy = lazy(() => import("./FilesTab").then((m) => ({ default: m.FilesTab })))
 
-function InfoRow({ label, value, mono, copyable }: { label: string; value: string; mono?: boolean; copyable?: boolean }) {
+// ─── Shared UI Primitives ────────────────────────────────────────────────────
+
+function InfoRow({
+  label,
+  value,
+  mono,
+  copyable,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  copyable?: boolean
+}) {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = () => {
-    if (copyable) {
-      navigator.clipboard.writeText(value)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
+  const handleCopy = useCallback(() => {
+    if (!copyable) return
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [copyable, value])
 
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden",
-        copyable && "cursor-pointer hover:bg-secondary/30 active:bg-secondary/40 transition-colors"
+        "rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden",
+        copyable &&
+          "cursor-pointer hover:bg-secondary/30 active:bg-secondary/40 transition-colors select-none"
       )}
       onClick={handleCopy}
+      role={copyable ? "button" : undefined}
+      tabIndex={copyable ? 0 : undefined}
+      onKeyDown={
+        copyable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                handleCopy()
+              }
+            }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between gap-1 min-w-0">
-        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 truncate min-w-0">{label}</p>
+        <p className="text-[11px] text-muted-foreground mb-0.5 truncate min-w-0">
+          {label}
+        </p>
         {copyable && (
-          <span className="text-[10px] text-muted-foreground flex-shrink-0">
-            {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+          <span className="text-muted-foreground flex-shrink-0" aria-label={copied ? "Copied" : "Copy"}>
+            {copied ? (
+              <Check className="h-3 w-3 text-green-400" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
           </span>
         )}
       </div>
-      <p className={cn(
-        "text-xs sm:text-sm text-foreground truncate min-w-0",
-        mono && "font-mono"
-      )}>{value}</p>
+      <p
+        className={cn(
+          "text-sm text-foreground truncate min-w-0",
+          mono && "font-mono text-xs"
+        )}
+      >
+        {value}
+      </p>
     </div>
   )
 }
 
-function EmptyState({ icon: Icon = Info, title, message, action }: {
-  icon?: any
+function EmptyState({
+  icon: Icon = Info,
+  title,
+  message,
+  action,
+}: {
+  icon?: React.ComponentType<{ className?: string }>
   title?: string
   message: string
   action?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4 text-center">
-      <div className="rounded-full bg-secondary/50 p-3 mb-3">
-        <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center py-10 sm:py-14 px-4 text-center">
+      <div className="rounded-full bg-secondary/50 p-3.5 mb-3">
+        <Icon className="h-6 w-6 text-muted-foreground" />
       </div>
-      {title && <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>}
-      <p className="text-xs sm:text-sm text-muted-foreground max-w-xs break-words">{message}</p>
+      {title && (
+        <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>
+      )}
+      <p className="text-xs sm:text-sm text-muted-foreground max-w-xs break-words leading-relaxed">
+        {message}
+      </p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
 }
 
-function SectionHeader({ title, icon: Icon, action, className }: {
+function SectionHeader({
+  title,
+  icon: Icon,
+  action,
+  className,
+}: {
   title: string
-  icon?: any
+  icon?: React.ComponentType<{ className?: string }>
   action?: React.ReactNode
   className?: string
 }) {
@@ -134,7 +183,9 @@ function SectionHeader({ title, icon: Icon, action, className }: {
     <div className={cn("flex items-center justify-between gap-2 min-w-0", className)}>
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {Icon && <Icon className="h-4 w-4 text-primary flex-shrink-0" />}
-        <h3 className="text-sm font-semibold text-foreground truncate min-w-0">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground truncate min-w-0">
+          {title}
+        </h3>
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
     </div>
@@ -143,29 +194,33 @@ function SectionHeader({ title, icon: Icon, action, className }: {
 
 function KvmBanner({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cn(
-      "rounded-lg border border-indigo-500/20 bg-indigo-500/5 overflow-hidden",
-      compact ? "p-2.5" : "p-3 sm:p-4"
-    )}>
-      <div className="flex items-start gap-2.5 min-w-0">
-        <div className={cn(
-          "rounded-md bg-indigo-500/10 flex items-center justify-center flex-shrink-0",
-          compact ? "p-1.5" : "p-2"
-        )}>
+    <div
+      className={cn(
+        "rounded-lg border border-indigo-500/20 bg-indigo-500/5 overflow-hidden",
+        compact ? "p-3" : "p-3.5 sm:p-4"
+      )}
+    >
+      <div className="flex items-start gap-3 min-w-0">
+        <div
+          className={cn(
+            "rounded-md bg-indigo-500/10 flex items-center justify-center flex-shrink-0",
+            compact ? "p-1.5" : "p-2"
+          )}
+        >
           <Monitor className={cn("text-indigo-400", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className={cn(
-            "font-medium text-indigo-300",
-            compact ? "text-[11px]" : "text-xs sm:text-sm"
-          )}>
+          <p className={cn("font-medium text-indigo-300", compact ? "text-xs" : "text-sm")}>
             KVM Virtualization Active
           </p>
-          <p className={cn(
-            "text-indigo-400/70 mt-0.5 break-words",
-            compact ? "text-[10px]" : "text-[10px] sm:text-xs"
-          )}>
-            This server runs as a full virtual machine. File management and console may behave differently than container-based servers.
+          <p
+            className={cn(
+              "text-indigo-400/70 mt-0.5 break-words leading-relaxed",
+              compact ? "text-[11px]" : "text-xs"
+            )}
+          >
+            This server runs as a full virtual machine. File management and console may behave
+            differently than container-based servers.
           </p>
         </div>
       </div>
@@ -177,7 +232,9 @@ function KvmInfoNotice({ message }: { message: string }) {
   return (
     <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 px-3 py-2.5 flex items-start gap-2 overflow-hidden">
       <Shield className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-      <p className="text-[10px] sm:text-xs text-indigo-300/80 leading-relaxed break-words min-w-0">{message}</p>
+      <p className="text-xs text-indigo-300/80 leading-relaxed break-words min-w-0">
+        {message}
+      </p>
     </div>
   )
 }
@@ -186,10 +243,10 @@ function CollapsibleSection({
   title,
   icon: Icon,
   defaultOpen = false,
-  children
+  children,
 }: {
   title: string
-  icon?: any
+  icon?: React.ComponentType<{ className?: string }>
   defaultOpen?: boolean
   children: React.ReactNode
 }) {
@@ -199,22 +256,29 @@ function CollapsibleSection({
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-secondary/20 active:bg-secondary/30 transition-colors min-w-0"
+        className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/20 active:bg-secondary/30 transition-colors min-w-0"
+        aria-expanded={open}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {Icon && <Icon className="h-4 w-4 text-primary flex-shrink-0" />}
           <span className="text-sm font-semibold text-foreground truncate min-w-0">{title}</span>
         </div>
-        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+        {open ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        )}
       </button>
       {open && (
-        <div className="p-3 sm:p-4 pt-0 border-t border-border overflow-hidden">
+        <div className="p-3.5 sm:p-4 pt-0 border-t border-border overflow-hidden">
           {children}
         </div>
       )}
     </div>
   )
 }
+
+// ─── Power Actions ───────────────────────────────────────────────────────────
 
 interface PowerActionsProps {
   server: any
@@ -227,11 +291,25 @@ interface PowerActionsProps {
   onToggleKvm?: () => void
 }
 
-function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer, kvmEnabled, kvmLoading, onToggleKvm }: PowerActionsProps) {
+function PowerActions({
+  server,
+  powerLoading,
+  onAction,
+  onTransfer,
+  canTransfer,
+  kvmEnabled,
+  kvmLoading,
+  onToggleKvm,
+}: PowerActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const isRunning = server.status === "running" || server.status === "online"
   const isStopped = server.status === "stopped" || server.status === "offline"
@@ -241,22 +319,19 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
   const computePosition = useCallback(() => {
     if (!buttonRef.current) return
     const rect = buttonRef.current.getBoundingClientRect()
-    const menuWidth = 180
-    const menuHeight = 200
+    const menuWidth = 192
+    const menuHeight = 220
     const pad = 8
 
-    let top = rect.bottom + 4
+    let top = rect.bottom + 6
     let left = rect.right - menuWidth
 
-    // keep within horizontal bounds
     if (left < pad) left = pad
     if (left + menuWidth > window.innerWidth - pad) {
       left = window.innerWidth - menuWidth - pad
     }
-
-    // if it would overflow below, show above
     if (top + menuHeight > window.innerHeight - pad) {
-      top = rect.top - menuHeight - 4
+      top = rect.top - menuHeight - 6
       if (top < pad) top = pad
     }
 
@@ -268,8 +343,10 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
 
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
       ) {
         setMenuOpen(false)
       }
@@ -291,32 +368,116 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
     }
   }, [menuOpen])
 
-  const toggleMenu = () => {
+  const toggleMenu = useCallback(() => {
     if (!menuOpen) computePosition()
     setMenuOpen((v) => !v)
-  }
+  }, [menuOpen, computePosition])
+
+  const menuContent = menuOpen && mounted ? (
+    createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-[9998]"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-48 rounded-xl border border-border bg-popover p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
+          style={menuPos ? { top: menuPos.top, left: menuPos.left } : undefined}
+          role="menu"
+        >
+          <button
+            onClick={() => {
+              onAction("restart")
+              setMenuOpen(false)
+            }}
+            disabled={powerLoading || !isPowerable || isHibernated}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            role="menuitem"
+          >
+            <RotateCcw className="h-4 w-4 flex-shrink-0" />
+            <span>Restart</span>
+          </button>
+          <button
+            onClick={() => {
+              onAction("kill")
+              setMenuOpen(false)
+            }}
+            disabled={powerLoading || !isPowerable || isHibernated}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            role="menuitem"
+          >
+            <Power className="h-4 w-4 flex-shrink-0" />
+            <span>Kill</span>
+          </button>
+          {canTransfer && onTransfer && (
+            <>
+              <div className="my-1 h-px bg-border" role="separator" />
+              <button
+                onClick={() => {
+                  onTransfer()
+                  setMenuOpen(false)
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
+                role="menuitem"
+              >
+                <Repeat className="h-4 w-4 flex-shrink-0" />
+                <span>Transfer</span>
+              </button>
+            </>
+          )}
+          {onToggleKvm && (
+            <>
+              <div className="my-1 h-px bg-border" role="separator" />
+              <button
+                onClick={() => {
+                  onToggleKvm()
+                  setMenuOpen(false)
+                }}
+                disabled={powerLoading || kvmLoading}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                role="menuitem"
+              >
+                <Monitor className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">
+                  {kvmEnabled ? "Disable KVM" : "Enable KVM"}
+                </span>
+                {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+              </button>
+            </>
+          )}
+        </div>
+      </>,
+      document.body
+    )
+  ) : null
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+    <div className="flex items-center gap-2 flex-shrink-0">
       <Button
         size="sm"
         variant="outline"
-        className="border-green-500/30 text-green-400 hover:bg-green-500/10 active:bg-green-500/20 h-8 px-2 sm:px-3"
+        className="border-green-500/30 text-green-400 hover:bg-green-500/10 active:bg-green-500/20 h-9 px-3"
         disabled={powerLoading || isPowerable || isHibernated}
         onClick={() => onAction("start")}
       >
-        {powerLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+        {powerLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Play className="h-4 w-4" />
+        )}
         <span className="hidden sm:inline ml-1.5">Start</span>
       </Button>
 
       <Button
         size="sm"
         variant="outline"
-        className="border-red-500/30 text-red-400 hover:bg-red-500/10 active:bg-red-500/20 h-8 px-2 sm:px-3"
+        className="border-red-500/30 text-red-400 hover:bg-red-500/10 active:bg-red-500/20 h-9 px-3"
         disabled={powerLoading || !isPowerable || isHibernated}
         onClick={() => onAction("stop")}
       >
-        <Square className="h-3.5 w-3.5" />
+        <Square className="h-4 w-4" />
         <span className="hidden sm:inline ml-1.5">Stop</span>
       </Button>
 
@@ -326,86 +487,25 @@ function PowerActions({ server, powerLoading, onAction, onTransfer, canTransfer,
           size="sm"
           variant="outline"
           onClick={toggleMenu}
-          className={cn("h-8 px-2", menuOpen && "bg-secondary")}
+          className={cn("h-9 w-9 p-0", menuOpen && "bg-secondary")}
           aria-expanded={menuOpen}
           aria-haspopup="true"
+          aria-label="More power options"
         >
-          <MoreVertical className="h-3.5 w-3.5" />
+          <MoreVertical className="h-4 w-4" />
         </Button>
-
-        {menuOpen && (
-          <>
-            {/* backdrop – closes menu on tap */}
-            <div
-              className="fixed inset-0 z-[9998]"
-              onClick={() => setMenuOpen(false)}
-              aria-hidden="true"
-            />
-
-            <div
-              ref={menuRef}
-              className="fixed z-[9999] w-[180px] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
-              style={menuPos ? { top: menuPos.top, left: menuPos.left } : undefined}
-              role="menu"
-            >
-              <button
-                onClick={() => { onAction("restart"); setMenuOpen(false) }}
-                disabled={powerLoading || !isPowerable || isHibernated}
-                className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                role="menuitem"
-              >
-                <RotateCcw className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Restart</span>
-              </button>
-              <button
-                onClick={() => { onAction("kill"); setMenuOpen(false) }}
-                disabled={powerLoading || !isPowerable || isHibernated}
-                className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                role="menuitem"
-              >
-                <Power className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Kill</span>
-              </button>
-              {canTransfer && onTransfer && (
-                <>
-                  <div className="my-1 h-px bg-border" role="separator" />
-                  <button
-                    onClick={() => { onTransfer(); setMenuOpen(false) }}
-                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
-                    role="menuitem"
-                  >
-                    <Repeat className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">Transfer</span>
-                  </button>
-                </>
-              )}
-              {onToggleKvm && (
-                <>
-                  <div className="my-1 h-px bg-border" role="separator" />
-                  <button
-                    onClick={() => { onToggleKvm(); setMenuOpen(false) }}
-                    disabled={powerLoading || kvmLoading}
-                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    role="menuitem"
-                  >
-                    <Monitor className="h-4 w-4 flex-shrink-0" />
-                    <span className="flex-1 text-left truncate">{kvmEnabled ? "Disable KVM" : "Enable KVM"}</span>
-                    {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
-                  </button>
-                </>
-              )}
-            </div>
-          </>
-        )}
+        {menuContent}
       </div>
     </div>
   )
 }
 
+// ─── Tab Navigation ──────────────────────────────────────────────────────────
+
 interface TabItem {
   id: string
   label: string
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   shortLabel?: string
 }
 
@@ -425,27 +525,35 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
     if (activeButton) {
       const containerRect = container.getBoundingClientRect()
       const buttonRect = activeButton.getBoundingClientRect()
-      const scrollLeft = buttonRect.left - containerRect.left + container.scrollLeft - (containerRect.width - buttonRect.width) / 2
-      container.scrollTo({ left: scrollLeft, behavior: 'smooth' })
+      const scrollLeft =
+        buttonRect.left -
+        containerRect.left +
+        container.scrollLeft -
+        (containerRect.width - buttonRect.width) / 2
+      container.scrollTo({ left: scrollLeft, behavior: "smooth" })
     }
   }, [activeTab])
 
   return (
     <div
       ref={scrollRef}
-      className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 overflow-x-auto scrollbar-none min-w-0"
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 overflow-x-auto scrollbar-none min-w-0 -mx-1 px-1"
+      style={{ WebkitOverflowScrolling: "touch" }}
+      role="tablist"
     >
       {tabs.map((tab) => (
         <button
           key={tab.id}
           data-tab={tab.id}
           onClick={() => onTabChange(tab.id)}
+          role="tab"
+          aria-selected={activeTab === tab.id}
           className={cn(
-            "flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-2 text-[11px] sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
+            "flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
+            "touch-manipulation",
             activeTab === tab.id
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70"
           )}
         >
           <tab.icon className="h-3.5 w-3.5" />
@@ -457,56 +565,41 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
   )
 }
 
-interface ResourceStatsProps {
-  resources: any
-}
+// ─── Resource Stats ──────────────────────────────────────────────────────────
 
-function ResourceStats({ resources }: ResourceStatsProps) {
+function ResourceStats({ resources }: { resources: any }) {
   if (!resources) return null
 
   const stats = [
-    {
-      label: "CPU",
-      value: `${(resources.cpu_absolute ?? 0).toFixed(1)}%`,
-      color: "#3b82f6"
-    },
-    {
-      label: "Memory",
-      value: formatBytes(resources.memory_bytes ?? 0),
-      color: "#8b5cf6"
-    },
-    {
-      label: "Disk",
-      value: formatBytes(resources.disk_bytes ?? 0),
-      color: "#f59e0b"
-    },
+    { label: "CPU", value: `${(resources.cpu_absolute ?? 0).toFixed(1)}%`, color: "#3b82f6" },
+    { label: "Memory", value: formatBytes(resources.memory_bytes ?? 0), color: "#8b5cf6" },
+    { label: "Disk", value: formatBytes(resources.disk_bytes ?? 0), color: "#f59e0b" },
     {
       label: "Net ↑↓",
       value: `${formatBytes(resources.network?.tx_bytes ?? 0)} / ${formatBytes(resources.network?.rx_bytes ?? 0)}`,
-      color: "#22c55e"
+      color: "#22c55e",
     },
   ]
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0">
       {stats.map((stat) => (
-        <MiniStat
-          key={stat.label}
-          label={stat.label}
-          value={stat.value}
-          color={stat.color}
-        />
+        <MiniStat key={stat.label} label={stat.label} value={stat.value} color={stat.color} />
       ))}
     </div>
   )
 }
 
+// ─── Main Server Detail Page ─────────────────────────────────────────────────
+
 export default function ServerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const { user } = useAuth()
+
   const [editorSettings, setEditorSettings] = useState<EditorSettings | undefined>(undefined)
   const [server, setServer] = useState<any>(null)
+  const [subuserEntry, setSubuserEntry] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("console")
   const [powerLoading, setPowerLoading] = useState(false)
@@ -533,44 +626,71 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     }
   }, [id])
 
+  const loadSubuserEntry = useCallback(async () => {
+    try {
+      const data = await apiFetch(API_ENDPOINTS.serverSubusers.replace(":id", id))
+      if (Array.isArray(data)) {
+        const meEmail = user?.email
+        const meId = user?.id
+        const match = data.find(
+          (d: any) => d.userId === meId || (meEmail && d.userEmail === meEmail)
+        )
+        setSubuserEntry(match || null)
+      } else if (data && typeof data === "object") {
+        setSubuserEntry(data)
+      } else {
+        setSubuserEntry(null)
+      }
+    } catch {
+      setSubuserEntry(null)
+    }
+  }, [id, user?.email, user?.id])
+
   useEffect(() => {
     setEditorSettings(user?.settings?.editor)
-  }, [user])
+  }, [user?.settings?.editor])
 
   useEffect(() => {
     loadServer()
-    const interval = setInterval(loadServer, 15000)
+    loadSubuserEntry()
+    const interval = setInterval(() => {
+      loadServer()
+      loadSubuserEntry()
+    }, 15000)
     return () => clearInterval(interval)
-  }, [loadServer])
+  }, [loadServer, loadSubuserEntry])
 
-  const sendPower = async (action: string) => {
-    setPowerLoading(true)
-    try {
-      await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
-        method: "POST",
-        body: JSON.stringify({ action }),
-      })
-      setTimeout(loadServer, 1500)
-    } catch (e: any) {
-      alert("Power action failed: " + e.message)
-    } finally {
-      setPowerLoading(false)
-    }
-  }
+  const sendPower = useCallback(
+    async (action: string) => {
+      setPowerLoading(true)
+      try {
+        await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
+          method: "POST",
+          body: JSON.stringify({ action }),
+        })
+        setTimeout(loadServer, 1500)
+      } catch (e: any) {
+        alert("Power action failed: " + e.message)
+      } finally {
+        setPowerLoading(false)
+      }
+    },
+    [id, loadServer]
+  )
 
-  const confirmPowerAction = (action: string) => {
+  const confirmPowerAction = useCallback((action: string) => {
     setPendingPowerAction(action)
     setPowerDialogOpen(true)
-  }
+  }, [])
 
-  const doConfirmedPowerAction = async () => {
+  const doConfirmedPowerAction = useCallback(async () => {
     if (!pendingPowerAction) return
     setPowerDialogOpen(false)
     await sendPower(pendingPowerAction)
     setPendingPowerAction(null)
-  }
+  }, [pendingPowerAction, sendPower])
 
-  const toggleKvm = async () => {
+  const toggleKvm = useCallback(async () => {
     if (!server) return
     const enable = !server.configuration?.container?.kvm_passthrough_enabled
     setKvmLoading(true)
@@ -586,35 +706,36 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setKvmLoading(false)
     }
-  }
+  }, [server, id, loadServer])
 
-  const deleteServer = async () => {
-    if (!confirm("Are you sure you want to permanently delete this server? This action cannot be undone.")) return
+  const deleteServer = useCallback(async () => {
+    if (!confirm("Are you sure you want to permanently delete this server? This action cannot be undone."))
+      return
     try {
       await apiFetch(API_ENDPOINTS.serverDelete.replace(":id", id), { method: "DELETE" })
       router.push("/dashboard/servers")
     } catch (e: any) {
       alert("Delete failed: " + e.message)
     }
-  }
+  }, [id, router])
 
-  const loadNodes = async () => {
+  const loadNodes = useCallback(async () => {
     try {
       const nodes = await apiFetch(API_ENDPOINTS.nodes)
       if (Array.isArray(nodes)) setTransferNodes(nodes)
     } catch {}
-  }
+  }, [])
 
-  const openTransferDialog = async () => {
+  const openTransferDialog = useCallback(async () => {
     setTransferError(null)
     setTransferNodeId(null)
     setTransferDialogOpen(true)
     if (transferNodes.length === 0) await loadNodes()
-  }
+  }, [transferNodes.length, loadNodes])
 
-  const doTransfer = async () => {
+  const doTransfer = useCallback(async () => {
     if (!transferNodeId) {
-      setTransferError('Please select a target node')
+      setTransferError("Please select a target node")
       return
     }
     setTransferLoading(true)
@@ -628,23 +749,101 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       setTransferNodeId(null)
       setTransferNodes([])
       loadServer()
-      alert('Transfer initiated. This may take several minutes.')
+      alert("Transfer initiated. This may take several minutes.")
     } catch (e: any) {
-      setTransferError(e.message || 'Transfer failed')
+      setTransferError(e.message || "Transfer failed")
     } finally {
       setTransferLoading(false)
     }
-  }
+  }, [transferNodeId, id, loadServer])
 
-  const canTransfer = !!(user && (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin'))
-  const canToggleKvm = !!(user && (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin'))
+  const canTransfer = !!(
+    user &&
+    (user.role === "*" || user.role === "rootAdmin" || user.role === "admin")
+  )
+  const canToggleKvm = !!(
+    user &&
+    (user.role === "*" || user.role === "rootAdmin" || user.role === "admin")
+  )
+
+  const isOwnerOrAdmin = !!(
+    user &&
+    (user.role === "*" ||
+      user.role === "rootAdmin" ||
+      user.role === "admin" ||
+      server?.userId === user.id)
+  )
+
+  const isViewerSubuser =
+    !!subuserEntry && !isOwnerOrAdmin
+
+  const subuserPerms = useMemo(
+    () => (Array.isArray(subuserEntry?.permissions) ? subuserEntry.permissions : []),
+    [subuserEntry?.permissions]
+  )
+
+  const tabs: TabItem[] = useMemo(
+    () => [
+      { id: "console", label: "Console", icon: Terminal },
+      { id: "stats", label: "Statistics", icon: BarChart3, shortLabel: "Stats" },
+      { id: "files", label: "Files", icon: Folder },
+      { id: "startup", label: "Startup", icon: Variable },
+      { id: "databases", label: "Databases", icon: Database, shortLabel: "DB" },
+      { id: "schedules", label: "Schedules", icon: Clock },
+      { id: "network", label: "Network", icon: Network, shortLabel: "Net" },
+      { id: "backups", label: "Backups", icon: HardDrive },
+      { id: "activity", label: "Activity", icon: Activity },
+      { id: "subusers", label: "Subusers", icon: Users },
+      { id: "mounts", label: "Mounts", icon: Box },
+      { id: "settings", label: "Settings", icon: Settings },
+    ],
+    []
+  )
+
+  const tabPermissionMap: Record<string, string | null> = useMemo(
+    () => ({
+      console: "console",
+      files: "files",
+      backups: "backups",
+      startup: "startup",
+      settings: "settings",
+      databases: "databases",
+      schedules: "schedules",
+      activity: "activity",
+      stats: "stats",
+      network: "network",
+      mounts: "mounts",
+    }),
+    []
+  )
+
+  const visibleTabs = useMemo(() => {
+    return tabs.filter((t) => {
+      if (!isViewerSubuser) return true
+      if (t.id === "subusers") return true
+      const required = tabPermissionMap[t.id]
+      if (!required) return true
+      if (subuserPerms.includes("*")) return true
+      return subuserPerms.includes(required)
+    })
+  }, [tabs, isViewerSubuser, tabPermissionMap, subuserPerms])
+
+  // Fix: this useEffect must run unconditionally (not after conditional returns)
+  // We place it here before any early returns to comply with Rules of Hooks
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, activeTab])
+
+  // ── Early returns (loading / error) ────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading server...</p>
+          <p className="text-sm text-muted-foreground">Loading server…</p>
         </div>
       </div>
     )
@@ -658,7 +857,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         </div>
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground mb-1">Server Not Found</h2>
-          <p className="text-sm text-muted-foreground">The server you&apos;re looking for doesn&apos;t exist or is unavailable.</p>
+          <p className="text-sm text-muted-foreground">
+            The server you&apos;re looking for doesn&apos;t exist or is unavailable.
+          </p>
         </div>
         <Button variant="outline" onClick={() => router.push("/dashboard/servers")}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Servers
@@ -666,6 +867,8 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       </div>
     )
   }
+
+  // ── Derived state ──────────────────────────────────────────────────────────
 
   const statusColor =
     server.status === "running" || server.status === "online"
@@ -676,23 +879,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           ? "text-red-400 bg-red-400"
           : "text-yellow-400 bg-yellow-400"
 
-  const tabs: TabItem[] = [
-    { id: "console", label: "Console", icon: Terminal },
-    { id: "stats", label: "Statistics", icon: BarChart3, shortLabel: "Stats" },
-    { id: "files", label: "Files", icon: Folder },
-    { id: "startup", label: "Startup", icon: Variable },
-    { id: "databases", label: "Databases", icon: Database, shortLabel: "DB" },
-    { id: "schedules", label: "Schedules", icon: Clock },
-    { id: "network", label: "Network", icon: Network, shortLabel: "Net" },
-    { id: "backups", label: "Backups", icon: HardDrive },
-    { id: "activity", label: "Activity", icon: Activity },
-    { id: "subusers", label: "Subusers", icon: Users },
-    { id: "mounts", label: "Mounts", icon: Box },
-    { id: "settings", label: "Settings", icon: Settings },
-  ]
-
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Header */}
       <div data-guide-id="server-header" className="flex-shrink-0">
         <PanelHeader
           title={server.name || server.uuid?.slice(0, 8) || "Server"}
@@ -700,22 +889,38 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 w-full min-w-0">
-          {/* Server Header */}
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 w-full min-w-0 max-w-full">
+          {/* Server Header Card */}
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full flex-shrink-0 animate-pulse", statusColor.split(" ")[1])} />
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={cn(
+                  "h-3 w-3 rounded-full flex-shrink-0 animate-pulse",
+                  statusColor.split(" ")[1]
+                )}
+              />
               <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">{server.name || "Unnamed Server"}</p>
-                <p className="text-[10px] text-muted-foreground truncate font-mono hidden sm:block">{server.uuid || id}</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {server.name || "Unnamed Server"}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate font-mono hidden sm:block">
+                  {server.uuid || id}
+                </p>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <Badge variant="outline" className={cn("text-[10px] sm:text-xs whitespace-nowrap", statusColor.split(" ")[0])}>
+              <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                <Badge
+                  variant="outline"
+                  className={cn("text-xs whitespace-nowrap", statusColor.split(" ")[0])}
+                >
                   {server.status || "unknown"}
                 </Badge>
                 {isKvm && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs border-indigo-500/30 text-indigo-400 bg-indigo-500/5 whitespace-nowrap">
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-indigo-500/30 text-indigo-400 bg-indigo-500/5 whitespace-nowrap"
+                  >
                     <Monitor className="h-3 w-3 mr-1" />
                     KVM
                   </Badge>
@@ -738,9 +943,10 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 size="sm"
                 variant="ghost"
                 onClick={loadServer}
-                className="h-8 w-8 p-0 flex-shrink-0"
+                className="h-9 w-9 p-0 flex-shrink-0"
+                aria-label="Refresh server"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -752,33 +958,33 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
           {/* Tab Navigation */}
           <div className="min-w-0 overflow-hidden">
-            <TabNavigation
-              tabs={tabs}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-            />
+            <TabNavigation tabs={visibleTabs} activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
 
           {/* Tab Content */}
           <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 w-full">
             {activeTab === "console" && (
-              <Suspense fallback={<LoadingState message="Loading console..." />}>
+              <Suspense fallback={<LoadingState message="Loading console…" />}>
                 <ConsoleTabLazy serverId={id} />
               </Suspense>
             )}
             {activeTab === "stats" && (
-              <Suspense fallback={<LoadingState message="Loading statistics..." />}>
+              <Suspense fallback={<LoadingState message="Loading statistics…" />}>
                 <StatsTabLazy serverId={id} server={server} />
               </Suspense>
             )}
             {activeTab === "files" && (
-              <Suspense fallback={<LoadingState message="Loading files..." />}>
+              <Suspense fallback={<LoadingState message="Loading files…" />}>
                 {isKvm && (
                   <div className="p-3 sm:p-4 pb-0">
                     <KvmInfoNotice message="KVM filesystem is managed by cloud-init. Files shown here may not reflect the guest VM's actual filesystem. Use SSH/SFTP to access the VM directly." />
                   </div>
                 )}
-                <FilesTabLazy serverId={id} sftpInfo={server?.sftp} editorSettings={editorSettings} />
+                <FilesTabLazy
+                  serverId={id}
+                  sftpInfo={server?.sftp}
+                  editorSettings={editorSettings}
+                />
               </Suspense>
             )}
             {activeTab === "startup" && <StartupTab serverId={id} />}
@@ -788,25 +994,54 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             {activeTab === "mounts" && <MountsTab serverId={id} isKvm={isKvm} />}
             {activeTab === "backups" && <BackupsTab serverId={id} />}
             {activeTab === "activity" && <ActivityTab serverId={id} />}
-            {activeTab === "subusers" && <SubusersTab serverId={id} />}
-            {activeTab === "settings" && <SettingsTab serverId={id} server={server} onDelete={deleteServer} reload={loadServer} isKvm={isKvm} />}
+            {activeTab === "subusers" && (
+              <SubusersTab
+                serverId={id}
+                subuserEntry={subuserEntry}
+                isOwnerOrAdmin={isOwnerOrAdmin}
+              />
+            )}
+            {activeTab === "settings" && (
+              <SettingsTab
+                serverId={id}
+                server={server}
+                onDelete={deleteServer}
+                reload={loadServer}
+                isKvm={isKvm}
+              />
+            )}
           </div>
+
+          {/* Bottom safe area for mobile */}
+          <div className="h-2 sm:h-0 flex-shrink-0" />
         </div>
       </div>
 
       {/* Power Confirmation Dialog */}
-      <Dialog open={powerDialogOpen} onOpenChange={(open) => {
-        if (!open) { setPowerDialogOpen(false); setPendingPowerAction(null) }
-      }}>
+      <Dialog
+        open={powerDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPowerDialogOpen(false)
+            setPendingPowerAction(null)
+          }
+        }}
+      >
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Confirm {pendingPowerAction?.charAt(0).toUpperCase()}{pendingPowerAction?.slice(1)}</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Confirm{" "}
+              {pendingPowerAction
+                ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)
+                : ""}
+            </DialogTitle>
           </DialogHeader>
           <div className="py-3">
             <p className="text-sm text-muted-foreground break-words">
-              Are you sure you want to <span className="font-medium text-foreground">{pendingPowerAction}</span> the server?
+              Are you sure you want to{" "}
+              <span className="font-medium text-foreground">{pendingPowerAction}</span> the server?
             </p>
-            {pendingPowerAction === 'kill' && (
+            {pendingPowerAction === "kill" && (
               <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
@@ -816,7 +1051,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
             )}
-            {isKvm && pendingPowerAction === 'kill' && (
+            {isKvm && pendingPowerAction === "kill" && (
               <div className="mt-2">
                 <KvmInfoNotice message="Killing a KVM virtual machine is equivalent to pulling the power plug. The guest OS will not shut down gracefully." />
               </div>
@@ -825,29 +1060,41 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
-              onClick={() => { setPowerDialogOpen(false); setPendingPowerAction(null) }}
+              onClick={() => {
+                setPowerDialogOpen(false)
+                setPendingPowerAction(null)
+              }}
               disabled={powerLoading}
               className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
-              variant={pendingPowerAction === 'kill' ? 'destructive' : 'default'}
+              variant={pendingPowerAction === "kill" ? "destructive" : "default"}
               onClick={doConfirmedPowerAction}
               disabled={powerLoading}
               className="w-full sm:w-auto"
             >
               {powerLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {pendingPowerAction ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1) : 'Confirm'}
+              {pendingPowerAction
+                ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)
+                : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Transfer Dialog */}
-      <Dialog open={transferDialogOpen} onOpenChange={(open) => {
-        if (!open) { setTransferDialogOpen(false); setTransferNodeId(null); setTransferError(null) }
-      }}>
+      <Dialog
+        open={transferDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransferDialogOpen(false)
+            setTransferNodeId(null)
+            setTransferError(null)
+          }
+        }}
+      >
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">Transfer Server</DialogTitle>
@@ -862,14 +1109,17 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             <div className="space-y-2">
               <label className="text-xs font-medium text-foreground">Destination Node</label>
               <select
-                value={transferNodeId ?? ''}
-                onChange={(e) => setTransferNodeId(e.target.value ? Number(e.target.value) : null)}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                value={transferNodeId ?? ""}
+                onChange={(e) =>
+                  setTransferNodeId(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
               >
-                <option value="">Select a node...</option>
+                <option value="">Select a node…</option>
                 {transferNodes.map((n: any) => (
                   <option key={n.id} value={n.id}>
-                    {n.name || n.nodeId || n.id} {n.nodeType ? `(${n.nodeType})` : ''}
+                    {n.name || n.nodeId || n.id}{" "}
+                    {n.nodeType ? `(${n.nodeType})` : ""}
                   </option>
                 ))}
               </select>
@@ -907,6 +1157,8 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   )
 }
 
+// ─── Databases Tab ───────────────────────────────────────────────────────────
+
 function DatabasesTab({ serverId }: { serverId: string }) {
   const [databases, setDatabases] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -930,7 +1182,9 @@ function DatabasesTab({ serverId }: { serverId: string }) {
     }
   }, [serverId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   const createDb = async () => {
     setCreating(true)
@@ -940,9 +1194,9 @@ function DatabasesTab({ serverId }: { serverId: string }) {
         method: "POST",
         body: JSON.stringify({ label: formLabel || undefined }),
       })
-      setDatabases(prev => [...prev, { ...data, password: "***" }])
+      setDatabases((prev) => [...prev, { ...data, password: "***" }])
       if (data.id && data.password && data.password !== "***") {
-        setCreds(prev => ({ ...prev, [data.id]: data }))
+        setCreds((prev) => ({ ...prev, [data.id]: data }))
       }
       setFormLabel("")
       setShowForm(false)
@@ -957,9 +1211,16 @@ function DatabasesTab({ serverId }: { serverId: string }) {
     if (!confirm("Delete this database? This will permanently DROP the database.")) return
     setDeletingId(dbId)
     try {
-      await apiFetch(`${API_ENDPOINTS.serverDatabases.replace(":id", serverId)}/${dbId}`, { method: "DELETE" })
-      setDatabases(prev => prev.filter((d: any) => d.id !== dbId))
-      setCreds(prev => { const c = { ...prev }; delete c[dbId]; return c })
+      await apiFetch(
+        `${API_ENDPOINTS.serverDatabases.replace(":id", serverId)}/${dbId}`,
+        { method: "DELETE" }
+      )
+      setDatabases((prev) => prev.filter((d: any) => d.id !== dbId))
+      setCreds((prev) => {
+        const c = { ...prev }
+        delete c[dbId]
+        return c
+      })
     } finally {
       setDeletingId(null)
     }
@@ -967,25 +1228,31 @@ function DatabasesTab({ serverId }: { serverId: string }) {
 
   const viewCreds = async (dbId: number) => {
     if (creds[dbId]) {
-      setCreds(prev => { const c = { ...prev }; delete c[dbId]; return c })
+      setCreds((prev) => {
+        const c = { ...prev }
+        delete c[dbId]
+        return c
+      })
       return
     }
-    setLoadingCreds(prev => ({ ...prev, [dbId]: true }))
+    setLoadingCreds((prev) => ({ ...prev, [dbId]: true }))
     try {
       const data = await apiFetch(
-        API_ENDPOINTS.serverDatabaseCredentials.replace(":id", serverId).replace(":dbId", String(dbId))
+        API_ENDPOINTS.serverDatabaseCredentials
+          .replace(":id", serverId)
+          .replace(":dbId", String(dbId))
       )
-      setCreds(prev => ({ ...prev, [dbId]: data }))
+      setCreds((prev) => ({ ...prev, [dbId]: data }))
     } finally {
-      setLoadingCreds(prev => ({ ...prev, [dbId]: false }))
+      setLoadingCreds((prev) => ({ ...prev, [dbId]: false }))
     }
   }
 
-  const copyText = (text: string, key: string) => {
+  const copyText = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text)
     setCopied(key)
     setTimeout(() => setCopied(null), 2000)
-  }
+  }, [])
 
   if (loading) return <LoadingState />
 
@@ -995,7 +1262,13 @@ function DatabasesTab({ serverId }: { serverId: string }) {
         title="Databases"
         icon={Database}
         action={
-          <Button size="sm" onClick={() => { setShowForm(!showForm); setCreateError("") }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setShowForm(!showForm)
+              setCreateError("")
+            }}
+          >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             <span className="hidden sm:inline">New Database</span>
             <span className="sm:hidden">New</span>
@@ -1011,18 +1284,22 @@ function DatabasesTab({ serverId }: { serverId: string }) {
               className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
               placeholder="e.g. Primary DB"
               value={formLabel}
-              onChange={e => setFormLabel(e.target.value)}
+              onChange={(e) => setFormLabel(e.target.value)}
             />
           </div>
           {createError && (
-            <div className="p-2 rounded-lg bg-destructive/10 text-xs text-destructive break-words">{createError}</div>
+            <div className="p-2.5 rounded-lg bg-destructive/10 text-xs text-destructive break-words">
+              {createError}
+            </div>
           )}
           <div className="flex gap-2">
-            <Button size="sm" onClick={createDb} disabled={creating}>
+            <Button size="sm" onClick={createDb} disabled={creating} className="h-9">
               {creating && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="h-9">
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -1032,29 +1309,42 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       ) : (
         <div className="space-y-3 min-w-0">
           {databases.map((db: any) => (
-            <div key={db.id} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden">
-              <div className="flex items-start justify-between gap-2 sm:gap-3 min-w-0">
+            <div
+              key={db.id}
+              className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
+            >
+              <div className="flex items-start justify-between gap-3 min-w-0">
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <p className="text-sm font-medium text-foreground truncate">
                     {db.label || db.name}
                   </p>
-                  {db.label && <p className="text-xs text-muted-foreground font-mono truncate">{db.name}</p>}
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">User: {db.username}</p>
+                  {db.label && (
+                    <p className="text-xs text-muted-foreground font-mono truncate">{db.name}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    User: {db.username}
+                  </p>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => viewCreds(db.id)}
                     disabled={loadingCreds[db.id]}
-                    className="text-xs h-8 px-2 sm:px-3"
+                    className="text-xs h-9 px-2.5"
                   >
                     {loadingCreds[db.id] ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : creds[db.id] ? (
-                      <><EyeOff className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Hide</span></>
+                      <>
+                        <EyeOff className="h-4 w-4 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Hide</span>
+                      </>
                     ) : (
-                      <><Eye className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Show</span></>
+                      <>
+                        <Eye className="h-4 w-4 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Show</span>
+                      </>
                     )}
                   </Button>
                   <Button
@@ -1062,36 +1352,57 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     variant="destructive"
                     onClick={() => deleteDb(db.id)}
                     disabled={deletingId === db.id}
-                    className="h-8 px-2 sm:px-3"
+                    className="h-9 w-9 p-0"
+                    aria-label="Delete database"
                   >
-                    {deletingId === db.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {deletingId === db.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
 
               {creds[db.id] && (
-                <div className="rounded-lg bg-background border border-border p-2.5 sm:p-3 space-y-2 min-w-0 overflow-hidden">
+                <div className="rounded-lg bg-background border border-border p-3 space-y-2 min-w-0 overflow-hidden">
                   {[
-                    { label: "Host", value: `${creds[db.id].host}:${creds[db.id].port}`, key: `host-${db.id}` },
+                    {
+                      label: "Host",
+                      value: `${creds[db.id].host}:${creds[db.id].port}`,
+                      key: `host-${db.id}`,
+                    },
                     { label: "DB", value: creds[db.id].name, key: `db-${db.id}` },
                     { label: "User", value: creds[db.id].username, key: `user-${db.id}` },
-                    { label: "Pass", value: creds[db.id].password, key: `pass-${db.id}`, sensitive: true },
+                    {
+                      label: "Pass",
+                      value: creds[db.id].password,
+                      key: `pass-${db.id}`,
+                      sensitive: true,
+                    },
                     { label: "JDBC", value: creds[db.id].jdbc, key: `jdbc-${db.id}` },
-                  ].map(row => (
-                    <div key={row.key} className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                      <span className="text-[10px] sm:text-xs text-muted-foreground w-10 sm:w-14 flex-shrink-0">{row.label}</span>
+                  ].map((row) => (
+                    <div key={row.key} className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs text-muted-foreground w-12 flex-shrink-0">
+                        {row.label}
+                      </span>
                       <div className="flex-1 min-w-0 overflow-hidden">
-                        <span className="text-[10px] sm:text-xs bg-secondary/40 rounded px-1.5 sm:px-2 py-0.5 font-mono block truncate">
-                          {row.sensitive ? '••••••••' : row.value}
+                        <span className="text-xs bg-secondary/40 rounded px-2 py-0.5 font-mono block truncate">
+                          {row.sensitive ? "••••••••" : row.value}
                         </span>
                       </div>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-6 w-6 p-0 flex-shrink-0"
+                        className="h-7 w-7 p-0 flex-shrink-0"
                         onClick={() => copyText(row.value, row.key)}
+                        aria-label={`Copy ${row.label}`}
                       >
-                        {copied === row.key ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                        {copied === row.key ? (
+                          <Check className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
                       </Button>
                     </div>
                   ))}
@@ -1105,6 +1416,8 @@ function DatabasesTab({ serverId }: { serverId: string }) {
   )
 }
 
+// ─── Schedules Tab ───────────────────────────────────────────────────────────
+
 function SchedulesTab({ serverId }: { serverId: string }) {
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -1116,7 +1429,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
     cron_day_of_month: "*",
     cron_month: "*",
     cron_day_of_week: "*",
-    is_active: true
+    is_active: true,
   })
   const [creating, setCreating] = useState(false)
 
@@ -1131,7 +1444,9 @@ function SchedulesTab({ serverId }: { serverId: string }) {
     }
   }, [serverId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   const createSchedule = async () => {
     setCreating(true)
@@ -1141,7 +1456,15 @@ function SchedulesTab({ serverId }: { serverId: string }) {
         body: JSON.stringify(form),
       })
       setShowForm(false)
-      setForm({ name: "", cron_minute: "*", cron_hour: "*", cron_day_of_month: "*", cron_month: "*", cron_day_of_week: "*", is_active: true })
+      setForm({
+        name: "",
+        cron_minute: "*",
+        cron_hour: "*",
+        cron_day_of_month: "*",
+        cron_month: "*",
+        cron_day_of_week: "*",
+        is_active: true,
+      })
       load()
     } catch (e: any) {
       alert("Failed: " + e.message)
@@ -1153,7 +1476,10 @@ function SchedulesTab({ serverId }: { serverId: string }) {
   const deleteSchedule = async (sid: string) => {
     if (!confirm("Delete this schedule?")) return
     try {
-      await apiFetch(API_ENDPOINTS.serverScheduleDelete.replace(":id", serverId).replace(":sid", sid), { method: "DELETE" })
+      await apiFetch(
+        API_ENDPOINTS.serverScheduleDelete.replace(":id", serverId).replace(":sid", sid),
+        { method: "DELETE" }
+      )
       load()
     } catch (e: any) {
       alert("Failed: " + e.message)
@@ -1163,7 +1489,13 @@ function SchedulesTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   const cronLabels = ["Min", "Hr", "Day", "Mon", "Wk"] as const
-  const cronFields = ["cron_minute", "cron_hour", "cron_day_of_month", "cron_month", "cron_day_of_week"] as const
+  const cronFields = [
+    "cron_minute",
+    "cron_hour",
+    "cron_day_of_month",
+    "cron_month",
+    "cron_day_of_week",
+  ] as const
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
@@ -1194,17 +1526,17 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Cron Expression</label>
-            <div className="grid grid-cols-5 gap-1 sm:gap-2">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {cronFields.map((field, idx) => (
                 <div key={field} className="space-y-1 min-w-0">
-                  <label className="text-[9px] sm:text-[10px] text-muted-foreground block text-center">
+                  <label className="text-[10px] text-muted-foreground block text-center">
                     {cronLabels[idx]}
                   </label>
                   <input
                     type="text"
                     value={form[field]}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full rounded-md border border-border bg-input px-1 py-2 text-xs sm:text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
+                    className="w-full rounded-md border border-border bg-input px-1 py-2.5 text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
                   />
                 </div>
               ))}
@@ -1212,11 +1544,18 @@ function SchedulesTab({ serverId }: { serverId: string }) {
           </div>
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={createSchedule} disabled={creating}>
-              {creating && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+            <Button size="sm" onClick={createSchedule} disabled={creating} className="h-9">
+              {creating && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowForm(false)}
+              className="h-9"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -1226,14 +1565,26 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       ) : (
         <div className="space-y-3 min-w-0">
           {schedules.map((sched: any) => (
-            <div key={sched.id} className="flex items-start justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden">
+            <div
+              key={sched.id}
+              className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden"
+            >
               <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">{sched.name || "Unnamed"}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-mono mt-1 truncate">
-                  {sched.cron_minute} {sched.cron_hour} {sched.cron_day_of_month} {sched.cron_month} {sched.cron_day_of_week}
+                <p className="text-sm font-medium text-foreground truncate">
+                  {sched.name || "Unnamed"}
                 </p>
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
-                  <Badge variant="outline" className={cn("text-[10px]", sched.is_active ? "text-green-400" : "text-muted-foreground")}>
+                <p className="text-xs text-muted-foreground font-mono mt-1 truncate">
+                  {sched.cron_minute} {sched.cron_hour} {sched.cron_day_of_month}{" "}
+                  {sched.cron_month} {sched.cron_day_of_week}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px]",
+                      sched.is_active ? "text-green-400" : "text-muted-foreground"
+                    )}
+                  >
                     {sched.is_active ? "Active" : "Inactive"}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground truncate min-w-0">
@@ -1241,8 +1592,14 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                   </span>
                 </div>
               </div>
-              <Button size="sm" variant="destructive" onClick={() => deleteSchedule(String(sched.id))} className="flex-shrink-0 h-8 px-2 sm:px-3">
-                <Trash2 className="h-3.5 w-3.5" />
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => deleteSchedule(String(sched.id))}
+                className="flex-shrink-0 h-9 w-9 p-0"
+                aria-label="Delete schedule"
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
@@ -1252,13 +1609,14 @@ function SchedulesTab({ serverId }: { serverId: string }) {
   )
 }
 
+// ─── Network Tab ─────────────────────────────────────────────────────────────
+
 function NetworkTab({ serverId }: { serverId: string }) {
   const [allocations, setAllocations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const { user } = useAuth()
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
@@ -1272,13 +1630,13 @@ function NetworkTab({ serverId }: { serverId: string }) {
     setRequestError(null)
     try {
       await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
-        method: 'POST',
-        body: JSON.stringify({ count: 1 })
+        method: "POST",
+        body: JSON.stringify({ count: 1 }),
       })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
     } catch (e: any) {
-      setRequestError(e?.message || 'Request failed')
+      setRequestError(e?.message || "Request failed")
     } finally {
       setRequesting(false)
     }
@@ -1290,13 +1648,13 @@ function NetworkTab({ serverId }: { serverId: string }) {
     setDeleting(key)
     try {
       await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
-        method: 'DELETE',
-        body: JSON.stringify({ ip, port })
+        method: "DELETE",
+        body: JSON.stringify({ ip, port }),
       })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
     } catch (e: any) {
-      alert(e?.message || 'Failed')
+      alert(e?.message || "Failed")
     } finally {
       setDeleting(null)
     }
@@ -1311,7 +1669,11 @@ function NetworkTab({ serverId }: { serverId: string }) {
         icon={Network}
         action={
           <Button size="sm" onClick={requestPorts} disabled={requesting}>
-            {requesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
+            {requesting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+            )}
             <span className="hidden sm:inline">Request Port</span>
             <span className="sm:hidden">Add</span>
           </Button>
@@ -1319,7 +1681,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
       />
 
       {requestError && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs sm:text-sm text-destructive break-words">
+        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive break-words">
           {requestError}
         </div>
       )}
@@ -1331,10 +1693,13 @@ function NetworkTab({ serverId }: { serverId: string }) {
           {allocations.map((alloc: any, i: number) => {
             const key = `${alloc.ip}:${alloc.port}`
             return (
-              <div key={i} className="flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden">
+              <div
+                key={i}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
+              >
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                    <span className="font-mono text-xs sm:text-sm text-foreground truncate min-w-0 break-all">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="font-mono text-sm text-foreground truncate min-w-0 break-all">
                       {alloc.fqdn || alloc.ip}:{alloc.port}
                     </span>
                     <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap">
@@ -1342,7 +1707,9 @@ function NetworkTab({ serverId }: { serverId: string }) {
                     </Badge>
                   </div>
                   {alloc.fqdn && alloc.ip && alloc.fqdn !== alloc.ip && (
-                    <p className="text-[10px] sm:text-xs text-muted-foreground font-mono mt-0.5 truncate">{alloc.ip}</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
+                      {alloc.ip}
+                    </p>
                   )}
                 </div>
                 {!alloc.is_default && (
@@ -1351,9 +1718,14 @@ function NetworkTab({ serverId }: { serverId: string }) {
                     variant="outline"
                     onClick={() => deassignPort(alloc.ip, alloc.port)}
                     disabled={deleting === key}
-                    className="flex-shrink-0 h-8 px-2 sm:px-3"
+                    className="flex-shrink-0 h-9 w-9 p-0"
+                    aria-label="Remove allocation"
                   >
-                    {deleting === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {deleting === key ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </Button>
                 )}
               </div>
@@ -1365,6 +1737,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
   )
 }
 
+// ─── Backups Tab ─────────────────────────────────────────────────────────────
 
 function BackupsTab({ serverId }: { serverId: string }) {
   const [backups, setBackups] = useState<any[]>([])
@@ -1382,7 +1755,9 @@ function BackupsTab({ serverId }: { serverId: string }) {
     }
   }, [serverId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   const createBackup = async () => {
     setCreating(true)
@@ -1402,7 +1777,10 @@ function BackupsTab({ serverId }: { serverId: string }) {
   const restoreBackup = async (bid: string) => {
     if (!confirm("Restore this backup? Current data may be overwritten.")) return
     try {
-      await apiFetch(API_ENDPOINTS.serverBackupRestore.replace(":id", serverId).replace(":bid", bid), { method: "POST" })
+      await apiFetch(
+        API_ENDPOINTS.serverBackupRestore.replace(":id", serverId).replace(":bid", bid),
+        { method: "POST" }
+      )
       alert("Restore initiated.")
     } catch (e: any) {
       alert("Failed: " + e.message)
@@ -1412,7 +1790,10 @@ function BackupsTab({ serverId }: { serverId: string }) {
   const deleteBackup = async (bid: string) => {
     if (!confirm("Delete this backup permanently?")) return
     try {
-      await apiFetch(API_ENDPOINTS.serverBackupDelete.replace(":id", serverId).replace(":bid", bid), { method: "DELETE" })
+      await apiFetch(
+        API_ENDPOINTS.serverBackupDelete.replace(":id", serverId).replace(":bid", bid),
+        { method: "DELETE" }
+      )
       load()
     } catch (e: any) {
       alert("Failed: " + e.message)
@@ -1440,7 +1821,11 @@ function BackupsTab({ serverId }: { serverId: string }) {
         icon={HardDrive}
         action={
           <Button size="sm" onClick={createBackup} disabled={creating}>
-            {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
+            {creating ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+            )}
             <span className="hidden sm:inline">Create Backup</span>
             <span className="sm:hidden">Create</span>
           </Button>
@@ -1453,24 +1838,41 @@ function BackupsTab({ serverId }: { serverId: string }) {
         <div className="space-y-3 min-w-0">
           {backups.map((backup: any) => {
             const isLocked = backup.locked || backup.is_locked
-            const inProgress = (backup.progress != null && Number(backup.progress) > 0 && Number(backup.progress) < 100) ||
-              (backup.status && ["running", "in-progress", "processing"].includes(String(backup.status).toLowerCase()))
+            const inProgress =
+              (backup.progress != null &&
+                Number(backup.progress) > 0 &&
+                Number(backup.progress) < 100) ||
+              (backup.status &&
+                ["running", "in-progress", "processing"].includes(
+                  String(backup.status).toLowerCase()
+                ))
 
             return (
-              <div key={backup.uuid || backup.id} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden">
+              <div
+                key={backup.uuid || backup.id}
+                className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
+              >
                 <div className="flex items-start justify-between gap-2 min-w-0">
                   <div className="min-w-0 flex-1 overflow-hidden">
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <p className="text-sm font-medium text-foreground truncate min-w-0">
-                        {backup.displayName || backup.display_name || backup.name || "Backup"}
+                        {backup.displayName ||
+                          backup.display_name ||
+                          backup.name ||
+                          "Backup"}
                       </p>
-                      {isLocked && <Lock className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />}
+                      {isLocked && (
+                        <Lock className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />
+                      )}
                     </div>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
-                      {formatBytes(backup.bytes || 0)} • {backup.created_at ? new Date(backup.created_at).toLocaleString() : "—"}
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {formatBytes(backup.bytes || 0)} •{" "}
+                      {backup.created_at
+                        ? new Date(backup.created_at).toLocaleString()
+                        : "—"}
                     </p>
                     {backup.is_successful === false && (
-                      <p className="text-[10px] sm:text-xs text-destructive mt-1">Backup failed</p>
+                      <p className="text-xs text-destructive mt-1">Backup failed</p>
                     )}
                   </div>
                 </div>
@@ -1479,8 +1881,10 @@ function BackupsTab({ serverId }: { serverId: string }) {
                   <div className="space-y-1">
                     <div className="h-2 bg-border rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary transition-all"
-                        style={{ width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%` }}
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%`,
+                        }}
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground">
@@ -1489,22 +1893,40 @@ function BackupsTab({ serverId }: { serverId: string }) {
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  <Button size="sm" variant="outline" onClick={() => restoreBackup(String(backup.uuid || backup.id))} className="h-8 px-2 sm:px-3 text-xs">
-                    <RotateCcw className="h-3.5 w-3.5 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Restore</span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => restoreBackup(String(backup.uuid || backup.id))}
+                    className="h-9 px-3 text-xs"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1.5" />
+                    Restore
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => lockBackup(String(backup.uuid || backup.id), !isLocked)} className="h-8 px-2">
-                    {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      lockBackup(String(backup.uuid || backup.id), !isLocked)
+                    }
+                    className="h-9 w-9 p-0"
+                    aria-label={isLocked ? "Unlock backup" : "Lock backup"}
+                  >
+                    {isLocked ? (
+                      <Unlock className="h-4 w-4" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
                   </Button>
                   <Button
                     size="sm"
                     variant="destructive"
                     onClick={() => deleteBackup(String(backup.uuid || backup.id))}
                     disabled={isLocked}
-                    className="h-8 px-2 sm:px-3"
+                    className="h-9 w-9 p-0"
+                    aria-label="Delete backup"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -1516,6 +1938,8 @@ function BackupsTab({ serverId }: { serverId: string }) {
   )
 }
 
+// ─── Startup Tab ─────────────────────────────────────────────────────────────
+
 function StartupTab({ serverId }: { serverId: string }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1523,7 +1947,9 @@ function StartupTab({ serverId }: { serverId: string }) {
   const [editedEnv, setEditedEnv] = useState<Record<string, string>>({})
   const [donePatterns, setDonePatterns] = useState<string[]>([])
   const [selectedDockerImage, setSelectedDockerImage] = useState<string>("")
-  const [dockerImageOptions, setDockerImageOptions] = useState<{ label: string; value: string }[]>([])
+  const [dockerImageOptions, setDockerImageOptions] = useState<
+    { label: string; value: string }[]
+  >([])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverStartup.replace(":id", serverId))
@@ -1531,9 +1957,13 @@ function StartupTab({ serverId }: { serverId: string }) {
         setStartup(data)
         setEditedEnv(data?.environment || {})
         setSelectedDockerImage(data?.dockerImage || "")
-        setDockerImageOptions(Array.isArray(data?.dockerImageOptions) ? data.dockerImageOptions : [])
+        setDockerImageOptions(
+          Array.isArray(data?.dockerImageOptions) ? data.dockerImageOptions : []
+        )
         const patterns = data?.processConfig?.startup?.done
-        setDonePatterns(Array.isArray(patterns) ? patterns.map(String) : patterns ? [String(patterns)] : [""])
+        setDonePatterns(
+          Array.isArray(patterns) ? patterns.map(String) : patterns ? [String(patterns)] : [""]
+        )
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -1541,7 +1971,7 @@ function StartupTab({ serverId }: { serverId: string }) {
 
   const saveEnv = async () => {
     if (dockerImageOptions.length > 0 && !selectedDockerImage) {
-      alert('Please select a Docker image before saving.')
+      alert("Please select a Docker image before saving.")
       return
     }
 
@@ -1551,7 +1981,9 @@ function StartupTab({ serverId }: { serverId: string }) {
         method: "PUT",
         body: JSON.stringify({
           environment: editedEnv,
-          processConfig: { startup: { done: donePatterns.filter(p => p.length > 0) } },
+          processConfig: {
+            startup: { done: donePatterns.filter((p) => p.length > 0) },
+          },
           dockerImage: selectedDockerImage || undefined,
         }),
       })
@@ -1564,7 +1996,10 @@ function StartupTab({ serverId }: { serverId: string }) {
   }
 
   if (loading) return <LoadingState />
-  if (!startup) return <EmptyState icon={AlertCircle} message="Failed to load startup configuration." />
+  if (!startup)
+    return (
+      <EmptyState icon={AlertCircle} message="Failed to load startup configuration." />
+    )
 
   const envVarDefs: any[] = startup.envVars || []
   const allKeys = new Set([
@@ -1573,37 +2008,50 @@ function StartupTab({ serverId }: { serverId: string }) {
   ])
 
   return (
-    <div data-guide-id="startup-tab" className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
+    <div
+      data-guide-id="startup-tab"
+      className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden"
+    >
       {/* Startup Info */}
       <CollapsibleSection title="Server Configuration" icon={Variable} defaultOpen>
-        <div className="space-y-3 min-w-0">
+        <div className="space-y-3 min-w-0 pt-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <InfoRow label="Egg" value={startup.eggName || "—"} />
             <InfoRow label="Docker Image" value={selectedDockerImage || "—"} mono />
           </div>
 
           {dockerImageOptions.length > 0 ? (
-            <div className="space-y-1 min-w-0">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select Docker Image</label>
+            <div className="space-y-1.5 min-w-0">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Select Docker Image
+              </label>
               <select
                 value={selectedDockerImage}
                 onChange={(e) => setSelectedDockerImage(e.target.value)}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
+                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0 appearance-none"
               >
-                <option value="" disabled>Select image…</option>
+                <option value="" disabled>
+                  Select image…
+                </option>
                 {dockerImageOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground break-words">No alternate docker images are configured for this egg.</p>
+            <p className="text-xs text-muted-foreground break-words">
+              No alternate docker images are configured for this egg.
+            </p>
           )}
 
           {startup.startup && (
             <div className="rounded-lg border border-border bg-secondary/30 p-3 min-w-0 overflow-hidden">
               <p className="text-[10px] text-muted-foreground mb-1">Startup Command</p>
-              <p className="text-[10px] sm:text-xs font-mono text-foreground break-all">{startup.startup}</p>
+              <p className="text-xs font-mono text-foreground break-all leading-relaxed">
+                {startup.startup}
+              </p>
             </div>
           )}
         </div>
@@ -1611,7 +2059,7 @@ function StartupTab({ serverId }: { serverId: string }) {
 
       {/* Detection Patterns */}
       <CollapsibleSection title="Startup Detection" icon={Activity}>
-        <div className="space-y-3 min-w-0">
+        <div className="space-y-3 min-w-0 pt-3">
           <p className="text-xs text-muted-foreground break-words">
             Patterns matched against console output to detect startup completion.
           </p>
@@ -1626,19 +2074,24 @@ function StartupTab({ serverId }: { serverId: string }) {
                   setDonePatterns(next)
                 }}
                 placeholder="e.g. Server started"
-                className="flex-1 min-w-0 rounded-lg border border-border bg-input px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="flex-1 min-w-0 rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => setDonePatterns(donePatterns.filter((_, j) => j !== i))}
-                className="text-destructive hover:text-destructive px-2 flex-shrink-0"
+                className="text-destructive hover:text-destructive h-9 w-9 p-0 flex-shrink-0"
+                aria-label="Remove pattern"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
-          <Button size="sm" variant="outline" onClick={() => setDonePatterns([...donePatterns, ""])}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setDonePatterns([...donePatterns, ""])}
+          >
             <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Pattern
           </Button>
         </div>
@@ -1650,8 +2103,17 @@ function StartupTab({ serverId }: { serverId: string }) {
           title="Environment Variables"
           icon={Variable}
           action={
-            <Button size="sm" onClick={saveEnv} disabled={saving || (dockerImageOptions.length > 0 && !selectedDockerImage)}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+            <Button
+              size="sm"
+              onClick={saveEnv}
+              disabled={saving || (dockerImageOptions.length > 0 && !selectedDockerImage)}
+              className="h-9"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              ) : (
+                <Save className="h-4 w-4 mr-1.5" />
+              )}
               Save
             </Button>
           }
@@ -1659,28 +2121,51 @@ function StartupTab({ serverId }: { serverId: string }) {
 
         <div className="space-y-3 min-w-0">
           {[...allKeys].map((key) => {
-            const def = envVarDefs.find((v: any) => (v.env_variable || v.key || v.name) === key)
+            const def = envVarDefs.find(
+              (v: any) => (v.env_variable || v.key || v.name) === key
+            )
             const isEditable = def ? !!def.user_editable : true
             const description = def?.description || ""
             const name = def?.name || key
 
             return (
-              <div key={key} className="rounded-lg border border-border bg-secondary/10 p-3 min-w-0 overflow-hidden">
+              <div
+                key={key}
+                className="rounded-lg border border-border bg-secondary/10 p-3 min-w-0 overflow-hidden"
+              >
                 <div className="flex items-center gap-1.5 mb-2 flex-wrap min-w-0">
-                  <span className="text-xs font-semibold text-foreground truncate min-w-0">{name}</span>
-                  <Badge variant="outline" className="text-[10px] font-mono truncate max-w-[40vw] sm:max-w-none">{key}</Badge>
+                  <span className="text-xs font-semibold text-foreground truncate min-w-0">
+                    {name}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-mono truncate max-w-[50vw] sm:max-w-none"
+                  >
+                    {key}
+                  </Badge>
                   {!isEditable && (
-                    <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap">Read Only</Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap"
+                    >
+                      Read Only
+                    </Badge>
                   )}
                 </div>
-                {description && <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 break-words">{description}</p>}
+                {description && (
+                  <p className="text-xs text-muted-foreground mb-2 break-words leading-relaxed">
+                    {description}
+                  </p>
+                )}
                 <input
                   type="text"
                   value={editedEnv[key] ?? ""}
-                  onChange={(e) => setEditedEnv((prev) => ({ ...prev, [key]: e.target.value }))}
+                  onChange={(e) =>
+                    setEditedEnv((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
                   disabled={!isEditable}
                   className={cn(
-                    "w-full rounded-lg border border-border px-3 py-2 text-xs sm:text-sm font-mono outline-none min-w-0",
+                    "w-full rounded-lg border border-border px-3 py-2.5 text-sm font-mono outline-none min-w-0",
                     isEditable
                       ? "bg-input text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       : "bg-secondary/50 text-muted-foreground cursor-not-allowed"
@@ -1697,6 +2182,8 @@ function StartupTab({ serverId }: { serverId: string }) {
     </div>
   )
 }
+
+// ─── Mounts Tab ──────────────────────────────────────────────────────────────
 
 function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
   const [mounts, setMounts] = useState<any[]>([])
@@ -1726,27 +2213,46 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
       )}
 
       {mounts.length === 0 ? (
-        <EmptyState icon={Box} message="No mounts configured. Mounts are managed by administrators." />
+        <EmptyState
+          icon={Box}
+          message="No mounts configured. Mounts are managed by administrators."
+        />
       ) : (
         <div className="space-y-3 min-w-0">
           {mounts.map((mount: any, i: number) => (
-            <div key={mount.id || i} className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden">
+            <div
+              key={mount.id || i}
+              className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
+            >
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <Box className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-medium text-foreground truncate min-w-0">{mount.name || `Mount ${i + 1}`}</span>
+                <span className="text-sm font-medium text-foreground truncate min-w-0">
+                  {mount.name || `Mount ${i + 1}`}
+                </span>
                 {mount.read_only && (
-                  <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap">Read Only</Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap"
+                  >
+                    Read Only
+                  </Badge>
                 )}
               </div>
-              {mount.description && <p className="text-xs text-muted-foreground break-words">{mount.description}</p>}
+              {mount.description && (
+                <p className="text-xs text-muted-foreground break-words">{mount.description}</p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="rounded border border-border bg-secondary/30 p-2 min-w-0 overflow-hidden">
+                <div className="rounded border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
                   <span className="text-[10px] text-muted-foreground">Source</span>
-                  <p className="text-xs font-mono text-foreground truncate">{mount.source || "—"}</p>
+                  <p className="text-xs font-mono text-foreground truncate">
+                    {mount.source || "—"}
+                  </p>
                 </div>
-                <div className="rounded border border-border bg-secondary/30 p-2 min-w-0 overflow-hidden">
+                <div className="rounded border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
                   <span className="text-[10px] text-muted-foreground">Target</span>
-                  <p className="text-xs font-mono text-foreground truncate">{mount.target || "—"}</p>
+                  <p className="text-xs font-mono text-foreground truncate">
+                    {mount.target || "—"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1756,6 +2262,8 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
     </div>
   )
 }
+
+// ─── Activity Tab ────────────────────────────────────────────────────────────
 
 function ActivityTab({ serverId }: { serverId: string }) {
   const [logs, setLogs] = useState<any[]>([])
@@ -1771,14 +2279,14 @@ function ActivityTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   const actionLabels: Record<string, string> = {
-    'server:power:start': 'Started server',
-    'server:power:stop': 'Stopped server',
-    'server:power:restart': 'Restarted server',
-    'server:power:kill': 'Killed server',
-    'server:console:command': 'Ran command',
-    'server:file:write': 'Modified file',
-    'server:file:delete': 'Deleted file(s)',
-    'server:reinstall': 'Reinstalled server',
+    "server:power:start": "Started server",
+    "server:power:stop": "Stopped server",
+    "server:power:restart": "Restarted server",
+    "server:power:kill": "Killed server",
+    "server:console:command": "Ran command",
+    "server:file:write": "Modified file",
+    "server:file:delete": "Deleted file(s)",
+    "server:reinstall": "Reinstalled server",
   }
 
   return (
@@ -1790,18 +2298,21 @@ function ActivityTab({ serverId }: { serverId: string }) {
       ) : (
         <div className="space-y-2 min-w-0">
           {logs.map((log) => (
-            <div key={log.id} className="flex items-start gap-2.5 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden">
+            <div
+              key={log.id}
+              className="flex items-start gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
+            >
               <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
               <div className="flex-1 min-w-0 overflow-hidden">
-                <p className="text-xs sm:text-sm text-foreground truncate">
+                <p className="text-sm text-foreground truncate">
                   {actionLabels[log.action] || log.action}
                 </p>
                 {log.metadata?.command && (
-                  <p className="text-[10px] sm:text-xs font-mono text-muted-foreground mt-1 break-all">
+                  <p className="text-xs font-mono text-muted-foreground mt-1 break-all">
                     $ {log.metadata.command}
                   </p>
                 )}
-                <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px] text-muted-foreground">
                   <span>User #{log.userId}</span>
                   {log.ipAddress && <span className="hidden sm:inline">• {log.ipAddress}</span>}
                   <span>• {new Date(log.timestamp).toLocaleString()}</span>
@@ -1815,35 +2326,52 @@ function ActivityTab({ serverId }: { serverId: string }) {
   )
 }
 
-function SubusersTab({ serverId }: { serverId: string }) {
+// ─── Subusers Tab ────────────────────────────────────────────────────────────
+
+function SubusersTab({
+  serverId,
+  subuserEntry,
+  isOwnerOrAdmin,
+}: {
+  serverId: string
+  subuserEntry?: any
+  isOwnerOrAdmin?: boolean
+}) {
   const [subusers, setSubusers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [email, setEmail] = useState("")
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [locking, setLocking] = useState<Record<number, boolean>>({})
   const { user } = useAuth()
 
   const PERMISSIONS = [
-    { key: 'console', label: 'Console' },
-    { key: 'files', label: 'Files' },
-    { key: 'backups', label: 'Backups' },
-    { key: 'startup', label: 'Startup' },
-    { key: 'settings', label: 'Settings' },
-    { key: 'databases', label: 'DBs' },
-    { key: 'schedules', label: 'Sched.' },
+    { key: "console", label: "Console" },
+    { key: "files", label: "Files" },
+    { key: "backups", label: "Backups" },
+    { key: "startup", label: "Startup" },
+    { key: "settings", label: "Settings" },
+    { key: "databases", label: "Databases" },
+    { key: "schedules", label: "Schedules" },
+    { key: "activity", label: "Activity" },
+    { key: "stats", label: "Stats" },
+    { key: "network", label: "Network" },
+    { key: "mounts", label: "Mounts" },
   ]
-  const [selectedPerms, setSelectedPerms] = useState<string[]>(['console'])
+  const [selectedPerms, setSelectedPerms] = useState<string[]>(["console"])
 
-  const loadSubusers = () => {
+  const loadSubusers = useCallback(() => {
     setLoading(true)
     apiFetch(`/api/servers/${serverId}/subusers`)
       .then((data) => setSubusers(Array.isArray(data) ? data : []))
       .catch(() => setSubusers([]))
       .finally(() => setLoading(false))
-  }
+  }, [serverId])
 
-  useEffect(() => { loadSubusers() }, [serverId])
+  useEffect(() => {
+    loadSubusers()
+  }, [loadSubusers])
 
   const handleAdd = async () => {
     if (!email.trim()) return
@@ -1855,7 +2383,7 @@ function SubusersTab({ serverId }: { serverId: string }) {
         body: JSON.stringify({ email: email.trim(), permissions: selectedPerms }),
       })
       setEmail("")
-      setSelectedPerms(['console'])
+      setSelectedPerms(["console"])
       setShowAdd(false)
       loadSubusers()
     } catch (e: any) {
@@ -1868,14 +2396,47 @@ function SubusersTab({ serverId }: { serverId: string }) {
   const handleRemove = async (subuserId: number) => {
     if (!confirm("Remove this subuser?")) return
     try {
-      await apiFetch(`/api/servers/${serverId}/subusers/${subuserId}`, { method: "DELETE" })
+      await apiFetch(`/api/servers/${serverId}/subusers/${subuserId}`, {
+        method: "DELETE",
+      })
       loadSubusers()
     } catch (e: any) {
       alert("Failed: " + e.message)
     }
   }
 
+  const toggleLock = async (su: any) => {
+    if (!isOwnerOrAdmin) return
+    setLocking((s) => ({ ...s, [su.id]: true }))
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverSubuserDetail
+          .replace(":id", serverId)
+          .replace(":subId", String(su.id)),
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            permissions: su.permissions || [],
+            locked: !su.locked,
+          }),
+        }
+      )
+      loadSubusers()
+    } catch (e: any) {
+      alert("Failed to update lock: " + (e?.message || e))
+    } finally {
+      setLocking((s) => ({ ...s, [su.id]: false }))
+    }
+  }
+
   if (loading) return <LoadingState />
+
+  const canAdd = !!(
+    isOwnerOrAdmin ||
+    (subuserEntry &&
+      Array.isArray(subuserEntry.permissions) &&
+      subuserEntry.permissions.includes("subusersd"))
+  )
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
@@ -1883,17 +2444,23 @@ function SubusersTab({ serverId }: { serverId: string }) {
         title="Subusers"
         icon={Users}
         action={
-          <Button size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            <span className="hidden sm:inline">Add Subuser</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
+          canAdd ? (
+            <Button size="sm" onClick={() => setShowAdd(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <span className="hidden sm:inline">Add Subuser</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+          ) : null
         }
       />
 
       {showAdd && (
         <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
-          {error && <div className="p-2 rounded-lg bg-destructive/10 text-xs text-destructive break-words">{error}</div>}
+          {error && (
+            <div className="p-2.5 rounded-lg bg-destructive/10 text-xs text-destructive break-words">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Email</label>
@@ -1908,18 +2475,23 @@ function SubusersTab({ serverId }: { serverId: string }) {
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Permissions</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
               {PERMISSIONS.map((p) => (
-                <label key={p.key} className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2 rounded-lg border border-border hover:bg-secondary/30 transition-colors min-w-0">
+                <label
+                  key={p.key}
+                  className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2.5 rounded-lg border border-border hover:bg-secondary/30 active:bg-secondary/50 transition-colors min-w-0 touch-manipulation"
+                >
                   <input
                     type="checkbox"
                     checked={selectedPerms.includes(p.key)}
                     onChange={(e) => {
-                      setSelectedPerms(prev =>
-                        e.target.checked ? [...prev, p.key] : prev.filter(x => x !== p.key)
+                      setSelectedPerms((prev) =>
+                        e.target.checked
+                          ? [...prev, p.key]
+                          : prev.filter((x) => x !== p.key)
                       )
                     }}
-                    className="accent-primary flex-shrink-0"
+                    className="accent-primary flex-shrink-0 h-4 w-4"
                   />
                   <span className="truncate">{p.label}</span>
                 </label>
@@ -1928,11 +2500,18 @@ function SubusersTab({ serverId }: { serverId: string }) {
           </div>
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleAdd} disabled={adding}>
-              {adding && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+            <Button size="sm" onClick={handleAdd} disabled={adding} className="h-9">
+              {adding && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
               Add
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowAdd(false)}
+              className="h-9"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -1941,30 +2520,91 @@ function SubusersTab({ serverId }: { serverId: string }) {
         <EmptyState icon={Users} message="No subusers added yet." />
       ) : (
         <div className="space-y-2 min-w-0">
-          {subusers.map((su) => (
-            <div key={su.id} className="flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden">
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {su.userEmail || su.email || `User #${su.userId}`}
-                </p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {(su.permissions || []).map((p: string) => (
-                    <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
-                  ))}
+          {subusers.map((su) => {
+            const isSelf =
+              user && (su.userId === user.id || su.userEmail === user.email)
+            const canRemove = !!(
+              isOwnerOrAdmin ||
+              isSelf ||
+              (subuserEntry &&
+                Array.isArray(subuserEntry.permissions) &&
+                subuserEntry.permissions.includes("subusersd"))
+            )
+            const removeDisabled = !canRemove || (su.locked && !isOwnerOrAdmin)
+            return (
+              <div
+                key={su.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
+              >
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {su.userEmail || su.email || `User #${su.userId}`}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1.5 items-center">
+                    {(su.permissions || []).map((p: string) => (
+                      <Badge key={p} variant="outline" className="text-[10px]">
+                        {p}
+                      </Badge>
+                    ))}
+                    {su.locked && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] ml-1 flex items-center gap-1"
+                      >
+                        <Lock className="h-3 w-3" />
+                        Locked
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {isOwnerOrAdmin && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => toggleLock(su)}
+                      className="h-9 w-9 p-0"
+                      disabled={!!locking[su.id]}
+                      aria-label={su.locked ? "Unlock subuser" : "Lock subuser"}
+                    >
+                      {locking[su.id] ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : su.locked ? (
+                        <Unlock className="h-4 w-4" />
+                      ) : (
+                        <Lock className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleRemove(su.id)}
+                    className="flex-shrink-0 h-9 w-9 p-0"
+                    disabled={removeDisabled}
+                    aria-label="Remove subuser"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <Button size="sm" variant="destructive" onClick={() => handleRemove(su.id)} className="flex-shrink-0 h-8 px-2 sm:px-3">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
+// ─── Settings Tab ────────────────────────────────────────────────────────────
+
+function SettingsTab({
+  serverId,
+  server,
+  onDelete,
+  reload,
+  isKvm,
+}: {
   serverId: string
   server: any
   onDelete: () => void
@@ -1973,14 +2613,15 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
 }) {
   const [reinstalling, setReinstalling] = useState(false)
   const [launchNotice, setLaunchNotice] = useState<string | null>(null)
-
   const [primaryAlloc, setPrimaryAlloc] = useState<any>(
     server?.allocations?.find((a: any) => a.is_default) || server?.allocations?.[0] || null
   )
 
   useEffect(() => {
     if (server?.allocations && server.allocations.length > 0) {
-      setPrimaryAlloc(server.allocations.find((a: any) => a.is_default) || server.allocations[0])
+      setPrimaryAlloc(
+        server.allocations.find((a: any) => a.is_default) || server.allocations[0]
+      )
       return
     }
 
@@ -1996,7 +2637,9 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
         setPrimaryAlloc(null)
       })
 
-    return () => { mounted = false }
+    return () => {
+      mounted = false
+    }
   }, [server, serverId])
 
   const handleReinstall = async () => {
@@ -2016,8 +2659,12 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
     }
   }
 
-  const sftpHost = isKvm ? (primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp?.host || "—") : (server.sftp?.host || "—")
-  const sftpPort = isKvm ? String(primaryAlloc?.port || server.sftp?.port || "") : String(server.sftp?.port || "")
+  const sftpHost = isKvm
+    ? primaryAlloc?.fqdn || primaryAlloc?.ip || server.sftp?.host || "—"
+    : server.sftp?.host || "—"
+  const sftpPort = isKvm
+    ? String(primaryAlloc?.port || server.sftp?.port || "")
+    : String(server.sftp?.port || "")
   const sftpUser = server.sftp?.username || (isKvm ? "root" : "—")
   const sftpCmd = isKvm
     ? `sftp root@${sftpHost} -P ${sftpPort}`
@@ -2029,30 +2676,34 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
   const launchSsh = () => {
     const host = sftpHost
     const port = sftpPort
-    const user = sftpUser
+    const u = sftpUser
     if (!host || host === "—" || !port) {
       setLaunchNotice("SSH connection details are not available.")
       setTimeout(() => setLaunchNotice(null), 4000)
       return
     }
-    const sshUri = `ssh://${encodeURIComponent(user)}@${host}:${port}`
+    const sshUri = `ssh://${encodeURIComponent(u)}@${host}:${port}`
     window.open(sshUri, "_blank")
-    setLaunchNotice("Opening SSH client… If nothing happened, copy the command above and use your terminal.")
+    setLaunchNotice(
+      "Opening SSH client… If nothing happened, copy the command above and use your terminal."
+    )
     setTimeout(() => setLaunchNotice(null), 5000)
   }
 
   const launchSftp = () => {
     const host = sftpHost
     const port = sftpPort
-    const user = sftpUser
+    const u = sftpUser
     if (!host || host === "—" || !port) {
       setLaunchNotice("SFTP connection details are not available.")
       setTimeout(() => setLaunchNotice(null), 4000)
       return
     }
-    const sftpUri = `sftp://${encodeURIComponent(user)}@${host}:${port}`
+    const sftpUri = `sftp://${encodeURIComponent(u)}@${host}:${port}`
     window.open(sftpUri, "_blank")
-    setLaunchNotice("Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app.")
+    setLaunchNotice(
+      "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app."
+    )
     setTimeout(() => setLaunchNotice(null), 5000)
   }
 
@@ -2063,21 +2714,24 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
 
       {/* Server Info */}
       <CollapsibleSection title="Server Information" icon={Info} defaultOpen>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0 pt-3">
           <InfoRow label="UUID" value={server.uuid || serverId} mono copyable />
           <InfoRow label="Name" value={server.name || "—"} />
           <InfoRow label="Status" value={server.status || "—"} />
           <InfoRow label="Node" value={server.node || "—"} />
           <InfoRow label="Docker Image" value={server.container?.image || "—"} mono />
-          {isKvm && <InfoRow label="Virtualization" value="KVM (Full VM)" />}
-          {!isKvm && <InfoRow label="Virtualization" value="Docker" />}
+          {isKvm ? (
+            <InfoRow label="Virtualization" value="KVM (Full VM)" />
+          ) : (
+            <InfoRow label="Virtualization" value="Docker" />
+          )}
         </div>
       </CollapsibleSection>
 
       {/* SFTP/SSH Access */}
       {server.sftp && (
         <CollapsibleSection title="External Access" icon={Network}>
-          <div className="space-y-3 min-w-0">
+          <div className="space-y-3 min-w-0 pt-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <InfoRow label="Host" value={sftpHost} mono copyable />
               <InfoRow label="Port" value={sftpPort} mono copyable />
@@ -2090,9 +2744,9 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
                 size="sm"
                 variant="outline"
                 onClick={launchSsh}
-                className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-9 sm:h-8 px-3"
+                className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-10 sm:h-9 px-3"
               >
-                <Terminal className="h-3.5 w-3.5 mr-2" />
+                <Terminal className="h-4 w-4 mr-2" />
                 Launch SSH
                 <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
               </Button>
@@ -2100,31 +2754,35 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
                 size="sm"
                 variant="outline"
                 onClick={launchSftp}
-                className="flex-1 sm:flex-none border-blue-500/30 text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/20 h-9 sm:h-8 px-3"
+                className="flex-1 sm:flex-none border-blue-500/30 text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/20 h-10 sm:h-9 px-3"
               >
-                <Folder className="h-3.5 w-3.5 mr-2" />
+                <Folder className="h-4 w-4 mr-2" />
                 Launch SFTP
                 <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
               </Button>
             </div>
 
-            {/* Launch notice toast */}
+            {/* Launch notice */}
             {launchNotice && (
               <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 flex items-start gap-2 animate-in fade-in-0 slide-in-from-top-2 overflow-hidden">
                 <Info className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[10px] sm:text-xs text-amber-300/80 leading-relaxed break-words min-w-0">{launchNotice}</p>
+                <p className="text-xs text-amber-300/80 leading-relaxed break-words min-w-0">
+                  {launchNotice}
+                </p>
               </div>
             )}
 
             {server.sftp.username && (
-              <div className="space-y-2 min-w-0">
+              <div className="space-y-2.5 min-w-0">
                 {/* SSH command */}
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">SSH Command</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                    SSH Command
+                  </p>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex-1 min-w-0 rounded border border-border bg-secondary/50 overflow-hidden">
+                    <div className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 overflow-hidden">
                       <div className="overflow-x-auto scrollbar-none">
-                        <code className="text-[10px] sm:text-xs font-mono block px-2.5 py-2 whitespace-nowrap">
+                        <code className="text-xs font-mono block px-3 py-2.5 whitespace-nowrap">
                           {sshCmd}
                         </code>
                       </div>
@@ -2132,20 +2790,23 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="shrink-0 h-8 w-8 p-0"
+                      className="shrink-0 h-9 w-9 p-0"
                       onClick={() => navigator.clipboard.writeText(sshCmd)}
+                      aria-label="Copy SSH command"
                     >
-                      <Copy className="h-3.5 w-3.5" />
+                      <Copy className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
                 {/* SFTP command */}
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">SFTP Command</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                    SFTP Command
+                  </p>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex-1 min-w-0 rounded border border-border bg-secondary/50 overflow-hidden">
+                    <div className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 overflow-hidden">
                       <div className="overflow-x-auto scrollbar-none">
-                        <code className="text-[10px] sm:text-xs font-mono block px-2.5 py-2 whitespace-nowrap">
+                        <code className="text-xs font-mono block px-3 py-2.5 whitespace-nowrap">
                           {sftpCmd}
                         </code>
                       </div>
@@ -2153,10 +2814,11 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="shrink-0 h-8 w-8 p-0"
+                      className="shrink-0 h-9 w-9 p-0"
                       onClick={() => navigator.clipboard.writeText(sftpCmd)}
+                      aria-label="Copy SFTP command"
                     >
-                      <Copy className="h-3.5 w-3.5" />
+                      <Copy className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -2169,9 +2831,13 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
                   <Monitor className="h-4 w-4 text-indigo-400 flex-shrink-0 mt-0.5" />
                   <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
                     <p className="text-xs font-medium text-indigo-300">KVM Access Notes</p>
-                    <ul className="text-[10px] sm:text-xs text-indigo-400/70 space-y-1 list-disc pl-4">
+                    <ul className="text-xs text-indigo-400/70 space-y-1 list-disc pl-4">
                       <li>Use the primary allocation for SSH/SFTP</li>
-                      <li className="break-all">Default: <code className="bg-indigo-500/10 px-1 rounded">root</code> / <code className="bg-indigo-500/10 px-1 rounded">changeme</code></li>
+                      <li className="break-all">
+                        Default:{" "}
+                        <code className="bg-indigo-500/10 px-1 rounded">root</code> /{" "}
+                        <code className="bg-indigo-500/10 px-1 rounded">changeme</code>
+                      </li>
                       <li>Filesystem managed by cloud-init</li>
                       <li>Panel files may not reflect guest state</li>
                     </ul>
@@ -2179,7 +2845,9 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground break-words">Use your panel password or SSH key to authenticate.</p>
+              <p className="text-xs text-muted-foreground break-words">
+                Use your panel password or SSH key to authenticate.
+              </p>
             )}
           </div>
         </CollapsibleSection>
@@ -2188,7 +2856,7 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
       {/* Build Configuration */}
       {server.build && (
         <CollapsibleSection title="Resource Limits" icon={Cpu}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0 pt-3">
             <InfoRow label="Memory" value={`${server.build.memory_limit || 0} MB`} />
             <InfoRow label="Disk" value={`${server.build.disk_space || 0} MB`} />
             <InfoRow label="CPU" value={`${server.build.cpu_limit || 0}%`} />
@@ -2214,16 +2882,21 @@ function SettingsTab({ serverId, server, onDelete, reload, isKvm }: {
           <Button
             variant="outline"
             size="sm"
-            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto"
+            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto h-10 sm:h-9"
             onClick={handleReinstall}
             disabled={reinstalling}
           >
-            {reinstalling && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+            <RefreshCw className="h-4 w-4 mr-1.5" />
             Reinstall
           </Button>
-          <Button variant="destructive" size="sm" onClick={onDelete} className="w-full sm:w-auto">
-            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+            className="w-full sm:w-auto h-10 sm:h-9"
+          >
+            <Trash2 className="h-4 w-4 mr-1.5" />
             Delete Server
           </Button>
         </div>

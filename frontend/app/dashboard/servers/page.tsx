@@ -28,6 +28,7 @@ import {
   AlertCircle,
   ShieldCheck,
   KeyRound,
+  Star,
 } from "lucide-react"
 
 /* ------------------------------------------------------------------ */
@@ -645,10 +646,14 @@ function ServerCard({
   server,
   powerLoading,
   onPower,
+  isFavorite,
+  onToggleFavorite,
 }: {
   server: any
   powerLoading: string | null
   onPower: (id: string, action: string) => void
+  isFavorite: boolean
+  onToggleFavorite: (serverId: string) => void
 }) {
   const sid = server.uuid || server.id
   const isOnline = server.status === "online" || server.status === "running"
@@ -690,6 +695,18 @@ function ServerCard({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const sid = server.uuid || server.id
+                if (sid) onToggleFavorite(String(sid))
+              }}
+              aria-label={isFavorite ? "Unfavorite server" : "Favorite server"}
+              className={`rounded-lg p-1 transition-colors ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 stroke-yellow-400' : ''}`} />
+            </button>
             {/* Mobile console shortcut */}
             <Link
               href={`/dashboard/servers/${sid}`}
@@ -893,9 +910,18 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
 /* ------------------------------------------------------------------ */
 
 export default function ServersPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [search, setSearch] = useState("")
   const [servers, setServers] = useState<any[]>([])
+  const [favoriteServerIds, setFavoriteServerIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (user?.settings?.serverFavorites && Array.isArray(user.settings.serverFavorites)) {
+      setFavoriteServerIds(user.settings.serverFavorites.map((id: any) => String(id)))
+    } else {
+      setFavoriteServerIds([])
+    }
+  }, [user])
   const [loading, setLoading] = useState(true)
   const [showNewModal, setShowNewModal] = useState(false)
   const [showCodeModal, setShowCodeModal] = useState(false)
@@ -981,6 +1007,34 @@ export default function ServersPage() {
     }
   }
 
+  const toggleFavorite = async (serverId: string) => {
+    if (!user?.id) return
+
+    const current = new Set(favoriteServerIds)
+    const next = new Set(current)
+    if (current.has(serverId)) {
+      next.delete(serverId)
+    } else {
+      next.add(serverId)
+    }
+
+    const nextArray = Array.from(next)
+    setFavoriteServerIds(nextArray)
+
+    try {
+      await apiFetch(API_ENDPOINTS.userFavorites, {
+        method: "PATCH",
+        body: JSON.stringify({
+          favorites: nextArray,
+        }),
+      })
+      await refreshUser()
+    } catch (e: any) {
+      setFavoriteServerIds(Array.from(current))
+      alert("Failed to save favorite state: " + (e?.message || "Unknown error"))
+    }
+  }
+
   useEffect(() => { loadServers() }, [loadServers])
 
   const filtered = servers.filter(
@@ -989,8 +1043,18 @@ export default function ServersPage() {
       s.game?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const myServers = filtered.filter((s) => (user ? s.userId === user.id : true))
-  const otherServers = filtered.filter((s) => (user ? s.userId && s.userId !== user.id : false))
+  const favoriteServers = filtered.filter((s) => {
+    const sid = String(s.uuid || s.id)
+    return favoriteServerIds.includes(sid)
+  })
+
+  const nonFavoriteServers = filtered.filter((s) => {
+    const sid = String(s.uuid || s.id)
+    return !favoriteServerIds.includes(sid)
+  })
+
+  const myServers = nonFavoriteServers.filter((s) => (user ? s.userId === user.id : true))
+  const otherServers = nonFavoriteServers.filter((s) => (user ? s.userId && s.userId !== user.id : false))
   const onlineCount = servers.filter((s) => s.status === "online" || s.status === "running").length
 
   return (
@@ -1019,6 +1083,28 @@ export default function ServersPage() {
                 <p className="text-xl sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{servers.length - onlineCount}</p>
               </div>
             </div>
+          )}
+
+          {/* Favorites */}
+          {favoriteServers.length > 0 && (
+            <section className="sticky top-0 z-20 rounded-2xl border border-border/50 bg-card p-3 sm:p-4 shadow-sm shadow-black/5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground">Favorites</h3>
+                <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{favoriteServers.length}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {favoriteServers.map((server) => (
+                  <ServerCard
+                    key={`${server.uuid || server.id}-${server.nodeId ?? ""}`}
+                    server={server}
+                    powerLoading={powerLoading}
+                    onPower={sendPower}
+                    isFavorite={true}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </div>
+            </section>
           )}
 
           {/* Toolbar */}
@@ -1084,14 +1170,19 @@ export default function ServersPage() {
                     <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{myServers.length}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                    {myServers.map((server) => (
-                      <ServerCard
-                        key={`${server.uuid || server.id}-${server.nodeId ?? ""}`}
-                        server={server}
-                        powerLoading={powerLoading}
-                        onPower={sendPower}
-                      />
-                    ))}
+                    {myServers.map((server) => {
+                      const sid = String(server.uuid || server.id)
+                      return (
+                        <ServerCard
+                          key={`${sid}-${server.nodeId ?? ""}`}
+                          server={server}
+                          powerLoading={powerLoading}
+                          onPower={sendPower}
+                          isFavorite={favoriteServerIds.includes(sid)}
+                          onToggleFavorite={toggleFavorite}
+                        />
+                      )
+                    })}
                   </div>
                 </section>
               )}
@@ -1103,14 +1194,19 @@ export default function ServersPage() {
                     <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{otherServers.length}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                    {otherServers.map((server) => (
-                      <ServerCard
-                        key={`${server.uuid || server.id}-${server.nodeId ?? ""}`}
-                        server={server}
-                        powerLoading={powerLoading}
-                        onPower={sendPower}
-                      />
-                    ))}
+                    {otherServers.map((server) => {
+                      const sid = String(server.uuid || server.id)
+                      return (
+                        <ServerCard
+                          key={`${sid}-${server.nodeId ?? ""}`}
+                          server={server}
+                          powerLoading={powerLoading}
+                          onPower={sendPower}
+                          isFavorite={favoriteServerIds.includes(sid)}
+                          onToggleFavorite={toggleFavorite}
+                        />
+                      )
+                    })}
                   </div>
                 </section>
               )}

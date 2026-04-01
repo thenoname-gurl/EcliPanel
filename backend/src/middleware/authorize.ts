@@ -58,6 +58,10 @@ export function authorize(required: string) {
             settings: ['settings'],
             databases: ['databases'],
             schedules: ['schedules'],
+            activity: ['activity'],
+            stats: ['stats'],
+            network: ['network'],
+            mounts: ['mounts'],
           };
 
           if (requiredPerm && serverPermissionMap[requiredPerm]) {

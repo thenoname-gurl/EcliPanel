@@ -20,6 +20,9 @@ export class ServerSubuser {
   @Column('json')
   permissions: string[];
 
+  @Column({ default: false })
+  locked: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }
