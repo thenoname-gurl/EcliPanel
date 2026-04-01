@@ -424,7 +424,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
         {showExpanded ? (
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard/account"
+              href="/dashboard/settings"
               onClick={isMobile ? handleMobileNavigate : undefined}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
             >
@@ -446,7 +446,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
-                    href="/dashboard/account"
+                    href="/dashboard/settings"
                     onClick={isMobile ? handleMobileNavigate : undefined}
                     className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
                     aria-label="Account settings"
@@ -482,7 +482,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="/dashboard/account"
+                href="/dashboard/settings"
                 className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary cursor-pointer overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
               >
                 {user?.avatarUrl ? (
@@ -497,7 +497,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
               <p className="text-xs text-muted-foreground">{user?.email ?? ""}</p>
               <div className="flex gap-2 mt-2 pt-2 border-t border-border">
                 <Link
-                  href="/dashboard/account"
+                  href="/dashboard/settings"
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Settings className="h-3 w-3" />
