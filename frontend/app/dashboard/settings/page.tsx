@@ -1581,6 +1581,11 @@ export default function SettingsPage() {
                         <span className="text-[10px] sm:text-xs font-medium text-foreground leading-tight text-center truncate w-full">
                           {theme.name}
                         </span>
+                        {theme.description && (
+                          <p title={theme.description} className="text-[10px] text-muted-foreground mt-1 line-clamp-2 text-center w-full">
+                            {theme.description}
+                          </p>
+                        )}
                         {isActive && (
                           <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
                             <Check className="h-2.5 w-2.5 text-primary-foreground" />

@@ -15,10 +15,19 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
   try {
     const userRepo = AppDataSource.getRepository(User as any);
     const u = await userRepo.findOneBy({ id: order.userId }).catch(() => null);
-    const logoPath = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+    const defaultLogo = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+    const logoPath = process.env.INVOICE_LOGO_PATH
+      ? path.resolve(process.env.INVOICE_LOGO_PATH)
+      : defaultLogo;
     const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
+    const issuedFrom = {
+      name: process.env.INVOICE_ISSUED_FROM_NAME || process.env.COMPANY_NAME || 'EclipseSystems',
+      address: process.env.INVOICE_ISSUED_FROM_ADDRESS || process.env.COMPANY_ADDRESS || '',
+      city: process.env.INVOICE_ISSUED_FROM_CITY || '',
+      email: process.env.INVOICE_ISSUED_FROM_EMAIL || '',
+    };
     try {
-      return await generateInvoicePdf({ order, user: u, logoPath, companyName });
+      return await generateInvoicePdf({ order, user: u, logoPath, companyName, issuedFrom });
     } catch (err) {
       // skip
     }
@@ -31,13 +40,30 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       doc.on('data', (d: Uint8Array) => bufs.push(d));
       doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-      const logoPath = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+      const defaultLogo = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+      const logoPath = process.env.INVOICE_LOGO_PATH ? path.resolve(process.env.INVOICE_LOGO_PATH) : defaultLogo;
       if (fs.existsSync(logoPath)) {
         try { doc.image(logoPath, 50, 45, { width: 90 }); } catch (e) { /* skip */ }
       }
       const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
       doc.fontSize(16).text(companyName, 150, 50);
       doc.fontSize(10).fillColor('gray').text('Hosting Provider Services', 150, 68);
+
+      const issuedFromEnv = {
+        name: process.env.INVOICE_ISSUED_FROM_NAME || process.env.COMPANY_NAME || '',
+        address: process.env.INVOICE_ISSUED_FROM_ADDRESS || process.env.COMPANY_ADDRESS || '',
+        city: process.env.INVOICE_ISSUED_FROM_CITY || '',
+        email: process.env.INVOICE_ISSUED_FROM_EMAIL || '',
+      };
+      const issuedLines: string[] = [];
+      if (issuedFromEnv.name) issuedLines.push(issuedFromEnv.name);
+      if (issuedFromEnv.address) issuedLines.push(issuedFromEnv.address);
+      if (issuedFromEnv.city) issuedLines.push(issuedFromEnv.city);
+      if (issuedFromEnv.email) issuedLines.push(issuedFromEnv.email);
+      if (issuedLines.length > 0) {
+        doc.fontSize(10).fillColor('black').text('Issued From:', 50, 100);
+        doc.fontSize(10).fillColor('black').text(issuedLines.join('\n'), 50, 115);
+      }
 
       const issuedAt = order.createdAt ? new Date(order.createdAt) : new Date();
       doc.fontSize(20).fillColor('black').text('INVOICE', 400, 50, { align: 'right' });
