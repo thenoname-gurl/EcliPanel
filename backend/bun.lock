@@ -10,7 +10,7 @@
         "@elysiajs/node": "latest",
         "@elysiajs/openapi": "latest",
         "@simplewebauthn/server": "latest",
-        "axios": "latest",
+        "axios": "1.14.0",
         "base64url": "latest",
         "bcrypt": "^6.0.0",
         "bcryptjs": "latest",

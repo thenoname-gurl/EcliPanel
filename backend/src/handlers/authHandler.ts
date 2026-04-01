@@ -530,12 +530,31 @@ export async function authRoutes(app: any, prefix = '') {
     return generateCaptcha();
   }, {
     response: {
-      200: t.Object({ token: t.String(), image: t.String() })
+      200: t.Object({ token: t.String(), image: t.String(), audio: t.String() })
     },
     detail: {
       summary: 'Get a simple registration captcha',
       tags: ['Auth'],
       operationId: 'getAuthCaptcha',
+    },
+  });
+
+  app.get(prefix + '/auth/captcha/audio', async (ctx: any) => {
+    const captchaEnabled = await isFeatureEnabled('captcha');
+    if (!captchaEnabled) {
+      ctx.set.status = 503;
+      return { error: "Feature 'captcha' is disabled" };
+    }
+    const { token, audio } = generateCaptcha();
+    return { token, audio };
+  }, {
+    response: {
+      200: t.Object({ token: t.String(), audio: t.String() })
+    },
+    detail: {
+      summary: 'Get a registration captcha audio challenge',
+      tags: ['Auth'],
+      operationId: 'getAuthCaptchaAudio',
     },
   });
 
