@@ -297,6 +297,50 @@ export async function userRoutes(app: any, prefix = '') {
     detail: { summary: 'Lookup a user by id', tags: ['Users'] }
   });
 
+  app.patch(prefix + '/users/me/favorites', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const payload = ctx.body as any;
+    const incomingFavorites = payload?.favorites;
+    if (!Array.isArray(incomingFavorites)) {
+      ctx.set.status = 400;
+      return { error: 'Invalid favorites list' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: requester.id });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    const normalized = Array.from(new Set(incomingFavorites.map((id: any) => String(id))));
+    if (!user.settings || typeof user.settings !== 'object') {
+      user.settings = {};
+    }
+    (user.settings as any).serverFavorites = normalized;
+
+    await userRepo.save(user);
+
+    return {
+      success: true,
+      serverFavorites: normalized,
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean(), serverFavorites: t.Array(t.String()) }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Update current user server favorites', tags: ['Users'] },
+  });
+
   app.put(prefix + '/users/:id', async (ctx: any) => {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(ctx.params['id']) });
