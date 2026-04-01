@@ -5,7 +5,11 @@ import path from 'path';
 import { spawn } from 'child_process';
 
 const SECRET = process.env.CAPTCHA_SECRET!;
+const CAPTCHAS_INVISIBLE_SECRET = process.env.CAPTCHA_INVISIBLE_SECRET;
 const TTL_MS = 5 * 60 * 1000;
+const INVISIBLE_TTL_MS = 5 * 60 * 1000;
+const INVISIBLE_MIN_TIME_MS = 1500;
+const INVISIBLE_MAX_TIME_MS = 60 * 60 * 1000;
 const SAMPLE_RATE = 22050;
 const TTS_VOICE = process.env.CAPTCHA_TTS_VOICE || 'en';
 const TTS_SPEED = Number(process.env.CAPTCHA_TTS_SPEED || '150');
@@ -16,6 +20,48 @@ function randomInt(min: number, max: number) {
 
 function randomFloat(min: number, max: number) {
   return Math.random() * (max - min) + min;
+}
+
+export function generateInvisibleCaptcha() {
+  const nonce = crypto.randomBytes(8).toString('hex');
+  const created = Date.now();
+  const payload = `${nonce}|${created}`;
+  const signature = crypto.createHmac('sha256', CAPTCHAS_INVISIBLE_SECRET).update(payload).digest('hex');
+  const token = Buffer.from(`${payload}|${signature}`).toString('base64');
+  return { token, created };
+}
+
+export function validateInvisibleCaptcha(token: string, elapsedMs: number | undefined): boolean {
+  if (!token || !elapsedMs || elapsedMs < INVISIBLE_MIN_TIME_MS || elapsedMs > INVISIBLE_MAX_TIME_MS) {
+    return false;
+  }
+
+  let decoded: string;
+  try {
+    decoded = Buffer.from(token, 'base64').toString('utf8');
+  } catch {
+    return false;
+  }
+
+  const parts = decoded.split('|');
+  if (parts.length !== 3) return false;
+
+  const [nonce, createdRaw, signature] = parts;
+  const created = Number(createdRaw);
+  if (!nonce || !Number.isFinite(created) || created <= 0) return false;
+  if (created + INVISIBLE_TTL_MS < Date.now()) return false;
+
+  const payload = `${nonce}|${created}`;
+  const expectedSignature = crypto.createHmac('sha256', CAPTCHAS_INVISIBLE_SECRET).update(payload).digest('hex');
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  return true;
 }
 
 function randomColor(minBrightness = 60, maxBrightness = 180) {
@@ -762,4 +808,30 @@ export function validateCaptcha(token: string, answer: number | string): boolean
   const normalizedExpected = String(expectedAnswer).trim();
 
   return normalizedAnswer === normalizedExpected;
+}
+
+export function scoreBehavior(behavior: any): number {
+  if (!behavior || typeof behavior !== 'object') return 0;
+
+  const mouseMoves = Number(behavior.mouseMoves || 0);
+  const mouseClicks = Number(behavior.mouseClicks || 0);
+  const keyboardEvents = Number(behavior.keyboardEvents || 0);
+  const firstInteraction = Number(behavior.firstInteraction || 0);
+  const lastInteraction = Number(behavior.lastInteraction || 0);
+  const duration = lastInteraction > firstInteraction ? lastInteraction - firstInteraction : 0;
+
+  let score = 0;
+  if (mouseMoves >= 20) score += 0.4;
+  else if (mouseMoves >= 8) score += 0.25;
+
+  if (mouseClicks >= 1) score += 0.2;
+
+  if (keyboardEvents >= 10) score += 0.25;
+  else if (keyboardEvents >= 3) score += 0.15;
+
+  if (duration >= 2500) score += 0.2;
+  else if (duration >= 1000) score += 0.1;
+
+  if (score > 1) score = 1;
+  return Number(score.toFixed(2));
 }

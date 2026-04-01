@@ -1,20 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { COUNTRIES } from "@/lib/countries"
 import { apiFetch } from "@/lib/api-client"
-import { 
-  AlertTriangle, 
-  Info, 
-  User, 
-  Mail, 
-  Lock, 
-  MapPin, 
-  Building2, 
-  Phone, 
-  Globe, 
+import {
+  AlertTriangle,
+  Info,
+  User,
+  Mail,
+  Lock,
+  MapPin,
+  Building2,
+  Phone,
+  Globe,
   RefreshCw,
   Loader2,
   Eye,
@@ -22,9 +22,21 @@ import {
   ChevronRight,
   Shield,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  Volume2,
+  VolumeX,
+  Check,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+interface BehaviorMetrics {
+  mouseMoves: number
+  mouseClicks: number
+  keyboardEvents: number
+  firstInteraction?: number
+  lastInteraction?: number
+}
 
 interface FormData {
   firstName: string
@@ -42,8 +54,41 @@ interface FormData {
   phone: string
   captchaAnswer: string
   captchaToken: string
+  invisibleCaptchaToken?: string
+  invisibleCaptchaDelayMs?: number
+  invisibleCaptchaDelay?: number
+  behaviorData?: BehaviorMetrics
 }
 
+function getPasswordStrength(password: string): number {
+  if (!password) return 0
+  const lengthScore = Math.min(1, password.length / 16)
+  const hasLower = /[a-z]/.test(password)
+  const hasUpper = /[A-Z]/.test(password)
+  const hasNumber = /[0-9]/.test(password)
+  const hasSymbol = /[^A-Za-z0-9]/.test(password)
+  const varietyScore = [hasLower, hasUpper, hasNumber, hasSymbol].filter(Boolean).length / 4
+  return Math.min(1, Math.round((0.35 * lengthScore + 0.65 * varietyScore) * 100) / 100)
+}
+
+function getPasswordChecks(password: string) {
+  return [
+    { label: "8+ characters", met: password.length >= 8 },
+    { label: "Uppercase", met: /[A-Z]/.test(password) },
+    { label: "Lowercase", met: /[a-z]/.test(password) },
+    { label: "Number", met: /[0-9]/.test(password) },
+    { label: "Symbol", met: /[^A-Za-z0-9]/.test(password) },
+  ]
+}
+
+function getPasswordStrengthLabel(score: number): { label: string; color: string; trackColor: string } {
+  if (score >= 0.8) return { label: "Strong", color: "bg-emerald-500", trackColor: "text-emerald-500" }
+  if (score >= 0.55) return { label: "Moderate", color: "bg-amber-400", trackColor: "text-amber-400" }
+  if (score > 0) return { label: "Weak", color: "bg-destructive", trackColor: "text-destructive" }
+  return { label: "Too short", color: "bg-muted-foreground/40", trackColor: "text-muted-foreground" }
+}
+
+/* ─── Reusable Input ─── */
 function InputField({
   icon: Icon,
   label,
@@ -55,6 +100,7 @@ function InputField({
   required,
   className,
   rightElement,
+  autoComplete,
 }: {
   icon?: any
   label?: string
@@ -66,18 +112,27 @@ function InputField({
   required?: boolean
   className?: string
   rightElement?: React.ReactNode
+  autoComplete?: string
 }) {
+  const [focused, setFocused] = useState(false)
+
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label htmlFor={name} className="text-xs font-medium text-muted-foreground">
-          {label} {required && <span className="text-destructive">*</span>}
+        <label htmlFor={name} className="block text-[13px] font-medium text-foreground/80">
+          {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
       )}
-      <div className="relative">
+      <div className="relative group">
         {Icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <Icon className="h-4 w-4 text-muted-foreground" />
+          <div
+            className={cn(
+              "absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-150",
+              focused ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
           </div>
         )}
         <input
@@ -87,26 +142,29 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           required={required}
+          autoComplete={autoComplete}
           aria-required={required}
           className={cn(
-            "w-full rounded-lg border border-border bg-background py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all",
+            "w-full rounded-xl border bg-background py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all duration-150",
+            "border-border/60",
             "focus:border-primary focus:ring-2 focus:ring-primary/20",
-            "hover:border-muted-foreground/30",
-            Icon ? "pl-10 pr-3" : "px-3",
-            rightElement && "pr-10"
+            "hover:border-muted-foreground/40",
+            Icon ? "pl-10 pr-3" : "px-3.5",
+            rightElement && "pr-11"
           )}
         />
         {rightElement && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {rightElement}
-          </div>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightElement}</div>
         )}
       </div>
     </div>
   )
 }
 
+/* ─── Reusable Select ─── */
 function SelectField({
   icon: Icon,
   label,
@@ -126,17 +184,25 @@ function SelectField({
   children: React.ReactNode
   className?: string
 }) {
+  const [focused, setFocused] = useState(false)
+
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label htmlFor={name} className="text-xs font-medium text-muted-foreground">
-          {label} {required && <span className="text-destructive">*</span>}
+        <label htmlFor={name} className="block text-[13px] font-medium text-foreground/80">
+          {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
       )}
-      <div className="relative">
+      <div className="relative group">
         {Icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-            <Icon className="h-4 w-4 text-muted-foreground" />
+          <div
+            className={cn(
+              "absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 transition-colors duration-150",
+              focused ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
           </div>
         )}
         <select
@@ -144,19 +210,18 @@ function SelectField({
           name={name}
           value={value}
           onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           required={required}
           className={cn(
-            "w-full rounded-lg border border-border py-2.5 text-sm outline-none transition-all appearance-none cursor-pointer",
+            "w-full rounded-xl border py-3 text-sm outline-none transition-all duration-150 appearance-none cursor-pointer",
+            "border-border/60 bg-background text-foreground",
             "focus:border-primary focus:ring-2 focus:ring-primary/20",
-            "hover:border-muted-foreground/30",
-            // Fixed background and text colors for proper contrast
-            "bg-background text-foreground",
-            Icon ? "pl-10 pr-10" : "pl-3 pr-10",
-            !value && "text-muted-foreground/60"
+            "hover:border-muted-foreground/40",
+            Icon ? "pl-10 pr-10" : "pl-3.5 pr-10",
+            !value && "text-muted-foreground/50"
           )}
-          style={{
-            colorScheme: 'dark'
-          }}
+          style={{ colorScheme: "dark" }}
         >
           {children}
         </select>
@@ -168,6 +233,7 @@ function SelectField({
   )
 }
 
+/* ─── Alert Banner ─── */
 function AlertBanner({
   variant = "info",
   title,
@@ -183,50 +249,50 @@ function AlertBanner({
 }) {
   const styles = {
     info: {
-      container: "border-blue-500/30 bg-blue-500/10",
+      container: "border-blue-500/20 bg-blue-500/5",
       icon: "text-blue-400",
       title: "text-blue-300",
-      text: "text-blue-200/80",
+      text: "text-blue-200/70",
       IconComponent: Info,
     },
     warning: {
-      container: "border-yellow-500/30 bg-yellow-500/10",
+      container: "border-yellow-500/20 bg-yellow-500/5",
       icon: "text-yellow-400",
       title: "text-yellow-300",
-      text: "text-yellow-200/80",
+      text: "text-yellow-200/70",
       IconComponent: AlertTriangle,
     },
     error: {
-      container: "border-destructive/30 bg-destructive/10",
+      container: "border-destructive/20 bg-destructive/5",
       icon: "text-destructive",
       title: "text-destructive",
-      text: "text-destructive/80",
+      text: "text-destructive/70",
       IconComponent: AlertTriangle,
     },
     success: {
-      container: "border-green-500/30 bg-green-500/10",
+      container: "border-green-500/20 bg-green-500/5",
       icon: "text-green-400",
       title: "text-green-300",
-      text: "text-green-200/80",
+      text: "text-green-200/70",
       IconComponent: CheckCircle2,
     },
   }
 
   const style = styles[variant]
-  const IconComponent = style.IconComponent
+  const IconComp = style.IconComponent
 
   return (
-    <div className={cn("rounded-xl border p-4", style.container)}>
+    <div className={cn("rounded-xl border p-3.5 sm:p-4 animate-in fade-in slide-in-from-top-2 duration-300", style.container)}>
       <div className="flex gap-3">
-        <IconComponent className={cn("h-5 w-5 shrink-0 mt-0.5", style.icon)} />
+        <IconComp className={cn("h-5 w-5 shrink-0 mt-0.5", style.icon)} />
         <div className="flex-1 min-w-0 space-y-1">
           {title && <p className={cn("text-sm font-semibold", style.title)}>{title}</p>}
-          <div className={cn("text-sm", style.text)}>{children}</div>
+          <div className={cn("text-sm leading-relaxed", style.text)}>{children}</div>
           {onDismiss && (
             <button
               onClick={onDismiss}
               className={cn(
-                "mt-2 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors",
+                "mt-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors",
                 "border-current/20 hover:bg-white/5"
               )}
             >
@@ -239,17 +305,84 @@ function AlertBanner({
   )
 }
 
-function SectionDivider({ label }: { label: string }) {
+/* ─── Section Divider ─── */
+function SectionDivider({ label, icon: Icon }: { label: string; icon?: any }) {
   return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="h-px flex-1 bg-border" />
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-      <div className="h-px flex-1 bg-border" />
+    <div className="flex items-center gap-3 pt-2 pb-1">
+      <div className="h-px flex-1 bg-border/50" />
+      <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+        {Icon && <Icon className="h-3 w-3" />}
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-border/50" />
     </div>
   )
 }
 
+/* ─── Step Indicator ─── */
+function StepIndicator({
+  steps,
+  current,
+  onStepClick,
+}: {
+  steps: string[]
+  current: number
+  onStepClick: (i: number) => void
+}) {
+  return (
+    <div className="flex items-center justify-center gap-0 w-full px-2">
+      {steps.map((step, i) => (
+        <div key={step} className="flex items-center flex-1 last:flex-none">
+          <button
+            type="button"
+            onClick={() => onStepClick(i)}
+            className={cn(
+              "flex items-center gap-2 transition-all duration-200 group",
+              i <= current ? "cursor-pointer" : "cursor-default"
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold border-2 transition-all duration-200 shrink-0",
+                i < current
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : i === current
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"
+              )}
+            >
+              {i < current ? <Check className="h-3.5 w-3.5" /> : i + 1}
+            </div>
+            <span
+              className={cn(
+                "text-xs font-medium hidden sm:block transition-colors",
+                i === current ? "text-foreground" : "text-muted-foreground"
+              )}
+            >
+              {step}
+            </span>
+          </button>
+          {i < steps.length - 1 && (
+            <div className="flex-1 mx-2 sm:mx-3">
+              <div
+                className={cn(
+                  "h-0.5 rounded-full transition-colors duration-300",
+                  i < current ? "bg-primary" : "bg-border/50"
+                )}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─── Main Component ─── */
 export default function RegisterPage() {
+  const [step, setStep] = useState(0)
+  const steps = ["Account", "Address", "Verify"]
+
   const [form, setForm] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -266,14 +399,18 @@ export default function RegisterPage() {
     phone: "",
     captchaAnswer: "",
     captchaToken: "",
+    invisibleCaptchaToken: "",
+    invisibleCaptchaDelayMs: 0,
   })
 
-  const [captchaImage, setCaptchaImage] = useState<string>("")
-  const [captchaAudio, setCaptchaAudio] = useState<string>("")
+  const [captchaImage, setCaptchaImage] = useState("")
+  const [captchaAudio, setCaptchaAudio] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [captchaLoading, setCaptchaLoading] = useState(false)
+  const [audioPlaying, setAudioPlaying] = useState(false)
+  const [audioError, setAudioError] = useState(false)
   const [panelSettings, setPanelSettings] = useState<{
     registrationEnabled: boolean
     registrationNotice: string
@@ -282,6 +419,14 @@ export default function RegisterPage() {
   const router = useRouter()
 
   const [domainOk, setDomainOk] = useState<boolean | null>(null)
+  const [invisibleTokenRequestedAt, setInvisibleTokenRequestedAt] = useState<number | null>(null)
+  const [behaviorData, setBehaviorData] = useState<BehaviorMetrics>({
+    mouseMoves: 0,
+    mouseClicks: 0,
+    keyboardEvents: 0,
+  })
+  const [passwordStrength, setPasswordStrength] = useState(0)
+  const [passwordFocused, setPasswordFocused] = useState(false)
   const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(() => {
     try {
       return typeof window !== "undefined" && localStorage.getItem("domainWarningDismissed") === "1"
@@ -292,24 +437,59 @@ export default function RegisterPage() {
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.panelSettings)
-      .then((data) => setPanelSettings(data))
+      .then((data) => {
+        setPanelSettings(data)
+        if (data?.featureToggles?.captchaInvisible) {
+          loadInvisibleCaptcha()
+        }
+      })
       .catch(() => setPanelSettings({ registrationEnabled: true, registrationNotice: "" }))
-
     loadCaptcha()
   }, [])
 
   useEffect(() => {
     try {
       if (typeof window === "undefined") return
-      const host = window.location.hostname || ""
-      setDomainOk(host.endsWith("ecli.app"))
+      setDomainOk(window.location.hostname.endsWith("ecli.app"))
     } catch {
       setDomainOk(null)
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const nonPiiFields = new Set(["billingCompany", "billingCity", "billingState", "billingZip", "billingCountry", "address2"])
+
+    const onMouseMove = () => {
+      setBehaviorData((prev) => {
+        const now = Date.now()
+        return { ...prev, mouseMoves: prev.mouseMoves + 1, firstInteraction: prev.firstInteraction || now, lastInteraction: now }
+      })
+    }
+    const onMouseClick = () => {
+      const now = Date.now()
+      setBehaviorData((prev) => ({ ...prev, mouseClicks: prev.mouseClicks + 1, firstInteraction: prev.firstInteraction || now, lastInteraction: now }))
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      const name = (e.target as HTMLInputElement)?.name || ""
+      if (!name || !nonPiiFields.has(name)) return
+      const now = Date.now()
+      setBehaviorData((prev) => ({ ...prev, keyboardEvents: prev.keyboardEvents + 1, firstInteraction: prev.firstInteraction || now, lastInteraction: now }))
+    }
+
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mousedown", onMouseClick)
+    window.addEventListener("keydown", onKeyDown)
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mousedown", onMouseClick)
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [])
+
   const loadCaptcha = async () => {
     setCaptchaLoading(true)
+    setAudioError(false)
     try {
       const data = await apiFetch("/api/auth/captcha")
       if (data?.token) {
@@ -329,15 +509,85 @@ export default function RegisterPage() {
     }
   }
 
+  const loadInvisibleCaptcha = async () => {
+    try {
+      const data = await apiFetch("/api/auth/captcha/invisible")
+      if (data?.token) {
+        setForm((prev) => ({ ...prev, invisibleCaptchaToken: String(data.token) }))
+        setInvisibleTokenRequestedAt(Date.now())
+      } else {
+        setForm((prev) => ({ ...prev, invisibleCaptchaToken: "" }))
+        setInvisibleTokenRequestedAt(null)
+      }
+    } catch {
+      setForm((prev) => ({ ...prev, invisibleCaptchaToken: "" }))
+      setInvisibleTokenRequestedAt(null)
+    }
+  }
+
+  const playAudio = () => {
+    if (!captchaAudio) { setAudioError(true); return }
+    setAudioError(false)
+    setAudioPlaying(true)
+    const audio = new Audio(captchaAudio)
+    audio.addEventListener("ended", () => setAudioPlaying(false))
+    audio.addEventListener("error", () => { setAudioPlaying(false); setAudioError(true) })
+    audio.play().catch(() => { setAudioPlaying(false); setAudioError(true) })
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+    if (name === "password") setPasswordStrength(getPasswordStrength(value))
+  }
+
+  /* ─── Step validation ─── */
+  const canProceedStep0 = form.firstName && form.lastName && form.email && form.password && form.phone && passwordStrength >= 0.55
+  const canProceedStep1 = form.address && form.billingCity && form.billingState && form.billingZip && form.billingCountry
+
+  const nextStep = () => {
+    if (step === 0 && !canProceedStep0) {
+      setError("Please fill in all required fields and ensure your password is at least moderate strength.")
+      return
+    }
+    if (step === 1 && !canProceedStep1) {
+      setError("Please fill in all required address fields.")
+      return
+    }
+    setError(null)
+    setStep((s) => Math.min(s + 1, steps.length - 1))
+  }
+
+  const prevStep = () => {
+    setError(null)
+    setStep((s) => Math.max(s - 1, 0))
+  }
+
+  const handleStepClick = (i: number) => {
+    if (i < step) {
+      setError(null)
+      setStep(i)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (panelSettings?.featureToggles?.captcha && !form.captchaToken) {
+    const usingCustomCaptcha = !!panelSettings?.featureToggles?.captcha
+    const usingInvisibleCaptcha = !!panelSettings?.featureToggles?.captchaInvisible
+    const hasCustomCaptcha = !!form.captchaToken && !!form.captchaAnswer
+    const hasInvisibleCaptcha = !!form.invisibleCaptchaToken
+
+    if (usingCustomCaptcha && usingInvisibleCaptcha) {
+      if (!hasCustomCaptcha && !hasInvisibleCaptcha) {
+        setError("Please solve the captcha challenge or wait a moment for invisible captcha to become active.")
+        return
+      }
+    } else if (usingCustomCaptcha && !hasCustomCaptcha) {
       setError("Captcha is not loaded or has expired. Please refresh the captcha and try again.")
+      return
+    } else if (usingInvisibleCaptcha && !hasInvisibleCaptcha) {
+      setError("Invisible captcha token is missing. Try refreshing the page.")
       return
     }
 
@@ -346,7 +596,11 @@ export default function RegisterPage() {
     try {
       await apiFetch(API_ENDPOINTS.userRegister, {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          behaviorData,
+          invisibleCaptchaDelay: invisibleTokenRequestedAt ? Date.now() - invisibleTokenRequestedAt : undefined,
+        }),
       })
       router.push("/login")
     } catch (err: any) {
@@ -358,114 +612,106 @@ export default function RegisterPage() {
 
   const registrationDisabled = panelSettings !== null && !panelSettings.registrationEnabled
   const notice = panelSettings?.registrationNotice || ""
+  const passwordChecks = getPasswordChecks(form.password)
+  const strengthInfo = getPasswordStrengthLabel(passwordStrength)
+  const hasCaptcha = !!panelSettings?.featureToggles?.captcha
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-background via-background to-secondary/20 overflow-auto">
-      {/* Background pattern */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
-      
-      <div className="relative flex min-h-screen w-full items-center justify-center p-4 sm:p-6 md:p-8">
-        <div className="w-full max-w-lg">
-          {/* Logo/Brand */}
-          <div className="mb-6 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-4">
-              <Shield className="h-6 w-6 text-primary" />
+    <div className="min-h-[100dvh] w-full bg-gradient-to-b from-background via-background to-secondary/10 overflow-auto">
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/[0.03] via-transparent to-transparent pointer-events-none" />
+
+      <div className="relative flex min-h-[100dvh] w-full items-start sm:items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-[520px]">
+          <div className="mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5 shadow-lg shadow-primary/5">
+              <Shield className="h-7 w-7 text-primary" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create an account</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Join us to get started with your servers
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              Create your account
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
+              Get started with your servers in just a few steps
             </p>
           </div>
 
-          {/* Main Card */}
-          <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-sm shadow-xl overflow-hidden">
-            <div className="p-4 sm:p-6 md:p-8 space-y-5">
-              {/* Alerts */}
+          <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-2xl shadow-black/5 overflow-hidden">
+            {!registrationDisabled && (
+              <div className="px-4 sm:px-8 pt-6 pb-2">
+                <StepIndicator steps={steps} current={step} onStepClick={handleStepClick} />
+              </div>
+            )}
+
+            <div className="p-4 sm:p-8 space-y-5">
               <div className="space-y-3">
-                {/* Panel notice */}
                 {notice && !registrationDisabled && (
                   <AlertBanner variant="info">{notice}</AlertBanner>
                 )}
-
-                {/* Domain warning */}
                 {domainOk === false && !dismissedDomainWarning && (
                   <AlertBanner
                     variant="warning"
-                    title="Security check — confirm domain"
+                    title="Verify this domain"
                     onDismiss={() => {
-                      try {
-                        localStorage.setItem("domainWarningDismissed", "1")
-                      } catch {}
+                      try { localStorage.setItem("domainWarningDismissed", "1") } catch {}
                       setDismissedDomainWarning(true)
                     }}
                   >
                     <p>
                       This panel should be served from{" "}
-                      <span className="font-medium">ecli.app</span>. If the address in your browser
-                      is different, an attacker could intercept your credentials — navigate to{" "}
+                      <span className="font-medium">ecli.app</span>. Navigate to{" "}
                       <a href="https://ecli.app" className="underline font-medium">
                         https://ecli.app
                       </a>{" "}
-                      instead.
+                      if your URL differs.
                     </p>
                   </AlertBanner>
                 )}
-
-                {/* Registration disabled */}
                 {registrationDisabled && (
-                  <AlertBanner variant="warning" title="Registration is currently unavailable">
+                  <AlertBanner variant="warning" title="Registration unavailable">
                     {notice && <p>{notice}</p>}
                   </AlertBanner>
                 )}
-
-                {/* Error */}
                 {error && (
-                  <AlertBanner variant="error" title="Registration failed">
+                  <AlertBanner variant="error" title="Something went wrong">
                     {error}
                   </AlertBanner>
                 )}
               </div>
 
               {registrationDisabled ? (
-                <div className="text-center py-6">
-                  <p className="text-muted-foreground mb-4">
-                    Registration is not available at this time.
-                  </p>
-                  <a
-                    href="/login"
-                    className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors"
-                  >
-                    Sign in to your account
-                    <ChevronRight className="h-4 w-4" />
+                <div className="text-center py-10">
+                  <p className="text-muted-foreground mb-5">Registration is not available at this time.</p>
+                  <a href="/login" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors">
+                    Sign in instead <ChevronRight className="h-4 w-4" />
                   </a>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Personal Information */}
-                  <SectionDivider label="Personal Information" />
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <InputField
-                      icon={User}
-                      name="firstName"
-                      placeholder="First Name"
-                      label="First Name"
-                      value={form.firstName}
-                      onChange={handleChange}
-                      required
-                    />
-                    <InputField
-                      icon={User}
-                      name="lastName"
-                      placeholder="Last Name"
-                      label="Last Name"
-                      value={form.lastName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
+                  <div className={cn("space-y-4 transition-all duration-300", step !== 0 && "hidden")}>
+                    <SectionDivider label="Personal Info" icon={User} />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <InputField
+                        icon={User}
+                        name="firstName"
+                        placeholder="Jane"
+                        label="First Name"
+                        value={form.firstName}
+                        onChange={handleChange}
+                        required
+                        autoComplete="given-name"
+                      />
+                      <InputField
+                        icon={User}
+                        name="lastName"
+                        placeholder="Doe"
+                        label="Last Name"
+                        value={form.lastName}
+                        onChange={handleChange}
+                        required
+                        autoComplete="family-name"
+                      />
+                    </div>
+
                     <InputField
                       icon={Mail}
                       name="email"
@@ -475,260 +721,367 @@ export default function RegisterPage() {
                       value={form.email}
                       onChange={handleChange}
                       required
+                      autoComplete="email"
                     />
-                    <InputField
-                      icon={Lock}
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      label="Password"
-                      value={form.password}
-                      onChange={handleChange}
-                      required
-                      rightElement={
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      }
-                    />
-                  </div>
 
-                  <InputField
-                    icon={Phone}
-                    name="phone"
-                    type="tel"
-                    placeholder="+1 (555) 000-0000"
-                    label="Phone Number"
-                    value={form.phone}
-                    onChange={handleChange}
-                    required
-                  />
+                    <div className="space-y-2">
+                      <InputField
+                        icon={Lock}
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a strong password"
+                        label="Password"
+                        value={form.password}
+                        onChange={(e) => {
+                          handleChange(e)
+                          setPasswordFocused(true)
+                        }}
+                        required
+                        autoComplete="new-password"
+                        rightElement={
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        }
+                      />
 
-                  {/* Billing Address */}
-                  <SectionDivider label="Billing Address" />
-
-                  <InputField
-                    icon={Building2}
-                    name="billingCompany"
-                    placeholder="Company name"
-                    label="Company (optional)"
-                    value={form.billingCompany}
-                    onChange={handleChange}
-                  />
-
-                  <InputField
-                    icon={MapPin}
-                    name="address"
-                    placeholder="123 Main Street"
-                    label="Street Address"
-                    value={form.address}
-                    onChange={handleChange}
-                    required
-                  />
-
-                  <InputField
-                    name="address2"
-                    placeholder="Apt, suite, unit, etc."
-                    label="Address Line 2 (optional)"
-                    value={form.address2}
-                    onChange={handleChange}
-                  />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <InputField
-                      name="billingCity"
-                      placeholder="City"
-                      label="City"
-                      value={form.billingCity}
-                      onChange={handleChange}
-                      required
-                    />
-                    <InputField
-                      name="billingState"
-                      placeholder="State / Province"
-                      label="State / Province"
-                      value={form.billingState}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <InputField
-                      name="billingZip"
-                      placeholder="12345"
-                      label="ZIP / Postal Code"
-                      value={form.billingZip}
-                      onChange={handleChange}
-                      required
-                    />
-                    <SelectField
-                      icon={Globe}
-                      name="billingCountry"
-                      label="Country"
-                      value={form.billingCountry}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="" className="bg-background text-muted-foreground">
-                        Select country...
-                      </option>
-                      {COUNTRIES.map((country) => (
-                        <option 
-                          key={country.code} 
-                          value={country.name}
-                          className="bg-background text-foreground"
-                        >
-                          {country.name}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </div>
-
-                  {/* Captcha */}
-                  {panelSettings?.featureToggles?.captcha && (
-                    <>
-                      <SectionDivider label="Security Verification" />
-                      <div className="rounded-xl border border-border bg-secondary/20 p-4 space-y-3">
-                        <div className="relative rounded-lg overflow-hidden bg-background border border-border">
-                          {captchaLoading ? (
-                            <div className="flex items-center justify-center h-20">
-                              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                            </div>
-                          ) : captchaImage ? (
-                            <img
-                              src={captchaImage}
-                              alt="captcha"
-                              className="mx-auto h-20 w-full object-contain p-2"
+                      <div className="space-y-2">
+                        <div className="flex gap-1">
+                          {[0, 1, 2, 3].map((i) => (
+                            <div
+                              key={i}
+                              className={cn(
+                                "h-1.5 flex-1 rounded-full transition-all duration-300",
+                                passwordStrength > i * 0.25 && form.password
+                                  ? strengthInfo.color
+                                  : "bg-border/40"
+                              )}
                             />
-                          ) : (
-                            <div className="flex items-center justify-center h-20">
-                              <p className="text-xs text-muted-foreground">
-                                Unable to load captcha
-                              </p>
-                            </div>
-                          )}
+                          ))}
                         </div>
-                        {captchaAudio && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const audio = new Audio(captchaAudio)
-                                audio.play().catch(() => {
-                                  // ignore
-                                })
-                              }}
-                              className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary/30"
-                            >
-                              Play audio captcha
-                            </button>
-                            <p className="text-xs text-muted-foreground">(accessible challenge)</p>
+
+                        {(passwordFocused || form.password) && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                            {passwordChecks.map((check) => (
+                              <div
+                                key={check.label}
+                                className={cn(
+                                  "flex items-center gap-1.5 text-[11px] transition-colors duration-200",
+                                  check.met ? "text-emerald-500" : "text-muted-foreground/60"
+                                )}
+                              >
+                                {check.met ? (
+                                  <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                ) : (
+                                  <div className="h-3 w-3 rounded-full border border-current shrink-0" />
+                                )}
+                                {check.label}
+                              </div>
+                            ))}
                           </div>
                         )}
-                        <div className="flex gap-2">
-                          <InputField
-                            name="captchaAnswer"
-                            placeholder="Enter the text above"
-                            label="Captcha Answer"
-                            value={form.captchaAnswer}
-                            onChange={handleChange}
-                            required
-                            className="flex-1"
-                          />
-                          <div className="flex items-end">
-                            <button
-                              type="button"
-                              onClick={loadCaptcha}
-                              disabled={captchaLoading}
-                              className="h-[42px] px-3 rounded-lg border border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
-                            >
-                              <RefreshCw className={cn("h-4 w-4", captchaLoading && "animate-spin")} />
-                            </button>
-                          </div>
-                        </div>
                       </div>
-                    </>
-                  )}
+                    </div>
 
-                  {/* Terms */}
-                  <div className="rounded-xl bg-secondary/20 border border-border p-4">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      By creating an account, you agree to our{" "}
-                      <a
-                        href="https://ecli.app/documents/Terms%20of%20Service.pdf"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline font-medium"
-                      >
-                        Terms of Service
-                      </a>{" "}
-                      and{" "}
-                      <a
-                        href="https://ecli.app/documents/Privacy%20Policy.pdf"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline font-medium"
-                      >
-                        Privacy Policy
-                      </a>
-                      .
-                      <br></br>
-                      We'll occasionally send you account-related emails.
-                    </p>
+                    <InputField
+                      icon={Phone}
+                      name="phone"
+                      type="tel"
+                      placeholder="+1 (555) 000-0000"
+                      label="Phone Number"
+                      value={form.phone}
+                      onChange={handleChange}
+                      required
+                      autoComplete="tel"
+                    />
                   </div>
 
-                  {/* Submit */}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-sm font-semibold transition-all",
-                      "bg-primary text-primary-foreground",
-                      "hover:bg-primary/90 active:scale-[0.98]",
-                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-                    )}
-                  >
-                    {loading ? (
+                  <div className={cn("space-y-4 transition-all duration-300", step !== 1 && "hidden")}>
+                    <SectionDivider label="Billing Address" icon={MapPin} />
+
+                    <InputField
+                      icon={Building2}
+                      name="billingCompany"
+                      placeholder="Company name"
+                      label="Company (optional)"
+                      value={form.billingCompany}
+                      onChange={handleChange}
+                      autoComplete="organization"
+                    />
+
+                    <InputField
+                      icon={MapPin}
+                      name="address"
+                      placeholder="123 Main Street"
+                      label="Street Address"
+                      value={form.address}
+                      onChange={handleChange}
+                      required
+                      autoComplete="address-line1"
+                    />
+
+                    <InputField
+                      name="address2"
+                      placeholder="Apt, suite, unit, etc."
+                      label="Address Line 2 (optional)"
+                      value={form.address2}
+                      onChange={handleChange}
+                      autoComplete="address-line2"
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <InputField
+                        name="billingCity"
+                        placeholder="City"
+                        label="City"
+                        value={form.billingCity}
+                        onChange={handleChange}
+                        required
+                        autoComplete="address-level2"
+                      />
+                      <InputField
+                        name="billingState"
+                        placeholder="State / Province"
+                        label="State / Province"
+                        value={form.billingState}
+                        onChange={handleChange}
+                        required
+                        autoComplete="address-level1"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <InputField
+                        name="billingZip"
+                        placeholder="12345"
+                        label="ZIP / Postal Code"
+                        value={form.billingZip}
+                        onChange={handleChange}
+                        required
+                        autoComplete="postal-code"
+                      />
+                      <SelectField
+                        icon={Globe}
+                        name="billingCountry"
+                        label="Country"
+                        value={form.billingCountry}
+                        onChange={handleChange}
+                        required
+                      >
+                        <option value="" className="bg-background text-muted-foreground">
+                          Select country…
+                        </option>
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.name} className="bg-background text-foreground">
+                            {c.name}
+                          </option>
+                        ))}
+                      </SelectField>
+                    </div>
+                  </div>
+
+                  <div className={cn("space-y-5 transition-all duration-300", step !== 2 && "hidden")}>
+                    <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-3">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                        Review your details
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground text-xs">Name</span>
+                          <p className="text-foreground">{form.firstName} {form.lastName}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Email</span>
+                          <p className="text-foreground truncate">{form.email}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Phone</span>
+                          <p className="text-foreground">{form.phone}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">Location</span>
+                          <p className="text-foreground">{form.billingCity}, {form.billingCountry}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {hasCaptcha && (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating account...
+                        <SectionDivider label="Security Check" icon={Shield} />
+                        <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-4">
+                          <div className="relative rounded-lg overflow-hidden bg-background border border-border/50">
+                            {captchaLoading ? (
+                              <div className="flex items-center justify-center h-24">
+                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                              </div>
+                            ) : captchaImage ? (
+                              <img src={captchaImage} alt="Captcha" className="mx-auto h-24 w-full object-contain p-2" />
+                            ) : (
+                              <div className="flex items-center justify-center h-24">
+                                <p className="text-xs text-muted-foreground">Unable to load captcha</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {captchaAudio && (
+                            <div className="space-y-2">
+                              <button
+                                type="button"
+                                onClick={playAudio}
+                                disabled={audioPlaying || captchaLoading}
+                                className={cn(
+                                  "w-full flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all",
+                                  "bg-secondary/30 border-border/50 text-foreground",
+                                  "hover:bg-secondary/60 hover:border-muted-foreground/40",
+                                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                                  "focus:outline-none focus:ring-2 focus:ring-primary/20",
+                                  audioPlaying && "bg-primary/10 border-primary/30"
+                                )}
+                              >
+                                {audioPlaying ? (
+                                  <><VolumeX className="h-4 w-4 animate-pulse" /><span>Playing…</span></>
+                                ) : (
+                                  <><Volume2 className="h-4 w-4" /><span>Listen to audio captcha</span></>
+                                )}
+                              </button>
+                              {audioError && (
+                                <p className="text-xs text-destructive flex items-center gap-1.5">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Unable to play audio. Try refreshing.
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex gap-2">
+                            <InputField
+                              name="captchaAnswer"
+                              placeholder="Enter the answer"
+                              label="Your Answer"
+                              value={form.captchaAnswer}
+                              onChange={handleChange}
+                              required
+                              className="flex-1"
+                            />
+                            <div className="flex items-end">
+                              <button
+                                type="button"
+                                onClick={loadCaptcha}
+                                disabled={captchaLoading}
+                                className={cn(
+                                  "h-[46px] w-[46px] flex items-center justify-center rounded-xl border border-border/50 transition-all",
+                                  "bg-secondary/30 text-muted-foreground",
+                                  "hover:bg-secondary/60 hover:text-foreground",
+                                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                                  "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                )}
+                                aria-label="Refresh captcha"
+                                title="New captcha"
+                              >
+                                <RefreshCw className={cn("h-4 w-4", captchaLoading && "animate-spin")} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </>
-                    ) : (
-                      <>
-                        Create Account
+                    )}
+
+                    <div className="rounded-xl bg-secondary/10 border border-border/40 p-4">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        By creating an account, you agree to our{" "}
+                        <a
+                          href="https://ecli.app/documents/Terms%20of%20Service.pdf"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Terms of Service
+                        </a>{" "}
+                        and{" "}
+                        <a
+                          href="https://ecli.app/documents/Privacy%20Policy.pdf"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Privacy Policy
+                        </a>
+                        .
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    {step > 0 && (
+                      <button
+                        type="button"
+                        onClick={prevStep}
+                        className={cn(
+                          "flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-medium transition-all",
+                          "border border-border/60 bg-secondary/30 text-foreground",
+                          "hover:bg-secondary/60 active:scale-[0.98]",
+                          "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        )}
+                      >
+                        Back
+                      </button>
+                    )}
+
+                    {step < steps.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={nextStep}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
+                          "bg-primary text-primary-foreground",
+                          "hover:bg-primary/90 active:scale-[0.98]",
+                          "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                        )}
+                      >
+                        Continue
                         <ChevronRight className="h-4 w-4" />
-                      </>
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
+                          "bg-primary text-primary-foreground",
+                          "hover:bg-primary/90 active:scale-[0.98]",
+                          "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+                          "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                        )}
+                      >
+                        {loading ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" />Creating account…</>
+                        ) : (
+                          <>Create Account<ChevronRight className="h-4 w-4" /></>
+                        )}
+                      </button>
                     )}
-                  </button>
+                  </div>
                 </form>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t border-border bg-secondary/30 px-4 sm:px-6 md:px-8 py-4">
+            <div className="border-t border-border/40 bg-secondary/10 px-4 sm:px-8 py-4">
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
-                <a
-                  href="/login"
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
-                >
+                <a href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
                   Sign in
                 </a>
               </p>
             </div>
           </div>
 
-          {/* Bottom text */}
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
             Protected by industry-standard encryption
           </p>
         </div>

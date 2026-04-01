@@ -5,6 +5,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   registration: true,
   tempEmailFilter: true,
   captcha: true,
+  captchaInvisible: false,
   codeInstances: true,
   billing: true,
   ai: true,

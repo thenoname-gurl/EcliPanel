@@ -8328,7 +8328,7 @@ Content-Type: application/json
                         <div>
                           <p className="text-sm font-medium text-foreground">Captcha</p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {panelSettings.featureToggles?.captcha ? "Login captcha is enabled" : "Login captcha is disabled"}
+                            {panelSettings.featureToggles?.captcha ? "Classic captcha for registration is enabled" : "Classic captcha for registration is disabled"}
                           </p>
                         </div>
                       </div>
@@ -8349,6 +8349,37 @@ Content-Type: application/json
                     </div>
                   </div>
 
+                  {/* Invisible Captcha Toggle */}
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.featureToggles?.captchaInvisible ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                          <Shield className={`h-4 w-4 ${panelSettings.featureToggles?.captchaInvisible ? "text-green-400" : "text-red-400"}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Invisible Captcha</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {panelSettings.featureToggles?.captchaInvisible ? "Invisible captcha path is enabled" : "Invisible captcha path is disabled"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setPanelSettings((s) => ({
+                          ...s,
+                          featureToggles: {
+                            ...s.featureToggles,
+                            captchaInvisible: !s.featureToggles?.captchaInvisible,
+                          },
+                        }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles?.captchaInvisible ? "bg-green-500" : "bg-secondary"}`}
+                        role="switch"
+                        aria-checked={panelSettings.featureToggles?.captchaInvisible}
+                      >
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles?.captchaInvisible ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="rounded-xl border border-border bg-card p-4 col-span-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[
@@ -8359,6 +8390,7 @@ Content-Type: application/json
                         { key: 'oauth', label: 'OAuth', note: 'OAuth client and token server' },
                         { key: 'codeInstances', label: 'Code Instances', note: 'Temporary code-server access' },
                         { key: 'captcha', label: 'Captcha', note: 'Simple image captcha for registration' },
+                        { key: 'captchaInvisible', label: 'Invisible Captcha', note: 'Behaviour-based challenge for registration (no explicit user input)' },
                       ].map((t) => (
                         <div key={t.key} className="rounded-lg border border-border p-3">
                           <div className="flex items-start justify-between gap-3">
