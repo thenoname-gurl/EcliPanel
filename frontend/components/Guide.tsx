@@ -491,6 +491,19 @@ export default function Guide() {
     }, []);
 
     useEffect(() => {
+        try {
+            const search = currentUrl.includes("?") ? currentUrl.split("?")[1] : "";
+            const params = new URLSearchParams(search);
+            if (params.get("guide") === "true") {
+                setShow(true);
+                setPhase("welcome");
+            }
+        } catch {
+            /* skip */
+        }
+    }, [currentUrl]);
+
+    useEffect(() => {
         if (!show || minimized || phase !== "guide") return;
         function onKey(e: KeyboardEvent) {
             if (e.key === "ArrowRight" || e.key === "ArrowDown") {
