@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
-import { generateCaptcha } from '../utils/captcha';
+import { generateCaptcha, generateInvisibleCaptcha } from '../utils/captcha';
 import { isFeatureEnabled } from '../utils/featureToggles';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { sendMail } from '../services/mailService';
@@ -545,7 +545,7 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 503;
       return { error: "Feature 'captcha' is disabled" };
     }
-    const { token, audio } = generateCaptcha();
+    const { token, audio } = await generateCaptcha();
     return { token, audio };
   }, {
     response: {
@@ -555,6 +555,25 @@ export async function authRoutes(app: any, prefix = '') {
       summary: 'Get a registration captcha audio challenge',
       tags: ['Auth'],
       operationId: 'getAuthCaptchaAudio',
+    },
+  });
+
+  app.get(prefix + '/auth/captcha/invisible', async (ctx: any) => {
+    const captchaInvisibleEnabled = await isFeatureEnabled('captchaInvisible');
+    if (!captchaInvisibleEnabled) {
+      ctx.set.status = 503;
+      return { error: "Feature 'captchaInvisible' is disabled" };
+    }
+    const { token, created } = generateInvisibleCaptcha();
+    return { token, created };
+  }, {
+    response: {
+      200: t.Object({ token: t.String(), created: t.Number() })
+    },
+    detail: {
+      summary: 'Get an invisible registration captcha token',
+      tags: ['Auth'],
+      operationId: 'getAuthCaptchaInvisible',
     },
   });
 

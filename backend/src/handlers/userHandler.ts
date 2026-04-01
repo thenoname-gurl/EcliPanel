@@ -232,6 +232,15 @@ export async function userRoutes(app: any, prefix = '') {
       phone: t.Optional(t.String()),
       captchaAnswer: t.Optional(t.String()),
       captchaToken: t.Optional(t.String()),
+      invisibleCaptchaToken: t.Optional(t.String()),
+      invisibleCaptchaDelay: t.Optional(t.Number()),
+      behaviorData: t.Optional(t.Object({
+        mouseMoves: t.Number(),
+        mouseClicks: t.Number(),
+        keyboardEvents: t.Number(),
+        firstInteraction: t.Optional(t.Number()),
+        lastInteraction: t.Optional(t.Number()),
+      })),
     }),
     response: {
       200: t.Object({ success: t.Boolean(), user: userSchema }),
