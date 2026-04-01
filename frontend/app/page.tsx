@@ -328,6 +328,8 @@ export default function Home() {
                 <li>→ 1 vCore</li>
                 <li>→ 1028 MB RAM</li>
                 <li>→ 10240 MB Storage</li>
+                <li>→ AIO Template only</li>
+                <li>→ No SLA</li>
               </ul>
             </div>
 
@@ -339,8 +341,11 @@ export default function Home() {
                 <li>→ 3 Servers</li>
                 <li>→ 3 Ports per server</li>
                 <li>→ 2 vCores</li>
-                <li>→ 2028 MB RAM</li>
-                <li>→ 20240 MB Storage</li>
+                <li>→ 2048 MB RAM</li>
+                <li>→ 20248 MB Storage</li>
+                <li>→ Basic Support</li>
+                <li>→ KVM Template Access</li>
+                <li>→ 95% SLA</li>
               </ul>
             </div>
 
@@ -355,7 +360,9 @@ export default function Home() {
                 <li>→ 16028 MB RAM</li>
                 <li>→ 50240 MB Storage</li>
                 <li>→ Basic Support</li>
+                <li>→ KVM Template Access</li>
                 <li>→ AI Access</li>
+                <li>→ 95% SLA</li>
               </ul>
             </div>
 
@@ -370,7 +377,9 @@ export default function Home() {
                 <li>→ Entire Node Storage</li>
                 <li>→ IPv4 + IPv6</li>
                 <li>→ Premium Support</li>
+                <li>→ KVM Template Access</li>
                 <li>→ AI Access</li>
+                <li>→ Custom SLA</li>
               </ul>
             </div>
           </div>
