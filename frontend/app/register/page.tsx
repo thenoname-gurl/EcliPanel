@@ -269,6 +269,7 @@ export default function RegisterPage() {
   })
 
   const [captchaImage, setCaptchaImage] = useState<string>("")
+  const [captchaAudio, setCaptchaAudio] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -314,9 +315,11 @@ export default function RegisterPage() {
       if (data?.token) {
         setForm((prev) => ({ ...prev, captchaToken: String(data.token), captchaAnswer: "" }))
         setCaptchaImage(data.image || "")
+        setCaptchaAudio(data.audio || "")
       } else {
         setForm((prev) => ({ ...prev, captchaToken: "", captchaAnswer: "" }))
         setCaptchaImage("")
+        setCaptchaAudio("")
       }
     } catch {
       setForm((prev) => ({ ...prev, captchaToken: "", captchaAnswer: "" }))
@@ -614,6 +617,23 @@ export default function RegisterPage() {
                             </div>
                           )}
                         </div>
+                        {captchaAudio && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const audio = new Audio(captchaAudio)
+                                audio.play().catch(() => {
+                                  // ignore
+                                })
+                              }}
+                              className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary/30"
+                            >
+                              Play audio captcha
+                            </button>
+                            <p className="text-xs text-muted-foreground">(accessible challenge)</p>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <InputField
                             name="captchaAnswer"

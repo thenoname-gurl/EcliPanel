@@ -51,6 +51,8 @@ You may use wings-go (pterodactyl stock) but it is untested and some features wi
    # Bun is recommended since it runs the TypeScript directly, but..
    # the old Node build path still works if Bun isn't installed
    bun install      # or `pnpm install`/`npm install` if you prefer
+   sudo apt install ffmpeg #if using captcha
+   sudo apt install espeak #if using captcha
    bun run gen:jwt-secret # generate JWT Secret (set in .env as JWT_SECRET=generated-string)
    bun run gen:jwt-secret # generate Encryption Key just like JWT Secret (set in .env as NODE_ENCRYPTION_KEY=generated-string)
    nano .env        # edit .env (see .env.example)
