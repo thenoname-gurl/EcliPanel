@@ -61,6 +61,14 @@ export async function setupConfig(app: any) {
     (app.log ?? console).error({ err }, 'Error during Data Source initialization');
     throw err;
   });
+
+  if (['mysql', 'mariadb'].includes(String(AppDataSource.options.type))) {
+    try {
+      await AppDataSource.query('ALTER TABLE `ticket` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    } catch (err: any) {
+      app.log?.warn({ err }, 'Failed to convert ticket table charset; existing charset may still be non-utf8mb4');
+    }
+  }
   
   try {
     await connectRedis();

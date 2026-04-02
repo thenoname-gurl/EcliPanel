@@ -31,6 +31,7 @@ export async function ticketRoutes(app: any, prefix = '') {
     try {
       let out = String(s);
       out = out.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+      out = out.replace(/≡/g, '=');
       out = out.replace(/[\u2190-\u21FF]/g, '->');
       out = out.replace(/≥/g, '>=').replace(/≤/g, '<=');
       out = out.replace(/©/g, '(c)').replace(/®/g, '(r)');

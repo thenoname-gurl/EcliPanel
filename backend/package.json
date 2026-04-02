@@ -31,6 +31,7 @@
     "elysia-helmet": "^3.1.0",
     "file-type": "^21.3.4",
     "jsonwebtoken": "latest",
+    "lodash": "^4.18.1",
     "mariadb": "latest",
     "mysql": "latest",
     "node-cron": "^4.2.1",

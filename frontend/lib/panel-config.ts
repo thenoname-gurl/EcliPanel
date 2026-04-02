@@ -211,6 +211,7 @@ export const API_ENDPOINTS = {
   adminUserAiLink: "/api/admin/users/:id/ai/:linkId",
   adminLogs: "/api/admin/logs",
   adminSlowQueries: "/api/admin/slow-queries",
+  adminGlobalSearch: "/api/admin/search",
   adminNodes: "/api/admin/nodes",
   adminFraudAlerts: "/api/admin/fraud-alerts",
   publicWings: "/public/wings",

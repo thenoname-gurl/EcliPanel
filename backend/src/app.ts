@@ -8,6 +8,7 @@ import jsonwebtoken from 'jsonwebtoken';
 import { registerRoutes } from './routes/index';
 import { setupMiddleware, authenticate } from './middleware';
 import { setupConfig } from './config';
+import { createActivityLog } from './handlers/logHandler';
 import { AppDataSource } from './config/typeorm';
 import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
 import { scheduleCodeInstanceIdleJob } from './jobs/codeInstanceIdleJob';
@@ -298,6 +299,26 @@ app.onError((ctx: any) => {
   const log = (app as any).log || console;
   if (status >= 500) {
     log.error({ err: ctx.error, url: ctx.request.url }, 'Unhandled server error');
+
+    try {
+      createActivityLog({
+        userId: 0,
+        action: 'server:error',
+        targetType: 'server',
+        metadata: {
+          url: ctx.request?.url?.toString?.() ?? null,
+          message: ctx.error?.message ?? String(ctx.error),
+          stack: ctx.error?.stack ?? undefined,
+          status,
+        },
+        ipAddress: (ctx.request as Request)?.headers?.get?.('x-forwarded-for') || (ctx.request as Request)?.headers?.get?.('x-real-ip') || ''
+      }).catch((e: any) => {
+        console.log('Failed to log server error activity', { err: e });
+      });
+    } catch {
+      // skip
+    }
+
     const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }

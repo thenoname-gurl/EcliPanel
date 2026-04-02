@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
 @Entity()
+@Index(['targetType', 'targetId', 'timestamp'])
 export class UserLog {
   @PrimaryGeneratedColumn()
   id: number;
@@ -16,7 +17,8 @@ export class UserLog {
   @Index()
   targetId?: string;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  @Index()
   targetType?: string;
 
   @Column('json', { nullable: true })

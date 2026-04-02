@@ -244,6 +244,7 @@ interface AdminEgg {
   updateUrl?: string
   visible: boolean
   rootless?: boolean
+  requiresKvm?: boolean
 }
 
 interface AdminAIModel {
@@ -715,10 +716,14 @@ export default function AdminPanel() {
 
   // ── Loading flags ──
   const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set())
+  const [activeTab, setActiveTab] = useState("users")
 
   // ── Filters ──
   const [userSearch, setUserSearch] = useState("")
   const [userSearchFocused, setUserSearchFocused] = useState(false)
+  const [globalSearch, setGlobalSearch] = useState("")
+  const [globalResults, setGlobalResults] = useState<{ users: any[]; organisations: any[]; servers: any[]; orders: any[] }>({ users: [], organisations: [], servers: [], orders: [] })
+  const [globalLoading, setGlobalLoading] = useState(false)
   const [ticketFilter, setTicketFilter] = useState<string>("all")
   const [orgSearch, setOrgSearch] = useState("")
   const [serverSearch, setServerSearch] = useState("")
@@ -777,9 +782,16 @@ export default function AdminPanel() {
   const [redactServers, setRedactServers] = useState<boolean>(true)
   const [redactOrganisations, setRedactOrganisations] = useState<boolean>(true)
 
-  const redact = (value?: string | number | null) => {
-    if (!value && value !== 0) return <span className="text-muted-foreground">████████████</span>
-    if (!privateMode) return <>{value}</>
+  const redact = (value?: any) => {
+    if (value === undefined || value === null || value === "" || (typeof value === "object" && Object.keys(value).length === 0)) {
+      return <span className="text-muted-foreground">████████████</span>
+    }
+    if (!privateMode) {
+      if (typeof value === "object") {
+        return <>{JSON.stringify(value)}</>
+      }
+      return <>{value}</>
+    }
     return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">
         ████████████
@@ -914,6 +926,7 @@ export default function AdminPanel() {
   const [ordersTotal, setOrdersTotal] = useState<number | null>(null)
   const [ordersQuery, setOrdersQuery] = useState("")
   const [ordersLoading, setOrdersLoading] = useState(false)
+
   const [issueOrderOpen, setIssueOrderOpen] = useState(false)
   const [ioUserId, setIoUserId] = useState("")
   const [ioDesc, setIoDesc] = useState("")
@@ -1034,7 +1047,7 @@ export default function AdminPanel() {
 
   // ── Logs ──
   const [logs, setLogs] = useState<any[]>([])
-  const [logType, setLogType] = useState<"audit" | "requests" | "slow">("audit")
+  const [logType, setLogType] = useState<"audit" | "requests" | "slow" | "serverErrors">("audit")
   const [logsPage, setLogsPage] = useState(1)
   const LOGS_PER = 50
   const [logsPer, setLogsPer] = useState(LOGS_PER)
@@ -1074,6 +1087,17 @@ export default function AdminPanel() {
       setLogsTotal(0)
     } finally {
       setLogsLoading(false)
+    }
+  }
+
+  async function deleteLog(logId: number) {
+    if (!(await confirmAsync('Delete this log entry? This cannot be undone.'))) return;
+    try {
+      await apiFetch(`${API_ENDPOINTS.adminLogs}/${logId}`, { method: 'DELETE' });
+      setLogs((prev) => prev.filter((log) => log.id !== logId));
+      setLogsTotal((prev) => (prev !== null ? Math.max(0, prev - 1) : null));
+    } catch (err: any) {
+      alert('Failed to delete log: ' + (err?.message || 'unknown error'));
     }
   }
 
@@ -1371,6 +1395,35 @@ export default function AdminPanel() {
     }
   }
 
+  async function fetchGlobalSearch(q = "") {
+    setGlobalSearch(q)
+    if (!q || String(q).trim() === "") {
+      setGlobalResults({ users: [], organisations: [], servers: [], orders: [] })
+      return
+    }
+
+    setGlobalLoading(true)
+    try {
+      const url = `${API_ENDPOINTS.adminGlobalSearch}?q=${encodeURIComponent(q)}`
+      const res: any = await apiFetch(url)
+
+      if (res) {
+        setGlobalResults({
+          users: Array.isArray(res.users) ? res.users : [],
+          organisations: Array.isArray(res.organisations) ? res.organisations : [],
+          servers: Array.isArray(res.servers) ? res.servers : [],
+          orders: Array.isArray(res.orders) ? res.orders : [],
+        })
+      } else {
+        setGlobalResults({ users: [], organisations: [], servers: [], orders: [] })
+      }
+    } catch (_e) {
+      setGlobalResults({ users: [], organisations: [], servers: [], orders: [] })
+    } finally {
+      setGlobalLoading(false)
+    }
+  }
+
   // ── Fetch users (paged) ──
   async function fetchUsers(page = 1, q = "") {
     setUsersLoading(true)
@@ -1528,14 +1581,7 @@ export default function AdminPanel() {
     openFromQuery()
   }, [searchParams, privacyDialogOpen, users, viewUserQueryHandled]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Filtered users ──
-  const filteredUsers = users.filter((u) => {
-    const q = userSearch.toLowerCase()
-    return (
-      `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q)
-    )
-  })
+  const filteredUsers = users
 
   // ── Filtered tickets ──
   const filteredTickets =
@@ -2655,6 +2701,34 @@ remote: ${panelUrl}`
     }
   }
 
+  async function openGlobalUser(user: AdminUser) {
+    setActiveTab("users")
+    setUserSearch(user.email || "")
+    await fetchUsers(1, user.email || "")
+    openViewUser(user)
+  }
+
+  async function openGlobalOrganisation(org: AdminOrganisation) {
+    setActiveTab("organisations")
+    setOrgSearch(org.name || "")
+    await fetchOrganisations(1, org.name || "")
+    openEditOrg(org)
+  }
+
+  async function openGlobalServer(srv: AdminServer) {
+    setActiveTab("servers")
+    setServerSearch(srv.name || srv.uuid || "")
+    await fetchServers(1, srv.name || srv.uuid || "")
+    openEditServer(srv)
+  }
+
+  async function openGlobalOrder(order: AdminOrder) {
+    setActiveTab("orders")
+    setOrdersQuery(String(order.id))
+    await fetchOrders(1, String(order.id))
+    openEditOrder(order)
+  }
+
   async function openViewUser(user: AdminUser) {
     setViewUserDialog(user)
     setViewUserProfile(null)
@@ -2849,8 +2923,125 @@ remote: ${panelUrl}`
             <StatCard title="Fraud Alerts" value={stats ? String((stats as any).fraudAlerts ?? 0) : "—"} icon={AlertTriangle} />
           </div>
 
+          {/* Global search */}
+          <div className="rounded-xl border border-border bg-card">
+            <div className="flex flex-col gap-3 p-4">
+              <h3 className="text-sm font-semibold text-foreground">Global Search</h3>
+              <div className="relative flex items-center gap-2 max-w-lg">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <input
+                  value={globalSearch}
+                  onChange={(e) => fetchGlobalSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && fetchGlobalSearch(globalSearch)}
+                  placeholder="Search users, organisations, servers, orders by id/name/email..."
+                  className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                />
+                {globalSearch && (
+                  <button
+                    onClick={() => fetchGlobalSearch("")}
+                    className="rounded p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {globalLoading ? (
+                <p className="text-xs text-muted-foreground">Searching...</p>
+              ) : !globalSearch ? (
+                <p className="text-xs text-muted-foreground">Enter a query to search across users, organisations, servers, and orders.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                    <p className="text-xs font-semibold text-foreground mb-1">Users ({globalResults.users.length})</p>
+                    {globalResults.users.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">No matches found</p>
+                    ) : (
+                      globalResults.users.slice(0, 5).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs text-foreground gap-2">
+                          <div className="truncate">
+                            <span className="font-semibold">#{item.id}</span>
+                            {' '}
+                            {redactName(item.firstName, item.lastName) || redact(item.email)}
+                            <span className="ml-1 text-muted-foreground">{redact(item.email)}</span>
+                          </div>
+                          <button
+                            className="rounded px-2 py-1 text-[10px] border border-border hover:bg-secondary transition"
+                            onClick={() => openGlobalUser(item)}
+                          >Open</button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                    <p className="text-xs font-semibold text-foreground mb-1">Organisations ({globalResults.organisations.length})</p>
+                    {globalResults.organisations.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">No matches found</p>
+                    ) : (
+                      globalResults.organisations.slice(0, 5).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs text-foreground gap-2">
+                          <div className="truncate">
+                            <span className="font-semibold">#{item.id}</span>{' '}
+                            {redactOrg(item.name)}
+                            {item.handle ? <span className="ml-1 text-muted-foreground">({item.handle})</span> : null}
+                          </div>
+                          <button
+                            className="rounded px-2 py-1 text-[10px] border border-border hover:bg-secondary transition"
+                            onClick={() => openGlobalOrganisation(item)}
+                          >Open</button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                    <p className="text-xs font-semibold text-foreground mb-1">Servers ({globalResults.servers.length})</p>
+                    {globalResults.servers.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">No matches found</p>
+                    ) : (
+                      globalResults.servers.slice(0, 5).map((item) => {
+                        const serverName = item.name && typeof item.name === 'string' ? item.name : item.uuid || JSON.stringify(item.name || '')
+                        const nodeName = item.nodeName && typeof item.nodeName === 'string' ? item.nodeName : (item.nodeName ? JSON.stringify(item.nodeName) : '')
+                        return (
+                          <div key={item.uuid} className="flex items-center justify-between text-xs text-foreground gap-2">
+                            <div className="truncate">
+                              <span className="font-semibold">{redact(serverName)}</span>{' '}
+                              <span className="text-muted-foreground">{nodeName ? `on ${redact(nodeName)}` : ''}</span>
+                            </div>
+                            <button
+                              className="rounded px-2 py-1 text-[10px] border border-border hover:bg-secondary transition"
+                              onClick={() => openGlobalServer(item)}
+                            >Open</button>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                    <p className="text-xs font-semibold text-foreground mb-1">Orders ({globalResults.orders.length})</p>
+                    {globalResults.orders.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">No matches found</p>
+                    ) : (
+                      globalResults.orders.slice(0, 5).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs text-foreground gap-2">
+                          <div className="truncate">
+                            <span className="font-semibold">#{item.id}</span>{' '}
+                            {redact(item.description || "Order")} {item.userId ? <span className="text-muted-foreground">{`for user #${redact(item.userId)}`}</span> : null}
+                          </div>
+                          <button
+                            className="rounded px-2 py-1 text-[10px] border border-border hover:bg-secondary transition"
+                            onClick={() => openGlobalOrder(item)}
+                          >Open</button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Tabs */}
-          <Tabs defaultValue="users" onValueChange={(tab) => loadTab(tab)} className="w-full">
+          <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); loadTab(tab); }} className="w-full">
             <TabsList className="flex gap-2 overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
               {[
                 { value: "users", label: "Users" },
@@ -2899,7 +3090,11 @@ remote: ${panelUrl}`
                           type="text"
                           placeholder="Search by name or email…"
                           value={userSearch}
-                          onChange={(e) => setUserSearch(e.target.value)}
+                          onChange={(e) => {
+                            const q = e.target.value
+                            setUserSearch(q)
+                            fetchUsers(1, q)
+                          }}
                           onKeyDown={(e) => e.key === "Enter" && fetchUsers(1, userSearch)}
                           onFocus={() => setUserSearchFocused(true)}
                           onBlur={() => setTimeout(() => setUserSearchFocused(false), 150)}
@@ -2925,9 +3120,13 @@ remote: ${panelUrl}`
                               onClick={() => { openViewUser(u); setUserSearch(""); setUserSearchFocused(false); }}
                               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors border-b border-border/40 last:border-0"
                             >
-                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                                {u.firstName?.[0]?.toUpperCase() || "?"}
-                              </div>
+                              {u.avatarUrl ? (
+                                <img src={u.avatarUrl} alt={`${u.firstName || "User"} avatar`} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                              ) : (
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                                  {u.firstName?.[0]?.toUpperCase() || "?"}
+                                </div>
+                              )}
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName)}</p>
                                 <p className="text-xs text-muted-foreground truncate">{redact(u.email)}</p>
@@ -3122,9 +3321,13 @@ remote: ${panelUrl}`
                       <div key={user.id} className="rounded-xl border border-border bg-card overflow-hidden">
                         {/* Card Header */}
                         <div className="flex items-start gap-3 p-4 pb-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                            {user.firstName?.[0]?.toUpperCase() || "?"}
-                          </div>
+                          {user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={`${user.firstName || "User"} avatar`} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                              {user.firstName?.[0]?.toUpperCase() || "?"}
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
@@ -6854,7 +7057,9 @@ remote: ${panelUrl}`
                           <ScrollText className="h-4 w-4 text-indigo-400" />
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-foreground">Audit Logs</p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {logType === 'serverErrors' ? 'Server Errors' : logType === 'requests' ? 'API Request Logs' : logType === 'slow' ? 'Slow Queries' : 'Audit Logs'}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {logsTotal ? `${logsTotal} entries` : "System activity & diagnostics"}
                           </p>
@@ -6895,11 +7100,12 @@ remote: ${panelUrl}`
 
                     {/* Log type tabs */}
                     <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                      {(["audit", "requests", "slow"] as const).map((t) => {
+                      {(["audit", "requests", "slow", "serverErrors"] as const).map((t) => {
                         const config: Record<string, { label: string; icon: any; color: string }> = {
                           audit: { label: "Audit", icon: Shield, color: "text-indigo-400" },
                           requests: { label: "API Requests", icon: Globe, color: "text-blue-400" },
                           slow: { label: "Slow Queries", icon: Timer, color: "text-orange-400" },
+                          serverErrors: { label: "Server Errors", icon: AlertTriangle, color: "text-red-400" },
                         }
                         const c = config[t]
                         const Icon = c.icon
@@ -6935,11 +7141,18 @@ remote: ${panelUrl}`
                       <thead>
                         <tr className="border-b border-border text-xs text-muted-foreground">
                           <th className="px-4 py-3 text-left font-medium">Time</th>
-                          {(logType === "audit" || logType === "requests") && (
+                          {(logType === "audit" || logType === "requests" || logType === "serverErrors") && (
                             <th className="px-4 py-3 text-left font-medium">User</th>
                           )}
                           {logType === "audit" && (
                             <th className="px-4 py-3 text-left font-medium">Action</th>
+                          )}
+                          {logType === "serverErrors" && (
+                            <>
+                              <th className="px-4 py-3 text-left font-medium">Action</th>
+                              <th className="px-4 py-3 text-left font-medium">Error</th>
+                              <th className="px-4 py-3 text-left font-medium">Manage</th>
+                            </>
                           )}
                           {logType === "requests" && (
                             <>
@@ -6958,7 +7171,7 @@ remote: ${panelUrl}`
                       <tbody>
                         {logs.length === 0 ? (
                           <tr>
-                            <td colSpan={logType === "requests" ? 4 : 3} className="px-4 py-12 text-center">
+                            <td colSpan={logType === "requests" || logType === "serverErrors" ? 4 : 3} className="px-4 py-12 text-center">
                               <div className="flex flex-col items-center gap-2">
                                 <ScrollText className="h-8 w-8 text-muted-foreground/50" />
                                 <p className="text-sm text-muted-foreground">No logs found</p>
@@ -6998,9 +7211,13 @@ remote: ${panelUrl}`
                                   <td className="px-4 py-3">
                                     {log.username ? (
                                       <div className="flex items-center gap-2.5">
-                                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
-                                          {log.username?.[0]?.toUpperCase() || "?"}
-                                        </div>
+                                        {log.avatarUrl ? (
+                                          <img src={log.avatarUrl} alt={`${log.username} avatar`} className="h-6 w-6 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+                                            {log.username?.[0]?.toUpperCase() || "?"}
+                                          </div>
+                                        )}
                                         <div className="min-w-0">
                                           <p className="text-xs font-medium text-foreground truncate">{redact(log.username)}</p>
                                           <p className="text-[11px] text-muted-foreground truncate">{redact(log.email)}</p>
@@ -7029,6 +7246,35 @@ remote: ${panelUrl}`
                                       {log.action}
                                     </span>
                                   </td>
+                                )}
+
+                                {logType === "serverErrors" && (
+                                  <>
+                                    <td className="px-4 py-3">
+                                      <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 font-mono text-xs text-destructive">
+                                        {log.action}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 max-w-[14rem] overflow-hidden text-ellipsis">
+                                      <div className="text-xs text-muted-foreground break-words">
+                                        {log.metadata?.message || log.metadata?.error || log.metadata?.detail || "(no details)"}
+                                      </div>
+                                      {log.metadata?.stack && (
+                                        <details className="text-[10px] text-muted-foreground mt-1">
+                                          <summary>Stack</summary>
+                                          <pre className="whitespace-pre-wrap max-h-28 overflow-auto">{log.metadata.stack}</pre>
+                                        </details>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <button
+                                        onClick={() => deleteLog(log.id)}
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </td>
+                                  </>
                                 )}
 
                                 {logType === "requests" && (
