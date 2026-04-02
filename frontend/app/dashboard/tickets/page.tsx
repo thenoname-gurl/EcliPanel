@@ -82,14 +82,21 @@ export default function TicketsPage() {
 
   function formatDurationMs(ms: number | null | undefined) {
     if (ms == null || !Number.isFinite(ms)) return "N/A"
-    if (ms < 1000) return `${ms}ms`
     const seconds = ms / 1000
-    if (seconds < 60) return `${Math.round(seconds)}s`
-    const minutes = seconds / 60
-    if (minutes < 60) return `${minutes.toFixed(1)}m`
-    const hours = minutes / 60
-    if (hours < 24) return `${hours.toFixed(1)}h`
-    return `${(hours / 24).toFixed(1)}d`
+    if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 2 : 1)}s`
+    const totalMinutes = Math.floor(seconds / 60)
+    if (totalMinutes < 60) {
+      const remSeconds = Math.floor(seconds % 60)
+      return remSeconds > 0 ? `${totalMinutes}m ${remSeconds}s` : `${totalMinutes}m`
+    }
+    const totalHours = Math.floor(totalMinutes / 60)
+    if (totalHours < 24) {
+      const remMinutes = totalMinutes % 60
+      return remMinutes > 0 ? `${totalHours}h ${remMinutes}m` : `${totalHours}h`
+    }
+    const days = Math.floor(totalHours / 24)
+    const remHours = totalHours % 24
+    return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`
   }
 
   const filtered = tickets.filter(

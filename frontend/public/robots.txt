@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Disallow: /_next/
+Disallow: /_static/
+
+Disallow: /api/
+Disallow: /dashboard/
+
+Sitemap: https://ecli.app/sitemap.xml

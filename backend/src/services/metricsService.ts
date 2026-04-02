@@ -1,6 +1,5 @@
 import { AppDataSource } from '../config/typeorm';
 import { SocData } from '../models/socData.entity';
-import { MoreThanOrEqual, LessThan } from 'typeorm';
 
 function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {}) {
   if (obj == null) return out;
@@ -56,14 +55,14 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
   const until = windowKey === 'live' ? new Date(now) : new Date(truncNow);
 
   const repo = AppDataSource.getRepository(SocData);
-  const rows = await repo.find({
-    where: {
-      serverId,
-      timestamp: MoreThanOrEqual(since),
-      ...(windowKey === 'live' ? {} : { timestamp: LessThan(until) }),
-    } as any,
-    order: { timestamp: 'ASC' },
-  });
+  const rows = await repo
+    .createQueryBuilder('soc')
+    .select(['soc.timestamp', 'soc.metrics'])
+    .where('soc.serverId = :serverId', { serverId })
+    .andWhere('soc.timestamp >= :since', { since })
+    .andWhere('soc.timestamp < :until', { until })
+    .orderBy('soc.timestamp', 'ASC')
+    .getMany();
 
   if (!rows || rows.length === 0) return [];
 

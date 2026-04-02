@@ -617,8 +617,11 @@ export default function RegisterPage() {
   const hasCaptcha = !!panelSettings?.featureToggles?.captcha
 
   return (
-    <div className="min-h-[100dvh] w-full bg-gradient-to-b from-background via-background to-secondary/10 overflow-auto">
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/[0.03] via-transparent to-transparent pointer-events-none" />
+    <div className="min-h-[100dvh] w-full bg-background overflow-auto">
+      {/* Side gradient glow — left */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
+      {/* Side gradient glow — right (subtle secondary) */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_right,_var(--tw-gradient-stops))] from-secondary/[0.08] via-transparent to-transparent pointer-events-none" />
 
       <div className="relative flex min-h-[100dvh] w-full items-start sm:items-center justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-[520px]">

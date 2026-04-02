@@ -13,6 +13,8 @@ import { AppDataSource } from './config/typeorm';
 import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
 import { scheduleCodeInstanceIdleJob } from './jobs/codeInstanceIdleJob';
 import { scheduleMetricsCollectionJob } from './jobs/metricsCollectionJob';
+import { scheduleExportJobRunner } from './jobs/exportJobRunner';
+import { scheduleDeletionExecutionJob } from './jobs/deletionExecutionJob';
 import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
@@ -506,6 +508,8 @@ export async function initApp() {
   try { scheduleStudentReverifyJob(); } catch (e) { console.error('Failed to schedule student reverify job:', e); }
   try { scheduleCodeInstanceIdleJob(); } catch (e) { console.error('Failed to schedule code instance idle job:', e); }
   try { scheduleMetricsCollectionJob(); } catch (e) { console.error('Failed to schedule metrics collection job:', e); }
+  try { scheduleExportJobRunner(); } catch (e) { console.error('Failed to schedule export job runner:', e); }
+  try { scheduleDeletionExecutionJob(); } catch (e) { console.error('Failed to schedule deletion execution job:', e); }
   try { scheduleHourlyElysiaRestart(); } catch (e) { console.error('Failed to schedule hourly Elysia restart job:', e); }
 }
 

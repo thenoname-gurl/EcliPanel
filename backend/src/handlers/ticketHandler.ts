@@ -323,7 +323,7 @@ export async function ticketRoutes(app: any, prefix = '') {
 
       if (dir.spam) {
         const safe = sanitizeForDb(reply || 'Marked as spam by AI.');
-        ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true });
+        ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true, staffName: 'EcliAI', staffDisplayName: 'EcliAI' });
         ticket.messages.push({ sender: 'system', message: 'System: AI marked this ticket as spam, set priority low, and disabled AI auto-response.', created: ts });
         ticket.adminReply = safe;
         Object.assign(ticket, { aiTouched: true, aiMarkedSpam: true, aiDisabled: true, priority: 'low' });
@@ -334,7 +334,7 @@ export async function ticketRoutes(app: any, prefix = '') {
 
       if (dir.close) {
         const safe = sanitizeForDb(reply || 'Closed by AI. Human verification required.');
-        ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true });
+        ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true, staffName: 'EcliAI', staffDisplayName: 'EcliAI' });
         ticket.messages.push({ sender: 'system', message: 'System: AI closed the ticket and marked for human verification.', created: ts });
         ticket.adminReply = safe;
         Object.assign(ticket, { aiTouched: true, aiClosed: true, aiDisabled: true, status: 'closed' });
@@ -366,7 +366,7 @@ export async function ticketRoutes(app: any, prefix = '') {
       }
 
       const safe = sanitizeForDb(reply);
-      ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true });
+      ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true, staffName: 'EcliAI', staffDisplayName: 'EcliAI' });
       ticket.adminReply = safe;
 
       const appliedEntries = Object.entries(changes.applied);
@@ -896,10 +896,10 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     beforeHandle: authenticate,
     response: {
       200: t.Object({
-        avgTicketResponseMs: t.Optional(t.Number()),
-        avgTicketResponseMsLast30: t.Optional(t.Number()),
+        avgTicketResponseMs: t.Optional(t.Union([t.Number(), t.Null()])),
+        avgTicketResponseMsLast30: t.Optional(t.Union([t.Number(), t.Null()])),
         avgTicketResponseSampleCountLast30: t.Number(),
-        avgTicketResponseMsGlobal: t.Optional(t.Number()),
+        avgTicketResponseMsGlobal: t.Optional(t.Union([t.Number(), t.Null()])),
         avgTicketResponseSampleCountGlobal: t.Number(),
       }),
       401: t.Object({ error: t.String() }),
@@ -950,7 +950,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
                 const now = new Date();
                 const note = sanitizeForDb('This ticket appears to be outside free-plan support. If you need urgent or high-priority support please upgrade your plan at /dashboard/billing or contact sales at contact@ecli.app. The ticket has been closed.');
                 if (!Array.isArray(saved.messages)) saved.messages = [];
-                saved.messages.push({ sender: 'staff', message: note, created: now, ai: true });
+                saved.messages.push({ sender: 'staff', message: note, created: now, ai: true, staffName: 'EcliAI', staffDisplayName: 'EcliAI' });
                 saved.adminReply = note;
                 Object.assign(saved, { aiTouched: true, aiClosed: true, aiDisabled: true, status: 'closed' });
                 await repo.save(saved);
@@ -1050,7 +1050,23 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       const isAdmin = adminRoles.includes(user.role);
       const sender: 'staff' | 'user' = replyAs === 'user' ? 'user' : replyAs === 'staff' ? 'staff' : (isAdmin ? 'staff' : 'user');
       const txt = reply.trim();
-      ticket.messages.push({ sender, message: txt, created: now });
+      if (sender === 'staff') {
+        const staffDisplayName = typeof user.displayName === 'string' ? user.displayName.trim() : '';
+        const staffLegalName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const staffName = staffDisplayName || staffLegalName || 'Support Team';
+        ticket.messages.push({
+          sender,
+          message: txt,
+          created: now,
+          staffId: user.id,
+          staffName,
+          staffDisplayName: staffDisplayName || undefined,
+          staffLegalName: staffLegalName || undefined,
+          staffAvatar: (user as any).avatarUrl || undefined,
+        } as any);
+      } else {
+        ticket.messages.push({ sender, message: txt, created: now });
+      }
       pushedSender = sender;
       lastMessageText = txt;
 

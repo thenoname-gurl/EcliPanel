@@ -192,6 +192,13 @@ export const API_ENDPOINTS = {
   adminUserCancelPlan: "/api/admin/users/:id/cancel-plan",
   adminUserDeassignStudent: "/api/admin/users/:id/deassign-student",
   adminUserRequireStudentReverify: "/api/admin/users/:id/require-student-reverify",
+  adminUserExportJob: "/api/admin/users/:id/export-job",
+  adminExportJobs: "/api/admin/export-jobs",
+  adminExportJobStatus: "/api/admin/export-jobs/:id",
+  adminExportJobDownload: "/api/admin/export-jobs/:id/download",
+  adminExportJobShareLink: "/api/admin/export-jobs/:id/share-link",
+  adminDeletionExpedite: "/api/admin/deletions/:id/expedite",
+  adminDeletionCancel: "/api/admin/deletions/:id/cancel",
 
   // SOC
   socOverview: "/api/soc/overview",

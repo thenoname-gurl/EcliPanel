@@ -85,11 +85,13 @@ export async function authenticate(ctx: any) {
       userSessions: user?.sessions,
       jwtPayload: decoded
     };
+
     //if (ctx.log && typeof ctx.log.info === 'function') {
     //  ctx.log.info(debugInfo, '[authenticate] session debug');
     //} else {
     //  console.log('[authenticate] session debug', debugInfo);
     //}
+    
     if (!user) {
       ctx.set.status = 401;
       return { error: 'User not found' };
@@ -97,6 +99,11 @@ export async function authenticate(ctx: any) {
     if (!user.sessions || !user.sessions.includes(decoded.sessionId)) {
       ctx.set.status = 401;
       return { error: 'Invalid session' };
+    }
+
+    if (user.pendingDeletionUntil && new Date(user.pendingDeletionUntil) > new Date()) {
+      ctx.set.status = 403;
+      return { error: 'Account is pending deletion and currently frozen' };
     }
 
     if (user.demoExpiresAt && new Date(user.demoExpiresAt) < new Date()) {

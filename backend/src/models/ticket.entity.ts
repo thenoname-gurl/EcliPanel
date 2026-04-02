@@ -45,7 +45,19 @@ export class Ticket {
   archived: boolean;
 
   @Column({ type: 'simple-json', nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
-  messages?: Array<{ sender: 'user' | 'staff'; message: string; created: Date; ai?: boolean }>;
+  messages?: Array<{
+    sender: 'user' | 'staff' | 'system';
+    message: string;
+    created: Date;
+    ai?: boolean;
+    staffId?: number;
+    staffName?: string;
+    staffDisplayName?: string;
+    staffLegalName?: string;
+    staffAvatar?: string;
+    userAvatar?: string;
+    avatarUrl?: string;
+  }>;
 
   @CreateDateColumn()
   created: Date;

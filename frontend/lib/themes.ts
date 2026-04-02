@@ -168,26 +168,67 @@ export const THEMES = [
 
 export type Theme = (typeof THEMES)[number];
 
-export function applyTheme(theme: Theme) {
-  if (typeof document === "undefined") return;
+type TransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => { finished: Promise<void> }
+}
+
+type ApplyThemeOptions = {
+  animate?: boolean
+}
+
+function applyThemeStyles(theme: Theme) {
   const root = document.documentElement;
-  root.style.setProperty('--primary', theme.primary as string);
-  root.style.setProperty('--background', theme.bg as string);
-  root.style.setProperty('--card', theme.card as string);
-  root.style.setProperty('--secondary', theme.secondary as string);
-  root.style.setProperty('--sidebar', theme.sidebar as string);
-  root.style.setProperty('--accent', theme.accent as string);
-  root.style.setProperty('--accent-foreground', theme.accentFg as string);
-  root.style.setProperty('--glow', theme.glow as string);
-  root.style.setProperty('--glow-strong', theme.primary as string);
-  root.style.setProperty('--ring', theme.primary as string);
-  root.style.setProperty('--sidebar-primary', theme.primary as string);
-  root.style.setProperty('--border', theme.border as string);
-  root.style.setProperty('--chart-1', theme.primary as string);
-  if ((theme as any).foreground) {
-    root.style.setProperty('--foreground', (theme as any).foreground);
+  root.style.setProperty("--primary", theme.primary);
+  root.style.setProperty("--background", theme.bg);
+  root.style.setProperty("--card", theme.card);
+  root.style.setProperty("--secondary", theme.secondary);
+  root.style.setProperty("--sidebar", theme.sidebar);
+  root.style.setProperty("--accent", theme.accent);
+  root.style.setProperty("--accent-foreground", theme.accentFg);
+  root.style.setProperty("--glow", theme.glow);
+  root.style.setProperty("--glow-strong", theme.primary);
+  root.style.setProperty("--ring", theme.primary);
+  root.style.setProperty("--sidebar-primary", theme.primary);
+  root.style.setProperty("--border", theme.border);
+  root.style.setProperty("--chart-1", theme.primary);
+  if (theme.foreground) {
+    root.style.setProperty("--foreground", theme.foreground);
   }
-  if ((theme as any).cardForeground) {
-    root.style.setProperty('--card-foreground', (theme as any).cardForeground);
+  if (theme.cardForeground) {
+    root.style.setProperty("--card-foreground", theme.cardForeground);
   }
+}
+
+export function applyTheme(theme: Theme, options?: ApplyThemeOptions): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+
+  const animate = options?.animate === true;
+  if (!animate) {
+    applyThemeStyles(theme);
+    return Promise.resolve();
+  }
+
+  const root = document.documentElement;
+  root.style.setProperty("--switch-name", "shigure-scale");
+  if (!root.style.getPropertyValue("--switch-duration")) {
+    root.style.setProperty("--switch-duration", "2.5s");
+  }
+
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const transitionDocument = document as TransitionDocument;
+
+  if (!transitionDocument.startViewTransition || prefersReducedMotion) {
+    applyThemeStyles(theme);
+    return Promise.resolve();
+  }
+
+  return transitionDocument
+    .startViewTransition(() => {
+      applyThemeStyles(theme);
+    })
+    .finished.catch(() => undefined);
 }

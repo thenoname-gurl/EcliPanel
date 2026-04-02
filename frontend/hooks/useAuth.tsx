@@ -30,7 +30,10 @@ interface User {
   emailVerified?: boolean
   studentVerified?: boolean
   passkeyCount?: number
+  twoFactorEnabled?: boolean
   avatarUrl?: string
+  supportBanned?: boolean
+  supportBanReason?: string | null
   euIdVerificationDisabled?: boolean
   settings?: Record<string, any>
   guideShown?: boolean

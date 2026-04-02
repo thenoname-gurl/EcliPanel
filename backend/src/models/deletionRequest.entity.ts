@@ -14,6 +14,15 @@ export class DeletionRequest {
   @Column('datetime')
   requestedAt: Date;
 
+  @Column({ nullable: true, type: 'datetime' })
+  approvedAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  scheduledDeletionAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  deletedAt?: Date;
+
   @Column({ nullable: true })
   approvedBy?: number;
 
