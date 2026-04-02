@@ -684,7 +684,7 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
   }
 
   if (loading) return <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>
-  
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card">
@@ -3104,7 +3104,7 @@ remote: ${panelUrl}`
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
+      <ScrollArea className="flex-1 overflow-x-auto max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
 
           {/* Stat cards */}
@@ -3239,7 +3239,14 @@ remote: ${panelUrl}`
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); loadTab(tab); }} className="w-full">
-            <TabsList className="flex flex-wrap gap-2 overflow-hidden sm:overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
+            <TabsList
+              className="flex flex-wrap gap-2 overflow-x-auto md:flex-nowrap w-full max-w-full px-2 border border-border bg-secondary/50"
+              style={{
+                ['--tab-minw' as any]: 'min(12rem, 100%)',
+                minWidth: '100%',
+                maxWidth: '100%'
+              }}
+            >
               {[
                 { value: "users", label: "Users" },
                 { value: "export-jobs", label: "Export Jobs" },
@@ -3267,6 +3274,7 @@ remote: ${panelUrl}`
                     key={t.value}
                     value={t.value}
                     className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap"
+                    style={{ minWidth: 'var(--tab-minw)' }}
                   >
                     {t.label}
                   </TabsTrigger>
