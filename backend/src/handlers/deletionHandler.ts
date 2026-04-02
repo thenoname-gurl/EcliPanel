@@ -12,7 +12,7 @@ export async function deletionRoutes(app: any, prefix = '') {
   app.post(prefix + '/deletion-requests', async (ctx: any) => {
     const user = ctx.user;
     const repo = AppDataSource.getRepository(DeletionRequest);
-    const existing = await repo.findOne({ where: { userId: user.id, status: 'pending' } });
+    const existing = await repo.findOne({ where: [{ userId: user.id, status: 'pending' }, { userId: user.id, status: 'pending_deletion' }] });
     if (existing) {
       ctx.set.status = 400;
       return { error: 'Request already pending' };
@@ -56,10 +56,14 @@ export async function deletionRoutes(app: any, prefix = '') {
       const targetUser = await userRepo.findOneBy({ id: rec.userId });
       if (targetUser) {
         targetUser.deletionRequested = true;
-        targetUser.deletionApproved = true;
+        targetUser.deletionApproved = false;
+        targetUser.pendingDeletionUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
         targetUser.suspended = true;
         await userRepo.save(targetUser);
       }
+      rec.status = 'pending_deletion';
+      rec.approvedAt = new Date();
+      rec.scheduledDeletionAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     }
 
     await repo.save(rec);

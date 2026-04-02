@@ -473,7 +473,7 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'No file' };
     }
 
-    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
     const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
     if (!allowed.includes(mime)) {
       ctx.set.status = 400;
@@ -483,15 +483,28 @@ export async function userRoutes(app: any, prefix = '') {
     const ab = await uploadFile.arrayBuffer();
     const buffer = Buffer.from(ab);
 
-    const out = await resizeImage(buffer, 256, 256).catch(async (err) => {
+    let isAnimated = false;
+    if (mime === 'image/gif' || mime === 'image/webp') {
       try {
-        return await sharp(buffer).rotate().resize(256, 256, { fit: 'cover' }).toBuffer();
-      } catch (e) {
-        throw err || e;
+        const meta = await sharp(buffer, { animated: true }).metadata();
+        isAnimated = Number(meta.pages || 1) > 1;
+      } catch {
+        isAnimated = false;
       }
-    });
+    }
+
+    const preserveOriginalAnimation = (mime === 'image/gif' || mime === 'image/webp') && isAnimated;
+    const out = preserveOriginalAnimation
+      ? buffer
+      : await resizeImage(buffer, 256, 256).catch(async (err) => {
+        try {
+          return await sharp(buffer).rotate().resize(256, 256, { fit: 'cover' }).toBuffer();
+        } catch (e) {
+          throw err || e;
+        }
+      });
     const originalName = uploadFile.name || uploadFile.filename || `avatar_user_${user.id}`;
-    const ext = path.extname(originalName) || (mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg');
+    const ext = path.extname(originalName) || (mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : '.jpg');
     const filename = `avatar_user_${user.id}` + ext;
 
     const uploadDir = path.join(process.cwd(), 'uploads');

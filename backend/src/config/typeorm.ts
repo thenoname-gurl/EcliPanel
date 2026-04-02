@@ -103,6 +103,8 @@ export const AppDataSource = new DataSource({
     require('../models/idVerification.entity').IDVerification,
     require('../models/legalDocument.entity').LegalDocument,
     require('../models/deletionRequest.entity').DeletionRequest,
+    require('../models/exportJob.entity').ExportJob,
+    require('../models/deletedUserRetention.entity').DeletedUserRetention,
     require('../models/role.entity').Role,
     require('../models/permission.entity').Permission,
     require('../models/userRole.entity').UserRole,

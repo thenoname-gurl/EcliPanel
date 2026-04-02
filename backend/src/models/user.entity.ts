@@ -174,6 +174,12 @@ export class User {
   deletionApproved: boolean;
 
   @Column({ nullable: true })
+  pendingDeletionUntil?: Date;
+
+  @Column({ nullable: true })
+  deletedAt?: Date;
+
+  @Column({ nullable: true })
   demoOriginalPortalType?: string;
 
   @Column({ nullable: true })

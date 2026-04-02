@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { 
-  AlertTriangle, 
-  Info, 
-  Mail, 
-  Lock, 
+import {
+  AlertTriangle,
+  Info,
+  Mail,
+  Lock,
   Loader2,
   Eye,
   EyeOff,
@@ -15,14 +15,13 @@ import {
   Fingerprint,
   KeyRound,
   Smartphone,
-  MailCheck
+  MailCheck,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { OtpMethodSelector, OtpMethod } from "@/components/panel/OtpMethodSelector"
 import { cn } from "@/lib/utils"
 
 function bufferToBase64url(buffer: ArrayBuffer): string {
@@ -40,6 +39,7 @@ function base64urlToBuffer(b64: string): ArrayBuffer {
   return bytes.buffer
 }
 
+/* ─── Reusable Input ─── */
 function InputField({
   icon: Icon,
   label,
@@ -65,17 +65,25 @@ function InputField({
   rightElement?: React.ReactNode
   autoComplete?: string
 }) {
+  const [focused, setFocused] = useState(false)
+
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label htmlFor={name} className="text-xs font-medium text-muted-foreground">
-          {label} {required && <span className="text-destructive">*</span>}
+        <label htmlFor={name} className="block text-[13px] font-medium text-foreground/80">
+          {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
       )}
-      <div className="relative">
+      <div className="relative group">
         {Icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <Icon className="h-4 w-4 text-muted-foreground" />
+          <div
+            className={cn(
+              "absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-150",
+              focused ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
           </div>
         )}
         <input
@@ -85,27 +93,29 @@ function InputField({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           required={required}
-          aria-required={required}
           autoComplete={autoComplete}
+          aria-required={required}
           className={cn(
-            "w-full rounded-lg border border-border bg-background py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all",
+            "w-full rounded-xl border bg-background py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all duration-150",
+            "border-border/60",
             "focus:border-primary focus:ring-2 focus:ring-primary/20",
-            "hover:border-muted-foreground/30",
-            Icon ? "pl-10 pr-3" : "px-3",
-            rightElement && "pr-10"
+            "hover:border-muted-foreground/40",
+            Icon ? "pl-10 pr-3" : "px-3.5",
+            rightElement && "pr-11"
           )}
         />
         {rightElement && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {rightElement}
-          </div>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightElement}</div>
         )}
       </div>
     </div>
   )
 }
 
+/* ─── Alert Banner ─── */
 function AlertBanner({
   variant = "info",
   title,
@@ -121,50 +131,50 @@ function AlertBanner({
 }) {
   const styles = {
     info: {
-      container: "border-blue-500/30 bg-blue-500/10",
+      container: "border-blue-500/20 bg-blue-500/5",
       icon: "text-blue-400",
       title: "text-blue-300",
-      text: "text-blue-200/80",
+      text: "text-blue-200/70",
       IconComponent: Info,
     },
     warning: {
-      container: "border-yellow-500/30 bg-yellow-500/10",
+      container: "border-yellow-500/20 bg-yellow-500/5",
       icon: "text-yellow-400",
       title: "text-yellow-300",
-      text: "text-yellow-200/80",
+      text: "text-yellow-200/70",
       IconComponent: AlertTriangle,
     },
     error: {
-      container: "border-destructive/30 bg-destructive/10",
+      container: "border-destructive/20 bg-destructive/5",
       icon: "text-destructive",
       title: "text-destructive",
-      text: "text-destructive/80",
+      text: "text-destructive/70",
       IconComponent: AlertTriangle,
     },
     success: {
-      container: "border-green-500/30 bg-green-500/10",
+      container: "border-green-500/20 bg-green-500/5",
       icon: "text-green-400",
       title: "text-green-300",
-      text: "text-green-200/80",
+      text: "text-green-200/70",
       IconComponent: CheckCircle2,
     },
   }
 
   const style = styles[variant]
-  const IconComponent = style.IconComponent
+  const IconComp = style.IconComponent
 
   return (
-    <div className={cn("rounded-xl border p-4", style.container)}>
+    <div className={cn("rounded-xl border p-3.5 sm:p-4 animate-in fade-in slide-in-from-top-2 duration-300", style.container)}>
       <div className="flex gap-3">
-        <IconComponent className={cn("h-5 w-5 shrink-0 mt-0.5", style.icon)} />
+        <IconComp className={cn("h-5 w-5 shrink-0 mt-0.5", style.icon)} />
         <div className="flex-1 min-w-0 space-y-1">
           {title && <p className={cn("text-sm font-semibold", style.title)}>{title}</p>}
-          <div className={cn("text-sm", style.text)}>{children}</div>
+          <div className={cn("text-sm leading-relaxed", style.text)}>{children}</div>
           {onDismiss && (
             <button
               onClick={onDismiss}
               className={cn(
-                "mt-2 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors",
+                "mt-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors",
                 "border-current/20 hover:bg-white/5"
               )}
             >
@@ -177,16 +187,21 @@ function AlertBanner({
   )
 }
 
-function SectionDivider({ label }: { label: string }) {
+/* ─── Section Divider ─── */
+function SectionDivider({ label, icon: Icon }: { label: string; icon?: any }) {
   return (
-    <div className="flex items-center gap-3 py-1">
-      <div className="h-px flex-1 bg-border" />
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-      <div className="h-px flex-1 bg-border" />
+    <div className="flex items-center gap-3 pt-2 pb-1">
+      <div className="h-px flex-1 bg-border/50" />
+      <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+        {Icon && <Icon className="h-3 w-3" />}
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-border/50" />
     </div>
   )
 }
 
+/* ─── Two Factor Method Button ─── */
 function TwoFactorMethodButton({
   icon: Icon,
   label,
@@ -205,10 +220,10 @@ function TwoFactorMethodButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-start gap-3 p-3 rounded-lg border transition-all text-left",
+        "w-full flex items-start gap-3 p-3.5 rounded-xl border transition-all text-left",
         selected
           ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-          : "border-border hover:border-muted-foreground/30 hover:bg-secondary/30"
+          : "border-border/60 hover:border-muted-foreground/40 hover:bg-secondary/30"
       )}
     >
       <div className={cn(
@@ -229,6 +244,8 @@ function TwoFactorMethodButton({
     </button>
   )
 }
+
+type OtpMethod = "totp" | "email" | "backup"
 
 export default function LoginPage() {
   const { login, refreshUser } = useAuth()
@@ -397,33 +414,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-background via-background to-secondary/20 overflow-auto">
-      {/* Background pattern */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
+    <div className="min-h-[100dvh] w-full bg-background overflow-auto">
+      {/* Side gradient glow — left */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
+      {/* Side gradient glow — right (subtle secondary) */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_right,_var(--tw-gradient-stops))] from-secondary/[0.08] via-transparent to-transparent pointer-events-none" />
 
-      <div className="relative flex min-h-screen w-full items-center justify-center p-4 sm:p-6 md:p-8">
-        <div className="w-full max-w-md">
+      <div className="relative flex min-h-[100dvh] w-full items-start sm:items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-[520px]">
           {/* Logo/Brand */}
-          <div className="mb-6 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-4">
-              <Shield className="h-6 w-6 text-primary" />
+          <div className="mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5 shadow-lg shadow-primary/5">
+              <Shield className="h-7 w-7 text-primary" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Welcome back</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              Welcome back
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
               Sign in to your Eclipse Panel account
             </p>
           </div>
 
           {/* Main Card */}
-          <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-sm shadow-xl overflow-hidden">
-            <div className="p-4 sm:p-6 md:p-8 space-y-5">
+          <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-2xl shadow-black/5 overflow-hidden">
+            <div className="p-4 sm:p-8 space-y-5">
               {/* Alerts */}
               <div className="space-y-3">
-                {/* Domain warning */}
                 {domainOk === false && !dismissedDomainWarning && (
                   <AlertBanner
                     variant="warning"
-                    title="Security check — confirm domain"
+                    title="Verify this domain"
                     onDismiss={() => {
                       try {
                         localStorage.setItem("domainWarningDismissed", "1")
@@ -433,19 +453,17 @@ export default function LoginPage() {
                   >
                     <p>
                       This panel should be served from{" "}
-                      <span className="font-medium">ecli.app</span>. If the address in your browser
-                      is different, an attacker could intercept your credentials — navigate to{" "}
+                      <span className="font-medium">ecli.app</span>. Navigate to{" "}
                       <a href="https://ecli.app" className="underline font-medium">
                         https://ecli.app
                       </a>{" "}
-                      instead.
+                      if your URL differs.
                     </p>
                   </AlertBanner>
                 )}
 
-                {/* Error */}
                 {error && (
-                  <AlertBanner variant="error" title="Authentication failed">
+                  <AlertBanner variant="error" title="Something went wrong">
                     {error}
                   </AlertBanner>
                 )}
@@ -533,9 +551,11 @@ export default function LoginPage() {
                                 onClick={sendEmailCode}
                                 disabled={sendingEmail}
                                 className={cn(
-                                  "h-[42px] px-4 rounded-lg border border-border text-sm font-medium transition-all",
-                                  "bg-secondary/50 text-foreground",
-                                  "hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                                  "h-[46px] px-4 rounded-xl border text-sm font-medium transition-all",
+                                  "border-border/60 bg-secondary/30 text-foreground",
+                                  "hover:bg-secondary/60 hover:border-muted-foreground/40",
+                                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                                  "focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 )}
                               >
                                 {sendingEmail ? (
@@ -549,16 +569,17 @@ export default function LoginPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex gap-3 pt-2">
                         <button
                           type="button"
                           onClick={verify2fa}
                           disabled={loading}
                           className={cn(
-                            "flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-semibold transition-all",
+                            "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                             "bg-primary text-primary-foreground",
                             "hover:bg-primary/90 active:scale-[0.98]",
-                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
                           )}
                         >
                           {loading ? (
@@ -577,8 +598,10 @@ export default function LoginPage() {
                           type="button"
                           onClick={cancelTwoFactor}
                           className={cn(
-                            "px-4 py-2.5 rounded-xl border border-border text-sm font-medium transition-all",
-                            "hover:bg-secondary"
+                            "px-5 py-3 rounded-xl border text-sm font-medium transition-all",
+                            "border-border/60 bg-secondary/30 text-foreground",
+                            "hover:bg-secondary/60 active:scale-[0.98]",
+                            "focus:outline-none focus:ring-2 focus:ring-primary/20"
                           )}
                         >
                           Cancel
@@ -589,7 +612,9 @@ export default function LoginPage() {
                 </div>
               ) : (
                 /* Login Form */
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <SectionDivider label="Credentials" icon={Lock} />
+
                   <InputField
                     icon={Mail}
                     name="email"
@@ -616,7 +641,8 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -640,10 +666,11 @@ export default function LoginPage() {
                     type="submit"
                     disabled={loading || passkeyLoading}
                     className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-sm font-semibold transition-all",
+                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                       "bg-primary text-primary-foreground",
                       "hover:bg-primary/90 active:scale-[0.98]",
-                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+                      "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
                     )}
                   >
                     {loading ? (
@@ -666,10 +693,11 @@ export default function LoginPage() {
                     onClick={handlePasskey}
                     disabled={loading || passkeyLoading}
                     className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-sm font-medium transition-all",
-                      "border border-border bg-secondary/30",
-                      "hover:bg-secondary active:scale-[0.98]",
-                      "disabled:opacity-50 disabled:cursor-not-allowed"
+                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-medium transition-all",
+                      "border border-border/60 bg-secondary/30",
+                      "hover:bg-secondary/60 hover:border-muted-foreground/40 active:scale-[0.98]",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      "focus:outline-none focus:ring-2 focus:ring-primary/20"
                     )}
                   >
                     {passkeyLoading ? (
@@ -686,32 +714,35 @@ export default function LoginPage() {
                   </button>
 
                   {/* Terms */}
-                  <p className="text-xs text-muted-foreground text-center leading-relaxed pt-2">
-                    By signing in, you agree to our{" "}
-                    <a
-                      href="https://ecli.app/documents/Terms%20of%20Service.pdf"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline font-medium"
-                    >
-                      Terms of Service
-                    </a>{" "}
-                    and{" "}
-                    <a
-                      href="https://ecli.app/documents/Privacy%20Policy.pdf"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline font-medium"
-                    >
-                      Privacy Policy
-                    </a>
-                  </p>
+                  <div className="rounded-xl bg-secondary/10 border border-border/40 p-4">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      By signing in, you agree to our{" "}
+                      <a
+                        href="https://ecli.app/documents/Terms%20of%20Service.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Terms of Service
+                      </a>{" "}
+                      and{" "}
+                      <a
+                        href="https://ecli.app/documents/Privacy%20Policy.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Privacy Policy
+                      </a>
+                      .
+                    </p>
+                  </div>
                 </form>
               )}
             </div>
 
             {/* Footer */}
-            <div className="border-t border-border bg-secondary/30 px-4 sm:px-6 md:px-8 py-4">
+            <div className="border-t border-border/40 bg-secondary/10 px-4 sm:px-8 py-4">
               <p className="text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{" "}
                 <Link
@@ -725,7 +756,7 @@ export default function LoginPage() {
           </div>
 
           {/* Bottom text */}
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
             Protected by industry-standard encryption
           </p>
         </div>

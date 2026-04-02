@@ -26,7 +26,7 @@ const COLORS = {
 };
 
 function drawRoundedRect(
-  doc: PDFKit.PDFDocument,
+  doc: any,
   x: number, y: number, w: number, h: number,
   r: number, fill?: string, stroke?: string, strokeWidth = 0.5,
 ) {
@@ -41,7 +41,7 @@ function drawRoundedRect(
 }
 
 function drawDottedLine(
-  doc: PDFKit.PDFDocument,
+  doc: any,
   x1: number, y: number, x2: number, color: string,
 ) {
   doc.save();
@@ -59,7 +59,7 @@ function generateBinaryStrip(length: number): string {
   return s;
 }
 
-function drawMarginDecorations(doc: PDFKit.PDFDocument, pageW: number, pageH: number, margin: number) {
+function drawMarginDecorations(doc: any, pageW: number, pageH: number, margin: number) {
   doc.save();
   doc.font('Helvetica').fontSize(5).fillColor(COLORS.marginDecor);
 

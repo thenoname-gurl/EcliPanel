@@ -61,7 +61,14 @@ function buildMessages(ticket: any) {
       id: `msg-${idx}`,
       sender:
         m.sender === "staff"
-          ? "Support Team"
+          ? (m.ai
+              ? "EcliAI"
+              : (
+                (typeof m.staffDisplayName === "string" && m.staffDisplayName.trim()) ||
+                (typeof m.staffName === "string" && m.staffName.trim()) ||
+                (typeof m.staffLegalName === "string" && m.staffLegalName.trim()) ||
+                "Support Team"
+              ))
           : m.sender === "system"
             ? "Information"
             : userName,
@@ -75,11 +82,11 @@ function buildMessages(ticket: any) {
       content: m.message,
       timestamp: m.created || m.createdAt || ticket.created,
       avatar:
-        m.avatarUrl ||
-        m.userAvatar ||
-        ticket.user?.avatarUrl ||
-        ticket.userAvatar ||
-        undefined,
+        m.sender === "staff"
+          ? (m.staffAvatar || m.avatarUrl || undefined)
+          : m.sender === "user"
+            ? (m.userAvatar || m.avatarUrl || ticket.user?.avatarUrl || ticket.userAvatar || undefined)
+            : undefined,
     }))
   }
 

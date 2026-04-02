@@ -3,6 +3,7 @@
 import React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { PanelHeader } from "@/components/panel/header"
 import { StatCard, SectionHeader, StatusBadge } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -102,6 +103,101 @@ import {
   SelectLabel,
 } from "@/components/ui/select"
 
+const UsersTab = dynamic(() => import("./tabs/UsersTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading users tab...</div>,
+})
+
+const OrganisationsTab = dynamic(() => import("./tabs/OrganisationsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading organisations tab...</div>,
+})
+
+const ServersTab = dynamic(() => import("./tabs/ServersTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading servers tab...</div>,
+})
+
+const TicketsTab = dynamic(() => import("./tabs/TicketsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading tickets tab...</div>,
+})
+
+const VerificationsTab = dynamic(() => import("./tabs/VerificationsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading verifications tab...</div>,
+})
+
+const DeletionsTab = dynamic(() => import("./tabs/DeletionsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading deletions tab...</div>,
+})
+
+const NodesTab = dynamic(() => import("./tabs/NodesTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading nodes tab...</div>,
+})
+
+const EggsTab = dynamic(() => import("./tabs/EggsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading eggs tab...</div>,
+})
+
+const AiTab = dynamic(() => import("./tabs/AiTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading AI tab...</div>,
+})
+
+const AnnouncementsTab = dynamic(() => import("./tabs/AnnouncementsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading announcements tab...</div>,
+})
+
+const FraudTab = dynamic(() => import("./tabs/FraudTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading fraud tab...</div>,
+})
+
+const RolesTab = dynamic(() => import("./tabs/RolesTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading roles tab...</div>,
+})
+
+const LogsTab = dynamic(() => import("./tabs/LogsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading logs tab...</div>,
+})
+
+const OauthTab = dynamic(() => import("./tabs/OauthTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading OAuth tab...</div>,
+})
+
+const PlansTab = dynamic(() => import("./tabs/PlansTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading plans tab...</div>,
+})
+
+const OrdersTab = dynamic(() => import("./tabs/OrdersTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading orders tab...</div>,
+})
+
+const SettingsTab = dynamic(() => import("./tabs/SettingsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading settings tab...</div>,
+})
+
+const DatabasesTab = dynamic(() => import("./tabs/DatabasesTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading databases tab...</div>,
+})
+
+const ExportJobsTab = dynamic(() => import("./tabs/ExportJobsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading export jobs tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: #e0e0e0; margin: 0; padding: 0; }
     .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: #12111f; border-radius: 12px; border: 1px solid #2a2545; }
@@ -135,14 +231,21 @@ function EmailPreview({ title, message, details }: { title: string; message: str
 
 function formatDurationMs(ms: number | null | undefined) {
   if (ms == null || !Number.isFinite(ms)) return "N/A";
-  if (ms < 1000) return `${ms}ms`;
   const seconds = ms / 1000;
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const minutes = seconds / 60;
-  if (minutes < 60) return `${minutes.toFixed(1)}m`;
-  const hours = minutes / 60;
-  if (hours < 24) return `${hours.toFixed(1)}h`;
-  return `${(hours / 24).toFixed(1)}d`;
+  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 2 : 1)}s`;
+  const totalMinutes = Math.floor(seconds / 60);
+  if (totalMinutes < 60) {
+    const remSeconds = Math.floor(seconds % 60);
+    return remSeconds > 0 ? `${totalMinutes}m ${remSeconds}s` : `${totalMinutes}m`;
+  }
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours < 24) {
+    const remMinutes = totalMinutes % 60;
+    return remMinutes > 0 ? `${totalHours}h ${remMinutes}m` : `${totalHours}h`;
+  }
+  const days = Math.floor(totalHours / 24);
+  const remHours = totalHours % 24;
+  return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -730,6 +833,18 @@ export default function AdminPanel() {
   const [verificationFilter, setVerificationFilter] = useState<string>("")
   const [deletionFilter, setDeletionFilter] = useState<string>("")
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
+  const [exportJobs, setExportJobs] = useState<Record<string, any>>({})
+  const [exportJobsMeta, setExportJobsMeta] = useState<any>(null)
+  const [userExportJobId, setUserExportJobId] = useState<Record<number, string>>({})
+  const [exportJobsLoading, setExportJobsLoading] = useState(false)
+  const [exportShareLoading, setExportShareLoading] = useState<Record<string, boolean>>({})
+  const [exportShareLinks, setExportShareLinks] = useState<Record<string, string>>({})
+
+  const exportJobRows = Object.values(exportJobs).sort((a: any, b: any) => {
+    const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0
+    const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0
+    return tb - ta
+  })
 
   // ── Dialogs ──
   const [replyTicket, setReplyTicket] = useState<AdminTicket | null>(null)
@@ -1323,6 +1438,8 @@ export default function AdminPanel() {
         } else if (tab === "oauth") {
           const data = await apiFetch("/api/oauth/apps")
           setOauthApps(Array.isArray(data) ? data : [])
+        } else if (tab === "export-jobs") {
+          await fetchExportJobs(150, "")
         } else if (tab === "settings") {
           const data = await apiFetch(API_ENDPOINTS.adminSettings)
           if (data) {
@@ -1371,6 +1488,86 @@ export default function AdminPanel() {
     },
     [loadedTabs]
   )
+
+  async function fetchExportJobs(limit = 150, status = "") {
+    setExportJobsLoading(true)
+    try {
+      const qs = new URLSearchParams()
+      qs.set("limit", String(limit))
+      if (status) qs.set("status", status)
+      const res: any = await apiFetch(`${API_ENDPOINTS.adminExportJobs}?${qs.toString()}`)
+      const jobs = Array.isArray(res?.jobs) ? res.jobs : []
+      setExportJobsMeta(res?.meta || null)
+      setExportJobs(() => {
+        const next: Record<string, any> = {}
+        for (const job of jobs) {
+          if (!job?.id) continue
+          next[String(job.id)] = job
+        }
+        return next
+      })
+      setUserExportJobId((prev) => {
+        const next = { ...prev }
+        for (const job of jobs) {
+          if (job?.userId != null && job?.id) {
+            next[Number(job.userId)] = String(job.id)
+          }
+        }
+        return next
+      })
+    } catch {
+      setExportJobsMeta(null)
+      setExportJobs({})
+    } finally {
+      setExportJobsLoading(false)
+    }
+  }
+
+  async function startExportJob(targetUser: any) {
+    if (!targetUser?.id) return
+    try {
+      const res: any = await apiFetch(API_ENDPOINTS.adminUserExportJob.replace(":id", String(targetUser.id)), {
+        method: "POST",
+      })
+      const jobId = String(res?.jobId || "")
+      if (!jobId) return
+      setUserExportJobId((prev) => ({ ...prev, [Number(targetUser.id)]: jobId }))
+      setExportJobs((prev) => ({
+        ...prev,
+        [jobId]: {
+          id: jobId,
+          userId: targetUser.id,
+          status: "queued",
+          progress: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }))
+      void fetchExportJobs(150, "")
+    } catch (e: any) {
+      alert(e?.message || "Failed to start export job")
+    }
+  }
+
+  async function createExportShareLink(jobId: string) {
+    if (!jobId) return
+    setExportShareLoading((prev) => ({ ...prev, [jobId]: true }))
+    try {
+      const res: any = await apiFetch(API_ENDPOINTS.adminExportJobShareLink.replace(":id", String(jobId)), {
+        method: "POST",
+        body: JSON.stringify({ expiresHours: 24 }),
+      })
+      const link = res?.shareLink || res?.url || res?.link || ""
+      if (link) {
+        setExportShareLinks((prev) => ({ ...prev, [jobId]: String(link) }))
+      }
+      void fetchExportJobs(150, "")
+    } catch (e: any) {
+      alert(e?.message || "Failed to create share link")
+    } finally {
+      setExportShareLoading((prev) => ({ ...prev, [jobId]: false }))
+    }
+  }
 
   // ── Fetch orders with pagination/search ──
   async function fetchOrders(page = 1, q = "") {
@@ -3042,9 +3239,10 @@ remote: ${panelUrl}`
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); loadTab(tab); }} className="w-full">
-            <TabsList className="flex gap-2 overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
+            <TabsList className="flex flex-wrap gap-2 overflow-hidden sm:overflow-x-auto scrollbar-none px-2 border border-border bg-secondary/50">
               {[
                 { value: "users", label: "Users" },
+                { value: "export-jobs", label: "Export Jobs" },
                 { value: "organisations", label: "Organisations" },
                 { value: "servers", label: "Servers" },
                 { value: "tickets", label: "Tickets", feature: "ticketing" },
@@ -3077,1084 +3275,191 @@ remote: ${panelUrl}`
 
             {/* ═══════════════ USERS ══════════════════════════════════════════ */}
             <TabsContent value="users" className="mt-4">
-              <div className="flex flex-col gap-4">
+              {activeTab === "users" ? (
+                <UsersTab
+                  ctx={{
+                    userSearch,
+                    setUserSearch,
+                    fetchUsers,
+                    setUserSearchFocused,
+                    userSearchFocused,
+                    filteredUsers,
+                    openViewUser,
+                    redactName,
+                    redact,
+                    usersTotal,
+                    forceRefreshTab,
+                    users,
+                    openEditUser,
+                    toggleSuspend,
+                    resetDemo,
+                    startExportJob,
+                    userExportJobId,
+                    exportJobs,
+                    deassignStudent,
+                    requireStudentReverify,
+                    deleteUser,
+                    usersPage,
+                    USERS_PER,
+                  }}
+                />
+              ) : null}
+            </TabsContent>
 
-                {/* Search & Controls Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
-                    {/* Search */}
-                    <div className="relative flex-1 max-w-md">
-                      <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <input
-                          type="text"
-                          placeholder="Search by name or email…"
-                          value={userSearch}
-                          onChange={(e) => {
-                            const q = e.target.value
-                            setUserSearch(q)
-                            fetchUsers(1, q)
-                          }}
-                          onKeyDown={(e) => e.key === "Enter" && fetchUsers(1, userSearch)}
-                          onFocus={() => setUserSearchFocused(true)}
-                          onBlur={() => setTimeout(() => setUserSearchFocused(false), 150)}
-                          className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-                        />
-                        {userSearch && (
-                          <button
-                            onClick={() => { setUserSearch(""); fetchUsers(1, ""); }}
-                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Search dropdown */}
-                      {userSearchFocused && userSearch.trim().length > 0 && filteredUsers.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
-                          {filteredUsers.slice(0, 5).map((u) => (
-                            <button
-                              key={u.id}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => { openViewUser(u); setUserSearch(""); setUserSearchFocused(false); }}
-                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors border-b border-border/40 last:border-0"
-                            >
-                              {u.avatarUrl ? (
-                                <img src={u.avatarUrl} alt={`${u.firstName || "User"} avatar`} className="h-8 w-8 rounded-full object-cover shrink-0" />
-                              ) : (
-                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                                  {u.firstName?.[0]?.toUpperCase() || "?"}
-                                </div>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName)}</p>
-                                <p className="text-xs text-muted-foreground truncate">{redact(u.email)}</p>
-                              </div>
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            </button>
-                          ))}
-                          {filteredUsers.length > 5 && (
-                            <p className="px-3 py-2 text-xs text-muted-foreground text-center bg-secondary/30">
-                              +{filteredUsers.length - 5} more results
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right controls */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground hidden sm:inline">
-                        {usersTotal ? `${usersTotal} user${usersTotal !== 1 ? "s" : ""}` : ""}
-                      </span>
-                      <button
-                        onClick={() => forceRefreshTab("users")}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Refresh"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="rounded-xl border border-border bg-card hidden lg:block">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border text-xs text-muted-foreground">
-                          <th className="px-4 py-3 text-left font-medium">User</th>
-                          <th className="px-4 py-3 text-left font-medium">Role</th>
-                          <th className="px-4 py-3 text-left font-medium">Tier</th>
-                          <th className="px-4 py-3 text-left font-medium">Verification</th>
-                          <th className="px-4 py-3 text-left font-medium">Status</th>
-                          <th className="px-4 py-3 text-right font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredUsers.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-12 text-center">
-                              <div className="flex flex-col items-center gap-2">
-                                <Users className="h-8 w-8 text-muted-foreground/50" />
-                                <p className="text-sm text-muted-foreground">
-                                  {users.length === 0 ? "Loading users…" : "No users match your search"}
-                                </p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredUsers.map((user) => (
-                            <tr key={user.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                  {user.avatarUrl ? (
-                                    <img src={user.avatarUrl} alt={`${user.firstName || "User"} avatar`} className="h-8 w-8 rounded-full object-cover shrink-0" />
-                                  ) : (
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                                      {user.firstName?.[0]?.toUpperCase() || "?"}
-                                    </div>
-                                  )}
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{redactName(user.firstName, user.lastName)}</p>
-                                    <p className="text-xs text-muted-foreground truncate">{redact(user.email)}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline" className={
-                                  user.role === "*" || user.role === "rootAdmin"
-                                    ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                    : user.role === "admin"
-                                      ? "border-warning/30 bg-warning/10 text-warning"
-                                      : "border-border bg-secondary/50 text-muted-foreground"
-                                }>
-                                  {user.role || "user"}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline" className={
-                                  user.portalType === "enterprise"
-                                    ? "border-warning/30 bg-warning/10 text-warning"
-                                    : user.portalType === "paid" || user.portalType === "pro" || user.portalType === "educational"
-                                      ? "border-primary/30 bg-primary/10 text-primary"
-                                      : "border-border bg-secondary/50 text-muted-foreground"
-                                }>
-                                  {user.portalType}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {[
-                                    { label: "Email", verified: user.emailVerified },
-                                    { label: "Student", verified: user.studentVerified },
-                                    { label: "ID", verified: user.idVerified },
-                                  ].map((v) => (
-                                    <span
-                                      key={v.label}
-                                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${v.verified
-                                        ? "bg-emerald-500/10 text-emerald-400"
-                                        : "bg-secondary/50 text-muted-foreground"
-                                        }`}
-                                    >
-                                      {v.verified ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                                      {v.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-col gap-1">
-                                  {user.suspended ? (
-                                    <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Suspended</Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Active</Badge>
-                                  )}
-                                  {user.supportBanned && (
-                                    <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive text-[10px]">Support Banned</Badge>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => openViewUser(user)} title="View profile"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button onClick={() => openEditUser(user)} title="Edit user"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                    <UserCog className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button onClick={() => toggleSuspend(user)} title={user.suspended ? "Unsuspend" : "Suspend"}
-                                    className={`rounded-md p-1.5 transition-colors ${user.suspended
-                                      ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400"
-                                      : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}>
-                                    {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                                  </button>
-                                  {user.demoUsed && (
-                                    <button onClick={() => resetDemo(user)} title="Reset demo"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                      <RefreshCw className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
-                                  {(user.studentVerified || user.portalType === "educational") && (
-                                    <>
-                                      <button onClick={() => deassignStudent(user)} title="Deassign student"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                        <UserMinus className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => requireStudentReverify(user)} title="Require re-verify"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                                        <RotateCcw className="h-3.5 w-3.5" />
-                                      </button>
-                                    </>
-                                  )}
-                                  <button onClick={() => deleteUser(user)} title="Delete account"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="flex flex-col gap-3 lg:hidden">
-                  {filteredUsers.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-card px-4 py-12">
-                      <div className="flex flex-col items-center gap-2">
-                        <Users className="h-8 w-8 text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground">
-                          {users.length === 0 ? "Loading users…" : "No users match your search"}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    filteredUsers.map((user) => (
-                      <div key={user.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                        {/* Card Header */}
-                        <div className="flex items-start gap-3 p-4 pb-3">
-                          {user.avatarUrl ? (
-                            <img src={user.avatarUrl} alt={`${user.firstName || "User"} avatar`} className="h-10 w-10 rounded-full object-cover shrink-0" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                              {user.firstName?.[0]?.toUpperCase() || "?"}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{redactName(user.firstName, user.lastName)}</p>
-                                <p className="text-xs text-muted-foreground truncate">{redact(user.email)}</p>
-                              </div>
-                              {user.suspended ? (
-                                <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive shrink-0 text-[10px]">Suspended</Badge>
-                              ) : (
-                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shrink-0 text-[10px]">Active</Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card Details */}
-                        <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
-                          <div className="bg-card px-4 py-2.5">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Role</p>
-                            <Badge variant="outline" className={`text-[10px] ${user.role === "*" || user.role === "rootAdmin"
-                              ? "border-destructive/30 bg-destructive/10 text-destructive"
-                              : user.role === "admin"
-                                ? "border-warning/30 bg-warning/10 text-warning"
-                                : "border-border bg-secondary/50 text-muted-foreground"
-                              }`}>
-                              {user.role || "user"}
-                            </Badge>
-                          </div>
-                          <div className="bg-card px-4 py-2.5">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Tier</p>
-                            <Badge variant="outline" className={`text-[10px] ${user.portalType === "enterprise"
-                              ? "border-warning/30 bg-warning/10 text-warning"
-                              : user.portalType === "paid" || user.portalType === "pro" || user.portalType === "educational"
-                                ? "border-primary/30 bg-primary/10 text-primary"
-                                : "border-border bg-secondary/50 text-muted-foreground"
-                              }`}>
-                              {user.portalType}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        {/* Verification Row */}
-                        <div className="flex items-center gap-2 px-4 py-2.5 border-t border-border bg-secondary/20">
-                          {[
-                            { label: "Email", verified: user.emailVerified },
-                            { label: "Student", verified: user.studentVerified },
-                            { label: "ID", verified: user.idVerified },
-                          ].map((v) => (
-                            <span
-                              key={v.label}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${v.verified
-                                ? "bg-emerald-500/10 text-emerald-400"
-                                : "bg-secondary/80 text-muted-foreground"
-                                }`}
-                            >
-                              {v.verified ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                              {v.label}
-                            </span>
-                          ))}
-                          {user.supportBanned && (
-                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-destructive/10 text-destructive">
-                              <Ban className="h-2.5 w-2.5" />
-                              Banned
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Card Actions */}
-                        <div className="flex items-center border-t border-border divide-x divide-border">
-                          <button
-                            onClick={() => openViewUser(user)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>View</span>
-                          </button>
-                          <button
-                            onClick={() => openEditUser(user)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                          >
-                            <UserCog className="h-3.5 w-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => toggleSuspend(user)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs transition-colors ${user.suspended
-                              ? "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10"
-                              : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                              }`}
-                          >
-                            {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                            <span>{user.suspended ? "Unsuspend" : "Suspend"}</span>
-                          </button>
-
-                          {/* More actions dropdown for mobile */}
-                          <div className="relative group/more">
-                            <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </button>
-                            <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
-                              {user.demoUsed && (
-                                <button
-                                  onClick={() => resetDemo(user)}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                                >
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                  Reset demo
-                                </button>
-                              )}
-                              {(user.studentVerified || user.portalType === "educational") && (
-                                <>
-                                  <button
-                                    onClick={() => deassignStudent(user)}
-                                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                  >
-                                    <UserMinus className="h-3.5 w-3.5" />
-                                    Deassign student
-                                  </button>
-                                  <button
-                                    onClick={() => requireStudentReverify(user)}
-                                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
-                                  >
-                                    <RotateCcw className="h-3.5 w-3.5" />
-                                    Require re-verify
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                onClick={() => deleteUser(user)}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors border-t border-border"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Delete account
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Pagination */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
-                    <p className="text-xs text-muted-foreground">
-                      Page <span className="font-medium text-foreground">{usersPage}</span>
-                      {usersTotal ? (
-                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(usersTotal / USERS_PER))}</span></>
-                      ) : null}
-                      {usersTotal ? (
-                        <span className="hidden sm:inline"> · {usersTotal} total</span>
-                      ) : null}
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => { if (usersPage > 1) fetchUsers(usersPage - 1, userSearch); }}
-                        disabled={usersPage <= 1}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
-                        <span className="hidden sm:inline ml-1">Previous</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (!usersTotal || usersPage < Math.ceil((usersTotal || 0) / USERS_PER))
-                            fetchUsers(usersPage + 1, userSearch);
-                        }}
-                        disabled={usersTotal ? usersPage >= Math.ceil(usersTotal / USERS_PER) : users.length < USERS_PER}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <span className="hidden sm:inline mr-1">Next</span>
-                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* ═══════════════ EXPORT JOBS ═══════════════════════════════════ */}
+            <TabsContent value="export-jobs" className="mt-4">
+              {activeTab === "export-jobs" ? (
+                <ExportJobsTab
+                  ctx={{
+                    exportJobsMeta,
+                    fetchExportJobs,
+                    exportJobsLoading,
+                    exportJobRows,
+                    createExportShareLink,
+                    exportShareLoading,
+                    exportShareLinks,
+                  }}
+                />
+              ) : null}
             </TabsContent>
 
             {/* ═══════════════ ORGANISATIONS ══════════════════════════════════ */}
             <TabsContent value="organisations" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Search & Controls Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
-                    {/* Search */}
-                    <div className="relative flex-1 max-w-md">
-                      <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <input
-                          type="text"
-                          placeholder="Search organisations…"
-                          value={orgSearch}
-                          onChange={(e) => setOrgSearch(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && fetchOrganisations(1, orgSearch)}
-                          className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-                        />
-                        {orgSearch && (
-                          <button
-                            onClick={() => { setOrgSearch(""); fetchOrganisations(1, ""); }}
-                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right controls */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground hidden sm:inline">
-                        {organisationsTotal ? `${organisationsTotal} org${organisationsTotal !== 1 ? "s" : ""}` : ""}
-                      </span>
-                      <button
-                        onClick={() => setRedactOrganisations(!redactOrganisations)}
-                        title={redactOrganisations ? "Show full details" : "Redact details"}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                      >
-                        {redactOrganisations ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                      <button
-                        onClick={() => forceRefreshTab("organisations")}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Refresh"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop Table */}
-                <div className="rounded-xl border border-border bg-card hidden lg:block">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border text-xs text-muted-foreground">
-                          <th className="px-4 py-3 text-left font-medium">Organisation</th>
-                          <th className="px-4 py-3 text-left font-medium">Handle</th>
-                          <th className="px-4 py-3 text-left font-medium">Owner</th>
-                          <th className="px-4 py-3 text-left font-medium">Tier</th>
-                          <th className="px-4 py-3 text-left font-medium">Members</th>
-                          <th className="px-4 py-3 text-right font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredOrgs.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-12 text-center">
-                              <div className="flex flex-col items-center gap-2">
-                                <Building2 className="h-8 w-8 text-muted-foreground/50" />
-                                <p className="text-sm text-muted-foreground">
-                                  {organisations.length === 0 ? "Loading organisations…" : "No organisations match your search"}
-                                </p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredOrgs.map((org) => (
-                            <tr key={org.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                  {org.avatarUrl ? (
-                                    <img src={org.avatarUrl} alt={`${org.name} logo`} className="h-8 w-8 rounded-lg object-cover shrink-0" />
-                                  ) : (
-                                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                                      {org.name?.[0]?.toUpperCase() || "?"}
-                                    </div>
-                                  )}
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{redactOrg(org.name)}</p>
-                                    <p className="font-mono text-[11px] text-muted-foreground truncate">#{redactOrg(org.id)}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                                  @{redactOrg(org.handle)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                {org.owner ? (
-                                  <div className="min-w-0">
-                                    <p className="text-sm text-foreground truncate">{redactOrgName(org.owner.firstName, org.owner.lastName)}</p>
-                                    <p className="text-xs text-muted-foreground truncate">{redactOrg(org.owner.email)}</p>
-                                  </div>
-                                ) : (
-                                  <span className="font-mono text-xs text-muted-foreground">{redactOrg(org.ownerId)}</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline" className={
-                                  org.portalTier === "enterprise"
-                                    ? "border-warning/30 bg-warning/10 text-warning"
-                                    : org.portalTier === "pro"
-                                      ? "border-primary/30 bg-primary/10 text-primary"
-                                      : "border-border bg-secondary/50 text-muted-foreground"
-                                }>
-                                  {org.portalTier}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span className="text-sm font-medium text-foreground">{org.memberCount}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => openEditOrg(org)} title="Edit organisation"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                    <Edit className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button onClick={() => deleteOrg(org)} title="Delete organisation"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="flex flex-col gap-3 lg:hidden">
-                  {filteredOrgs.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-card px-4 py-12">
-                      <div className="flex flex-col items-center gap-2">
-                        <Building2 className="h-8 w-8 text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground">
-                          {organisations.length === 0 ? "Loading organisations…" : "No organisations match your search"}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    filteredOrgs.map((org) => (
-                      <div key={org.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                        {/* Card Header */}
-                        <div className="flex items-start gap-3 p-4 pb-3">
-                          {org.avatarUrl ? (
-                            <img src={org.avatarUrl} alt={`${org.name} logo`} className="h-10 w-10 rounded-lg object-cover shrink-0" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                              {org.name?.[0]?.toUpperCase() || "?"}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{redactOrg(org.name)}</p>
-                                <span className="inline-flex items-center rounded-md bg-secondary/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground mt-0.5">
-                                  @{redactOrg(org.handle)}
-                                </span>
-                              </div>
-                              <Badge variant="outline" className={`shrink-0 text-[10px] ${org.portalTier === "enterprise"
-                                ? "border-warning/30 bg-warning/10 text-warning"
-                                : org.portalTier === "pro"
-                                  ? "border-primary/30 bg-primary/10 text-primary"
-                                  : "border-border bg-secondary/50 text-muted-foreground"
-                                }`}>
-                                {org.portalTier}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card Details Grid */}
-                        <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
-                          <div className="bg-card px-4 py-2.5">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Owner</p>
-                            {org.owner ? (
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium text-foreground truncate">{redactOrgName(org.owner.firstName, org.owner.lastName)}</p>
-                                <p className="text-[11px] text-muted-foreground truncate">{redactOrg(org.owner.email)}</p>
-                              </div>
-                            ) : (
-                              <p className="font-mono text-[11px] text-muted-foreground truncate">{redactOrg(org.ownerId)}</p>
-                            )}
-                          </div>
-                          <div className="bg-card px-4 py-2.5">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Members</p>
-                            <div className="flex items-center gap-1.5">
-                              <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-sm font-semibold text-foreground">{org.memberCount}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ID row */}
-                        <div className="flex items-center gap-2 px-4 py-2 border-t border-border bg-secondary/20">
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">ID</span>
-                          <span className="font-mono text-[11px] text-muted-foreground truncate">#{redactOrg(org.id)}</span>
-                        </div>
-
-                        {/* Card Actions */}
-                        <div className="flex items-center border-t border-border divide-x divide-border">
-                          <button
-                            onClick={() => openEditOrg(org)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => deleteOrg(org)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Pagination */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
-                    <p className="text-xs text-muted-foreground">
-                      Page <span className="font-medium text-foreground">{organisationsPage}</span>
-                      {organisationsTotal ? (
-                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(organisationsTotal / ORGS_PER))}</span></>
-                      ) : null}
-                      {organisationsTotal ? (
-                        <span className="hidden sm:inline"> · {organisationsTotal} total</span>
-                      ) : null}
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => { if (organisationsPage > 1) fetchOrganisations(organisationsPage - 1, orgSearch); }}
-                        disabled={organisationsPage <= 1}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
-                        <span className="hidden sm:inline ml-1">Previous</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (!organisationsTotal || organisationsPage < Math.ceil((organisationsTotal || 0) / ORGS_PER))
-                            fetchOrganisations(organisationsPage + 1, orgSearch);
-                        }}
-                        disabled={organisationsTotal ? organisationsPage >= Math.ceil(organisationsTotal / ORGS_PER) : organisations.length < ORGS_PER}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <span className="hidden sm:inline mr-1">Next</span>
-                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {activeTab === "organisations" ? (
+                <OrganisationsTab
+                  ctx={{
+                    orgSearch,
+                    setOrgSearch,
+                    fetchOrganisations,
+                    organisationsTotal,
+                    setRedactOrganisations,
+                    redactOrganisations,
+                    forceRefreshTab,
+                    filteredOrgs,
+                    organisations,
+                    redactOrg,
+                    redactOrgName,
+                    openEditOrg,
+                    deleteOrg,
+                    organisationsPage,
+                    ORGS_PER,
+                    editOrgDialog,
+                    setEditOrgDialog,
+                    editOrgName,
+                    setEditOrgName,
+                    editOrgHandle,
+                    setEditOrgHandle,
+                    editOrgTier,
+                    setEditOrgTier,
+                    TIERS,
+                    editOrgOwnerId,
+                    setEditOrgOwnerId,
+                    editOrgIsStaff,
+                    setEditOrgIsStaff,
+                    editOrgAddMemberId,
+                    setEditOrgAddMemberId,
+                    editOrgAddMemberRole,
+                    setEditOrgAddMemberRole,
+                    editOrgMemberLoading,
+                    setEditOrgMemberLoading,
+                    saveEditOrg,
+                    editOrgLoading,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ SERVERS ════════════════════════════════════════ */}
             <TabsContent value="servers" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Search & Controls Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col gap-3 p-4">
-                    {/* Top row: Search + icon controls */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="relative flex-1 max-w-md">
-                        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <input
-                            type="text"
-                            placeholder="Search servers…"
-                            value={serverSearch}
-                            onChange={(e) => setServerSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && fetchServers(1, serverSearch)}
-                            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-                          />
-                          {serverSearch && (
-                            <button
-                              onClick={() => { setServerSearch(""); fetchServers(1, ""); }}
-                              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs text-muted-foreground hidden md:inline">
-                          {serversTotal ? `${serversTotal} server${serversTotal !== 1 ? "s" : ""}` : ""}
-                        </span>
-                        <button
-                          onClick={() => setRedactServers(!redactServers)}
-                          title={redactServers ? "Show full details" : "Redact details"}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        >
-                          {redactServers ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => forceRefreshTab("servers")}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                          title="Refresh"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {/* Bottom row: action buttons */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={syncFromWings}
-                        disabled={syncingFromWings}
-                        className="h-8 gap-1.5 border-border text-muted-foreground"
-                      >
-                        {syncingFromWings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        <span className="hidden sm:inline">Sync from Wings</span>
-                        <span className="sm:hidden">Sync</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => { loadTab("nodes"); loadTab("eggs"); openCreateServer(); }}
-                        className="bg-primary text-primary-foreground h-8 gap-1.5"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Create Server</span>
-                        <span className="sm:hidden">Create</span>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop Table */}
-                <div className="rounded-xl border border-border bg-card hidden lg:block">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border text-xs text-muted-foreground">
-                          <th className="px-4 py-3 text-left font-medium">Server</th>
-                          <th className="px-4 py-3 text-left font-medium">UUID</th>
-                          <th className="px-4 py-3 text-left font-medium">Node</th>
-                          <th className="px-4 py-3 text-left font-medium">Status</th>
-                          <th className="px-4 py-3 text-right font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredServers.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-4 py-12 text-center">
-                              <div className="flex flex-col items-center gap-2">
-                                <Server className="h-8 w-8 text-muted-foreground/50" />
-                                <p className="text-sm text-muted-foreground">
-                                  {servers.length === 0 ? "Loading servers…" : "No servers match your search"}
-                                </p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredServers.map((srv, i) => {
-                            const statusConfig: Record<string, { class: string; dot: string }> = {
-                              running: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
-                              starting: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
-                              suspended: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
-                              stopping: { class: "border-orange-500/30 bg-orange-500/10 text-orange-400", dot: "bg-orange-400" },
-                            }
-                            const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "border-border bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" }
-
-                            return (
-                              <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="relative h-8 w-8 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
-                                      <Server className="h-3.5 w-3.5 text-muted-foreground" />
-                                      <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium text-foreground truncate">
-                                        {srv.name ? redactText(srv.name, privateMode ? redactServers : false) : "Unnamed Server"}
-                                      </p>
-                                      {srv.description && (
-                                        <p className={`text-xs text-muted-foreground truncate max-w-xs ${privateMode && redactServers ? "blur-sm" : ""}`}>
-                                          {srv.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <button
-                                    onClick={() => navigator.clipboard?.writeText(srv.uuid || "")}
-                                    title="Click to copy full UUID"
-                                    className="inline-flex items-center gap-1 rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
-                                  >
-                                    {(srv.uuid || "").substring(0, 8)}…
-                                    <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  </button>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground">
-                                    {srv.nodeName || "Unknown"}
-                                  </Badge>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <Badge variant="outline" className={sc.class}>
-                                    <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
-                                    {srv.status || "unknown"}
-                                  </Badge>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                    {/* Power controls */}
-                                    <div className="flex items-center gap-0.5 border-r border-border pr-1 mr-1">
-                                      <button onClick={() => serverPower(srv.uuid, "start")} title="Start"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                                        <Play className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => serverPower(srv.uuid, "restart")} title="Restart"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                                        <RotateCcw className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => serverPower(srv.uuid, "stop")} title="Stop"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
-                                        <Square className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                    {/* Management controls */}
-                                    {srv.status === "suspended" ? (
-                                      <button onClick={() => unsuspendServer(srv.uuid)} title="Unsuspend"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                                        <CheckCircle className="h-3.5 w-3.5" />
-                                      </button>
-                                    ) : (
-                                      <button onClick={() => suspendServer(srv.uuid)} title="Suspend"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                                        <Shield className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
-                                    <button onClick={() => openEditServer(srv)} title="Edit server"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                                      <Edit className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button onClick={() => deleteServer(srv.uuid)} title="Delete server"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="flex flex-col gap-3 lg:hidden">
-                  {filteredServers.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-card px-4 py-12">
-                      <div className="flex flex-col items-center gap-2">
-                        <Server className="h-8 w-8 text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground">
-                          {servers.length === 0 ? "Loading servers…" : "No servers match your search"}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    filteredServers.map((srv, i) => {
-                      const statusConfig: Record<string, { class: string; dot: string; bg: string }> = {
-                        running: { class: "text-emerald-400", dot: "bg-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
-                        starting: { class: "text-warning", dot: "bg-warning", bg: "bg-warning/10 border-warning/30" },
-                        suspended: { class: "text-destructive", dot: "bg-destructive", bg: "bg-destructive/10 border-destructive/30" },
-                        stopping: { class: "text-orange-400", dot: "bg-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
-                      }
-                      const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "text-muted-foreground", dot: "bg-muted-foreground", bg: "bg-secondary/50 border-border" }
-
-                      return (
-                        <div key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="rounded-xl border border-border bg-card overflow-hidden">
-                          {/* Card Header */}
-                          <div className="flex items-start gap-3 p-4 pb-3">
-                            <div className="relative h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
-                              <Server className="h-4 w-4 text-muted-foreground" />
-                              <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-foreground truncate">
-                                    {srv.name ? redactText(srv.name, privateMode ? redactServers : false) : "Unnamed Server"}
-                                  </p>
-                                  {srv.description && (
-                                    <p className={`text-xs text-muted-foreground truncate mt-0.5 ${privateMode && redactServers ? "blur-sm" : ""}`}>
-                                      {srv.description}
-                                    </p>
-                                  )}
-                                </div>
-                                <Badge variant="outline" className={`shrink-0 text-[10px] ${sc.bg} ${sc.class}`}>
-                                  <span className={`mr-1 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
-                                  {srv.status || "unknown"}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Card Details */}
-                          <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
-                            <div className="bg-card px-4 py-2.5">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Node</p>
-                              <Badge variant="outline" className="text-[10px] border-border bg-secondary/50 text-muted-foreground">
-                                {srv.nodeName || "Unknown"}
-                              </Badge>
-                            </div>
-                            <div className="bg-card px-4 py-2.5">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">UUID</p>
-                              <button
-                                onClick={() => navigator.clipboard?.writeText(srv.uuid || "")}
-                                className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                {(srv.uuid || "").substring(0, 8)}…
-                                <Copy className="h-2.5 w-2.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Power Controls */}
-                          <div className="flex items-center justify-center gap-1 px-4 py-2.5 border-t border-border bg-secondary/20">
-                            <button onClick={() => serverPower(srv.uuid, "start")} title="Start"
-                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                              <Play className="h-3.5 w-3.5" />
-                              <span>Start</span>
-                            </button>
-                            <button onClick={() => serverPower(srv.uuid, "restart")} title="Restart"
-                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                              <RotateCcw className="h-3.5 w-3.5" />
-                              <span>Restart</span>
-                            </button>
-                            <button onClick={() => serverPower(srv.uuid, "stop")} title="Stop"
-                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
-                              <Square className="h-3.5 w-3.5" />
-                              <span>Stop</span>
-                            </button>
-                          </div>
-
-                          {/* Management Actions */}
-                          <div className="flex items-center border-t border-border divide-x divide-border">
-                            {srv.status === "suspended" ? (
-                              <button onClick={() => unsuspendServer(srv.uuid)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
-                                <CheckCircle className="h-3.5 w-3.5" />
-                                <span>Unsuspend</span>
-                              </button>
-                            ) : (
-                              <button onClick={() => suspendServer(srv.uuid)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors">
-                                <Shield className="h-3.5 w-3.5" />
-                                <span>Suspend</span>
-                              </button>
-                            )}
-                            <button onClick={() => openEditServer(srv)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-                              <Edit className="h-3.5 w-3.5" />
-                              <span>Edit</span>
-                            </button>
-                            <button onClick={() => deleteServer(srv.uuid)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                              <Trash2 className="h-3.5 w-3.5" />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                {/* Pagination */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
-                    <p className="text-xs text-muted-foreground">
-                      Page <span className="font-medium text-foreground">{serversPage}</span>
-                      {serversTotal ? (
-                        <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(serversTotal / SERVERS_PER))}</span></>
-                      ) : null}
-                      {serversTotal ? (
-                        <span className="hidden sm:inline"> · {serversTotal} total</span>
-                      ) : null}
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => { if (serversPage > 1) fetchServers(serversPage - 1, serverSearch); }}
-                        disabled={serversPage <= 1}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
-                        <span className="hidden sm:inline ml-1">Previous</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (!serversTotal || serversPage < Math.ceil((serversTotal || 0) / SERVERS_PER))
-                            fetchServers(serversPage + 1, serverSearch);
-                        }}
-                        disabled={serversTotal ? serversPage >= Math.ceil(serversTotal / SERVERS_PER) : servers.length < SERVERS_PER}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <span className="hidden sm:inline mr-1">Next</span>
-                        <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {activeTab === "servers" ? (
+                <ServersTab
+                  ctx={{
+                    serverSearch,
+                    setServerSearch,
+                    fetchServers,
+                    serversTotal,
+                    setRedactServers,
+                    redactServers,
+                    forceRefreshTab,
+                    syncFromWings,
+                    syncingFromWings,
+                    loadTab,
+                    openCreateServer,
+                    filteredServers,
+                    servers,
+                    redactText,
+                    privateMode,
+                    serverPower,
+                    unsuspendServer,
+                    suspendServer,
+                    openEditServer,
+                    deleteServer,
+                    serversPage,
+                    SERVERS_PER,
+                    editServerDialog,
+                    setEditServerDialog,
+                    esName,
+                    setEsName,
+                    esDesc,
+                    setEsDesc,
+                    esUserId,
+                    setEsUserId,
+                    esMemory,
+                    setEsMemory,
+                    esDisk,
+                    setEsDisk,
+                    esCpu,
+                    setEsCpu,
+                    esSwap,
+                    setEsSwap,
+                    esDockerImage,
+                    setEsDockerImage,
+                    esStartup,
+                    setEsStartup,
+                    esEggId,
+                    setEsEggId,
+                    eggs,
+                    esAllocations,
+                    setEsAllocations,
+                    esEditFqdnIdx,
+                    setEsEditFqdnIdx,
+                    esEditFqdnVal,
+                    setEsEditFqdnVal,
+                    esAllocIp,
+                    setEsAllocIp,
+                    esAllocPort,
+                    setEsAllocPort,
+                    esAllocFqdn,
+                    setEsAllocFqdn,
+                    esError,
+                    reinstallServerFromDialog,
+                    esReinstalling,
+                    saveEditServer,
+                    esLoading,
+                    createServerOpen,
+                    setCreateServerOpen,
+                    csName,
+                    setCsName,
+                    csNodeId,
+                    setCsNodeId,
+                    nodes,
+                    csEggId,
+                    setCsEggId,
+                    csUserId,
+                    setCsUserId,
+                    csMemory,
+                    setCsMemory,
+                    csDisk,
+                    setCsDisk,
+                    csCpu,
+                    setCsCpu,
+                    csKvmPassthroughEnabled,
+                    setCsKvmPassthroughEnabled,
+                    csError,
+                    submitCreateServer,
+                    csLoading,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ TICKETS ════════════════════════════════════════ */}
             <TabsContent value="tickets" className="mt-4">
@@ -5415,3746 +4720,385 @@ remote: ${panelUrl}`
             </TabsContent>
             {/* ═══════════════ NODES ══════════════════════════════════════════ */}
             <TabsContent value="nodes" className="mt-4">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{nodes.length} node{nodes.length !== 1 ? "s" : ""} registered</span>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => forceRefreshTab("nodes")} className="border-border h-8 gap-1">
-                      <RefreshCw className="h-3 w-3" /> Refresh
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={syncToWings} disabled={syncingToWings} className="border-border h-8 gap-1">
-                      {syncingToWings ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Sync to Wings
-                    </Button>
-                    <Button size="sm" onClick={openAddNode} className="bg-primary text-primary-foreground h-8 gap-1">
-                      <Plus className="h-3 w-3" /> Add Node
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {nodes.length === 0 ? (
-                    <div className="col-span-2 rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
-                      <HardDrive className="h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm font-medium text-foreground">No nodes registered</p>
-                      <p className="text-xs text-muted-foreground">Add a Wings node to start hosting servers.</p>
-                      <Button size="sm" onClick={openAddNode} className="bg-primary text-primary-foreground gap-1 mt-1">
-                        <Plus className="h-3 w-3" /> Add Node
-                      </Button>
-                    </div>
-                  ) : (
-                    nodes.map((node) => {
-                      const typeColors: Record<string, string> = {
-                        free: "border-green-500/30 bg-green-500/10 text-green-400",
-                        paid: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-                        free_and_paid: "border-purple-500/30 bg-purple-500/10 text-purple-400",
-                        enterprise: "border-orange-500/30 bg-orange-500/10 text-orange-400",
-                      }
-                      const typeLabel: Record<string, string> = {
-                        free: "Free", paid: "Paid", free_and_paid: "Free + Paid", enterprise: "Enterprise",
-                      }
-                      return (
-                        <div key={node.id} className="rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h3 className="font-medium text-foreground">{node.name}</h3>
-                              <p className="mt-0.5 font-mono text-xs text-muted-foreground">{redact(node.url)}</p>
-                              {node.organisation && (
-                                <p className="mt-1 text-xs text-muted-foreground">Org: {redact(node.organisation.name)}</p>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-end gap-2 shrink-0">
-                              <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs">
-                                #{node.id}
-                              </Badge>
-                              <Badge variant="outline" className={`text-xs ${typeColors[node.nodeType] || typeColors.free}`}>
-                                {typeLabel[node.nodeType] || node.nodeType}
-                              </Badge>
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="outline" onClick={() => openEditNode(node)}
-                                  className="border-border h-7 px-2 text-xs gap-1">
-                                  <Edit className="h-3 w-3" /> Classify
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => viewNodeConfig(node)}
-                                  className="border-border h-7 px-2 text-xs gap-1" title="View Wings config.yml">
-                                  <FileCode className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => deleteNode(node)}
-                                  className="border-destructive/50 text-destructive h-7 px-2 text-xs">
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                          {/* ── Heartbeat sparkline ── */}
-                          <div className="mt-3 pt-3 border-t border-border/50">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Response time · last 120 pings</span>
-                              <button
-                                className="text-[11px] text-primary/70 hover:text-primary transition-colors"
-                                onClick={() => openHeartbeatHistory(node)}
-                              >
-                                Full history →
-                              </button>
-                            </div>
-                            <NodeSparkline data={nodeHeartbeats[node.id] || []} />
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
+              {activeTab === "nodes" ? (
+                <NodesTab
+                  ctx={{
+                    nodes,
+                    forceRefreshTab,
+                    syncToWings,
+                    syncingToWings,
+                    openAddNode,
+                    redact,
+                    openEditNode,
+                    viewNodeConfig,
+                    deleteNode,
+                    openHeartbeatHistory,
+                    NodeSparkline,
+                    nodeHeartbeats,
+                    addNodeOpen,
+                    setAddNodeOpen,
+                    addNodeStep,
+                    addNodeName,
+                    setAddNodeName,
+                    addNodeType,
+                    setAddNodeType,
+                    addNodeFqdn,
+                    setAddNodeFqdn,
+                    addNodePort,
+                    setAddNodePort,
+                    addNodeSftpPort,
+                    setAddNodeSftpPort,
+                    addNodeSsl,
+                    setAddNodeSsl,
+                    addNodeDataPath,
+                    setAddNodeDataPath,
+                    addNodeToken,
+                    setAddNodeToken,
+                    generateAddNodeToken,
+                    addNodeTokenLoading,
+                    addNodeCreated,
+                    buildWingsConfig,
+                    submitAddNode,
+                    addNodeLoading,
+                    editNodeDialog,
+                    setEditNodeDialog,
+                    editNodeType,
+                    setEditNodeType,
+                    editNodePortStart,
+                    setEditNodePortStart,
+                    editNodePortEnd,
+                    setEditNodePortEnd,
+                    editNodeDefaultIp,
+                    setEditNodeDefaultIp,
+                    saveEditNode,
+                    editNodeLoading,
+                    heartbeatDialogNode,
+                    setHeartbeatDialogNode,
+                    setHeartbeatDialogData,
+                    heartbeatDialogWindow,
+                    setHeartbeatDialogWindow,
+                    heartbeatDialogLoading,
+                    heartbeatDialogData,
+                    viewConfigNode,
+                    setViewConfigNode,
+                    setViewConfigToken,
+                    viewConfigLoading,
+                    viewConfigToken,
+                    buildNodeConfigYaml,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ EGGS ═══════════════════════════════════════════ */}
             <TabsContent value="eggs" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col gap-3 p-4">
-                    {/* Top row */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Package className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">Server Templates</p>
-                          <p className="text-xs text-muted-foreground">
-                            {eggs.length} egg{eggs.length !== 1 ? "s" : ""} configured
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => forceRefreshTab("eggs")}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Refresh"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                    </div>
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setImportEggError("");
-                          setImportEggPreview(null);
-                          setImportEggJson("");
-                          setImportEggUrl("");
-                          setImportEggOpen(true);
-                        }}
-                        className="h-8 gap-1.5 border-border text-muted-foreground"
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Import Egg</span>
-                        <span className="sm:hidden">Import</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={openNewEgg}
-                        className="bg-primary text-primary-foreground h-8 gap-1.5"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">New Egg</span>
-                        <span className="sm:hidden">New</span>
-                      </Button>
-                      <div className="flex-1" />
-                      {eggs.length > 0 && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={deleteAllEggs}
-                          className="h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Delete All</span>
-                          <span className="sm:hidden">Clear</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Empty State */}
-                {eggs.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Package className="h-6 w-6 text-primary/60" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">No eggs configured</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Create a new egg or import one to get started.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setImportEggError("");
-                          setImportEggPreview(null);
-                          setImportEggJson("");
-                          setImportEggUrl("");
-                          setImportEggOpen(true);
-                        }}
-                        className="gap-1.5"
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        Import
-                      </Button>
-                      <Button size="sm" onClick={openNewEgg} className="bg-primary text-primary-foreground gap-1.5">
-                        <Plus className="h-3.5 w-3.5" /> New Egg
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Desktop Table */}
-                    <div className="rounded-xl border border-border bg-card hidden md:block">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground">
-                              <th className="px-4 py-3 text-left font-medium">Egg</th>
-                              <th className="px-4 py-3 text-left font-medium">Docker Image</th>
-                              <th className="px-4 py-3 text-left font-medium">Visibility</th>
-                              <th className="px-4 py-3 text-right font-medium">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {eggs.map((egg, i) => (
-                              <tr key={egg.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
-                                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium text-foreground truncate">{egg.name}</p>
-                                      {egg.description && (
-                                        <p className="text-xs text-muted-foreground truncate max-w-xs">{egg.description}</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground max-w-[200px] truncate">
-                                    {egg.dockerImage}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <button
-                                    onClick={() => toggleEggVisible(egg)}
-                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${egg.visible
-                                      ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                                      : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
-                                      }`}
-                                  >
-                                    {egg.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                                    {egg.visible ? "Visible" : "Hidden"}
-                                  </button>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                      onClick={() => openEditEgg(egg)}
-                                      title="Edit egg"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                                    >
-                                      <Edit className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => forceSyncEgg(egg)}
-                                      disabled={syncingEggIds.includes(egg.id)}
-                                      title="Sync to Wings"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40"
-                                    >
-                                      {syncingEggIds.includes(egg.id)
-                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        : <RefreshCw className="h-3.5 w-3.5" />
-                                      }
-                                    </button>
-                                    <button
-                                      onClick={() => deleteEgg(egg)}
-                                      title="Delete egg"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Mobile Card View */}
-                    <div className="flex flex-col gap-3 md:hidden">
-                      {eggs.map((egg, i) => (
-                        <div key={egg.id ?? i} className="rounded-xl border border-border bg-card overflow-hidden">
-                          {/* Card Header */}
-                          <div className="flex items-start gap-3 p-4 pb-3">
-                            <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
-                              <Package className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-foreground truncate">{egg.name}</p>
-                                  {egg.description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{egg.description}</p>
-                                  )}
-                                </div>
-                                <button
-                                  onClick={() => toggleEggVisible(egg)}
-                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors shrink-0 ${egg.visible
-                                    ? "bg-emerald-500/10 text-emerald-400"
-                                    : "bg-secondary/50 text-muted-foreground"
-                                    }`}
-                                >
-                                  {egg.visible ? <Eye className="h-2.5 w-2.5" /> : <EyeOff className="h-2.5 w-2.5" />}
-                                  {egg.visible ? "Visible" : "Hidden"}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Docker Image */}
-                          <div className="px-4 pb-3">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Docker Image</p>
-                            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2">
-                              <Box className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <span className="font-mono text-xs text-muted-foreground truncate">{egg.dockerImage}</span>
-                              <button
-                                onClick={() => navigator.clipboard?.writeText(egg.dockerImage || "")}
-                                className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors ml-auto"
-                                title="Copy image name"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Card Actions */}
-                          <div className="flex items-center border-t border-border divide-x divide-border">
-                            <button
-                              onClick={() => openEditEgg(egg)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                              <span>Edit</span>
-                            </button>
-                            <button
-                              onClick={() => forceSyncEgg(egg)}
-                              disabled={syncingEggIds.includes(egg.id)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
-                            >
-                              {syncingEggIds.includes(egg.id)
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <RefreshCw className="h-3.5 w-3.5" />
-                              }
-                              <span>Sync</span>
-                            </button>
-                            <button
-                              onClick={() => deleteEgg(egg)}
-                              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              {activeTab === "eggs" ? (
+                <EggsTab
+                  ctx={{
+                    eggs,
+                    forceRefreshTab,
+                    setImportEggError,
+                    setImportEggPreview,
+                    importEggOpen,
+                    importEggPreview,
+                    importEggMode,
+                    setImportEggMode,
+                    importEggJson,
+                    importEggUrl,
+                    importEggError,
+                    importEggLoading,
+                    setImportEggJson,
+                    setImportEggUrl,
+                    setImportEggOpen,
+                    doImportEgg,
+                    eggDialog,
+                    setEggDialog,
+                    eggTab,
+                    setEggTab,
+                    eggName,
+                    setEggName,
+                    eggAuthor,
+                    setEggAuthor,
+                    eggDesc,
+                    setEggDesc,
+                    eggImage,
+                    setEggImage,
+                    eggDockerImagesRaw,
+                    setEggDockerImagesRaw,
+                    eggStartup,
+                    setEggStartup,
+                    eggFeatures,
+                    setEggFeatures,
+                    eggUpdateUrl,
+                    setEggUpdateUrl,
+                    eggFileDenylist,
+                    setEggFileDenylist,
+                    eggVisible,
+                    setEggVisible,
+                    eggRootless,
+                    setEggRootless,
+                    eggRequiresKvm,
+                    setEggRequiresKvm,
+                    eggEnvVars,
+                    setEggEnvVars,
+                    eggProcessStop,
+                    setEggProcessStop,
+                    eggProcessDone,
+                    setEggProcessDone,
+                    eggInstallContainer,
+                    setEggInstallContainer,
+                    eggInstallEntrypoint,
+                    setEggInstallEntrypoint,
+                    eggInstallScript,
+                    setEggInstallScript,
+                    eggAllowedPortals,
+                    setEggAllowedPortals,
+                    portalMarkerByTier,
+                    saveEgg,
+                    eggLoading,
+                    openNewEgg,
+                    deleteAllEggs,
+                    toggleEggVisible,
+                    openEditEgg,
+                    forceSyncEgg,
+                    syncingEggIds,
+                    deleteEgg,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ AI MODELS ══════════════════════════════════════ */}
             <TabsContent value="ai" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col gap-3 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                          <Brain className="h-4 w-4 text-violet-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">AI Models</p>
-                          <p className="text-xs text-muted-foreground">
-                            {aiModels.length} model{aiModels.length !== 1 ? "s" : ""} configured
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          size="sm"
-                          onClick={openNewAIModel}
-                          className="bg-primary text-primary-foreground h-8 gap-1.5"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">New Model</span>
-                          <span className="sm:hidden">New</span>
-                        </Button>
-                        <button
-                          onClick={() => loadTab("ai")}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                          title="Refresh"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Empty State */}
-                {aiModels.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                      <Brain className="h-6 w-6 text-violet-400/60" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">No AI models configured</p>
-                      <p className="text-xs text-muted-foreground mt-1">Add a model to enable AI features across your panel.</p>
-                    </div>
-                    <Button size="sm" onClick={openNewAIModel} className="bg-primary text-primary-foreground gap-1.5 mt-1">
-                      <Plus className="h-3.5 w-3.5" /> New Model
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {/* Desktop Table */}
-                    <div className="rounded-xl border border-border bg-card hidden lg:block">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground">
-                              <th className="px-4 py-3 text-left font-medium">Model</th>
-                              <th className="px-4 py-3 text-left font-medium">Type</th>
-                              <th className="px-4 py-3 text-left font-medium">Status</th>
-                              <th className="px-4 py-3 text-left font-medium">Tags</th>
-                              <th className="px-4 py-3 text-left font-medium">Endpoints</th>
-                              <th className="px-4 py-3 text-right font-medium">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {aiModels.map((m, i) => {
-                              const statusConfig: Record<string, { class: string; dot: string }> = {
-                                active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
-                                beta: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
-                                disabled: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
-                              }
-                              const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
-
-                              const typeConfig: Record<string, { class: string; icon: any }> = {
-                                text: { class: "border-blue-500/30 bg-blue-500/10 text-blue-400", icon: MessageSquare },
-                                image: { class: "border-purple-500/30 bg-purple-500/10 text-purple-400", icon: Image },
-                                code: { class: "border-amber-500/30 bg-amber-500/10 text-amber-400", icon: FileCode },
-                              }
-                              const tc = typeConfig[m.config?.type || "text"] || typeConfig.text
-                              const TypeIcon = tc.icon
-
-                              const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
-
-                              return (
-                                <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center gap-3">
-                                      <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                                        <Brain className="h-3.5 w-3.5 text-violet-400" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
-                                        {m.config?.description && (
-                                          <p className="text-xs text-muted-foreground truncate max-w-xs">{m.config.description}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <Badge variant="outline" className={`text-xs capitalize ${tc.class}`}>
-                                      <TypeIcon className="h-2.5 w-2.5 mr-1" />
-                                      {m.config?.type || "text"}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <Badge variant="outline" className={`text-xs ${sc.class}`}>
-                                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
-                                      {m.config?.status || "active"}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-wrap gap-1">
-                                      {Array.isArray(m.tags) && m.tags.length > 0 ? (
-                                        m.tags.map((tag: string) => (
-                                          <span key={tag} className="inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                            {tag}
-                                          </span>
-                                        ))
-                                      ) : (
-                                        <span className="text-xs text-muted-foreground italic">none</span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center gap-1.5">
-                                      <div className={`h-2 w-2 rounded-full shrink-0 ${endpointCount > 0 ? "bg-emerald-400" : "bg-muted-foreground"}`} />
-                                      <span className="text-xs text-muted-foreground">
-                                        {endpointCount > 0 ? `${endpointCount} configured` : "not set"}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                      <button onClick={() => openAssignAiModel(m)} title="Assign to users"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                                        <UserPlus className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => openEditAIModel(m)} title="Edit model"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                        <Edit className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => deleteAIModel(m)} title="Delete model"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Tablet Table (simplified) */}
-                    <div className="rounded-xl border border-border bg-card hidden md:block lg:hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground">
-                              <th className="px-3 py-3 text-left font-medium">Model</th>
-                              <th className="px-3 py-3 text-left font-medium">Status</th>
-                              <th className="px-3 py-3 text-right font-medium">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {aiModels.map((m, i) => {
-                              const statusConfig: Record<string, { class: string; dot: string }> = {
-                                active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
-                                beta: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
-                                disabled: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
-                              }
-                              const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
-                              const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
-
-                              return (
-                                <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
-                                  <td className="px-3 py-3">
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                                        <Brain className="h-3.5 w-3.5 text-violet-400" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                          <span className="capitalize">{m.config?.type || "text"}</span>
-                                          {" · "}
-                                          {endpointCount > 0 ? `${endpointCount} endpoint${endpointCount !== 1 ? "s" : ""}` : "no endpoints"}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-3">
-                                    <Badge variant="outline" className={`text-[10px] ${sc.class}`}>
-                                      <span className={`mr-1 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
-                                      {m.config?.status || "active"}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-3 py-3">
-                                    <div className="flex items-center justify-end gap-0.5">
-                                      <button onClick={() => openAssignAiModel(m)} title="Assign"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                                        <UserPlus className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => openEditAIModel(m)} title="Edit"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                                        <Edit className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => deleteAIModel(m)} title="Delete"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Mobile Card View */}
-                    <div className="flex flex-col gap-3 md:hidden">
-                      {aiModels.map((m, i) => {
-                        const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
-                          active: { class: "text-emerald-400", dot: "bg-emerald-400", label: "Active" },
-                          beta: { class: "text-warning", dot: "bg-warning", label: "Beta" },
-                          disabled: { class: "text-destructive", dot: "bg-destructive", label: "Disabled" },
-                        }
-                        const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
-                        const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
-
-                        return (
-                          <div key={m.id ?? i} className="rounded-xl border border-border bg-card overflow-hidden">
-                            {/* Card Header */}
-                            <div className="flex items-start gap-3 p-4 pb-3">
-                              <div className="relative h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                                <Brain className="h-4 w-4 text-violet-400" />
-                                <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-foreground truncate">{m.name}</p>
-                                    {m.config?.description && (
-                                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{m.config.description}</p>
-                                    )}
-                                  </div>
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
-                                    {sc.label}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
-                              <div className="bg-card px-3 py-2.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Type</p>
-                                <p className="text-xs font-medium text-foreground capitalize">{m.config?.type || "text"}</p>
-                              </div>
-                              <div className="bg-card px-3 py-2.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Endpoints</p>
-                                <div className="flex items-center gap-1">
-                                  <span className={`h-1.5 w-1.5 rounded-full ${endpointCount > 0 ? "bg-emerald-400" : "bg-muted-foreground"}`} />
-                                  <span className="text-xs font-medium text-foreground">{endpointCount || "—"}</span>
-                                </div>
-                              </div>
-                              <div className="bg-card px-3 py-2.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Tags</p>
-                                <p className="text-xs text-foreground truncate">
-                                  {Array.isArray(m.tags) && m.tags.length > 0 ? m.tags.join(", ") : "—"}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Tags (if many) */}
-                            {Array.isArray(m.tags) && m.tags.length > 2 && (
-                              <div className="flex items-center gap-1.5 px-4 py-2 border-t border-border bg-secondary/20 overflow-x-auto no-scrollbar">
-                                {m.tags.map((tag: string) => (
-                                  <span key={tag} className="inline-flex items-center rounded-full bg-secondary/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap shrink-0">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Card Actions */}
-                            <div className="flex items-center border-t border-border divide-x divide-border">
-                              <button
-                                onClick={() => openAssignAiModel(m)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                              >
-                                <UserPlus className="h-3.5 w-3.5" />
-                                <span>Assign</span>
-                              </button>
-                              <button
-                                onClick={() => openEditAIModel(m)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                onClick={() => deleteAIModel(m)}
-                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {/* Cooldowns Card */}
-                <div className="rounded-xl border border-border bg-card overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                        <Timer className="h-4 w-4 text-orange-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Rate Limit Cooldowns</p>
-                        <p className="text-xs text-muted-foreground">AI endpoint throttling events in the last 24h</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => loadTab("ai")}
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                      title="Refresh"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {aiModelCooldowns.length === 0 ? (
-                    <div className="flex items-center gap-3 px-4 py-6 justify-center">
-                      <CheckCircle className="h-4 w-4 text-emerald-400" />
-                      <p className="text-sm text-muted-foreground">No rate-limit cooldowns in the last 24 hours</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Desktop cooldown list */}
-                      <div className="hidden sm:block max-h-64 overflow-y-auto divide-y divide-border">
-                        {aiModelCooldowns.map((c, i) => {
-                          const waitSec = Math.round((c.waitMs || 0) / 1000)
-                          const isLong = waitSec >= 30
-
-                          return (
-                            <div key={i} className="flex items-center gap-4 px-4 py-3 hover:bg-secondary/20 transition-colors">
-                              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isLong ? "bg-destructive/10" : "bg-orange-500/10"
-                                }`}>
-                                <Timer className={`h-3.5 w-3.5 ${isLong ? "text-destructive" : "text-orange-400"}`} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-foreground truncate">
-                                    {c.modelName || c.modelId || "unknown"}
-                                  </p>
-                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium ${isLong
-                                    ? "bg-destructive/10 text-destructive"
-                                    : "bg-orange-500/10 text-orange-400"
-                                    }`}>
-                                    {waitSec}s wait
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                                  <span className="truncate font-mono">{c.endpoint}</span>
-                                  <span>·</span>
-                                  <span className="whitespace-nowrap">{new Date(c.timestamp).toLocaleString()}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      {/* Mobile cooldown cards */}
-                      <div className="sm:hidden max-h-80 overflow-y-auto divide-y divide-border">
-                        {aiModelCooldowns.map((c, i) => {
-                          const waitSec = Math.round((c.waitMs || 0) / 1000)
-                          const isLong = waitSec >= 30
-
-                          return (
-                            <div key={i} className="px-4 py-3">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <p className="text-sm font-medium text-foreground truncate">
-                                  {c.modelName || c.modelId || "unknown"}
-                                </p>
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium shrink-0 ${isLong
-                                  ? "bg-destructive/10 text-destructive"
-                                  : "bg-orange-500/10 text-orange-400"
-                                  }`}>
-                                  {waitSec}s
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground font-mono truncate">{c.endpoint}</p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {new Date(c.timestamp).toLocaleString()}
-                              </p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              {activeTab === "ai" ? (
+                <AiTab
+                  ctx={{
+                    aiModels,
+                    openNewAIModel,
+                    loadTab,
+                    openAssignAiModel,
+                    openEditAIModel,
+                    deleteAIModel,
+                    aiModelCooldowns,
+                    assignAiModel,
+                    setAssignAiModel,
+                    assignAiUserId,
+                    setAssignAiUserId,
+                    users,
+                    assignAiLimitTokens,
+                    setAssignAiLimitTokens,
+                    assignAiLimitRequests,
+                    setAssignAiLimitRequests,
+                    submitAssignAiModel,
+                    assignAiLoading,
+                    aiModelDialog,
+                    setAiModelDialog,
+                    aiModelName,
+                    setAiModelName,
+                    aiModelType,
+                    setAiModelType,
+                    aiModelStatus,
+                    setAiModelStatus,
+                    aiModelMaxTokens,
+                    setAiModelMaxTokens,
+                    aiModelDescription,
+                    setAiModelDescription,
+                    aiModelTags,
+                    setAiModelTags,
+                    aiModelEndpoint,
+                    setAiModelEndpoint,
+                    aiModelApiKey,
+                    setAiModelApiKey,
+                    aiModelExtraEndpoints,
+                    setAiModelExtraEndpoints,
+                    saveAIModel,
+                    aiModelLoading,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ ANNOUNCEMENTS / PRODUCT UPDATES ═══════════════ */}
             <TabsContent value="announcements" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                        <Megaphone className="h-4 w-4 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Announcements</p>
-                        <p className="text-xs text-muted-foreground">
-                          Send product updates and platform announcements
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => setAnnPreview((p) => !p)}
-                        className={`rounded-lg p-2 transition-colors ${annPreview
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          }`}
-                        title={annPreview ? "Hide preview" : "Show preview"}
-                      >
-                        {annPreview ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                      </button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          if (!annSubject.trim() || !annMessage.trim()) return alert("Subject and message are required for test send");
-                          setAnnSending(true);
-                          try {
-                            const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
-                              method: "POST",
-                              body: JSON.stringify({ subject: annSubject, message: annMessage, test: true }),
-                            });
-                            if (res && res.success) alert(`Test sent — ${res.recipients} recipient(s)`);
-                            else alert("Test send failed");
-                          } catch (e: any) {
-                            alert("Test send failed: " + (e.message || e));
-                          } finally {
-                            setAnnSending(false);
-                          }
-                        }}
-                        disabled={annSending || !annSubject.trim() || !annMessage.trim()}
-                        className="h-8 gap-1.5 border-border"
-                      >
-                        {annSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                        <span className="hidden sm:inline">Send Test</span>
-                        <span className="sm:hidden">Test</span>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Composer + Preview */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                  {/* Composer */}
-                  <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                      <Edit className="h-3.5 w-3.5 text-primary" />
-                      <p className="text-xs font-medium text-foreground">Compose</p>
-                    </div>
-                    <div className="flex flex-col gap-4 p-4">
-                      {/* Subject */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                          Subject
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Platform Maintenance Notice"
-                          value={annSubject}
-                          onChange={(e) => setAnnSubject(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors"
-                        />
-                      </div>
-
-                      {/* Message */}
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                            Message
-                          </label>
-                          <span className="text-[10px] text-muted-foreground">Markdown supported</span>
-                        </div>
-                        <textarea
-                          placeholder="Write your announcement…"
-                          value={annMessage}
-                          onChange={(e) => setAnnMessage(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors min-h-[280px] resize-y font-mono whitespace-pre-wrap"
-                        />
-                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                          <span>{annMessage.length} characters</span>
-                          {annMessage.trim() && (
-                            <>
-                              <span>·</span>
-                              <span>~{Math.ceil(annMessage.trim().split(/\s+/).length / 200)} min read</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Options & Send */}
-                      <div className="flex flex-col gap-3 pt-1">
-                        <label className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={annForce}
-                            onChange={(e) => setAnnForce(e.target.checked)}
-                            className="rounded border-border"
-                          />
-                          <div>
-                            <p className="text-xs font-medium text-foreground">Force send to everyone</p>
-                            <p className="text-[11px] text-muted-foreground">Override user email preferences</p>
-                          </div>
-                        </label>
-
-                        {annForce && (
-                          <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5">
-                            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                            <p className="text-[11px] text-warning">
-                              This will send the email to all users regardless of their notification preferences.
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              if (!annSubject.trim() || !annMessage.trim()) return alert("Subject and message are required");
-                              const ok = await confirmAsync(
-                                "Send this announcement to ALL users? This will respect or override preferences based on the Force option."
-                              );
-                              if (!ok) return;
-                              setAnnSending(true);
-                              try {
-                                const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
-                                  method: "POST",
-                                  body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce }),
-                                });
-                                if (res && res.success) alert(`Broadcast sent — ${res.recipients} recipient(s)`);
-                                else alert("Broadcast failed");
-                              } catch (e: any) {
-                                alert("Broadcast failed: " + (e.message || e));
-                              } finally {
-                                setAnnSending(false);
-                              }
-                            }}
-                            disabled={annSending || !annSubject.trim() || !annMessage.trim()}
-                            variant="destructive"
-                            className="gap-1.5"
-                          >
-                            {annSending ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Send className="h-3.5 w-3.5" />
-                            )}
-                            <span className="hidden sm:inline">Send Broadcast</span>
-                            <span className="sm:hidden">Broadcast</span>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
-                    <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-medium text-foreground">Email Preview</p>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground rounded-full bg-secondary/50 px-2 py-0.5">
-                        Live preview
-                      </span>
-                    </div>
-
-                    <div className="flex-1 flex flex-col p-4">
-                      {/* Email header mock */}
-                      <div className="rounded-t-lg border border-border bg-secondary/30 px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">
-                              {annSubject || "Announcement Subject"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                              <span>From: Eclipse Systems</span>
-                              <span>·</span>
-                              <span>Just now</span>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-400 shrink-0">
-                            Preview
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* Email body */}
-                      <div className="flex-1 rounded-b-lg border border-t-0 border-border bg-background overflow-y-auto">
-                        <div className="p-4">
-                          {(() => {
-                            const detailParts: string[] = [];
-                            if (user?.firstName) detailParts.push(user.firstName);
-                            if (user?.middleName) detailParts.push(user.middleName[0] + ".");
-                            if (user?.lastName) detailParts.push(user.lastName[0] + ".");
-                            const previewDetails = `${detailParts.join(" ")} — ${user?.email || ""}`.trim();
-                            return (
-                              <EmailPreview
-                                title={annSubject || "Announcement Subject"}
-                                message={annMessage || ""}
-                                details={previewDetails}
-                              />
-                            );
-                          })()}
-                        </div>
-                      </div>
-
-                      {/* Preview footer */}
-                      <div className="flex items-start gap-2 mt-3 rounded-lg border border-border/50 bg-secondary/20 px-3 py-2">
-                        <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-muted-foreground">
-                          This is an approximate preview. Final rendering may vary by email client.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mobile Preview Toggle (shows below composer on small screens) */}
-                <div className="lg:hidden">
-                  {!annPreview && annMessage.trim() && (
-                    <button
-                      onClick={() => setAnnPreview(true)}
-                      className="w-full rounded-xl border border-dashed border-border bg-card/50 py-4 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
-                    >
-                      <Eye className="h-5 w-5" />
-                      <span className="text-xs font-medium">Tap to preview email</span>
-                    </button>
-                  )}
-                </div>
-              </div>
+              {activeTab === "announcements" ? (
+                <AnnouncementsTab
+                  ctx={{
+                    annPreview,
+                    setAnnPreview,
+                    annSubject,
+                    setAnnSubject,
+                    annMessage,
+                    setAnnMessage,
+                    annForce,
+                    setAnnForce,
+                    annSending,
+                    setAnnSending,
+                    confirmAsync,
+                    user,
+                    EmailPreview,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ FRAUD DETECTION ════════════════════════════ */}
             <TabsContent value="fraud" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">AI Fraud Detection</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">AI scans user billing info for suspicious patterns</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={async () => {
-                        setFraudScanningAll(true);
-                        try {
-                          const res = await apiFetch(API_ENDPOINTS.adminFraudScanAll, { method: "POST" });
-                          alert(`Scan complete — ${res.flagged} user(s) flagged`);
-                          const data = await apiFetch(API_ENDPOINTS.adminFraudAlerts);
-                          setFraudAlerts(data || []);
-                        } catch (e: any) {
-                          alert("Scan failed: " + e.message);
-                        } finally {
-                          setFraudScanningAll(false);
-                        }
-                      }}
-                      disabled={fraudScanningAll}
-                      className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
-                    >
-                      {fraudScanningAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
-                      {fraudScanningAll ? "Scanning All…" : "Scan All Users"}
-                    </button>
-                    <button
-                      onClick={() => forceRefreshTab("fraud")}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {displayedFraudAlerts.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <Shield className="h-8 w-8 mx-auto text-success/60 mb-2" />
-                    <p className="text-sm text-muted-foreground">No fraud alerts — all users look clean</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="p-2 border-b border-border flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center text-xs text-muted-foreground gap-2">
-                          <input type="checkbox" checked={hideSuspendedFraud} onChange={(e) => setHideSuspendedFraud(e.target.checked)} className="accent-primary" />
-                          Hide suspended
-                        </label>
-                        <button
-                          onClick={() => {
-                            const nowAll = !selectAllFraud
-                            setSelectAllFraud(nowAll)
-                            if (nowAll) setSelectedFraudIds(displayedFraudAlerts.map((a) => a.id))
-                            else setSelectedFraudIds([])
-                          }}
-                          className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground"
-                        >
-                          {selectAllFraud ? 'Unselect All' : 'Select All'}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (selectedFraudIds.length === 0) return
-                            if (!(await confirmAsync(`Dismiss ${selectedFraudIds.length} selected fraud alert(s)?`))) return
-                            setBulkDismissing(true)
-                            try {
-                              await apiFetch(API_ENDPOINTS.adminFraudBulkDismiss, { method: 'POST', body: JSON.stringify({ ids: selectedFraudIds }) })
-                              setFraudAlerts((prev) => prev.filter((a) => !selectedFraudIds.includes(a.id)))
-                              setSelectedFraudIds([])
-                              setSelectAllFraud(false)
-                            } catch (e: any) {
-                              alert('Failed to dismiss: ' + (e?.message || 'error'))
-                            } finally {
-                              setBulkDismissing(false)
-                            }
-                          }}
-                          disabled={selectedFraudIds.length === 0 || bulkDismissing}
-                          className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground disabled:opacity-50"
-                        >
-                          {bulkDismissing ? 'Dismissing…' : `Dismiss Selected (${selectedFraudIds.length})`}
-                        </button>
-                      </div>
-                      <div />
-                    </div>
-                    <div className="divide-y divide-border">
-                      {displayedFraudAlerts.map((alert) => (
-                        <div key={alert.id} className="p-4 flex items-start gap-4">
-                          <div className="flex items-start">
-                            <input
-                              type="checkbox"
-                              checked={selectedFraudIds.includes(alert.id)}
-                              onChange={(e) => {
-                                const checked = e.target.checked
-                                setSelectedFraudIds((prev) => {
-                                  if (checked) return [...prev, alert.id]
-                                  return prev.filter((id) => id !== alert.id)
-                                })
-                              }}
-                              className="mt-1 mr-3"
-                            />
-                          </div>
-                          <div className="shrink-0 h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
-                            <Shield className="h-5 w-5 text-destructive" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium text-foreground">
-                                {redactName(alert.firstName, alert.lastName)}
-                              </span>
-                              <span className="text-xs text-muted-foreground">{redact(alert.email)}</span>
-                              {alert.suspended && (
-                                <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">Suspended</Badge>
-                              )}
-                            </div>
-                            <p className={privateMode ? "text-xs text-destructive/80 mt-1 blur-sm" : "text-xs text-destructive/80 mt-1"}>
-                              {privateMode ? "Sensitive fraud reason redacted" : alert.fraudReason}
-                            </p>
-                            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                              {alert.address && <p><span className="text-foreground/60">Address:</span> {redact(alert.address)}{alert.address2 ? `, ${redact(alert.address2)}` : ''}</p>}
-                              {alert.billingCity && <p><span className="text-foreground/60">City:</span> {redact(alert.billingCity)}{alert.billingState ? `, ${redact(alert.billingState)}` : ''} {redact(alert.billingZip)}</p>}
-                              {alert.billingCountry && <p><span className="text-foreground/60">Country:</span> {redact(alert.billingCountry)}</p>}
-                              {alert.billingCompany && <p><span className="text-foreground/60">Company:</span> {redact(alert.billingCompany)}</p>}
-                              {alert.phone && <p><span className="text-foreground/60">Phone:</span> {redact(alert.phone)}</p>}
-                            </div>
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              Detected {alert.fraudDetectedAt ? new Date(alert.fraudDetectedAt).toLocaleString() : "—"}
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap-1.5 shrink-0">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
-                                    method: "PUT",
-                                    body: JSON.stringify({ action: "dismiss" }),
-                                  });
-                                  setFraudAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-                                } catch (e: any) {
-                                  alert("Failed: " + e.message);
-                                }
-                              }}
-                              className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
-                            >
-                              Dismiss
-                            </button>
-                            {!alert.suspended && (
-                              <button
-                                onClick={async () => {
-                                  if (!(await confirmAsync(`Suspend user ${alert.firstName} ${alert.lastName}?`))) return;
-                                  try {
-                                    await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
-                                      method: "PUT",
-                                      body: JSON.stringify({ action: "suspend" }),
-                                    });
-                                    setFraudAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, suspended: true } : a));
-                                  } catch (e: any) {
-                                    alert("Failed: " + e.message);
-                                  }
-                                }}
-                                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
-                              >
-                                Suspend
-                              </button>
-                            )}
-                            <button
-                              onClick={async () => {
-                                setFraudScanning(true);
-                                try {
-                                  const res = await apiFetch(API_ENDPOINTS.adminFraudScan.replace(":id", String(alert.id)), { method: "POST" });
-                                  if (!res.isSuspicious) {
-                                    setFraudAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-                                  } else {
-                                    setFraudAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, fraudReason: res.reasons?.join('; ') } : a));
-                                  }
-                                } catch (e: any) {
-                                  alert("Re-scan failed: " + e.message);
-                                } finally {
-                                  setFraudScanning(false);
-                                }
-                              }}
-                              disabled={fraudScanning}
-                              className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
-                            >
-                              Re-scan
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              {activeTab === "fraud" ? (
+                <FraudTab
+                  ctx={{
+                    setFraudScanningAll,
+                    fraudScanningAll,
+                    setFraudAlerts,
+                    displayedFraudAlerts,
+                    hideSuspendedFraud,
+                    setHideSuspendedFraud,
+                    selectAllFraud,
+                    setSelectAllFraud,
+                    setSelectedFraudIds,
+                    selectedFraudIds,
+                    confirmAsync,
+                    setBulkDismissing,
+                    bulkDismissing,
+                    redactName,
+                    redact,
+                    privateMode,
+                    setFraudScanning,
+                    fraudScanning,
+                    forceRefreshTab,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ ROLES ════════════════════════════════════ */}
             <TabsContent value="roles" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between gap-3 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                        <Shield className="h-4 w-4 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Roles & Permissions</p>
-                        <p className="text-xs text-muted-foreground">
-                          {roles.length} role{roles.length !== 1 ? "s" : ""} configured
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        size="sm"
-                        onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
-                        className="bg-primary text-primary-foreground h-8 gap-1.5"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">New Role</span>
-                        <span className="sm:hidden">New</span>
-                      </Button>
-                      <button
-                        onClick={() => forceRefreshTab("roles")}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Refresh"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Main Content */}
-                <div className="grid gap-4 lg:grid-cols-5">
-
-                  {/* Role List — Left Panel */}
-                  <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
-                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                      <List className="h-3.5 w-3.5 text-primary" />
-                      <p className="text-xs font-medium text-foreground">Roles</p>
-                      <span className="ml-auto text-[10px] text-muted-foreground">{roles.length}</span>
-                    </div>
-
-                    {roles.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
-                        <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                          <Shield className="h-5 w-5 text-amber-400/60" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-foreground">No roles yet</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Create your first role to manage permissions.</p>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
-                          className="bg-primary text-primary-foreground gap-1.5 mt-1"
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Create Role
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex-1 overflow-y-auto">
-
-                        {/* Desktop Role List */}
-                        <div className="hidden md:flex flex-col divide-y divide-border">
-                          {roles.map((role) => {
-                            const isSelected = selectedRole?.id === role.id
-                            const permCount = role.permissions?.length || 0
-                            const hasWildcard = role.permissions?.some((p: any) => p.value === "*")
-
-                            return (
-                              <div
-                                key={role.id}
-                                onClick={() => setSelectedRole(role)}
-                                className={`flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-all group ${isSelected
-                                  ? "bg-primary/10 border-l-2 border-l-primary"
-                                  : "hover:bg-secondary/30 border-l-2 border-l-transparent"
-                                  }`}
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
-                                      {role.name}
-                                    </p>
-                                    {hasWildcard && (
-                                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-destructive/10 text-destructive border border-destructive/20">
-                                        FULL
-                                      </span>
-                                    )}
-                                  </div>
-                                  {role.description && (
-                                    <p className="text-xs text-muted-foreground truncate mt-0.5">{role.description}</p>
-                                  )}
-                                  <div className="flex items-center gap-1.5 mt-1">
-                                    <Key className="h-2.5 w-2.5 text-muted-foreground" />
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {permCount} permission{permCount !== 1 ? "s" : ""}
-                                    </span>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (!(await confirmAsync(`Delete role "${role.name}"?`))) return;
-                                    await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" });
-                                    setRoles((prev) => prev.filter((r) => r.id !== role.id));
-                                    if (selectedRole?.id === role.id) setSelectedRole(null);
-                                  }}
-                                  className="rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
-
-                        {/* Mobile Role Cards */}
-                        <div className="flex flex-col gap-2 p-2 md:hidden">
-                          {roles.map((role) => {
-                            const isSelected = selectedRole?.id === role.id
-                            const permCount = role.permissions?.length || 0
-                            const hasWildcard = role.permissions?.some((p: any) => p.value === "*")
-
-                            return (
-                              <div
-                                key={role.id}
-                                onClick={() => setSelectedRole(role)}
-                                className={`rounded-lg border p-3 cursor-pointer transition-all ${isSelected
-                                  ? "border-primary/40 bg-primary/5"
-                                  : "border-border hover:border-primary/20 hover:bg-secondary/20"
-                                  }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <p className={`text-sm font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
-                                        {role.name}
-                                      </p>
-                                      {hasWildcard && (
-                                        <span className="rounded px-1 py-0.5 text-[10px] font-bold bg-destructive/10 text-destructive">
-                                          FULL
-                                        </span>
-                                      )}
-                                    </div>
-                                    {role.description && (
-                                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{role.description}</p>
-                                    )}
-                                    <div className="flex items-center gap-1.5 mt-1.5">
-                                      <Key className="h-2.5 w-2.5 text-muted-foreground" />
-                                      <span className="text-[10px] text-muted-foreground">
-                                        {permCount} permission{permCount !== 1 ? "s" : ""}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      if (!(await confirmAsync(`Delete role "${role.name}"?`))) return;
-                                      await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" });
-                                      setRoles((prev) => prev.filter((r) => r.id !== role.id));
-                                      if (selectedRole?.id === role.id) setSelectedRole(null);
-                                    }}
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Permissions Panel — Right */}
-                  <div className="lg:col-span-3 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
-                    <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                      <Key className="h-3.5 w-3.5 text-primary" />
-                      <p className="text-xs font-medium text-foreground">
-                        {selectedRole ? `Permissions` : "Permissions"}
-                      </p>
-                      {selectedRole && (
-                        <>
-                          <span className="text-xs text-muted-foreground">—</span>
-                          <span className="text-xs font-medium text-primary truncate">{selectedRole.name}</span>
-                          <span className="ml-auto inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                            {selectedRole.permissions?.length || 0}
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    {!selectedRole ? (
-                      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
-                        <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center">
-                          <MousePointerClick className="h-5 w-5 text-muted-foreground/60" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-foreground">No role selected</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {roles.length > 0 ? "Select a role to manage its permissions." : "Create a role first."}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col">
-                        {/* Add permission */}
-                        <div className="p-4 border-b border-border bg-secondary/10">
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                            Add Permission
-                          </p>
-                          <div className="flex gap-2">
-                            <select
-                              value={newPermValue}
-                              onChange={(e) => setNewPermValue(e.target.value)}
-                              className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 cursor-pointer"
-                            >
-                              <option value="">— select a permission —</option>
-                              <optgroup label="Global">
-                                <option value="*">* (full access)</option>
-                              </optgroup>
-                              <optgroup label="Servers">
-                                <option value="servers:read">servers:read</option>
-                                <option value="servers:write">servers:write</option>
-                                <option value="servers:delete">servers:delete</option>
-                                <option value="servers:*">servers:*</option>
-                              </optgroup>
-                              <optgroup label="Nodes">
-                                <option value="nodes:read">nodes:read</option>
-                                <option value="nodes:write">nodes:write</option>
-                                <option value="nodes:*">nodes:*</option>
-                              </optgroup>
-                              <optgroup label="AI">
-                                <option value="ai:chat">ai:chat</option>
-                                <option value="ai:create">ai:create</option>
-                                <option value="ai:assign">ai:assign</option>
-                                <option value="ai:*">ai:*</option>
-                              </optgroup>
-                              <optgroup label="SOC">
-                                <option value="soc:read">soc:read</option>
-                                <option value="soc:write">soc:write</option>
-                                <option value="soc:*">soc:*</option>
-                              </optgroup>
-                              <optgroup label="Orders">
-                                <option value="orders:read">orders:read</option>
-                                <option value="orders:create">orders:create</option>
-                                <option value="orders:*">orders:*</option>
-                              </optgroup>
-                              <optgroup label="Roles & Permissions">
-                                <option value="roles:read">roles:read</option>
-                                <option value="roles:create">roles:create</option>
-                                <option value="permissions:assign">permissions:assign</option>
-                              </optgroup>
-                              <optgroup label="Wings">
-                                <option value="wings:system">wings:system</option>
-                                <option value="wings:transfers">wings:transfers</option>
-                                <option value="wings:backups">wings:backups</option>
-                                <option value="wings:deauthorize">wings:deauthorize</option>
-                                <option value="wings:*">wings:*</option>
-                              </optgroup>
-                              <optgroup label="DNS / Tickets / Other">
-                                <option value="dns:read">dns:read</option>
-                                <option value="dns:write">dns:write</option>
-                                <option value="tickets:read">tickets:read</option>
-                                <option value="tickets:write">tickets:write</option>
-                              </optgroup>
-                            </select>
-                            <Button
-                              size="sm"
-                              disabled={!newPermValue.trim() || permLoading}
-                              onClick={async () => {
-                                if (!newPermValue.trim()) return;
-                                setPermLoading(true);
-                                try {
-                                  const data = await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions`, {
-                                    method: "POST",
-                                    body: JSON.stringify({ value: newPermValue.trim() }),
-                                  });
-                                  const updated = { ...selectedRole, permissions: [...(selectedRole.permissions || []), data.perm] };
-                                  setSelectedRole(updated);
-                                  setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-                                  setNewPermValue("");
-                                } finally {
-                                  setPermLoading(false);
-                                }
-                              }}
-                              className="bg-primary text-primary-foreground gap-1.5 h-9 px-3 text-xs shrink-0"
-                            >
-                              {permLoading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <>
-                                  <Plus className="h-3 w-3" />
-                                  <span className="hidden sm:inline">Add</span>
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Permission list */}
-                        <div className="flex-1 overflow-y-auto">
-                          {(selectedRole.permissions || []).length === 0 ? (
-                            <div className="flex flex-col items-center justify-center gap-2 py-10 px-4">
-                              <Key className="h-6 w-6 text-muted-foreground/40" />
-                              <p className="text-xs text-muted-foreground">No permissions assigned yet</p>
-                            </div>
-                          ) : (
-                            <>
-                              {/* Group permissions by category */}
-                              {(() => {
-                                const perms = selectedRole.permissions || []
-                                const groups: Record<string, typeof perms> = {}
-
-                                perms.forEach((p: any) => {
-                                  const [cat] = p.value.split(":")
-                                  const category = p.value === "*" ? "Global" : cat.charAt(0).toUpperCase() + cat.slice(1)
-                                  if (!groups[category]) groups[category] = []
-                                  groups[category].push(p)
-                                })
-
-                                const categoryColors: Record<string, string> = {
-                                  Global: "text-destructive",
-                                  Servers: "text-blue-400",
-                                  Nodes: "text-emerald-400",
-                                  Ai: "text-violet-400",
-                                  Soc: "text-orange-400",
-                                  Orders: "text-amber-400",
-                                  Roles: "text-pink-400",
-                                  Permissions: "text-pink-400",
-                                  Wings: "text-cyan-400",
-                                  Dns: "text-teal-400",
-                                  Tickets: "text-indigo-400",
-                                }
-
-                                return (
-                                  <div className="divide-y divide-border">
-                                    {Object.entries(groups).map(([category, items]) => (
-                                      <div key={category} className="px-4 py-3">
-                                        <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${categoryColors[category] || "text-muted-foreground"}`}>
-                                          {category}
-                                        </p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {items.map((p: any) => {
-                                            const isWildcard = p.value === "*" || p.value.endsWith(":*")
-                                            return (
-                                              <div
-                                                key={p.id}
-                                                className={`group/perm inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${isWildcard
-                                                  ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
-                                                  : "border-border bg-secondary/20 hover:bg-secondary/40"
-                                                  }`}
-                                              >
-                                                <span className={`font-mono text-xs ${isWildcard ? "text-destructive font-medium" : "text-foreground"}`}>
-                                                  {p.value}
-                                                </span>
-                                                <button
-                                                  onClick={async () => {
-                                                    await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions/${p.id}`, { method: "DELETE" });
-                                                    const updated = { ...selectedRole, permissions: selectedRole.permissions.filter((x: any) => x.id !== p.id) };
-                                                    setSelectedRole(updated);
-                                                    setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-                                                  }}
-                                                  className="rounded p-0.5 text-muted-foreground opacity-0 group-hover/perm:opacity-100 hover:text-destructive transition-all"
-                                                >
-                                                  <X className="h-3 w-3" />
-                                                </button>
-                                              </div>
-                                            )
-                                          })}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )
-                              })()}
-                            </>
-                          )}
-                        </div>
-
-                        {/* Full access warning */}
-                        {selectedRole.permissions?.some((p: any) => p.value === "*") && (
-                          <div className="flex items-start gap-2.5 border-t border-destructive/20 bg-destructive/5 px-4 py-3">
-                            <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-                            <p className="text-[11px] text-destructive">
-                              This role has full access (<code className="font-mono font-bold">*</code>). Users with this role can perform any action.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              {activeTab === "roles" ? (
+                <RolesTab
+                  ctx={{
+                    roles,
+                    selectedRole,
+                    setSelectedRole,
+                    setRoles,
+                    setRoleDialog,
+                    setRoleName,
+                    setRoleDesc,
+                    confirmAsync,
+                    newPermValue,
+                    setNewPermValue,
+                    permLoading,
+                    setPermLoading,
+                    forceRefreshTab,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═══════════════ LOGS ════════════════════════════════════ */}
             <TabsContent value="logs" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col gap-3 p-4">
-                    {/* Top row */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                          <ScrollText className="h-4 w-4 text-indigo-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">
-                            {logType === 'serverErrors' ? 'Server Errors' : logType === 'requests' ? 'API Request Logs' : logType === 'slow' ? 'Slow Queries' : 'Audit Logs'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {logsTotal ? `${logsTotal} entries` : "System activity & diagnostics"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {logType === "slow" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              try {
-                                await apiFetch(`${API_ENDPOINTS.adminSlowQueries}/clear`, { method: "POST" });
-                                await fetchLogs(1, "slow", logsUserFilter);
-                              } catch { }
-                            }}
-                            className="h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Clear</span>
-                          </Button>
-                        )}
-                        <button
-                          onClick={async () => {
-                            try {
-                              await fetchLogs(logsPage, logType, logsUserFilter);
-                            } catch {
-                              await fetchLogs(1, logType, logsUserFilter);
-                            }
-                          }}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                          title="Refresh"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Log type tabs */}
-                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                      {(["audit", "requests", "slow", "serverErrors"] as const).map((t) => {
-                        const config: Record<string, { label: string; icon: any; color: string }> = {
-                          audit: { label: "Audit", icon: Shield, color: "text-indigo-400" },
-                          requests: { label: "API Requests", icon: Globe, color: "text-blue-400" },
-                          slow: { label: "Slow Queries", icon: Timer, color: "text-orange-400" },
-                          serverErrors: { label: "Server Errors", icon: AlertTriangle, color: "text-red-400" },
-                        }
-                        const c = config[t]
-                        const Icon = c.icon
-                        const isActive = logType === t
-
-                        return (
-                          <button
-                            key={t}
-                            onClick={async () => {
-                              setLogType(t);
-                              try {
-                                await fetchLogs(1, t, logsUserFilter);
-                              } catch { }
-                            }}
-                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive
-                              ? `bg-secondary ${c.color}`
-                              : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                              }`}
-                          >
-                            <Icon className="h-3 w-3" />
-                            {c.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop Table */}
-                <div className="rounded-xl border border-border bg-card hidden md:block">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border text-xs text-muted-foreground">
-                          <th className="px-4 py-3 text-left font-medium">Time</th>
-                          {(logType === "audit" || logType === "requests" || logType === "serverErrors") && (
-                            <th className="px-4 py-3 text-left font-medium">User</th>
-                          )}
-                          {logType === "audit" && (
-                            <th className="px-4 py-3 text-left font-medium">Action</th>
-                          )}
-                          {logType === "serverErrors" && (
-                            <>
-                              <th className="px-4 py-3 text-left font-medium">Action</th>
-                              <th className="px-4 py-3 text-left font-medium">Error</th>
-                              <th className="px-4 py-3 text-left font-medium">Manage</th>
-                            </>
-                          )}
-                          {logType === "requests" && (
-                            <>
-                              <th className="px-4 py-3 text-left font-medium">Endpoint</th>
-                              <th className="px-4 py-3 text-left font-medium">Count</th>
-                            </>
-                          )}
-                          {logType === "slow" && (
-                            <>
-                              <th className="px-4 py-3 text-left font-medium">Duration</th>
-                              <th className="px-4 py-3 text-left font-medium">Query</th>
-                            </>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {logs.length === 0 ? (
-                          <tr>
-                            <td colSpan={logType === "requests" || logType === "serverErrors" ? 4 : 3} className="px-4 py-12 text-center">
-                              <div className="flex flex-col items-center gap-2">
-                                <ScrollText className="h-8 w-8 text-muted-foreground/50" />
-                                <p className="text-sm text-muted-foreground">No logs found</p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          logs.map((log: any, i) => {
-                            const isSlowWarning = logType === "slow" && log.durationMs >= 1000
-                            const isSlowCritical = logType === "slow" && log.durationMs >= 5000
-
-                            return (
-                              <tr
-                                key={log.id ?? i}
-                                className={`border-b border-border/50 transition-colors hover:bg-secondary/20 group ${isSlowCritical ? "bg-destructive/5" : isSlowWarning ? "bg-warning/5" : ""
-                                  }`}
-                              >
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${logType === "audit"
-                                      ? "bg-indigo-400"
-                                      : logType === "requests"
-                                        ? "bg-blue-400"
-                                        : isSlowCritical
-                                          ? "bg-destructive"
-                                          : isSlowWarning
-                                            ? "bg-warning"
-                                            : "bg-orange-400"
-                                      }`} />
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                      {new Date(log.timestamp).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </td>
-
-                                {(logType === "audit" || logType === "requests") && (
-                                  <td className="px-4 py-3">
-                                    {log.username ? (
-                                      <div className="flex items-center gap-2.5">
-                                        {log.avatarUrl ? (
-                                          <img src={log.avatarUrl} alt={`${log.username} avatar`} className="h-6 w-6 rounded-full object-cover shrink-0" />
-                                        ) : (
-                                          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
-                                            {log.username?.[0]?.toUpperCase() || "?"}
-                                          </div>
-                                        )}
-                                        <div className="min-w-0">
-                                          <p className="text-xs font-medium text-foreground truncate">{redact(log.username)}</p>
-                                          <p className="text-[11px] text-muted-foreground truncate">{redact(log.email)}</p>
-                                        </div>
-                                      </div>
-                                    ) : log.userId !== undefined && log.userId !== null ? (
-                                      <span className={`inline-flex items-center gap-1 text-xs ${log.userId === 0 ? "text-muted-foreground italic" : "text-muted-foreground"}`}>
-                                        {log.userId === 0 ? (
-                                          <>
-                                            <Bot className="h-3 w-3" />
-                                            System
-                                          </>
-                                        ) : (
-                                          redact(log.userId)
-                                        )}
-                                      </span>
-                                    ) : (
-                                      <span className="text-xs text-muted-foreground">—</span>
-                                    )}
-                                  </td>
-                                )}
-
-                                {logType === "audit" && (
-                                  <td className="px-4 py-3">
-                                    <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
-                                      {log.action}
-                                    </span>
-                                  </td>
-                                )}
-
-                                {logType === "serverErrors" && (
-                                  <>
-                                    <td className="px-4 py-3">
-                                      <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 font-mono text-xs text-destructive">
-                                        {log.action}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3 max-w-[14rem] overflow-hidden text-ellipsis">
-                                      <div className="text-xs text-muted-foreground break-words">
-                                        {log.metadata?.message || log.metadata?.error || log.metadata?.detail || "(no details)"}
-                                      </div>
-                                      {log.metadata?.stack && (
-                                        <details className="text-[10px] text-muted-foreground mt-1">
-                                          <summary>Stack</summary>
-                                          <pre className="whitespace-pre-wrap max-h-28 overflow-auto">{log.metadata.stack}</pre>
-                                        </details>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <button
-                                        onClick={() => deleteLog(log.id)}
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </td>
-                                  </>
-                                )}
-
-                                {logType === "requests" && (
-                                  <>
-                                    <td className="px-4 py-3">
-                                      <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground max-w-[300px] truncate">
-                                        {log.endpoint}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <span className="text-xs font-medium text-foreground">{log.count}</span>
-                                    </td>
-                                  </>
-                                )}
-
-                                {logType === "slow" && (
-                                  <>
-                                    <td className="px-4 py-3">
-                                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-mono font-medium ${isSlowCritical
-                                        ? "bg-destructive/10 text-destructive"
-                                        : isSlowWarning
-                                          ? "bg-warning/10 text-warning"
-                                          : "bg-orange-500/10 text-orange-400"
-                                        }`}>
-                                        {log.durationMs >= 1000
-                                          ? `${(log.durationMs / 1000).toFixed(1)}s`
-                                          : `${log.durationMs}ms`
-                                        }
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <div className="max-w-[480px]">
-                                        <p className="font-mono text-xs text-foreground break-words line-clamp-2 group-hover:line-clamp-none transition-all">
-                                          {log.query}
-                                        </p>
-                                      </div>
-                                    </td>
-                                  </>
-                                )}
-                              </tr>
-                            )
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="flex flex-col gap-2 md:hidden">
-                  {logs.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-card px-4 py-12">
-                      <div className="flex flex-col items-center gap-2">
-                        <ScrollText className="h-8 w-8 text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground">No logs found</p>
-                      </div>
-                    </div>
-                  ) : (
-                    logs.map((log: any, i) => {
-                      const isSlowWarning = logType === "slow" && log.durationMs >= 1000
-                      const isSlowCritical = logType === "slow" && log.durationMs >= 5000
-
-                      return (
-                        <div
-                          key={log.id ?? i}
-                          className={`rounded-xl border bg-card overflow-hidden ${isSlowCritical
-                            ? "border-destructive/30"
-                            : isSlowWarning
-                              ? "border-warning/30"
-                              : "border-border"
-                            }`}
-                        >
-                          {/* Severity bar for slow queries */}
-                          {logType === "slow" && (isSlowWarning || isSlowCritical) && (
-                            <div className={`h-0.5 ${isSlowCritical ? "bg-destructive" : "bg-warning"}`} />
-                          )}
-
-                          <div className="p-3">
-                            {/* Timestamp + type indicator */}
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-1.5">
-                                <div className={`h-1.5 w-1.5 rounded-full ${logType === "audit"
-                                  ? "bg-indigo-400"
-                                  : logType === "requests"
-                                    ? "bg-blue-400"
-                                    : isSlowCritical
-                                      ? "bg-destructive"
-                                      : "bg-orange-400"
-                                  }`} />
-                                <span className="text-[11px] text-muted-foreground">
-                                  {new Date(log.timestamp).toLocaleString()}
-                                </span>
-                              </div>
-
-                              {logType === "slow" && (
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium ${isSlowCritical
-                                  ? "bg-destructive/10 text-destructive"
-                                  : isSlowWarning
-                                    ? "bg-warning/10 text-warning"
-                                    : "bg-orange-500/10 text-orange-400"
-                                  }`}>
-                                  {log.durationMs >= 1000
-                                    ? `${(log.durationMs / 1000).toFixed(1)}s`
-                                    : `${log.durationMs}ms`
-                                  }
-                                </span>
-                              )}
-
-                              {logType === "requests" && (
-                                <span className="inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-foreground">
-                                  ×{log.count}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* User info (audit & requests) */}
-                            {(logType === "audit" || logType === "requests") && (
-                              <div className="mb-2">
-                                {log.username ? (
-                                  <div className="flex items-center gap-2">
-                                    {log.avatarUrl ? (
-                                      <img src={log.avatarUrl} alt={`${log.username} avatar`} className="h-5 w-5 rounded-full object-cover shrink-0" />
-                                    ) : (
-                                      <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
-                                        {log.username?.[0]?.toUpperCase() || "?"}
-                                      </div>
-                                    )}
-                                    <span className="text-xs font-medium text-foreground truncate">{redact(log.username)}</span>
-                                  </div>
-                                ) : log.userId !== undefined && log.userId !== null ? (
-                                  <span className="text-xs text-muted-foreground">
-                                    {log.userId === 0 ? "System" : redact(log.userId)}
-                                  </span>
-                                ) : null}
-                              </div>
-                            )}
-
-                            {/* Main content */}
-                            {logType === "audit" && (
-                              <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
-                                {log.action}
-                              </span>
-                            )}
-
-                            {logType === "requests" && (
-                              <p className="font-mono text-xs text-foreground truncate">{log.endpoint}</p>
-                            )}
-
-                            {logType === "slow" && (
-                              <p className="font-mono text-[11px] text-foreground break-words line-clamp-3">
-                                {log.query}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                {/* Pagination */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
-                    <p className="text-xs text-muted-foreground">
-                      {logType === "slow" ? (
-                        <>
-                          Showing <span className="font-medium text-foreground">{logs.length}</span> slow queries
-                        </>
-                      ) : (
-                        <>
-                          Page <span className="font-medium text-foreground">{logsPage}</span>
-                          {logsTotal ? (
-                            <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(logsTotal / logsPer))}</span></>
-                          ) : null}
-                          {logsTotal ? (
-                            <span className="hidden sm:inline"> · {logsTotal} entries</span>
-                          ) : null}
-                        </>
-                      )}
-                    </p>
-                    {logType !== "slow" && (
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => fetchLogs(Math.max(1, logsPage - 1), logType, logsUserFilter)}
-                          disabled={logsPage <= 1 || logsLoading}
-                          className="h-8 px-3 text-xs"
-                        >
-                          <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
-                          <span className="hidden sm:inline ml-1">Previous</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => fetchLogs(logsPage + 1, logType, logsUserFilter)}
-                          disabled={(logsTotal !== null && logsPage >= Math.ceil((logsTotal || 0) / logsPer)) || logsLoading}
-                          className="h-8 px-3 text-xs"
-                        >
-                          <span className="hidden sm:inline mr-1">Next</span>
-                          <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              {activeTab === "logs" ? (
+                <LogsTab
+                  ctx={{
+                    logType,
+                    setLogType,
+                    logs,
+                    logsTotal,
+                    logsPage,
+                    logsPer,
+                    logsUserFilter,
+                    logsLoading,
+                    fetchLogs,
+                    deleteLog,
+                    redact,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═════════════════ OAUTH ═══════════════════════════════════ */}
             <TabsContent value="oauth" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* ── Summary bar ─────────────────────────────────────── */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { icon: Globe, label: "Endpoints", value: "13" },
-                    { icon: Key, label: "Scopes", value: "7" },
-                    { icon: Zap, label: "Grant Types", value: "3" },
-                    { icon: Lock, label: "PKCE", value: "S256 / plain" },
-                  ].map((s) => (
-                    <div key={s.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-                      <div className="rounded-lg bg-primary/10 p-2">
-                        <s.icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{s.label}</p>
-                        <p className="text-sm font-semibold text-foreground">{s.value}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-                  {/* ── LEFT: API reference ──────────────────────────── */}
-                  <div className="lg:col-span-2 flex flex-col gap-4">
-
-                    {/* Discovery */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <Globe className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">RFC 8414 Discovery</p>
-                      </div>
-                      <div className="p-4">
-                        <p className="text-xs text-muted-foreground mb-3">Services discover the server metadata automatically via this well-known URL:</p>
-                        <div className="relative">
-                          <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto">
-                            {`GET /.well-known/oauth-authorization-server`}</pre>
-                          <button onClick={() => navigator.clipboard.writeText("GET /.well-known/oauth-authorization-server")} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">Returns <code className="font-mono text-foreground">issuer</code>, <code className="font-mono text-foreground">authorization_endpoint</code>, <code className="font-mono text-foreground">token_endpoint</code>, supported scopes and grant types.</p>
-                      </div>
-                    </div>
-
-                    {/* Endpoints table */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <BookOpen className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Endpoint Reference</p>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground">
-                              <th className="px-4 py-2.5 text-left font-medium w-20">Method</th>
-                              <th className="px-4 py-2.5 text-left font-medium">Path</th>
-                              <th className="px-4 py-2.5 text-left font-medium">Auth</th>
-                              <th className="px-4 py-2.5 text-left font-medium">Description</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[
-                              { method: "GET", path: "/.well-known/oauth-authorization-server", auth: "—", desc: "RFC 8414 discovery metadata" },
-                              { method: "POST", path: "/api/oauth/apps", auth: "Bearer JWT", desc: "Register a new OAuth application" },
-                              { method: "GET", path: "/api/oauth/apps", auth: "Bearer JWT", desc: "List your registered apps" },
-                              { method: "GET", path: "/api/oauth/apps/:clientId", auth: "—", desc: "Public app info (used by consent UI)" },
-                              { method: "PUT", path: "/api/oauth/apps/:id", auth: "Bearer JWT", desc: "Update app settings" },
-                              { method: "DELETE", path: "/api/oauth/apps/:id", auth: "Bearer JWT", desc: "Delete app + revoke all tokens" },
-                              { method: "POST", path: "/api/oauth/apps/:id/rotate-secret", auth: "Bearer JWT", desc: "Rotate client secret, revoke all tokens" },
-                              { method: "GET", path: "/api/oauth/authorize", auth: "—", desc: "Return consent page data (app info + scopes)" },
-                              { method: "POST", path: "/api/oauth/authorize", auth: "Bearer JWT", desc: "User approves / denies → returns redirect URL" },
-                              { method: "POST", path: "/api/oauth/token", auth: "client_secret", desc: "Exchange code / credentials for token" },
-                              { method: "POST", path: "/api/oauth/token/revoke", auth: "client_secret", desc: "Revoke access or refresh token (RFC 7009)" },
-                              { method: "POST", path: "/api/oauth/token/introspect", auth: "client_secret", desc: "Validate token + return metadata (RFC 7662)" },
-                              { method: "GET", path: "/api/oauth/userinfo", auth: "Bearer OAuth", desc: "Scoped user profile (OpenID-style)" },
-                            ].map((ep) => (
-                              <tr key={ep.path + ep.method} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
-                                <td className="px-4 py-2.5">
-                                  <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold font-mono ${ep.method === "GET" ? "bg-blue-500/15 text-blue-400" :
-                                    ep.method === "POST" ? "bg-green-500/15 text-green-400" :
-                                      ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
-                                        "bg-red-500/15 text-red-400"
-                                    }`}>{ep.method}</span>
-                                </td>
-                                <td className="px-4 py-2.5 font-mono text-xs text-foreground">{ep.path}</td>
-                                <td className="px-4 py-2.5">
-                                  <span className="text-[10px] text-muted-foreground">{ep.auth}</span>
-                                </td>
-                                <td className="px-4 py-2.5 text-xs text-muted-foreground">{ep.desc}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Scopes */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <Shield className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Scope Reference</p>
-                      </div>
-                      <div className="p-4 flex flex-col gap-2">
-                        {[
-                          { scope: "profile", desc: "firstName, lastName, displayName, avatarUrl, portalType, role" },
-                          { scope: "email", desc: "email + emailVerified flag" },
-                          { scope: "orgs:read", desc: "Organisation id, name, handle and the user's orgRole" },
-                          { scope: "billing:read", desc: "Billing address fields (company, city, state, zip, country)" },
-                          { scope: "servers:read", desc: "List user's servers across all nodes" },
-                          { scope: "servers:write", desc: "Manage / power user's servers" },
-                          { scope: "admin", desc: "Admin-level access — only grantable to admin users" },
-                        ].map((s) => (
-                          <div key={s.scope} className="flex items-start gap-3">
-                            <code className="rounded bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary whitespace-nowrap mt-0.5">{s.scope}</code>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{s.desc}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Auth Code Flow */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <Zap className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Authorization Code Flow (+ PKCE)</p>
-                      </div>
-                      <div className="flex flex-col gap-3 p-4">
-                        {[
-                          {
-                            step: "1 — Redirect user to consent page",
-                            code: `GET /api/oauth/authorize
-  ?client_id=<clientId>
-  &redirect_uri=https://yourapp.com/callback
-  &scope=profile%20email
-  &response_type=code
-  &state=random_state
-  &code_challenge=<sha256_of_verifier_base64url>
-  &code_challenge_method=S256`,
-                            note: "Returns JSON with app info and grantable scopes so your UI can render a consent page.",
-                          },
-                          {
-                            step: "2 — User approves (POST from your frontend with the user's panel JWT)",
-                            code: `POST /api/oauth/authorize
-Authorization: Bearer <panel_jwt>
-Content-Type: application/json
-
-{
-  "client_id": "<clientId>",
-  "redirect_uri": "https://yourapp.com/callback",
-  "scope": "profile email",
-  "state": "random_state",
-  "approved": true,
-  "code_challenge": "<sha256_of_verifier_base64url>",
-  "code_challenge_method": "S256"
-}`,
-                            note: `Response: { "redirect": "https://yourapp.com/callback?code=abc&state=xyz" }`,
-                          },
-                          {
-                            step: "3 — Exchange code for tokens",
-                            code: `POST /api/oauth/token
-Content-Type: application/json
-
-{
-  "grant_type": "authorization_code",
-  "code": "<code_from_step_2>",
-  "redirect_uri": "https://yourapp.com/callback",
-  "client_id": "<clientId>",
-  "client_secret": "<clientSecret>",
-  "code_verifier": "<original_random_verifier>"
-}`,
-                            note: `Response: { "access_token": "...", "token_type": "Bearer", "expires_in": 3600, "refresh_token": "...", "scope": "profile email" }`,
-                          },
-                          {
-                            step: "4 — Call EcliPanel APIs",
-                            code: `GET /api/oauth/userinfo
-Authorization: Bearer <access_token>`,
-                            note: "Any EcliPanel endpoint protected by authenticate will accept this token. Responses are scope-gated.",
-                          },
-                        ].map((s, i) => (
-                          <div key={i} className="flex flex-col gap-1.5">
-                            <p className="text-xs font-semibold text-foreground">{s.step}</p>
-                            <div className="relative">
-                              <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{s.code}</pre>
-                              <button onClick={() => navigator.clipboard.writeText(s.code)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
-                            </div>
-                            {s.note && <p className="text-[11px] text-muted-foreground">{s.note}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Client Credentials Flow */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <Key className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Client Credentials Flow (service-to-service)</p>
-                      </div>
-                      <div className="p-4 flex flex-col gap-3">
-                        <p className="text-xs text-muted-foreground">No user involved — use when an Eclipse backend service authenticates directly as the app.</p>
-                        <div className="relative">
-                          <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{`POST /api/oauth/token
-Content-Type: application/json
-
-{
-  "grant_type": "client_credentials",
-  "client_id": "<clientId>",
-  "client_secret": "<clientSecret>",
-  "scope": "servers:read"
-}`}</pre>
-                          <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token\nContent-Type: application/json\n\n{\n  "grant_type": "client_credentials",\n  "client_id": "<clientId>",\n  "client_secret": "<clientSecret>",\n  "scope": "servers:read"\n}`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">The app must have <code className="font-mono text-foreground">client_credentials</code> in its <code className="font-mono text-foreground">grantTypes</code> when registered.</p>
-                      </div>
-                    </div>
-
-                    {/* Token Introspection */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <FileCode className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Token Introspection (RFC 7662)</p>
-                      </div>
-                      <div className="p-4 flex flex-col gap-3">
-                        <p className="text-xs text-muted-foreground">Resource servers can validate any access token without calling userinfo. Returns <code className="font-mono text-foreground">{`{ "active": false }`}</code> for invalid/expired tokens.</p>
-                        <div className="relative">
-                          <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{`POST /api/oauth/token/introspect
-Content-Type: application/json
-
-{
-  "token": "<access_token>",
-  "client_id": "<clientId>",
-  "client_secret": "<clientSecret>"
-}
-
-// 200 response when active:
-{
-  "active": true,
-  "scope": "profile email",
-  "client_id": "<clientId>",
-  "token_type": "Bearer",
-  "exp": 1741222800,
-  "iat": 1741219200,
-  "sub": "42"
-}`}</pre>
-                          <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token/introspect`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>{/* end LEFT col */}
-
-                  {/* ── RIGHT: App management ────────────────────────── */}
-                  <div className="flex flex-col gap-4">
-
-                    {/* Registered apps */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4 text-primary" />
-                          <p className="text-sm font-medium text-foreground">Registered Apps</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setOauthCreateName(""); setOauthCreateDesc(""); setOauthCreateRedirects([""])
-                              setOauthCreateScopes(["profile", "email"]); setOauthCreateGrants(["authorization_code", "refresh_token"])
-                              setOauthCreateOpen(true)
-                            }}
-                            className="bg-primary text-primary-foreground h-7 gap-1 px-2 text-xs"
-                          >
-                            <Plus className="h-3 w-3" /> New App
-                          </Button>
-                          <button
-                            onClick={async () => {
-                              try {
-                                const data = await apiFetch("/api/oauth/apps")
-                                setOauthApps(Array.isArray(data) ? data : [])
-                              } catch { }
-                            }}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      {oauthApps.length === 0 ? (
-                        <p className="px-4 py-6 text-center text-xs text-muted-foreground">No OAuth apps registered yet.</p>
-                      ) : (
-                        <div className="divide-y divide-border">
-                          {oauthApps.map((oa: any) => (
-                            <div key={oa.id} className="p-4 flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-medium text-foreground truncate">{oa.name}</p>
-                                <button
-                                  onClick={async () => {
-                                    if (!(await confirmAsync(`Delete app "${oa.name}"? All tokens will be revoked.`))) return
-                                    try {
-                                      await apiFetch(`/api/oauth/apps/${oa.id}`, { method: "DELETE" })
-                                      setOauthApps((prev) => prev.filter((a) => a.id !== oa.id))
-                                    } catch { }
-                                  }}
-                                  className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                  title="Delete app"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                              <p className="text-[11px] font-mono text-muted-foreground break-all">{oa.clientId}</p>
-                              {oa.description && <p className="text-xs text-muted-foreground">{oa.description}</p>}
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {(oa.allowedScopes || []).map((s: string) => (
-                                  <span key={s} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary">{s}</span>
-                                ))}
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {(oa.grantTypes || []).map((g: string) => (
-                                  <span key={g} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">{g}</span>
-                                ))}
-                              </div>
-                              {/* Redirect URIs */}
-                              {(oa.redirectUris || []).length > 0 && (
-                                <div className="flex flex-col gap-0.5 mt-0.5">
-                                  {(oa.redirectUris as string[]).map((uri) => (
-                                    <p key={uri} className="text-[10px] font-mono text-muted-foreground truncate">{uri}</p>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <button
-                                  onClick={() => openEditOAuthApp(oa)}
-                                  className="flex items-center gap-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                                >
-                                  <Edit className="h-3 w-3" /> Edit
-                                </button>
-                                <button
-                                  onClick={() => setOauthRotateApp(oa)}
-                                  className="flex items-center gap-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                                >
-                                  <RefreshCw className="h-3 w-3" /> Rotate Secret
-                                </button>
-                              </div>
-                              <p className="text-[10px] text-muted-foreground">
-                                Registered {oa.createdAt ? new Date(oa.createdAt).toLocaleDateString() : "—"}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Token TTLs */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <Lock className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Token Lifetimes</p>
-                      </div>
-                      <div className="p-4 flex flex-col gap-2">
-                        {[
-                          { label: "Authorization code", value: "10 minutes" },
-                          { label: "Access token", value: "1 hour" },
-                          { label: "Refresh token", value: "30 days" },
-                        ].map((t) => (
-                          <div key={t.label} className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">{t.label}</span>
-                            <span className="text-xs font-mono text-foreground">{t.value}</span>
-                          </div>
-                        ))}
-                        <p className="text-[11px] text-muted-foreground mt-1">Refresh tokens rotate on use. Rotating the client secret immediately revokes all active tokens.</p>
-                      </div>
-                    </div>
-
-                    {/* Auth methods */}
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                        <Shield className="h-4 w-4 text-primary" />
-                        <p className="text-sm font-medium text-foreground">Client Auth Methods</p>
-                      </div>
-                      <div className="p-4 flex flex-col gap-3">
-                        <div>
-                          <p className="text-xs font-semibold text-foreground mb-1">client_secret_post</p>
-                          <p className="text-xs text-muted-foreground">Send <code className="font-mono text-foreground">client_id</code> and <code className="font-mono text-foreground">client_secret</code> in the JSON body.</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-foreground mb-1">client_secret_basic</p>
-                          <p className="text-xs text-muted-foreground">Send <code className="font-mono text-foreground">Authorization: Basic base64(clientId:secret)</code> header.</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-foreground mb-1">PKCE only (public clients)</p>
-                          <p className="text-xs text-muted-foreground">Omit <code className="font-mono text-foreground">client_secret</code> when <code className="font-mono text-foreground">code_verifier</code> is present. Forces S256 or plain challenge verification.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>{/* end RIGHT col */}
-                </div>{/* end grid */}
-              </div>
+              {activeTab === "oauth" ? (
+                <OauthTab
+                  ctx={{
+                    setOauthCreateName,
+                    setOauthCreateDesc,
+                    setOauthCreateRedirects,
+                    setOauthCreateScopes,
+                    setOauthCreateGrants,
+                    setOauthCreateOpen,
+                    oauthApps,
+                    setOauthApps,
+                    openEditOAuthApp,
+                    setOauthRotateApp,
+                    confirmAsync,
+                  }}
+                />
+              ) : null}
             </TabsContent>
 
             {/* ═════════════════ PLANS ═══════════════════════════════════════ */}
             <TabsContent value="plans" className="mt-4">
-              <div className="flex flex-col gap-6 max-w-4xl">
-
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">Plans</h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Define resource tiers and pricing for users.
-                      {plans.length > 0 && (
-                        <span className="text-muted-foreground/60"> · {plans.length} {plans.length === 1 ? "plan" : "plans"} configured</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={ensurePortalPlans} disabled={ensureLoading}>
-                      {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-                      Sync Portal
-                    </Button>
-                    <Button size="sm" onClick={openNewPlan} className="bg-primary text-primary-foreground">
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      New Plan
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Plans Grid */}
-                {plans.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-card">
-                    <div className="flex flex-col items-center justify-center py-16 gap-3">
-                      <div className="rounded-full bg-secondary/50 p-4">
-                        <Zap className="h-8 w-8 text-muted-foreground/30" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-medium text-foreground">No plans configured</p>
-                        <p className="text-xs text-muted-foreground mt-1">Create your first plan to define resource tiers for users.</p>
-                      </div>
-                      <Button size="sm" onClick={openNewPlan} className="mt-2 bg-primary text-primary-foreground">
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />
-                        Create First Plan
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {plans.map((plan) => {
-                      const isReapplying = planReapplyLoading && planReapplyId === plan.id
-
-                      const resources = [
-                        { label: "RAM", value: plan.memory != null ? `${plan.memory} MB` : "∞", icon: "💾" },
-                        { label: "Disk", value: plan.disk != null ? `${(plan.disk / 1024).toFixed(0)} GB` : "∞", icon: "💿" },
-                        { label: "CPU", value: plan.cpu != null ? `${plan.cpu}%` : "∞", icon: "⚡" },
-                        { label: "Servers", value: plan.serverLimit != null ? `${plan.serverLimit}` : "∞", icon: "🖥️" },
-                        { label: "DBs", value: plan.databases != null ? `${plan.databases}` : "∞", icon: "🗄️" },
-                        { label: "Backups", value: plan.backups != null ? `${plan.backups}` : "∞", icon: "📦" },
-                      ]
-
-                      return (
-                        <div
-                          key={plan.id}
-                          className={`group rounded-xl border bg-card transition-all hover:shadow-md hover:border-primary/20 ${plan.isDefault ? "border-green-500/30 ring-1 ring-green-500/10" : "border-border"
-                            }`}
-                        >
-                          {/* Plan Header */}
-                          <div className="flex items-start justify-between p-4 pb-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-sm font-semibold text-foreground truncate">{plan.name}</h3>
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${plan.type === 'free'
-                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                    : plan.type === 'premium'
-                                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                                      : plan.type === 'educational'
-                                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                        : 'bg-secondary text-muted-foreground border-border'
-                                  }`}>
-                                  {getPortalMarker(plan.type)}
-                                </span>
-                                {plan.isDefault && (
-                                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                                    <Check className="h-2.5 w-2.5" />
-                                    Default
-                                  </span>
-                                )}
-                              </div>
-                              {plan.description && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.description}</p>
-                              )}
-                            </div>
-
-                            {/* Price */}
-                            <div className="text-right shrink-0 ml-3">
-                              <p className="text-lg font-bold text-foreground tabular-nums">
-                                ${(plan.price ?? 0).toFixed(2)}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground -mt-0.5">/month</p>
-                            </div>
-                          </div>
-
-                          {/* Resources Grid */}
-                          <div className="px-4 pb-3">
-                            <div className="grid grid-cols-3 gap-2">
-                              {resources.map((res) => (
-                                <div
-                                  key={res.label}
-                                  className="rounded-lg bg-secondary/30 border border-border/50 px-2.5 py-2 text-center"
-                                >
-                                  <p className="text-[10px] text-muted-foreground">{res.label}</p>
-                                  <p className={`text-xs font-semibold mt-0.5 tabular-nums ${res.value === "∞" ? "text-muted-foreground" : "text-foreground"
-                                    }`}>
-                                    {res.value}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Actions Footer */}
-                          <div className="flex items-center justify-between border-t border-border px-4 py-2.5 bg-secondary/10 rounded-b-xl">
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
-                                disabled={isReapplying}
-                                onClick={() => reapplyPlanLimits(plan.id)}
-                              >
-                                {isReapplying ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="h-3 w-3" />
-                                )}
-                                Reapply
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs text-orange-400/70 hover:text-orange-400 hover:bg-orange-500/10 gap-1"
-                                disabled={isReapplying}
-                                onClick={() => reapplyPlanLimits(plan.id, true)}
-                              >
-                                {isReapplying ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <AlertTriangle className="h-3 w-3" />
-                                )}
-                                Force
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                                onClick={() => openEditPlan(plan)}
-                                title="Edit plan"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => deletePlan(plan)}
-                                title="Delete plan"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+              {activeTab === "plans" ? (
+                <PlansTab
+                  ctx={{
+                    plans,
+                    ensurePortalPlans,
+                    ensureLoading,
+                    openNewPlan,
+                    planReapplyLoading,
+                    planReapplyId,
+                    getPortalMarker,
+                    reapplyPlanLimits,
+                    openEditPlan,
+                    deletePlan,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═════════════════ ORDERS ══════════════════════════════════════ */}
             <TabsContent value="orders" className="mt-4">
-              <div className="flex flex-col gap-4">
-
-                {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex flex-col gap-3 p-4">
-                    {/* Top row */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                          <Receipt className="h-4 w-4 text-emerald-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">Orders</p>
-                          <p className="text-xs text-muted-foreground">
-                            {ordersTotal ? `${ordersTotal} order${ordersTotal !== 1 ? "s" : ""}` : "Manage plans & resource packs"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          size="sm"
-                          onClick={openIssueOrder}
-                          className="bg-primary text-primary-foreground h-8 gap-1.5"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Issue Order</span>
-                          <span className="sm:hidden">Issue</span>
-                        </Button>
-                        <button
-                          onClick={() => fetchOrders(ordersPage, ordersQuery)}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                          title="Refresh"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Search */}
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1 max-w-md">
-                        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-                          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <input
-                            type="text"
-                            placeholder="Search by user ID or email…"
-                            value={ordersQuery}
-                            onChange={(e) => setOrdersQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && fetchOrders(1, ordersQuery)}
-                            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-                          />
-                          {ordersQuery && (
-                            <button
-                              onClick={() => { setOrdersQuery(""); fetchOrders(1, ""); }}
-                              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                {ordersLoading ? (
-                  <div className="rounded-xl border border-border bg-card px-4 py-12">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                      <p className="text-sm text-muted-foreground">Loading orders…</p>
-                    </div>
-                  </div>
-                ) : adminOrders.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                      <Receipt className="h-6 w-6 text-emerald-400/60" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">No orders yet</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Issue an order to assign a plan or resource pack to a user.
-                      </p>
-                    </div>
-                    <Button size="sm" onClick={openIssueOrder} className="bg-primary text-primary-foreground gap-1.5 mt-1">
-                      <Plus className="h-3.5 w-3.5" /> Issue Order
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {/* Desktop Table */}
-                    <div className="rounded-xl border border-border bg-card hidden md:block">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground">
-                              <th className="px-4 py-3 text-left font-medium">Order</th>
-                              <th className="px-4 py-3 text-left font-medium">User</th>
-                              <th className="px-4 py-3 text-left font-medium">Amount</th>
-                              <th className="px-4 py-3 text-left font-medium">Status</th>
-                              <th className="px-4 py-3 text-left font-medium">Dates</th>
-                              <th className="px-4 py-3 text-right font-medium">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {adminOrders.map((order) => {
-                              const statusConfig: Record<string, { class: string; dot: string }> = {
-                                active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
-                                pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
-                                cancelled: { class: "border-muted-foreground/30 bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" },
-                                expired: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
-                              }
-                              const sc = statusConfig[order.status] || statusConfig.pending
-
-                              return (
-                                <tr key={order.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center gap-3">
-                                      <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                                        <Receipt className="h-3.5 w-3.5 text-emerald-400" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">
-                                          {order.description || `Order #${order.id}`}
-                                        </p>
-                                        {order.planId && (
-                                          <p className="text-xs text-muted-foreground">
-                                            Plan #{privateMode ? "████" : order.planId}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                                      #{privateMode ? "████" : order.userId}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className="text-sm font-semibold text-foreground">
-                                      ${(order.amount ?? 0).toFixed(2)}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <Badge variant="outline" className={`text-xs capitalize ${sc.class}`}>
-                                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${sc.dot} inline-block`} />
-                                      {order.status}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="text-xs text-muted-foreground">
-                                      <div className="flex items-center gap-1">
-                                        <Calendar className="h-3 w-3" />
-                                        <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                                      </div>
-                                      {order.expiresAt && (
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                          <Clock className="h-3 w-3" />
-                                          <span>Expires {new Date(order.expiresAt).toLocaleDateString()}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                        onClick={() => openEditOrder(order)}
-                                        title="Edit order"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                                      >
-                                        <Edit className="h-3.5 w-3.5" />
-                                      </button>
-                                      {order.status === "active" && (
-                                        <button
-                                          onClick={() => cancelOrder(order)}
-                                          title="Cancel order"
-                                          className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors"
-                                        >
-                                          <XCircle className="h-3.5 w-3.5" />
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={() => deleteOrder(order)}
-                                        title="Delete order"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Mobile Card View */}
-                    <div className="flex flex-col gap-3 md:hidden">
-                      {adminOrders.map((order) => {
-                        const statusConfig: Record<string, { class: string; dot: string; borderTint: string }> = {
-                          active: { class: "text-emerald-400", dot: "bg-emerald-400", borderTint: "border-emerald-500/20" },
-                          pending: { class: "text-warning", dot: "bg-warning", borderTint: "border-warning/20" },
-                          cancelled: { class: "text-muted-foreground", dot: "bg-muted-foreground", borderTint: "border-border" },
-                          expired: { class: "text-destructive", dot: "bg-destructive", borderTint: "border-destructive/20" },
-                        }
-                        const sc = statusConfig[order.status] || statusConfig.pending
-
-                        return (
-                          <div
-                            key={order.id}
-                            className={`rounded-xl border bg-card overflow-hidden ${order.status === "active" ? sc.borderTint : "border-border"
-                              }`}
-                          >
-                            {/* Card Header */}
-                            <div className="flex items-start gap-3 p-4 pb-3">
-                              <div className="relative h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                                <Receipt className="h-4 w-4 text-emerald-400" />
-                                <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-foreground truncate">
-                                      {order.description || `Order #${order.id}`}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                      User #{privateMode ? "████" : order.userId}
-                                      {order.planId && ` · Plan #${privateMode ? "████" : order.planId}`}
-                                    </p>
-                                  </div>
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10 capitalize`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
-                                    {order.status}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
-                              <div className="bg-card px-3 py-2.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Amount</p>
-                                <p className="text-sm font-bold text-foreground">${(order.amount ?? 0).toFixed(2)}</p>
-                              </div>
-                              <div className="bg-card px-3 py-2.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Created</p>
-                                <p className="text-xs text-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
-                              </div>
-                              <div className="bg-card px-3 py-2.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Expires</p>
-                                <p className="text-xs text-foreground">
-                                  {order.expiresAt ? new Date(order.expiresAt).toLocaleDateString() : "—"}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Notes (if present) */}
-                            {order.notes && (
-                              <div className="px-4 py-2.5 border-t border-border bg-secondary/20">
-                                <p className="text-[11px] text-muted-foreground italic line-clamp-2">{order.notes}</p>
-                              </div>
-                            )}
-
-                            {/* Card Actions */}
-                            <div className="flex items-center border-t border-border divide-x divide-border">
-                              <button
-                                onClick={() => openEditOrder(order)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </button>
-                              {order.status === "active" && (
-                                <button
-                                  onClick={() => cancelOrder(order)}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
-                                >
-                                  <XCircle className="h-3.5 w-3.5" />
-                                  <span>Cancel</span>
-                                </button>
-                              )}
-                              <button
-                                onClick={() => deleteOrder(order)}
-                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {/* Pagination */}
-                {!ordersLoading && adminOrders.length > 0 && (
-                  <div className="rounded-xl border border-border bg-card">
-                    <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
-                      <p className="text-xs text-muted-foreground">
-                        Page <span className="font-medium text-foreground">{ordersPage}</span>
-                        {ordersTotal ? (
-                          <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(ordersTotal / ORDERS_PER))}</span></>
-                        ) : null}
-                        {ordersTotal ? (
-                          <span className="hidden sm:inline"> · {ordersTotal} total</span>
-                        ) : null}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => { if (ordersPage > 1) fetchOrders(ordersPage - 1, ordersQuery); }}
-                          disabled={ordersPage <= 1}
-                          className="h-8 px-3 text-xs"
-                        >
-                          <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
-                          <span className="hidden sm:inline ml-1">Previous</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (!ordersTotal || ordersPage < Math.ceil((ordersTotal || 0) / ORDERS_PER))
-                              fetchOrders(ordersPage + 1, ordersQuery);
-                          }}
-                          disabled={ordersTotal ? ordersPage >= Math.ceil(ordersTotal / ORDERS_PER) : adminOrders.length < ORDERS_PER}
-                          className="h-8 px-3 text-xs"
-                        >
-                          <span className="hidden sm:inline mr-1">Next</span>
-                          <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {activeTab === "orders" ? (
+                <OrdersTab
+                  ctx={{
+                    adminOrders,
+                    ordersTotal,
+                    ordersPage,
+                    ordersQuery,
+                    ordersLoading,
+                    setOrdersQuery,
+                    fetchOrders,
+                    openIssueOrder,
+                    openEditOrder,
+                    cancelOrder,
+                    deleteOrder,
+                    privateMode,
+                    ORDERS_PER,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═════════════════ PANEL SETTINGS ══════════════════════════════ */}
             <TabsContent value="settings" className="mt-4">
-              <div className="flex flex-col gap-6 max-w-3xl">
-
-                {/* Section Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">Panel Settings</h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">Configure registration, services, and access restrictions.</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {settingsSaved && (
-                      <div className="flex items-center gap-1.5 text-xs text-green-400 animate-in fade-in slide-in-from-right-2">
-                        <Check className="h-3.5 w-3.5" />
-                        <span>Saved</span>
-                      </div>
-                    )}
-                    <Button
-                      disabled={settingsSaving}
-                      onClick={async () => {
-                        setSettingsSaving(true)
-                        setSettingsSaved(false)
-                        try {
-                          const data = await apiFetch(API_ENDPOINTS.adminSettings, {
-                            method: "PUT",
-                            body: JSON.stringify(panelSettings),
-                          })
-                          if (data?.settings) setPanelSettings(data.settings)
-                          try {
-                            const fresh = await apiFetch(API_ENDPOINTS.panelSettings)
-                            const toggles = fresh?.featureToggles ?? data?.featureToggles ?? data?.settings?.featureToggles ?? panelSettings?.featureToggles
-                            if (fresh?.featureToggles && typeof fresh.featureToggles === 'object') {
-                              setPanelSettings((s) => ({ ...s, featureToggles: { ...(s.featureToggles || {}), ...(fresh.featureToggles || {}) } }))
-                            }
-                            window.dispatchEvent(new CustomEvent('panelSettingsUpdated', { detail: { featureToggles: toggles } }))
-                          } catch (err) {}
-                          setSettingsSaved(true)
-                          setTimeout(() => setSettingsSaved(false), 3000)
-                          setGeoBlockMetricsLoading(true)
-                          try {
-                            const m = await apiFetch("/api/admin/geo-block/metrics")
-                            setGeoBlockMetrics(m)
-                          } catch {
-                            // ignore
-                          } finally {
-                            setGeoBlockMetricsLoading(false)
-                          }
-                        } catch (e: any) {
-                          alert(e.message || "Failed to save settings")
-                        } finally {
-                          setSettingsSaving(false)
-                        }
-                      }}
-                      className="bg-primary text-primary-foreground"
-                      size="sm"
-                    >
-                      {settingsSaving ? (
-                        <>
-                          <div className="h-3.5 w-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
-                          Saving…
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-3.5 w-3.5 mr-1.5" />
-                          Save Settings
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Quick Toggles Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Registration Toggle */}
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.registrationEnabled ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                          <UserPlus className={`h-4 w-4 ${panelSettings.registrationEnabled ? "text-green-400" : "text-red-400"}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Registration</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {panelSettings.registrationEnabled ? "New users can sign up" : "Sign-ups are blocked (HTTP 503)"}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setPanelSettings((s) => ({ ...s, registrationEnabled: !s.registrationEnabled }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.registrationEnabled ? "bg-green-500" : "bg-secondary"}`}
-                        role="switch"
-                        aria-checked={panelSettings.registrationEnabled}
-                      >
-                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.registrationEnabled ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Code Instances Toggle */}
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.codeInstancesEnabled ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                          <FileCode className={`h-4 w-4 ${panelSettings.codeInstancesEnabled ? "text-green-400" : "text-red-400"}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Code Instances</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {panelSettings.codeInstancesEnabled ? "Users can create instances" : "Creation blocked for non-admins"}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setPanelSettings((s) => ({
-                          ...s,
-                          codeInstancesEnabled: !s.codeInstancesEnabled,
-                          featureToggles: {
-                            ...s.featureToggles,
-                            codeInstances: !s.featureToggles?.codeInstances,
-                          },
-                        }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.codeInstancesEnabled ? "bg-green-500" : "bg-secondary"}`}
-                        role="switch"
-                        aria-checked={panelSettings.codeInstancesEnabled}
-                      >
-                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.codeInstancesEnabled ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Temp Email Filter Toggle */}
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.featureToggles?.tempEmailFilter ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                          <Shield className={`h-4 w-4 ${panelSettings.featureToggles?.tempEmailFilter ? "text-green-400" : "text-red-400"}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Temp Email Filter</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {panelSettings.featureToggles?.tempEmailFilter ? "Disposable emails are blocked" : "Disposable emails are allowed"}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setPanelSettings((s) => ({
-                          ...s,
-                          featureToggles: {
-                            ...s.featureToggles,
-                            tempEmailFilter: !s.featureToggles?.tempEmailFilter,
-                          },
-                        }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles?.tempEmailFilter ? "bg-green-500" : "bg-secondary"}`}
-                        role="switch"
-                        aria-checked={panelSettings.featureToggles?.tempEmailFilter}
-                      >
-                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles?.tempEmailFilter ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Captcha Toggle */}
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.featureToggles?.captcha ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                          <Shield className={`h-4 w-4 ${panelSettings.featureToggles?.captcha ? "text-green-400" : "text-red-400"}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Captcha</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {panelSettings.featureToggles?.captcha ? "Classic captcha for registration is enabled" : "Classic captcha for registration is disabled"}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setPanelSettings((s) => ({
-                          ...s,
-                          featureToggles: {
-                            ...s.featureToggles,
-                            captcha: !s.featureToggles?.captcha,
-                          },
-                        }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles?.captcha ? "bg-green-500" : "bg-secondary"}`}
-                        role="switch"
-                        aria-checked={panelSettings.featureToggles?.captcha}
-                      >
-                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles?.captcha ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Invisible Captcha Toggle */}
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.featureToggles?.captchaInvisible ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                          <Shield className={`h-4 w-4 ${panelSettings.featureToggles?.captchaInvisible ? "text-green-400" : "text-red-400"}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Invisible Captcha</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {panelSettings.featureToggles?.captchaInvisible ? "Invisible captcha path is enabled" : "Invisible captcha path is disabled"}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setPanelSettings((s) => ({
-                          ...s,
-                          featureToggles: {
-                            ...s.featureToggles,
-                            captchaInvisible: !s.featureToggles?.captchaInvisible,
-                          },
-                        }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles?.captchaInvisible ? "bg-green-500" : "bg-secondary"}`}
-                        role="switch"
-                        aria-checked={panelSettings.featureToggles?.captchaInvisible}
-                      >
-                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles?.captchaInvisible ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-card p-4 col-span-full">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[
-                        { key: 'ai', label: 'AI', note: 'AI control plane and models' },
-                        { key: 'billing', label: 'Billing', note: 'Order and plan management' },
-                        { key: 'dns', label: 'DNS', note: 'Organisation DNS zone management' },
-                        { key: 'ticketing', label: 'Ticketing', note: 'Support tickets and chat logs' },
-                        { key: 'oauth', label: 'OAuth', note: 'OAuth client and token server' },
-                        { key: 'codeInstances', label: 'Code Instances', note: 'Temporary code-server access' },
-                        { key: 'captcha', label: 'Captcha', note: 'Simple image captcha for registration' },
-                        { key: 'captchaInvisible', label: 'Invisible Captcha', note: 'Behaviour-based challenge for registration (no explicit user input)' },
-                      ].map((t) => (
-                        <div key={t.key} className="rounded-lg border border-border p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{t.label}</p>
-                              <p className="text-xs text-muted-foreground">{t.note}</p>
-                            </div>
-                            <button
-                              onClick={() => setPanelSettings((s) => ({
-                                ...s,
-                                featureToggles: {
-                                  ...s.featureToggles,
-                                  [t.key]: !s.featureToggles[t.key],
-                                },
-                              }))}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${panelSettings.featureToggles[t.key] ? 'bg-green-500' : 'bg-secondary'}`}
-                              role="switch"
-                              aria-checked={panelSettings.featureToggles[t.key]}
-                            >
-                              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${panelSettings.featureToggles[t.key] ? 'translate-x-5' : 'translate-x-0'}`} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Registration Notice */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                    <MessageSquare className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-medium text-foreground">
-                      {panelSettings.registrationEnabled ? "Registration Notice" : "Registration Disabled Message"}
-                    </p>
-                    {!panelSettings.registrationEnabled && (
-                      <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                        Required
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-4 flex flex-col gap-3">
-                    <textarea
-                      rows={2}
-                      value={panelSettings.registrationNotice}
-                      onChange={(e) => setPanelSettings((s) => ({ ...s, registrationNotice: e.target.value }))}
-                      placeholder={panelSettings.registrationEnabled
-                        ? "e.g. This is a development build. Data may be reset."
-                        : "e.g. Registration is temporarily closed for maintenance."}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none transition-colors"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      {panelSettings.registrationEnabled
-                        ? "Optional info banner shown on the login/register page."
-                        : "Shown to users who try to access the registration page."}
-                    </p>
-
-                    {/* Preview */}
-                    {(panelSettings.registrationNotice || !panelSettings.registrationEnabled) && (
-                      <div className="flex flex-col gap-1.5 pt-1">
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Live Preview</p>
-                        {!panelSettings.registrationEnabled ? (
-                          <div className="flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
-                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
-                            <div>
-                              <p className="text-sm font-semibold text-yellow-300">Registration is currently unavailable</p>
-                              {panelSettings.registrationNotice && (
-                                <p className="mt-1 text-sm text-yellow-200/80">{panelSettings.registrationNotice}</p>
-                              )}
-                            </div>
-                          </div>
-                        ) : panelSettings.registrationNotice ? (
-                          <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
-                            <Eye className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
-                            <p className="text-sm text-blue-300">{panelSettings.registrationNotice}</p>
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Geo-Block Card — Redesigned */}
-                <div className="rounded-xl border border-border bg-card">
-                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-primary" />
-                      <p className="text-sm font-medium text-foreground">Geo-Block Rules</p>
-                    </div>
-                    {(() => {
-                      const entries = panelSettings.geoBlockCountries
-                        ? panelSettings.geoBlockCountries.split(",").map((s: string) => s.trim()).filter(Boolean)
-                        : []
-                      return entries.length > 0 ? (
-                        <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                          {entries.length} {entries.length === 1 ? "rule" : "rules"} active
-                        </span>
-                      ) : null
-                    })()}
-                  </div>
-                  <div className="flex flex-col gap-0 divide-y divide-border">
-                    {(() => {
-                      const [newCountry, setNewCountry] = React.useState("")
-                      const [newLevel, setNewLevel] = React.useState("2")
-                      const [searchFilter, setSearchFilter] = React.useState("")
-
-                      const levelConfig: Record<string, { label: string; shortLabel: string; color: string; bgColor: string; borderColor: string; description: string }> = {
-                        "1": { label: "ID Block", shortLabel: "ID", color: "text-blue-400", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/20", description: "Blocks identity verification" },
-                        "2": { label: "Free Block", shortLabel: "Free", color: "text-yellow-400", bgColor: "bg-yellow-500/10", borderColor: "border-yellow-500/20", description: "Blocks free tier services" },
-                        "3": { label: "Edu + Free Block", shortLabel: "Edu+Free", color: "text-orange-400", bgColor: "bg-orange-500/10", borderColor: "border-orange-500/20", description: "Blocks educational and free tiers" },
-                        "4": { label: "All Services (subuser)", shortLabel: "All Svc", color: "text-red-400", bgColor: "bg-red-500/10", borderColor: "border-red-500/20", description: "Blocks all services except subuser access" },
-                        "5": { label: "Registration Block", shortLabel: "Reg Block", color: "text-red-500", bgColor: "bg-red-500/15", borderColor: "border-red-500/30", description: "Completely blocks registration from this country" },
-                      }
-
-                      const entries: { country: string; level: string }[] = panelSettings.geoBlockCountries
-                        ? panelSettings.geoBlockCountries
-                          .split(",")
-                          .map((s: string) => s.trim())
-                          .filter(Boolean)
-                          .map((s: string) => {
-                            const [country, level] = s.split(":")
-                            return { country: country?.toUpperCase() || "", level: level || "0" }
-                          })
-                          .filter((e: { country: string }) => e.country.length === 2)
-                        : []
-
-                      const filteredEntries = searchFilter
-                        ? entries.filter((e) => e.country.includes(searchFilter.toUpperCase()))
-                        : entries
-
-                      const updateEntries = (newEntries: { country: string; level: string }[]) => {
-                        const str = newEntries.map((e) => `${e.country.toLowerCase()}:${e.level}`).join(",")
-                        setPanelSettings((s) => ({ ...s, geoBlockCountries: str }))
-                      }
-
-                      const addEntry = () => {
-                        const code = newCountry.trim().toUpperCase()
-                        if (code.length !== 2) return
-                        if (entries.some((e) => e.country === code)) {
-                          updateEntries(entries.map((e) => (e.country === code ? { ...e, level: newLevel } : e)))
-                        } else {
-                          updateEntries([...entries, { country: code, level: newLevel }])
-                        }
-                        setNewCountry("")
-                      }
-
-                      const removeEntry = (country: string) => {
-                        updateEntries(entries.filter((e) => e.country !== country))
-                      }
-
-                      const updateLevel = (country: string, level: string) => {
-                        updateEntries(entries.map((e) => (e.country === country ? { ...e, level } : e)))
-                      }
-
-                      return (
-                        <>
-                          {/* Level Reference — Horizontal pills */}
-                          <div className="px-4 py-3">
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Restriction Levels</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {Object.entries(levelConfig).map(([lvl, config]) => (
-                                <div
-                                  key={lvl}
-                                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border ${config.bgColor} ${config.borderColor} ${config.color}`}
-                                  title={config.description}
-                                >
-                                  <span className="font-mono font-bold">{lvl}</span>
-                                  <span className="opacity-80">{config.label}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Add Country — Compact inline form */}
-                          <div className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="relative flex-shrink-0">
-                                <input
-                                  type="text"
-                                  maxLength={2}
-                                  value={newCountry}
-                                  onChange={(e) => setNewCountry(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
-                                  onKeyDown={(e) => e.key === "Enter" && addEntry()}
-                                  placeholder="CC"
-                                  className="w-16 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 uppercase font-mono text-center transition-colors"
-                                />
-                              </div>
-                              <select
-                                value={newLevel}
-                                onChange={(e) => setNewLevel(e.target.value)}
-                                className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
-                              >
-                                {Object.entries(levelConfig).map(([lvl, config]) => (
-                                  <option key={lvl} value={lvl}>
-                                    Level {lvl} — {config.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <Button
-                                size="sm"
-                                disabled={newCountry.trim().length !== 2}
-                                onClick={addEntry}
-                                className="bg-primary text-primary-foreground shrink-0 gap-1"
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                                Add
-                              </Button>
-                            </div>
-                            {newCountry.length === 2 && entries.some((e) => e.country === newCountry.toUpperCase()) && (
-                              <p className="text-[11px] text-yellow-400 mt-1.5 flex items-center gap-1">
-                                <AlertTriangle className="h-3 w-3" />
-                                This will update the existing rule for {newCountry.toUpperCase()}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Rules List */}
-                          <div className="px-4 py-3">
-                            {entries.length > 0 ? (
-                              <div className="flex flex-col gap-2">
-                                {/* Search/filter when many rules */}
-                                {entries.length > 5 && (
-                                  <div className="relative mb-1">
-                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                    <input
-                                      type="text"
-                                      value={searchFilter}
-                                      onChange={(e) => setSearchFilter(e.target.value.replace(/[^a-zA-Z]/g, ""))}
-                                      placeholder="Filter countries…"
-                                      className="w-full rounded-lg border border-border bg-secondary/50 pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors"
-                                    />
-                                  </div>
-                                )}
-
-                                {/* Rules grid */}
-                                <div className="rounded-lg border border-border overflow-hidden">
-                                  <div className="max-h-64 overflow-y-auto">
-                                    {filteredEntries.length === 0 ? (
-                                      <div className="py-4 text-center text-xs text-muted-foreground">
-                                        No matching countries
-                                      </div>
-                                    ) : (
-                                      <div className="divide-y divide-border">
-                                        {filteredEntries
-                                          .sort((a, b) => a.country.localeCompare(b.country))
-                                          .map((entry) => {
-                                            const config = levelConfig[entry.level] || levelConfig["1"]
-                                            return (
-                                              <div
-                                                key={entry.country}
-                                                className="flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/30 transition-colors group"
-                                              >
-                                                {/* Country code with flag-like styling */}
-                                                <div className="flex items-center justify-center w-10 h-8 rounded-md bg-secondary/60 border border-border">
-                                                  <span className="text-sm font-mono font-bold text-foreground tracking-wide">
-                                                    {entry.country}
-                                                  </span>
-                                                </div>
-
-                                                {/* Level badge */}
-                                                <div className="flex-1 min-w-0">
-                                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border ${config.bgColor} ${config.borderColor} ${config.color}`}>
-                                                    <span className="font-mono">{entry.level}</span>
-                                                    <span className="hidden sm:inline">{config.shortLabel}</span>
-                                                  </span>
-                                                </div>
-
-                                                {/* Level selector */}
-                                                <select
-                                                  value={entry.level}
-                                                  onChange={(e) => updateLevel(entry.country, e.target.value)}
-                                                  className="rounded-md border border-border bg-secondary/50 text-xs text-foreground outline-none cursor-pointer hover:border-primary/40 focus:border-primary/50 px-2 py-1 transition-colors"
-                                                >
-                                                  {Object.entries(levelConfig).map(([lvl, c]) => (
-                                                    <option key={lvl} value={lvl}>
-                                                      {lvl} — {c.label}
-                                                    </option>
-                                                  ))}
-                                                </select>
-
-                                                {/* Remove button */}
-                                                <button
-                                                  onClick={() => removeEntry(entry.country)}
-                                                  className="p-1.5 rounded-md opacity-40 hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-                                                  title={`Remove ${entry.country}`}
-                                                >
-                                                  <X className="h-3.5 w-3.5" />
-                                                </button>
-                                              </div>
-                                            )
-                                          })}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Summary footer */}
-                                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
-                                  <span>{entries.length} {entries.length === 1 ? "country" : "countries"} blocked</span>
-                                  {entries.length > 0 && (
-                                    <button
-                                      onClick={() => {
-                                        if (confirm(`Remove all ${entries.length} geo-block rules?`)) {
-                                          setPanelSettings((s) => ({ ...s, geoBlockCountries: "" }))
-                                        }
-                                      }}
-                                      className="text-destructive/60 hover:text-destructive transition-colors"
-                                    >
-                                      Clear all
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-8 gap-2">
-                                <Globe className="h-8 w-8 text-muted-foreground/30" />
-                                <p className="text-sm text-muted-foreground">No geo-block rules</p>
-                                <p className="text-xs text-muted-foreground/60">Add a country code above to get started</p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Raw value */}
-                          <details className="group">
-                            <summary className="flex items-center gap-2 px-4 py-2.5 text-[11px] text-muted-foreground cursor-pointer hover:text-foreground hover:bg-secondary/20 transition-colors select-none">
-                              <Code className="h-3 w-3" />
-                              Raw value
-                              <ChevronDown className="h-3 w-3 ml-auto transition-transform group-open:rotate-180" />
-                            </summary>
-                            <div className="px-4 pb-3">
-                              <textarea
-                                rows={2}
-                                value={panelSettings.geoBlockCountries}
-                                onChange={(e) => setPanelSettings((s) => ({ ...s, geoBlockCountries: e.target.value }))}
-                                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-none transition-colors"
-                                placeholder="de:2,fr:3,ru:5"
-                              />
-                            </div>
-                          </details>
-                        </>
-                      )
-                    })()}
-                  </div>
-                </div>
-
-                {/* Geo-Block Metrics — Standalone card */}
-                <div className="rounded-xl border border-border bg-card">
-                  <button
-                    onClick={() => {
-                      const el = document.getElementById("geo-metrics-content")
-                      if (el) el.classList.toggle("hidden")
-                      const chevron = document.getElementById("geo-metrics-chevron")
-                      if (chevron) chevron.classList.toggle("rotate-180")
-                    }}
-                    className="flex items-center justify-between gap-2 w-full px-4 py-3 hover:bg-secondary/20 transition-colors rounded-t-xl"
-                  >
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium text-foreground">Geo-Block Impact & Metrics</span>
-                    </div>
-                    <ChevronDown id="geo-metrics-chevron" className="h-4 w-4 text-muted-foreground transition-transform" />
-                  </button>
-                  <div id="geo-metrics-content" className="hidden border-t border-border">
-                    <div className="p-4">
-                      {geoBlockMetricsLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-8">
-                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <p className="text-sm text-muted-foreground">Loading metrics…</p>
-                        </div>
-                      ) : geoBlockMetricsError ? (
-                        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
-                          <AlertTriangle className="h-4 w-4 text-destructive" />
-                          <p className="text-sm text-destructive">{geoBlockMetricsError}</p>
-                        </div>
-                      ) : geoBlockMetrics ? (
-                        <div className="flex flex-col gap-5">
-                          {/* Stats grid */}
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {[
-                              { label: "Total Users", value: geoBlockMetrics.totalUsers, icon: Users, color: "text-foreground", iconColor: "text-primary" },
-                              { label: "Reg. Blocked", sublabel: "Level ≥ 5", value: geoBlockMetrics.blocked.registration, color: "text-red-400", iconColor: "text-red-400" },
-                              { label: "ID Blocked", sublabel: "Level ≥ 1", value: geoBlockMetrics.blocked.idVerification, color: "text-blue-400", iconColor: "text-blue-400" },
-                              { label: "Free Blocked", sublabel: "Level ≥ 2", value: geoBlockMetrics.blocked.free, color: "text-yellow-400", iconColor: "text-yellow-400" },
-                              { label: "Edu Blocked", sublabel: "Level ≥ 3", value: geoBlockMetrics.blocked.educational, color: "text-orange-400", iconColor: "text-orange-400" },
-                              { label: "Subuser Only", sublabel: "Level 4", value: geoBlockMetrics.blocked.subuserOnly, color: "text-red-400", iconColor: "text-red-400" },
-                            ].map((stat, i) => (
-                              <div key={i} className="rounded-lg border border-border bg-secondary/20 px-3 py-3 hover:bg-secondary/30 transition-colors">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-[11px] text-muted-foreground font-medium">{stat.label}</p>
-                                  {stat.sublabel && (
-                                    <span className="text-[9px] text-muted-foreground/60 font-mono">{stat.sublabel}</span>
-                                  )}
-                                </div>
-                                <p className={`text-2xl font-bold mt-1 ${stat.color}`}>
-                                  {stat.value ?? "—"}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Per-country breakdown */}
-                          {geoBlockMetrics.byCountry && Object.keys(geoBlockMetrics.byCountry).length > 0 && (
-                            <div className="flex flex-col gap-2">
-                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Users by Country</p>
-                              <div className="rounded-lg border border-border overflow-hidden">
-                                <div className="grid grid-cols-[56px_1fr_60px] gap-2 px-3 py-2 bg-secondary/40 border-b border-border">
-                                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Code</p>
-                                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Users</p>
-                                  <p className="text-[10px] font-medium text-muted-foreground uppercase text-right">Level</p>
-                                </div>
-                                <div className="max-h-48 overflow-y-auto divide-y divide-border">
-                                  {Object.entries(geoBlockMetrics.byCountry)
-                                    .sort(([, a]: any, [, b]: any) => (b.users || 0) - (a.users || 0))
-                                    .map(([country, stats]: any) => (
-                                      <div key={country} className="grid grid-cols-[56px_1fr_60px] gap-2 items-center px-3 py-2 hover:bg-secondary/20 transition-colors">
-                                        <div className="flex items-center justify-center w-9 h-6 rounded bg-secondary/60 border border-border">
-                                          <span className="text-xs font-mono font-bold text-foreground">{country.toUpperCase()}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm font-medium text-foreground tabular-nums">{stats.users}</span>
-                                          <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-[140px]">
-                                            <div
-                                              className="h-full bg-primary/70 rounded-full transition-all"
-                                              style={{ width: `${Math.min(100, (stats.users / geoBlockMetrics.totalUsers) * 100)}%` }}
-                                            />
-                                          </div>
-                                          <span className="text-[10px] text-muted-foreground tabular-nums">
-                                            {((stats.users / geoBlockMetrics.totalUsers) * 100).toFixed(1)}%
-                                          </span>
-                                        </div>
-                                        <span className="text-xs font-mono text-muted-foreground text-right">
-                                          {stats.minLevel === stats.maxLevel ? stats.minLevel : `${stats.minLevel}–${stats.maxLevel}`}
-                                        </span>
-                                      </div>
-                                    ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-8 gap-2">
-                          <BarChart3 className="h-8 w-8 text-muted-foreground/30" />
-                          <p className="text-sm text-muted-foreground">Save settings to generate impact metrics</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sticky save bar for mobile */}
-                <div className="sm:hidden sticky bottom-4 z-10">
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-card/95 backdrop-blur-sm px-4 py-3 shadow-lg">
-                    {settingsSaved && (
-                      <div className="flex items-center gap-1.5 text-xs text-green-400">
-                        <Check className="h-3.5 w-3.5" />
-                        <span>Saved</span>
-                      </div>
-                    )}
-                    <div className="flex-1" />
-                    <Button
-                      disabled={settingsSaving}
-                      onClick={async () => {
-                        setSettingsSaving(true)
-                        setSettingsSaved(false)
-                        try {
-                          const data = await apiFetch(API_ENDPOINTS.adminSettings, {
-                            method: "PUT",
-                            body: JSON.stringify(panelSettings),
-                          })
-                          if (data?.settings) setPanelSettings(data.settings)
-                          try {
-                            const fresh = await apiFetch(API_ENDPOINTS.panelSettings)
-                            const toggles = fresh?.featureToggles ?? data?.featureToggles ?? data?.settings?.featureToggles ?? panelSettings?.featureToggles
-                            if (fresh?.featureToggles && typeof fresh.featureToggles === 'object') {
-                              setPanelSettings((s) => ({ ...s, featureToggles: { ...(s.featureToggles || {}), ...(fresh.featureToggles || {}) } }))
-                            }
-                            window.dispatchEvent(new CustomEvent('panelSettingsUpdated', { detail: { featureToggles: toggles } }))
-                          } catch (err) {}
-                          setSettingsSaved(true)
-                          setTimeout(() => setSettingsSaved(false), 3000)
-                          setGeoBlockMetricsLoading(true)
-                          try {
-                            const m = await apiFetch("/api/admin/geo-block/metrics")
-                            setGeoBlockMetrics(m)
-                          } catch {
-                            // ignore
-                          } finally {
-                            setGeoBlockMetricsLoading(false)
-                          }
-                        } catch (e: any) {
-                          alert(e.message || "Failed to save settings")
-                        } finally {
-                          setSettingsSaving(false)
-                        }
-                      }}
-                      className="bg-primary text-primary-foreground"
-                      size="sm"
-                    >
-                      {settingsSaving ? (
-                        <>
-                          <div className="h-3.5 w-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
-                          Saving…
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-3.5 w-3.5 mr-1.5" />
-                          Save
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              {activeTab === "settings" ? (
+                <SettingsTab
+                  ctx={{
+                    settingsSaved,
+                    settingsSaving,
+                    setSettingsSaving,
+                    setSettingsSaved,
+                    panelSettings,
+                    setPanelSettings,
+                    geoBlockMetricsLoading,
+                    setGeoBlockMetricsLoading,
+                    geoBlockMetricsError,
+                    geoBlockMetrics,
+                    setGeoBlockMetrics,
+                  }}
+                />
+              ) : null}
             </TabsContent>
             {/* ═════════════════ DATABASE HOSTS ══════════════════════════════ */}
             <TabsContent value="databases" className="mt-4">
-              <DatabaseHostsPanel privateMode={privateMode} />
+              {activeTab === "databases" ? (
+                <DatabasesTab
+                  ctx={{
+                    DatabaseHostsPanel,
+                    privateMode,
+                  }}
+                />
+              ) : null}
             </TabsContent>
           </Tabs>
         </div>
@@ -9618,392 +5562,6 @@ Content-Type: application/json
         </DialogContent>
       </Dialog>
 
-      {/* ═══════ Reply Ticket Dialog ════════════════════════════════════════════ */}
-      <Dialog open={!!replyTicket} onOpenChange={(open) => !open && setReplyTicket(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              Reply — #{replyTicket?.id}: {replyTicket?.subject}
-            </DialogTitle>
-          </DialogHeader>
-          {replyTicket && (
-            <div className="flex flex-col gap-4 py-2">
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 max-h-64 overflow-y-auto">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Conversation</p>
-                {Array.isArray(replyTicket.messages) && replyTicket.messages.length ? (
-                  replyTicket.messages.map((m: any, idx: number) => (
-                    <div key={idx} className="mb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-foreground">{m.sender === 'staff' ? 'Support Team' : (replyTicket.user ? `${replyTicket.user.firstName} ${replyTicket.user.lastName}` : `User #${replyTicket.userId}`)}</span>
-                        <span className="text-xs text-muted-foreground">{m.created ? new Date(m.created).toLocaleString() : ''}</span>
-                      </div>
-                      <div className="text-sm text-foreground whitespace-pre-wrap">{m.message}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-foreground whitespace-pre-wrap">{replyTicket.message || replyTicket.adminReply || 'No messages'}</div>
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Your Reply</label>
-                <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={4}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none"
-                  placeholder="Type your reply…" />
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reply As</label>
-                  <select value={replyAs} onChange={(e) => setReplyAs(e.target.value as any)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                    <option value="staff">Staff</option>
-                    <option value="user">User</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Priority</label>
-                  <select value={replyPriority} onChange={(e) => setReplyPriority(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Department</label>
-                  <input value={replyDepartment} onChange={(e) => setReplyDepartment(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assigned Staff</label>
-                  <SearchableUserSelect
-                    value={replyAssignedTo}
-                    onChange={(v) => setReplyAssignedTo(v)}
-                    placeholder="Search staff by name, email or id"
-                    initialList={staffUsers}
-                    filter={(u) => ['admin', 'rootAdmin', '*'].includes(u.role || '')}
-                    disabled={staffLoading}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Set Status</label>
-                <div className="flex gap-2">
-                  {['opened', 'awaiting_staff_reply', 'replied', 'closed'].map((s) => (
-                    <button key={s} onClick={() => setReplyStatus(s)}
-                      className={`rounded-md px-3 py-1.5 text-xs transition-colors border ${replyStatus === s
-                        ? "border-primary/50 bg-primary/20 text-primary"
-                        : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"}`}>
-                      {s.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReplyTicket(null)} className="border-border">Cancel</Button>
-            <Button onClick={submitReply} disabled={replyLoading || !replyText.trim()} className="bg-primary text-primary-foreground">
-              {replyLoading ? "Sending…" : "Send Reply"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Edit Organisation Dialog ═══════════════════════════════════════ */}
-      <Dialog open={!!editOrgDialog} onOpenChange={(open) => !open && setEditOrgDialog(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              Edit Organisation — {editOrgDialog?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</label>
-              <input value={editOrgName} onChange={(e) => setEditOrgName(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Handle</label>
-              <input value={editOrgHandle} onChange={(e) => setEditOrgHandle(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tier</label>
-                <select value={editOrgTier} onChange={(e) => setEditOrgTier(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Owner User ID</label>
-                <input type="number" value={editOrgOwnerId} onChange={(e) => setEditOrgOwnerId(e.target.value)}
-                  placeholder="User ID"
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Staff Organisation</label>
-              <div className="flex items-center gap-2 mt-1">
-                <input type="checkbox" checked={editOrgIsStaff} onChange={(e) => setEditOrgIsStaff(e.target.checked)} className="h-4 w-4" />
-                <span className="text-sm text-foreground">This organisation is the admin staff org</span>
-              </div>
-            </div>
-
-            {/* Add Member */}
-            <div className="rounded-lg border border-border bg-secondary/10 p-3 flex flex-col gap-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add Member by User ID</p>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  placeholder="User ID"
-                  value={editOrgAddMemberId}
-                  onChange={(e) => setEditOrgAddMemberId(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                />
-                <select
-                  value={editOrgAddMemberRole}
-                  onChange={(e) => setEditOrgAddMemberRole(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                >
-                  <option value="member">member</option>
-                  <option value="admin">admin</option>
-                  <option value="owner">owner</option>
-                </select>
-                <Button
-                  size="sm"
-                  disabled={!editOrgAddMemberId.trim() || editOrgMemberLoading || !editOrgDialog}
-                  onClick={async () => {
-                    if (!editOrgDialog || !editOrgAddMemberId.trim()) return
-                    setEditOrgMemberLoading(true)
-                    try {
-                      await apiFetch(`${API_ENDPOINTS.adminOrgMembers.replace(":id", String(editOrgDialog.id))}`, {
-                        method: "POST",
-                        body: JSON.stringify({ userId: Number(editOrgAddMemberId), orgRole: editOrgAddMemberRole }),
-                      })
-                      setEditOrgAddMemberId("")
-                    } catch (e: any) {
-                      alert("Failed: " + e.message)
-                    } finally {
-                      setEditOrgMemberLoading(false)
-                    }
-                  }}
-                  className="bg-primary text-primary-foreground px-3 text-xs h-9 shrink-0"
-                >
-                  {editOrgMemberLoading ? "Adding…" : "Add"}
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOrgDialog(null)} className="border-border">Cancel</Button>
-            <Button onClick={saveEditOrg} disabled={editOrgLoading} className="bg-primary text-primary-foreground">
-              {editOrgLoading ? "Saving…" : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Add Node Dialog ════════════════════════════════════════════════ */}
-      <Dialog open={addNodeOpen} onOpenChange={(open) => { if (!open) setAddNodeOpen(false) }}>
-        <DialogContent className="border-border bg-card sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-              {addNodeStep === "config" ? "Wings Configuration" : "Add Node"}
-            </DialogTitle>
-          </DialogHeader>
-
-          {addNodeStep === "form" && (
-            <div className="flex flex-col gap-3 py-1">
-              {/* Name */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node Name</label>
-                  <input value={addNodeName} onChange={(e) => setAddNodeName(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                    placeholder="EU-1" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node Type</label>
-                  <select value={addNodeType} onChange={(e) => setAddNodeType(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                    <option value="free">Free</option>
-                    <option value="paid">Paid</option>
-                    <option value="free_and_paid">Free + Paid</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* FQDN + SSL */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">FQDN (domain or IP)</label>
-                <input value={addNodeFqdn} onChange={(e) => setAddNodeFqdn(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                  placeholder="wings.example.com" />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wings Port</label>
-                  <input value={addNodePort} onChange={(e) => setAddNodePort(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="8080" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">SFTP Port</label>
-                  <input value={addNodeSftpPort} onChange={(e) => setAddNodeSftpPort(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="2022" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">SSL</label>
-                  <div className="flex gap-2 h-9 items-center">
-                    {["https", "http"].map((s) => (
-                      <button key={s} type="button"
-                        onClick={() => setAddNodeSsl(s === "https")}
-                        className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
-                          ? "border-primary/50 bg-primary/20 text-primary"
-                          : "border-border bg-secondary/50 text-muted-foreground"
-                          }`}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Data directory */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wings Data Directory</label>
-                <input value={addNodeDataPath} onChange={(e) => setAddNodeDataPath(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
-              </div>
-
-              {/* Token */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Auth Token</label>
-                <div className="flex gap-2">
-                  <input value={addNodeToken} onChange={(e) => setAddNodeToken(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="Click Generate or paste your own" />
-                  <Button type="button" size="sm" variant="outline" onClick={generateAddNodeToken}
-                    disabled={addNodeTokenLoading} className="border-border shrink-0 h-9 px-3 text-xs">
-                    {addNodeTokenLoading ? "…" : "Generate"}
-                  </Button>
-                </div>
-                {addNodeToken && (
-                  <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5">
-                    <span className="flex-1 font-mono text-xs text-green-400 break-all truncate">{addNodeToken}</span>
-                    <button onClick={() => navigator.clipboard.writeText(addNodeToken)} className="text-green-400 hover:text-green-300 shrink-0">
-                      <Copy className="h-3 w-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {addNodeStep === "config" && (
-            <div className="flex flex-col gap-3 py-1">
-              <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs text-green-400">
-                ✓ Node <strong>{addNodeCreated?.name}</strong> registered. Copy the config below to{" "}
-                <code className="font-mono">/etc/eclipanel/config.yml</code> on your Wings server.
-              </div>
-              <div className="relative">
-                <pre className="rounded-lg border border-border bg-black/40 p-4 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-relaxed">
-                  {buildWingsConfig()}
-                </pre>
-                <button
-                  onClick={() => navigator.clipboard.writeText(buildWingsConfig())}
-                  className="absolute top-2 right-2 rounded-md border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Copy
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                After saving the config, restart Wings with{" "}
-                <code className="font-mono text-foreground">systemctl restart wings</code>.
-              </p>
-            </div>
-          )}
-
-          <DialogFooter>
-            {addNodeStep === "form" ? (
-              <>
-                <Button variant="outline" onClick={() => setAddNodeOpen(false)} className="border-border">Cancel</Button>
-                <Button
-                  onClick={submitAddNode}
-                  disabled={addNodeLoading || !addNodeName.trim() || !addNodeFqdn.trim() || !addNodeToken.trim()}
-                  className="bg-primary text-primary-foreground"
-                >
-                  {addNodeLoading ? "Creating…" : !addNodeToken ? "Generate Token First" : "Create Node"}
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setAddNodeOpen(false)} className="bg-primary text-primary-foreground">
-                Done
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Edit Node Dialog ════════════════════════════════════════════ */}
-      <Dialog open={!!editNodeDialog} onOpenChange={(open) => !open && setEditNodeDialog(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              Edit Node — {editNodeDialog?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node Type</label>
-              <select value={editNodeType} onChange={(e) => setEditNodeType(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                <option value="free">Free</option>
-                <option value="paid">Paid</option>
-                <option value="free_and_paid">Free + Paid</option>
-                <option value="enterprise">Enterprise</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port Range Start</label>
-                <input type="number" placeholder="e.g. 25500" value={editNodePortStart}
-                  onChange={(e) => setEditNodePortStart(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port Range End</label>
-                <input type="number" placeholder="e.g. 25600" value={editNodePortEnd}
-                  onChange={(e) => setEditNodePortEnd(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bind IP (optional)</label>
-              <input type="text" placeholder="0.0.0.0" value={editNodeDefaultIp}
-                onChange={(e) => setEditNodeDefaultIp(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-              <p className="text-xs text-muted-foreground">IP used for auto-allocated ports. Leave blank for 0.0.0.0.</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditNodeDialog(null)} className="border-border">Cancel</Button>
-            <Button onClick={saveEditNode} disabled={editNodeLoading} className="bg-primary text-primary-foreground">
-              {editNodeLoading ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* ═══════ Plan Create/Edit Dialog ════════════════════════════════════════ */}
       <Dialog open={planDialogOpen} onOpenChange={(open) => !open && setPlanDialogOpen(false)}>
         <DialogContent className="border-border bg-card sm:max-w-lg">
@@ -10265,495 +5823,6 @@ Content-Type: application/json
             <Button variant="outline" onClick={() => setEditOrderOpen(false)} className="border-border">Cancel</Button>
             <Button onClick={submitEditOrder} disabled={eoLoading} className="bg-primary text-primary-foreground">
               {eoLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Saving…</> : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Assign AI Model to User Dialog ═════════════════════════════ */}
-      <Dialog open={!!assignAiModel} onOpenChange={(open) => !open && setAssignAiModel(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-muted-foreground" />
-              Assign “{assignAiModel?.name}” to User
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select User</label>
-              <SearchableUserSelect
-                value={assignAiUserId}
-                onChange={(v) => setAssignAiUserId(v)}
-                placeholder="Type name, email or id to search"
-                initialList={users}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">Limits (optional — leave blank for unlimited)</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token Limit</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 100000"
-                  value={assignAiLimitTokens}
-                  onChange={(e) => setAssignAiLimitTokens(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Request Limit</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 500"
-                  value={assignAiLimitRequests}
-                  onChange={(e) => setAssignAiLimitRequests(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignAiModel(null)} className="border-border">Cancel</Button>
-            <Button
-              onClick={submitAssignAiModel}
-              disabled={assignAiLoading || !assignAiUserId}
-              className="bg-primary text-primary-foreground"
-            >
-              {assignAiLoading ? "Assigning…" : "Assign Access"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ AI Model Create / Edit Dialog ══════════════════════════════════ */}
-      <Dialog open={aiModelDialog !== null} onOpenChange={(open) => !open && setAiModelDialog(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Brain className="h-4 w-4 text-muted-foreground" />
-              {aiModelDialog === "new" ? "New AI Model" : `Edit Model — ${(aiModelDialog as AdminAIModel)?.name}`}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</label>
-                <input value={aiModelName} onChange={(e) => setAiModelName(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                  placeholder="gpt-4o" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</label>
-                <select value={aiModelType} onChange={(e) => setAiModelType(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  <option value="text">Text</option>
-                  <option value="code">Code</option>
-                  <option value="vision">Vision</option>
-                  <option value="image">Image</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
-                <select value={aiModelStatus} onChange={(e) => setAiModelStatus(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  <option value="active">Active</option>
-                  <option value="beta">Beta</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Max Tokens</label>
-                <input value={aiModelMaxTokens} onChange={(e) => setAiModelMaxTokens(e.target.value)} type="number"
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                  placeholder="4096" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
-              <input value={aiModelDescription} onChange={(e) => setAiModelDescription(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                placeholder="Optional description shown to users" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tags</label>
-              <input value={aiModelTags} onChange={(e) => setAiModelTags(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                placeholder="comma-separated tags (e.g. demo, core)" />
-              <p className="text-xs text-muted-foreground">Tags can be used to mark models for special purposes (e.g. <span className="font-semibold">demo</span>).</p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Endpoint URL</label>
-              <input value={aiModelEndpoint} onChange={(e) => setAiModelEndpoint(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                placeholder="https://api.openai.com" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Key</label>
-              <input value={aiModelApiKey} onChange={(e) => setAiModelApiKey(e.target.value)} type="password"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                placeholder="sk-..." />
-            </div>
-            <div className="mt-2">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fallback Endpoints</div>
-              {aiModelExtraEndpoints.map((ep, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end mt-2">
-                  <div className="col-span-4">
-                    <input
-                      value={ep.endpoint}
-                      placeholder="https://api.groq.com"
-                      onChange={(e) => {
-                        const next = [...aiModelExtraEndpoints]
-                        next[index] = { ...next[index], endpoint: e.target.value }
-                        setAiModelExtraEndpoints(next)
-                      }}
-                      className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
-                    />
-                  </div>
-                  <div className="col-span-4">
-                    <input
-                      value={ep.apiKey || ""}
-                      placeholder="api key"
-                      onChange={(e) => {
-                        const next = [...aiModelExtraEndpoints]
-                        next[index] = { ...next[index], apiKey: e.target.value }
-                        setAiModelExtraEndpoints(next)
-                      }}
-                      className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <input
-                      value={ep.id || ""}
-                      placeholder="id (optional)"
-                      onChange={(e) => {
-                        const next = [...aiModelExtraEndpoints]
-                        next[index] = { ...next[index], id: e.target.value }
-                        setAiModelExtraEndpoints(next)
-                      }}
-                      className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <button
-                      type="button"
-                      onClick={() => setAiModelExtraEndpoints(aiModelExtraEndpoints.filter((_, i) => i !== index))}
-                      className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive"
-                    >Remove</button>
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setAiModelExtraEndpoints([...aiModelExtraEndpoints, { endpoint: "", apiKey: "" }])}
-                className="mt-2 rounded-lg border border-border bg-secondary/60 px-3 py-1 text-xs"
-              >Add an endpoint</button>
-              <p className="text-xs text-muted-foreground mt-1">Fallback endpoints will be tried sequentially on failure/rate-limit.</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAiModelDialog(null)} className="border-border">Cancel</Button>
-            <Button onClick={saveAIModel} disabled={aiModelLoading || !aiModelName.trim()}
-              className="bg-primary text-primary-foreground">
-              {aiModelLoading ? "Saving…" : aiModelDialog === "new" ? "Create Model" : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Import Egg Dialog ═══════════════════════════════════════════════ */}
-      <Dialog open={importEggOpen} onOpenChange={(open) => { if (!open) { setImportEggOpen(false); setImportEggPreview(null); setImportEggError("") } }}>
-        <DialogContent className="border-border bg-card sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Upload className="h-4 w-4" /> Import Pterodactyl Egg
-            </DialogTitle>
-          </DialogHeader>
-
-          {importEggPreview ? (
-            /* ── Success preview ── */
-            <div className="flex flex-col gap-4 py-2">
-              <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 flex flex-col gap-2">
-                <p className="text-sm font-medium text-green-400">Egg imported successfully!</p>
-                <p className="text-sm text-foreground font-semibold">{importEggPreview.name}</p>
-                {importEggPreview.description && <p className="text-xs text-muted-foreground">{importEggPreview.description}</p>}
-                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span>Image: <span className="font-mono text-foreground">{importEggPreview.dockerImage}</span></span>
-                  <span>Env vars: <span className="text-foreground">{(importEggPreview.envVars ?? []).length}</span></span>
-                  {importEggPreview.installScript && <span className="text-green-400">✓ Install script included</span>}
-                  {importEggPreview.processConfig && <span className="text-green-400">✓ Process config included</span>}
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={() => { setImportEggOpen(false); setImportEggPreview(null) }}>Done</Button>
-              </DialogFooter>
-            </div>
-          ) : (
-            /* ── Import form ── */
-            <div className="flex flex-col gap-4 py-2">
-              {/* Mode tabs */}
-              <div className="flex gap-1 rounded-lg border border-border p-1 bg-secondary/20">
-                <button
-                  onClick={() => setImportEggMode("paste")}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${importEggMode === "paste" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Paste JSON
-                </button>
-                <button
-                  onClick={() => setImportEggMode("url")}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${importEggMode === "url" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Fetch from URL
-                </button>
-              </div>
-
-              {importEggMode === "paste" ? (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Egg JSON (PTDL_v1 or PTDL_v2)</label>
-                  <textarea
-                    className="h-52 w-full rounded-md border border-border bg-secondary/30 p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder={'{\n  "meta": { "version": "PTDL_v2" },\n  "name": "My Egg",\n  ...\n}'}
-                    value={importEggJson}
-                    onChange={(e) => setImportEggJson(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Paste the full exported egg JSON from Pterodactyl / Pelican.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Raw JSON URL</label>
-                  <input
-                    className="w-full rounded-md border border-border bg-secondary/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="https://raw.githubusercontent.com/pterodactyl/eggs/master/.../egg-paper.json"
-                    value={importEggUrl}
-                    onChange={(e) => setImportEggUrl(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    The panel will fetch this URL server-side. Use a raw GitHub URL for community eggs.
-                  </p>
-                </div>
-              )}
-
-              {importEggError && (
-                <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{importEggError}</p>
-              )}
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setImportEggOpen(false)} className="border-border">Cancel</Button>
-                <Button onClick={doImportEgg} disabled={importEggLoading} className="bg-primary text-primary-foreground">
-                  {importEggLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Importing…</> : "Import Egg"}
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Egg Create / Edit Dialog ═══════════════════════════════════════ */}
-      <Dialog open={eggDialog !== null} onOpenChange={(open) => !open && setEggDialog(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              {eggDialog === "new" ? "New Egg" : `Edit Egg — ${(eggDialog as AdminEgg)?.name}`}
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Tab bar */}
-          <div className="flex gap-1 rounded-lg border border-border p-1 bg-secondary/20 mt-1">
-            {(["basic", "variables", "config", "advanced"] as const).map((t) => (
-              <button key={t} onClick={() => setEggTab(t)}
-                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium capitalize transition-colors ${eggTab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                {t === "config" ? "Process Config" : t === "advanced" ? "Install Script" : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-3 py-1">
-
-            {/* ── Basic tab ── */}
-            {eggTab === "basic" && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name *</label>
-                    <input value={eggName} onChange={(e) => setEggName(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                      placeholder="Minecraft Java" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Author</label>
-                    <input value={eggAuthor} onChange={(e) => setEggAuthor(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                      placeholder="support@pterodactyl.io" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
-                  <input value={eggDesc} onChange={(e) => setEggDesc(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                    placeholder="Optional description" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Docker Image *</label>
-                  <input value={eggImage} onChange={(e) => setEggImage(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="ghcr.io/pterodactyl/yolks:java_21" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Additional Docker Images <span className="normal-case text-muted-foreground/60">(JSON object, optional)</span>
-                  </label>
-                  <textarea value={eggDockerImagesRaw} onChange={(e) => setEggDockerImagesRaw(e.target.value)} rows={3}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary/50 resize-none"
-                    placeholder={'{\n  "Java 21": "ghcr.io/pterodactyl/yolks:java_21",\n  "Java 17": "ghcr.io/pterodactyl/yolks:java_17"\n}'} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Startup Command *</label>
-                  <input value={eggStartup} onChange={(e) => setEggStartup(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Features <span className="normal-case text-muted-foreground/60">(comma-separated)</span></label>
-                    <input value={eggFeatures} onChange={(e) => setEggFeatures(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                      placeholder="eula" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Update URL</label>
-                    <input value={eggUpdateUrl} onChange={(e) => setEggUpdateUrl(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                      placeholder="https://…" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">File Denylist <span className="normal-case text-muted-foreground/60">(one per line)</span></label>
-                  <textarea value={eggFileDenylist} onChange={(e) => setEggFileDenylist(e.target.value)} rows={2}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 resize-none"
-                    placeholder="/.env" />
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={eggVisible} onChange={(e) => setEggVisible(e.target.checked)} className="accent-primary" />
-                  <span className="text-sm text-foreground">Visible to users</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={eggRootless} onChange={(e) => setEggRootless(e.target.checked)} className="accent-primary" />
-                  <span className="text-sm text-foreground">Launch in rootless mode</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={eggRequiresKvm} onChange={(e) => setEggRequiresKvm(e.target.checked)} className="accent-primary" />
-                  <span className="text-sm text-foreground">Requires KVM (enables KVM virtualization for this template)</span>
-                </label>
-              </>
-            )}
-
-            {/* ── Variables tab ── */}
-            {eggTab === "variables" && (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">
-                  Enter one <code className="font-mono bg-secondary/50 px-1 rounded">ENV_VARIABLE</code> name per line.
-                  Default values and metadata are preserved from imported eggs.
-                </p>
-                <textarea value={eggEnvVars} onChange={(e) => setEggEnvVars(e.target.value)} rows={12}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 resize-none"
-                  placeholder={"SERVER_MEMORY\nSERVER_JARFILE\nMC_VERSION"} />
-                {(eggDialog !== "new" && eggDialog) && (
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3 flex flex-col gap-1.5 text-xs text-muted-foreground">
-                    <p className="font-medium text-foreground">Current variable definitions</p>
-                    {((eggDialog as AdminEgg).envVars ?? []).map((v: any, i: number) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="font-mono text-foreground w-40 shrink-0">{v.env_variable ?? v.name ?? "?"}</span>
-                        <span className="truncate">{v.description || "—"}</span>
-                        <span className="ml-auto shrink-0 text-foreground/60">default: {String(v.default_value ?? v.defaultValue ?? "")}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Process Config tab ── */}
-            {eggTab === "config" && (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stop Command</label>
-                  <input value={eggProcessStop} onChange={(e) => setEggProcessStop(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="stop" />
-                  <p className="text-xs text-muted-foreground">Use <code className="font-mono bg-secondary/50 px-1 rounded">SIGKILL</code> or <code className="font-mono bg-secondary/50 px-1 rounded">SIGTERM</code> for signal-based stop, or any text command.</p>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Startup Done Patterns <span className="normal-case text-muted-foreground/60">(one regex per line)</span>
-                  </label>
-                  <textarea value={eggProcessDone} onChange={(e) => setEggProcessDone(e.target.value)} rows={6}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 resize-none"
-                    placeholder={"Done ("} />
-                  <p className="text-xs text-muted-foreground">Wings watches stdout for these strings to mark the server as fully started.</p>
-                </div>
-              </div>
-            )}
-
-            {/* ── Install Script tab ── */}
-            {eggTab === "advanced" && (
-              <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Install Container</label>
-                    <input value={eggInstallContainer} onChange={(e) => setEggInstallContainer(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                      placeholder="ghcr.io/pterodactyl/installers:debian" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Entrypoint</label>
-                    <input value={eggInstallEntrypoint} onChange={(e) => setEggInstallEntrypoint(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                      placeholder="bash" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Install Script</label>
-                  <textarea value={eggInstallScript} onChange={(e) => setEggInstallScript(e.target.value)} rows={14}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary/50 resize-none"
-                    placeholder={"#!/bin/bash\napt-get install -y curl\n# ...\n"} />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Allowed Portals</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['free', 'paid', 'enterprise'].map((tier) => (
-                      <label key={tier} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={eggAllowedPortals.includes(tier)}
-                          onChange={(e) => {
-                            const next = e.target.checked
-                              ? [...eggAllowedPortals, tier]
-                              : eggAllowedPortals.filter((p) => p !== tier)
-                            setEggAllowedPortals(next)
-                          }}
-                          className="accent-primary"
-                        />
-                        <span>{portalMarkerByTier[tier] ?? tier}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">When empty, this egg is available to all portals.</p>
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEggDialog(null)} className="border-border">Cancel</Button>
-            <Button onClick={saveEgg} disabled={eggLoading || !eggName.trim() || !eggImage.trim() || !eggStartup.trim()}
-              className="bg-primary text-primary-foreground">
-              {eggLoading ? "Saving…" : eggDialog === "new" ? "Create Egg" : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -11052,430 +6121,6 @@ Content-Type: application/json
           ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setViewUserDialog(null); setViewUserProfile(null) }} className="border-border">Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* ═══════ Node Heartbeat History Dialog ════════════════════════════════ */}
-      <Dialog
-        open={!!heartbeatDialogNode}
-        onOpenChange={(open) => { if (!open) { setHeartbeatDialogNode(null); setHeartbeatDialogData(null) } }}
-      >
-        <DialogContent className="max-w-2xl bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              Heartbeat History — {heartbeatDialogNode?.name}
-            </DialogTitle>
-          </DialogHeader>
-          {/* Window toggle */}
-          <div className="flex gap-2">
-            {(["24h", "7d"] as const).map((w) => (
-              <button
-                key={w}
-                onClick={() => setHeartbeatDialogWindow(w)}
-                className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                {w === "24h" ? "Last 24 hours" : "Last 7 days"}
-              </button>
-            ))}
-          </div>
-          {heartbeatDialogLoading ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : heartbeatDialogData ? (
-            <div className="space-y-4">
-              {/* Summary stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Uptime</p>
-                  <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                    : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                      : "text-red-400"
-                    }`}>
-                    {heartbeatDialogData.summary.uptime_pct}%
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Avg response</p>
-                  <p className="text-xl font-bold text-foreground">
-                    {heartbeatDialogData.summary.avg_ms != null ? `${heartbeatDialogData.summary.avg_ms}ms` : "—"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Checks</p>
-                  <p className="text-xl font-bold text-foreground">{heartbeatDialogData.summary.total_checks}</p>
-                </div>
-              </div>
-              {/* Full chart */}
-              <div>
-                <NodeSparkline data={heartbeatDialogData.points} compact={false} />
-              </div>
-              {/* Time range */}
-              {heartbeatDialogData.points.length > 1 && (
-                <p className="text-[11px] text-muted-foreground text-center">
-                  {new Date(heartbeatDialogData.points[0].timestamp).toLocaleString()} →{" "}
-                  {new Date(heartbeatDialogData.points[heartbeatDialogData.points.length - 1].timestamp).toLocaleString()}
-                </p>
-              )}
-              {/* Legend */}
-              <div className="flex items-center gap-4 justify-center text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded" style={{ background: '#22c55e' }} /> OK</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded" style={{ background: 'rgba(234,179,8,0.6)' }} /> Timeout</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded" style={{ background: 'rgba(239,68,68,0.6)' }} /> Error</span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No heartbeat data for this window.</p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setHeartbeatDialogNode(null); setHeartbeatDialogData(null) }} className="border-border">
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Node Heartbeat History Dialog ════════════════════════════════ */}
-      <Dialog
-        open={!!heartbeatDialogNode}
-        onOpenChange={(open) => { if (!open) { setHeartbeatDialogNode(null); setHeartbeatDialogData(null) } }}
-      >
-        <DialogContent className="max-w-2xl bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              Heartbeat History — {heartbeatDialogNode?.name}
-            </DialogTitle>
-          </DialogHeader>
-          {/* Window toggle */}
-          <div className="flex gap-2">
-            {(["24h", "7d"] as const).map((w) => (
-              <button
-                key={w}
-                onClick={() => setHeartbeatDialogWindow(w)}
-                className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                {w === "24h" ? "Last 24 hours" : "Last 7 days"}
-              </button>
-            ))}
-          </div>
-          {heartbeatDialogLoading ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : heartbeatDialogData ? (
-            <div className="space-y-4">
-              {/* Summary stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Uptime</p>
-                  <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                    : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                      : "text-red-400"
-                    }`}>
-                    {heartbeatDialogData.summary.uptime_pct}%
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Avg response</p>
-                  <p className="text-xl font-bold text-foreground">
-                    {heartbeatDialogData.summary.avg_ms != null ? `${heartbeatDialogData.summary.avg_ms}ms` : "—"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Checks</p>
-                  <p className="text-xl font-bold text-foreground">{heartbeatDialogData.summary.total_checks}</p>
-                </div>
-              </div>
-              {/* Full chart */}
-              <div>
-                <NodeSparkline data={heartbeatDialogData.points} compact={false} />
-              </div>
-              {/* Time range */}
-              {heartbeatDialogData.points.length > 1 && (
-                <p className="text-[11px] text-muted-foreground text-center">
-                  {new Date(heartbeatDialogData.points[0].timestamp).toLocaleString()} →{" "}
-                  {new Date(heartbeatDialogData.points[heartbeatDialogData.points.length - 1].timestamp).toLocaleString()}
-                </p>
-              )}
-              {/* Legend */}
-              <div className="flex items-center gap-4 justify-center text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5"><span className="inline-block w-4 h-1 rounded" style={{ background: "#22c55e" }} /> OK</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded" style={{ background: "rgba(234,179,8,0.5)" }} /> Timeout</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded" style={{ background: "rgba(239,68,68,0.5)" }} /> Error</span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No heartbeat data for this window.</p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setHeartbeatDialogNode(null); setHeartbeatDialogData(null) }} className="border-border">
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ View Node Config Dialog ═══════════════════════════════════════ */}
-      <Dialog open={!!viewConfigNode} onOpenChange={(open) => { if (!open) { setViewConfigNode(null); setViewConfigToken("") } }}>
-        <DialogContent className="max-w-xl bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Wings Config — {viewConfigNode?.name}</DialogTitle>
-          </DialogHeader>
-          {viewConfigLoading ? (
-            <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading token…
-            </div>
-          ) : viewConfigToken ? (
-            <div className="flex flex-col gap-3 py-1">
-              <p className="text-xs text-muted-foreground">
-                Copy to <code className="font-mono text-foreground">/etc/eclipanel/config.yml</code> on the Wings server, then run{" "}
-                <code className="font-mono text-foreground">systemctl restart wings</code>.
-              </p>
-              <div className="relative">
-                <pre className="rounded-lg border border-border bg-black/40 p-4 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-relaxed">
-                  {buildNodeConfigYaml(viewConfigNode!, viewConfigToken)}
-                </pre>
-                <button
-                  onClick={() => navigator.clipboard.writeText(buildNodeConfigYaml(viewConfigNode!, viewConfigToken))}
-                  className="absolute top-2 right-2 rounded-md border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  Copy
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-destructive py-4">Failed to load token for this node.</p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setViewConfigNode(null); setViewConfigToken("") }} className="border-border">Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ OAuth Create App Dialog ══════════════════════════════════════ */}
-      <Dialog open={oauthCreateOpen} onOpenChange={setOauthCreateOpen}>
-        <DialogContent className="max-w-lg bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Register OAuth App</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-1">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">App Name *</label>
-              <input
-                value={oauthCreateName}
-                onChange={(e) => setOauthCreateName(e.target.value)}
-                placeholder="My Eclipse Service"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Description</label>
-              <input
-                value={oauthCreateDesc}
-                onChange={(e) => setOauthCreateDesc(e.target.value)}
-                placeholder="Optional description"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Redirect URIs</label>
-              <div className="flex flex-col gap-2">
-                {oauthCreateRedirects.map((uri, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <input
-                      value={uri}
-                      onChange={(e) => {
-                        const next = [...oauthCreateRedirects]
-                        next[idx] = e.target.value
-                        setOauthCreateRedirects(next)
-                      }}
-                      placeholder="https://yourapp.example.com/callback"
-                      className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
-                    />
-                    {oauthCreateRedirects.length > 1 && (
-                      <button onClick={() => setOauthCreateRedirects((p) => p.filter((_, i) => i !== idx))}
-                        className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                        <XCircle className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => setOauthCreateRedirects((p) => [...p, ""])}
-                  className="flex items-center gap-1 self-start rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
-                  <Plus className="h-3 w-3" /> Add URI
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Allowed Scopes</label>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {["profile", "email", "orgs:read", "billing:read", "servers:read", "servers:write", "admin"].map((scope) => (
-                  <label key={scope} className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={oauthCreateScopes.includes(scope)}
-                      onChange={(e) => setOauthCreateScopes((p) => e.target.checked ? [...p, scope] : p.filter((s) => s !== scope))}
-                      className="accent-primary" />
-                    <span className="text-xs font-mono text-foreground">{scope}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Grant Types</label>
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {["authorization_code", "client_credentials", "refresh_token"].map((grant) => (
-                  <label key={grant} className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={oauthCreateGrants.includes(grant)}
-                      onChange={(e) => setOauthCreateGrants((p) => e.target.checked ? [...p, grant] : p.filter((g) => g !== grant))}
-                      className="accent-primary" />
-                    <span className="text-xs font-mono text-foreground">{grant}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOauthCreateOpen(false)} className="border-border">Cancel</Button>
-            <Button onClick={submitCreateOAuthApp} disabled={oauthCreateLoading || !oauthCreateName.trim()} className="bg-primary text-primary-foreground">
-              {oauthCreateLoading ? "Creating…" : "Create App"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ OAuth Secret Reveal Dialog ═══════════════════════════════════ */}
-      <Dialog open={!!oauthNewSecret} onOpenChange={(open) => { if (!open) setOauthNewSecret(null) }}>
-        <DialogContent className="max-w-md bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">App Created — Save Your Secret</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-1">
-            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-300">
-              This is the <strong>only time</strong> the client secret is shown. Copy it now — it cannot be retrieved later.
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted-foreground">App Name</p>
-                <p className="text-sm font-medium text-foreground">{oauthNewSecret?.name}</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted-foreground">Client ID</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 rounded-lg border border-border bg-black/40 px-3 py-2 text-xs font-mono text-foreground break-all">{oauthNewSecret?.clientId}</code>
-                  <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientId || "")}
-                    className="shrink-0 rounded border border-border bg-secondary/80 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted-foreground">Client Secret</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs font-mono text-yellow-200 break-all">{oauthNewSecret?.clientSecret}</code>
-                  <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientSecret || "")}
-                    className="shrink-0 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-300 hover:bg-yellow-500/20 transition-colors">Copy</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setOauthNewSecret(null)} className="bg-primary text-primary-foreground">I&apos;ve saved the secret</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ OAuth Edit App Dialog ════════════════════════════════════════ */}
-      <Dialog open={!!oauthEditApp} onOpenChange={(open) => { if (!open) setOauthEditApp(null) }}>
-        <DialogContent className="max-w-lg bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Edit OAuth App — {oauthEditApp?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-1">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Redirect URIs</label>
-              <div className="flex flex-col gap-2">
-                {oauthEditRedirects.map((uri, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <input
-                      value={uri}
-                      onChange={(e) => {
-                        const next = [...oauthEditRedirects]
-                        next[idx] = e.target.value
-                        setOauthEditRedirects(next)
-                      }}
-                      placeholder="https://yourapp.example.com/callback"
-                      className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
-                    />
-                    {oauthEditRedirects.length > 1 && (
-                      <button onClick={() => setOauthEditRedirects((p) => p.filter((_, i) => i !== idx))}
-                        className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                        <XCircle className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => setOauthEditRedirects((p) => [...p, ""])}
-                  className="flex items-center gap-1 self-start rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
-                  <Plus className="h-3 w-3" /> Add URI
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Allowed Scopes</label>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {["profile", "email", "orgs:read", "billing:read", "servers:read", "servers:write", "admin"].map((scope) => (
-                  <label key={scope} className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={oauthEditScopes.includes(scope)}
-                      onChange={(e) => setOauthEditScopes((p) => e.target.checked ? [...p, scope] : p.filter((s) => s !== scope))}
-                      className="accent-primary" />
-                    <span className="text-xs font-mono text-foreground">{scope}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Grant Types</label>
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {["authorization_code", "client_credentials", "refresh_token"].map((grant) => (
-                  <label key={grant} className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={oauthEditGrants.includes(grant)}
-                      onChange={(e) => setOauthEditGrants((p) => e.target.checked ? [...p, grant] : p.filter((g) => g !== grant))}
-                      className="accent-primary" />
-                    <span className="text-xs font-mono text-foreground">{grant}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOauthEditApp(null)} className="border-border">Cancel</Button>
-            <Button onClick={submitEditOAuthApp} disabled={oauthEditLoading} className="bg-primary text-primary-foreground">
-              {oauthEditLoading ? "Saving…" : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ OAuth Rotate Secret Confirmation ═════════════════════════════ */}
-      <Dialog open={!!oauthRotateApp} onOpenChange={(open) => { if (!open) setOauthRotateApp(null) }}>
-        <DialogContent className="max-w-sm bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Rotate Client Secret?</DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            <p className="text-sm text-muted-foreground">
-              Rotating the secret for <strong className="text-foreground">{oauthRotateApp?.name}</strong> will
-              immediately revoke all active tokens. Services using the current secret will stop working
-              until updated with the new one.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOauthRotateApp(null)} className="border-border">Cancel</Button>
-            <Button onClick={confirmRotateOAuthSecret} disabled={oauthRotateLoading} className="bg-destructive text-destructive-foreground">
-              {oauthRotateLoading ? "Rotating…" : "Rotate Secret"}
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

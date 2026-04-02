@@ -4,6 +4,7 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { Node } from '../models/node.entity';
 import { User } from '../models/user.entity';
 import { signWingsJwt } from './remoteHandler';
+import { handleSocConnection } from './wsRoutes';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ProxyCtx {
@@ -44,6 +45,25 @@ export function wsProxyRoutes(app: any, prefix: string) {
     }
     return { ctx, ws, message };
   }
+
+  app.ws(prefix + '/ws/soc', {
+    open(...args: any[]) {
+      const { ctx, ws } = unwrapArgs(arguments);
+      if (!ws) return;
+      handleSocConnection(app, ws, ctx);
+    },
+    message(...args: any[]) {
+      const { ws, message } = unwrapArgs(arguments);
+    },
+    close(...args: any[]) {
+      const { ws } = unwrapArgs(arguments);
+      try { ws.close?.(); } catch {};
+    },
+    error(...args: any[]) {
+      const { ws } = unwrapArgs(arguments);
+      try { ws.close?.(); } catch {};
+    },
+  });
 
   app.ws(prefix + '/servers/:id/ws/proxy', {
     open(...args: any[]) {

@@ -1,7 +1,7 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -1066,9 +1066,14 @@ export default function SettingsPage() {
   }, [user?.settings])
 
   const updateTheme = async (themeName: string) => {
+    if (themeName === activeTheme) return
+
+    const newThemeObj = THEMES.find((t) => t.name === themeName)
+    if (!newThemeObj) return
+
     setActiveTheme(themeName)
-    const theme = THEMES.find((t) => t.name === themeName)
-    if (theme) applyTheme(theme)
+    await applyTheme(newThemeObj, { animate: true })
+
     await saveUserSettings({ theme: { name: themeName } })
   }
 
@@ -1192,7 +1197,7 @@ export default function SettingsPage() {
                       <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
                         onChange={async (e) => {
                           const file = e.target.files?.[0]
@@ -1561,8 +1566,9 @@ export default function SettingsPage() {
                       <button
                         key={theme.name}
                         onClick={() => updateTheme(theme.name)}
+                        disabled={isActive}
                         className={cn(
-                          "relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-all active:scale-[0.97] min-w-0",
+                          "relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-all active:scale-[0.97] min-w-0 disabled:pointer-events-none disabled:opacity-70",
                           isActive
                             ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                             : "border-border bg-secondary/20 hover:border-primary/30 hover:bg-secondary/40"

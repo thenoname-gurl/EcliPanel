@@ -17,6 +17,8 @@ import { nodeService } from '../services/nodeService';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { t } from 'elysia';
+import { createExportJob, getExportJob, listExportJobs } from '../services/exportJobService';
+import { ExportJob } from '../models/exportJob.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } from './remoteHandler';
 import { Mount } from '../models/mount.entity';
@@ -26,10 +28,14 @@ import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
+import { executeDeletionRequest } from '../jobs/deletionExecutionJob';
 import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel } from '../utils/eu';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
+import * as tar from 'tar';
+import { promises as fsp } from 'fs';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 
@@ -207,22 +213,7 @@ export async function adminRoutes(app: any, prefix = '') {
   }, {
     beforeHandle: authenticate,
     response: {
-      200: t.Object({
-        totalUsers: t.Number(),
-        totalNodes: t.Number(),
-        totalOrganisations: t.Number(),
-        totalServers: t.Number(),
-        pendingTickets: t.Number(),
-        pendingVerifications: t.Number(),
-        pendingDeletions: t.Number(),
-        fraudAlerts: t.Number(),
-        avgTicketResponseMs: t.Optional(t.Number()),
-        avgTicketResponseSampleCount: t.Optional(t.Number()),
-        avgTicketResponseMsLast30: t.Optional(t.Number()),
-        avgTicketResponseSampleCountLast30: t.Optional(t.Number()),
-        avgTicketResponseMsGlobal: t.Optional(t.Number()),
-        avgTicketResponseSampleCountGlobal: t.Optional(t.Number()),
-      }),
+      200: t.Any(),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),
     },
@@ -395,6 +386,197 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'List all users (admin) with pagination and search', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/users/:id/export-job', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const targetId = Number(ctx.params.id);
+    if (Number.isNaN(targetId)) { ctx.set.status = 400; return { error: 'Invalid user id' }; }
+    try {
+      const job = await createExportJob(ctx.user?.id, targetId);
+      return { success: true, jobId: job.id };
+    } catch (e) {
+      ctx.set.status = 500;
+      return { error: 'Failed to create export job' };
+    }
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: { 200: t.Object({ success: t.Boolean(), jobId: t.String() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    },
+    detail: { summary: 'Create background export job for a user (admin only)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/export-jobs/:id', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const id = String(ctx.params.id || '');
+    const job = await getExportJob(id);
+    if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
+    return { job };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: { 200: t.Object({ job: t.Any() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    },
+    detail: { summary: 'Get export job status (admin only)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/export-jobs', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const limit = Math.min(500, Math.max(1, Number((ctx.query as any)?.limit || 100)));
+    const status = ((ctx.query as any)?.status || '').trim() || undefined;
+    const jobs = await listExportJobs(limit, status);
+
+    const now = new Date();
+    const nextRunAt = new Date(Math.ceil(now.getTime() / 60000) * 60000 + 60000);
+    const lastRunAt = jobs.find((j: any) => j.status === 'running' || j.status === 'completed' || j.status === 'failed')?.updatedAt || null;
+
+    return { jobs, meta: { runnerCron: '*/1 * * * *', nextRunAt, lastRunAt } };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      query: t.Object({ limit: t.Optional(t.String()), status: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ jobs: t.Array(t.Any()), meta: t.Any() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'List export jobs and runner schedule metadata (admin only)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/export-jobs/:id/download', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const id = String(ctx.params.id || '');
+    const job = await getExportJob(id);
+    if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
+    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: 'Job not completed or no archive available' }; }
+    try {
+      const data = await fsp.readFile(job.resultPath);
+      return new Response(data, { status: 200, headers: { 'Content-Type': 'application/gzip', 'Content-Disposition': `attachment; filename="export-${job.userId}.tar.gz"` } });
+    } catch (e) {
+      ctx.set.status = 500;
+      return { error: 'Failed to read archive' };
+    }
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    },
+    detail: { summary: 'Download completed export archive (admin only)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/export-jobs/:id/share-link', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+
+    const id = String(ctx.params.id || '');
+    const job = await getExportJob(id) as any;
+    if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
+    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: 'Job must be completed with archive before sharing' }; }
+
+    const expiresHoursRaw = Number((ctx.body as any)?.expiresHours ?? 24);
+    const expiresHours = Number.isFinite(expiresHoursRaw) ? Math.min(Math.max(1, Math.floor(expiresHoursRaw)), 24 * 30) : 24;
+    const shareToken = `${uuidv4().replace(/-/g, '')}${uuidv4().replace(/-/g, '')}`;
+    const shareLinkExpiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
+
+    const repo = AppDataSource.getRepository(ExportJob);
+    job.shareToken = shareToken;
+    job.shareLinkExpiresAt = shareLinkExpiresAt;
+    job.shareDownloadsRemaining = 1;
+    await repo.save(job);
+
+    let origin = '';
+    try { origin = new URL(String((ctx as any)?.request?.url || '')).origin; } catch {}
+    const base = process.env.BACKEND_URL || process.env.APP_URL || origin || '';
+    const sharePath = `/api/public/export-shares/${shareToken}`;
+    const shareUrl = `${base}${sharePath}`;
+
+    return { success: true, shareUrl, sharePath, expiresAt: shareLinkExpiresAt, downloadsRemaining: 1 };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Optional(t.Object({ expiresHours: t.Optional(t.Number()) })),
+      response: {
+        200: t.Object({ success: t.Boolean(), shareUrl: t.String(), sharePath: t.String(), expiresAt: t.Any(), downloadsRemaining: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Create single-use share link for completed export', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/public/export-shares/:token', async (ctx) => {
+    const token = String(ctx.params.token || '');
+    if (!token) { ctx.set.status = 400; return { error: 'Missing token' }; }
+
+    const repo = AppDataSource.getRepository(ExportJob);
+    const job = await repo.findOne({ where: { shareToken: token } as any });
+    if (!job) { ctx.set.status = 404; return { error: 'Share link not found' }; }
+
+    if (!job.shareDownloadsRemaining || job.shareDownloadsRemaining < 1) {
+      ctx.set.status = 410;
+      return { error: 'Share link has already been used' };
+    }
+    if (job.shareLinkExpiresAt && new Date(job.shareLinkExpiresAt).getTime() < Date.now()) {
+      ctx.set.status = 410;
+      return { error: 'Share link expired' };
+    }
+    if (!job.resultPath) {
+      ctx.set.status = 404;
+      return { error: 'Export archive unavailable' };
+    }
+
+    let data: any;
+    try {
+      data = await fsp.readFile(job.resultPath);
+    } catch {
+      ctx.set.status = 404;
+      return { error: 'Archive file not found' };
+    }
+
+    const consume = await repo.createQueryBuilder()
+      .update(ExportJob)
+      .set({
+        shareDownloadsRemaining: 0,
+        shareToken: null,
+      })
+      .where('id = :id', { id: job.id })
+      .andWhere('shareToken = :token', { token })
+      .andWhere('shareDownloadsRemaining > 0')
+      .execute();
+
+    if (!consume.affected || consume.affected < 1) {
+      ctx.set.status = 410;
+      return { error: 'Share link has already been used' };
+    }
+
+    return new Response(data as any, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/gzip',
+        'Content-Disposition': `attachment; filename="export-${job.userId || 'user'}.tar.gz"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }, {
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+      410: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Download export using one-time public share link', tags: ['Admin'] },
   });
 
   app.put(prefix + '/admin/users/:id', async (ctx) => {
@@ -941,10 +1123,14 @@ export async function adminRoutes(app: any, prefix = '') {
       const targetUser = await userRepo.findOneBy({ id: rec.userId });
       if (targetUser) {
         targetUser.deletionRequested = true;
-        targetUser.deletionApproved = true;
+        targetUser.deletionApproved = false;
+        targetUser.pendingDeletionUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
         targetUser.suspended = true;
         await userRepo.save(targetUser);
       }
+      rec.status = 'pending_deletion';
+      rec.approvedAt = new Date();
+      rec.scheduledDeletionAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     }
 
     await delRepo.save(rec);
@@ -963,6 +1149,83 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Approve or reject a deletion request', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/deletions/:id/expedite', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const delRepo = AppDataSource.getRepository(DeletionRequest);
+    const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
+    if (!rec) {
+      ctx.set.status = 404;
+      return { error: 'Not found' };
+    }
+    if (rec.status !== 'pending_deletion' && rec.status !== 'approved') {
+      ctx.set.status = 400;
+      return { error: 'Deletion request is not in pending deletion state' };
+    }
+    if (rec.status === 'approved') {
+      rec.status = 'pending_deletion';
+      rec.scheduledDeletionAt = new Date();
+      await delRepo.save(rec);
+    }
+    const updated = await executeDeletionRequest(rec, new Date());
+    return { success: true, rec: updated };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Expedite and execute deletion immediately', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/deletions/:id/cancel', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const delRepo = AppDataSource.getRepository(DeletionRequest);
+    const userRepo = AppDataSource.getRepository(User);
+    const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
+    if (!rec) {
+      ctx.set.status = 404;
+      return { error: 'Not found' };
+    }
+    if (rec.status !== 'pending_deletion') {
+      ctx.set.status = 400;
+      return { error: 'Only pending deletion requests can be cancelled' };
+    }
+
+    const targetUser = await userRepo.findOneBy({ id: rec.userId });
+    if (targetUser) {
+      const hadPendingFreeze = !!targetUser.pendingDeletionUntil;
+      targetUser.deletionRequested = false;
+      targetUser.deletionApproved = false;
+      targetUser.pendingDeletionUntil = undefined;
+      if (hadPendingFreeze) targetUser.suspended = false;
+      await userRepo.save(targetUser);
+    }
+
+    rec.status = 'cancelled';
+    rec.scheduledDeletionAt = undefined;
+    await delRepo.save(rec);
+    return { success: true, rec };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Cancel pending deletion and unfreeze account', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/nodes', async (ctx) => {
@@ -1949,7 +2212,96 @@ export async function adminRoutes(app: any, prefix = '') {
     delete out.passwordHash;
     delete out.sessions;
 
-    return {
+    const serverLogs: Record<string, string[]> = {};
+    const serverBackups: Record<string, any[]> = {};
+    const serverFilesMap: Record<string, { path: string; size: number }[]> = {};
+
+    async function collectFilesRecursive(svc: any, serverUuid: string, dir = '/') {
+      const items: Array<{ name: string; mode?: string; type?: string; size?: number }> = [];
+      try {
+        const files = await svc.serverRequest(serverUuid, `/files/list-directory?directory=${encodeURIComponent(dir)}`);
+        const body = files.data || files;
+        if (Array.isArray(body)) items.push(...body);
+        else if (Array.isArray(body.entries)) items.push(...body.entries);
+        else if (Array.isArray(body.files)) items.push(...body.files);
+      } catch (e1: any) {
+        if (e1?.response?.status === 404) {
+          try {
+            const files = await svc.serverRequest(serverUuid, `/files/list?directory=${encodeURIComponent(dir)}`);
+            const body = files.data || files;
+            if (Array.isArray(body)) items.push(...body);
+            else if (Array.isArray(body.entries)) items.push(...body.entries);
+            else if (Array.isArray(body.files)) items.push(...body.files);
+          } catch {
+            return [];
+          }
+        } else {
+          return [];
+        }
+      }
+
+      const filesFound: Array<{ path: string; size: number }> = [];
+      for (const entry of items) {
+        const name = entry.name || '';
+        if (!name) continue;
+        const fullPath = dir.replace(/\/$/, '') + '/' + name;
+        if (entry.type === 'file' || entry.mode?.startsWith('f') || entry.mode?.startsWith('-')) {
+          filesFound.push({ path: fullPath, size: Number(entry.size || 0) });
+        } else {
+          const child = await collectFilesRecursive(svc, serverUuid, fullPath);
+          filesFound.push(...child);
+        }
+      }
+      return filesFound;
+    }
+
+    for (const s of servers) {
+      const serverUuid = (s.uuid || s.id || '').toString();
+      if (!serverUuid) continue;
+      const node = nodes.find((n: any) => n.id === s.nodeId) || nodes[0];
+      if (!node) continue;
+      const svc = new WingsApiService((node as any).backendWingsUrl || (node as any).url, (node as any).token);
+      try {
+        const logResp = await svc.getServerLogs(serverUuid);
+        let logs: string[] = [];
+        const raw = logResp.data;
+        if (Array.isArray(raw)) logs = raw.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+        else if (typeof raw === 'string') logs = raw.split('\n').filter(Boolean);
+        else if (raw && typeof raw === 'object') {
+          const inner = raw.logs ?? raw.data ?? raw.output;
+          if (Array.isArray(inner)) logs = inner.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+          else if (typeof inner === 'string') logs = inner.split('\n').filter(Boolean);
+        }
+        serverLogs[serverUuid] = logs;
+      } catch (e) {
+        serverLogs[serverUuid] = [`failed to fetch logs: ${String(e?.message || e)}`];
+      }
+
+      try {
+        const backupResp = await svc.listServerBackups(serverUuid);
+        serverBackups[serverUuid] = Array.isArray(backupResp.data) ? backupResp.data : [];
+      } catch (e) {
+        serverBackups[serverUuid] = [];
+      }
+
+      try {
+        serverFilesMap[serverUuid] = await collectFilesRecursive(svc, serverUuid, '/');
+      } catch {
+        serverFilesMap[serverUuid] = [];
+      }
+
+      try {
+        await svc.createServerBackup(serverUuid, { adapter: 'local', uuid: `admin-export-${serverUuid}-${Date.now()}`, ignore: [] });
+      } catch {
+        // skip
+      }
+    }
+
+    const dataExportDir = path.join(os.tmpdir(), `data-export-${Date.now()}-${uuidv4()}`);
+    await fsp.mkdir(dataExportDir, { recursive: true });
+
+    const metadataPath = path.join(dataExportDir, 'user-export.json');
+    const payload = {
       user: out,
       passkeys,
       apiKeys,
@@ -1960,7 +2312,94 @@ export async function adminRoutes(app: any, prefix = '') {
       servers,
       orders,
       aiModels: aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits })),
+      serverLogs,
+      serverBackups,
+      serverFiles: serverFilesMap,
       exportedAt: new Date().toISOString(),
+    };
+    await fsp.writeFile(metadataPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    for (const [serverUuid, logs] of Object.entries(serverLogs)) {
+      const logFile = path.join(dataExportDir, `server-${serverUuid}-logs.txt`);
+      await fsp.writeFile(logFile, logs.join('\n'), 'utf8');
+    }
+    for (const [serverUuid, backups] of Object.entries(serverBackups)) {
+      const backupFile = path.join(dataExportDir, `server-${serverUuid}-backups.json`);
+      await fsp.writeFile(backupFile, JSON.stringify(backups, null, 2), 'utf8');
+    }
+
+    for (const s of servers) {
+      const serverUuid = (s.uuid || s.id || '').toString();
+      if (!serverUuid || !serverFilesMap[serverUuid] || serverFilesMap[serverUuid].length === 0) continue;
+      const node = nodes.find((n: any) => n.id === s.nodeId) || nodes[0];
+      if (!node) continue;
+      const svc = new WingsApiService((node as any).backendWingsUrl || (node as any).url, (node as any).token);
+      const base = path.join(dataExportDir, 'server-files', serverUuid);
+      await fsp.mkdir(base, { recursive: true });
+      const trimmedFiles = serverFilesMap[serverUuid].slice(0, 300);
+      for (const file of trimmedFiles) {
+        const target = path.join(base, file.path.replace(/^\//, '').replace(/\//g, path.sep));
+        try {
+          const res = await svc.downloadFile(serverUuid, file.path);
+          const rawData = res.data;
+          await fsp.mkdir(path.dirname(target), { recursive: true });
+          if (rawData instanceof Buffer) {
+            await fsp.writeFile(target, rawData);
+          } else if (rawData instanceof ArrayBuffer) {
+            await fsp.writeFile(target, Buffer.from(rawData));
+          } else if (typeof rawData === 'string') {
+            await fsp.writeFile(target, rawData, 'utf8');
+          } else {
+            await fsp.writeFile(target, JSON.stringify(rawData), 'utf8');
+          }
+        } catch (e) {
+          // skip
+        }
+      }
+    }
+
+    const archiveName = `eclipanel-user-export-${userId}-${Date.now()}.tar.gz`;
+    const archivePath = path.join(os.tmpdir(), archiveName);
+    try {
+      await tar.c(
+        {
+          gzip: true,
+          file: archivePath,
+          cwd: dataExportDir,
+        },
+        [
+          'user-export.json',
+          ...Object.keys(serverLogs).map((s) => `server-${s}-logs.txt`),
+          ...Object.keys(serverBackups).map((s) => `server-${s}-backups.json`),
+          'server-files',
+        ],
+      );
+
+      const recipient = process.env.ADMIN_EMAIL || out.email || (user.email || null);
+      if (recipient) {
+        await sendMail({
+          to: recipient,
+          from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
+          subject: `EcliPanel user data export for ${out.email || userId}`,
+          text: `Attached archive includes full data export for user #${userId}.`,
+          attachments: [{ filename: archiveName, path: archivePath }],
+        });
+      }
+    } catch (error) {
+      console.warn('user export archive failed', error);
+    } finally {
+      try {
+        await fsp.rm(dataExportDir, { recursive: true, force: true });
+      } catch { }
+      try {
+        await fsp.unlink(archivePath);
+      } catch { }
+    }
+
+    return {
+      ...payload,
+      exportArchive: archiveName,
+      emailSentTo: process.env.ADMIN_EMAIL || out.email || user.email || null,
     };
   }, {
     beforeHandle: authenticate,

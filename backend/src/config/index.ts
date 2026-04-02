@@ -62,6 +62,27 @@ export async function setupConfig(app: any) {
     throw err;
   });
 
+  try {
+    const dbType = String(AppDataSource.options.type || '');
+    if (dbType === 'mysql' || dbType === 'mariadb') {
+      const rows = await AppDataSource.query(
+        `SELECT COUNT(1) AS cnt
+           FROM information_schema.statistics
+          WHERE table_schema = DATABASE()
+            AND table_name = 'soc_data'
+            AND index_name = 'IDX_soc_data_server_timestamp'`
+      );
+      const count = Number((rows?.[0] as any)?.cnt ?? 0);
+      if (count === 0) {
+        await AppDataSource.query('CREATE INDEX IDX_soc_data_server_timestamp ON soc_data (serverId, timestamp)');
+      }
+    } else if (dbType === 'postgres') {
+      await AppDataSource.query('CREATE INDEX IF NOT EXISTS "IDX_soc_data_server_timestamp" ON "soc_data" ("serverId", "timestamp")');
+    }
+  } catch (err: any) {
+    app.log?.warn({ err }, 'Failed to ensure soc_data(serverId,timestamp) index');
+  }
+
   if (['mysql', 'mariadb'].includes(String(AppDataSource.options.type))) {
     try {
       await AppDataSource.query('ALTER TABLE `ticket` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');

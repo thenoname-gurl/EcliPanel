@@ -246,6 +246,8 @@ export async function authRoutes(app: any, prefix = '') {
         studentVerified: (user as any).studentVerified || false,
         twoFactorEnabled: !!user.twoFactorEnabled,
         avatarUrl: user.avatarUrl || null,
+        supportBanned: !!user.supportBanned,
+        supportBanReason: user.supportBanReason || null,
         org: user.org ? { id: user.org.id, name: user.org.name, handle: user.org.handle } : null,
         orgRole: user.orgRole || 'member',
         limits: (user as any).limits || null,
@@ -1477,6 +1479,8 @@ export async function authRoutes(app: any, prefix = '') {
         studentVerified: (user as any).studentVerified || false,
         twoFactorEnabled: !!user.twoFactorEnabled,
         avatarUrl: user.avatarUrl || null,
+        supportBanned: !!user.supportBanned,
+        supportBanReason: user.supportBanReason || null,
         org: user.org
           ? {
             id: user.org.id,

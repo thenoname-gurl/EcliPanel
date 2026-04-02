@@ -3,27 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ============================================
-   ECLIPSE SYSTEMS - THEME CONFIGURATION
-   
-   To create your own theme, duplicate this section
-   and update the color values. The panel uses OKLCH
-   color space for perceptual uniformity.
-   
-   Theme tokens:
-   - background: main page bg
-   - foreground: main text color
-   - card: card/panel bg
-   - primary: brand accent (purple)
-   - secondary: subtle backgrounds
-   - muted: disabled/subtle elements
-   - accent: hover/active states
-   - destructive: error/danger states
-   - glow: neon glow accent color
-   ============================================ */
-
 :root {
-  /* Dark-only panel - root matches dark */
   --background: #0a0a12;
   --foreground: #e8e4f0;
   --card: #12111f;
@@ -159,7 +139,6 @@
   }
 }
 
-/* Glow utility classes */
 .glow-box {
   box-shadow: 0 0 20px var(--glow), 0 0 60px var(--glow), inset 0 0 20px rgba(139, 92, 246, 0.05);
 }
@@ -173,7 +152,6 @@
   box-shadow: 0 0 8px var(--glow), inset 0 0 8px rgba(139, 92, 246, 0.03);
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -189,7 +167,6 @@
   background: var(--primary);
 }
 
-/* Animation keyframes */
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
@@ -203,4 +180,40 @@
 }
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+::view-transition-group(root) {
+  animation-timing-function: var(--expo-in, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+::view-transition-new(root) {
+  mask: url('/assets/shigure-ui-smol.gif') center / 0 no-repeat;
+  -webkit-mask: url('/assets/shigure-ui-smol.gif') center / 0 no-repeat;
+  animation: scale var(--switch-duration, 3s);
+  animation-fill-mode: both;
+}
+
+::view-transition-old(root),
+.dark::view-transition-old(root) {
+  animation: scale var(--switch-duration, 3s);
+  animation-fill-mode: both;
+}
+
+@keyframes scale {
+  0% {
+    mask-size: 0;
+    -webkit-mask-size: 0;
+  }
+  10% {
+    mask-size: 50vmax;
+    -webkit-mask-size: 50vmax;
+  }
+  90% {
+    mask-size: 50vmax;
+    -webkit-mask-size: 50vmax;
+  }
+  100% {
+    mask-size: 2000vmax;
+    -webkit-mask-size: 2000vmax;
+  }
 }
