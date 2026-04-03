@@ -115,6 +115,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     ai: true,
     dns: true,
     ticketing: true,
+    applications: true,
     oauth: true,
   })
 
@@ -132,6 +133,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
           ai: true,
           dns: true,
           ticketing: true,
+          applications: true,
           oauth: true,
         }
 

@@ -25,6 +25,7 @@ import { serverSubuserRoutes } from '../handlers/serverSubuserHandler';
 import { wsProxyRoutes } from '../handlers/wsProxyHandler';
 import { sshKeyRoutes } from '../handlers/sshKeyHandler';
 import { publicRoutes } from '../handlers/publicHandler';
+import { applicationRoutes } from '../handlers/applicationHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 
@@ -42,6 +43,9 @@ export function registerRoutes(app: any) {
         { prefix: '/api/ai', feature: 'ai' },
         { prefix: '/api/tickets', feature: 'ticketing' },
         { prefix: '/api/admin/tickets', feature: 'ticketing' },
+        { prefix: '/api/applications', feature: 'applications' },
+        { prefix: '/api/admin/applications', feature: 'applications' },
+        { prefix: '/api/public/applications', feature: 'applications' },
         { prefix: '/api/orders', feature: 'billing' },
         { prefix: '/api/admin/orders', feature: 'billing' },
         { prefix: '/api/plans', feature: 'billing' },
@@ -104,4 +108,5 @@ export function registerRoutes(app: any) {
     sshKeyRoutes(app, '/api');
     serverSubuserRoutes(app, '/api');
     publicRoutes(app, '');
+    applicationRoutes(app, '/api');
 }

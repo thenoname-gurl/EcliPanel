@@ -198,6 +198,11 @@ const ExportJobsTab = dynamic(() => import("./tabs/ExportJobsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading export jobs tab...</div>,
 })
 
+const ApplicationsTab = dynamic(() => import("./tabs/ApplicationsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading applications tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: #e0e0e0; margin: 0; padding: 0; }
     .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: #12111f; border-radius: 12px; border: 1px solid #2a2545; }
@@ -1360,6 +1365,7 @@ export default function AdminPanel() {
       ai: true,
       dns: true,
       ticketing: true,
+      applications: true,
       oauth: true,
     },
   })
@@ -1501,6 +1507,7 @@ export default function AdminPanel() {
                 ai: true,
                 dns: true,
                 ticketing: true,
+                applications: true,
                 ...(data.featureToggles || {}),
               },
             })
@@ -3332,6 +3339,7 @@ remote: ${panelUrl}`
                 { value: "organisations", label: "Organisations" },
                 { value: "servers", label: "Servers" },
                 { value: "tickets", label: "Tickets", feature: "ticketing" },
+                { value: "applications", label: "Applications", feature: "applications" },
                 { value: "verifications", label: "KYC" },
                 { value: "deletions", label: "Deletions" },
                 { value: "nodes", label: "Nodes" },
@@ -4130,6 +4138,9 @@ remote: ${panelUrl}`
                   </div>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="applications" className="mt-4">
+              {activeTab === "applications" ? <ApplicationsTab /> : null}
             </TabsContent>
             {/* ═══════════════ KYC / VERIFICATIONS ════════════════════════════ */}
             <TabsContent value="verifications" className="mt-4">

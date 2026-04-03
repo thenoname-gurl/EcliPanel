@@ -35,6 +35,7 @@ interface User {
   avatarUrl?: string
   supportBanned?: boolean
   supportBanReason?: string | null
+  suspended?: boolean
   euIdVerificationDisabled?: boolean
   settings?: Record<string, any>
   guideShown?: boolean

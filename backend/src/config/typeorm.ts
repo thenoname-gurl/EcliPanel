@@ -136,5 +136,8 @@ export const AppDataSource = new DataSource({
     require('../models/serverSubuser.entity').ServerSubuser,
     require('../models/sshKey.entity').SshKey,
     require('../models/organisationDnsZone.entity').OrganisationDnsZone,
+    require('../models/applicationForm.entity').ApplicationForm,
+    require('../models/applicationFormInvite.entity').ApplicationFormInvite,
+    require('../models/applicationSubmission.entity').ApplicationSubmission,
   ],
 });
