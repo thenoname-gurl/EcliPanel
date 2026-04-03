@@ -18,6 +18,7 @@ export async function ticketRoutes(app: any, prefix = '') {
   const modelRepo = AppDataSource.getRepository(AIModel);
   const modelUserRepo = AppDataSource.getRepository(AIModelUser);
   const modelOrgRepo = AppDataSource.getRepository(AIModelOrg);
+  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const planRepo = AppDataSource.getRepository(Plan);
 
   const endpointCooldowns: Map<string, number> = new Map();
@@ -199,9 +200,12 @@ export async function ticketRoutes(app: any, prefix = '') {
         l.push(`User ID: ${user.id ?? ''}`);
         l.push(`Name: ${[user.firstName, user.lastName].filter(Boolean).join(' ')}`);
         l.push(`Email: ${user.email ?? ''}`);
-        l.push(`Role: ${user.role ?? user.orgRole ?? ''}`);
+        l.push(`Role: ${user.role ?? ''}`);
         l.push(`Plan/Portal Type: ${user.portalType ?? ''}`);
-        if (user.org?.name) l.push(`Organisation: ${user.org.name}`);
+        const orgNames = Array.isArray((user as any).orgs)
+          ? (user as any).orgs.map((o: any) => o?.name).filter(Boolean)
+          : [];
+        if (orgNames.length > 0) l.push(`Organisations: ${orgNames.join(', ')}`);
       }
       l.push(`Ticket ID: ${ticket.id ?? ''}`);
       l.push(`Ticket priority: ${ticket.priority ?? ''}`);
@@ -996,6 +1000,16 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     if (adminRoles.includes(user.role)) {
       const ticketUser = await AppDataSource.getRepository(User).findOneBy({ id: ticket.userId });
       if (ticketUser) {
+        const membershipRows = await orgMemberRepo.find({ where: { userId: ticketUser.id }, relations: ['organisation'] });
+        const orgs = membershipRows
+          .filter((m: any) => !!m.organisation)
+          .map((m: any) => ({
+            id: m.organisation.id,
+            name: m.organisation.name,
+            handle: m.organisation.handle,
+            portalTier: m.organisation.portalTier,
+            orgRole: m.orgRole,
+          }));
         output.user = {
           id: ticketUser.id,
           firstName: ticketUser.firstName,
@@ -1003,7 +1017,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
           displayName: ticketUser.displayName,
           email: ticketUser.email,
           role: ticketUser.role,
-          orgRole: ticketUser.orgRole,
+          orgs,
           portalType: ticketUser.portalType,
           avatarUrl: ticketUser.avatarUrl,
           suspended: ticketUser.suspended,

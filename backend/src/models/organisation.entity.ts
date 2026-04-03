@@ -1,5 +1,4 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { User } from './user.entity';
 
 @Entity()
 export class Organisation {
@@ -24,9 +23,9 @@ export class Organisation {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  @OneToMany(() => User, (user) => user.org)
-  users: User[];
-
   @OneToMany(() => require('./organisationInvite.entity').OrganisationInvite, (inv: any) => inv.organisation)
   invites: import('./organisationInvite.entity').OrganisationInvite[];
+
+  @OneToMany(() => require('./organisationMember.entity').OrganisationMember, (membership: any) => membership.organisation)
+  memberships: import('./organisationMember.entity').OrganisationMember[];
 }

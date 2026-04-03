@@ -19,8 +19,17 @@ export function setupMiddleware(app: any) {
         || (user && typeof user === 'object' && ('userId' in user) && (user as any).userId)
         || (apiKey?.user?.id ?? undefined);
 
-      const orgId = (user && typeof user === 'object' && ('org' in user) && (user as any).org?.id)
-        || apiKey?.user?.org?.id;
+      let orgId = (ctx.params && (ctx.params.id || ctx.params.orgId || ctx.params.organisationId))
+        || (ctx.query && (ctx.query.id || ctx.query.orgId || ctx.query.organisationId))
+        || (ctx.body && (ctx.body.orgId || ctx.body.organisationId));
+
+      if (!orgId && userId) {
+        try {
+          const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+          const membership = await orgMemberRepo.findOne({ where: { userId: Number(userId) }, order: { createdAt: 'ASC' } as any });
+          orgId = membership?.organisationId;
+        } catch {}
+      }
 
       const repo = AppDataSource.getRepository(require('../models/apiRequestLog.entity').ApiRequestLog);
       const record = repo.create({ endpoint: url, userId: userId ?? undefined, organisationId: orgId ?? undefined, count: 1, timestamp: new Date() });

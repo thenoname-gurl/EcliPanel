@@ -38,6 +38,7 @@ function formatBytes(bytes: number) {
 export default function OrganisationDetail() {
   const params = useParams()
   const id = params?.id as string | undefined
+  const orgId = id ?? ""
   const [org, setOrg] = useState<any>(null)
   const [members, setMembers] = useState<any[]>([])
   const [inviteEmail, setInviteEmail] = useState("")
@@ -70,13 +71,16 @@ export default function OrganisationDetail() {
   const { user } = useAuth()
   const router = useRouter()
 
-  const isManager = user && (user.orgRole === "admin" || user.orgRole === "owner")
+  const activeMembership = user?.orgs?.find((x: any) => String(x.id) === String(id))
+  const activeOrgRole = activeMembership?.orgRole || (user?.org?.id?.toString() === id ? user?.orgRole : undefined)
+  const isManager = user && (activeOrgRole === "admin" || activeOrgRole === "owner")
   const isAdmin = user && (user.role === "admin" || user.role === "rootAdmin" || user.role === "*")
 
   const leaveOrg = async () => {
     if (!confirm('Leave organisation? This will remove your access and related subuser links.')) return
+    if (!orgId || !user) return
     try {
-      await apiFetch(API_ENDPOINTS.organisationLeave.replace(":id", id), { method: 'POST' })
+      await apiFetch(API_ENDPOINTS.organisationLeave.replace(":id", orgId), { method: 'POST' })
       setOrg((o: any) => ({ ...o, users: (o.users || []).filter((u: any) => u.id !== user.id) }))
       alert('You have left the organisation')
       router.push('/dashboard')
@@ -127,11 +131,8 @@ export default function OrganisationDetail() {
 
     const load = async () => {
       try {
-        const [o, u] = await Promise.all([
-          apiFetch(API_ENDPOINTS.organisationDetail.replace(":id", id)),
-          apiFetch(API_ENDPOINTS.organisationUsers.replace(":id", id)),
-        ])
-        const userOrg = user?.org && user.org.id?.toString() === id ? user.org : null
+        const o = await apiFetch(API_ENDPOINTS.organisationDetail.replace(":id", id))
+        const userOrg: any = user?.org && user.org.id?.toString() === id ? user.org : null
         const mergedOrg = {
           id: o?.id ?? userOrg?.id,
           name: o?.name ?? userOrg?.name,
@@ -146,8 +147,17 @@ export default function OrganisationDetail() {
         if (!subdomainNewName && mergedOrg.handle) {
           setSubdomainNewName(mergedOrg.handle)
         }
-        setMembers(u || [])
-        if (user && (user.orgRole === "admin" || user.orgRole === "owner")) {
+        if (user && (activeOrgRole === "admin" || activeOrgRole === "owner" || user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+          try {
+            const u = await apiFetch(API_ENDPOINTS.organisationUsers.replace(":id", id))
+            setMembers(Array.isArray(u) ? u : (mergedOrg.users || []))
+          } catch {
+            setMembers(mergedOrg.users || [])
+          }
+        } else {
+          setMembers(mergedOrg.users || [])
+        }
+        if (user && (activeOrgRole === "admin" || activeOrgRole === "owner")) {
           const ords = await apiFetch(API_ENDPOINTS.orders)
           setOrders(Array.isArray(ords) ? ords : [])
         }
@@ -161,7 +171,7 @@ export default function OrganisationDetail() {
       }
     }
     load()
-  }, [id, user])
+  }, [id, user, activeOrgRole])
 
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -176,7 +186,7 @@ export default function OrganisationDetail() {
   const loadServers = useCallback(async () => {
     setServersLoading(true)
     try {
-      const data = await apiFetch(API_ENDPOINTS.organisationServers.replace(":id", id))
+      const data = await apiFetch(API_ENDPOINTS.organisationServers.replace(":id", orgId))
       setServers(Array.isArray(data) ? data : [])
     } catch {
       setServers([])
@@ -188,7 +198,7 @@ export default function OrganisationDetail() {
   const loadNodes = useCallback(async () => {
     setNodesLoading(true)
     try {
-      const data = await apiFetch(API_ENDPOINTS.organisationNodes.replace(":id", id))
+      const data = await apiFetch(API_ENDPOINTS.organisationNodes.replace(":id", orgId))
       setNodes(Array.isArray(data) ? data : [])
     } catch {
       setNodes([])
@@ -200,7 +210,7 @@ export default function OrganisationDetail() {
   const loadActivity = useCallback(async () => {
     setActivityLoading(true)
     try {
-      const data = await apiFetch(API_ENDPOINTS.organisationActivity.replace(":id", id))
+      const data = await apiFetch(API_ENDPOINTS.organisationActivity.replace(":id", orgId))
       setActivity(Array.isArray(data) ? data : [])
     } catch {
       setActivity([])
@@ -212,7 +222,7 @@ export default function OrganisationDetail() {
   const canManageSubdomain = (sub: any | null) => {
     if (!sub || !user || !org) return false
     if (user.role === 'admin' || user.role === 'rootAdmin' || user.role === 'staff' || user.role === '*') return true
-    if (!(user.orgRole === 'owner' || user.orgRole === 'admin' || user.orgRole === 'member')) return false
+    if (!(activeOrgRole === 'owner' || activeOrgRole === 'admin' || activeOrgRole === 'member')) return false
     const handle = (org.handle || '').replace(/\.$/, '')
     const name = String(sub.name || '').replace(/\.$/, '')
     return name === handle || name.endsWith(`.${handle}`)
@@ -222,7 +232,7 @@ export default function OrganisationDetail() {
     if (!org?.handle) { setSubdomains([]); return }
     setSubdomainsLoading(true)
     try {
-      const endpoint = API_ENDPOINTS.organisationDnsZones.replace(':id', id)
+      const endpoint = API_ENDPOINTS.organisationDnsZones.replace(':id', orgId)
       let data = await apiFetch(endpoint)
       const handle = org.handle.replace(/\.$/, '')
 
@@ -262,7 +272,7 @@ export default function OrganisationDetail() {
     setSubdomainRecords([])
     setSubdomainRecordsLoading(true)
     try {
-      const d = await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', id).replace(':zoneId', sub.id))
+      const d = await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', orgId).replace(':zoneId', sub.id))
       const list = d.recordsList || d.rrsets || []
       const normalized = (list || []).map((r: any) => {
         if (r.content) return { id: r.id, name: r.name, type: r.type, ttl: r.ttl, content: r.content, proxied: !!r.proxied }
@@ -278,7 +288,7 @@ export default function OrganisationDetail() {
   }
 
   const createSubdomain = async () => {
-    const endpoint = API_ENDPOINTS.organisationDnsZones.replace(':id', id)
+    const endpoint = API_ENDPOINTS.organisationDnsZones.replace(':id', orgId)
     const handle = org?.handle?.replace(/\.$/, '')
     let name = subdomainNewName.trim() || handle || ''
     if (!name) {
@@ -317,7 +327,7 @@ export default function OrganisationDetail() {
       const body = { ...subdomainRecordForm }
       if (body.autoTtl) body.ttl = 1
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecords
-        .replace(':id', id)
+        .replace(':id', orgId)
         .replace(':zoneId', subdomainSelection.id),
         { method: 'POST', body: JSON.stringify(body) }
       )
@@ -334,7 +344,7 @@ export default function OrganisationDetail() {
       const body = { ...subdomainEditingRecord }
       if (body.autoTtl) body.ttl = 1
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord
-        .replace(':id', id)
+        .replace(':id', orgId)
         .replace(':zoneId', subdomainSelection.id)
         .replace(':recordId', subdomainEditId),
         { method: 'PUT', body: JSON.stringify(body) }
@@ -352,7 +362,7 @@ export default function OrganisationDetail() {
     if (!confirm('Delete this record?')) return
     try {
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord
-        .replace(':id', id)
+        .replace(':id', orgId)
         .replace(':zoneId', subdomainSelection.id)
         .replace(':recordId', String(record.id)),
         { method: 'DELETE' }
@@ -514,7 +524,7 @@ export default function OrganisationDetail() {
                       }}
                     />
                   </label>
-                  {user && user.org?.id?.toString() === id && user.orgRole !== 'owner' && (
+                  {user && activeOrgRole !== 'owner' && (
                     <Button size="sm" variant="destructive" onClick={leaveOrg}>Leave org</Button>
                   )}
                 </>
@@ -899,7 +909,7 @@ export default function OrganisationDetail() {
                         <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')}>Create</Button>
                       </>
                     )}
-                    <Button size="sm" variant="outline" onClick={loadSubdomains} disabled={subdomainsLoading}>
+                    <Button size="sm" variant="outline" onClick={() => loadSubdomains()} disabled={subdomainsLoading}>
                       {subdomainsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
                     </Button>
                   </div>
@@ -924,12 +934,12 @@ export default function OrganisationDetail() {
                         </button>
                         {String(sub.name || '').replace(/\.$/, '') !== String(org?.handle || '').replace(/\.$/, '') && (
                           <Button
-                            size="xs"
+                            size="sm"
                             variant="destructive"
                             onClick={async () => {
                               if (!confirm(`Remove subdomain ${sub.name} from organisation?`)) return
                               try {
-                                await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', id).replace(':zoneId', sub.id), { method: 'DELETE' })
+                                await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', orgId).replace(':zoneId', sub.id), { method: 'DELETE' })
                                 if (subdomainSelection?.id === sub.id) setSubdomainSelection(null)
                                 await loadSubdomains()
                               } catch (e: any) {

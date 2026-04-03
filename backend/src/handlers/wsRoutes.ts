@@ -1,6 +1,7 @@
 import { authenticate } from '../middleware/auth';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
+import { In } from 'typeorm';
 import { WingsApiService } from '../services/wingsApiService';
 import { socEmitter } from '../services/socSocketService';
 import { aiEmitter } from '../services/aiSocketService';
@@ -86,6 +87,8 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
   }
 
   const isAdmin = user?.role === 'admin' || user?.role === '*' || apiKey?.type === 'admin';
+  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+  const userOrgIds = user ? (await orgMemberRepo.find({ where: { userId: user.id } })).map((m: any) => Number(m.organisationId)) : [];
 
   const listener = (data: any) => {
     let allowed = false;
@@ -94,7 +97,7 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
       allowed = true;
     } else if (user && data.userId === user.id) {
       allowed = true;
-    } else if (user?.org && data.organisationId === user.org.id) {
+    } else if (user && data.organisationId && userOrgIds.includes(Number(data.organisationId))) {
       allowed = true;
     } else if (apiKey?.user && data.userId === apiKey.user.id) {
       allowed = true;
@@ -210,7 +213,15 @@ async function getAllowedServerIds(user: any, apiKey: any): Promise<string[]> {
   try {
     const nodesRepo = AppDataSource.getRepository(Node);
     
-    const whereClause = user?.org ? { organisation: { id: user.org.id } } : {};
+    let whereClause: any = {};
+    if (user?.id) {
+      const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+      const memberships = await orgMemberRepo.find({ where: { userId: user.id } });
+      const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+      if (orgIds.length > 0) {
+        whereClause = { organisation: { id: In(orgIds) } } as any;
+      }
+    }
     const nodes = await nodesRepo.find({ where: whereClause });
 
     for (const node of nodes) {

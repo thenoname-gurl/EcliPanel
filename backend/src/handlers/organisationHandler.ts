@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { Organisation } from '../models/organisation.entity';
 import { OrganisationDnsZone } from '../models/organisationDnsZone.entity';
 import { OrganisationInvite } from '../models/organisationInvite.entity';
+import { OrganisationMember } from '../models/organisationMember.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
@@ -24,9 +25,10 @@ export async function organisationRoutes(app: any, prefix = '') {
   const orgRepo = AppDataSource.getRepository(Organisation);
   const dnsZoneRepo = AppDataSource.getRepository(OrganisationDnsZone);
   const inviteRepo = AppDataSource.getRepository(OrganisationInvite);
+  const memberRepo = AppDataSource.getRepository(OrganisationMember);
   const userRepo = AppDataSource.getRepository(User);
 
-  function sanitizeOrg(o: Organisation | undefined) {
+  function sanitizeOrg(o: Organisation | undefined, opts?: { orgRole?: string; users?: any[]; invites?: any[] }) {
     if (!o) return o;
     return {
       id: o.id,
@@ -36,21 +38,41 @@ export async function organisationRoutes(app: any, prefix = '') {
       portalTier: o.portalTier,
       avatarUrl: o.avatarUrl,
       isStaff: !!o.isStaff,
-      users: o.users?.map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, orgRole: u.orgRole, avatarUrl: u.avatarUrl })) || [],
-      invites: o.invites?.map((i: any) => ({ id: i.id, email: i.email, accepted: i.accepted })) || [],
+      orgRole: opts?.orgRole,
+      users: opts?.users || [],
+      invites: opts?.invites || [],
     };
+  }
+
+  async function getMembership(userId: number, organisationId: number) {
+    return await memberRepo.findOne({ where: { userId, organisationId } });
+  }
+
+  async function listMembersForOrg(organisationId: number) {
+    const memberships = await memberRepo.find({ where: { organisationId }, relations: ['user'] });
+    return memberships
+      .filter((m: any) => !!m.user)
+      .map((m: any) => ({
+        id: m.user.id,
+        email: m.user.email,
+        firstName: m.user.firstName,
+        lastName: m.user.lastName,
+        avatarUrl: m.user.avatarUrl,
+        orgRole: m.orgRole,
+      }));
   }
 
   app.get(prefix + '/organisations', async (ctx: any) => {
     const user = ctx.user as User;
-    const userWithOrg = await userRepo.findOne({ where: { id: user.id }, relations: ['org'] });
-    const orgs: Organisation[] = [];
-    if (userWithOrg?.org) orgs.push(userWithOrg.org);
+    const memberships = await memberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+    const orgs: Organisation[] = memberships.map((m: any) => m.organisation).filter(Boolean);
+    const roleByOrgId = new Map<number, string>();
+    for (const m of memberships) roleByOrgId.set(m.organisationId, m.orgRole || 'member');
     const owned = await orgRepo.find({ where: { ownerId: user.id } });
     for (const o of owned) {
       if (!orgs.some((x) => x.id === o.id)) orgs.push(o);
     }
-    return orgs.map(sanitizeOrg);
+    return orgs.map((org) => sanitizeOrg(org, { orgRole: roleByOrgId.get(org.id) || (org.ownerId === user.id ? 'owner' : 'member') }));
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -80,9 +102,8 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const org = orgRepo.create({ name, handle, ownerId: user.id });
     await orgRepo.save(org);
-    user.org = org;
-    user.orgRole = 'owner';
-    await userRepo.save(user);
+    const ownerMembership = memberRepo.create({ userId: user.id, organisationId: org.id, user, organisation: org, orgRole: 'owner', createdAt: new Date() });
+    await memberRepo.save(ownerMembership);
 
     void (async () => {
       try {
@@ -98,7 +119,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     })();
 
     await createActivityLog({ userId: user.id, action: 'org:create', targetId: String(org.id), targetType: 'organisation', metadata: { orgName: name, handle }, ipAddress: ctx.ip });
-    return { success: true, org: sanitizeOrg(org) };
+    return { success: true, org: sanitizeOrg(org, { orgRole: 'owner' }) };
   }, {
     beforeHandle: [authenticate, authorize('org:create')],
     response: { 200: t.Object({ success: t.Boolean(), org: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
@@ -106,28 +127,36 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   async function userCanManageOrg(user: User, org: Organisation) {
+    const membership = await getMembership(user.id, org.id);
     return (
       user.role === 'admin' ||
       user.role === 'rootAdmin' ||
       user.role === 'staff' ||
       user.role === '*' ||
       user.id === org.ownerId ||
-      (user.org?.id === org.id && ['owner', 'admin', 'member'].includes(user.orgRole || ''))
+      !!membership
     );
   }
 
   app.get(prefix + '/organisations/:id', async (ctx: any) => {
-    const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['users', 'invites'] });
+    const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.id !== org.ownerId && !org.users.some((u) => u.id === user.id) && user.role !== 'admin') {
+    const membership = await getMembership(user.id, org.id);
+    if (user.id !== org.ownerId && !membership && user.role !== 'admin' && user.role !== '*') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return sanitizeOrg(org);
+    const users = await listMembersForOrg(org.id);
+    const invites = await inviteRepo.find({ where: { organisation: { id: org.id } } as any });
+    return sanitizeOrg(org, {
+      orgRole: membership?.orgRole || (org.ownerId === user.id ? 'owner' : undefined),
+      users,
+      invites: (invites || []).map((i: any) => ({ id: i.id, email: i.email, accepted: i.accepted })),
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -143,11 +172,11 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     try {
-      ctx.log?.info?.({ action: 'org:dns:delete:auth-check', userId: user?.id, userRole: user?.role, userOrgId: user?.org?.id, orgId: org?.id, orgOwnerId: org?.ownerId }, 'org DNS delete auth check');
+      ctx.log?.info?.({ action: 'org:dns:delete:auth-check', userId: user?.id, userRole: user?.role, orgId: org?.id, orgOwnerId: org?.ownerId }, 'org DNS delete auth check');
     } catch { }
 
     if (!(await userCanManageOrg(user, org))) {
-      ctx.log?.info?.({ action: 'org:dns:delete:forbidden', userId: user?.id, userRole: user?.role, userOrgId: user?.org?.id, orgId: org?.id }, 'forbidden org DNS delete attempt');
+      ctx.log?.info?.({ action: 'org:dns:delete:forbidden', userId: user?.id, userRole: user?.role, orgId: org?.id }, 'forbidden org DNS delete attempt');
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -513,7 +542,8 @@ export async function organisationRoutes(app: any, prefix = '') {
     if (name) org.name = name;
     if (portalTier) org.portalTier = portalTier;
     await orgRepo.save(org);
-    return { success: true, org: sanitizeOrg(org) };
+    const actorMembership = await getMembership(user.id, org.id);
+    return { success: true, org: sanitizeOrg(org, { orgRole: actorMembership?.orgRole || (org.ownerId === user.id ? 'owner' : undefined) }) };
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean(), org: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -521,18 +551,19 @@ export async function organisationRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/organisations/:id/users', async (ctx: any) => {
-    const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['users'] });
+    const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
     if (!org) {
       ctx.set.status = 404;
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin') || user.role === 'admin' || user.role === '*';
+    const actorMembership = await getMembership(user.id, org.id);
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || user.role === 'admin' || user.role === '*';
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return (org.users || []).map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, orgRole: u.orgRole, avatarUrl: u.avatarUrl }));
+    return await listMembersForOrg(org.id);
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -546,24 +577,24 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin') || user.role === 'admin' || user.role === '*';
+    const actorMembership = await getMembership(user.id, org.id);
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || user.role === 'admin' || user.role === '*';
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const target = await userRepo.findOneBy({ id: Number(ctx.params['userId']) });
-    if (!target || target.org?.id !== org.id) {
+    const targetUserId = Number(ctx.params['userId']);
+    const targetMembership = await getMembership(targetUserId, org.id);
+    if (!targetMembership) {
       ctx.set.status = 404;
       return { error: 'User not found in org' };
     }
-    if (target.orgRole === 'owner') {
+    if (targetMembership.orgRole === 'owner' || targetUserId === org.ownerId) {
       ctx.set.status = 403;
       return { error: 'Cannot remove organisation owner' };
     }
-    target.org = undefined as any;
-    target.orgRole = 'member';
-    await userRepo.save(target);
-    await createActivityLog({ userId: user.id, action: 'org:remove_member', targetId: String(org.id), targetType: 'organisation', metadata: { removedUserId: target.id }, ipAddress: ctx.ip });
+    await memberRepo.remove(targetMembership);
+    await createActivityLog({ userId: user.id, action: 'org:remove_member', targetId: String(org.id), targetType: 'organisation', metadata: { removedUserId: targetUserId }, ipAddress: ctx.ip });
     return { success: true };
   }, {
     beforeHandle: authenticate,
@@ -578,13 +609,15 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || (user.org?.id === org.id && user.orgRole === 'admin') || user.role === 'admin' || user.role === '*';
+    const actorMembership = await getMembership(user.id, org.id);
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || user.role === 'admin' || user.role === '*';
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const target = await userRepo.findOneBy({ id: Number(ctx.params['userId']) });
-    if (!target || target.org?.id !== org.id) {
+    const targetUserId = Number(ctx.params['userId']);
+    const targetMembership = await getMembership(targetUserId, org.id);
+    if (!targetMembership) {
       ctx.set.status = 404;
       return { error: 'User not found in org' };
     }
@@ -597,14 +630,19 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Only owner can transfer ownership' };
     }
-    target.orgRole = orgRole;
+    targetMembership.orgRole = orgRole;
     if (orgRole === 'owner') {
-      org.ownerId = target.id;
+      const prevOwnerMembership = await getMembership(org.ownerId, org.id);
+      if (prevOwnerMembership && prevOwnerMembership.userId !== targetUserId) {
+        prevOwnerMembership.orgRole = 'admin';
+        await memberRepo.save(prevOwnerMembership);
+      }
+      org.ownerId = targetUserId;
       await orgRepo.save(org);
     }
-    await userRepo.save(target);
-    await createActivityLog({ userId: user.id, action: 'org:change_role', targetId: String(org.id), targetType: 'organisation', metadata: { targetUserId: target.id, newRole: orgRole }, ipAddress: ctx.ip });
-    return { success: true, target };
+    await memberRepo.save(targetMembership);
+    await createActivityLog({ userId: user.id, action: 'org:change_role', targetId: String(org.id), targetType: 'organisation', metadata: { targetUserId, newRole: orgRole }, ipAddress: ctx.ip });
+    return { success: true, target: targetMembership };
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean(), target: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -723,15 +761,20 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'User not found' };
     }
-    if (target.org?.id === org.id) {
+    const existingMembership = await getMembership(target.id, org.id);
+    if (existingMembership) {
       ctx.set.status = 409;
       return { error: 'User already in organisation' };
     }
-    target.org = org as any;
-    target.orgRole = ['member', 'admin', 'owner'].includes(orgRole) ? orgRole : 'member';
-    await userRepo.save(target);
+    const newRole = ['member', 'admin', 'owner'].includes(orgRole) ? orgRole : 'member';
+    const membership = memberRepo.create({ userId: target.id, organisationId: org.id, user: target, organisation: org, orgRole: newRole as any, createdAt: new Date() });
+    await memberRepo.save(membership);
+    if (newRole === 'owner') {
+      org.ownerId = target.id;
+      await orgRepo.save(org);
+    }
     await createActivityLog({ userId: actor.id, action: 'org:add_user', targetId: String(org.id), targetType: 'organisation', metadata: { addedUserId: target.id }, ipAddress: ctx.ip });
-    return { success: true, target: { id: target.id, email: target.email, firstName: target.firstName, lastName: target.lastName, orgRole: target.orgRole } };
+    return { success: true, target: { id: target.id, email: target.email, firstName: target.firstName, lastName: target.lastName, orgRole: membership.orgRole } };
   }, { beforeHandle: authenticate, response: { 200: t.Object({ success: t.Boolean(), target: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) }, detail: { summary: 'Add existing user to organisation (admin only)', tags: ['Organisations'] } });
 
   app.post(prefix + '/organisations/accept-invite', async (ctx: any) => {
@@ -746,9 +789,11 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Email mismatch' };
     }
-    user.org = inv.organisation;
-    user.orgRole = 'member';
-    await userRepo.save(user);
+    const existingMembership = await getMembership(user.id, inv.organisation.id);
+    if (!existingMembership) {
+      const membership = memberRepo.create({ userId: user.id, organisationId: inv.organisation.id, user, organisation: inv.organisation, orgRole: 'member', createdAt: new Date() });
+      await memberRepo.save(membership);
+    }
     inv.accepted = true;
     await inviteRepo.save(inv);
     await createActivityLog({ userId: user.id, action: 'org:accept_invite', targetId: String(inv.organisation.id), targetType: 'organisation', ipAddress: ctx.ip });
@@ -766,7 +811,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (!user || user.org?.id !== org.id) {
+    const membership = await getMembership(user.id, org.id);
+    if (!user || !membership) {
       ctx.set.status = 403;
       return { error: 'Not a member of this organisation' };
     }
@@ -775,9 +821,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Owner cannot leave organisation without transferring ownership' };
     }
 
-    user.org = undefined as any;
-    user.orgRole = 'member';
-    await userRepo.save(user);
+    await memberRepo.remove(membership);
 
     try {
       const mappingRepo = AppDataSource.getRepository(require('../models/serverMapping.entity').ServerMapping);
@@ -832,7 +876,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.org?.id !== org.id && user.role !== 'admin') {
+    if (!(await userCanManageOrg(user, org))) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

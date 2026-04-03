@@ -131,8 +131,12 @@ export function authorize(required: string) {
     if (required.startsWith('org:') || required.startsWith('organisation:')) {
       try {
         const orgId = ctx.params?.id || ctx.request?.body?.organisationId || ctx.request?.body?.orgId || ctx.query?.id;
-        if (orgId && user && user.org && String(user.org.id) === String(orgId) && (user.orgRole === 'owner' || user.orgRole === 'admin')) {
-          return;
+        if (orgId && user) {
+          const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+          const membership = await orgMemberRepo.findOne({ where: { userId: user.id, organisationId: Number(orgId) } });
+          if (membership && (membership.orgRole === 'owner' || membership.orgRole === 'admin')) {
+            return;
+          }
         }
       } catch (e) {
         // skip

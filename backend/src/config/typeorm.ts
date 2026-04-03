@@ -97,6 +97,7 @@ export const AppDataSource = new DataSource({
   entities: [
     require('../models/user.entity').User,
     require('../models/organisation.entity').Organisation,
+    require('../models/organisationMember.entity').OrganisationMember,
     require('../models/organisationInvite.entity').OrganisationInvite,
     require('../models/order.entity').Order,
     require('../models/userLog.entity').UserLog,

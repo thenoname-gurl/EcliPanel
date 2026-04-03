@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { useEffect, useState } from "react"
+import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import {
   CreditCard,
   DollarSign,
@@ -34,6 +35,8 @@ export default function BillingPage() {
   const [demoError, setDemoError] = useState<string | null>(null)
   const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
   const [demoUsed, setDemoUsed] = useState(false)
+  const [billingCurrency, setBillingCurrency] = useState("USD")
+  const [billingTaxRules, setBillingTaxRules] = useState("")
 
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
@@ -55,20 +58,37 @@ export default function BillingPage() {
   const userPlanLabel = userPlanType === 'enterprise' ? 'Enterprise Portal' : getPortalMarker(userPlanType)
   const activePlanTitle = activePlan?.plan?.name ?? userPlanLabel
   const activePlanType = activePlan?.plan?.type ?? userPlanType
+  const normalizedCurrency = sanitizeCurrencyCode(billingCurrency)
+  const taxRate = resolveTaxRate(billingTaxRules, user?.billingCountry)
+  const formatPrice = (amount: number, includeTax = false) => {
+    if (!includeTax || taxRate <= 0) return formatMoney(amount, normalizedCurrency)
+    return formatMoney(applyTax(amount, taxRate).total, normalizedCurrency)
+  }
+
   const activePlanPrice = activePlan
     ? activePlan.plan.type === 'enterprise'
       ? activePlan.order?.amount
-        ? `$${Number(activePlan.order.amount).toFixed(2)}`
+        ? formatPrice(Number(activePlan.order.amount), true)
         : 'Price Varies'
-      : `$${Number(activePlan.plan.price ?? currentPlan.price ?? 0).toFixed(2)}`
+      : formatPrice(Number(activePlan.plan.price ?? currentPlan.price ?? 0), true)
     : currentPlan.id === 'free'
-      ? '$0'
+      ? formatPrice(0, true)
       : currentPlan.id === 'paid'
-        ? '$12.00'
+        ? formatPrice(12, true)
         : 'Custom'
   const activePlanExpires = activePlan?.order?.expiresAt || null
 
   useEffect(() => {
+    apiFetch(API_ENDPOINTS.panelSettings)
+      .then((data) => {
+        setBillingCurrency(data?.billingCurrency || "USD")
+        setBillingTaxRules(data?.billingTaxRules || "")
+      })
+      .catch(() => {
+        setBillingCurrency("USD")
+        setBillingTaxRules("")
+      })
+
     apiFetch(API_ENDPOINTS.plans)
       .then((data) => setPlans(Array.isArray(data) ? data : []))
       .catch(() => setPlans([]))
@@ -253,7 +273,13 @@ export default function BillingPage() {
               title="Monthly Cost"
               value={activePlanPrice}
               icon={DollarSign}
-              subtitle={activePlan?.plan?.type === 'enterprise' && !activePlan?.order?.amount ? 'Price from order or contact sales' : undefined}
+              subtitle={
+                activePlan?.plan?.type === 'enterprise' && !activePlan?.order?.amount
+                  ? 'Price from order or contact sales'
+                  : taxRate > 0
+                    ? `Includes ${taxRate}% tax for ${user?.billingCountry || 'your billing country'}`
+                    : undefined
+              }
             />
             <StatCard title="Total Invoices" value={ordersLoading ? '...' : String(orders.length)} icon={Receipt} />
             <StatCard
@@ -360,7 +386,11 @@ export default function BillingPage() {
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{planCard.description}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {planCard.type === 'enterprise' ? 'Price Varies' : planCard.price != null ? `$${Number(planCard.price).toFixed(2)}/mo` : 'Contact Sales'}
+                      {planCard.type === 'enterprise'
+                        ? 'Price Varies'
+                        : planCard.price != null
+                          ? `${formatPrice(Number(planCard.price), true)}/mo${taxRate > 0 ? ` (incl. ${taxRate}% tax)` : ''}`
+                          : 'Contact Sales'}
                     </p>
                     <ul className="mt-3 flex flex-col gap-1.5">
                       {planCard.features.map((feature: string) => (
@@ -430,7 +460,7 @@ export default function BillingPage() {
                       <td className="px-5 py-3 font-mono text-sm text-foreground">{invoice.id}</td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{invoice.description}</td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
-                      <td className="px-5 py-3 font-mono text-sm text-foreground">{invoice.amount}</td>
+                      <td className="px-5 py-3 font-mono text-sm text-foreground">{formatMoney(Number(invoice.amount ?? 0), normalizedCurrency)}</td>
                       <td className="px-5 py-3">
                         <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-xs">
                           Paid

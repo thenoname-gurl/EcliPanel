@@ -1250,6 +1250,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const userRepo = AppDataSource.getRepository(User);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const { page = '1', q = '' } = ctx.query as any;
     const per = 50;
     const p = Math.max(1, Number(page) || 1);
@@ -1270,12 +1271,12 @@ export async function adminRoutes(app: any, prefix = '') {
     for (const u of owners) ownerMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
     const orgIds = orgs.map((o: any) => o.id);
-    const memberCounts = orgIds.length ? await userRepo
-      .createQueryBuilder('u')
-      .select('u.orgId', 'orgId')
+    const memberCounts = orgIds.length ? await orgMemberRepo
+      .createQueryBuilder('m')
+      .select('m.organisationId', 'orgId')
       .addSelect('COUNT(*)', 'count')
-      .where('u.orgId IN (:...ids)', { ids: orgIds })
-      .groupBy('u.orgId')
+      .where('m.organisationId IN (:...ids)', { ids: orgIds })
+      .groupBy('m.organisationId')
       .getRawMany() : [];
 
     const countMap: Record<number, number> = {};
@@ -1305,6 +1306,7 @@ export async function adminRoutes(app: any, prefix = '') {
   app.put(prefix + '/admin/organisations/:id', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
     const orgRepo = AppDataSource.getRepository(Organisation);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!org) {
       ctx.set.status = 404;
@@ -1315,7 +1317,31 @@ export async function adminRoutes(app: any, prefix = '') {
     if (name !== undefined) org.name = name;
     if (handle !== undefined) org.handle = handle;
     if (portalTier !== undefined) org.portalTier = portalTier;
-    if (ownerId !== undefined) org.ownerId = Number(ownerId);
+    if (ownerId !== undefined) {
+      const newOwnerId = Number(ownerId);
+      const previousOwnerId = Number(org.ownerId);
+      org.ownerId = newOwnerId;
+      const newOwnerMembership = await orgMemberRepo.findOne({ where: { userId: newOwnerId, organisationId: org.id } });
+      if (newOwnerMembership) {
+        newOwnerMembership.orgRole = 'owner';
+        await orgMemberRepo.save(newOwnerMembership);
+      } else {
+        const userRepo = AppDataSource.getRepository(User);
+        const ownerUser = await userRepo.findOneBy({ id: newOwnerId });
+        if (ownerUser) {
+          const created = orgMemberRepo.create({ userId: newOwnerId, organisationId: org.id, user: ownerUser, organisation: org, orgRole: 'owner', createdAt: new Date() });
+          await orgMemberRepo.save(created);
+        }
+      }
+
+      if (previousOwnerId && previousOwnerId !== newOwnerId) {
+        const previousOwnerMembership = await orgMemberRepo.findOne({ where: { userId: previousOwnerId, organisationId: org.id } });
+        if (previousOwnerMembership && previousOwnerMembership.orgRole === 'owner') {
+          previousOwnerMembership.orgRole = 'admin';
+          await orgMemberRepo.save(previousOwnerMembership);
+        }
+      }
+    }
     if (isStaff !== undefined) org.isStaff = !!isStaff;
 
     await orgRepo.save(org);
@@ -1345,6 +1371,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const userRepo = AppDataSource.getRepository(User);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!org) {
       ctx.set.status = 404;
@@ -1360,9 +1387,30 @@ export async function adminRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'User not found' };
     }
-    target.org = org;
-    target.orgRole = orgRole;
-    await userRepo.save(target);
+
+    const existing = await orgMemberRepo.findOne({ where: { userId: target.id, organisationId: org.id } });
+    const normalizedRole = ['member', 'admin', 'owner'].includes(orgRole) ? orgRole : 'member';
+    if (existing) {
+      existing.orgRole = normalizedRole as any;
+      await orgMemberRepo.save(existing);
+    } else {
+      const membership = orgMemberRepo.create({ userId: target.id, organisationId: org.id, user: target, organisation: org, orgRole: normalizedRole as any, createdAt: new Date() });
+      await orgMemberRepo.save(membership);
+    }
+
+    if (normalizedRole === 'owner') {
+      const prevOwnerId = Number(org.ownerId);
+      org.ownerId = target.id;
+      await orgRepo.save(org);
+      if (prevOwnerId && prevOwnerId !== target.id) {
+        const prevOwnerMembership = await orgMemberRepo.findOne({ where: { userId: prevOwnerId, organisationId: org.id } });
+        if (prevOwnerMembership && prevOwnerMembership.orgRole === 'owner') {
+          prevOwnerMembership.orgRole = 'admin';
+          await orgMemberRepo.save(prevOwnerMembership);
+        }
+      }
+    }
+
     ctx.set.status = 201;
     return { success: true };
   }, {
@@ -1383,15 +1431,25 @@ export async function adminRoutes(app: any, prefix = '') {
 
   app.delete(prefix + '/admin/organisations/:id/members/:userId', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const userRepo = AppDataSource.getRepository(User);
-    const target = await userRepo.findOne({ where: { id: Number(ctx.params.userId) }, relations: ['org'] });
-    if (!target) {
+    const orgId = Number(ctx.params.id);
+    const targetUserId = Number(ctx.params.userId);
+    const orgRepo = AppDataSource.getRepository(Organisation);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+    const org = await orgRepo.findOneBy({ id: orgId });
+    if (!org) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: 'Organisation not found' };
     }
-    target.org = undefined as any;
-    target.orgRole = 'member';
-    await userRepo.save(target);
+    const membership = await orgMemberRepo.findOne({ where: { userId: targetUserId, organisationId: orgId } });
+    if (!membership) {
+      ctx.set.status = 404;
+      return { error: 'User not found in organisation' };
+    }
+    if (targetUserId === Number(org.ownerId) || membership.orgRole === 'owner') {
+      ctx.set.status = 403;
+      return { error: 'Cannot remove organisation owner' };
+    }
+    await orgMemberRepo.remove(membership);
     return { success: true };
   }, {
     beforeHandle: authenticate,
@@ -1410,7 +1468,7 @@ export async function adminRoutes(app: any, prefix = '') {
   app.delete(prefix + '/admin/organisations/:id', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
     const orgRepo = AppDataSource.getRepository(Organisation);
-    const userRepo = AppDataSource.getRepository(User);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!org) {
       ctx.set.status = 404;
@@ -1418,14 +1476,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }
 
     try {
-      await userRepo
-        .createQueryBuilder()
-        .update(User)
-        .set({ orgRole: 'member' })
-        .where('orgId = :orgId', { orgId: org.id })
-        .execute();
-
-      await AppDataSource.createQueryRunner().query('UPDATE `user` SET `orgId` = NULL WHERE `orgId` = ?', [org.id]);
+      await orgMemberRepo.createQueryBuilder().delete().where('organisationId = :orgId', { orgId: org.id }).execute();
 
       await orgRepo.remove(org);
     } catch (e: any) {
@@ -2115,6 +2166,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
@@ -2175,10 +2227,26 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const Order = require('../models/order.entity').Order;
     const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
+    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
+    const orgs = membershipRows
+      .filter((m: any) => !!m.organisation)
+      .map((m: any) => ({
+        id: m.organisation.id,
+        name: m.organisation.name,
+        handle: m.organisation.handle,
+        portalTier: m.organisation.portalTier,
+        avatarUrl: m.organisation.avatarUrl,
+        ownerId: m.organisation.ownerId,
+        orgRole: m.orgRole,
+      }));
+    const primaryOrg = orgs.find((o: any) => o.orgRole === 'owner') || orgs[0] || null;
 
     const out: any = { ...user };
     delete out.passwordHash;
     delete out.sessions;
+    out.orgs = orgs;
+    out.org = primaryOrg ? { id: primaryOrg.id, name: primaryOrg.name, handle: primaryOrg.handle, portalTier: primaryOrg.portalTier, avatarUrl: primaryOrg.avatarUrl } : null;
+    out.orgRole = primaryOrg?.orgRole || null;
     out.aiModels = aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits }));
     out.servers = servers;
     out.orders = orders;
@@ -2196,6 +2264,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
+    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
@@ -2216,7 +2285,19 @@ export async function adminRoutes(app: any, prefix = '') {
     const idVerifications = await idVerificationRepo.find({ where: { userId } });
     const tickets = await ticketRepo.find({ where: { userId } });
     const userLogs = await userLogRepo.find({ where: { userId } });
-    const organisations = await organisationRepo.find({ where: { ownerId: userId }, relations: ['users', 'invites'] });
+    const organisationsOwned = await organisationRepo.find({ where: { ownerId: userId }, relations: ['invites'] });
+    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
+    const organisations = membershipRows
+      .filter((m: any) => !!m.organisation)
+      .map((m: any) => ({
+        id: m.organisation.id,
+        name: m.organisation.name,
+        handle: m.organisation.handle,
+        portalTier: m.organisation.portalTier,
+        avatarUrl: m.organisation.avatarUrl,
+        ownerId: m.organisation.ownerId,
+        orgRole: m.orgRole,
+      }));
     const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
 
     const servers: any[] = [];
@@ -2270,6 +2351,10 @@ export async function adminRoutes(app: any, prefix = '') {
     const out: any = { ...user };
     delete out.passwordHash;
     delete out.sessions;
+    const primaryOrg = organisations.find((o: any) => o.orgRole === 'owner') || organisations[0] || null;
+    out.orgs = organisations;
+    out.org = primaryOrg ? { id: primaryOrg.id, name: primaryOrg.name, handle: primaryOrg.handle, portalTier: primaryOrg.portalTier, avatarUrl: primaryOrg.avatarUrl } : null;
+    out.orgRole = primaryOrg?.orgRole || null;
 
     const serverLogs: Record<string, string[]> = {};
     const serverBackups: Record<string, any[]> = {};
@@ -2368,6 +2453,7 @@ export async function adminRoutes(app: any, prefix = '') {
       tickets,
       userLogs,
       organisations,
+      organisationsOwned,
       servers,
       orders,
       aiModels: aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits })),
@@ -2971,6 +3057,8 @@ isSuspicious: true if fraudScore >= 50`;
       portalDescriptions: portalDescriptions || null,
       codeInstancesEnabled,
       geoBlockCountries: map['geoBlockCountries'] || '',
+      billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
+      billingTaxRules: map['billingTaxRules'] || '',
       featureToggles,
     };
   }, {
@@ -2982,6 +3070,8 @@ isSuspicious: true if fraudScore >= 50`;
         codeInstancesEnabled: t.Boolean(),
         featureToggles: t.Record(t.String(), t.Boolean()),
         geoBlockCountries: t.String(),
+        billingCurrency: t.String(),
+        billingTaxRules: t.String(),
       }),
     },
     detail: { summary: 'Fetch public portal settings (no auth)', tags: ['Public'] },
@@ -3015,6 +3105,8 @@ isSuspicious: true if fraudScore >= 50`;
       codeInstancesEnabled,
       portalDescriptions: portalDescriptions || null,
       geoBlockCountries: map['geoBlockCountries'] || '',
+      billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
+      billingTaxRules: map['billingTaxRules'] || '',
       featureToggles,
     };
   }, {
@@ -3026,6 +3118,8 @@ isSuspicious: true if fraudScore >= 50`;
         codeInstancesEnabled: t.Boolean(),
         portalDescriptions: t.Optional(t.Any()),
         geoBlockCountries: t.String(),
+        billingCurrency: t.String(),
+        billingTaxRules: t.String(),
         featureToggles: t.Record(t.String(), t.Boolean()),
       }),
       401: t.Object({ error: t.String() }),
@@ -3119,10 +3213,13 @@ isSuspicious: true if fraudScore >= 50`;
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries'];
+    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'billingCurrency', 'billingTaxRules'];
     for (const key of allowed) {
       if (body[key] !== undefined) {
-        const value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
+        let value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
+        if (key === 'billingCurrency') {
+          value = value.trim().toUpperCase();
+        }
         await repo.save({ key, value });
       }
     }
@@ -3150,6 +3247,8 @@ isSuspicious: true if fraudScore >= 50`;
         portalDescriptions: portalDescriptions || null,
         codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
         geoBlockCountries: map['geoBlockCountries'] || '',
+        billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
+        billingTaxRules: map['billingTaxRules'] || '',
         featureToggles,
       },
     };
@@ -3162,6 +3261,8 @@ isSuspicious: true if fraudScore >= 50`;
         portalDescriptions: t.Optional(t.Any()),
         codeInstancesEnabled: t.Optional(t.Boolean()),
         geoBlockCountries: t.Optional(t.String()),
+        billingCurrency: t.Optional(t.String()),
+        billingTaxRules: t.Optional(t.String()),
         featureToggles: t.Optional(t.Record(t.String(), t.Boolean())),
       }),
       response: {

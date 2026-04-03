@@ -26,6 +26,7 @@ export async function serverRoutes(app: any, prefix = '') {
   const nodeSvc = nodeService;
   const logRepo = () => AppDataSource.getRepository(UserLog);
   const nodeRepo = () => AppDataSource.getRepository(Node);
+  const orgMemberRepo = () => AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const eggRepo = () => AppDataSource.getRepository(Egg);
   const cfgRepo = () => AppDataSource.getRepository(ServerConfig);
 
@@ -55,7 +56,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
       if (!isAdmin) {
         if (portalType === 'enterprise') {
-          if (!user.org?.id || n.organisation?.id !== user.org.id) {
+          const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
+          const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+          if (!n.organisation?.id || !orgIds.includes(Number(n.organisation.id))) {
             throw new Error('Node not available for your organisation');
           }
         } else {
@@ -71,8 +74,10 @@ export async function serverRoutes(app: any, prefix = '') {
 
     let types: string[];
     if (portalType === 'enterprise') {
-      if (user.org?.id) {
-        const orgNode = await nodeRepo().findOne({ where: { organisation: { id: user.org.id } } });
+      const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
+      const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+      if (orgIds.length > 0) {
+        const orgNode = await nodeRepo().findOne({ where: { organisation: { id: In(orgIds) } } as any });
         if (orgNode) return orgNode;
       }
       types = ['enterprise', 'free_and_paid', 'paid', 'free'];

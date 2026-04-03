@@ -109,7 +109,7 @@ export class User {
   @Column({ default: 'free' })
   portalType: string;
 
-  @ManyToOne(() => Organisation, (org) => org.users, { nullable: true })
+  @ManyToOne(() => Organisation, { nullable: true })
   org?: Organisation;
 
   @ManyToOne(() => Node, { nullable: true })
@@ -125,6 +125,10 @@ export class User {
 
   @OneToMany(() => Passkey, (p) => p.user)
   passkeys: Passkey[];
+
+  @OneToMany(() => require('./organisationMember.entity').OrganisationMember, (membership: any) => membership.user)
+  organisationMemberships: import('./organisationMember.entity').OrganisationMember[];
+
   @Column('json', { nullable: true })
   limits?: Record<string, any>;
 

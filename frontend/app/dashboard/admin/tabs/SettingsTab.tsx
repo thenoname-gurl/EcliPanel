@@ -425,6 +425,55 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
+      {/* Billing Currency & Tax Rules */}
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <Globe className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium text-foreground">Billing Currency & Tax</p>
+        </div>
+        <div className="p-4 flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency (ISO code)</label>
+              <input
+                value={panelSettings.billingCurrency || "USD"}
+                onChange={(e) =>
+                  setPanelSettings((s: any) => ({
+                    ...s,
+                    billingCurrency: e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3),
+                  }))
+                }
+                placeholder="USD"
+                maxLength={3}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+              />
+              <p className="text-[11px] text-muted-foreground">Examples: USD, EUR, GBP.</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Examples</label>
+              <div className="rounded-lg border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+                <p><span className="font-mono text-foreground">eu:20</span> → applies 20% to all EU countries</p>
+                <p><span className="font-mono text-foreground">de:19</span> → applies 19% to Germany</p>
+                <p><span className="font-mono text-foreground">*:0</span> or <span className="font-mono text-foreground">default:0</span> → fallback tax rate</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tax Rules (country/group:percent)</label>
+            <textarea
+              rows={4}
+              value={panelSettings.billingTaxRules || ""}
+              onChange={(e) => setPanelSettings((s: any) => ({ ...s, billingTaxRules: e.target.value }))}
+              placeholder={"eu:20\nde:19\nfr:20\ndefault:0"}
+              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 resize-y"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Supported keys: country code (e.g. DE), country name, <span className="font-mono">EU</span>, <span className="font-mono">*</span>, or <span className="font-mono">default</span>.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Geo-Block Card — Redesigned */}
       <div className="rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

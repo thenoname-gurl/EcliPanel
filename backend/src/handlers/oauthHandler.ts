@@ -723,13 +723,21 @@ export async function oauthRoutes(app: any, prefix = '') {
       out.email = user.email;
       out.emailVerified = user.emailVerified ?? false;
     }
-    if (scopes.includes('orgs:read') && user.org) {
-      out.org = {
-        id: user.org.id,
-        name: user.org.name,
-        handle: (user.org as any).handle || null,
-        role: user.orgRole,
-      };
+    if (scopes.includes('orgs:read')) {
+      const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+      const memberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+      const orgs = (memberships || [])
+        .filter((m: any) => !!m.organisation)
+        .map((m: any) => ({
+          id: m.organisation.id,
+          name: m.organisation.name,
+          handle: m.organisation.handle || null,
+          role: m.orgRole || 'member',
+        }));
+      out.orgs = orgs;
+      if (orgs.length > 0) {
+        out.org = orgs[0];
+      }
     }
     if (scopes.includes('billing:read')) {
       out.billingCompany = user.billingCompany || null;

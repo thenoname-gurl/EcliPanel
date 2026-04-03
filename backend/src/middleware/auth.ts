@@ -125,7 +125,7 @@ export async function authenticate(ctx: any) {
   const tokenRepo = AppDataSource.getRepository(OAuthToken);
   const oauthToken = await tokenRepo.findOne({
     where: { accessToken: rawToken, revoked: false },
-    relations: ['user', 'user.org', 'app'],
+    relations: ['user', 'user.organisationMemberships', 'user.organisationMemberships.organisation', 'app'],
   });
   if (!oauthToken || new Date() > oauthToken.accessTokenExpiresAt) {
     ctx.set.status = 401;

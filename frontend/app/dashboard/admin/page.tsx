@@ -1312,12 +1312,16 @@ export default function AdminPanel() {
     registrationNotice: string
     codeInstancesEnabled: boolean
     geoBlockCountries: string
+    billingCurrency: string
+    billingTaxRules: string
     featureToggles: Record<string, boolean>
   }>({
     registrationEnabled: true,
     registrationNotice: "",
     codeInstancesEnabled: true,
     geoBlockCountries: "",
+    billingCurrency: "USD",
+    billingTaxRules: "",
     featureToggles: {
       registration: true,
       codeInstances: true,
@@ -1449,6 +1453,8 @@ export default function AdminPanel() {
               codeInstancesEnabled:
                 data.codeInstancesEnabled === "false" ? false : Boolean(data.codeInstancesEnabled),
               geoBlockCountries: data.geoBlockCountries ?? "",
+              billingCurrency: (data.billingCurrency ?? "USD").toUpperCase(),
+              billingTaxRules: data.billingTaxRules ?? "",
               featureToggles: {
                 registration: true,
                 codeInstances: data.codeInstancesEnabled !== false

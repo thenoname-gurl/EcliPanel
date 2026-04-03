@@ -352,7 +352,7 @@ export default function Home() {
             <div className="rounded-lg border border-pink-500/40 bg-pink-500/5 p-5 shadow-[0_0_30px_rgba(6,182,212,0.15)] backdrop-blur-sm">
               <h3 className="font-mono text-lg font-bold text-pink-400">paid_portal</h3>
               <p className="mt-1 font-mono text-xs text-pink-400/50">Small to medium projects!</p>
-              <p className="mt-3 font-mono text-2xl font-black text-white">$12<span className="text-sm text-pink-400/50">/mo</span></p>
+              <p className="mt-3 font-mono text-2xl font-black text-white">€12<span className="text-sm text-pink-400/50">/mo</span></p>
               <ul className="mt-4 space-y-1 font-mono text-xs text-pink-400/60">
                 <li>→ 10 Servers</li>
                 <li>→ 3 Ports per server</li>

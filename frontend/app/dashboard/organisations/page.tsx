@@ -46,15 +46,14 @@ export default function OrganisationsPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {orgs.map((org) => {
-                const currentRole = org.users?.find((u: any) => u.id === user?.id)?.orgRole ||
-                  (org.ownerId === user?.id ? 'owner' : 'member');
+                const currentRole = org.orgRole || (org.ownerId === user?.id ? 'owner' : 'member');
 
                 return (
-                  <Link
-                    href={`/dashboard/organisations/${org.id}`}
+                  <div
                     key={org.id}
                     className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors"
                   >
+                    <Link href={`/dashboard/organisations/${org.id}`}>
                     <div className="mb-3 flex items-center gap-3">
                       {org.avatarUrl ? (
                         <img
@@ -74,7 +73,8 @@ export default function OrganisationsPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">{org.handle}</p>
                     <p className="mt-1 text-[10px] text-muted-foreground">Tier: {org.portalTier || 'free'}</p>
-                  </Link>
+                    </Link>
+                  </div>
                 );
               })}
             </div>

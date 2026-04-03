@@ -9,6 +9,8 @@ import { startAllSftpProxies } from '../services/sftpProxyService';
 import fs from 'fs';
 import path from 'path';
 import { ServerConfig } from '../models/serverConfig.entity';
+import { User } from '../models/user.entity';
+import { OrganisationMember } from '../models/organisationMember.entity';
 import { createActivityLog } from '../handlers/logHandler';
 
 const WINGS_RETRY_INITIAL = 30_000;
@@ -61,6 +63,23 @@ export async function setupConfig(app: any) {
     (app.log ?? console).error({ err }, 'Error during Data Source initialization');
     throw err;
   });
+
+  try {
+    const userRepo = AppDataSource.getRepository(User);
+    const orgMemberRepo = AppDataSource.getRepository(OrganisationMember);
+    const users = await userRepo.find({ relations: ['org'] });
+    for (const user of users) {
+      const org: any = (user as any).org;
+      if (!org?.id) continue;
+      const existing = await orgMemberRepo.findOne({ where: { userId: user.id, organisationId: org.id } });
+      if (existing) continue;
+      const inferredRole = user.id === org.ownerId ? 'owner' : ((user as any).orgRole || 'member');
+      const link = orgMemberRepo.create({ userId: user.id, organisationId: org.id, user, organisation: org, orgRole: inferredRole as any, createdAt: new Date() });
+      await orgMemberRepo.save(link);
+    }
+  } catch (err: any) {
+    app.log?.warn({ err }, 'Failed to backfill organisation memberships from legacy user.org relation');
+  }
 
   try {
     const dbType = String(AppDataSource.options.type || '');

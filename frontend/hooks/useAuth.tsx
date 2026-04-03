@@ -26,6 +26,7 @@ interface User {
   role?: string
   sessionId?: string
   org?: { id: number; name: string; handle: string } | null
+  orgs?: Array<{ id: number; name: string; handle: string; portalTier?: string; avatarUrl?: string | null; orgRole?: string }>
   orgRole?: string
   emailVerified?: boolean
   studentVerified?: boolean
@@ -44,6 +45,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<any>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
+  selectOrganisation: (orgId: number | string) => Promise<void>
   isLoggedIn: boolean
   isLoading: boolean
 }
@@ -262,6 +264,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push("/login")
   }, [router])
 
+  const selectOrganisation = useCallback(async (orgId: number | string): Promise<void> => {
+    await apiFetch(API_ENDPOINTS.organisationSelect.replace(":id", String(orgId)), { method: "POST" })
+    await refreshUser()
+  }, [refreshUser])
+
   useEffect(() => {
     let mounted = true
 
@@ -325,6 +332,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     login,
     logout,
     refreshUser,
+    selectOrganisation,
     isLoggedIn: authState === "authenticated" && !!user,
     isLoading: authState === "initializing" || authState === "logging-in" || authState === "logging-out",
   }

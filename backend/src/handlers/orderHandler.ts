@@ -168,6 +168,20 @@ function normalizeOrder(o: any) {
 
 export async function orderRoutes(app: any, prefix = '') {
   const orderRepo = AppDataSource.getRepository(Order);
+  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+
+  async function getOrgMembershipRole(userId: number, orgId: number): Promise<string | null> {
+    const m = await orgMemberRepo.findOne({ where: { userId, organisationId: orgId } });
+    return m?.orgRole || null;
+  }
+
+  async function getManagedOrgIds(userId: number): Promise<number[]> {
+    const rows = await orgMemberRepo.find({ where: { userId } });
+    return rows
+      .filter((m: any) => m.orgRole === 'admin' || m.orgRole === 'owner')
+      .map((m: any) => Number(m.organisationId))
+      .filter((v: number) => Number.isFinite(v));
+  }
 
   app.post(prefix + '/orders', async (ctx: any) => {
     const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
@@ -175,11 +189,12 @@ export async function orderRoutes(app: any, prefix = '') {
     const body = ctx.body as Partial<Order>;
 
     if (body.orgId) {
-      if (!user.org || user.org.id !== body.orgId) {
+      const role = await getOrgMembershipRole(user.id, Number(body.orgId));
+      if (!role) {
         ctx.set.status = 403;
         return { error: 'Not member of organisation' };
       }
-      if (user.orgRole !== 'admin' && user.orgRole !== 'owner') {
+      if (role !== 'admin' && role !== 'owner') {
         ctx.set.status = 403;
         return { error: 'Insufficient organisation privileges' };
       }
@@ -204,8 +219,9 @@ export async function orderRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const user = ctx.user as any;
     let rows: any[] = [];
-    if (user.org && (user.orgRole === 'admin' || user.orgRole === 'owner')) {
-      rows = await orderRepo.find({ where: [{ orgId: user.org.id }, { userId: user.id }] });
+    const managedOrgIds = await getManagedOrgIds(user.id);
+    if (managedOrgIds.length > 0) {
+      rows = await orderRepo.find({ where: [{ userId: user.id }, ...managedOrgIds.map((orgId) => ({ orgId }))] as any });
     } else {
       rows = await orderRepo.find({ where: { userId: user.id } });
     }
@@ -226,8 +242,11 @@ export async function orderRoutes(app: any, prefix = '') {
     if (order.userId === user.id) {
       return normalizeOrder(order);
     }
-    if (order.orgId && user.org && user.org.id === order.orgId && (user.orgRole === 'admin' || user.orgRole === 'owner')) {
-      return normalizeOrder(order);
+    if (order.orgId) {
+      const role = await getOrgMembershipRole(user.id, Number(order.orgId));
+      if (role === 'admin' || role === 'owner') {
+        return normalizeOrder(order);
+      }
     }
     ctx.set.status = 403;
     return { error: 'Forbidden' };
@@ -247,8 +266,12 @@ export async function orderRoutes(app: any, prefix = '') {
     const user = ctx.user as any;
     if (order.userId === user.id) {
       // skip
-    } else if (order.orgId && user.org && user.org.id === order.orgId && (user.orgRole === 'admin' || user.orgRole === 'owner')) {
-      // skip
+    } else if (order.orgId) {
+      const role = await getOrgMembershipRole(user.id, Number(order.orgId));
+      if (role !== 'admin' && role !== 'owner') {
+        ctx.set.status = 403;
+        return { error: 'Forbidden' };
+      }
     } else {
       ctx.set.status = 403;
       return { error: 'Forbidden' };

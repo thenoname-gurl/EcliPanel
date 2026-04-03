@@ -29,6 +29,7 @@ function requireAdminCtx(ctx: any): true | { error: string } {
 
 export async function nodeRoutes(app: any, prefix = '') {
   const nodeRepo = () => AppDataSource.getRepository(Node);
+  const orgMemberRepo = () => AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
 
   async function resolveNode(param: string | number) {
     const raw = String(param);
@@ -67,7 +68,6 @@ export async function nodeRoutes(app: any, prefix = '') {
 
     const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
 
-    // Determine effective portal type (demo uses original portal tier)
     const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
     const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
     const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
@@ -78,8 +78,10 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
 
     if (portalType === 'enterprise') {
-      if (!user.org?.id) return [];
-      const nodes = await nodeRepo().find({ where: { organisation: { id: user.org.id } }, relations: ['organisation'] });
+      const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
+      const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+      if (orgIds.length === 0) return [];
+      const nodes = await nodeRepo().find({ where: { organisation: { id: In(orgIds) } } as any, relations: ['organisation'] });
       return sanitizeNodes(nodes);
     }
 

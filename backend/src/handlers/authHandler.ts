@@ -63,6 +63,22 @@ async function verifyTempToken(token: string, logSource: string, ctx: any) {
 }
 
 export async function authRoutes(app: any, prefix = '') {
+  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+
+  async function getUserOrgMemberships(userId: number) {
+    const memberships = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
+    return (memberships || [])
+      .filter((m: any) => !!m.organisation)
+      .map((m: any) => ({
+        id: m.organisation.id,
+        name: m.organisation.name,
+        handle: m.organisation.handle,
+        portalTier: m.organisation.portalTier,
+        avatarUrl: m.organisation.avatarUrl,
+        orgRole: m.orgRole || 'member',
+      }));
+  }
+
   function getCookieDomain(ctx: any): string | null {
     if (process.env.JWT_COOKIE_DOMAIN) {
       return process.env.JWT_COOKIE_DOMAIN;
@@ -218,6 +234,8 @@ export async function authRoutes(app: any, prefix = '') {
 
     const geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
     const idVerificationAllowed = await canPerformIdVerification(user.billingCountry);
+    const orgs = await getUserOrgMemberships(user.id);
+    const legacyOrg = orgs[0] || null;
 
     ctx.log?.info?.({ userId: user.id, token: token.slice(0, 8) + '...' }, 'login succeeded, returning token');
     setAuthCookie(ctx, token);
@@ -248,8 +266,9 @@ export async function authRoutes(app: any, prefix = '') {
         avatarUrl: user.avatarUrl || null,
         supportBanned: !!user.supportBanned,
         supportBanReason: user.supportBanReason || null,
-        org: user.org ? { id: user.org.id, name: user.org.name, handle: user.org.handle } : null,
-        orgRole: user.orgRole || 'member',
+        org: legacyOrg ? { id: legacyOrg.id, name: legacyOrg.name, handle: legacyOrg.handle } : null,
+        orgs,
+        orgRole: legacyOrg?.orgRole || 'member',
         limits: (user as any).limits || null,
         nodeId: (user as any).nodeId || null,
         geoBlockLevel,
@@ -1302,7 +1321,8 @@ export async function authRoutes(app: any, prefix = '') {
     user.demoLimits = { tokens: 500, requests: 50 };
     user.demoUsed = true;
 
-    if (!user.org) {
+    const existingDemoMembership = await orgMemberRepo.findOne({ where: { userId: user.id }, relations: ['organisation'] });
+    if (!existingDemoMembership) {
       const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
       const demoHandle = `demo-${user.id}`;
       let demoOrg: any = await orgRepo.findOneBy({ handle: demoHandle });
@@ -1315,8 +1335,8 @@ export async function authRoutes(app: any, prefix = '') {
         } as any);
         await orgRepo.save(demoOrg);
       }
-      user.org = demoOrg as any;
-      user.orgRole = 'member';
+      const link = orgMemberRepo.create({ userId: user.id, organisationId: demoOrg.id, user, organisation: demoOrg, orgRole: 'member', createdAt: new Date() });
+      await orgMemberRepo.save(link);
     }
 
     await AppDataSource.getRepository(User).save(user);
@@ -1365,15 +1385,15 @@ export async function authRoutes(app: any, prefix = '') {
     user.demoExpiresAt = undefined;
     user.demoLimits = undefined;
 
-    if (user.org && String(user.org.handle).startsWith('demo-') && user.org.ownerId === user.id) {
+    const allMemberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+    const demoMembership = allMemberships.find((m: any) => String(m.organisation?.handle || '').startsWith('demo-') && m.organisation?.ownerId === user.id);
+    if (demoMembership?.organisation) {
       try {
         const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
-        await orgRepo.remove(user.org);
+        await orgRepo.remove(demoMembership.organisation);
       } catch (e) {
         // skip
       }
-      user.org = undefined;
-      user.orgRole = 'member';
     }
 
     await AppDataSource.getRepository(User).save(user);
@@ -1394,8 +1414,10 @@ export async function authRoutes(app: any, prefix = '') {
     const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
     const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
     const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
+    const orgs = await getUserOrgMemberships(user.id);
+    const legacyOrg = orgs[0] || null;
 
-    const userTier = (user as any).portalType || (user as any).tier || ((user.org as any)?.portalTier || null);
+    const userTier = (user as any).portalType || (user as any).tier || (legacyOrg?.portalTier || null);
     let returnedLimits: any = (user as any).limits || (user as any).educationLimits || null;
     if (!returnedLimits && userTier && userTier !== 'free') {
       try {
@@ -1405,8 +1427,10 @@ export async function authRoutes(app: any, prefix = '') {
         const planRepo = AppDataSource.getRepository(Plan);
         let orders: any[] = [];
         try {
-          if (user.org && (user.org as any).id) {
-            orders = await orderRepo.find({ where: [{ userId: user.id, status: 'active' }, { orgId: (user.org as any).id, status: 'active' }], order: { createdAt: 'DESC' } });
+          const orgIds = orgs.map((o: any) => Number(o.id)).filter((x: number) => Number.isFinite(x));
+          if (orgIds.length > 0) {
+            const orgOrderWhere = orgIds.map((oid: number) => ({ orgId: oid, status: 'active' }));
+            orders = await orderRepo.find({ where: [{ userId: user.id, status: 'active' }, ...orgOrderWhere], order: { createdAt: 'DESC' } });
           } else {
             orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
           }
@@ -1481,16 +1505,17 @@ export async function authRoutes(app: any, prefix = '') {
         avatarUrl: user.avatarUrl || null,
         supportBanned: !!user.supportBanned,
         supportBanReason: user.supportBanReason || null,
-        org: user.org
+        org: legacyOrg
           ? {
-            id: user.org.id,
-            name: user.org.name,
-            handle: user.org.handle,
-            portalTier: (user.org as any).portalTier,
-            avatarUrl: (user.org as any).avatarUrl,
+            id: legacyOrg.id,
+            name: legacyOrg.name,
+            handle: legacyOrg.handle,
+            portalTier: legacyOrg.portalTier,
+            avatarUrl: legacyOrg.avatarUrl,
           }
           : null,
-        orgRole: user.orgRole || 'member',
+        orgs,
+        orgRole: legacyOrg?.orgRole || 'member',
         limits: returnedLimits,
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,

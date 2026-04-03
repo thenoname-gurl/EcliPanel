@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { formatMoney, sanitizeCurrencyCode } from "@/lib/billing-display"
 import { AlertTriangle, Check, Edit, Loader2, Plus, RefreshCw, Trash2, Zap } from "lucide-react"
 
 export default function PlansTab({ ctx }: { ctx: any }) {
@@ -54,7 +55,10 @@ export default function PlansTab({ ctx }: { ctx: any }) {
     planError,
     planLoading,
     savePlan,
+    panelSettings,
   } = ctx
+
+  const currencyCode = sanitizeCurrencyCode(panelSettings?.billingCurrency || "USD")
 
   return (
     <>
@@ -145,7 +149,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
 
                   <div className="text-right shrink-0 ml-3">
                     <p className="text-lg font-bold text-foreground tabular-nums">
-                      ${(plan.price ?? 0).toFixed(2)}
+                      {formatMoney(Number(plan.price ?? 0), currencyCode)}
                     </p>
                     <p className="text-[10px] text-muted-foreground -mt-0.5">/month</p>
                   </div>
@@ -250,7 +254,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price ($/mo)</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price ({currencyCode}/mo)</label>
               <input type="number" min="0" step="0.01" value={planPrice} onChange={(e) => setPlanPrice(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>

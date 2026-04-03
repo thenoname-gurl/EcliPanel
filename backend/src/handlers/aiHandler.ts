@@ -11,6 +11,7 @@ import { createActivityLog } from './logHandler';
 import { AIUsage } from '../models/aiUsage.entity';
 import { User } from '../models/user.entity';
 import { t } from 'elysia';
+import { In } from 'typeorm';
 
 // I swear I hate this route handler, 
 // its a dumping ground ngl
@@ -36,8 +37,14 @@ export async function aiRoutes(app: any, prefix = '') {
   const modelRepo = AppDataSource.getRepository(AIModel);
   const modelUserRepo = AppDataSource.getRepository(AIModelUser);
   const modelOrgRepo = AppDataSource.getRepository(AIModelOrg);
+  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const usageRepo = AppDataSource.getRepository(AIUsage);
   const endpointCooldowns: Map<string, number> = new Map();
+
+  async function getUserOrgIds(userId: number): Promise<number[]> {
+    const memberships = await orgMemberRepo.find({ where: { userId } });
+    return memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+  }
 
   function nowTs() { return Date.now(); }
 
@@ -206,8 +213,9 @@ export async function aiRoutes(app: any, prefix = '') {
       const { apiKey, endpoint, ...safeModel } = l.model || {};
       return { model: safeModel, limits: l.limits };
     });
-    if (user.org) {
-      const orgLinks = await modelOrgRepo.find({ where: { organisation: { id: user.org.id } }, relations: ['model'] });
+    const orgIds = await getUserOrgIds(user.id);
+    if (orgIds.length > 0) {
+      const orgLinks = await modelOrgRepo.find({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
       models.push(...orgLinks.map((l) => {
         const { apiKey, endpoint, ...safeModel } = l.model || {};
         return { model: safeModel, limits: l.limits };
@@ -224,10 +232,11 @@ export async function aiRoutes(app: any, prefix = '') {
     const user = ctx.user as any;
     const { modelId, tokens = 0, requests = 0 } = ctx.body as any;
     let limits: any = {};
+    const orgIds = await getUserOrgIds(user.id);
     const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id }, model: { id: modelId } } });
     if (userLink) limits = userLink.limits || {};
-    else if (user.org) {
-      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id }, model: { id: modelId } } });
+    else if (orgIds.length > 0) {
+      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: modelId } } as any });
       if (orgLink) limits = orgLink.limits || {};
     }
 
@@ -250,7 +259,7 @@ export async function aiRoutes(app: any, prefix = '') {
       ctx.set.status = 429;
       return { error: 'Request limit exceeded' };
     }
-    const usage = usageRepo.create({ userId: user.id, organisationId: user.org?.id, modelId, tokens, requests, timestamp: new Date() });
+    const usage = usageRepo.create({ userId: user.id, organisationId: orgIds[0], modelId, tokens, requests, timestamp: new Date() });
     await usageRepo.save(usage);
     try {
       const { aiEmitter } = require('../services/aiSocketService');
@@ -272,13 +281,14 @@ export async function aiRoutes(app: any, prefix = '') {
     }
 
     let model: any;
+    const orgIds = await getUserOrgIds(user.id);
     if (modelId) {
       model = await modelRepo.findOneBy({ id: Number(modelId) });
     } else {
       const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: ['model'] });
       if (userLink) model = userLink.model;
-      if (!model && user.org) {
-        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id } }, relations: ['model'] });
+      if (!model && orgIds.length > 0) {
+        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
         if (orgLink) model = orgLink.model;
       }
     }
@@ -326,6 +336,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const body = ctx.body || {};
+    const orgIds = await getUserOrgIds(user.id);
 
     let model: any;
     if (body.modelId) {
@@ -333,8 +344,8 @@ export async function aiRoutes(app: any, prefix = '') {
     } else {
       const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: ['model'] });
       if (userLink) model = userLink.model;
-      if (!model && user.org) {
-        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id } }, relations: ['model'] });
+      if (!model && orgIds.length > 0) {
+        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
         if (orgLink) model = orgLink.model;
       }
     }
@@ -345,8 +356,8 @@ export async function aiRoutes(app: any, prefix = '') {
 
     const allowedUserLink = await modelUserRepo.findOne({ where: { user: { id: user.id }, model: { id: model.id } } });
     let allowed = !!allowedUserLink;
-    if (!allowed && user.org) {
-      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id }, model: { id: model.id } } });
+    if (!allowed && orgIds.length > 0) {
+      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: model.id } } as any });
       if (orgLink) allowed = true;
     }
     if (!allowed) {
@@ -382,6 +393,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
     const body = ctx.body || {};
+    const orgIds = await getUserOrgIds(user.id);
 
     let model: any;
     if (body.modelId) {
@@ -389,8 +401,8 @@ export async function aiRoutes(app: any, prefix = '') {
     } else {
       const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: ['model'] });
       if (userLink) model = userLink.model;
-      if (!model && user.org) {
-        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id } }, relations: ['model'] });
+      if (!model && orgIds.length > 0) {
+        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
         if (orgLink) model = orgLink.model;
       }
     }
@@ -401,8 +413,8 @@ export async function aiRoutes(app: any, prefix = '') {
 
     const allowedUserLink = await modelUserRepo.findOne({ where: { user: { id: user.id }, model: { id: model.id } } });
     let allowed = !!allowedUserLink;
-    if (!allowed && user.org) {
-      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id }, model: { id: model.id } } });
+    if (!allowed && orgIds.length > 0) {
+      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: model.id } } as any });
       if (orgLink) allowed = true;
     }
     if (!allowed) {
@@ -443,11 +455,12 @@ export async function aiRoutes(app: any, prefix = '') {
     }
 
     const user = ctx.user;
+    const orgIds = await getUserOrgIds(user.id);
     let allowed = false;
     const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id }, model: { id: model.id } } });
     if (userLink) allowed = true;
-    if (!allowed && user.org) {
-      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: user.org.id }, model: { id: model.id } } });
+    if (!allowed && orgIds.length > 0) {
+      const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: model.id } } as any });
       if (orgLink) allowed = true;
     }
     if (!allowed) {
