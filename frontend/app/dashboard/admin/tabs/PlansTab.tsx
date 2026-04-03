@@ -50,6 +50,8 @@ export default function PlansTab({ ctx }: { ctx: any }) {
     setPlanPortCount,
     planIsDefault,
     setPlanIsDefault,
+    planHiddenFromBilling,
+    setPlanHiddenFromBilling,
     planFeatures,
     setPlanFeatures,
     planError,
@@ -139,6 +141,11 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20">
                           <Check className="h-2.5 w-2.5" />
                           Default
+                        </span>
+                      )}
+                      {plan.hiddenFromBilling && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted/30 text-muted-foreground border border-border">
+                          Hidden in Billing
                         </span>
                       )}
                     </div>
@@ -315,6 +322,12 @@ export default function PlansTab({ ctx }: { ctx: any }) {
               <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                 <input type="checkbox" checked={planIsDefault} onChange={(e) => setPlanIsDefault(e.target.checked)} className="accent-primary" />
                 Set as default plan
+              </label>
+            </div>
+            <div className="flex flex-col gap-1.5 justify-end col-span-2">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input type="checkbox" checked={planHiddenFromBilling} onChange={(e) => setPlanHiddenFromBilling(e.target.checked)} className="accent-primary" />
+                Hide from Billing showcases
               </label>
             </div>
           </div>

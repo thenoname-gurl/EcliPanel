@@ -2,7 +2,11 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatMoney, sanitizeCurrencyCode } from "@/lib/billing-display"
+import SearchableUserSelect from "@/components/SearchableUserSelect"
+import { apiFetch } from "@/lib/api-client"
+import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
+import { API_ENDPOINTS } from "@/lib/panel-config"
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -96,6 +100,42 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
   } = ctx
 
   const currencyCode = sanitizeCurrencyCode(panelSettings?.billingCurrency || "USD")
+  const [issueUserCountry, setIssueUserCountry] = useState<string>("")
+
+  useEffect(() => {
+    const userId = Number(ioUserId)
+    if (!Number.isFinite(userId) || userId <= 0) {
+      setIssueUserCountry("")
+      return
+    }
+    let cancelled = false
+    apiFetch(API_ENDPOINTS.userDetail.replace(":id", String(userId)))
+      .then((data: any) => {
+        if (cancelled) return
+        setIssueUserCountry(data?.billingCountry || "")
+      })
+      .catch(() => {
+        if (cancelled) return
+        setIssueUserCountry("")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [ioUserId])
+
+  useEffect(() => {
+    if (!ioPlanId) {
+      setIoAmount("0")
+      return
+    }
+    const selectedPlan = plans.find((plan: any) => Number(plan.id) === Number(ioPlanId))
+    if (!selectedPlan) return
+    setIoAmount(String(Number(selectedPlan.price ?? 0)))
+  }, [ioPlanId, plans, setIoAmount])
+
+  const issueBaseAmount = Number(ioAmount || 0)
+  const issueTaxRate = resolveTaxRate(panelSettings?.billingTaxRules || "", issueUserCountry)
+  const issueTax = applyTax(issueBaseAmount, issueTaxRate)
 
   return (
     <>
@@ -454,9 +494,12 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
         </DialogHeader>
         <div className="flex flex-col gap-3 py-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">User ID *</label>
-            <input type="number" placeholder="User ID" value={ioUserId} onChange={(e) => setIoUserId(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">User *</label>
+            <SearchableUserSelect
+              value={ioUserId}
+              onChange={(value) => setIoUserId(value)}
+              placeholder="Search by name or email"
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
@@ -477,6 +520,12 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               <input type="number" min="0" step="0.01" value={ioAmount} onChange={(e) => setIoAmount(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
+          </div>
+          <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs text-muted-foreground">
+            <p>Issue status: <span className="text-foreground font-medium">Pending (unpaid)</span></p>
+            <p>
+              Tax preview{issueUserCountry ? ` (${issueUserCountry})` : ""}: {issueTaxRate.toFixed(2)}% → {formatMoney(issueTax.base, currencyCode)} + {formatMoney(issueTax.tax, currencyCode)} = <span className="text-foreground font-medium">{formatMoney(issueTax.total, currencyCode)}</span>
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expires At (optional)</label>

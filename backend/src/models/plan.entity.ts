@@ -41,6 +41,9 @@ export class Plan {
   @Column({ default: false })
   isDefault: boolean;
 
+  @Column({ default: false })
+  hiddenFromBilling: boolean;
+
   @Column('json', { nullable: true })
   features?: Record<string, any>;
 }

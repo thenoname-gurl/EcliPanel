@@ -3491,7 +3491,7 @@ isSuspicious: true if fraudScore >= 50`;
 
   app.post(prefix + '/admin/orders', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { userId, description, planId, amount, items, expiresAt, notes, status } = ctx.body as any;
+    const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
     if (!userId) {
       ctx.set.status = 400;
       return { error: 'userId is required' };
@@ -3511,7 +3511,7 @@ isSuspicious: true if fraudScore >= 50`;
       planId: planId ? Number(planId) : undefined,
       amount: amount != null ? Number(amount) : 0,
       items: items || (planId ? `plan:${planId}` : 'admin:manual'),
-      status: status || 'active',
+      status: 'pending',
       notes: notes || undefined,
       createdAt: new Date(),
       expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
@@ -3530,7 +3530,6 @@ isSuspicious: true if fraudScore >= 50`;
         items: t.Optional(t.String()),
         expiresAt: t.Optional(t.String()),
         notes: t.Optional(t.String()),
-        status: t.Optional(t.String()),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), order: t.Any() }),

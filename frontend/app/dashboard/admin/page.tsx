@@ -411,6 +411,7 @@ interface AdminPlan {
   backups?: number
   portCount?: number
   isDefault?: boolean
+  hiddenFromBilling?: boolean
   features?: string[]
 }
 
@@ -1018,6 +1019,7 @@ export default function AdminPanel() {
   const [planBackups, setPlanBackups] = useState("")
   const [planPortCount, setPlanPortCount] = useState("1")
   const [planIsDefault, setPlanIsDefault] = useState(false)
+  const [planHiddenFromBilling, setPlanHiddenFromBilling] = useState(false)
   const [planFeatures, setPlanFeatures] = useState("")
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState("")
@@ -2296,7 +2298,7 @@ export default function AdminPanel() {
     setPlanName(""); setPlanType("free"); setPlanPrice("0"); setPlanDesc("")
     setPlanMemory(""); setPlanDisk(""); setPlanCpu(""); setPlanServerLimit("")
     setPlanDatabases(""); setPlanBackups("")
-    setPlanPortCount("1"); setPlanIsDefault(false); setPlanFeatures(""); setPlanError("")
+    setPlanPortCount("1"); setPlanIsDefault(false); setPlanHiddenFromBilling(false); setPlanFeatures(""); setPlanError("")
     setPlanDialogOpen(true)
   }
 
@@ -2307,6 +2309,7 @@ export default function AdminPanel() {
     setPlanCpu(plan.cpu != null ? String(plan.cpu) : ""); setPlanServerLimit(plan.serverLimit != null ? String(plan.serverLimit) : "")
     setPlanDatabases((plan as any).databases != null ? String((plan as any).databases) : ""); setPlanBackups((plan as any).backups != null ? String((plan as any).backups) : "")
     setPlanPortCount(plan.portCount != null ? String(plan.portCount) : "1"); setPlanIsDefault(plan.isDefault ?? false)
+    setPlanHiddenFromBilling(Boolean((plan as any).hiddenFromBilling))
     const featList = (plan as any).features?.list
     setPlanFeatures(Array.isArray(featList) ? featList.join("\n") : "")
     setPlanError("")
@@ -2328,6 +2331,7 @@ export default function AdminPanel() {
       backups: planBackups ? Number(planBackups) : null,
       portCount: planPortCount ? Number(planPortCount) : 1,
       isDefault: planIsDefault,
+      hiddenFromBilling: planHiddenFromBilling,
       features: featuresList.length ? { list: featuresList } : null,
     }
     try {
@@ -5093,6 +5097,40 @@ remote: ${panelUrl}`
                     reapplyPlanLimits,
                     openEditPlan,
                     deletePlan,
+                    planDialogOpen,
+                    setPlanDialogOpen,
+                    planEditTarget,
+                    planName,
+                    setPlanName,
+                    planType,
+                    setPlanType,
+                    planPrice,
+                    setPlanPrice,
+                    planDesc,
+                    setPlanDesc,
+                    planMemory,
+                    setPlanMemory,
+                    planDisk,
+                    setPlanDisk,
+                    planCpu,
+                    setPlanCpu,
+                    planServerLimit,
+                    setPlanServerLimit,
+                    planDatabases,
+                    setPlanDatabases,
+                    planBackups,
+                    setPlanBackups,
+                    planPortCount,
+                    setPlanPortCount,
+                    planIsDefault,
+                    setPlanIsDefault,
+                    planHiddenFromBilling,
+                    setPlanHiddenFromBilling,
+                    planFeatures,
+                    setPlanFeatures,
+                    planError,
+                    planLoading,
+                    savePlan,
                   }}
                 />
               ) : null}
@@ -5770,160 +5808,6 @@ remote: ${panelUrl}`
             <Button variant="outline" onClick={() => setPlanDialogOpen(false)} className="border-border">Cancel</Button>
             <Button onClick={savePlan} disabled={planLoading} className="bg-primary text-primary-foreground">
               {planLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Saving…</> : (planEditTarget ? "Save Changes" : "Create Plan")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Issue Order Dialog ═════════════════════════════════════════════ */}
-      <Dialog open={issueOrderOpen} onOpenChange={(open) => !open && setIssueOrderOpen(false)}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Issue Order</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">User ID *</label>
-              <input type="number" placeholder="User ID" value={ioUserId} onChange={(e) => setIoUserId(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
-              <input placeholder="e.g. Monthly hosting plan" value={ioDesc} onChange={(e) => setIoDesc(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan (optional)</label>
-                <select value={ioPlanId} onChange={(e) => setIoPlanId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  <option value="">— none —</option>
-                  {plans.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount ($)</label>
-                <input type="number" min="0" step="0.01" value={ioAmount} onChange={(e) => setIoAmount(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expires At (optional)</label>
-              <input type="date" value={ioExpiresAt} onChange={(e) => setIoExpiresAt(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</label>
-              <input placeholder="Internal notes" value={ioNotes} onChange={(e) => setIoNotes(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            {ioError && <p className="text-xs text-destructive">{ioError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIssueOrderOpen(false)} className="border-border">Cancel</Button>
-            <Button onClick={submitIssueOrder} disabled={ioLoading} className="bg-primary text-primary-foreground">
-              {ioLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Issuing…</> : "Issue Order"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Apply Plan to User Dialog ══════════════════════════════════════ */}
-      <Dialog open={applyPlanOpen} onOpenChange={(open) => !open && setApplyPlanOpen(false)}>
-        <DialogContent className="border-border bg-card sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Apply Plan to User #{applyPlanUserId}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan *</label>
-              <select value={applyPlanId} onChange={(e) => setApplyPlanId(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                <option value="">— select a plan —</option>
-                {plans.map((p) => <option key={p.id} value={String(p.id)}>{p.name} ({p.type})</option>)}
-              </select>
-              {applyPlanId && (() => {
-                const p = plans.find(x => x.id === Number(applyPlanId))
-                if (!p) return null
-                return <p className="text-xs text-muted-foreground">{p.description} · {p.memory ? `${p.memory} MB RAM` : "∞"} · {p.disk ? `${(p.disk / 1024).toFixed(0)} GB` : "∞"} · {p.cpu ? `${p.cpu}% CPU` : "∞"} · {p.serverLimit ?? "∞"} servers</p>
-              })()}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expires At (optional)</label>
-              <input type="date" value={applyPlanExpiry} onChange={(e) => setApplyPlanExpiry(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            {/* Show org assignment for enterprise-tier plans */}
-            {(() => {
-              const selectedPlan = plans.find(x => x.id === Number(applyPlanId))
-              if (!selectedPlan || selectedPlan.type !== 'enterprise') return null
-              return (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assign to Organisation ID (optional)</label>
-                  <input type="number" min="1" placeholder="Leave blank for user-only" value={applyPlanOrgId} onChange={(e) => setApplyPlanOrgId(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-                  <p className="text-xs text-muted-foreground">If set, the organisation's tier will also be upgraded to enterprise.</p>
-                </div>
-              )
-            })()}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes (internal)</label>
-              <input placeholder="e.g. Trial period" value={applyPlanNotes} onChange={(e) => setApplyPlanNotes(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            {applyPlanError && <p className="text-xs text-destructive">{applyPlanError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApplyPlanOpen(false)} className="border-border">Cancel</Button>
-            <Button onClick={submitApplyPlan} disabled={applyPlanLoading} className="bg-primary text-primary-foreground">
-              {applyPlanLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Applying…</> : "Apply Plan"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════ Edit Order Dialog ═════════════════════════════════════════════ */}
-      <Dialog open={editOrderOpen} onOpenChange={(open) => !open && setEditOrderOpen(false)}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{editOrderTarget ? `Edit Order #${editOrderTarget.id}` : 'Edit Order'}</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">Modify order details or change status.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
-              <input value={eoDescription} onChange={(e) => setEoDescription(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</label>
-                <input type="number" value={eoAmount} onChange={(e) => setEoAmount(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan ID</label>
-                <input value={eoPlanId} onChange={(e) => setEoPlanId(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</label>
-              <input value={eoNotes} onChange={(e) => setEoNotes(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none" />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expires At</label>
-                <input type="date" value={eoExpiresAt?.split("T")?.[0] || eoExpiresAt} onChange={(e) => setEoExpiresAt(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
-                <input value={eoStatus} onChange={(e) => setEoStatus(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
-              </div>
-            </div>
-            {eoError && <p className="text-xs text-destructive">{eoError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOrderOpen(false)} className="border-border">Cancel</Button>
-            <Button onClick={submitEditOrder} disabled={eoLoading} className="bg-primary text-primary-foreground">
-              {eoLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Saving…</> : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -59,7 +59,7 @@ export async function planRoutes(app: any, prefix = '') {
     const {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
-      portCount, isDefault, features,
+      portCount, isDefault, hiddenFromBilling, features,
     } = ctx.body as any;
     if (!name || !type) {
       ctx.set.status = 400;
@@ -79,6 +79,7 @@ export async function planRoutes(app: any, prefix = '') {
       backups: backups != null ? Number(backups) : undefined,
       portCount: portCount != null ? Number(portCount) : 1,
       isDefault: isDefault ?? false,
+      hiddenFromBilling: hiddenFromBilling ?? false,
       features: features ?? undefined,
     });
     await planRepo().save(plan);
@@ -103,7 +104,7 @@ export async function planRoutes(app: any, prefix = '') {
     const {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
-      portCount, isDefault, features,
+      portCount, isDefault, hiddenFromBilling, features,
     } = ctx.body as any;
 
     if (name !== undefined) plan.name = name;
@@ -118,6 +119,7 @@ export async function planRoutes(app: any, prefix = '') {
     if (backups !== undefined) plan.backups = backups != null ? Number(backups) : undefined;
     if (portCount !== undefined) plan.portCount = Number(portCount);
     if (isDefault !== undefined) plan.isDefault = Boolean(isDefault);
+    if (hiddenFromBilling !== undefined) plan.hiddenFromBilling = Boolean(hiddenFromBilling);
     if (features !== undefined) plan.features = features ?? undefined;
 
     await planRepo().save(plan);

@@ -164,6 +164,7 @@ export default function BillingPage() {
       color: portalConfig?.color,
       icon: portalConfig?.icon,
       price: tier === 'enterprise' ? null : Number(plan?.price ?? 0),
+      hiddenFromBilling: Boolean(plan?.hiddenFromBilling),
       isActive:
         !!activePlan &&
         (Number(activePlan.plan?.id) === Number(plan.id) || String(activePlan.plan?.type ?? "") === tier),
@@ -185,7 +186,8 @@ export default function BillingPage() {
     }
   })
 
-  const subscriptionCards = livePlanCards.length > 0 ? livePlanCards : fallbackCards
+  const visibleLivePlanCards = livePlanCards.filter((planCard: any) => !planCard?.hiddenFromBilling)
+  const subscriptionCards = livePlanCards.length > 0 ? visibleLivePlanCards : fallbackCards
 
   const startDemo = async () => {
     setDemoError(null)
@@ -469,6 +471,11 @@ export default function BillingPage() {
                   </div>
                 )
               })}
+              {livePlanCards.length > 0 && subscriptionCards.length === 0 && (
+                <div className="rounded-xl border border-border bg-secondary/20 p-5 text-sm text-muted-foreground lg:col-span-3">
+                  No plans are currently visible in billing showcase.
+                </div>
+              )}
             </div>
           </div>
 
