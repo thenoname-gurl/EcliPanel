@@ -53,6 +53,27 @@ const POWER_DICE_FAILURE_LINES = [
   '🎲 Blahaj refused to hug you.',
 ];
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function formatUtcDayKey(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function utcDayKeys(start: Date, days: number): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < days; i++) {
+    keys.push(formatUtcDayKey(new Date(start.getTime() + i * DAY_MS)));
+  }
+  return keys;
+}
+
 function randomIntInclusive(min: number, max: number): number {
   if (max <= min) return min;
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -265,6 +286,218 @@ export async function adminRoutes(app: any, prefix = '') {
       403: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Get aggregated admin statistics (admin only)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/metrics', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+
+    const queryDays = Number((ctx.query as any)?.days ?? 30);
+    const days = Number.isFinite(queryDays)
+      ? Math.min(365, Math.max(7, Math.floor(queryDays)))
+      : 30;
+
+    const endDay = startOfUtcDay(new Date());
+    const rangeStart = new Date(endDay.getTime() - (days - 1) * DAY_MS);
+    const rangeEndExclusive = new Date(endDay.getTime() + DAY_MS);
+    const previousStart = new Date(rangeStart.getTime() - days * DAY_MS);
+
+    const userRepo = AppDataSource.getRepository(User);
+    const orgRepo = AppDataSource.getRepository(Organisation);
+    const ticketRepo = AppDataSource.getRepository(Ticket);
+    const orderRepo = AppDataSource.getRepository(Order);
+    const logRepo = AppDataSource.getRepository(UserLog);
+
+    const classifyServerStatus = (rawStatus: any): 'online' | 'transitioning' | 'offline' => {
+      const s = String(rawStatus || '').trim().toLowerCase();
+      if (['running', 'online', 'up', 'healthy', 'available'].includes(s)) return 'online';
+      if (['starting', 'stopping', 'restarting', 'installing', 'transferring', 'suspending', 'unsuspending'].includes(s)) return 'transitioning';
+      return 'offline';
+    };
+
+    const [
+      totalUsers,
+      totalOrganisations,
+      totalTickets,
+      totalOrders,
+      registrationRows,
+      organisationRows,
+      ticketRows,
+      orderRows,
+      registrationsBeforeWindow,
+    ] = await Promise.all([
+      userRepo.count(),
+      orgRepo.count(),
+      ticketRepo.count(),
+      orderRepo.count(),
+      logRepo
+        .createQueryBuilder('log')
+        .select(['log.timestamp'])
+        .where('log.action = :action', { action: 'register' })
+        .andWhere('log.timestamp >= :from AND log.timestamp < :to', { from: previousStart, to: rangeEndExclusive })
+        .getMany(),
+      logRepo
+        .createQueryBuilder('log')
+        .select(['log.timestamp'])
+        .where('log.action = :action', { action: 'org:create' })
+        .andWhere('log.timestamp >= :from AND log.timestamp < :to', { from: previousStart, to: rangeEndExclusive })
+        .getMany(),
+      ticketRepo
+        .createQueryBuilder('ticket')
+        .select(['ticket.created'])
+        .where('ticket.created >= :from AND ticket.created < :to', { from: previousStart, to: rangeEndExclusive })
+        .getMany(),
+      orderRepo
+        .createQueryBuilder('orderRow')
+        .select(['orderRow.createdAt'])
+        .where('orderRow.createdAt >= :from AND orderRow.createdAt < :to', { from: previousStart, to: rangeEndExclusive })
+        .getMany(),
+      logRepo
+        .createQueryBuilder('log')
+        .where('log.action = :action', { action: 'register' })
+        .andWhere('log.timestamp < :before', { before: rangeStart })
+        .getCount(),
+    ]);
+
+    const dayKeys = utcDayKeys(rangeStart, days);
+    const registrationDaily = new Map<string, number>();
+    const organisationDaily = new Map<string, number>();
+    const ticketDaily = new Map<string, number>();
+    const orderDaily = new Map<string, number>();
+
+    let registrationsCurrent = 0;
+    let registrationsPrevious = 0;
+    for (const row of registrationRows as any[]) {
+      const ts = new Date(row.timestamp);
+      if (Number.isNaN(ts.getTime())) continue;
+      if (ts >= rangeStart) {
+        registrationsCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        registrationDaily.set(key, (registrationDaily.get(key) || 0) + 1);
+      } else {
+        registrationsPrevious += 1;
+      }
+    }
+
+    let organisationsCurrent = 0;
+    let organisationsPrevious = 0;
+    for (const row of organisationRows as any[]) {
+      const ts = new Date(row.timestamp);
+      if (Number.isNaN(ts.getTime())) continue;
+      if (ts >= rangeStart) {
+        organisationsCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        organisationDaily.set(key, (organisationDaily.get(key) || 0) + 1);
+      } else {
+        organisationsPrevious += 1;
+      }
+    }
+
+    let ticketsCurrent = 0;
+    for (const row of ticketRows as any[]) {
+      const ts = new Date(row.created);
+      if (Number.isNaN(ts.getTime()) || ts < rangeStart) continue;
+      ticketsCurrent += 1;
+      const key = formatUtcDayKey(ts);
+      ticketDaily.set(key, (ticketDaily.get(key) || 0) + 1);
+    }
+
+    let ordersCurrent = 0;
+    for (const row of orderRows as any[]) {
+      const ts = new Date(row.createdAt);
+      if (Number.isNaN(ts.getTime()) || ts < rangeStart) continue;
+      ordersCurrent += 1;
+      const key = formatUtcDayKey(ts);
+      orderDaily.set(key, (orderDaily.get(key) || 0) + 1);
+    }
+
+    let totalServers = 0;
+    let serversOnline = 0;
+    let serversTransitioning = 0;
+    let serversOffline = 0;
+
+    const nodes = await AppDataSource.getRepository(Node).find();
+    for (const n of nodes) {
+      try {
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
+        const res = await svc.getServers();
+        const servers = Array.isArray((res as any)?.data) ? (res as any).data : [];
+        for (const server of servers) {
+          totalServers += 1;
+          const bucket = classifyServerStatus((server as any)?.state || (server as any)?.status);
+          if (bucket === 'online') serversOnline += 1;
+          else if (bucket === 'transitioning') serversTransitioning += 1;
+          else serversOffline += 1;
+        }
+      } catch {
+      }
+    }
+
+    const growthPct = (current: number, previous: number) => {
+      if (previous <= 0) return current > 0 ? 100 : 0;
+      return Number((((current - previous) / previous) * 100).toFixed(2));
+    };
+
+    let cumulativeRegistrations = registrationsBeforeWindow;
+    const series = dayKeys.map((date) => {
+      const registrations = registrationDaily.get(date) || 0;
+      cumulativeRegistrations += registrations;
+      return {
+        date,
+        registrations,
+        cumulativeRegistrations,
+        organisations: organisationDaily.get(date) || 0,
+        tickets: ticketDaily.get(date) || 0,
+        orders: orderDaily.get(date) || 0,
+      };
+    });
+
+    return {
+      window: {
+        days,
+        start: rangeStart.toISOString(),
+        end: endDay.toISOString(),
+      },
+      summary: {
+        totalUsers,
+        totalOrganisations,
+        totalServers,
+        totalTickets,
+        totalOrders,
+        serversOnline,
+        serversTransitioning,
+        serversOffline,
+        registrationsCurrent,
+        registrationsPrevious,
+        registrationGrowthPercent: growthPct(registrationsCurrent, registrationsPrevious),
+        organisationsCurrent,
+        organisationsPrevious,
+        organisationGrowthPercent: growthPct(organisationsCurrent, organisationsPrevious),
+        ticketsCurrent,
+        ordersCurrent,
+      },
+      series,
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      query: t.Object({ days: t.Optional(t.Number()) }),
+      response: {
+        200: t.Object({
+          window: t.Object({
+            days: t.Number(),
+            start: t.String(),
+            end: t.String(),
+          }),
+          summary: t.Any(),
+          series: t.Array(t.Any()),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Get global admin metrics time series', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/slow-queries', async (ctx) => {

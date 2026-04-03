@@ -280,6 +280,7 @@ export const API_ENDPOINTS = {
 
   // Admin
   adminStats: "/api/admin/stats",
+  adminMetrics: "/api/admin/metrics",
   adminUsers: "/api/admin/users",
   adminProductUpdates: "/api/admin/product-updates",
   adminOrganisations: "/api/admin/organisations",
