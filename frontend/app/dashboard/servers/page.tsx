@@ -55,6 +55,12 @@ function isGamblingThemeName(name: string): boolean {
   return GAMBLING_THEME_NAMES.has(String(name || "").trim().toLowerCase())
 }
 
+function formatBlackjackCard(card: number): string {
+  if (card === 11) return "A"
+  if (card === 10) return "10"
+  return String(card)
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -166,11 +172,18 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const [kvmPassthroughEnabled, setKvmPassthroughEnabled] = useState<boolean>(false)
   const [startup, setStartup] = useState<string>("")
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([])
+  const [blackjackStandAt, setBlackjackStandAt] = useState<number>(17)
   const [createResult, setCreateResult] = useState<{
     createdUuid?: string
     genericMessage?: string
     rolled?: { memory?: number; disk?: number; cpu?: number }
     luckyRoll?: boolean
+    blackjack?: {
+      player?: { cards?: number[]; score?: number }
+      dealer?: { cards?: number[]; score?: number }
+      playerStandAt?: number
+      outcome?: "player" | "dealer" | "push"
+    }
     bonusAppliedToLimits?: boolean
     bonusActivated?: boolean
     bonusPercent?: number
@@ -288,6 +301,8 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
         createPayload.memory = memory
         createPayload.disk = disk
         createPayload.cpu = cpu
+      } else {
+        createPayload.playerStandAt = blackjackStandAt
       }
 
       const createRes = await apiFetch(API_ENDPOINTS.servers, {
@@ -522,7 +537,45 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
               {gamblingModeEnabled && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                  Gambling Mode is active via your selected theme. Resource selectors are locked and the backend rolls CPU, RAM, and disk from your account range.
+                  Gambling Mode is active via your selected theme. Resource selectors are locked and your blackjack hand now decides CPU, RAM, and disk from your account range.
+                </div>
+              )}
+
+              {gamblingModeEnabled && (
+                <div className="rounded-xl border border-border/40 bg-muted/20 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blackjack Table</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg border border-border/50 bg-background/70 px-2 py-2">
+                      <p className="text-muted-foreground">Dealer</p>
+                      <p className="mt-1 font-medium text-foreground">? + ?</p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-background/70 px-2 py-2">
+                      <p className="text-muted-foreground">You</p>
+                      <p className="mt-1 font-medium text-foreground">Auto-draw until stand target</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground">Higher winning hands push your final resources closer to max limits.</p>
+                </div>
+              )}
+
+              {gamblingModeEnabled && (
+                <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blackjack Stand Target</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <select
+                      value={String(blackjackStandAt)}
+                      onChange={(e) => setBlackjackStandAt(Number(e.target.value))}
+                      className="rounded-lg border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50"
+                    >
+                      <option value="15">Stand at 15</option>
+                      <option value="16">Stand at 16</option>
+                      <option value="17">Stand at 17</option>
+                      <option value="18">Stand at 18</option>
+                      <option value="19">Stand at 19</option>
+                      <option value="20">Stand at 20</option>
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">You decide when your hand stops drawing cards.</p>
+                  </div>
                 </div>
               )}
 
@@ -655,7 +708,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
               <div className="relative flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">
-                  {createResult.rolled ? "🎲 Gambling Roll Result" : "✅ Server Created"}
+                  {createResult.rolled ? "🃏 Blackjack Server Creation Result" : "✅ Server Created"}
                 </h3>
                 <button
                   type="button"
@@ -676,6 +729,23 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   </div>
                 )}
 
+                {createResult.rolled && createResult.blackjack && (
+                <div className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
+                  <p className="font-semibold text-foreground">Creation Notice</p>
+                  <p className="mt-1 text-foreground/90">
+                    Your hand {Number(createResult.blackjack.player?.score || 0)} vs dealer {Number(createResult.blackjack.dealer?.score || 0)}
+                    {createResult.blackjack.outcome === "player"
+                      ? " won"
+                      : createResult.blackjack.outcome === "dealer"
+                        ? " lost"
+                        : " pushed"}.
+                  </p>
+                  <p className="text-foreground/90">
+                    Server got RAM {Number(createResult.rolled?.memory || 0)} MB · Disk {Number(createResult.rolled?.disk || 0)} MB · CPU {Number(createResult.rolled?.cpu || 0)}%.
+                  </p>
+                </div>
+                )}
+
                 {createResult.rolled && (
                 <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
                   <p className="text-muted-foreground mb-1">Assigned resources</p>
@@ -690,6 +760,23 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   <p className="text-muted-foreground mb-1">Lucky roll</p>
                   <p className={`font-semibold ${createResult.luckyRoll ? "text-emerald-500 animate-pulse" : "text-amber-500"}`}>
                     {createResult.luckyRoll ? "777 vibes! Luck triggered!!!" : "Nuh uh… no lucky trigger this time."}
+                  </p>
+                </div>
+                )}
+
+                {createResult.rolled && createResult.blackjack && (
+                <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                  <p className="text-muted-foreground mb-1">Blackjack round</p>
+                  <p className="font-medium text-foreground tabular-nums">
+                    You {Number(createResult.blackjack.player?.score || 0)} ({(createResult.blackjack.player?.cards || []).map((card) => formatBlackjackCard(Number(card))).join(" + ") || "-"}) · Dealer {Number(createResult.blackjack.dealer?.score || 0)} ({(createResult.blackjack.dealer?.cards || []).map((card) => formatBlackjackCard(Number(card))).join(" + ") || "-"})
+                  </p>
+                  <p className="text-muted-foreground mt-1">Your stand target: {Number(createResult.blackjack.playerStandAt || 17)}</p>
+                  <p className={`mt-1 font-semibold ${createResult.blackjack.outcome === "player" ? "text-emerald-500" : createResult.blackjack.outcome === "dealer" ? "text-amber-500" : "text-blue-500"}`}>
+                    {createResult.blackjack.outcome === "player"
+                      ? "You beat the dealer."
+                      : createResult.blackjack.outcome === "dealer"
+                        ? "Dealer wins this hand."
+                        : "Push - hand tied."}
                   </p>
                 </div>
                 )}

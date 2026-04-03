@@ -121,11 +121,12 @@ export async function serverRoutes(app: any, prefix = '') {
     return { score, softAces };
   }
 
-  function runBlackjackRound() {
+  function runBlackjackRound(playerStandAt = 17) {
+    const standTarget = clampInt(playerStandAt, 12, 20);
     const playerCards = [drawBlackjackCardValue(), drawBlackjackCardValue()];
     const dealerCards = [drawBlackjackCardValue(), drawBlackjackCardValue()];
 
-    while (resolveBlackjackScore(playerCards).score < 17) {
+    while (resolveBlackjackScore(playerCards).score < standTarget) {
       playerCards.push(drawBlackjackCardValue());
     }
     while (resolveBlackjackScore(dealerCards).score < 17) {
@@ -154,6 +155,7 @@ export async function serverRoutes(app: any, prefix = '') {
         cards: dealerCards,
         score: dealerResult.score,
       },
+      playerStandAt: standTarget,
       outcome,
     };
   }
@@ -755,7 +757,8 @@ export async function serverRoutes(app: any, prefix = '') {
     let cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
 
     const gamblingConfig = await getGamblingConfig();
-    const gamblingModeEnabled = !isAdmin && gamblingConfig.enabled && isGamblingModeEnabled(user);
+    const gamblingRequested = body?.playerStandAt !== undefined;
+    const gamblingModeEnabled = gamblingConfig.enabled && (gamblingRequested || (!isAdmin && isGamblingModeEnabled(user)));
     let gamblingResult: {
       enabled: boolean;
       rolled: { memory: number; disk: number; cpu: number };
@@ -763,6 +766,7 @@ export async function serverRoutes(app: any, prefix = '') {
       blackjack: {
         player: { cards: number[]; score: number };
         dealer: { cards: number[]; score: number };
+        playerStandAt: number;
         outcome: 'player' | 'dealer' | 'push';
       };
       bonusAppliedToLimits: boolean;
@@ -818,12 +822,22 @@ export async function serverRoutes(app: any, prefix = '') {
       const diskMin = Math.min(1024, diskCap);
       const cpuMin = Math.min(10, cpuCap);
 
-      memory = clampInt(randomIntInclusive(memoryMin, memoryCap), 1, memoryCap);
-      disk = clampInt(randomIntInclusive(diskMin, diskCap), 1, diskCap);
-      cpu = clampInt(randomIntInclusive(cpuMin, cpuCap), 1, cpuCap);
-
-      const blackjack = runBlackjackRound();
+      const blackjack = runBlackjackRound(Number(body.playerStandAt));
       const blackjackWin = blackjack.outcome === 'player';
+
+      const safePlayerScore = blackjack.player.score > 21 ? 0 : blackjack.player.score;
+      const scoreRatio = safePlayerScore / 21;
+      const outcomeModifier = blackjack.outcome === 'player'
+        ? 0.2
+        : blackjack.outcome === 'push'
+          ? 0
+          : -0.2;
+      const blackjackRatio = Math.max(0.1, Math.min(1, scoreRatio + outcomeModifier));
+
+      memory = clampInt(Math.floor(memoryCap * blackjackRatio), memoryMin, memoryCap);
+      disk = clampInt(Math.floor(diskCap * blackjackRatio), diskMin, diskCap);
+      cpu = clampInt(Math.floor(cpuCap * blackjackRatio), cpuMin, cpuCap);
+
       const luckyRoll = Math.random() < gamblingConfig.resourceLuckyChance;
       let bonusActivated = false;
       let nextBonusExpiresAt: string | null = bonusActive && bonusExpiresAt
