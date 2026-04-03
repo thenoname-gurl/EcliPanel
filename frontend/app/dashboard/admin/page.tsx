@@ -1735,6 +1735,16 @@ export default function AdminPanel() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  useEffect(() => {
+    const tabFromQuery = searchParams.get("tab")
+    if (!tabFromQuery || tabFromQuery === activeTab) return
+    setActiveTab(tabFromQuery)
+  }, [searchParams, activeTab])
+
+  useEffect(() => {
+    loadTab(activeTab)
+  }, [activeTab, loadTab])
+
   // ── Load default tab on mount and honor ?viewUser=123 query ──
   useEffect(() => {
     const tab = searchParams.get("tab") || "users"
@@ -3238,7 +3248,7 @@ remote: ${panelUrl}`
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); loadTab(tab); }} className="w-full min-w-0 max-w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0 max-w-full">
             <TabsList
               className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-hidden px-2 border border-border bg-secondary/50"
             >
