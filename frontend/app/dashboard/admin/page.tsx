@@ -3104,8 +3104,8 @@ remote: ${panelUrl}`
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ScrollArea className="flex-1 overflow-x-auto max-w-[100vw] box-border">
-        <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
+      <ScrollArea className="flex-1 min-w-0 overflow-x-hidden max-w-full box-border">
+        <div className="flex flex-col gap-6 p-4 sm:p-5 lg:p-6 max-w-full w-full min-w-0 overflow-x-hidden box-border">
 
           {/* Stat cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
@@ -3238,14 +3238,9 @@ remote: ${panelUrl}`
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); loadTab(tab); }} className="w-full">
+          <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); loadTab(tab); }} className="w-full min-w-0 max-w-full">
             <TabsList
-              className="flex flex-wrap gap-2 overflow-x-auto md:flex-nowrap w-full max-w-full px-2 border border-border bg-secondary/50"
-              style={{
-                ['--tab-minw' as any]: 'min(12rem, 100%)',
-                minWidth: '100%',
-                maxWidth: '100%'
-              }}
+              className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-hidden px-2 border border-border bg-secondary/50"
             >
               {[
                 { value: "users", label: "Users" },
@@ -3273,8 +3268,7 @@ remote: ${panelUrl}`
                   <TabsTrigger
                     key={t.value}
                     value={t.value}
-                    className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap"
-                    style={{ minWidth: 'var(--tab-minw)' }}
+                    className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary whitespace-nowrap max-w-full"
                   >
                     {t.label}
                   </TabsTrigger>
