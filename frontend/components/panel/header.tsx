@@ -231,6 +231,7 @@ export function PanelHeader({
     ai: true,
     dns: true,
     ticketing: true,
+    applications: true,
     oauth: true,
   })
 

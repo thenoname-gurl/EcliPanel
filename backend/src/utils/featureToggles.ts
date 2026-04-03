@@ -11,6 +11,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   ai: true,
   dns: true,
   ticketing: true,
+  applications: true,
   oauth: true,
 };
 

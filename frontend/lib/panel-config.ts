@@ -29,6 +29,7 @@ import {
   Mail,
   Globe,
   User,
+  FileText,
   type LucideIcon,
 } from "lucide-react"
 
@@ -240,6 +241,22 @@ export const API_ENDPOINTS = {
   ticketReply: "/api/tickets/:id/reply",
   ticketCreate: "/api/tickets/create",
 
+  // Applications
+  applicationsForms: "/api/applications/forms",
+  applicationsMy: "/api/applications/my",
+  applicationsSubmit: "/api/applications/forms/:id/submit",
+  applicationsSubmitBySlug: "/api/applications/forms/slug/:slug/submit",
+  publicApplicationsForms: "/api/public/applications/forms",
+  publicApplicationFormBySlug: "/api/public/applications/forms/:slug",
+  publicApplicationsSubmit: "/api/public/applications/forms/:id/submit",
+  publicApplicationsSubmitBySlug: "/api/public/applications/forms/slug/:slug/submit",
+  adminApplicationsForms: "/api/admin/applications/forms",
+  adminApplicationForm: "/api/admin/applications/forms/:id",
+  adminApplicationInvites: "/api/admin/applications/forms/:id/invites",
+  adminApplicationInvite: "/api/admin/applications/invites/:inviteId",
+  adminApplicationsSubmissions: "/api/admin/applications/submissions",
+  adminApplicationSubmission: "/api/admin/applications/submissions/:id",
+
   // Identity / ID Verification
   identity: "/api/id-verification",
   identityStatus: "/api/id-verification/:id",
@@ -380,7 +397,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'codeInstances' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'oauth'
+export type FeatureFlag = 'registration' | 'codeInstances' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth'
 
 export interface NavItem {
   label: string
@@ -469,6 +486,12 @@ export const NAVIGATION: NavSection[] = [
         icon: Ticket,
         requiredTier: "free",
         feature: "ticketing",
+      },
+      {
+        label: "Applications",
+        href: "/dashboard/applications",
+        icon: FileText,
+        feature: "applications",
       },
     ],
   },
