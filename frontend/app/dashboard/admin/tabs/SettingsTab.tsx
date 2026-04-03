@@ -318,6 +318,46 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
           </div>
         </div>
 
+        {/* Gambling Toggle */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className={`mt-0.5 rounded-lg p-2 ${panelSettings.gamblingEnabled ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                <BarChart3 className={`h-4 w-4 ${panelSettings.gamblingEnabled ? "text-green-400" : "text-red-400"}`} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Gambling Mode Feature</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {panelSettings.gamblingEnabled ? "Theme-based gambling behavior is enabled" : "Gambling behavior is globally disabled"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() =>
+                setPanelSettings((s: any) => ({
+                  ...s,
+                  gamblingEnabled: !s.gamblingEnabled,
+                  featureToggles: {
+                    ...s.featureToggles,
+                    gambling: !s.gamblingEnabled,
+                  },
+                }))
+              }
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                panelSettings.gamblingEnabled ? "bg-green-500" : "bg-secondary"
+              }`}
+              role="switch"
+              aria-checked={panelSettings.gamblingEnabled}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+                  panelSettings.gamblingEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-border bg-card p-4 col-span-full">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
@@ -365,6 +405,47 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 col-span-full">
+          <p className="text-sm font-medium text-foreground">Gambling Chances</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Values use 0 to 1 format (example: 0.5 = 50%).</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Lucky Roll Chance (resource bonus)</label>
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.0001}
+                value={panelSettings.gamblingResourceLuckyChance ?? 0.0777}
+                onChange={(e) =>
+                  setPanelSettings((s: any) => ({
+                    ...s,
+                    gamblingResourceLuckyChance: Math.max(0, Math.min(1, Number(e.target.value || 0))),
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Power Deny Chance</label>
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.0001}
+                value={panelSettings.gamblingPowerDenyChance ?? 0.5}
+                onChange={(e) =>
+                  setPanelSettings((s: any) => ({
+                    ...s,
+                    gamblingPowerDenyChance: Math.max(0, Math.min(1, Number(e.target.value || 0))),
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+            </div>
           </div>
         </div>
       </div>

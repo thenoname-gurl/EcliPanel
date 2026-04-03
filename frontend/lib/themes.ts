@@ -90,6 +90,21 @@ export const THEMES = [
     description: "Inspired by Voters 7 from 2nd Ship on HC.. we don't know much about them.",
   },
   {
+    name: "Gambling Mode Dark",
+    primary: "#facc15",
+    bg: "#0b0a07",
+    card: "#14110a",
+    secondary: "#1f1a0f",
+    sidebar: "#120f09",
+    accent: "#3b2f0f",
+    accentFg: "#fde68a",
+    glow: "#facc1580",
+    border: "#4a3b16",
+    foreground: "#f8f5e6",
+    cardForeground: "#f8f5e6",
+    description: "Dark Gambling theme. Enables Gambling Mode for lucky resource rolls.",
+  },
+  {
     name: "Arctic White",
     primary: "#8b5cf6",
     bg: "#f4f3f9",
@@ -164,6 +179,21 @@ export const THEMES = [
     cardForeground: "#0f172a",
     description: "Its bubblegum! Its.. pink theme with cool blue accents for serious business talks!",
   },
+  {
+    name: "Gambling Mode White",
+    primary: "#b45309",
+    bg: "#fffdf7",
+    card: "#ffffff",
+    secondary: "#fff4db",
+    sidebar: "#fff8e8",
+    accent: "#fde68a",
+    accentFg: "#92400e",
+    glow: "#f59e0b66",
+    border: "#f3d08a",
+    foreground: "#3f2a09",
+    cardForeground: "#3f2a09",
+    description: "White Gambling theme. Enables Gambling Mode for lucky resource rolls. 🔴 Note: outcomes are luck-based.",
+  },
 ] as const;
 
 export type Theme = (typeof THEMES)[number];
@@ -174,6 +204,27 @@ type TransitionDocument = Document & {
 
 type ApplyThemeOptions = {
   animate?: boolean
+}
+
+function persistThemeSelection(theme: Theme) {
+  if (typeof document === "undefined") return;
+
+  const root = document.documentElement;
+  root.setAttribute("data-eclipse-theme", theme.name);
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem("eclipseTheme", theme.name);
+    } catch {
+      // skip
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent("eclipse-theme-changed", { detail: { name: theme.name } }));
+    } catch {
+      // skip
+    }
+  }
 }
 
 function applyThemeStyles(theme: Theme) {
@@ -205,6 +256,7 @@ export function applyTheme(theme: Theme, options?: ApplyThemeOptions): Promise<v
   const animate = options?.animate === true;
   if (!animate) {
     applyThemeStyles(theme);
+    persistThemeSelection(theme);
     return Promise.resolve();
   }
 
@@ -223,12 +275,14 @@ export function applyTheme(theme: Theme, options?: ApplyThemeOptions): Promise<v
 
   if (!transitionDocument.startViewTransition || prefersReducedMotion) {
     applyThemeStyles(theme);
+    persistThemeSelection(theme);
     return Promise.resolve();
   }
 
   return transitionDocument
     .startViewTransition(() => {
       applyThemeStyles(theme);
+      persistThemeSelection(theme);
     })
     .finished.catch(() => undefined);
 }

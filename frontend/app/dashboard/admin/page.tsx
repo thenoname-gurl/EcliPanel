@@ -284,6 +284,7 @@ interface AdminUser {
   createdAt?: string
   studentVerified?: boolean
   demoUsed?: boolean
+  settings?: Record<string, any>
 }
 
 interface AdminVerification {
@@ -559,6 +560,7 @@ function redactNameGlobal(firstName?: string, lastName?: string, privateMode = t
 
 const ROLES = ["user", "admin", "rootAdmin", "*"]
 const TIERS = ["free", "paid", "educational", "enterprise"]
+const BADGE_PRESETS = ["Bug Hunter", "Staff", "Ex Staff", "Contributor", "Loyal Customer", "Early Adopter", "Beta Tester"]
 
 const priorityColor: Record<string, string> = {
   low: "border-border bg-secondary/50 text-muted-foreground",
@@ -982,6 +984,26 @@ export default function AdminPanel() {
   const [editDiskLimit, setEditDiskLimit] = useState("")
   const [editDatabaseLimit, setEditDatabaseLimit] = useState("")
   const [editBackupLimit, setEditBackupLimit] = useState("")
+  const [editBadgesText, setEditBadgesText] = useState("")
+
+  const parseBadgeText = (value: string): string[] =>
+    Array.from(
+      new Set(
+        value
+          .split(/[\n,]/g)
+          .map((badge) => badge.trim())
+          .filter(Boolean)
+      )
+    )
+
+  const toggleBadgePreset = (badge: string) => {
+    const current = parseBadgeText(editBadgesText)
+    const hasBadge = current.some((b) => b.toLowerCase() === badge.toLowerCase())
+    const next = hasBadge
+      ? current.filter((b) => b.toLowerCase() !== badge.toLowerCase())
+      : [...current, badge]
+    setEditBadgesText(next.join(", "))
+  }
 
   // ── Organisation edit dialog ──
   const [editOrgDialog, setEditOrgDialog] = useState<AdminOrganisation | null>(null)
@@ -1316,6 +1338,9 @@ export default function AdminPanel() {
     geoBlockCountries: string
     billingCurrency: string
     billingTaxRules: string
+    gamblingEnabled: boolean
+    gamblingResourceLuckyChance: number
+    gamblingPowerDenyChance: number
     featureToggles: Record<string, boolean>
   }>({
     registrationEnabled: true,
@@ -1324,9 +1349,13 @@ export default function AdminPanel() {
     geoBlockCountries: "",
     billingCurrency: "USD",
     billingTaxRules: "",
+    gamblingEnabled: true,
+    gamblingResourceLuckyChance: 0.0777,
+    gamblingPowerDenyChance: 0.5,
     featureToggles: {
       registration: true,
       codeInstances: true,
+      gambling: true,
       billing: true,
       ai: true,
       dns: true,
@@ -1457,11 +1486,17 @@ export default function AdminPanel() {
               geoBlockCountries: data.geoBlockCountries ?? "",
               billingCurrency: (data.billingCurrency ?? "USD").toUpperCase(),
               billingTaxRules: data.billingTaxRules ?? "",
+              gamblingEnabled: data.gamblingEnabled !== false,
+              gamblingResourceLuckyChance:
+                typeof data.gamblingResourceLuckyChance === "number" ? data.gamblingResourceLuckyChance : 0.0777,
+              gamblingPowerDenyChance:
+                typeof data.gamblingPowerDenyChance === "number" ? data.gamblingPowerDenyChance : 0.5,
               featureToggles: {
                 registration: true,
                 codeInstances: data.codeInstancesEnabled !== false
                   ? (data.featureToggles?.codeInstances ?? true)
                   : false,
+                gambling: data.gamblingEnabled !== false,
                 billing: true,
                 ai: true,
                 dns: true,
@@ -1894,6 +1929,12 @@ export default function AdminPanel() {
     setEditDiskLimit(lim.disk !== undefined ? String(lim.disk) : "")
     setEditDatabaseLimit(lim.databases !== undefined ? String(lim.databases) : "")
     setEditBackupLimit(lim.backups !== undefined ? String(lim.backups) : "")
+    const badges = Array.isArray((user as any)?.settings?.badges)
+      ? (user as any).settings.badges
+      : Array.isArray((user as any)?.settings?.gambling?.badges)
+        ? (user as any).settings.gambling.badges
+        : []
+    setEditBadgesText((badges as any[]).map((badge) => String(badge || "").trim()).filter(Boolean).join(", "))
     // Fetch current plan
     setUserCurrentPlan(null)
     setUserPlanLoading(true)
@@ -1930,13 +1971,28 @@ export default function AdminPanel() {
       if (editDiskLimit !== "") limits.disk = Number(editDiskLimit)
       if (editDatabaseLimit !== "") limits.databases = Number(editDatabaseLimit)
       if (editBackupLimit !== "") limits.backups = Number(editBackupLimit)
+      const badges = parseBadgeText(editBadgesText)
       await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}`, {
         method: "PUT",
-        body: JSON.stringify({ role: editRole, portalType: editTier, limits: Object.keys(limits).length ? limits : null }),
+        body: JSON.stringify({ role: editRole, portalType: editTier, limits: Object.keys(limits).length ? limits : null, badges }),
       })
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === editUserDialog.id ? { ...u, role: editRole, portalType: editTier } : u
+          u.id === editUserDialog.id
+            ? {
+                ...u,
+                role: editRole,
+                portalType: editTier,
+                settings: {
+                  ...(u.settings || {}),
+                  badges,
+                  gambling: {
+                    ...((u.settings as any)?.gambling || {}),
+                    badges,
+                  },
+                },
+              }
+            : u
         )
       )
       setEditUserDialog(null)
@@ -5425,6 +5481,37 @@ remote: ${panelUrl}`
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Badges</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {BADGE_PRESETS.map((preset) => {
+                  const selected = parseBadgeText(editBadgesText).some((b) => b.toLowerCase() === preset.toLowerCase())
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => toggleBadgePreset(preset)}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                        selected
+                          ? "border-primary/40 bg-primary/15 text-primary"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  )
+                })}
+              </div>
+              <textarea
+                value={editBadgesText}
+                onChange={(e) => setEditBadgesText(e.target.value)}
+                rows={3}
+                placeholder="bug hunter, staff, ex staff, contributor"
+                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Separate badges with commas or new lines.</p>
             </div>
           </div>
           <DialogFooter className="flex-wrap gap-2">

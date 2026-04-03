@@ -18,6 +18,7 @@ import { SocData } from '../models/socData.entity';
 import { ServerMapping } from '../models/serverMapping.entity';
 import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
+import { PanelSetting } from '../models/panelSetting.entity';
 import { getGeoBlockLevel } from '../utils/eu';
 import { t } from 'elysia';
 import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
@@ -25,10 +26,166 @@ import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from 
 export async function serverRoutes(app: any, prefix = '') {
   const nodeSvc = nodeService;
   const logRepo = () => AppDataSource.getRepository(UserLog);
+  const userRepo = () => AppDataSource.getRepository(User);
   const nodeRepo = () => AppDataSource.getRepository(Node);
   const orgMemberRepo = () => AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const eggRepo = () => AppDataSource.getRepository(Egg);
   const cfgRepo = () => AppDataSource.getRepository(ServerConfig);
+  const panelSettingRepo = () => AppDataSource.getRepository(PanelSetting);
+
+  const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
+  const GAMBLING_BONUS_PERCENT = 0.0015;
+  const GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE = 0.0777;
+  const GAMBLING_DEFAULT_POWER_DENY_CHANCE = 0.5;
+  const GAMBLING_BONUS_MS = 24 * 60 * 60 * 1000;
+  const POWER_DICE_ACTIONS = new Set(['start', 'stop', 'restart', 'kill']);
+  const POWER_DICE_FAILURE_LINES = [
+    '🎲 Nuh uh. Dice said no.',
+    '🎲 Server shrugged and ignored that command.',
+    '🎲 Critical miss. Try again, champion.',
+    '🎲 The gremlins stole your power packet.',
+    '🎲 Fate says: not today.',
+    '🎲 Blahaj refused to hug you.',
+  ];
+
+  function isGamblingModeEnabled(user: any): boolean {
+    const themeName = String(user?.settings?.theme?.name || '').trim().toLowerCase();
+    return GAMBLING_THEME_NAMES.has(themeName);
+  }
+
+  function clampInt(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, Math.floor(value)));
+  }
+
+  function clampChance(value: number, fallback: number): number {
+    if (!Number.isFinite(value)) return fallback;
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function normalizeBadgeList(raw: any): string[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((v) => String(v || '').trim())
+      .filter((v) => v.length > 0)
+      .slice(0, 128);
+  }
+
+  function mergeBadges(existing: any, earned: string[]): string[] {
+    const merged = new Set<string>([...normalizeBadgeList(existing), ...normalizeBadgeList(earned)]);
+    return Array.from(merged);
+  }
+
+  async function getGamblingConfig() {
+    const rows = await panelSettingRepo().find({
+      where: {
+        key: In(['gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance']),
+      },
+    });
+    const map: Record<string, string> = {};
+    for (const row of rows) map[row.key] = row.value;
+
+    const enabled = !(map['gamblingEnabled'] === 'false' || map['gamblingEnabled'] === '0');
+    const resourceLuckyChance = clampChance(Number(map['gamblingResourceLuckyChance']), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE);
+    const powerDenyChance = clampChance(Number(map['gamblingPowerDenyChance']), GAMBLING_DEFAULT_POWER_DENY_CHANCE);
+
+    return {
+      enabled,
+      resourceLuckyChance,
+      powerDenyChance,
+      bonusPercent: GAMBLING_BONUS_PERCENT,
+    };
+  }
+
+  function randomIntInclusive(min: number, max: number): number {
+    if (max <= min) return min;
+    const rnd = Math.random();
+    return Math.floor(rnd * (max - min + 1)) + min;
+  }
+
+  function pickRandomFailureLine(): string {
+    return POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] || '🎲 Nuh uh.';
+  }
+
+  function normalizeGamblingStats(raw: any) {
+    return {
+      gambleCount: Math.max(0, Number(raw?.gambleCount ?? raw?.rollCount ?? 0)),
+      rollCount: Math.max(0, Number(raw?.rollCount ?? raw?.gambleCount ?? 0)),
+      luckyHits: Math.max(0, Number(raw?.luckyHits ?? 0)),
+      bonusActivations: Math.max(0, Number(raw?.bonusActivations ?? 0)),
+      wins: Math.max(0, Number(raw?.wins ?? 0)),
+      losses: Math.max(0, Number(raw?.losses ?? 0)),
+      currentWinStreak: Math.max(0, Number(raw?.currentWinStreak ?? 0)),
+      currentLossStreak: Math.max(0, Number(raw?.currentLossStreak ?? 0)),
+      bestWinStreak: Math.max(0, Number(raw?.bestWinStreak ?? 0)),
+      bestLossStreak: Math.max(0, Number(raw?.bestLossStreak ?? 0)),
+      lastRollAt: raw?.lastRollAt ? String(raw.lastRollAt) : undefined,
+    };
+  }
+
+  function applyGambleOutcome(raw: any, didWin: boolean, meta?: { luckyHit?: boolean; bonusActivated?: boolean }) {
+    const stats = normalizeGamblingStats(raw);
+
+    stats.gambleCount += 1;
+    stats.rollCount = stats.gambleCount;
+
+    if (didWin) {
+      stats.wins += 1;
+      stats.currentWinStreak += 1;
+      stats.currentLossStreak = 0;
+      if (stats.currentWinStreak > stats.bestWinStreak) stats.bestWinStreak = stats.currentWinStreak;
+    } else {
+      stats.losses += 1;
+      stats.currentLossStreak += 1;
+      stats.currentWinStreak = 0;
+      if (stats.currentLossStreak > stats.bestLossStreak) stats.bestLossStreak = stats.currentLossStreak;
+    }
+
+    if (meta?.luckyHit) stats.luckyHits += 1;
+    if (meta?.bonusActivated) stats.bonusActivations += 1;
+    stats.lastRollAt = new Date().toISOString();
+
+    return stats;
+  }
+
+  function buildGamblingBadges(stats: any): string[] {
+    const normalized = normalizeGamblingStats(stats);
+    const badges: string[] = [];
+    if (normalized.gambleCount >= 1) badges.push('Beginner Gambler');
+    if (normalized.gambleCount >= 10) badges.push('Dice Rookie');
+    if (normalized.gambleCount >= 50) badges.push('Slot Survivor');
+    if (normalized.gambleCount >= 150) badges.push('777 Hunter');
+    if (normalized.currentWinStreak >= 3) badges.push('Win Streak Initiate');
+    if (normalized.bestWinStreak >= 5) badges.push('Hot Hand');
+    if (normalized.currentLossStreak >= 3) badges.push('Oops All Losses');
+    if (normalized.bestLossStreak >= 5) badges.push('Pain Collector');
+    if (normalized.wins >= 5 && normalized.losses >= 5 && normalized.wins === normalized.losses) badges.push('Mr. 50/50');
+    if (normalized.luckyHits >= 3) badges.push('Lucky Spark');
+    if (normalized.luckyHits >= 15) badges.push('Fortune Engine');
+    if (normalized.bonusActivations >= 1) badges.push('Boosted by Fate');
+    return badges;
+  }
+
+  async function recordPowerGambleOutcome(userId: number, didWin: boolean) {
+    const owner = await userRepo().findOneBy({ id: userId });
+    if (!owner) return;
+    if (!isGamblingModeEnabled(owner)) return;
+
+    const currentSettings = owner.settings && typeof owner.settings === 'object'
+      ? { ...owner.settings }
+      : {};
+    const gamblingSettings = currentSettings.gambling && typeof currentSettings.gambling === 'object'
+      ? { ...currentSettings.gambling }
+      : {};
+
+    const nextStats = applyGambleOutcome(gamblingSettings.stats, didWin);
+    const earnedBadges = buildGamblingBadges(nextStats);
+    gamblingSettings.stats = nextStats;
+    gamblingSettings.badges = earnedBadges;
+    currentSettings.badges = mergeBadges(currentSettings.badges, earnedBadges);
+    currentSettings.gambling = gamblingSettings;
+    owner.settings = currentSettings;
+    await userRepo().save(owner);
+  }
 
   async function serviceFor(serverId: string) {
     return nodeSvc.getServiceForServer(serverId);
@@ -537,9 +694,117 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    const memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
-    const disk = reqDisk != null ? Number(reqDisk) : (limits.disk ?? 10240);
-    const cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
+    let memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
+    let disk = reqDisk != null ? Number(reqDisk) : (limits.disk ?? 10240);
+    let cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
+
+    const gamblingConfig = await getGamblingConfig();
+    const gamblingModeEnabled = !isAdmin && gamblingConfig.enabled && isGamblingModeEnabled(user);
+    let gamblingResult: {
+      enabled: boolean;
+      rolled: { memory: number; disk: number; cpu: number };
+      luckyRoll: boolean;
+      bonusAppliedToLimits: boolean;
+      bonusActivated: boolean;
+      bonusPercent: number;
+      bonusExpiresAt: string | null;
+    } | null = null;
+
+    let node: Node;
+    try {
+      node = await pickNode(user, nodeId, user.nodeId);
+    } catch (e: any) {
+      ctx.set.status = 503;
+      return { error: e.message };
+    }
+
+    if (gamblingModeEnabled) {
+      const owner = await userRepo().findOneBy({ id: ownerId });
+      if (!owner) {
+        ctx.set.status = 404;
+        return { error: 'Owner user not found' };
+      }
+
+      const now = Date.now();
+      const currentSettings = owner.settings && typeof owner.settings === 'object'
+        ? { ...owner.settings }
+        : {};
+      const gamblingSettings = currentSettings.gambling && typeof currentSettings.gambling === 'object'
+        ? { ...currentSettings.gambling }
+        : {};
+
+      const rawBonus = gamblingSettings.bonus && typeof gamblingSettings.bonus === 'object'
+        ? { ...gamblingSettings.bonus }
+        : {};
+      const bonusExpiresAt = rawBonus.expiresAt ? new Date(rawBonus.expiresAt).getTime() : 0;
+      const bonusActive = Number.isFinite(bonusExpiresAt) && bonusExpiresAt > now;
+
+      const memoryCapBase = Math.max(1, Math.floor(limits.memory ?? node.memory ?? 1024));
+      const diskCapBase = Math.max(1, Math.floor(limits.disk ?? node.disk ?? 10240));
+      const cpuCapBase = Math.max(1, Math.floor(limits.cpu ?? node.cpu ?? 100));
+
+      const memoryCap = bonusActive
+        ? memoryCapBase + Math.max(1, Math.ceil(memoryCapBase * gamblingConfig.bonusPercent))
+        : memoryCapBase;
+      const diskCap = bonusActive
+        ? diskCapBase + Math.max(1, Math.ceil(diskCapBase * gamblingConfig.bonusPercent))
+        : diskCapBase;
+      const cpuCap = bonusActive
+        ? cpuCapBase + Math.max(1, Math.ceil(cpuCapBase * gamblingConfig.bonusPercent))
+        : cpuCapBase;
+
+      const memoryMin = Math.min(128, memoryCap);
+      const diskMin = Math.min(1024, diskCap);
+      const cpuMin = Math.min(10, cpuCap);
+
+      memory = clampInt(randomIntInclusive(memoryMin, memoryCap), 1, memoryCap);
+      disk = clampInt(randomIntInclusive(diskMin, diskCap), 1, diskCap);
+      cpu = clampInt(randomIntInclusive(cpuMin, cpuCap), 1, cpuCap);
+
+      const luckyRoll = Math.random() < gamblingConfig.resourceLuckyChance;
+      let bonusActivated = false;
+      let nextBonusExpiresAt: string | null = bonusActive && bonusExpiresAt
+        ? new Date(bonusExpiresAt).toISOString()
+        : null;
+
+      if (luckyRoll && !bonusActive) {
+        const expiresAt = new Date(now + GAMBLING_BONUS_MS).toISOString();
+        gamblingSettings.bonus = {
+          percent: gamblingConfig.bonusPercent,
+          expiresAt,
+          source: 'lucky-roll',
+          nonStackable: true,
+          updatedAt: new Date(now).toISOString(),
+        };
+        bonusActivated = true;
+        nextBonusExpiresAt = expiresAt;
+      } else if (!bonusActive && rawBonus && Object.keys(rawBonus).length > 0) {
+        gamblingSettings.bonus = null;
+      }
+
+      const nextStats = applyGambleOutcome(gamblingSettings.stats, luckyRoll, {
+        luckyHit: luckyRoll,
+        bonusActivated,
+      });
+      const earnedBadges = buildGamblingBadges(nextStats);
+      gamblingSettings.stats = nextStats;
+      gamblingSettings.badges = earnedBadges;
+      currentSettings.badges = mergeBadges(currentSettings.badges, earnedBadges);
+
+      currentSettings.gambling = gamblingSettings;
+      owner.settings = currentSettings;
+      await userRepo().save(owner);
+
+      gamblingResult = {
+        enabled: true,
+        rolled: { memory, disk, cpu },
+        luckyRoll,
+        bonusAppliedToLimits: bonusActive,
+        bonusActivated,
+        bonusPercent: gamblingConfig.bonusPercent,
+        bonusExpiresAt: nextBonusExpiresAt,
+      };
+    }
 
     let isCodeInstance = !!body.isCodeInstance || Number(body.eggId) === 264;
 
@@ -660,14 +925,6 @@ export async function serverRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: 'Egg not available for your portal type' };
       }
-    }
-
-    let node: Node;
-    try {
-      node = await pickNode(user, nodeId, user.nodeId);
-    } catch (e: any) {
-      ctx.set.status = 503;
-      return { error: e.message };
     }
 
     if (!isAdmin) {
@@ -804,11 +1061,11 @@ export async function serverRoutes(app: any, prefix = '') {
         action: 'server:create',
         targetId: serverUuid,
         targetType: 'server',
-        metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu },
+        metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu, gamblingMode: !!gamblingResult },
         ipAddress: ctx.ip,
       });
 
-      return { uuid: serverUuid, nodeId: node.id, ...res.data };
+      return { uuid: serverUuid, nodeId: node.id, gambling: gamblingResult, ...res.data };
     } catch (e: any) {
       await Promise.allSettled([
         removeServerConfig(serverUuid),
@@ -941,15 +1198,43 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/power', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { action } = ctx.body as any;
+    const user = ctx.user;
+    const gamblingConfig = await getGamblingConfig();
+    const gamblingPowerEnabled = gamblingConfig.enabled && isGamblingModeEnabled(user);
     const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: id });
     if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
       ctx.set.status = 403;
       return { error: 'Server is hibernated and cannot be started or restarted' };
     }
+
+    if (gamblingPowerEnabled && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase())) {
+      const roll = randomIntInclusive(1, 6);
+      const denied = Math.random() < gamblingConfig.powerDenyChance;
+      if (denied) {
+        await recordPowerGambleOutcome(Number(user.id), false);
+        await createActivityLog({
+          userId: user.id,
+          action: `server:power:${action}:dice-denied`,
+          targetId: id,
+          targetType: 'server',
+          metadata: { powerAction: action, diceRoll: roll },
+          ipAddress: ctx.ip,
+        });
+        return {
+          success: false,
+          blockedByDice: true,
+          roll,
+          message: pickRandomFailureLine(),
+        };
+      }
+    }
+
     try {
       const svc = await serviceFor(id);
       const res = await svc.powerServer(id, action);
-      const user = ctx.user;
+      if (gamblingPowerEnabled) {
+        await recordPowerGambleOutcome(Number(user.id), true);
+      }
       await createActivityLog({ userId: user.id, action: `server:power:${action}`, targetId: id, targetType: 'server', metadata: { powerAction: action }, ipAddress: ctx.ip });
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {

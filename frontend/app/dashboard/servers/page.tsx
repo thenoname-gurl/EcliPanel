@@ -31,6 +31,30 @@ import {
   Star,
 } from "lucide-react"
 
+const GAMBLING_THEME_NAMES = new Set(["gambling mode dark", "gambling mode white"])
+
+function resolveActiveThemeName(fallback?: string): string {
+  if (typeof document !== "undefined") {
+    const fromAttr = document.documentElement.getAttribute("data-eclipse-theme")
+    if (fromAttr) return String(fromAttr)
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const fromStorage = window.localStorage.getItem("eclipseTheme")
+      if (fromStorage) return String(fromStorage)
+    } catch {
+      // skip
+    }
+  }
+
+  return String(fallback || "")
+}
+
+function isGamblingThemeName(name: string): boolean {
+  return GAMBLING_THEME_NAMES.has(String(name || "").trim().toLowerCase())
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -124,7 +148,7 @@ function UsageRing({ value, size = 40, stroke = 3.5, color }: { value: number; s
 /*  NewServerModal                                                     */
 /* ------------------------------------------------------------------ */
 
-function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: () => void; onCreated: () => void; gamblingModeEnabled: boolean }) {
   const [name, setName] = useState("")
   const [eggId, setEggId] = useState<string>("")
   const [eggs, setEggs] = useState<{ id: number; name: string; description?: string }[]>([])
@@ -142,6 +166,16 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [kvmPassthroughEnabled, setKvmPassthroughEnabled] = useState<boolean>(false)
   const [startup, setStartup] = useState<string>("")
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([])
+  const [createResult, setCreateResult] = useState<{
+    createdUuid?: string
+    genericMessage?: string
+    rolled?: { memory?: number; disk?: number; cpu?: number }
+    luckyRoll?: boolean
+    bonusAppliedToLimits?: boolean
+    bonusActivated?: boolean
+    bonusPercent?: number
+    bonusExpiresAt?: string | null
+  } | null>(null)
 
   const rawPlanName = (user as any)?.portalType || user?.tier || "free"
   const planName = ["educational", "edu"].includes(String(rawPlanName).toLowerCase()) ? "educational" : String(rawPlanName).toLowerCase()
@@ -241,22 +275,37 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
         }
       }
 
-      await apiFetch(API_ENDPOINTS.servers, {
+      const createPayload: Record<string, any> = {
+        name: name.trim(),
+        eggId: Number(eggId),
+        nodeId,
+        kvmPassthroughEnabled: finalKvm,
+        startup: finalStartup,
+        environment: envObject,
+      }
+
+      if (!gamblingModeEnabled) {
+        createPayload.memory = memory
+        createPayload.disk = disk
+        createPayload.cpu = cpu
+      }
+
+      const createRes = await apiFetch(API_ENDPOINTS.servers, {
         method: "POST",
-        body: JSON.stringify({
-          name: name.trim(),
-          eggId: Number(eggId),
-          memory,
-          disk,
-          cpu,
-          nodeId,
-          kvmPassthroughEnabled: finalKvm,
-          startup: finalStartup,
-          environment: envObject,
-        }),
+        body: JSON.stringify(createPayload),
       })
+
+      const gamblingRes = createRes?.gambling
       onCreated()
-      onClose()
+      if (gamblingRes?.enabled && gamblingRes?.rolled) {
+        setCreateResult({ createdUuid: createRes?.uuid, ...gamblingRes })
+      } else {
+        setCreateResult({
+          createdUuid: createRes?.uuid,
+          genericMessage: "Server created successfully.",
+        })
+      }
+      setCreating(false)
     } catch (err: any) {
       setError(err.message || "Failed to create server.")
       setCreating(false)
@@ -299,7 +348,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-card border border-border/50 shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 sm:zoom-in-95 duration-300 overflow-hidden">
+      <div className="relative w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-card border border-border/50 shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 sm:zoom-in-95 duration-300 overflow-hidden">
         {/* Mobile drag handle */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
@@ -471,6 +520,12 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                 <p className="text-sm font-semibold text-foreground">Resources</p>
               </div>
 
+              {gamblingModeEnabled && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                  Gambling Mode is active via your selected theme. Resource selectors are locked and the backend rolls CPU, RAM, and disk from your account range.
+                </div>
+              )}
+
               {/* Source toggles */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
@@ -484,6 +539,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                       className="flex-1 bg-transparent text-xs text-foreground outline-none cursor-pointer min-w-0"
                       value={source}
                       onChange={(e) => setSource(e.target.value as "plan" | "node")}
+                      disabled={gamblingModeEnabled}
                     >
                       {planVal != null && <option value="plan">Plan · {planVal}{unit}</option>}
                       {nodeVal != null && <option value="node">Node · {nodeVal}{unit}</option>}
@@ -512,6 +568,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                       onChange={setMemory}
                       format={(v) => `${v} MB`}
                       color="text-blue-500"
+                      disabled={gamblingModeEnabled}
                     />
                   )}
                   {maxDisk !== null && (
@@ -526,6 +583,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                       format={(v) => v >= 1024 ? `${(v / 1024).toFixed(1)} GB` : `${v} MB`}
                       formatMax={(v) => v >= 1024 ? `${(v / 1024).toFixed(0)} GB` : `${v} MB`}
                       color="text-emerald-500"
+                      disabled={gamblingModeEnabled}
                     />
                   )}
                   {maxCpu !== null && (
@@ -539,6 +597,7 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
                       onChange={setCpu}
                       format={(v) => `${v}%`}
                       color="text-amber-500"
+                      disabled={gamblingModeEnabled}
                     />
                   )}
                 </div>
@@ -587,6 +646,78 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
             </button>
           </div>
         </form>
+
+        {createResult && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-md rounded-2xl border border-primary/40 bg-card p-5 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-300 overflow-hidden">
+              <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/20 blur-2xl animate-pulse" />
+              <div className="absolute -left-10 -bottom-10 h-28 w-28 rounded-full bg-accent/40 blur-2xl animate-pulse" />
+
+              <div className="relative flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {createResult.rolled ? "🎲 Gambling Roll Result" : "✅ Server Created"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="relative space-y-3 text-xs">
+                {createResult.genericMessage && !createResult.rolled && (
+                  <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                    <p className="font-medium text-foreground">{createResult.genericMessage}</p>
+                    {createResult.createdUuid && (
+                      <p className="text-muted-foreground mt-1 break-all">Server ID: {createResult.createdUuid}</p>
+                    )}
+                  </div>
+                )}
+
+                {createResult.rolled && (
+                <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                  <p className="text-muted-foreground mb-1">Assigned resources</p>
+                  <p className="font-medium text-foreground tabular-nums">
+                    RAM {Number(createResult.rolled?.memory || 0)} MB · Disk {Number(createResult.rolled?.disk || 0)} MB · CPU {Number(createResult.rolled?.cpu || 0)}%
+                  </p>
+                </div>
+                )}
+
+                {createResult.rolled && (
+                <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                  <p className="text-muted-foreground mb-1">Lucky roll</p>
+                  <p className={`font-semibold ${createResult.luckyRoll ? "text-emerald-500 animate-pulse" : "text-amber-500"}`}>
+                    {createResult.luckyRoll ? "777 vibes! Luck triggered!!!" : "Nuh uh… no lucky trigger this time."}
+                  </p>
+                </div>
+                )}
+
+                {createResult.rolled && (
+                <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                  <p className="text-muted-foreground mb-1">24h bonus (+{((Number(createResult.bonusPercent || 0)) * 100).toFixed(2)}% cap)</p>
+                  <p className="font-medium text-foreground">
+                    {createResult.bonusActivated
+                      ? `Activated until ${createResult.bonusExpiresAt ? new Date(createResult.bonusExpiresAt).toLocaleString() : "tomorrow"}`
+                      : createResult.bonusAppliedToLimits
+                        ? `Already active until ${createResult.bonusExpiresAt ? new Date(createResult.bonusExpiresAt).toLocaleString() : "soon"}`
+                        : "Not active"}
+                  </p>
+                </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full rounded-xl bg-primary text-primary-foreground py-2 text-sm font-semibold hover:bg-primary/90 transition-all"
+                >
+                  Nice. Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -597,10 +728,11 @@ function NewServerModal({ onClose, onCreated }: { onClose: () => void; onCreated
 /* ------------------------------------------------------------------ */
 
 function ResourceSlider({
-  label, icon: Icon, value, min, max, step, onChange, format, formatMax, color,
+  label, icon: Icon, value, min, max, step, onChange, format, formatMax, color, disabled,
 }: {
   label: string; icon: any; value: number; min: number; max: number; step: number
   onChange: (v: number) => void; format: (v: number) => string; formatMax?: (v: number) => string; color: string
+  disabled?: boolean
 }) {
   const pct = ((value - min) / (max - min)) * 100
   const clampedPct = Math.max(0, Math.min(100, pct))
@@ -628,6 +760,7 @@ function ResourceSlider({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
+          disabled={disabled}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer touch-pan-x"
         />
       </div>
@@ -927,6 +1060,31 @@ export default function ServersPage() {
   const [showCodeModal, setShowCodeModal] = useState(false)
   const [powerLoading, setPowerLoading] = useState<string | null>(null)
   const [codeInstancesEnabled, setCodeInstancesEnabled] = useState(false)
+  const [powerToast, setPowerToast] = useState<{ type: "success" | "warning" | "error"; title: string; message: string } | null>(null)
+  const [gamblingFeatureEnabled, setGamblingFeatureEnabled] = useState(true)
+  const [activeThemeName, setActiveThemeName] = useState<string>(() => resolveActiveThemeName(String(user?.settings?.theme?.name || "")))
+  const gamblingModeEnabled = gamblingFeatureEnabled && isGamblingThemeName(activeThemeName)
+  const RANDOM_SHUTDOWN_INTERVAL_MS = 10 * 60 * 1000
+  const RANDOM_SHUTDOWN_CHANCE = 0.0025
+
+  useEffect(() => {
+    const syncTheme = () => setActiveThemeName(resolveActiveThemeName(String(user?.settings?.theme?.name || "")))
+    syncTheme()
+    if (typeof window === "undefined") return
+
+    window.addEventListener("eclipse-theme-changed", syncTheme as EventListener)
+    window.addEventListener("storage", syncTheme)
+    return () => {
+      window.removeEventListener("eclipse-theme-changed", syncTheme as EventListener)
+      window.removeEventListener("storage", syncTheme)
+    }
+  }, [user?.settings?.theme?.name])
+
+  useEffect(() => {
+    if (!powerToast) return
+    const timer = window.setTimeout(() => setPowerToast(null), 2800)
+    return () => window.clearTimeout(timer)
+  }, [powerToast])
 
   useEffect(() => {
     let mounted = true
@@ -942,8 +1100,10 @@ export default function ServersPage() {
           false
 
         setCodeInstancesEnabled(toBool(value))
+        setGamblingFeatureEnabled(data?.gamblingEnabled !== false)
       } catch {
         setCodeInstancesEnabled(false)
+        setGamblingFeatureEnabled(true)
       }
     }
 
@@ -995,13 +1155,32 @@ export default function ServersPage() {
   const sendPower = async (serverId: string, action: string) => {
     setPowerLoading(serverId)
     try {
-      await apiFetch(API_ENDPOINTS.serverPower.replace(":id", serverId), {
+      const res = await apiFetch(API_ENDPOINTS.serverPower.replace(":id", serverId), {
         method: "POST",
         body: JSON.stringify({ action }),
       })
+
+      if (res && typeof res === "object" && res.success === false) {
+        setPowerToast({
+          type: "warning",
+          title: "Dice denied",
+          message: res.message || res.error || "Power action denied by dice roll.",
+        })
+        return
+      }
+
+      setPowerToast({
+        type: "success",
+        title: "Action sent",
+        message: `${action.toUpperCase()} requested successfully.`,
+      })
       setTimeout(loadServers, 1500)
     } catch (e: any) {
-      alert("Power action failed: " + e.message)
+      setPowerToast({
+        type: "error",
+        title: "Power action failed",
+        message: e?.message || "Unknown error",
+      })
     } finally {
       setPowerLoading(null)
     }
@@ -1037,6 +1216,67 @@ export default function ServersPage() {
 
   useEffect(() => { loadServers() }, [loadServers])
 
+  useEffect(() => {
+    if (!gamblingModeEnabled) return
+
+    const randomShutdownTick = async () => {
+      if (!user?.id) return
+
+      const shouldTrigger = Math.random() < RANDOM_SHUTDOWN_CHANCE
+      if (!shouldTrigger) return
+
+      const candidates = servers.filter((s) => {
+        const sid = String(s.uuid || s.id || "")
+        if (!sid) return false
+        const owned = Number(s.userId) === Number(user.id)
+        const running = s.status === "online" || s.status === "running"
+        return owned && running
+      })
+
+      if (candidates.length === 0) return
+
+      const picked = candidates[Math.floor(Math.random() * candidates.length)]
+      const targetId = String(picked.uuid || picked.id)
+      if (!targetId) return
+
+      setPowerToast({
+        type: "warning",
+        title: "Dice Event",
+        message: "Hey I decided to shut down your server, womp womp",
+      })
+
+      try {
+        const res = await apiFetch(API_ENDPOINTS.serverPower.replace(":id", targetId), {
+          method: "POST",
+          body: JSON.stringify({ action: "stop" }),
+        })
+
+        if (res && typeof res === "object" && res.success === false) {
+          setPowerToast({
+            type: "warning",
+            title: "Dice Event",
+            message: res.message || "Dice tried to shut it down but got blocked.",
+          })
+          return
+        }
+
+        setTimeout(loadServers, 1500)
+      } catch {
+        setPowerToast({
+          type: "error",
+          title: "Dice Event",
+          message: "Dice wanted chaos, but shutdown failed this time.",
+        })
+      }
+    }
+
+    const interval = window.setInterval(() => {
+      randomShutdownTick().catch(() => {})
+    }, RANDOM_SHUTDOWN_INTERVAL_MS)
+
+    return () => window.clearInterval(interval)
+  }, [gamblingModeEnabled, servers, user, loadServers])
+
   const filtered = servers.filter(
     (s) =>
       s.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -1059,8 +1299,43 @@ export default function ServersPage() {
 
   return (
     <>
+      {powerToast && (
+        <div className="fixed inset-x-0 bottom-4 z-[9999] px-3 sm:px-4 pointer-events-none">
+          <div
+            className={`mx-auto w-full max-w-sm sm:max-w-md rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto ${
+              powerToast.type === "success"
+                ? "border-emerald-500/30 bg-emerald-500/10"
+                : powerToast.type === "warning"
+                  ? "border-amber-500/30 bg-amber-500/10"
+                  : "border-destructive/30 bg-destructive/10"
+            }`}
+          >
+            <div className="flex items-start gap-2.5">
+              <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                powerToast.type === "success"
+                  ? "bg-emerald-500"
+                  : powerToast.type === "warning"
+                    ? "bg-amber-500"
+                    : "bg-destructive"
+              }`} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground leading-tight">{powerToast.title}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug break-words">{powerToast.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPowerToast(null)}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCodeModal && <CodeInstancesModal onClose={() => setShowCodeModal(false)} />}
-      {showNewModal && <NewServerModal onClose={() => setShowNewModal(false)} onCreated={loadServers} />}
+      {showNewModal && <NewServerModal onClose={() => setShowNewModal(false)} onCreated={loadServers} gamblingModeEnabled={gamblingModeEnabled} />}
 
       <PanelHeader title="Servers" description="Manage your game servers" />
 

@@ -1112,6 +1112,11 @@ export default function SettingsPage() {
   }, [])
 
   const selectedCountryTaxRate = resolveTaxRate(billingTaxRules, form.billingCountry)
+  const userBadges = Array.isArray((user as any)?.settings?.badges)
+    ? ((user as any).settings.badges as string[])
+    : Array.isArray((user as any)?.settings?.gambling?.badges)
+      ? ((user as any).settings.gambling.badges as string[])
+    : []
 
   const showGuideAgain = async () => {
     if (!user?.id) return
@@ -1230,6 +1235,21 @@ export default function SettingsPage() {
                       />
                     </label>
                   </div>
+                  {userBadges.length > 0 && (
+                    <div className="w-full sm:w-auto sm:ml-auto">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Badges</p>
+                      <div className="flex flex-wrap gap-2">
+                        {userBadges.map((badge) => (
+                          <span
+                            key={badge}
+                            className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+                          >
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="text-center sm:text-left flex-1 min-w-0 overflow-hidden">
                     <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">
                       {user?.displayName || user?.firstName || "User"}
@@ -1582,6 +1602,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 min-w-0">
                   {THEMES.map((theme) => {
                     const isActive = activeTheme === theme.name
+                    const isGamblingTheme = theme.name === "Gambling Mode Dark" || theme.name === "Gambling Mode White"
                     return (
                       <button
                         key={theme.name}
@@ -1611,6 +1632,9 @@ export default function SettingsPage() {
                           <p title={theme.description} className="text-[10px] text-muted-foreground mt-1 line-clamp-2 text-center w-full">
                             {theme.description}
                           </p>
+                        )}
+                        {isGamblingTheme && (
+                          <p className="text-[10px] text-destructive mt-0.5 text-center w-full">⚠ Luck mode can randomize outcomes.</p>
                         )}
                         {isActive && (
                           <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">

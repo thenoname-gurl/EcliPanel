@@ -622,6 +622,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("console")
   const [powerLoading, setPowerLoading] = useState(false)
+  const [powerToast, setPowerToast] = useState<{ type: "success" | "warning" | "error"; title: string; message: string } | null>(null)
   const [kvmLoading, setKvmLoading] = useState(false)
   const [markStartedLoading, setMarkStartedLoading] = useState(false)
   const [powerDialogOpen, setPowerDialogOpen] = useState(false)
@@ -632,6 +633,12 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [transferNodes, setTransferNodes] = useState<any[]>([])
   const [transferNodeId, setTransferNodeId] = useState<number | null>(null)
   const [transferError, setTransferError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!powerToast) return
+    const timer = window.setTimeout(() => setPowerToast(null), 2800)
+    return () => window.clearTimeout(timer)
+  }, [powerToast])
 
   const isKvm = !!server?.configuration?.container?.kvm_passthrough_enabled
 
@@ -684,13 +691,32 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     async (action: string) => {
       setPowerLoading(true)
       try {
-        await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
+        const res = await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
           method: "POST",
           body: JSON.stringify({ action }),
         })
+
+        if (res && typeof res === "object" && res.success === false) {
+          setPowerToast({
+            type: "warning",
+            title: "Dice denied",
+            message: res.message || res.error || "Power action denied by dice roll.",
+          })
+          return
+        }
+
+        setPowerToast({
+          type: "success",
+          title: "Action sent",
+          message: `${action.toUpperCase()} requested successfully.`,
+        })
         setTimeout(loadServer, 1500)
       } catch (e: any) {
-        alert("Power action failed: " + e.message)
+        setPowerToast({
+          type: "error",
+          title: "Power action failed",
+          message: e?.message || "Unknown error",
+        })
       } finally {
         setPowerLoading(false)
       }
@@ -917,6 +943,41 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
+      {powerToast && (
+        <div className="fixed inset-x-0 bottom-4 z-[9999] px-3 sm:px-4 pointer-events-none">
+          <div
+            className={`mx-auto w-full max-w-sm sm:max-w-md rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto ${
+              powerToast.type === "success"
+                ? "border-emerald-500/30 bg-emerald-500/10"
+                : powerToast.type === "warning"
+                  ? "border-amber-500/30 bg-amber-500/10"
+                  : "border-destructive/30 bg-destructive/10"
+            }`}
+          >
+            <div className="flex items-start gap-2.5">
+              <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                powerToast.type === "success"
+                  ? "bg-emerald-500"
+                  : powerToast.type === "warning"
+                    ? "bg-amber-500"
+                    : "bg-destructive"
+              }`} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground leading-tight">{powerToast.title}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug break-words">{powerToast.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPowerToast(null)}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div data-guide-id="server-header" className="flex-shrink-0">
         <PanelHeader

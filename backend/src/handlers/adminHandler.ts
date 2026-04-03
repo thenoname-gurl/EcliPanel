@@ -39,6 +39,52 @@ import { promises as fsp } from 'fs';
 import { normalizeProcessConfig } from '../utils/startupDetection';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
+const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
+const GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE = 0.0777;
+const GAMBLING_DEFAULT_POWER_DENY_CHANCE = 0.5;
+const POWER_DICE_ACTIONS = new Set(['start', 'stop', 'restart', 'kill']);
+const POWER_DICE_FAILURE_LINES = [
+  '🎲 Nuh uh. Dice said no.',
+  '🎲 Control panel goblins blocked that action.',
+  '🎲 Not enough luck points for this click.',
+  '🎲 Server rolled its eyes and declined.',
+  '🎲 Fate says: try again in a sec.',
+  '🎲 The gremlins stole your power packet.',
+  '🎲 Blahaj refused to hug you.',
+];
+
+function randomIntInclusive(min: number, max: number): number {
+  if (max <= min) return min;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pickRandomPowerDiceFailureLine(): string {
+  return POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] || '🎲 Nuh uh.';
+}
+
+function isGamblingModeEnabled(user: any): boolean {
+  const themeName = String(user?.settings?.theme?.name || '').trim().toLowerCase();
+  return GAMBLING_THEME_NAMES.has(themeName);
+}
+
+function clampChance(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(1, value));
+}
+
+function parsePanelSettingsMap(rows: PanelSetting[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const row of rows) map[row.key] = row.value;
+  return map;
+}
+
+function getGamblingConfigFromMap(map: Record<string, string>) {
+  return {
+    gamblingEnabled: !(map['gamblingEnabled'] === 'false' || map['gamblingEnabled'] === '0'),
+    gamblingResourceLuckyChance: clampChance(Number(map['gamblingResourceLuckyChance']), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE),
+    gamblingPowerDenyChance: clampChance(Number(map['gamblingPowerDenyChance']), GAMBLING_DEFAULT_POWER_DENY_CHANCE),
+  };
+}
 
 function parseSizeToMB(input: any): number | null {
   if (input === null || input === undefined || input === '') return null;
@@ -590,7 +636,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'User not found' };
     }
 
-    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits, supportBanned, supportBanReason } = ctx.body as any;
+    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits, supportBanned, supportBanReason, badges } = ctx.body as any;
     const nodeRepo = AppDataSource.getRepository(Node);
     if (role !== undefined) user.role = role;
     if (portalType !== undefined) user.portalType = portalType;
@@ -653,6 +699,28 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (supportBanned !== undefined) user.supportBanned = !!supportBanned;
     if (supportBanReason !== undefined) user.supportBanReason = supportBanReason;
+
+    if (badges !== undefined) {
+      const normalizedBadges = Array.isArray(badges)
+        ? badges
+            .map((badge: any) => String(badge || '').trim())
+            .filter((badge: string) => badge.length > 0)
+            .slice(0, 128)
+        : [];
+
+      const currentSettings = user.settings && typeof user.settings === 'object'
+        ? { ...user.settings }
+        : {};
+
+      currentSettings.badges = Array.from(new Set(normalizedBadges));
+
+      if (currentSettings.gambling && typeof currentSettings.gambling === 'object') {
+        currentSettings.gambling = { ...(currentSettings.gambling as any), badges: currentSettings.badges };
+      }
+
+      user.settings = currentSettings;
+    }
+
     await userRepo.save(user);
     return { success: true };
   }, {
@@ -669,6 +737,7 @@ export async function adminRoutes(app: any, prefix = '') {
         demoExpiresAt: t.Optional(t.String()),
         demoOriginalPortalType: t.Optional(t.String()),
         demoLimits: t.Optional(t.Any()),
+        badges: t.Optional(t.Array(t.String())),
       }),
       response: {
         200: t.Object({ success: t.Boolean() }),
@@ -1599,6 +1668,12 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const serverId = ctx.params.id as string;
     const { action } = ctx.body as any;
+    const requester = ctx.user as User;
+    const settingsRows = await AppDataSource.getRepository(PanelSetting).find({
+      where: { key: In(['gamblingEnabled', 'gamblingPowerDenyChance']) },
+    });
+    const settingsMap = parsePanelSettingsMap(settingsRows);
+    const gamblingConfig = getGamblingConfigFromMap(settingsMap);
     if (!['start', 'stop', 'restart', 'kill'].includes(action)) {
       ctx.set.status = 400;
       return { error: 'Invalid action. Must be start, stop, restart or kill.' };
@@ -1614,6 +1689,18 @@ export async function adminRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Server is hibernated and cannot be started or restarted' };
     }
+
+    if (gamblingConfig.gamblingEnabled && isGamblingModeEnabled(requester) && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase()) && Math.random() < gamblingConfig.gamblingPowerDenyChance) {
+      const roll = randomIntInclusive(1, 6);
+      return {
+        success: false,
+        blockedByDice: true,
+        roll,
+        message: pickRandomPowerDiceFailureLine(),
+        data: null,
+      };
+    }
+
     try {
       const base = (node as any).backendWingsUrl || node.url;
       const svc = new WingsApiService(base, node.token);
@@ -3043,8 +3130,8 @@ isSuspicious: true if fraudScore >= 50`;
   app.get(prefix + '/panel/settings', async (_ctx) => {
     const repo = AppDataSource.getRepository(PanelSetting);
     const rows = await repo.find();
-    const map: Record<string, string> = {};
-    for (const r of rows) map[r.key] = r.value;
+    const map = parsePanelSettingsMap(rows);
+    const gamblingConfig = getGamblingConfigFromMap(map);
     let portalDescriptions: any = null;
     if (map['portalDescriptions']) {
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
@@ -3059,6 +3146,9 @@ isSuspicious: true if fraudScore >= 50`;
       geoBlockCountries: map['geoBlockCountries'] || '',
       billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
       billingTaxRules: map['billingTaxRules'] || '',
+      gamblingEnabled: gamblingConfig.gamblingEnabled,
+      gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
+      gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
       featureToggles,
     };
   }, {
@@ -3072,6 +3162,9 @@ isSuspicious: true if fraudScore >= 50`;
         geoBlockCountries: t.String(),
         billingCurrency: t.String(),
         billingTaxRules: t.String(),
+        gamblingEnabled: t.Boolean(),
+        gamblingResourceLuckyChance: t.Number(),
+        gamblingPowerDenyChance: t.Number(),
       }),
     },
     detail: { summary: 'Fetch public portal settings (no auth)', tags: ['Public'] },
@@ -3091,8 +3184,8 @@ isSuspicious: true if fraudScore >= 50`;
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
     const rows = await repo.find();
-    const map: Record<string, string> = {};
-    for (const r of rows) map[r.key] = r.value;
+    const map = parsePanelSettingsMap(rows);
+    const gamblingConfig = getGamblingConfigFromMap(map);
     let portalDescriptions: any = null;
     if (map['portalDescriptions']) {
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
@@ -3107,6 +3200,9 @@ isSuspicious: true if fraudScore >= 50`;
       geoBlockCountries: map['geoBlockCountries'] || '',
       billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
       billingTaxRules: map['billingTaxRules'] || '',
+      gamblingEnabled: gamblingConfig.gamblingEnabled,
+      gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
+      gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
       featureToggles,
     };
   }, {
@@ -3120,6 +3216,9 @@ isSuspicious: true if fraudScore >= 50`;
         geoBlockCountries: t.String(),
         billingCurrency: t.String(),
         billingTaxRules: t.String(),
+        gamblingEnabled: t.Boolean(),
+        gamblingResourceLuckyChance: t.Number(),
+        gamblingPowerDenyChance: t.Number(),
         featureToggles: t.Record(t.String(), t.Boolean()),
       }),
       401: t.Object({ error: t.String() }),
@@ -3213,12 +3312,18 @@ isSuspicious: true if fraudScore >= 50`;
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'billingCurrency', 'billingTaxRules'];
+    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
     for (const key of allowed) {
       if (body[key] !== undefined) {
         let value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
         if (key === 'billingCurrency') {
           value = value.trim().toUpperCase();
+        }
+        if (key === 'gamblingResourceLuckyChance') {
+          value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE));
+        }
+        if (key === 'gamblingPowerDenyChance') {
+          value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_POWER_DENY_CHANCE));
         }
         await repo.save({ key, value });
       }
@@ -3232,8 +3337,8 @@ isSuspicious: true if fraudScore >= 50`;
       await repo.save({ key: 'panelFeatureToggles', value: JSON.stringify(merged) });
     }
     const rows = await repo.find();
-    const map: Record<string, string> = {};
-    for (const r of rows) map[r.key] = r.value;
+    const map = parsePanelSettingsMap(rows);
+    const gamblingConfig = getGamblingConfigFromMap(map);
     let portalDescriptions: any = null;
     if (map['portalDescriptions']) {
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
@@ -3249,6 +3354,9 @@ isSuspicious: true if fraudScore >= 50`;
         geoBlockCountries: map['geoBlockCountries'] || '',
         billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
         billingTaxRules: map['billingTaxRules'] || '',
+        gamblingEnabled: gamblingConfig.gamblingEnabled,
+        gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
+        gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
         featureToggles,
       },
     };
@@ -3263,6 +3371,9 @@ isSuspicious: true if fraudScore >= 50`;
         geoBlockCountries: t.Optional(t.String()),
         billingCurrency: t.Optional(t.String()),
         billingTaxRules: t.Optional(t.String()),
+        gamblingEnabled: t.Optional(t.Boolean()),
+        gamblingResourceLuckyChance: t.Optional(t.Number()),
+        gamblingPowerDenyChance: t.Optional(t.Number()),
         featureToggles: t.Optional(t.Record(t.String(), t.Boolean())),
       }),
       response: {
