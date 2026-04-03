@@ -203,6 +203,11 @@ const ApplicationsTab = dynamic(() => import("./tabs/ApplicationsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading applications tab...</div>,
 })
 
+const MetricsTab = dynamic(() => import("./tabs/MetricsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading metrics tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: #e0e0e0; margin: 0; padding: 0; }
     .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: #12111f; border-radius: 12px; border: 1px solid #2a2545; }
@@ -3335,6 +3340,7 @@ remote: ${panelUrl}`
             >
               {[
                 { value: "users", label: "Users" },
+                { value: "metrics", label: "Metrics" },
                 { value: "export-jobs", label: "Export Jobs" },
                 { value: "organisations", label: "Organisations" },
                 { value: "servers", label: "Servers" },
@@ -3398,6 +3404,10 @@ remote: ${panelUrl}`
                   }}
                 />
               ) : null}
+            </TabsContent>
+
+            <TabsContent value="metrics" className="mt-4">
+              {activeTab === "metrics" ? <MetricsTab /> : null}
             </TabsContent>
 
             {/* ═══════════════ EXPORT JOBS ═══════════════════════════════════ */}
