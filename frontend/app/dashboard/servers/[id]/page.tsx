@@ -283,23 +283,27 @@ function CollapsibleSection({
 interface PowerActionsProps {
   server: any
   powerLoading: boolean
+  markStartedLoading?: boolean
   onAction: (action: string) => void
   onTransfer?: () => void
   canTransfer?: boolean
   kvmEnabled?: boolean
   kvmLoading?: boolean
   onToggleKvm?: () => void
+  onMarkStarted?: () => void
 }
 
 function PowerActions({
   server,
   powerLoading,
+  markStartedLoading,
   onAction,
   onTransfer,
   canTransfer,
   kvmEnabled,
   kvmLoading,
   onToggleKvm,
+  onMarkStarted,
 }: PowerActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -446,6 +450,21 @@ function PowerActions({
                 {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
               </button>
             </>
+          )}
+          {onMarkStarted && server.status === "starting" && (
+            <button
+              onClick={() => {
+                onMarkStarted()
+                setMenuOpen(false)
+              }}
+              disabled={powerLoading || kvmLoading || markStartedLoading}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              role="menuitem"
+            >
+              <Check className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1 text-left truncate">Mark as Started</span>
+              {markStartedLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+            </button>
           )}
         </div>
       </>,
@@ -604,6 +623,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [activeTab, setActiveTab] = useState("console")
   const [powerLoading, setPowerLoading] = useState(false)
   const [kvmLoading, setKvmLoading] = useState(false)
+  const [markStartedLoading, setMarkStartedLoading] = useState(false)
   const [powerDialogOpen, setPowerDialogOpen] = useState(false)
   const [pendingPowerAction, setPendingPowerAction] = useState<string | null>(null)
 
@@ -765,6 +785,22 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     user &&
     (user.role === "*" || user.role === "rootAdmin" || user.role === "admin")
   )
+  const canMarkStarted = canToggleKvm && server?.status === "starting"
+
+  const markServerAsStarted = useCallback(async () => {
+    setMarkStartedLoading(true)
+    try {
+      await apiFetch(API_ENDPOINTS.adminServerMarkStarted.replace(":id", id), {
+        method: "POST",
+      })
+      await loadServer()
+      alert("Server marked as started.")
+    } catch (e: any) {
+      alert("Mark started failed: " + (e?.message || e))
+    } finally {
+      setMarkStartedLoading(false)
+    }
+  }, [id, loadServer])
 
   const isOwnerOrAdmin = !!(
     user &&
@@ -932,10 +968,12 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <PowerActions
                 server={server}
                 powerLoading={powerLoading}
+                markStartedLoading={markStartedLoading}
                 kvmLoading={kvmLoading}
                 kvmEnabled={isKvm}
                 onAction={confirmPowerAction}
                 onToggleKvm={canToggleKvm ? toggleKvm : undefined}
+                onMarkStarted={canMarkStarted ? markServerAsStarted : undefined}
                 onTransfer={openTransferDialog}
                 canTransfer={canTransfer}
               />
@@ -1962,7 +2000,7 @@ function StartupTab({ serverId }: { serverId: string }) {
         )
         const patterns = data?.processConfig?.startup?.done
         setDonePatterns(
-          Array.isArray(patterns) ? patterns.map(String) : patterns ? [String(patterns)] : [""]
+          Array.isArray(patterns) ? patterns.map(String) : patterns ? [String(patterns)] : [" "]
         )
       })
       .catch(() => {})
@@ -2079,7 +2117,10 @@ function StartupTab({ serverId }: { serverId: string }) {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setDonePatterns(donePatterns.filter((_, j) => j !== i))}
+                onClick={() => {
+                  const next = donePatterns.filter((_, j) => j !== i)
+                  setDonePatterns(next.length > 0 ? next : [" "])
+                }}
                 className="text-destructive hover:text-destructive h-9 w-9 p-0 flex-shrink-0"
                 aria-label="Remove pattern"
               >

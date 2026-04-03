@@ -20,6 +20,7 @@ import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { getGeoBlockLevel } from '../utils/eu';
 import { t } from 'elysia';
+import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
 export async function serverRoutes(app: any, prefix = '') {
   const nodeSvc = nodeService;
@@ -130,7 +131,10 @@ export async function serverRoutes(app: any, prefix = '') {
         for (const s of servers) {
           const uuid: string = s.configuration?.uuid || s.uuid;
           const cfg = cfgMap.get(uuid);
-          const norm = normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined);
+          const norm = applyStartupStatusOverride(
+            normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined),
+            cfg,
+          );
           all.push({
             ...norm,
             name: cfg?.name || norm.name,
@@ -197,7 +201,10 @@ export async function serverRoutes(app: any, prefix = '') {
             try {
               const res = await svc.getServer(c.uuid);
               const s = res.data;
-              const norm = normalizeServer(s, c.hibernated ? 'hibernated' : undefined);
+              const norm = applyStartupStatusOverride(
+                normalizeServer(s, c.hibernated ? 'hibernated' : undefined),
+                c,
+              );
               all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
               return;
             } catch {
@@ -208,7 +215,10 @@ export async function serverRoutes(app: any, prefix = '') {
               await svc.syncServer(c.uuid, {});
               const retry = await svc.getServer(c.uuid);
               const s2 = retry.data;
-              const norm2 = normalizeServer(s2, c.hibernated ? 'hibernated' : undefined);
+              const norm2 = applyStartupStatusOverride(
+                normalizeServer(s2, c.hibernated ? 'hibernated' : undefined),
+                c,
+              );
               all.push({ ...norm2, name: c.name || norm2.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
               return;
             } catch {
@@ -284,6 +294,25 @@ export async function serverRoutes(app: any, prefix = '') {
     };
   }
 
+  function applyStartupStatusOverride(server: any, cfg?: any): any {
+    if (!server || server.status !== 'starting') return server;
+
+    const processCfg = cfg?.processConfig;
+    if (!processCfg || typeof processCfg !== 'object') {
+      server.status = 'running';
+      server.hibernated = false;
+      return server;
+    }
+
+    const donePatterns = normalizeStartupDonePatterns(processCfg?.startup?.done);
+    if (donePatterns.includes(DEFAULT_STARTUP_DETECTION_PATTERN)) {
+      server.status = 'running';
+      server.hibernated = false;
+    }
+
+    return server;
+  }
+
   app.get(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
     const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -328,7 +357,10 @@ export async function serverRoutes(app: any, prefix = '') {
     try {
       const svc = await serviceFor(id);
       const res = await svc.getServer(id);
-      const norm = normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined);
+      const norm = applyStartupStatusOverride(
+        normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined),
+        cfg,
+      );
       if (cfg && norm && norm.configuration) {
         norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
       }
@@ -340,7 +372,10 @@ export async function serverRoutes(app: any, prefix = '') {
           try {
             await svc.syncServer(id, {});
             const retry = await svc.getServer(id);
-            const norm = normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined);
+            const norm = applyStartupStatusOverride(
+              normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined),
+              cfg,
+            );
             return { ...norm, node: nodeName, sftp: sftpInfo };
           } catch {
             // skip
@@ -2282,7 +2317,7 @@ export async function serverRoutes(app: any, prefix = '') {
       eggName: egg?.name || null,
       processConfig: {
         startup: {
-          done: proc.startup?.done || [],
+          done: normalizeStartupDonePatterns(proc.startup?.done),
           strip_ansi: proc.startup?.strip_ansi ?? false,
         },
         stop: {
@@ -2357,6 +2392,10 @@ export async function serverRoutes(app: any, prefix = '') {
       if (incomingProcCfg.stop) {
         updated.stop = { ...(existing.stop || {}), ...incomingProcCfg.stop };
       }
+      updated.startup = {
+        ...(updated.startup || {}),
+        done: normalizeStartupDonePatterns(updated.startup?.done),
+      };
       (cfg as any).processConfig = updated;
     }
 

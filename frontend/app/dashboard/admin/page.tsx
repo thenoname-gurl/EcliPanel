@@ -2069,6 +2069,14 @@ export default function AdminPanel() {
     forceRefreshTab("servers")
   }
 
+  async function markServerStarted(uuid: string) {
+    await apiFetch(API_ENDPOINTS.adminServerMarkStarted.replace(":id", uuid), {
+      method: "POST",
+    })
+    alert("Startup detection was set to auto-complete for this server.")
+    forceRefreshTab("servers")
+  }
+
   async function deleteServer(uuid: string) {
     if (!(await confirmAsync(`Delete server ${uuid}? This action cannot be undone.`))) return
     await apiFetch(`${API_ENDPOINTS.adminServers}/${uuid}`, { method: "DELETE" })
@@ -6032,6 +6040,13 @@ remote: ${panelUrl}`
                           <button onClick={() => serverPower(s.uuid, "start")} title="Start"
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                             <Power className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => markServerStarted(s.uuid)}
+                            title="Mark Started"
+                            className="rounded-md p-1.5 text-muted-foreground hover:bg-blue-500/10 hover:text-blue-400 transition-colors"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
                           </button>
                           <button onClick={() => deleteServer(s.uuid)} title="Delete"
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">

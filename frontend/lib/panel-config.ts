@@ -269,6 +269,7 @@ export const API_ENDPOINTS = {
   adminCreateServer: "/api/admin/servers",
   adminDeleteServer: "/api/admin/servers/:id",
   adminServerPower: "/api/admin/servers/:id/power",
+  adminServerMarkStarted: "/api/admin/servers/:id/mark-started",
   adminServerSuspend: "/api/admin/servers/:id/suspend",
   adminServerUnsuspend: "/api/admin/servers/:id/unsuspend",
   adminSyncFromWings: "/api/admin/servers/sync-from-wings",

@@ -44,6 +44,7 @@ import { ServerMount } from '../models/serverMount.entity';
 import { t } from 'elysia';
 import { createActivityLog } from './logHandler';
 import { nodeService } from '../services/nodeService';
+import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
@@ -180,11 +181,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
     },
     process_configuration: {
       startup: {
-        done: Array.isArray(proc.startup?.done)
-          ? proc.startup?.done
-          : proc.startup?.done
-            ? [String(proc.startup?.done)]
-            : [],
+        done: normalizeStartupDonePatterns(proc.startup?.done),
         user_interaction: proc.startup?.user_interaction ?? proc.startup?.userInteraction ?? [],
         strip_ansi: proc.startup?.strip_ansi ?? false,
       },
@@ -901,7 +898,7 @@ export async function saveServerConfig(params: {
       skipEggScripts: params.skipEggScripts ?? false,
       kvmPassthroughEnabled: params.kvmPassthroughEnabled ?? false,
       allocations: params.allocations ?? null,
-      processConfig: params.processConfig ?? null,
+      processConfig: normalizeProcessConfig(params.processConfig ?? null),
       isCodeInstance: params.isCodeInstance ?? false,
       lastActivityAt: params.lastActivityAt ?? null,
       codeInstanceMinutesUsed: params.codeInstanceMinutesUsed ?? 0,
@@ -930,7 +927,7 @@ export async function saveServerConfig(params: {
   keep.eggId = params.eggId ?? keep.eggId;
   keep.skipEggScripts = params.skipEggScripts ?? keep.skipEggScripts ?? false;
   keep.allocations = params.allocations ?? keep.allocations ?? null;
-  keep.processConfig = params.processConfig ?? keep.processConfig ?? null;
+  keep.processConfig = normalizeProcessConfig(params.processConfig ?? keep.processConfig ?? null);
 
   await r.save(keep);
 

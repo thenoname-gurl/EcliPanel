@@ -36,6 +36,7 @@ import fs from 'fs';
 import os from 'os';
 import * as tar from 'tar';
 import { promises as fsp } from 'fs';
+import { normalizeProcessConfig } from '../utils/startupDetection';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 
@@ -1587,6 +1588,64 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Power control for server', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/servers/:id/mark-started', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const serverId = ctx.params.id as string;
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    const currentProcessConfig = (cfg.processConfig && typeof cfg.processConfig === 'object')
+      ? cfg.processConfig
+      : {};
+    const startup = (currentProcessConfig as any).startup && typeof (currentProcessConfig as any).startup === 'object'
+      ? (currentProcessConfig as any).startup
+      : {};
+
+    cfg.processConfig = normalizeProcessConfig({
+      ...currentProcessConfig,
+      startup: {
+        ...startup,
+        done: [' '],
+      },
+    }) as any;
+
+    await cfgRepo.save(cfg);
+
+    const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
+    if (!node) {
+      ctx.set.status = 404;
+      return { error: 'Node not found for server' };
+    }
+
+    try {
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
+      await svc.syncServer(serverId, {}).catch(() => { });
+      return { success: true, processConfig: cfg.processConfig };
+    } catch (e: any) {
+      const status = e?.response?.status || 502;
+      const msg = e?.response?.data?.errors?.[0]?.detail || e?.response?.data?.error || e.message;
+      ctx.set.status = status;
+      return { error: msg };
+    }
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean(), processConfig: t.Any() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Manually mark server startup as completed (admin)', tags: ['Admin'] },
   });
 
   app.put(prefix + '/admin/servers/:id', async (ctx) => {

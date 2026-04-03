@@ -4,6 +4,7 @@ import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 import { nodeService } from '../services/nodeService';
+import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
 function requireAdminCtx(ctx: any): boolean {
   const user = ctx.user as User | undefined;
@@ -160,7 +161,7 @@ export async function eggRoutes(app: any, prefix = '') {
     if (startup !== undefined) egg.startup = startup;
     if (envVars !== undefined) egg.envVars = envVars;
     if (configFiles !== undefined) egg.configFiles = configFiles;
-    if (processConfig !== undefined) egg.processConfig = processConfig;
+    if (processConfig !== undefined) egg.processConfig = normalizeProcessConfig(processConfig);
     if (installScript !== undefined) egg.installScript = installScript;
     if (features !== undefined) egg.features = features;
     if (fileDenylist !== undefined) egg.fileDenylist = fileDenylist;
@@ -389,7 +390,7 @@ export async function eggRoutes(app: any, prefix = '') {
 
     processConfig = {
       startup: {
-        done: cfgStartup.done ?? [],
+        done: normalizeStartupDonePatterns(cfgStartup.done),
         user_interaction: cfgStartup.userInteraction ?? cfgStartup.user_interaction ?? [],
         strip_ansi: cfgStartup.strip_ansi ?? false,
       },
@@ -423,7 +424,7 @@ export async function eggRoutes(app: any, prefix = '') {
       startup,
       envVars,
       configFiles,
-      processConfig,
+      processConfig: normalizeProcessConfig(processConfig),
       installScript,
       features,
       fileDenylist,
