@@ -5083,6 +5083,7 @@ remote: ${panelUrl}`
                 <PlansTab
                   ctx={{
                     plans,
+                    panelSettings,
                     ensurePortalPlans,
                     ensureLoading,
                     openNewPlan,
@@ -5102,6 +5103,7 @@ remote: ${panelUrl}`
                 <OrdersTab
                   ctx={{
                     adminOrders,
+                    panelSettings,
                     ordersTotal,
                     ordersPage,
                     ordersQuery,

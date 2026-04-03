@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { formatMoney, sanitizeCurrencyCode } from "@/lib/billing-display"
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import {
 export default function OrdersTab({ ctx }: { ctx: any }) {
   const {
     adminOrders,
+    panelSettings,
     ordersTotal,
     ordersPage,
     ordersQuery,
@@ -92,6 +94,8 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     submitEditOrder,
     eoLoading,
   } = ctx
+
+  const currencyCode = sanitizeCurrencyCode(panelSettings?.billingCurrency || "USD")
 
   return (
     <>
@@ -237,7 +241,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-sm font-semibold text-foreground">
-                            ${(order.amount ?? 0).toFixed(2)}
+                            {formatMoney(Number(order.amount ?? 0), currencyCode)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -342,7 +346,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                   <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
                     <div className="bg-card px-3 py-2.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Amount</p>
-                      <p className="text-sm font-bold text-foreground">${(order.amount ?? 0).toFixed(2)}</p>
+                      <p className="text-sm font-bold text-foreground">{formatMoney(Number(order.amount ?? 0), currencyCode)}</p>
                     </div>
                     <div className="bg-card px-3 py-2.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Created</p>
@@ -469,7 +473,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount ($)</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount ({currencyCode})</label>
               <input type="number" min="0" step="0.01" value={ioAmount} onChange={(e) => setIoAmount(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
@@ -560,7 +564,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount ({currencyCode})</label>
               <input type="number" value={eoAmount} onChange={(e) => setEoAmount(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>
             <div className="flex-1">
