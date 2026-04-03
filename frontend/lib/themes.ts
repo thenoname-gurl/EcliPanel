@@ -192,7 +192,7 @@ export const THEMES = [
     border: "#f3d08a",
     foreground: "#3f2a09",
     cardForeground: "#3f2a09",
-    description: "White Gambling theme. Enables Gambling Mode for lucky resource rolls. 🔴 Note: outcomes are luck-based.",
+    description: "White Gambling theme. Enables Gambling Mode for lucky resource rolls.",
   },
 ] as const;
 

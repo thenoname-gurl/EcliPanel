@@ -102,6 +102,62 @@ export async function serverRoutes(app: any, prefix = '') {
     return Math.floor(rnd * (max - min + 1)) + min;
   }
 
+  function drawBlackjackCardValue(): number {
+    const raw = randomIntInclusive(1, 13);
+    if (raw === 1) return 11;
+    if (raw >= 10) return 10;
+    return raw;
+  }
+
+  function resolveBlackjackScore(cards: number[]): { score: number; softAces: number } {
+    let score = cards.reduce((sum, value) => sum + value, 0);
+    let softAces = cards.filter((value) => value === 11).length;
+
+    while (score > 21 && softAces > 0) {
+      score -= 10;
+      softAces -= 1;
+    }
+
+    return { score, softAces };
+  }
+
+  function runBlackjackRound() {
+    const playerCards = [drawBlackjackCardValue(), drawBlackjackCardValue()];
+    const dealerCards = [drawBlackjackCardValue(), drawBlackjackCardValue()];
+
+    while (resolveBlackjackScore(playerCards).score < 17) {
+      playerCards.push(drawBlackjackCardValue());
+    }
+    while (resolveBlackjackScore(dealerCards).score < 17) {
+      dealerCards.push(drawBlackjackCardValue());
+    }
+
+    const playerResult = resolveBlackjackScore(playerCards);
+    const dealerResult = resolveBlackjackScore(dealerCards);
+
+    const playerBust = playerResult.score > 21;
+    const dealerBust = dealerResult.score > 21;
+
+    let outcome: 'player' | 'dealer' | 'push' = 'push';
+    if (playerBust && dealerBust) outcome = 'push';
+    else if (playerBust) outcome = 'dealer';
+    else if (dealerBust) outcome = 'player';
+    else if (playerResult.score > dealerResult.score) outcome = 'player';
+    else if (dealerResult.score > playerResult.score) outcome = 'dealer';
+
+    return {
+      player: {
+        cards: playerCards,
+        score: playerResult.score,
+      },
+      dealer: {
+        cards: dealerCards,
+        score: dealerResult.score,
+      },
+      outcome,
+    };
+  }
+
   function pickRandomFailureLine(): string {
     return POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] || '🎲 Nuh uh.';
   }
@@ -704,6 +760,11 @@ export async function serverRoutes(app: any, prefix = '') {
       enabled: boolean;
       rolled: { memory: number; disk: number; cpu: number };
       luckyRoll: boolean;
+      blackjack: {
+        player: { cards: number[]; score: number };
+        dealer: { cards: number[]; score: number };
+        outcome: 'player' | 'dealer' | 'push';
+      };
       bonusAppliedToLimits: boolean;
       bonusActivated: boolean;
       bonusPercent: number;
@@ -761,6 +822,8 @@ export async function serverRoutes(app: any, prefix = '') {
       disk = clampInt(randomIntInclusive(diskMin, diskCap), 1, diskCap);
       cpu = clampInt(randomIntInclusive(cpuMin, cpuCap), 1, cpuCap);
 
+      const blackjack = runBlackjackRound();
+      const blackjackWin = blackjack.outcome === 'player';
       const luckyRoll = Math.random() < gamblingConfig.resourceLuckyChance;
       let bonusActivated = false;
       let nextBonusExpiresAt: string | null = bonusActive && bonusExpiresAt
@@ -782,7 +845,7 @@ export async function serverRoutes(app: any, prefix = '') {
         gamblingSettings.bonus = null;
       }
 
-      const nextStats = applyGambleOutcome(gamblingSettings.stats, luckyRoll, {
+      const nextStats = applyGambleOutcome(gamblingSettings.stats, blackjackWin, {
         luckyHit: luckyRoll,
         bonusActivated,
       });
@@ -799,6 +862,7 @@ export async function serverRoutes(app: any, prefix = '') {
         enabled: true,
         rolled: { memory, disk, cpu },
         luckyRoll,
+        blackjack,
         bonusAppliedToLimits: bonusActive,
         bonusActivated,
         bonusPercent: gamblingConfig.bonusPercent,
