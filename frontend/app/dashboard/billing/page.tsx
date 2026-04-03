@@ -26,6 +26,7 @@ const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED ==
 
 export default function BillingPage() {
   const { user, refreshUser } = useAuth()
+  const currentUser = user as any
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
@@ -49,7 +50,7 @@ export default function BillingPage() {
     return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
   }
 
-  const userPlanType = (user?.portalType ?? user?.tier ?? 'free').toString().toLowerCase()
+  const userPlanType = (currentUser?.portalType ?? currentUser?.tier ?? 'free').toString().toLowerCase()
   const activeTierRaw = (activePlan?.plan?.type ?? userPlanType).toString().toLowerCase()
   const activeTierEffective = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
   const activeTierLabel = activeTierRaw === 'educational' ? 'educational' : activeTierRaw
@@ -59,7 +60,7 @@ export default function BillingPage() {
   const activePlanTitle = activePlan?.plan?.name ?? userPlanLabel
   const activePlanType = activePlan?.plan?.type ?? userPlanType
   const normalizedCurrency = sanitizeCurrencyCode(billingCurrency)
-  const taxRate = resolveTaxRate(billingTaxRules, user?.billingCountry)
+  const taxRate = resolveTaxRate(billingTaxRules, currentUser?.billingCountry)
   const formatPrice = (amount: number, includeTax = false) => {
     if (!includeTax || taxRate <= 0) return formatMoney(amount, normalizedCurrency)
     return formatMoney(applyTax(amount, taxRate).total, normalizedCurrency)
@@ -70,12 +71,23 @@ export default function BillingPage() {
       ? activePlan.order?.amount
         ? formatPrice(Number(activePlan.order.amount), true)
         : 'Price Varies'
-      : formatPrice(Number(activePlan.plan.price ?? currentPlan.price ?? 0), true)
+      : formatPrice(Number(activePlan.plan.price ?? 0), true)
     : currentPlan.id === 'free'
       ? formatPrice(0, true)
       : currentPlan.id === 'paid'
         ? formatPrice(12, true)
         : 'Custom'
+  const activeBaseMonthly = activePlan
+    ? activePlan.plan.type === 'enterprise'
+      ? (activePlan.order?.amount != null ? Number(activePlan.order.amount) : null)
+      : Number(activePlan.plan.price ?? 0)
+    : currentPlan.id === 'free'
+      ? 0
+      : currentPlan.id === 'paid'
+        ? 12
+        : null
+  const activeTaxBreakdown = activeBaseMonthly != null ? applyTax(activeBaseMonthly, taxRate) : null
+
   const activePlanExpires = activePlan?.order?.expiresAt || null
 
   useEffect(() => {
@@ -126,10 +138,10 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (user) {
-      setDemoActiveUntil(user.demoExpiresAt || null)
-      setDemoUsed(!!user.demoUsed)
+      setDemoActiveUntil(currentUser?.demoExpiresAt || null)
+      setDemoUsed(!!currentUser?.demoUsed)
     }
-  }, [user])
+  }, [user, currentUser])
 
   const livePlanCards = plans.map((plan) => {
     const tier = String(plan?.type ?? "").toLowerCase()
@@ -210,7 +222,7 @@ export default function BillingPage() {
     }
   }
 
-  const normalizedPortalType = String(user?.portalType || user?.tier || '').toLowerCase()
+  const normalizedPortalType = String(currentUser?.portalType || currentUser?.tier || '').toLowerCase()
   const isEnterprisePortal = normalizedPortalType === 'enterprise'
   const demoActive = !!demoActiveUntil && new Date(demoActiveUntil) > new Date()
   const demoExpired = !!demoActiveUntil && new Date(demoActiveUntil) <= new Date()
@@ -277,7 +289,7 @@ export default function BillingPage() {
                 activePlan?.plan?.type === 'enterprise' && !activePlan?.order?.amount
                   ? 'Price from order or contact sales'
                   : taxRate > 0
-                    ? `Includes ${taxRate}% tax for ${user?.billingCountry || 'your billing country'}`
+                    ? `Includes ${taxRate}% tax for ${currentUser?.billingCountry || 'your billing country'}`
                     : undefined
               }
             />
@@ -288,6 +300,32 @@ export default function BillingPage() {
               icon={Calendar}
               subtitle={activePlan ? undefined : "Managed via sales"}
             />
+          </div>
+
+          {/* Tax Information */}
+          <div className="rounded-xl border border-border bg-card p-5 min-w-0 box-border overflow-hidden">
+            <SectionHeader
+              title="Tax Information"
+              description="Calculated from your billing country and panel tax rules"
+            />
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Billing Country</p>
+                <p className="text-foreground font-medium">{currentUser?.billingCountry || 'Not set'}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tax Rate</p>
+                <p className="text-foreground font-medium">{taxRate.toFixed(2)}%</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Pre-Tax Monthly</p>
+                <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.base, normalizedCurrency) : 'N/A'}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tax Amount</p>
+                <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.tax, normalizedCurrency) : 'N/A'}</p>
+              </div>
+            </div>
           </div>
 
           {/* Live Active Plan Details */}
@@ -324,12 +362,12 @@ export default function BillingPage() {
                   <div className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
                     <p>Configured limits:</p>
                     <ul className="mt-1 space-y-1">
-                      <li>Memory: <span className="text-foreground font-medium">{activePlan.plan.memory ?? user?.limits?.memory ?? 'unlimited'}</span></li>
-                      <li>Disk: <span className="text-foreground font-medium">{activePlan.plan.disk ?? user?.limits?.disk ?? 'unlimited'}</span></li>
-                      <li>CPU: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? user?.limits?.cpu ?? 'unlimited'}</span></li>
-                      <li>Server limit: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? user?.limits?.serverLimit ?? 'unlimited'}</span></li>
-                      <li>Databases: <span className="text-foreground font-medium">{activePlan.plan.databases ?? user?.limits?.databases ?? 'unlimited'}</span></li>
-                      <li>Backups: <span className="text-foreground font-medium">{activePlan.plan.backups ?? user?.limits?.backups ?? 'unlimited'}</span></li>
+                      <li>Memory: <span className="text-foreground font-medium">{activePlan.plan.memory ?? currentUser?.limits?.memory ?? 'unlimited'}</span></li>
+                      <li>Disk: <span className="text-foreground font-medium">{activePlan.plan.disk ?? currentUser?.limits?.disk ?? 'unlimited'}</span></li>
+                      <li>CPU: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? currentUser?.limits?.cpu ?? 'unlimited'}</span></li>
+                      <li>Server limit: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? currentUser?.limits?.serverLimit ?? 'unlimited'}</span></li>
+                      <li>Databases: <span className="text-foreground font-medium">{activePlan.plan.databases ?? currentUser?.limits?.databases ?? 'unlimited'}</span></li>
+                      <li>Backups: <span className="text-foreground font-medium">{activePlan.plan.backups ?? currentUser?.limits?.backups ?? 'unlimited'}</span></li>
                     </ul>
                   </div>
                 </div>
@@ -400,7 +438,7 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    {(planCard.type === 'educational' && user?.portalType !== 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED)) && (
+                    {(planCard.type === 'educational' && currentUser?.portalType !== 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED)) && (
                       <button
                         onClick={async () => {
                           try {

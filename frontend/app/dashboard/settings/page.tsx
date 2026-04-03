@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { PORTALS } from "@/lib/panel-config"
 import { COUNTRIES } from "@/lib/countries"
+import { resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from "@/lib/editor-settings"
 import { cn } from "@/lib/utils"
 import {
@@ -947,6 +948,8 @@ export default function SettingsPage() {
   }
 
   const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
+  const [billingCurrency, setBillingCurrency] = useState("USD")
+  const [billingTaxRules, setBillingTaxRules] = useState("")
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
     paid: "Paid Portal",
@@ -957,6 +960,7 @@ export default function SettingsPage() {
     return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
   }
   const activeTier = String(activePlan?.plan?.type ?? user?.tier ?? "free").toLowerCase()
+  const displayCurrency = sanitizeCurrencyCode(billingCurrency)
 
   const [form, setForm] = useState({
     displayName: user?.displayName || "",
@@ -1084,6 +1088,16 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
+    apiFetch(API_ENDPOINTS.panelSettings)
+      .then((data: any) => {
+        setBillingCurrency(data?.billingCurrency || "USD")
+        setBillingTaxRules(data?.billingTaxRules || "")
+      })
+      .catch(() => {
+        setBillingCurrency("USD")
+        setBillingTaxRules("")
+      })
+
     apiFetch(API_ENDPOINTS.orders)
       .then(async (data) => {
         const orderList = Array.isArray(data) ? data : []
@@ -1096,6 +1110,8 @@ export default function SettingsPage() {
       })
       .catch(() => setActivePlan(null))
   }, [])
+
+  const selectedCountryTaxRate = resolveTaxRate(billingTaxRules, form.billingCountry)
 
   const showGuideAgain = async () => {
     if (!user?.id) return
@@ -1273,6 +1289,10 @@ export default function SettingsPage() {
                         <option key={country.code} value={country.name}>{country.name}</option>
                       ))}
                     </select>
+                    <p className="text-[11px] text-muted-foreground">
+                      Estimated tax for this country: <span className="text-foreground font-medium">{selectedCountryTaxRate.toFixed(2)}%</span>
+                      {` `}({displayCurrency})
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 sm:mt-6 flex justify-end">
