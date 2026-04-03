@@ -474,7 +474,10 @@ export default function BillingPage() {
 
           <div className="rounded-xl border border-border bg-card">
             <div className="border-b border-border p-5">
-              <SectionHeader title="Invoice History" description="Past payments and invoices" />
+              <SectionHeader
+                title="Invoice History"
+                description={`Past payments and invoices${taxRate > 0 ? ` · Tax rate ${taxRate.toFixed(2)}% (${currentUser?.billingCountry || 'billing country'})` : ''}`}
+              />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -483,7 +486,7 @@ export default function BillingPage() {
                     <th className="px-5 py-3 text-left font-medium">Invoice</th>
                     <th className="px-5 py-3 text-left font-medium">Description</th>
                     <th className="px-5 py-3 text-left font-medium">Date</th>
-                    <th className="px-5 py-3 text-left font-medium">Amount</th>
+                    <th className="px-5 py-3 text-left font-medium">Amount (Tax Incl.)</th>
                     <th className="px-5 py-3 text-left font-medium">Status</th>
                     <th className="px-5 py-3 text-right font-medium">Actions</th>
                   </tr>
@@ -493,12 +496,20 @@ export default function BillingPage() {
               <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">Loading orders...</td></tr>
             ) : orders.length === 0 ? (
               <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">No orders found.</td></tr>
-            ) : orders.map((invoice) => (
+            ) : orders.map((invoice) => {
+                    const invoiceBase = Number(invoice.amount ?? 0)
+                    const invoiceBreakdown = applyTax(invoiceBase, taxRate)
+                    return (
                     <tr key={invoice.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                       <td className="px-5 py-3 font-mono text-sm text-foreground">{invoice.id}</td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{invoice.description}</td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
-                      <td className="px-5 py-3 font-mono text-sm text-foreground">{formatMoney(Number(invoice.amount ?? 0), normalizedCurrency)}</td>
+                      <td className="px-5 py-3">
+                        <div className="font-mono text-sm text-foreground">{formatMoney(invoiceBreakdown.total, normalizedCurrency)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatMoney(invoiceBreakdown.base, normalizedCurrency)} + {formatMoney(invoiceBreakdown.tax, normalizedCurrency)} tax
+                        </div>
+                      </td>
                       <td className="px-5 py-3">
                         <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-xs">
                           Paid
@@ -530,7 +541,7 @@ export default function BillingPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
