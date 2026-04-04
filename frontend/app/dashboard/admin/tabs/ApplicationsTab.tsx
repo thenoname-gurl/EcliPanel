@@ -249,6 +249,7 @@ export default function ApplicationsTab() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [submissionFilter, setSubmissionFilter] = useState<string>("all")
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(new Set())
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<number[]>([])
 
   const selectedForm = useMemo(
     () => forms.find((f) => Number(f.id) === Number(selectedFormId)) || null,
@@ -438,6 +439,34 @@ export default function ApplicationsTab() {
     }
   }
 
+  const deleteSubmission = async (submissionId: number) => {
+    if (!confirm(t("confirm.deleteSubmission"))) return
+    try {
+      await apiFetch(API_ENDPOINTS.adminApplicationSubmission.replace(":id", String(submissionId)), {
+        method: "DELETE",
+      })
+      setSelectedSubmissionIds((prev) => prev.filter((v) => v !== submissionId))
+      await loadAll()
+    } catch (err: any) {
+      setError(err?.message || t("errors.deleteSubmission"))
+    }
+  }
+
+  const bulkDeleteSubmissions = async () => {
+    if (selectedSubmissionIds.length === 0) return
+    if (!confirm(t("confirm.bulkDeleteSubmissions", { count: selectedSubmissionIds.length }))) return
+    try {
+      await apiFetch(API_ENDPOINTS.adminApplicationsSubmissionsBulkDelete, {
+        method: "POST",
+        body: JSON.stringify({ ids: selectedSubmissionIds }),
+      })
+      setSelectedSubmissionIds([])
+      await loadAll()
+    } catch (err: any) {
+      setError(err?.message || t("errors.deleteSubmission"))
+    }
+  }
+
   const copy = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -461,6 +490,27 @@ export default function ApplicationsTab() {
     if (submissionFilter !== "all") list = list.filter((s) => s.status === submissionFilter)
     return list
   }, [submissions, selectedFormId, submissionFilter])
+
+  const allVisibleSubmissionsSelected =
+    visibleSubmissions.length > 0 && visibleSubmissions.every((s) => selectedSubmissionIds.includes(s.id))
+
+  const toggleSelectAllVisibleSubmissions = () => {
+    if (allVisibleSubmissionsSelected) {
+      const visible = new Set(visibleSubmissions.map((s) => s.id))
+      setSelectedSubmissionIds((prev) => prev.filter((id) => !visible.has(id)))
+      return
+    }
+
+    setSelectedSubmissionIds((prev) => {
+      const next = new Set(prev)
+      for (const submission of visibleSubmissions) next.add(submission.id)
+      return Array.from(next)
+    })
+  }
+
+  const toggleSubmissionSelected = (id: number) => {
+    setSelectedSubmissionIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]))
+  }
 
   const submissionCounts = useMemo(() => {
     const base = selectedFormId ? submissions.filter((s) => Number(s.formId) === Number(selectedFormId)) : submissions
@@ -1058,6 +1108,20 @@ export default function ApplicationsTab() {
             ))}
           </div>
 
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" onClick={toggleSelectAllVisibleSubmissions}>
+              {allVisibleSubmissionsSelected ? t("actions.clearSelection") : t("actions.selectVisible")}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={bulkDeleteSubmissions}
+              disabled={selectedSubmissionIds.length === 0}
+            >
+              {t("actions.bulkDeleteSubmissions", { count: selectedSubmissionIds.length })}
+            </Button>
+          </div>
+
           {visibleSubmissions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Inbox className="h-12 w-12 text-muted-foreground/30" />
@@ -1087,6 +1151,13 @@ export default function ApplicationsTab() {
                       className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-secondary/30 transition-colors"
                       onClick={() => toggleExpand(submission.id)}
                     >
+                      <input
+                        type="checkbox"
+                        checked={selectedSubmissionIds.includes(submission.id)}
+                        onChange={() => toggleSubmissionSelected(submission.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 rounded border-border"
+                      />
                       <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-center">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold text-muted-foreground font-mono">#{submission.id}</span>
@@ -1168,6 +1239,13 @@ export default function ApplicationsTab() {
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                             {t("actions.reset")}
+                          </button>
+                          <button
+                            onClick={() => deleteSubmission(submission.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t("actions.delete")}
                           </button>
                         </div>
                       </div>

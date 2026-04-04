@@ -24,6 +24,15 @@ export class ServerConfig {
   @Column({ default: false })
   suspended: boolean;
 
+  @Column({ nullable: true, type: 'text' })
+  suspendedBy?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  suspendedReason?: string;
+
+  @Column({ nullable: true, type: 'datetime' })
+  suspendedAt?: Date;
+
   @Index()
   @Column({ default: false })
   hibernated: boolean;

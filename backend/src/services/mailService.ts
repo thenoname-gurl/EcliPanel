@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { promises as fsp } from 'fs';
+import { convert } from 'html-to-text';
 
 let transporter: nodemailer.Transporter;
 
@@ -57,19 +58,13 @@ function extractAddress(value: nodemailer.SendMailOptions['from']) {
 }
 
 function htmlToText(html: string) {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<br\s*\/?\s*>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return convert(html, {
+    wordwrap: false,
+    selectors: [
+      { selector: 'style', format: 'skip' },
+      { selector: 'script', format: 'skip' },
+    ],
+  }).trim();
 }
 
 export async function initMail() {

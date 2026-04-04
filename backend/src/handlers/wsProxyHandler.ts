@@ -162,6 +162,17 @@ class WingsProxySession {
     }
     this.server = cfg;
 
+    if (cfg.suspended) {
+      const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
+      const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+      this.sendToClient({
+        event: 'error',
+        args: [`This server was suspended by ${actor} for reason: ${reason}. Please contact support.`],
+      });
+      this.destroy();
+      return;
+    }
+
     const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
     if (!node) {
       this.sendToClient({ event: 'error', args: ['Node not found'] });

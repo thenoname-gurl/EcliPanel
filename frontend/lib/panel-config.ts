@@ -229,6 +229,11 @@ export const API_ENDPOINTS = {
   adminFraudScanAll: "/api/admin/fraud-scan-all",
   adminFraudAction: "/api/admin/fraud-alerts/:id",
   adminFraudBulkDismiss: "/api/admin/fraud-alerts/dismiss",
+  adminAntiAbuseIncidents: "/api/admin/antiabuse/incidents",
+  adminAntiAbuseIncidentStatus: "/api/admin/antiabuse/incidents/:id/status",
+  adminAntiAbuseIncidentsBulkStatus: "/api/admin/antiabuse/incidents/bulk-status",
+  adminAntiAbuseIncidentDelete: "/api/admin/antiabuse/incidents/:id",
+  adminAntiAbuseIncidentsBulkDelete: "/api/admin/antiabuse/incidents/bulk-delete",
   adminTicketsBulkArchive: "/api/admin/tickets/archive",
   // API Keys
   apiKeys: "/api/apikeys",
@@ -257,6 +262,7 @@ export const API_ENDPOINTS = {
   adminApplicationInvite: "/api/admin/applications/invites/:inviteId",
   adminApplicationsSubmissions: "/api/admin/applications/submissions",
   adminApplicationSubmission: "/api/admin/applications/submissions/:id",
+  adminApplicationsSubmissionsBulkDelete: "/api/admin/applications/submissions/bulk-delete",
 
   // Identity / ID Verification
   identity: "/api/id-verification",

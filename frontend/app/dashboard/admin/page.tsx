@@ -159,6 +159,11 @@ const FraudTab = dynamic(() => import("./tabs/FraudTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading fraud tab...</div>,
 })
 
+const AntiAbuseTab = dynamic(() => import("./tabs/AntiAbuseTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading anti-abuse tab...</div>,
+})
+
 const RolesTab = dynamic(() => import("./tabs/RolesTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading roles tab...</div>,
@@ -2321,7 +2326,18 @@ export default function AdminPanel() {
   }
 
   async function suspendServer(uuid: string) {
-    await apiFetch(`${API_ENDPOINTS.adminServers}/${uuid}/suspend`, { method: "POST" })
+    const reason = window.prompt("Reason for suspension (shown to users in console/SFTP):", "")?.trim()
+    if (!reason) return
+    const result = await apiFetch(`${API_ENDPOINTS.adminServers}/${uuid}/suspend`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    })
+
+    if (!result?.emailSent) {
+      const extra = result?.emailReason ? ` (${result.emailReason})` : ""
+      alert(`Server suspended, but owner email was not sent${extra}.`)
+    }
+
     setServers((prev) => prev.map((s) => s.uuid === uuid ? { ...s, status: "suspended" } : s))
   }
 
@@ -3435,6 +3451,7 @@ remote: ${panelUrl}`
                 { value: "eggs", label: t("tabs.eggs") },
                 { value: "ai", label: t("tabs.aiModels"), feature: "ai" },
                 { value: "announcements", label: t("tabs.announcements") },
+                { value: "antiabuse", label: t("tabs.antiabuse") },
                 { value: "fraud", label: t("tabs.fraud") },
                 { value: "roles", label: t("tabs.roles") },
                 { value: "logs", label: t("tabs.logs") },
@@ -4234,6 +4251,9 @@ remote: ${panelUrl}`
             </TabsContent>
             <TabsContent value="applications" className="mt-4">
               {activeTab === "applications" ? <ApplicationsTab /> : null}
+            </TabsContent>
+            <TabsContent value="antiabuse" className="mt-4">
+              {activeTab === "antiabuse" ? <AntiAbuseTab /> : null}
             </TabsContent>
             {/* ═══════════════ KYC / VERIFICATIONS ════════════════════════════ */}
             <TabsContent value="verifications" className="mt-4">

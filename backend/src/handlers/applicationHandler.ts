@@ -832,4 +832,44 @@ export async function applicationRoutes(app: any, prefix = '') {
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Admin delete submission', tags: ['Applications'] },
   });
+
+  app.post(prefix + '/admin/applications/submissions/bulk-delete', async (ctx: any) => {
+    const user = ctx.user as User | undefined;
+    if (!isAdmin(user)) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const body = (ctx.body || {}) as any;
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+      : [];
+
+    if (ids.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'ids array is required' };
+    }
+
+    const result = await submissionRepo()
+      .createQueryBuilder()
+      .delete()
+      .from(ApplicationSubmission)
+      .where('id IN (:...ids)', { ids })
+      .execute();
+
+    return {
+      success: true,
+      deleted: Number(result.affected || 0),
+      requested: ids.length,
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean(), deleted: t.Number(), requested: t.Number() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Admin bulk delete submissions', tags: ['Applications'] },
+  });
 }

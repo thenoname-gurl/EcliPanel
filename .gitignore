@@ -59,4 +59,9 @@ frontend/public/assets/icons/*.mp4
 
 # Systemd unit files
 systemd/*
-antiabuse/*
+
+# Anti-abuse service files
+antiabuse/signatures/
+antiabuse/target/
+antiabuse/.env
+antiabuse/READMEnew.md

@@ -40,6 +40,7 @@ import { normalizeProcessConfig } from '../utils/startupDetection';
 import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
+import { notifyServerOwnerSuspended } from '../utils/suspensionNotice';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
@@ -57,6 +58,42 @@ const POWER_DICE_FAILURE_LINES = [
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const antiAbuseThrottleState = new Map<string, { restoreCpu: number; timer: NodeJS.Timeout }>();
+const antiAbuseAgentState = new Map<string, {
+  agentId: string;
+  detectorName: string;
+  nodeName: string;
+  lastSeenTs: number;
+  pid: number | null;
+  version: string | null;
+}>();
+
+function listAntiAbuseAgents() {
+  const now = Date.now();
+  const activeWindowMsRaw = Number(process.env.ANTIABUSE_AGENT_ACTIVE_MS || 120000);
+  const activeWindowMs = Number.isFinite(activeWindowMsRaw) && activeWindowMsRaw > 0 ? Math.floor(activeWindowMsRaw) : 120000;
+
+  return Array.from(antiAbuseAgentState.values())
+    .map((entry) => {
+      const lastSeenAt = new Date(entry.lastSeenTs).toISOString();
+      const ageMs = Math.max(0, now - entry.lastSeenTs);
+      const active = ageMs <= activeWindowMs;
+      return {
+        agentId: entry.agentId,
+        detectorName: entry.detectorName,
+        nodeName: entry.nodeName,
+        lastSeenAt,
+        ageMs,
+        active,
+        pid: entry.pid,
+        version: entry.version,
+      };
+    })
+    .sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return a.ageMs - b.ageMs;
+    });
+}
 
 function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -168,6 +205,95 @@ function requireAdminCtxOrAdminApiKey(ctx: any): true | { error: string } {
 
 function sanitizeAntiAbuseText(input: any, max = 12_000): string {
   return String(input || '').trim().slice(0, max);
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+async function runAntiAbuseAiAssessment(params: {
+  serverId: string;
+  serverName: string | null;
+  nodeName: string | null;
+  reason: string;
+  detectionType: string;
+  sourceIp: string | null;
+  targetIp: string | null;
+  targetPort: number | null;
+  metrics: any;
+  recentEvents: any[];
+}) {
+  if (process.env.ANTIABUSE_AI_ENABLED !== 'true') return null;
+
+  const modelRepo = AppDataSource.getRepository(AIModel);
+  const preferredModelIdRaw = process.env.ANTIABUSE_AI_MODEL_ID;
+  const preferredModelId = preferredModelIdRaw ? Number(preferredModelIdRaw) : null;
+
+  let model: AIModel | null = null;
+  if (preferredModelId && Number.isFinite(preferredModelId)) {
+    model = await modelRepo.findOneBy({ id: preferredModelId as any });
+  }
+  if (!model) {
+    model = await modelRepo.findOne({ where: {} as any, order: { id: 'ASC' } as any });
+  }
+  if (!model || !model.endpoint) return null;
+
+  const systemPrompt = `
+  You are an anti-abuse analyst for a hosting platform. Review this network abuse incident and return ONLY JSON:
+{"riskScore": <0-100>, "category": "ddos|port_scan|crypto_mining|spam|unknown", "confidence": <0-1>, "summary": "short summary", "recommendedAction": "monitor|throttle|suspend", "signals": ["signal1", "signal2"]}`;
+
+  const payload = {
+    serverId: params.serverId,
+    serverName: params.serverName,
+    nodeName: params.nodeName,
+    reason: params.reason,
+    detectionType: params.detectionType,
+    sourceIp: params.sourceIp,
+    targetIp: params.targetIp,
+    targetPort: params.targetPort,
+    metrics: params.metrics,
+    recentEvents: params.recentEvents,
+  };
+
+  try {
+    const baseUrl = (model.endpoint || '').replace(/\/+$/, '').replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
+    const chatUrl = `${baseUrl}/v1/chat/completions`;
+    const res = await axios.post(
+      chatUrl,
+      {
+        model: (model as any).config?.modelId || model.name,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: JSON.stringify(payload) },
+        ],
+        max_tokens: 600,
+      },
+      { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 30000 }
+    );
+
+    const aiReply = res.data?.choices?.[0]?.message?.content || '';
+    const cleaned = String(aiReply).replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned || '{}');
+
+    return {
+      modelId: model.id,
+      modelName: model.name,
+      riskScore: clampNumber(Number(parsed?.riskScore ?? 0), 0, 100),
+      category: sanitizeAntiAbuseText(parsed?.category || 'unknown', 40),
+      confidence: Math.max(0, Math.min(1, Number(parsed?.confidence ?? 0))),
+      summary: sanitizeAntiAbuseText(parsed?.summary || '', 800),
+      recommendedAction: sanitizeAntiAbuseText(parsed?.recommendedAction || 'monitor', 30),
+      signals: Array.isArray(parsed?.signals)
+        ? parsed.signals.map((s: any) => sanitizeAntiAbuseText(s, 180)).filter(Boolean).slice(0, 20)
+        : [],
+      raw: sanitizeAntiAbuseText(cleaned, 12_000),
+    };
+  } catch (err: any) {
+    return {
+      error: sanitizeAntiAbuseText(err?.message || 'AI analysis failed', 400),
+    };
+  }
 }
 
 function normalizeTicketStatus(status: any): string {
@@ -1849,7 +1975,19 @@ export async function adminRoutes(app: any, prefix = '') {
         for (const s of servers) {
           const uuid: string = s.configuration?.uuid || s.uuid;
           const cfg = cfgMap.get(uuid);
-          all.push({ ...s, uuid, status: s.state || s.status || 'offline', name: cfg?.name || s.configuration?.meta?.name || s.name || uuid, nodeName: n.name, nodeId: n.id, eggId: cfg?.eggId || null });
+          const wingsSuspended = !!(s?.is_suspended ?? s?.suspended);
+          const isSuspended = !!cfg?.suspended || wingsSuspended;
+          const status = isSuspended ? 'suspended' : (s.state || s.status || 'offline');
+          all.push({
+            ...s,
+            uuid,
+            status,
+            is_suspended: isSuspended,
+            name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
+            nodeName: n.name,
+            nodeId: n.id,
+            eggId: cfg?.eggId || null,
+          });
         }
       } catch { }
     }
@@ -2385,7 +2523,23 @@ export async function adminRoutes(app: any, prefix = '') {
   app.post(prefix + '/admin/servers/:id/suspend', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
     const serverId = ctx.params.id as string;
-    const nodes = await AppDataSource.getRepository(Node).find();
+    const body = (ctx.body || {}) as any;
+    const reason = typeof body.reason === 'string' && body.reason.trim()
+      ? body.reason.trim()
+      : 'Suspended by administrator';
+    const adminUser = ctx.user as any;
+    const adminName = [adminUser?.firstName, adminUser?.lastName].filter(Boolean).join(' ').trim();
+    const suspendedBy = adminName || adminUser?.email || 'admin panel';
+
+    const nodeRepo = AppDataSource.getRepository(Node);
+    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+    const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
+    const preferredNode = existingCfg?.nodeId ? await nodeRepo.findOneBy({ id: existingCfg.nodeId }) : null;
+    const allNodes = await nodeRepo.find();
+    const nodes = preferredNode
+      ? [preferredNode, ...allNodes.filter((n) => n.id !== preferredNode.id)]
+      : allNodes;
+
     for (const n of nodes) {
       try {
         const base = (n as any).backendWingsUrl || n.url;
@@ -2393,9 +2547,45 @@ export async function adminRoutes(app: any, prefix = '') {
         await svc.getServer(serverId);
         await svc.powerServer(serverId, 'kill').catch(() => { });
         await svc.syncServer(serverId, { suspended: true });
-        const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-        await cfgRepo.update({ uuid: serverId }, { suspended: true });
-        return { success: true };
+        const alreadySuspended = !!existingCfg?.suspended;
+        await cfgRepo.update(
+          { uuid: serverId },
+          { suspended: true, suspendedBy, suspendedReason: reason, suspendedAt: new Date() },
+        );
+
+        let notice: {
+          sent: boolean;
+          skipped: boolean;
+          reason?: string;
+          recipient?: string;
+        } = {
+          sent: false,
+          skipped: true,
+          reason: 'owner notification not attempted',
+          recipient: undefined,
+        };
+
+        if (!alreadySuspended && existingCfg) {
+          notice = await notifyServerOwnerSuspended({
+            cfg: existingCfg,
+            actor: suspendedBy,
+            reason,
+            suspendedAt: new Date(),
+          });
+          if (!notice.sent && !notice.skipped) {
+            console.warn('[admin:server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
+          }
+        } else if (alreadySuspended) {
+          notice.reason = 'server already suspended';
+        }
+
+        return {
+          success: true,
+          emailSent: notice.sent,
+          emailSkipped: notice.skipped,
+          emailReason: notice.reason || null,
+          emailRecipient: notice.recipient || null,
+        };
       } catch { }
     }
     ctx.set.status = 404;
@@ -2404,8 +2594,15 @@ export async function adminRoutes(app: any, prefix = '') {
     beforeHandle: authenticate,
     schema: {
       params: t.Object({ id: t.String() }),
+      body: t.Optional(t.Object({ reason: t.Optional(t.String()) })),
       response: {
-        200: t.Object({ success: t.Boolean() }),
+        200: t.Object({
+          success: t.Boolean(),
+          emailSent: t.Boolean(),
+          emailSkipped: t.Boolean(),
+          emailReason: t.Nullable(t.String()),
+          emailRecipient: t.Nullable(t.String()),
+        }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
@@ -2417,15 +2614,25 @@ export async function adminRoutes(app: any, prefix = '') {
   app.post(prefix + '/admin/servers/:id/unsuspend', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
     const serverId = ctx.params.id as string;
-    const nodes = await AppDataSource.getRepository(Node).find();
+    const nodeRepo = AppDataSource.getRepository(Node);
+    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+    const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
+    const preferredNode = existingCfg?.nodeId ? await nodeRepo.findOneBy({ id: existingCfg.nodeId }) : null;
+    const allNodes = await nodeRepo.find();
+    const nodes = preferredNode
+      ? [preferredNode, ...allNodes.filter((n) => n.id !== preferredNode.id)]
+      : allNodes;
+
     for (const n of nodes) {
       try {
         const base = (n as any).backendWingsUrl || n.url;
         const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
         await svc.syncServer(serverId, { suspended: false });
-        const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-        await cfgRepo.update({ uuid: serverId }, { suspended: false });
+        await cfgRepo.update(
+          { uuid: serverId },
+          { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
+        );
         return { success: true };
       } catch { }
     }
@@ -2443,6 +2650,506 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Unsuspend a server across nodes', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/servers/:id/throttle', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const serverId = String(ctx.params.id || '').trim();
+    if (!serverId) {
+      ctx.set.status = 400;
+      return { error: 'Server ID is required' };
+    }
+
+    const body = (ctx.body || {}) as any;
+    const envCpu = Number(process.env.ANTIABUSE_THROTTLE_CPU_LIMIT_PERCENT || 20);
+    const envDuration = Number(process.env.ANTIABUSE_THROTTLE_DURATION_SECONDS || 900);
+    const cpuLimitPercent = clampNumber(Number(body.cpuLimitPercent ?? envCpu), 5, 100);
+    const durationSeconds = clampNumber(Number(body.durationSeconds ?? envDuration), 30, 86400);
+    const reason = sanitizeAntiAbuseText(body.reason || 'antiabuse throttle', 600);
+    const source = sanitizeAntiAbuseText(body.source || 'antiabuse', 120);
+
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server config not found' };
+    }
+
+    const restoreCpu = Math.max(1, Number(cfg.cpu || 100));
+    const nodes = await AppDataSource.getRepository(Node).find();
+
+    let found = false;
+    for (const n of nodes) {
+      try {
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
+        await svc.getServer(serverId);
+        await svc.syncServer(serverId, { build: { cpu_limit: cpuLimitPercent } });
+        found = true;
+        break;
+      } catch { }
+    }
+
+    if (!found) {
+      ctx.set.status = 404;
+      return { error: 'Server not found on any node' };
+    }
+
+    await cfgRepo.update({ uuid: serverId }, { cpu: cpuLimitPercent as any });
+
+    const existing = antiAbuseThrottleState.get(serverId);
+    if (existing?.timer) clearTimeout(existing.timer);
+
+    const timer = setTimeout(async () => {
+      try {
+        const restoreNodes = await AppDataSource.getRepository(Node).find();
+        for (const n of restoreNodes) {
+          try {
+            const base = (n as any).backendWingsUrl || n.url;
+            const svc = new WingsApiService(base, n.token);
+            await svc.getServer(serverId);
+            await svc.syncServer(serverId, { build: { cpu_limit: restoreCpu } });
+            break;
+          } catch { }
+        }
+        await cfgRepo.update({ uuid: serverId }, { cpu: restoreCpu as any });
+      } catch { }
+      antiAbuseThrottleState.delete(serverId);
+    }, durationSeconds * 1000);
+
+    antiAbuseThrottleState.set(serverId, { restoreCpu, timer });
+
+    return {
+      success: true,
+      serverId,
+      cpuLimitPercent,
+      restoreCpu,
+      durationSeconds,
+      reason,
+      source,
+      mode: 'temporary_cpu_cap',
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Optional(t.Object({
+        cpuLimitPercent: t.Optional(t.Number()),
+        durationSeconds: t.Optional(t.Number()),
+        reason: t.Optional(t.String()),
+        source: t.Optional(t.String()),
+      })),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Throttle a server temporarily (anti-abuse)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/antiabuse/heartbeat', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const body = (ctx.body || {}) as any;
+    const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse-rs', 120) || 'antiabuse-rs';
+    const nodeName = sanitizeAntiAbuseText(body.nodeName || process.env.HOSTNAME || 'unknown', 160) || 'unknown';
+    const pidRaw = Number(body.pid);
+    const pid = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : null;
+    const version = sanitizeAntiAbuseText(body.version || '', 80) || null;
+    const agentId = sanitizeAntiAbuseText(body.agentId || `${detectorName}@${nodeName}`, 200) || `${detectorName}@${nodeName}`;
+
+    antiAbuseAgentState.set(agentId, {
+      agentId,
+      detectorName,
+      nodeName,
+      lastSeenTs: Date.now(),
+      pid,
+      version,
+    });
+
+    const agents = listAntiAbuseAgents();
+    return {
+      success: true,
+      agentId,
+      activeAgents: agents.filter((a) => a.active).length,
+      totalAgents: agents.length,
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Receive anti-abuse agent heartbeat', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/antiabuse/incidents', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const query = (ctx.query || {}) as any;
+    const pageRaw = Number(query.page ?? 1);
+    const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1);
+    const limitRaw = Number(query.limit ?? 100);
+    const limit = Math.max(1, Math.min(500, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 100));
+    const offset = (page - 1) * limit;
+    const sortBy = String(query.sort || 'createdAt');
+    const order = String(query.order || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const minRiskRaw = Number(query.minRisk);
+    const minRisk = Number.isFinite(minRiskRaw) ? Math.max(0, Math.min(100, minRiskRaw)) : null;
+    const detectionTypeFilter = sanitizeAntiAbuseText(query.detectionType || '', 120).toLowerCase();
+    const actionFilter = sanitizeAntiAbuseText(query.action || '', 80).toLowerCase();
+
+    const formRepo = AppDataSource.getRepository(ApplicationForm);
+    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+
+    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+    const agents = listAntiAbuseAgents();
+    if (!form) {
+      return { items: [], total: 0, page, limit, totalPages: 0, sort: sortBy, order, agents };
+    }
+
+    const rows = await submissionRepo.find({
+      where: { formId: form.id },
+      order: { createdAt: 'DESC' },
+      take: Math.min(Math.max((offset + limit) * 4, limit), 5000),
+    });
+
+    const mapped = rows.map((row) => {
+      const meta = (row.meta && typeof row.meta === 'object') ? row.meta : {};
+      const ai = (meta.aiAssessment && typeof meta.aiAssessment === 'object') ? meta.aiAssessment : {};
+      const metrics = (meta.metrics && typeof meta.metrics === 'object') ? meta.metrics : null;
+      const recentEvents = Array.isArray(meta.recentEvents) ? meta.recentEvents : [];
+      const aiRiskScoreRaw = Number((ai as any).riskScore);
+      const aiRiskScore = Number.isFinite(aiRiskScoreRaw) ? Math.max(0, Math.min(100, aiRiskScoreRaw)) : null;
+
+      return {
+        id: row.id,
+        createdAt: row.createdAt,
+        status: row.status,
+        reviewedAt: row.reviewedAt,
+        serverId: sanitizeAntiAbuseText(meta.serverId || '', 120) || null,
+        serverName: sanitizeAntiAbuseText(meta.serverName || '', 240) || null,
+        suspectedServerIds: Array.isArray(meta.suspectedServerIds)
+          ? meta.suspectedServerIds.map((v: any) => sanitizeAntiAbuseText(v, 120)).filter(Boolean).slice(0, 20)
+          : [],
+        suspectedServerNames: Array.isArray(meta.suspectedServerNames)
+          ? meta.suspectedServerNames.map((v: any) => sanitizeAntiAbuseText(v, 240)).filter(Boolean).slice(0, 20)
+          : [],
+        detectionType: sanitizeAntiAbuseText(meta.detectionType || '', 120) || 'unknown',
+        enforcementAction: sanitizeAntiAbuseText(meta.enforcementAction || '', 60) || 'unknown',
+        strikeCount: Number.isFinite(Number(meta.strikeCount)) ? Number(meta.strikeCount) : null,
+        reason: sanitizeAntiAbuseText(meta.reason || '', 1200) || '',
+        nodeName: sanitizeAntiAbuseText(meta.nodeName || '', 200) || null,
+        sourceIp: sanitizeAntiAbuseText(meta.sourceIp || '', 80) || null,
+        targetIp: sanitizeAntiAbuseText(meta.targetIp || '', 80) || null,
+        targetPort: Number.isFinite(Number(meta.targetPort)) ? Number(meta.targetPort) : null,
+        suspendAttempted: !!meta.suspendAttempted,
+        suspendSuccess: !!meta.suspendSuccess,
+        aiRiskScore,
+        aiCategory: sanitizeAntiAbuseText((ai as any).category || '', 60) || null,
+        aiSummary: sanitizeAntiAbuseText((ai as any).summary || '', 1200) || null,
+        aiRecommendedAction: sanitizeAntiAbuseText((ai as any).recommendedAction || '', 80) || null,
+        aiConfidence: Number.isFinite(Number((ai as any).confidence)) ? Number((ai as any).confidence) : null,
+        metrics,
+        recentEvents,
+      };
+    });
+
+    const filtered = mapped.filter((item) => {
+      if (minRisk != null && (item.aiRiskScore == null || item.aiRiskScore < minRisk)) return false;
+      if (detectionTypeFilter && !String(item.detectionType || '').toLowerCase().includes(detectionTypeFilter)) return false;
+      if (actionFilter && !String(item.enforcementAction || '').toLowerCase().includes(actionFilter)) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      if (sortBy === 'aiRisk') {
+        const av = a.aiRiskScore ?? -1;
+        const bv = b.aiRiskScore ?? -1;
+        return order === 'asc' ? av - bv : bv - av;
+      }
+      const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return order === 'asc' ? at - bt : bt - at;
+    });
+
+    const items = filtered.slice(offset, offset + limit);
+    const total = filtered.length;
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+      sort: sortBy,
+      order,
+      agents,
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'List anti-abuse incidents for admin triage', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/antiabuse/incidents/:id/status', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const id = Number((ctx.params as any)?.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      ctx.set.status = 400;
+      return { error: 'valid incident id is required' };
+    }
+
+    const body = (ctx.body || {}) as any;
+    const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
+    const resolutionNote = sanitizeAntiAbuseText(body.note || '', 800) || null;
+
+    let nextStatus: 'pending' | 'accepted' | 'rejected' | 'archived' = 'pending';
+    if (action === 'resolve' || action === 'solved' || action === 'accepted') {
+      nextStatus = 'accepted';
+    } else if (action === 'dismiss' || action === 'dismissed' || action === 'rejected') {
+      nextStatus = 'rejected';
+    } else if (action === 'archive' || action === 'archived') {
+      nextStatus = 'archived';
+    } else if (action === 'pending' || action === 'reopen' || action === 'open') {
+      nextStatus = 'pending';
+    } else {
+      ctx.set.status = 400;
+      return { error: 'invalid action, expected resolve|dismiss|archive|pending' };
+    }
+
+    const formRepo = AppDataSource.getRepository(ApplicationForm);
+    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+    if (!form) {
+      ctx.set.status = 404;
+      return { error: 'antiabuse incidents form not found' };
+    }
+
+    const row = await submissionRepo.findOne({ where: { id, formId: form.id } as any });
+    if (!row) {
+      ctx.set.status = 404;
+      return { error: 'incident not found' };
+    }
+
+    const meta = (row.meta && typeof row.meta === 'object') ? { ...row.meta } : {};
+    (meta as any).resolution = {
+      action: nextStatus,
+      note: resolutionNote,
+      at: new Date().toISOString(),
+      by: (ctx.user as User | undefined)?.id ?? null,
+    };
+
+    row.status = nextStatus;
+    row.meta = meta;
+    row.reviewedBy = (ctx.user as User | undefined)?.id ?? null;
+    row.reviewedAt = new Date();
+
+    const saved = await submissionRepo.save(row);
+    return {
+      success: true,
+      id: saved.id,
+      status: saved.status,
+      reviewedAt: saved.reviewedAt,
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Update anti-abuse incident status', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/antiabuse/incidents/bulk-status', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const body = (ctx.body || {}) as any;
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+      : [];
+
+    if (ids.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'ids array is required' };
+    }
+
+    const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
+    const resolutionNote = sanitizeAntiAbuseText(body.note || '', 800) || null;
+
+    let nextStatus: 'pending' | 'accepted' | 'rejected' | 'archived' = 'pending';
+    if (action === 'resolve' || action === 'solved' || action === 'accepted') {
+      nextStatus = 'accepted';
+    } else if (action === 'dismiss' || action === 'dismissed' || action === 'rejected') {
+      nextStatus = 'rejected';
+    } else if (action === 'archive' || action === 'archived') {
+      nextStatus = 'archived';
+    } else if (action === 'pending' || action === 'reopen' || action === 'open') {
+      nextStatus = 'pending';
+    } else {
+      ctx.set.status = 400;
+      return { error: 'invalid action, expected resolve|dismiss|archive|pending' };
+    }
+
+    const formRepo = AppDataSource.getRepository(ApplicationForm);
+    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+    if (!form) {
+      ctx.set.status = 404;
+      return { error: 'antiabuse incidents form not found' };
+    }
+
+    const rows = await submissionRepo.findBy({ formId: form.id } as any);
+    const targetIdSet = new Set(ids);
+    const selectedRows = rows.filter((row) => targetIdSet.has(row.id));
+
+    for (const row of selectedRows) {
+      const meta = (row.meta && typeof row.meta === 'object') ? { ...row.meta } : {};
+      (meta as any).resolution = {
+        action: nextStatus,
+        note: resolutionNote,
+        at: new Date().toISOString(),
+        by: (ctx.user as User | undefined)?.id ?? null,
+      };
+
+      row.status = nextStatus;
+      row.meta = meta;
+      row.reviewedBy = (ctx.user as User | undefined)?.id ?? null;
+      row.reviewedAt = new Date();
+    }
+
+    await submissionRepo.save(selectedRows);
+
+    return {
+      success: true,
+      updated: selectedRows.length,
+      requested: ids.length,
+      status: nextStatus,
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Bulk update anti-abuse incident status', tags: ['Admin'] },
+  });
+
+  app.delete(prefix + '/admin/antiabuse/incidents/:id', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const id = Number((ctx.params as any)?.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      ctx.set.status = 400;
+      return { error: 'valid incident id is required' };
+    }
+
+    const formRepo = AppDataSource.getRepository(ApplicationForm);
+    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+    if (!form) {
+      ctx.set.status = 404;
+      return { error: 'antiabuse incidents form not found' };
+    }
+
+    const result = await submissionRepo.delete({ id, formId: form.id } as any);
+    if (!result.affected) {
+      ctx.set.status = 404;
+      return { error: 'incident not found' };
+    }
+
+    return { success: true, deleted: Number(result.affected || 0) };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      response: {
+        200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Delete anti-abuse incident', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/antiabuse/incidents/bulk-delete', async (ctx) => {
+    const access = requireAdminCtxOrAdminApiKey(ctx);
+    if (access !== true) return access;
+
+    const body = (ctx.body || {}) as any;
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+      : [];
+
+    if (ids.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'ids array is required' };
+    }
+
+    const formRepo = AppDataSource.getRepository(ApplicationForm);
+    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+    if (!form) {
+      ctx.set.status = 404;
+      return { error: 'antiabuse incidents form not found' };
+    }
+
+    const result = await submissionRepo
+      .createQueryBuilder()
+      .delete()
+      .from(ApplicationSubmission)
+      .where('formId = :formId', { formId: form.id })
+      .andWhere('id IN (:...ids)', { ids })
+      .execute();
+
+    return {
+      success: true,
+      deleted: Number(result.affected || 0),
+      requested: ids.length,
+    };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      response: {
+        200: t.Object({ success: t.Boolean(), deleted: t.Number(), requested: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Bulk delete anti-abuse incidents', tags: ['Admin'] },
   });
 
   app.post(prefix + '/admin/antiabuse/events', async (ctx) => {
@@ -2468,6 +3175,14 @@ export async function adminRoutes(app: any, prefix = '') {
     const targetIp = sanitizeAntiAbuseText(body.targetIp || '', 80) || null;
     const targetPort = Number(body.targetPort);
     const detectionType = sanitizeAntiAbuseText(body.detectionType || '', 120) || 'unknown';
+    const enforcementAction = sanitizeAntiAbuseText(body.enforcementAction || 'unknown', 60);
+    const strikeCount = Number(body.strikeCount);
+    const suspectedServerIds = Array.isArray(body.suspectedServerIds)
+      ? body.suspectedServerIds.map((v: any) => sanitizeAntiAbuseText(v, 120)).filter(Boolean).slice(0, 20)
+      : [];
+    const suspectedServerNames = Array.isArray(body.suspectedServerNames)
+      ? body.suspectedServerNames.map((v: any) => sanitizeAntiAbuseText(v, 240)).filter(Boolean).slice(0, 20)
+      : [];
     const suspendAttempted = !!body.suspendAttempted;
     const suspendSuccess = !!body.suspendSuccess;
     const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse', 120);
@@ -2510,13 +3225,38 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const metrics = body.metrics && typeof body.metrics === 'object' ? body.metrics : null;
     const events = Array.isArray(body.recentEvents) ? body.recentEvents.slice(-30) : [];
+    const aiAssessment = await runAntiAbuseAiAssessment({
+      serverId,
+      serverName: cfg?.name || null,
+      nodeName,
+      reason,
+      detectionType,
+      sourceIp,
+      targetIp,
+      targetPort: Number.isFinite(targetPort) ? targetPort : null,
+      metrics,
+      recentEvents: events,
+    });
+
+    lines.push(`Enforcement action: ${enforcementAction || 'unknown'}`);
+    if (Number.isFinite(strikeCount)) {
+      lines.push(`Strike count: ${strikeCount}`);
+    }
     if (metrics) {
       lines.push('');
       lines.push(`Metrics: ${sanitizeAntiAbuseText(JSON.stringify(metrics), 4000)}`);
     }
+    if (suspectedServerNames.length > 0) {
+      lines.push('');
+      lines.push(`Suspected servers: ${sanitizeAntiAbuseText(JSON.stringify(suspectedServerNames), 4000)}`);
+    }
     if (events.length > 0) {
       lines.push('');
       lines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
+    }
+    if (aiAssessment) {
+      lines.push('');
+      lines.push(`AI assessment: ${sanitizeAntiAbuseText(JSON.stringify(aiAssessment), 7000)}`);
     }
 
     const created = submissionRepo.create({
@@ -2534,13 +3274,18 @@ export async function adminRoutes(app: any, prefix = '') {
         nodeName,
         reason,
         detectionType,
+        enforcementAction,
+        strikeCount: Number.isFinite(strikeCount) ? strikeCount : null,
         sourceIp,
         targetIp,
         targetPort: Number.isFinite(targetPort) ? targetPort : null,
+        suspectedServerIds,
+        suspectedServerNames,
         suspendAttempted,
         suspendSuccess,
         metrics,
         recentEvents: events,
+        aiAssessment,
         raw: body,
         userAgent: sanitizeAntiAbuseText(ctx.request?.headers?.get?.('user-agent') || '', 500) || null,
       },
@@ -2570,6 +3315,7 @@ export async function adminRoutes(app: any, prefix = '') {
       success: true,
       submissionId: saved.id,
       formId: form.id,
+      aiAssessment,
       emailSent,
       emailError,
     };
