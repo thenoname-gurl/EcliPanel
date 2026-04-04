@@ -58,7 +58,7 @@ frontend/public/assets/icons/*.mp4
 *.pdf
 
 # Systemd unit files
-systemd/*
+#systemd/*
 
 # Anti-abuse service files
 antiabuse/signatures/

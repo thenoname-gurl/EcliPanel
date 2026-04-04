@@ -1,0 +1,18 @@
+#! /bin/sh
+[Unit]
+Description=EcliPanel Anti-Abuse Detector (Rust)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/srv/samba/shared/EcliPanel/v3/antiabuse
+EnvironmentFile=/srv/samba/shared/EcliPanel/v3/antiabuse/.env
+ExecStart=/srv/samba/shared/EcliPanel/v3/antiabuse/target/release/eclipanel-antiabuse
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
