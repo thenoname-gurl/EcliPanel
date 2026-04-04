@@ -7,6 +7,13 @@ function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {})
     out[prefix.replace(/\.$/, '')] = obj;
     return out;
   }
+  if (typeof obj === 'string') {
+    const parsed = Number(obj);
+    if (Number.isFinite(parsed)) {
+      out[prefix.replace(/\.$/, '')] = parsed;
+    }
+    return out;
+  }
   if (typeof obj !== 'object') return out;
   for (const [k, v] of Object.entries(obj)) {
     const p = k === '' ? prefix : (prefix ? `${prefix}.${k}` : k);

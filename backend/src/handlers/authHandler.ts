@@ -1256,6 +1256,8 @@ export async function authRoutes(app: any, prefix = '') {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: userId });
     if (user) {
+      const keepExistingPaidTier = ['paid', 'enterprise'].includes(user.portalType);
+
       user.studentVerified = true;
       user.studentVerifiedAt = new Date();
 
@@ -1276,8 +1278,9 @@ export async function authRoutes(app: any, prefix = '') {
         serverLimit: Math.max(existingLimits.serverLimit || 0, currentBaseLimits.serverLimit || 0, defaultEduLimits.serverLimit),
       };
 
-      if (!['paid', 'enterprise'].includes(user.portalType)) {
+      if (!keepExistingPaidTier) {
         user.portalType = 'educational';
+        user.limits = user.educationLimits ? { ...user.educationLimits } : null;
       }
 
       ctx.log.info({ eduPlan: eduPlan?.id ?? null, portalType: user.portalType, educationLimits: user.educationLimits }, 'Applying Hack Club educational plan limits to user');

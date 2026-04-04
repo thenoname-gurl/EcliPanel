@@ -812,6 +812,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     (user.role === "*" || user.role === "rootAdmin" || user.role === "admin")
   )
   const canMarkStarted = canToggleKvm && server?.status === "starting"
+  const canOpenAdminMode = !!(
+    user &&
+    (user.role === "*" ||
+      user.role === "rootAdmin" ||
+      user.role === "admin" ||
+      user.role === "staff")
+  )
 
   const markServerAsStarted = useCallback(async () => {
     setMarkStartedLoading(true)
@@ -1038,15 +1045,32 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 onTransfer={openTransferDialog}
                 canTransfer={canTransfer}
               />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={loadServer}
-                className="h-9 w-9 p-0 flex-shrink-0"
-                aria-label="Refresh server"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {canOpenAdminMode && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/admin?tab=servers&viewServer=${encodeURIComponent(server?.uuid || id)}`
+                      )
+                    }
+                    className="h-9"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1.5" />
+                    Admin Mode
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={loadServer}
+                  className="h-9 w-9 p-0"
+                  aria-label="Refresh server"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 

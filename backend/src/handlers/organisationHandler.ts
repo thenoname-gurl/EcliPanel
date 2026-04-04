@@ -50,16 +50,20 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   async function listMembersForOrg(organisationId: number) {
     const memberships = await memberRepo.find({ where: { organisationId }, relations: ['user'] });
-    return memberships
-      .filter((m: any) => !!m.user)
-      .map((m: any) => ({
-        id: m.user.id,
-        email: m.user.email,
-        firstName: m.user.firstName,
-        lastName: m.user.lastName,
-        avatarUrl: m.user.avatarUrl,
-        orgRole: m.orgRole,
-      }));
+    return (Array.isArray(memberships) ? memberships : [])
+      .map((m: any) => {
+        const user = m?.user;
+        if (!user || user.id == null) return null;
+        return {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatarUrl: user.avatarUrl,
+          orgRole: m?.orgRole,
+        };
+      })
+      .filter(Boolean);
   }
 
   app.get(prefix + '/organisations', async (ctx: any) => {

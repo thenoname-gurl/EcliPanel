@@ -584,7 +584,26 @@ export async function serverRoutes(app: any, prefix = '') {
       if (cfg && norm && norm.configuration) {
         norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
       }
-      return { ...norm, node: nodeName, sftp: sftpInfo };
+      return {
+        ...norm,
+        node: nodeName,
+        sftp: sftpInfo,
+        ...(isAdmin
+          ? {
+              owner: cfg.userId,
+              userId: cfg.userId,
+              eggId: cfg.eggId ?? null,
+              nodeId: cfg.nodeId,
+              memory: cfg.memory,
+              disk: cfg.disk,
+              cpu: cfg.cpu,
+              swap: cfg.swap,
+              dockerImage: cfg.dockerImage,
+              startup: cfg.startup,
+              description: cfg.description,
+            }
+          : {}),
+      };
     } catch (e: any) {
       if (cfg) {
         try {
@@ -596,7 +615,26 @@ export async function serverRoutes(app: any, prefix = '') {
               normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined),
               cfg,
             );
-            return { ...norm, node: nodeName, sftp: sftpInfo };
+            return {
+              ...norm,
+              node: nodeName,
+              sftp: sftpInfo,
+              ...(isAdmin
+                ? {
+                    owner: cfg.userId,
+                    userId: cfg.userId,
+                    eggId: cfg.eggId ?? null,
+                    nodeId: cfg.nodeId,
+                    memory: cfg.memory,
+                    disk: cfg.disk,
+                    cpu: cfg.cpu,
+                    swap: cfg.swap,
+                    dockerImage: cfg.dockerImage,
+                    startup: cfg.startup,
+                    description: cfg.description,
+                  }
+                : {}),
+            };
           } catch {
             // skip
           }
@@ -618,7 +656,26 @@ export async function serverRoutes(app: any, prefix = '') {
             autoSyncOnEggChange: cfg.autoSyncOnEggChange,
           },
         });
-        return { ...norm, node: nodeName, sftp: sftpInfo };
+        return {
+          ...norm,
+          node: nodeName,
+          sftp: sftpInfo,
+          ...(isAdmin
+            ? {
+                owner: cfg.userId,
+                userId: cfg.userId,
+                eggId: cfg.eggId ?? null,
+                nodeId: cfg.nodeId,
+                memory: cfg.memory,
+                disk: cfg.disk,
+                cpu: cfg.cpu,
+                swap: cfg.swap,
+                dockerImage: cfg.dockerImage,
+                startup: cfg.startup,
+                description: cfg.description,
+              }
+            : {}),
+        };
       }
       ctx.set.status = 502;
       return { error: e.message };
@@ -2555,6 +2612,52 @@ export async function serverRoutes(app: any, prefix = '') {
     beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Node-level stats', tags: ['Servers'] }
+  });
+
+  app.get(prefix + '/servers/:id/stats/node/history', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { window: w = '24h', points: p = '144' } = ctx.query as any;
+    const points = Math.max(12, Math.min(1440, Number(p) || 144));
+
+    try {
+      const mappingRepo = AppDataSource.getRepository(ServerMapping);
+      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+      if (!mapping) {
+        ctx.set.status = 404;
+        return { error: 'No node mapping for server' };
+      }
+
+      const nodeMetricKey = `node:${mapping.node.id}`;
+      const { fetchHistorical } = await import('../services/metricsService');
+      let rows = await fetchHistorical(nodeMetricKey, w, points);
+
+      try {
+        const node = mapping.node;
+        const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+        const latest = await svc.getSystemStats();
+        const liveMetrics = (latest as any)?.data?.stats ?? (latest as any)?.data ?? null;
+        if (liveMetrics && typeof liveMetrics === 'object') {
+          if (rows.length === 0) {
+            rows = [{ timestamp: new Date().toISOString(), metrics: liveMetrics }];
+          } else {
+            rows[rows.length - 1].metrics = liveMetrics;
+            rows[rows.length - 1].timestamp = new Date().toISOString();
+          }
+        }
+      } catch {
+        // skip live merge
+      }
+
+      return rows;
+    } catch (e: any) {
+      console.error('node stats history error', e);
+      ctx.set.status = 500;
+      return { error: 'Unable to build node historical stats' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('servers:read')],
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Node historical stats for server\'s host node', tags: ['Servers'] }
   });
 
   app.get(prefix + '/servers/:id/configuration', async (ctx: any) => {

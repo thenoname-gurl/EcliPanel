@@ -37,6 +37,7 @@ import os from 'os';
 import * as tar from 'tar';
 import { promises as fsp } from 'fs';
 import { normalizeProcessConfig } from '../utils/startupDetection';
+import { SocData } from '../models/socData.entity';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
@@ -498,6 +499,23 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Get global admin metrics time series', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/metrics/clear', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+
+    const repo = AppDataSource.getRepository(SocData);
+    const result = await repo.createQueryBuilder().delete().from(SocData).execute();
+    return { success: true, deleted: Number(result.affected || 0) };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Clear collected metrics data', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/slow-queries', async (ctx) => {
