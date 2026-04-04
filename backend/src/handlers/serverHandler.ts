@@ -2513,11 +2513,82 @@ export async function serverRoutes(app: any, prefix = '') {
   app.get(prefix + '/servers/:id/stats', async (ctx: any) => {
     const { id } = ctx.params as any;
 
+    const withNetworkRates = async (input: any) => {
+      const merged: any = input && typeof input === 'object' ? { ...input } : {};
+
+      const readNumber = (source: any, paths: string[]): number => {
+        for (const path of paths) {
+          const parts = path.split('.');
+          let cur = source;
+          for (const p of parts) {
+            if (cur == null) break;
+            cur = cur[p];
+          }
+          const num = Number(cur);
+          if (Number.isFinite(num)) return num;
+        }
+        return 0;
+      };
+
+      let rxBps = readNumber(merged, ['network.rx_bps', 'network.download_bps']);
+      let txBps = readNumber(merged, ['network.tx_bps', 'network.upload_bps']);
+
+      if (rxBps <= 0) {
+        const rxMbps = readNumber(merged, ['network.rx_mbps', 'network.rx_mbit', 'network.rx_rate_mbps', 'network.download_mbps']);
+        if (rxMbps > 0) rxBps = (rxMbps * 1_000_000) / 8;
+      }
+      if (txBps <= 0) {
+        const txMbps = readNumber(merged, ['network.tx_mbps', 'network.tx_mbit', 'network.tx_rate_mbps', 'network.upload_mbps']);
+        if (txMbps > 0) txBps = (txMbps * 1_000_000) / 8;
+      }
+
+      if (rxBps <= 0 && txBps <= 0) {
+        try {
+          const socRepo = AppDataSource.getRepository(SocData);
+          const rows = await socRepo.find({ where: { serverId: id }, order: { timestamp: 'DESC' }, take: 2 });
+          if (Array.isArray(rows) && rows.length >= 2) {
+            const sorted = [...rows].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            const prev = sorted[0];
+            const last = sorted[1];
+
+            const prevTs = new Date(prev.timestamp).getTime();
+            const lastTs = new Date(last.timestamp).getTime();
+            const deltaSeconds = (lastTs - prevTs) / 1000;
+
+            if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
+              const prevRx = readNumber(prev.metrics ?? {}, ['network.rx_bytes', 'network.rx', 'network.received']);
+              const prevTx = readNumber(prev.metrics ?? {}, ['network.tx_bytes', 'network.tx', 'network.sent']);
+              const lastRx = readNumber(last.metrics ?? {}, ['network.rx_bytes', 'network.rx', 'network.received']);
+              const lastTx = readNumber(last.metrics ?? {}, ['network.tx_bytes', 'network.tx', 'network.sent']);
+
+              rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds;
+              txBps = Math.max(0, lastTx - prevTx) / deltaSeconds;
+            }
+          }
+        } catch {
+          // uwu no netwurk fur u
+        }
+      }
+
+      const network = merged?.network && typeof merged.network === 'object' ? merged.network : {};
+      merged.network = {
+        ...network,
+        rx_bps: Number.isFinite(rxBps) ? rxBps : 0,
+        tx_bps: Number.isFinite(txBps) ? txBps : 0,
+        rx_kbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000 : 0,
+        tx_kbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000 : 0,
+        rx_mbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000_000 : 0,
+        tx_mbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000_000 : 0,
+      };
+
+      return merged;
+    };
+
     try {
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/stats');
       if (res?.data && typeof res.data === 'object') {
-        return extractStats(res.data);
+        return await withNetworkRates(extractStats(res.data));
       }
     } catch (e) {
       // skip
@@ -2525,7 +2596,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     const socRepo = AppDataSource.getRepository(SocData);
     const latest = await socRepo.findOne({ where: { serverId: id }, order: { timestamp: 'DESC' } });
-    return latest?.metrics ?? {};
+    return await withNetworkRates(latest?.metrics ?? {});
   }, {
     beforeHandle: [authenticate, authorize('servers:read')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -2603,7 +2674,86 @@ export async function serverRoutes(app: any, prefix = '') {
       ]);
       const info = infoResult.status === 'fulfilled' ? (infoResult.value.data ?? {}) : {};
       const statsPayload = statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
-      return { ...info, ...(statsPayload.stats ?? {}) };
+
+      const merged: any = { ...info, ...(statsPayload.stats ?? {}) };
+
+      const readNumber = (source: any, paths: string[]): number => {
+        for (const path of paths) {
+          const parts = path.split('.');
+          let cur = source;
+          for (const p of parts) {
+            if (cur == null) break;
+            cur = cur[p];
+          }
+          const num = Number(cur);
+          if (Number.isFinite(num)) return num;
+        }
+        return 0;
+      };
+
+      let rxBps = readNumber(merged, [
+        'network.rx_bps',
+        'network.download_bps',
+      ]);
+      let txBps = readNumber(merged, [
+        'network.tx_bps',
+        'network.upload_bps',
+      ]);
+
+      if (rxBps <= 0) {
+        const directMbps = readNumber(merged, ['network.rx_mbps', 'network.rx_mbit', 'network.rx_rate_mbps', 'network.download_mbps']);
+        if (directMbps > 0) rxBps = (directMbps * 1_000_000) / 8;
+      }
+      if (txBps <= 0) {
+        const directMbps = readNumber(merged, ['network.tx_mbps', 'network.tx_mbit', 'network.tx_rate_mbps', 'network.upload_mbps']);
+        if (directMbps > 0) txBps = (directMbps * 1_000_000) / 8;
+      }
+
+      if (rxBps <= 0 && txBps <= 0) {
+        try {
+          const { fetchHistorical } = await import('../services/metricsService');
+          const nodeMetricKey = `node:${mapping.node.id}`;
+          const rows = await fetchHistorical(nodeMetricKey, '5m', 5);
+          if (Array.isArray(rows) && rows.length >= 2) {
+            const sorted = [...rows]
+              .filter((row: any) => Number.isFinite(new Date(row?.timestamp).getTime()))
+              .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+            if (sorted.length >= 2) {
+              const prev = sorted[sorted.length - 2];
+              const last = sorted[sorted.length - 1];
+              const prevTs = new Date(prev.timestamp).getTime();
+              const lastTs = new Date(last.timestamp).getTime();
+              const deltaSeconds = (lastTs - prevTs) / 1000;
+
+              if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
+                const prevRx = readNumber(prev, ['metrics.network.rx_bytes', 'metrics.network.rx', 'metrics.network.received', 'network.rx_bytes', 'network.rx', 'network.received']);
+                const prevTx = readNumber(prev, ['metrics.network.tx_bytes', 'metrics.network.tx', 'metrics.network.sent', 'network.tx_bytes', 'network.tx', 'network.sent']);
+                const lastRx = readNumber(last, ['metrics.network.rx_bytes', 'metrics.network.rx', 'metrics.network.received', 'network.rx_bytes', 'network.rx', 'network.received']);
+                const lastTx = readNumber(last, ['metrics.network.tx_bytes', 'metrics.network.tx', 'metrics.network.sent', 'network.tx_bytes', 'network.tx', 'network.sent']);
+
+                rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds;
+                txBps = Math.max(0, lastTx - prevTx) / deltaSeconds;
+              }
+            }
+          }
+        } catch {
+          // skippyyyyy
+        }
+      }
+
+      const network = merged?.network && typeof merged.network === 'object' ? merged.network : {};
+      merged.network = {
+        ...network,
+        rx_bps: Number.isFinite(rxBps) ? rxBps : 0,
+        tx_bps: Number.isFinite(txBps) ? txBps : 0,
+        rx_kbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000 : 0,
+        tx_kbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000 : 0,
+        rx_mbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000_000 : 0,
+        tx_mbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000_000 : 0,
+      };
+
+      return merged;
     } catch (e: any) {
       ctx.set.status = 502;
       return { error: 'Unable to retrieve node stats' };

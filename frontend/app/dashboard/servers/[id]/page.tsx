@@ -587,6 +587,40 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
 // ─── Resource Stats ──────────────────────────────────────────────────────────
 
 function ResourceStats({ resources }: { resources: any }) {
+  const prevNetworkRef = useRef<{ tx: number; rx: number; ts: number } | null>(null)
+  const [currentNetMbps, setCurrentNetMbps] = useState({ tx: 0, rx: 0 })
+
+  const formatAdaptiveMbps = useCallback((valueMbps: number) => {
+    const safe = Number.isFinite(valueMbps) ? Math.max(0, valueMbps) : 0
+    if (safe >= 1000) return `${(safe / 1000).toFixed(2)} Gbps`
+    if (safe >= 1) return `${safe.toFixed(2)} Mbps`
+    return `${(safe * 1000).toFixed(2)} Kbps`
+  }, [])
+
+  useEffect(() => {
+    const tx = Number(resources?.network?.tx_bytes ?? 0)
+    const rx = Number(resources?.network?.rx_bytes ?? 0)
+    const now = Date.now()
+
+    const prev = prevNetworkRef.current
+    if (!prev) {
+      prevNetworkRef.current = { tx, rx, ts: now }
+      return
+    }
+
+    const deltaSeconds = (now - prev.ts) / 1000
+    if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
+      const txBps = Math.max(0, tx - prev.tx) / deltaSeconds
+      const rxBps = Math.max(0, rx - prev.rx) / deltaSeconds
+      setCurrentNetMbps({
+        tx: (txBps * 8) / 1_000_000,
+        rx: (rxBps * 8) / 1_000_000,
+      })
+    }
+
+    prevNetworkRef.current = { tx, rx, ts: now }
+  }, [resources?.network?.tx_bytes, resources?.network?.rx_bytes])
+
   if (!resources) return null
 
   const stats = [
@@ -595,7 +629,7 @@ function ResourceStats({ resources }: { resources: any }) {
     { label: "Disk", value: formatBytes(resources.disk_bytes ?? 0), color: "#f59e0b" },
     {
       label: "Net ↑↓",
-      value: `${formatBytes(resources.network?.tx_bytes ?? 0)} / ${formatBytes(resources.network?.rx_bytes ?? 0)}`,
+      value: `${formatAdaptiveMbps(currentNetMbps.tx)} / ${formatAdaptiveMbps(currentNetMbps.rx)}`,
       color: "#22c55e",
     },
   ]
