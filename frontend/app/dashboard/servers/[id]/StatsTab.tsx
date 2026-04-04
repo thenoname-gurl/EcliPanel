@@ -77,6 +77,13 @@ function formatTimeValue(value: number | string) {
   })
 }
 
+function formatAdaptiveMbps(valueMbps: number) {
+  const safe = Number.isFinite(valueMbps) ? Math.max(0, valueMbps) : 0
+  if (safe >= 1000) return `${(safe / 1000).toFixed(2)} Gbps`
+  if (safe >= 1) return `${safe.toFixed(2)} Mbps`
+  return `${(safe * 1000).toFixed(2)} Kbps`
+}
+
 function CustomTooltipContent({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   
@@ -317,15 +324,103 @@ function NetworkChart({ data, recharts }: ChartProps) {
 interface NodeInfoProps {
   nodeInfo: any
   nodeHistory?: any[]
+  recharts?: any
 }
 
-function NodeInfoPanel({ nodeInfo, nodeHistory = [] }: NodeInfoProps) {
+interface NodeChartPoint {
+  ts: number
+  cpu: number
+  memPercent: number
+  diskPercent: number
+}
+
+function NodeUsageChart({ data, recharts }: { data: NodeChartPoint[]; recharts: any }) {
+  const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = recharts
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <AreaChart data={data} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="nodeCpuGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.cpu} stopOpacity={0.25} />
+            <stop offset="95%" stopColor={CHART_COLORS.cpu} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="nodeMemGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.mem} stopOpacity={0.25} />
+            <stop offset="95%" stopColor={CHART_COLORS.mem} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="nodeDiskGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={CHART_COLORS.disk} stopOpacity={0.25} />
+            <stop offset="95%" stopColor={CHART_COLORS.disk} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis
+          dataKey="ts"
+          tickFormatter={(v: any) => formatTimeValue(v)}
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+          tickLine={false}
+          axisLine={false}
+          interval="preserveStartEnd"
+          minTickGap={50}
+        />
+        <YAxis
+          domain={[0, 100]}
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+          tickLine={false}
+          axisLine={false}
+          unit="%"
+          width={40}
+        />
+        <Tooltip content={<CustomTooltipContent />} />
+        <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} iconSize={8} />
+        <Area
+          type="monotone"
+          dataKey="cpu"
+          name="Node CPU"
+          stroke={CHART_COLORS.cpu}
+          fill="url(#nodeCpuGrad)"
+          strokeWidth={2}
+          unit="%"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+        <Area
+          type="monotone"
+          dataKey="memPercent"
+          name="Node Memory"
+          stroke={CHART_COLORS.mem}
+          fill="url(#nodeMemGrad)"
+          strokeWidth={2}
+          unit="%"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+        <Area
+          type="monotone"
+          dataKey="diskPercent"
+          name="Node Disk"
+          stroke={CHART_COLORS.disk}
+          fill="url(#nodeDiskGrad)"
+          strokeWidth={2}
+          unit="%"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) {
   const [expanded, setExpanded] = useState(false)
   const hasNodeInfo = !!nodeInfo && Object.keys(nodeInfo).length > 0
 
   const nodeCpu = nodeInfo?.cpu?.used ?? null
   const nodeMemUsed = nodeInfo?.memory?.used ?? null
   const nodeMemTotal = nodeInfo?.memory?.total ?? null
+  const nodeDiskUsed = nodeInfo?.disk?.used ?? nodeInfo?.storage?.used ?? null
+  const nodeDiskTotal = nodeInfo?.disk?.total ?? nodeInfo?.storage?.total ?? null
 
   const getNodeValue = useCallback((row: any, paths: string[]): number => {
     const source = row?.metrics ?? row ?? {}
@@ -381,6 +476,92 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [] }: NodeInfoProps) {
     }
   }, [nodeHistory, getNodeValue])
 
+  const nodeUsageChartData = useMemo<NodeChartPoint[]>(() => {
+    if (!Array.isArray(nodeHistory) || nodeHistory.length === 0) return []
+
+    return nodeHistory
+      .map((row: any) => {
+        const timestamp = row?.timestamp ? new Date(row.timestamp).getTime() : NaN
+        if (!Number.isFinite(timestamp)) return null
+
+        const cpu = getNodeValue(row, ["cpu.used", "cpu.total", "cpu", "cpu_absolute"])
+        const memUsed = getNodeValue(row, ["memory.used", "memory.current", "memory"])
+        const memTotal = getNodeValue(row, ["memory.total", "memory.limit"])
+        const memPercent = memTotal > 0 ? (memUsed / memTotal) * 100 : 0
+        const diskUsed = getNodeValue(row, ["disk.used", "storage.used", "disk_bytes"])
+        const diskTotal = getNodeValue(row, ["disk.total", "storage.total", "disk.limit"])
+        const diskPercent = diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0
+
+        return {
+          ts: timestamp,
+          cpu: Math.max(0, Math.min(100, Number(cpu.toFixed ? cpu.toFixed(2) : cpu))),
+          memPercent: Math.max(0, Math.min(100, Number(memPercent.toFixed(2)))),
+          diskPercent: Math.max(0, Math.min(100, Number(diskPercent.toFixed(2)))),
+        }
+      })
+      .filter(Boolean) as NodeChartPoint[]
+  }, [nodeHistory, getNodeValue])
+
+  const currentNodeNetMbps = useMemo(() => {
+    const rxBpsDirect = getNodeValue(nodeInfo, [
+      "network.rx_bps",
+      "network.download_bps",
+    ])
+    const txBpsDirect = getNodeValue(nodeInfo, [
+      "network.tx_bps",
+      "network.upload_bps",
+    ])
+
+    if (rxBpsDirect > 0 || txBpsDirect > 0) {
+      return { rx: (rxBpsDirect * 8) / 1_000_000, tx: (txBpsDirect * 8) / 1_000_000 }
+    }
+
+    const rxMbpsDirect = getNodeValue(nodeInfo, [
+      "network.rx_mbps",
+      "network.rx_mbit",
+      "network.rx_rate_mbps",
+      "network.download_mbps",
+    ])
+    const txMbpsDirect = getNodeValue(nodeInfo, [
+      "network.tx_mbps",
+      "network.tx_mbit",
+      "network.tx_rate_mbps",
+      "network.upload_mbps",
+    ])
+
+    if (rxMbpsDirect > 0 || txMbpsDirect > 0) {
+      return { rx: rxMbpsDirect, tx: txMbpsDirect }
+    }
+
+    if (!Array.isArray(nodeHistory) || nodeHistory.length < 2) return { rx: 0, tx: 0 }
+
+    const sorted = [...nodeHistory]
+      .filter((row: any) => Number.isFinite(new Date(row?.timestamp).getTime()))
+      .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+    if (sorted.length < 2) return { rx: 0, tx: 0 }
+
+    const prev = sorted[sorted.length - 2]
+    const last = sorted[sorted.length - 1]
+    const prevTs = new Date(prev.timestamp).getTime()
+    const lastTs = new Date(last.timestamp).getTime()
+    const deltaSeconds = (lastTs - prevTs) / 1000
+    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return { rx: 0, tx: 0 }
+
+    const prevRx = getNodeValue(prev, ["network.rx_bytes", "network.rx", "network.received"])
+    const prevTx = getNodeValue(prev, ["network.tx_bytes", "network.tx", "network.sent"])
+    const lastRx = getNodeValue(last, ["network.rx_bytes", "network.rx", "network.received"])
+    const lastTx = getNodeValue(last, ["network.tx_bytes", "network.tx", "network.sent"])
+
+    const rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds
+    const txBps = Math.max(0, lastTx - prevTx) / deltaSeconds
+
+    return {
+      rx: (rxBps * 8) / 1_000_000,
+      tx: (txBps * 8) / 1_000_000,
+    }
+  }, [nodeInfo, nodeHistory, getNodeValue])
+
   if (!hasNodeInfo) return null
 
   return (
@@ -422,6 +603,15 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [] }: NodeInfoProps) {
                 formatValue={(v) => formatBytes(v)}
               />
             )}
+            {nodeDiskUsed !== null && nodeDiskTotal !== null && (
+              <ProgressStat
+                label="Node Disk"
+                value={nodeDiskUsed}
+                max={nodeDiskTotal}
+                color={CHART_COLORS.disk}
+                formatValue={(v) => formatBytes(v)}
+              />
+            )}
             {(nodeInfo.version || nodeInfo.kernel_version) && (
               <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
                 <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Version</p>
@@ -450,7 +640,20 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [] }: NodeInfoProps) {
                 {formatBytes(nodeHistorySummary.rx24h)} / {formatBytes(nodeHistorySummary.tx24h)}
               </p>
             </div>
+            <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Current Net (↓ / ↑)</p>
+              <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
+                {formatAdaptiveMbps(currentNodeNetMbps.rx)} / {formatAdaptiveMbps(currentNodeNetMbps.tx)}
+              </p>
+            </div>
           </div>
+
+          {recharts && nodeUsageChartData.length > 1 && (
+            <div className="mt-3 sm:mt-4 rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-2">Node Usage (24h)</p>
+              <NodeUsageChart data={nodeUsageChartData} recharts={recharts} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -720,6 +923,34 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   const liveNetRx = liveSource?.network?.rx_bytes ?? 0
   const liveNetTx = liveSource?.network?.tx_bytes ?? 0
 
+  const serverCurrentNetMbps = useMemo(() => {
+    const readNumber = (source: any, paths: string[]) => {
+      for (const path of paths) {
+        const parts = path.split('.')
+        let cur: any = source
+        for (const p of parts) {
+          if (cur == null) break
+          cur = cur[p]
+        }
+        const n = Number(cur)
+        if (Number.isFinite(n)) return n
+      }
+      return 0
+    }
+
+    const rxBps = readNumber(live, ["network.rx_bps", "network.download_bps"]) || readNumber(liveSource, ["network.rx_bps", "network.download_bps"])
+    const txBps = readNumber(live, ["network.tx_bps", "network.upload_bps"]) || readNumber(liveSource, ["network.tx_bps", "network.upload_bps"])
+
+    if (rxBps > 0 || txBps > 0) {
+      return { rx: (rxBps * 8) / 1_000_000, tx: (txBps * 8) / 1_000_000 }
+    }
+
+    const rxMbps = readNumber(live, ["network.rx_mbps", "network.download_mbps"]) || readNumber(liveSource, ["network.rx_mbps", "network.download_mbps"])
+    const txMbps = readNumber(live, ["network.tx_mbps", "network.upload_mbps"]) || readNumber(liveSource, ["network.tx_mbps", "network.upload_mbps"])
+
+    return { rx: Math.max(0, rxMbps), tx: Math.max(0, txMbps) }
+  }, [live, liveSource])
+
   if (loading && !recharts) {
     return <LoadingState message="Loading statistics..." />
   }
@@ -773,12 +1004,14 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
         />
         <MiniStat 
           label="Net ↑" 
-          value={formatBytes(liveNetTx)} 
+          value={formatAdaptiveMbps(serverCurrentNetMbps.tx)} 
+          sub={formatBytes(liveNetTx)}
           color={CHART_COLORS.tx} 
         />
         <MiniStat 
           label="Net ↓" 
-          value={formatBytes(liveNetRx)} 
+          value={formatAdaptiveMbps(serverCurrentNetMbps.rx)} 
+          sub={formatBytes(liveNetRx)}
           color={CHART_COLORS.rx} 
         />
       </CardGrid>
@@ -863,7 +1096,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
         </div>
       )}
 
-      <NodeInfoPanel nodeInfo={nodeInfo} nodeHistory={nodeHistory} />
+      <NodeInfoPanel nodeInfo={nodeInfo} nodeHistory={nodeHistory} recharts={recharts} />
     </div>
   )
 }
