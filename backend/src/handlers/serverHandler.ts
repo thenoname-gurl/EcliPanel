@@ -20,6 +20,7 @@ import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { getGeoBlockLevel } from '../utils/eu';
+import { notifyServerOwnerSuspended } from '../utils/suspensionNotice';
 import { t } from 'elysia';
 import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
@@ -100,6 +101,12 @@ export async function serverRoutes(app: any, prefix = '') {
     if (max <= min) return min;
     const rnd = Math.random();
     return Math.floor(rnd * (max - min + 1)) + min;
+  }
+
+  function buildSuspendedServerMessage(cfg: ServerConfig): string {
+    const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
+    const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+    return `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`;
   }
 
   function drawBlackjackCardValue(): number {
@@ -487,14 +494,16 @@ export async function serverRoutes(app: any, prefix = '') {
     const meta = cfg.meta || {};
     const build = cfg.build || {};
     const ctr = cfg.container || cfg.docker || {};
-    const status = overrideStatus ?? raw.state ?? raw.status ?? 'unknown';
+    const isSuspended = Boolean(raw.is_suspended ?? raw.suspended ?? cfg.suspended ?? false);
+    const baseStatus = overrideStatus ?? raw.state ?? raw.status ?? 'unknown';
+    const status = isSuspended ? 'suspended' : baseStatus;
     return {
       uuid: cfg.uuid || raw.uuid,
       name: meta.name || raw.name || cfg.uuid || raw.uuid,
       description: meta.description || raw.description,
       status,
       hibernated: status === 'hibernated',
-      is_suspended: raw.is_suspended ?? false,
+      is_suspended: isSuspended,
       resources: raw.utilization || raw.resources || null,
       build: {
         memory_limit: build.memory_limit ?? 0,
@@ -1293,21 +1302,87 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/suspend', async (ctx: any) => {
     const { id } = ctx.params as any;
     try {
+      const body = (ctx.body || {}) as any;
+      const providedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      const providedSource = typeof body.source === 'string' ? body.source.trim() : '';
+      const user = ctx.user;
+      const userName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+      const actor = providedSource || userName || user?.email || 'system';
+      const reason = providedReason || 'Suspended by panel moderation action';
+
       const svc = await serviceFor(id);
       await svc.powerServer(id, 'kill').catch(() => { });
       await svc.syncServer(id, { suspended: true });
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      await cfgRepo.update({ uuid: id }, { suspended: true });
-      const user = ctx.user;
-      await createActivityLog({ userId: user.id, action: 'server:suspend', targetId: id, targetType: 'server', ipAddress: ctx.ip });
-      return { success: true };
+      const existingCfg = await cfgRepo.findOneBy({ uuid: id });
+      const alreadySuspended = !!existingCfg?.suspended;
+      await cfgRepo.update(
+        { uuid: id },
+        { suspended: true, suspendedBy: actor, suspendedReason: reason, suspendedAt: new Date() },
+      );
+
+      let notice: {
+        sent: boolean;
+        skipped: boolean;
+        reason?: string;
+        recipient?: string;
+      } = {
+        sent: false,
+        skipped: true,
+        reason: 'owner notification not attempted',
+        recipient: undefined,
+      };
+
+      if (!alreadySuspended && existingCfg) {
+        notice = await notifyServerOwnerSuspended({
+          cfg: existingCfg,
+          actor,
+          reason,
+          suspendedAt: new Date(),
+        });
+        if (!notice.sent && !notice.skipped) {
+          console.warn('[server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
+        }
+      } else if (alreadySuspended) {
+        notice.reason = 'server already suspended';
+      }
+
+      if (user?.id) {
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:suspend',
+          targetId: id,
+          targetType: 'server',
+          metadata: { reason, suspendedBy: actor },
+          ipAddress: ctx.ip,
+        });
+      }
+      return {
+        success: true,
+        emailSent: notice.sent,
+        emailSkipped: notice.skipped,
+        emailReason: notice.reason || null,
+        emailRecipient: notice.recipient || null,
+      };
     } catch (e: any) {
       ctx.set.status = 502;
       return { error: e.message };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    body: t.Optional(t.Object({ reason: t.Optional(t.String()), source: t.Optional(t.String()) })),
+    response: {
+      200: t.Object({
+        success: t.Boolean(),
+        emailSent: t.Boolean(),
+        emailSkipped: t.Boolean(),
+        emailReason: t.Nullable(t.String()),
+        emailRecipient: t.Nullable(t.String()),
+      }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      502: t.Object({ error: t.String() }),
+    },
     detail: { summary: 'Suspend a server', tags: ['Servers'] }
   });
 
@@ -1317,7 +1392,10 @@ export async function serverRoutes(app: any, prefix = '') {
       const svc = await serviceFor(id);
       await svc.syncServer(id, { suspended: false });
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      await cfgRepo.update({ uuid: id }, { suspended: false });
+      await cfgRepo.update(
+        { uuid: id },
+        { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
+      );
       const user = ctx.user;
       await createActivityLog({ userId: user.id, action: 'server:unsuspend', targetId: id, targetType: 'server', ipAddress: ctx.ip });
       return { success: true };
@@ -2281,6 +2359,11 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/servers/:id/console', async (ctx: any) => {
     const { id } = ctx.params as any;
+    const cfg = await cfgRepo().findOneBy({ uuid: id });
+    if (cfg?.suspended) {
+      ctx.set.status = 403;
+      return { error: buildSuspendedServerMessage(cfg) };
+    }
     try {
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/console');
@@ -3063,6 +3146,11 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Server not found' };
     }
 
+    if (cfg.suspended) {
+      ctx.set.status = 403;
+      return { error: buildSuspendedServerMessage(cfg) };
+    }
+
     const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
     if (!node) {
       ctx.set.status = 500;
@@ -3162,6 +3250,11 @@ export async function serverRoutes(app: any, prefix = '') {
     if (!cfg) {
       ctx.set.status = 404;
       return { error: 'Server not found' };
+    }
+
+    if (cfg.suspended) {
+      ctx.set.status = 403;
+      return { error: buildSuspendedServerMessage(cfg) };
     }
 
     const node = await nodeRepo().findOneBy({ id: cfg.nodeId });

@@ -607,8 +607,15 @@ export async function remoteRoutes(app: any, prefix: string) {
       }
 
       if (cfg.suspended) {
+        const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
+        const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
         ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Server is suspended' }] };
+        return {
+          errors: [{
+            code: 'Forbidden',
+            detail: `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`,
+          }],
+        };
       }
 
       ctx.set.status = 200;

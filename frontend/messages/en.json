@@ -1000,6 +1000,7 @@
       "eggs": "Eggs",
       "aiModels": "AI Models",
       "announcements": "Announcements",
+      "antiabuse": "Anti-Abuse",
       "fraud": "Fraud",
       "roles": "Roles",
       "logs": "Logs",
@@ -1008,6 +1009,82 @@
       "plans": "Plans",
       "orders": "Orders",
       "settings": "Settings"
+    }
+  },
+  "adminAntiAbuseTab": {
+    "header": {
+      "title": "Anti-Abuse Incidents",
+      "subtitle": "Recent detections with AI risk triage"
+    },
+    "summary": {
+      "total": "Total incidents",
+      "highRisk": "High risk (80+)",
+      "suspended": "Suspended",
+      "liveFeed": "Live feed from anti-abuse daemon",
+      "activeAgents": "Active agents"
+    },
+    "agents": {
+      "title": "Running anti-abuse agents",
+      "none": "No active anti-abuse agents detected",
+      "lastSeenAgo": "last seen {seconds}s ago"
+    },
+    "filters": {
+      "sort": "Sort by",
+      "sortRisk": "AI risk",
+      "sortCreated": "Created at",
+      "order": "Order",
+      "desc": "Descending",
+      "asc": "Ascending",
+      "minRisk": "Min risk"
+    },
+    "labels": {
+      "risk": "Risk",
+      "detection": "Detection",
+      "action": "Action",
+      "strikes": "Strikes",
+      "time": "Time",
+      "source": "Source",
+      "target": "Target",
+      "suspend": "Suspended",
+      "aiAction": "AI action",
+      "status": "Status",
+      "attachedCandidates": "Attached server candidates"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "apply": "Apply",
+      "markSolved": "Mark solved",
+      "dismiss": "Dismiss",
+      "delete": "Delete",
+      "selectAllVisible": "Select visible",
+      "clearSelection": "Clear selection",
+      "bulkResolve": "Resolve ({count})",
+      "bulkDismiss": "Reject ({count})",
+      "bulkArchive": "Archive ({count})",
+      "bulkDelete": "Delete ({count})"
+    },
+    "confirm": {
+      "deleteOne": "Delete this incident? This cannot be undone.",
+      "bulkDelete": "Delete {count} selected incident(s)? This cannot be undone."
+    },
+    "states": {
+      "loading": "Loading incidents…",
+      "empty": "No incidents found for current filters",
+      "saving": "Saving..."
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "common": {
+      "unknownServer": "Unknown server",
+      "noReason": "No reason provided",
+      "yes": "Yes",
+      "no": "No",
+      "pending": "pending",
+      "na": "N/A"
     }
   },
   "adminExportJobsTab": {
@@ -1925,10 +2002,13 @@
       "deleteForm": "Failed to delete form",
       "createInvite": "Failed to create invite",
       "revokeInvite": "Failed to revoke invite",
-      "updateSubmission": "Failed to update submission"
+      "updateSubmission": "Failed to update submission",
+      "deleteSubmission": "Failed to delete submission"
     },
     "confirm": {
-      "deleteFormWithSubmissions": "Delete this form and all submissions?"
+      "deleteFormWithSubmissions": "Delete this form and all submissions?",
+      "deleteSubmission": "Delete this submission? This cannot be undone.",
+      "bulkDeleteSubmissions": "Delete {count} selected submission(s)? This cannot be undone."
     },
     "forms": {
       "title": "Forms",
@@ -2062,7 +2142,11 @@
       "accept": "Accept",
       "reject": "Reject",
       "archive": "Archive",
-      "reset": "Reset"
+      "reset": "Reset",
+      "delete": "Delete",
+      "selectVisible": "Select visible",
+      "clearSelection": "Clear selection",
+      "bulkDeleteSubmissions": "Delete selected ({count})"
     }
   },
   "adminDatabaseHostsPanel": {
@@ -3466,6 +3550,8 @@
       }
     },
     "kvm": {
+      "bannerTitle": "KVM Virtualization Active",
+      "bannerDescription": "This server runs as a full virtual machine. File management and console may behave differently than container-based servers.",
       "filesNotice": "KVM filesystem is managed by cloud-init. Files shown here may not reflect the guest VM's actual filesystem. Use SSH/SFTP to access the VM directly.",
       "killWarning": "Killing a KVM virtual machine is equivalent to pulling the power plug. The guest OS will not shut down gracefully.",
       "transferNotice": "Transferring a KVM server requires both nodes to support KVM passthrough. The VM disk image will be migrated."

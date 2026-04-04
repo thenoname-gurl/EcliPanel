@@ -194,6 +194,8 @@ function SectionHeader({
 }
 
 function KvmBanner({ compact = false }: { compact?: boolean }) {
+  const t = useTranslations("serverDetailPage")
+
   return (
     <div
       className={cn(
@@ -212,7 +214,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className={cn("font-medium text-indigo-300", compact ? "text-xs" : "text-sm")}>
-            KVM Virtualization Active
+            {t("kvm.bannerTitle")}
           </p>
           <p
             className={cn(
@@ -220,8 +222,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
               compact ? "text-[11px]" : "text-xs"
             )}
           >
-            This server runs as a full virtual machine. File management and console may behave
-            differently than container-based servers.
+            {t("kvm.bannerDescription")}
           </p>
         </div>
       </div>
