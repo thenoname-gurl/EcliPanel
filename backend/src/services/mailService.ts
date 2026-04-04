@@ -58,18 +58,14 @@ function extractAddress(value: nodemailer.SendMailOptions['from']) {
 
 function htmlToText(html: string) {
   return html
-    // Convert common block/line break tags to newlines first
     .replace(/<br\s*\/?\s*>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n')
-    // Strip any remaining HTML tags
     .replace(/<[^>]+>/g, '')
-    // Decode a few common HTML entities
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    // Normalize excessive blank lines
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
