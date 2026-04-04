@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { THEMES, applyTheme } from "@/lib/themes"
 import { Loader2 } from "lucide-react"
+import { locales, type AppLocale } from "@/i18n/config"
 
 interface User {
   id: number
@@ -66,6 +67,13 @@ function applyUserTheme(user: User | null | undefined): void {
   if (theme) {
     applyTheme(theme)
   }
+}
+
+function applyUserLocale(user: User | null | undefined): void {
+  if (typeof document === "undefined") return
+  const locale = user?.settings?.locale
+  if (!locale || !locales.includes(locale as AppLocale)) return
+  document.cookie = `locale=${locale}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`
 }
 
 function getUrlParams(): URLSearchParams {
@@ -185,6 +193,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (session?.user) {
         setUser(session.user)
         applyUserTheme(session.user)
+        applyUserLocale(session.user)
         setAuthState("authenticated")
       } else {
         setUser(null)
@@ -221,6 +230,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.user) {
         setUser(data.user)
         applyUserTheme(data.user)
+        applyUserLocale(data.user)
         setAuthState("authenticated")
 
         guideCheckPerformed.current = false
@@ -282,6 +292,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (data?.user) {
           setUser(data.user)
           applyUserTheme(data.user)
+          applyUserLocale(data.user)
           setAuthState("authenticated")
 
           handleStudentVerificationCallback()

@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import {
   CreditCard,
@@ -25,6 +26,7 @@ const HACKCLUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLE
 const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED === 'true'
 
 export default function BillingPage() {
+  const t = useTranslations("billingPage")
   const { user, refreshUser } = useAuth()
   const currentUser = user as any
   const [orders, setOrders] = useState<any[]>([])
@@ -40,14 +42,14 @@ export default function BillingPage() {
   const [billingTaxRules, setBillingTaxRules] = useState("")
 
   const portalMarkerByTier: Record<string, string> = {
-    free: "Free Portal",
-    paid: "Paid Portal",
-    educational: "Educational Portal",
-    enterprise: "Enterprise Portal",
+    free: t("portal.free"),
+    paid: t("portal.paid"),
+    educational: t("portal.educational"),
+    enterprise: t("portal.enterprise"),
   }
   const getPortalMarker = (tier?: string) => {
-    if (!tier) return "Free Portal"
-    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
+    if (!tier) return t("portal.free")
+    return portalMarkerByTier[String(tier).toLowerCase()] ?? t("portal.free")
   }
 
   const userPlanType = (currentUser?.portalType ?? currentUser?.tier ?? 'free').toString().toLowerCase()
@@ -56,7 +58,7 @@ export default function BillingPage() {
   const activeTierLabel = activeTierRaw === 'educational' ? 'educational' : activeTierRaw
   const currentPlan = PORTALS[activeTierEffective] ?? PORTALS.free
 
-  const userPlanLabel = userPlanType === 'enterprise' ? 'Enterprise Portal' : getPortalMarker(userPlanType)
+  const userPlanLabel = userPlanType === 'enterprise' ? t("portal.enterprise") : getPortalMarker(userPlanType)
   const activePlanTitle = activePlan?.plan?.name ?? userPlanLabel
   const activePlanType = activePlan?.plan?.type ?? userPlanType
   const normalizedCurrency = sanitizeCurrencyCode(billingCurrency)
@@ -70,13 +72,13 @@ export default function BillingPage() {
     ? activePlan.plan.type === 'enterprise'
       ? activePlan.order?.amount
         ? formatPrice(Number(activePlan.order.amount), true)
-        : 'Price Varies'
+        : t("pricing.priceVaries")
       : formatPrice(Number(activePlan.plan.price ?? 0), true)
     : currentPlan.id === 'free'
       ? formatPrice(0, true)
       : currentPlan.id === 'paid'
         ? formatPrice(12, true)
-        : 'Custom'
+        : t("pricing.custom")
   const activeBaseMonthly = activePlan
     ? activePlan.plan.type === 'enterprise'
       ? (activePlan.order?.amount != null ? Number(activePlan.order.amount) : null)
@@ -158,7 +160,7 @@ export default function BillingPage() {
       id: tier || String(plan.id),
       type: tier,
       effectiveType: tierEffective,
-      name: plan.name || portalConfig?.name || "Custom Plan",
+      name: plan.name || portalConfig?.name || t("pricing.customPlan"),
       description: plan.description || portalConfig?.description || "",
       features: featuresFromPlan,
       color: portalConfig?.color,
@@ -201,7 +203,7 @@ export default function BillingPage() {
       setDemoUsed(true)
       refreshUser()
     } catch (err: any) {
-      setDemoError(err.message || 'Failed to start demo mode')
+      setDemoError(err.message || t("demo.errors.failedStart"))
     } finally {
       setDemoLoading(false)
     }
@@ -216,9 +218,9 @@ export default function BillingPage() {
       })
       setDemoActiveUntil(null)
       refreshUser()
-      toast({ title: 'Demo ended', description: 'Your demo session has ended and your account is restored.' })
+      toast({ title: t("demo.toast.endedTitle"), description: t("demo.toast.endedDescription") })
     } catch (err: any) {
-      setDemoError(err.message || 'Failed to finish demo mode')
+      setDemoError(err.message || t("demo.errors.failedFinish"))
     } finally {
       setDemoLoading(false)
     }
@@ -234,7 +236,7 @@ export default function BillingPage() {
     <FeatureGuard feature="billing">
       <>
         <div data-guide-id="billing-panel">
-        <PanelHeader title="Billing" description="Manage your subscription and payment methods" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
       </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
@@ -244,33 +246,30 @@ export default function BillingPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Demo Mode</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{t("demo.title")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Demo mode simulates temporary enterprise access with limited resources
-                      and provides limited accessibility to AI models such as openai/gpt-oss-20b which 
-                      can be used in AI Studio, AI Chat or for AI assistant (inline suggestions) features.
-                      Intended for testing and evaluation purposes before purchasing enterprise plan.
+                      {t("demo.description")}
                     </p>
                   </div>
-                  <span className="rounded-full bg-warning/20 px-3 py-1 text-xs font-semibold text-warning">Demo</span>
+                  <span className="rounded-full bg-warning/20 px-3 py-1 text-xs font-semibold text-warning">{t("demo.badge")}</span>
                 </div>
                 {demoActive ? (
-                  <p className="text-sm text-muted-foreground">Your demo expires at <span className="font-medium text-foreground">{new Date(demoActiveUntil!).toLocaleString()}</span>.</p>
+                  <p className="text-sm text-muted-foreground">{t("demo.expiresAt")} <span className="font-medium text-foreground">{new Date(demoActiveUntil!).toLocaleString()}</span>.</p>
                 ) : demoExpired ? (
-                  <p className="text-sm text-muted-foreground">Your demo has expired. You can no longer start a new demo.</p>
+                  <p className="text-sm text-muted-foreground">{t("demo.expired")}</p>
                 ) : demoUsed ? (
-                  <p className="text-sm text-muted-foreground">Demo mode has already been used for this account. Contact support if you believe this is a mistake.</p>
+                  <p className="text-sm text-muted-foreground">{t("demo.used")}</p>
                 ) : null}
                 {demoError && <p className="text-sm text-destructive">{demoError}</p>}
                 <p className="text-sm text-muted-foreground">
-                  Demo mode is a temporary sandbox. Changes made during demo may not persist after it ends, and infrastructure actions are limited.
+                  {t("demo.footnote")}
                 </p>
                 <button
                   onClick={demoActive ? finishDemo : startDemo}
                   disabled={(demoUsed && !demoActive) || demoLoading}
                   className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {demoLoading ? (demoActive ? 'Finishing…' : 'Starting…') : demoActive ? 'End Demo' : demoUsed ? 'Demo Used' : 'Start Demo'}
+                  {demoLoading ? (demoActive ? t("demo.actions.finishing") : t("demo.actions.starting")) : demoActive ? t("demo.actions.endDemo") : demoUsed ? t("demo.actions.demoUsed") : t("demo.actions.startDemo")}
                 </button>
               </div>
             </div>
@@ -279,53 +278,53 @@ export default function BillingPage() {
           {/* Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 max-w-[100vw] w-full box-border">
             <StatCard
-              title="Current Plan"
+              title={t("stats.currentPlan")}
               value={activePlanTitle}
               icon={CreditCard}
             />
             <StatCard
-              title="Monthly Cost"
+              title={t("stats.monthlyCost")}
               value={activePlanPrice}
               icon={DollarSign}
               subtitle={
                 activePlan?.plan?.type === 'enterprise' && !activePlan?.order?.amount
-                  ? 'Price from order or contact sales'
+                  ? t("stats.priceFromOrder")
                   : taxRate > 0
-                    ? `Includes ${taxRate}% tax for ${currentUser?.billingCountry || 'your billing country'}`
+                    ? t("stats.includesTax", { taxRate: taxRate.toString(), country: currentUser?.billingCountry || t("stats.yourBillingCountry") })
                     : undefined
               }
             />
-            <StatCard title="Total Invoices" value={ordersLoading ? '...' : String(orders.length)} icon={Receipt} />
+            <StatCard title={t("stats.totalInvoices")} value={ordersLoading ? '...' : String(orders.length)} icon={Receipt} />
             <StatCard
-              title="Plan Expires"
-              value={activePlan?.order?.expiresAt ? new Date(activePlan.order.expiresAt).toLocaleDateString() : 'N/A'}
+              title={t("stats.planExpires")}
+              value={activePlan?.order?.expiresAt ? new Date(activePlan.order.expiresAt).toLocaleDateString() : t("common.na")}
               icon={Calendar}
-              subtitle={activePlan ? undefined : "Managed via sales"}
+              subtitle={activePlan ? undefined : t("stats.managedViaSales")}
             />
           </div>
 
           {/* Tax Information */}
           <div className="rounded-xl border border-border bg-card p-5 min-w-0 box-border overflow-hidden">
             <SectionHeader
-              title="Tax Information"
-              description="Calculated from your billing country and panel tax rules"
+              title={t("tax.title")}
+              description={t("tax.description")}
             />
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
               <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Billing Country</p>
-                <p className="text-foreground font-medium">{currentUser?.billingCountry || 'Not set'}</p>
+                <p className="text-xs text-muted-foreground">{t("tax.billingCountry")}</p>
+                <p className="text-foreground font-medium">{currentUser?.billingCountry || t("tax.notSet")}</p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Tax Rate</p>
+                <p className="text-xs text-muted-foreground">{t("tax.taxRate")}</p>
                 <p className="text-foreground font-medium">{taxRate.toFixed(2)}%</p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Pre-Tax Monthly</p>
-                <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.base, normalizedCurrency) : 'N/A'}</p>
+                <p className="text-xs text-muted-foreground">{t("tax.preTaxMonthly")}</p>
+                <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.base, normalizedCurrency) : t("common.na")}</p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Tax Amount</p>
-                <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.tax, normalizedCurrency) : 'N/A'}</p>
+                <p className="text-xs text-muted-foreground">{t("tax.taxAmount")}</p>
+                <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.tax, normalizedCurrency) : t("common.na")}</p>
               </div>
             </div>
           </div>
@@ -334,14 +333,14 @@ export default function BillingPage() {
           {activePlan && (
             <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
               <SectionHeader
-                title="Your Active Subscription"
-                description={activePlan.plan.description || "Plan applied by administrator"}
+                title={t("activeSubscription.title")}
+                description={activePlan.plan.description || t("activeSubscription.descriptionFallback")}
                 action={
                   <a
                     href="mailto:sales@ecli.app"
                     className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
                   >
-                    Manage Subscription
+                    {t("activeSubscription.manage")}
                   </a>
                 }
               />
@@ -362,25 +361,25 @@ export default function BillingPage() {
                     </ul>
                   )}
                   <div className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
-                    <p>Configured limits:</p>
+                    <p>{t("activeSubscription.configuredLimits")}</p>
                     <ul className="mt-1 space-y-1">
-                      <li>Memory: <span className="text-foreground font-medium">{activePlan.plan.memory ?? currentUser?.limits?.memory ?? 'unlimited'}</span></li>
-                      <li>Disk: <span className="text-foreground font-medium">{activePlan.plan.disk ?? currentUser?.limits?.disk ?? 'unlimited'}</span></li>
-                      <li>CPU: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? currentUser?.limits?.cpu ?? 'unlimited'}</span></li>
-                      <li>Server limit: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? currentUser?.limits?.serverLimit ?? 'unlimited'}</span></li>
-                      <li>Databases: <span className="text-foreground font-medium">{activePlan.plan.databases ?? currentUser?.limits?.databases ?? 'unlimited'}</span></li>
-                      <li>Backups: <span className="text-foreground font-medium">{activePlan.plan.backups ?? currentUser?.limits?.backups ?? 'unlimited'}</span></li>
+                      <li>{t("activeSubscription.memory")}: <span className="text-foreground font-medium">{activePlan.plan.memory ?? currentUser?.limits?.memory ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.disk")}: <span className="text-foreground font-medium">{activePlan.plan.disk ?? currentUser?.limits?.disk ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.cpu")}: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? currentUser?.limits?.cpu ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.serverLimit")}: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? currentUser?.limits?.serverLimit ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.databases")}: <span className="text-foreground font-medium">{activePlan.plan.databases ?? currentUser?.limits?.databases ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.backups")}: <span className="text-foreground font-medium">{activePlan.plan.backups ?? currentUser?.limits?.backups ?? t("common.unlimited")}</span></li>
                     </ul>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-2xl font-bold text-primary">
                     {activePlanPrice}
-                    {activePlanType !== 'enterprise' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
+                    {activePlanType !== 'enterprise' && <span className="text-sm font-normal text-muted-foreground">{t("common.perMonth")}</span>}
                   </p>
                   {activePlanExpires && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Renews {new Date(activePlanExpires).toLocaleDateString()}
+                      {t("activeSubscription.renews")} {new Date(activePlanExpires).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -391,14 +390,14 @@ export default function BillingPage() {
           {/* Current Plan */}
           <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
             <SectionHeader
-              title="Current Subscription"
-              description="Your active plan and features. To upgrade or change, contact your administrator."
+              title={t("currentSubscription.title")}
+              description={t("currentSubscription.description")}
               action={
                 <a
                   href="mailto:sales@ecli.app"
                   className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
                 >
-                  Request Change
+                  {t("currentSubscription.requestChange")}
                 </a>
               }
             />
@@ -421,16 +420,16 @@ export default function BillingPage() {
                         {getPortalMarker(planCard.type === 'educational' ? 'educational' : planCard.type)}
                       </Badge>
                       {planCard.isActive && (
-                        <Badge className="bg-primary/20 text-primary border-0 text-[10px]">Active</Badge>
+                        <Badge className="bg-primary/20 text-primary border-0 text-[10px]">{t("currentSubscription.active")}</Badge>
                       )}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{planCard.description}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {planCard.type === 'enterprise'
-                        ? 'Price Varies'
+                        ? t("pricing.priceVaries")
                         : planCard.price != null
-                          ? `${formatPrice(Number(planCard.price), true)}/mo${taxRate > 0 ? ` (incl. ${taxRate}% tax)` : ''}`
-                          : 'Contact Sales'}
+                          ? `${formatPrice(Number(planCard.price), true)}${t("common.perMonth")}${taxRate > 0 ? ` (${t("pricing.inclTax", { taxRate: taxRate.toString() })})` : ''}`
+                          : t("currentSubscription.contactSales")}
                     </p>
                     <ul className="mt-3 flex flex-col gap-1.5">
                       {planCard.features.map((feature: string) => (
@@ -450,12 +449,12 @@ export default function BillingPage() {
                             const res:any = await apiFetch(endpoint, { method: 'GET' })
                             if (res?.redirect) window.location.href = res.redirect
                           } catch (e:any) {
-                            alert(e?.message || 'Failed to start student verification flow')
+                            alert(e?.message || t("errors.failedStudentVerification"))
                           }
                         }}
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
-                        Connect {HACKCLUB_STUDENT_ENABLED ? 'Hack Club' : 'GitHub'}
+                        {t("currentSubscription.connect")} {HACKCLUB_STUDENT_ENABLED ? 'Hack Club' : 'GitHub'}
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     )}
@@ -464,7 +463,7 @@ export default function BillingPage() {
                         href="mailto:sales@ecli.app"
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
-                        Contact Sales
+                        {t("currentSubscription.contactSales")}
                         <ArrowRight className="h-3 w-3" />
                       </a>
                     )}
@@ -473,7 +472,7 @@ export default function BillingPage() {
               })}
               {livePlanCards.length > 0 && subscriptionCards.length === 0 && (
                 <div className="rounded-xl border border-border bg-secondary/20 p-5 text-sm text-muted-foreground lg:col-span-3">
-                  No plans are currently visible in billing showcase.
+                  {t("currentSubscription.noPlansVisible")}
                 </div>
               )}
             </div>
@@ -482,27 +481,27 @@ export default function BillingPage() {
           <div className="rounded-xl border border-border bg-card">
             <div className="border-b border-border p-5">
               <SectionHeader
-                title="Invoice History"
-                description={`Past payments and invoices${taxRate > 0 ? ` · Tax rate ${taxRate.toFixed(2)}% (${currentUser?.billingCountry || 'billing country'})` : ''}`}
+                title={t("invoices.title")}
+                description={`${t("invoices.descriptionBase")}${taxRate > 0 ? ` · ${t("invoices.taxRate", { taxRate: taxRate.toFixed(2), country: currentUser?.billingCountry || t("invoices.billingCountry") })}` : ''}`}
               />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-5 py-3 text-left font-medium">Invoice</th>
-                    <th className="px-5 py-3 text-left font-medium">Description</th>
-                    <th className="px-5 py-3 text-left font-medium">Date</th>
-                    <th className="px-5 py-3 text-left font-medium">Amount (Tax Incl.)</th>
-                    <th className="px-5 py-3 text-left font-medium">Status</th>
-                    <th className="px-5 py-3 text-right font-medium">Actions</th>
+                    <th className="px-5 py-3 text-left font-medium">{t("invoices.columns.invoice")}</th>
+                    <th className="px-5 py-3 text-left font-medium">{t("invoices.columns.description")}</th>
+                    <th className="px-5 py-3 text-left font-medium">{t("invoices.columns.date")}</th>
+                    <th className="px-5 py-3 text-left font-medium">{t("invoices.columns.amountTaxIncl")}</th>
+                    <th className="px-5 py-3 text-left font-medium">{t("invoices.columns.status")}</th>
+                    <th className="px-5 py-3 text-right font-medium">{t("invoices.columns.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ordersLoading ? (
-              <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">Loading orders...</td></tr>
+              <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">{t("invoices.loading")}</td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">No orders found.</td></tr>
+              <tr><td colSpan={6} className="px-5 py-3 text-center text-sm text-muted-foreground">{t("invoices.empty")}</td></tr>
             ) : orders.map((invoice) => {
                     const invoiceBase = Number(invoice.amount ?? 0)
                     const invoiceBreakdown = applyTax(invoiceBase, taxRate)
@@ -514,12 +513,12 @@ export default function BillingPage() {
                       <td className="px-5 py-3">
                         <div className="font-mono text-sm text-foreground">{formatMoney(invoiceBreakdown.total, normalizedCurrency)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {formatMoney(invoiceBreakdown.base, normalizedCurrency)} + {formatMoney(invoiceBreakdown.tax, normalizedCurrency)} tax
+                          {formatMoney(invoiceBreakdown.base, normalizedCurrency)} + {formatMoney(invoiceBreakdown.tax, normalizedCurrency)} {t("invoices.tax")}
                         </div>
                       </td>
                       <td className="px-5 py-3">
                         <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-xs">
-                          Paid
+                          {t("invoices.paid")}
                         </Badge>
                       </td>
                       <td className="px-5 py-3 text-right">
@@ -527,7 +526,7 @@ export default function BillingPage() {
                           onClick={async () => {
                             try {
                               const res = await fetch(`/api/orders/${invoice.id}/invoice`, { credentials: 'include' });
-                              if (!res.ok) throw new Error('Failed to fetch invoice');
+                              if (!res.ok) throw new Error(t("errors.failedFetchInvoice"));
                               const blob = await res.blob();
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement('a');
@@ -539,7 +538,7 @@ export default function BillingPage() {
                               URL.revokeObjectURL(url);
                             } catch (e) {
                               console.error(e);
-                              alert('Unable to download invoice');
+                              alert(t("errors.unableDownloadInvoice"));
                             }
                           }}
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"

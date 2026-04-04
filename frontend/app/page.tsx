@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 
 function BinaryStrip() {
   const [binary, setBinary] = useState("")
@@ -68,6 +69,7 @@ function TypingText({ text }: { text: string }) {
 
 export default function Home() {
   const [infra, setInfra] = useState<any | null>(null);
+  const t = useTranslations("landing")
 
   useEffect(() => {
     let mounted = true;
@@ -100,38 +102,38 @@ export default function Home() {
               <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-6 w-6 sm:h-8 sm:w-8 object-contain" />
             </div>
             <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
-              Eclipse Systems
+              {t("brand")}
             </span>
           </div>
           <nav className="hidden gap-6 font-mono text-xs sm:text-sm text-purple-400/70 md:flex">
-            <Link href="#features" className="transition-colors hover:text-purple-300">[features]</Link>
-            <Link href="#about" className="transition-colors hover:text-purple-300">[about]</Link>
-            <Link href="#pricing" className="transition-colors hover:text-purple-300">[pricing]</Link>
-            <Link href="#contact" className="transition-colors hover:text-purple-300">[contact]</Link>
+            <Link href="#features" className="transition-colors hover:text-purple-300">{t("nav.features")}</Link>
+            <Link href="#about" className="transition-colors hover:text-purple-300">{t("nav.about")}</Link>
+            <Link href="#pricing" className="transition-colors hover:text-purple-300">{t("nav.pricing")}</Link>
+            <Link href="#contact" className="transition-colors hover:text-purple-300">{t("nav.contact")}</Link>
           </nav>
         </header>
 
         <section className="mb-8 text-center">
           <h1 className="mb-4 font-mono text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter">
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-              Eclipse Systems
+              {t("brand")}
             </span>
           </h1>
           <p className="mx-auto mb-6 max-w-xl font-mono text-sm sm:text-base md:text-lg text-purple-400/80 px-4">
-            <span className="text-pink-400">Next-Gen</span>{""} Hosting Provider that loves cats
+            <span className="text-pink-400">{t("hero.nextGen")}</span>{" "}{t("hero.subtitle")}
           </p>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
             <Link
               href="/register"
               className="rounded border border-purple-500 bg-purple-500/10 px-4 py-2 sm:px-6 sm:py-2.5 font-mono text-xs sm:text-sm font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
             >
-              ./start --journey
+              {t("hero.ctaStart")}
             </Link>
             <Link
               href="/login"
               className="rounded border border-purple-500/30 px-4 py-2 sm:px-6 sm:py-2.5 font-mono text-xs sm:text-sm font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
-              sign_in()
+              {t("hero.ctaSignIn")}
             </Link>
           </div>
         </section>
@@ -141,11 +143,11 @@ export default function Home() {
             <div className="text-purple-400">
               <p className="text-gray-500">eclipse@systems ~ % ./start --journey</p>
               <p className="mt-2">
-                <span className="text-pink-400">OBJECTIVE:</span> <TypingText text="CREATE. BUILD. DEPLOY." />
+                <span className="text-pink-400">{t("terminal.objective")}</span> <TypingText text={t("terminal.objectiveValue")} />
               </p>
-              <p><span className="text-pink-400">DIFFICULTY:</span> EASY</p>
+              <p><span className="text-pink-400">{t("terminal.difficulty")}</span> {t("terminal.difficultyValue")}</p>
               <p>
-                <span className="text-pink-400">STATUS:</span>{' '}
+                <span className="text-pink-400">{t("terminal.status")}</span>{' '}
                 <span className={
                   infra?.status === 'online'
                     ? 'text-emerald-400'
@@ -165,39 +167,39 @@ export default function Home() {
         <BinaryStrip />
 
         <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># What is this?</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("whatIs.title")}</h2>
           <p className="mb-6 font-mono text-purple-400/60">
-            If you are still confused about <span className="text-pink-400">ECLIPSE SYSTEMS</span> and what this is about:
+            {t("whatIs.subtitlePrefix")} <span className="text-pink-400">{t("whatIs.brandUpper")}</span> {t("whatIs.subtitleSuffix")}
           </p>
 
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
-              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400"># Hosting Dream</h3>
+              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400">{t("whatIs.card1.title")}</h3>
               <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
-                Spin up containers, game servers, web apps. Configure DNS, 2FA, scoped API keys.
+                {t("whatIs.card1.line1")}
                 <br></br>
-                Just in few clicks.
+                {t("whatIs.card1.line2")}
               </p>
               <ul className="space-y-2 font-mono text-sm text-pink-400">
-                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">AIO Servers</li>
-                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">Game Servers</li>
-                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">Security Audits</li>
-                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">Dynamic DNS Management</li>
+                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">{t("whatIs.card1.item1")}</li>
+                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">{t("whatIs.card1.item2")}</li>
+                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">{t("whatIs.card1.item3")}</li>
+                <li className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2">{t("whatIs.card1.item4")}</li>
               </ul>
             </div>
 
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
-              <h3 className="mb-4 font-mono text-xl font-bold text-purple-400"># That Knows You</h3>
+              <h3 className="mb-4 font-mono text-xl font-bold text-purple-400">{t("whatIs.card2.title")}</h3>
               <p className="mb-4 font-mono text-sm text-purple-400/60">
-                We know what our costumers want and we provide that.
+                {t("whatIs.card2.line1")}
                 <br></br>
-                At one place, with ease.
+                {t("whatIs.card2.line2")}
               </p>
               <ul className="space-y-2 font-mono text-sm text-pink-400">
-                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">Scoped API Keys</li>
-                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">Audit Logs & Metrics</li>
-                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">Team Permissions</li>
-                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">Easy Deployments</li>
+                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">{t("whatIs.card2.item1")}</li>
+                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">{t("whatIs.card2.item2")}</li>
+                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">{t("whatIs.card2.item3")}</li>
+                <li className="rounded border border-pink-500/20 bg-pink-500/5 px-3 py-2">{t("whatIs.card2.item4")}</li>
               </ul>
             </div>
           </div>
@@ -206,15 +208,15 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="features" className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Features</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("features.title")}</h2>
           <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
-              { title: "simple_panel()", text: "A minimal, fast panel built for smooth workflows and instant actions." },
-              { title: "scoped_access()", text: "Roles, permissions, teams, and scoped API keys that work out of the box." },
-              { title: "dynamic_dns()", text: "Integrated DNS management with direct UI controls and automation." },
-              { title: "security_first()", text: "Threat detection and full audit history in one place." },
-              { title: "own_nodes()", text: "Connect your own nodes or manage dedicated ones through a central API." },
-              { title: "open_source()", text: "Open-source core for maximum transparency." },
+              { title: t("features.item1Title"), text: t("features.item1Text") },
+              { title: t("features.item2Title"), text: t("features.item2Text") },
+              { title: t("features.item3Title"), text: t("features.item3Text") },
+              { title: t("features.item4Title"), text: t("features.item4Text") },
+              { title: t("features.item5Title"), text: t("features.item5Text") },
+              { title: t("features.item6Title"), text: t("features.item6Text") },
             ].map((feature) => (
               <article
                 key={feature.title}
@@ -230,28 +232,28 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="trusted" className="mb-8">
-          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Community</h2>
-          <h3 className="mb-4 sm:mb-6 font-mono text-lg sm:text-xl text-purple-400/80">Join the network</h3>
+          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("community.title")}</h2>
+          <h3 className="mb-4 sm:mb-6 font-mono text-lg sm:text-xl text-purple-400/80">{t("community.subtitle")}</h3>
 
           <div className="mb-6 rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
             <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
-              From indie studios to enterprise infrastructure - EclipseSystems powers production workloads everywhere.
+              {t("community.description")}
             </p>
             <Link
               href="/dashboard"
               className="inline-block rounded border border-purple-500 bg-purple-500/10 px-4 py-2 font-mono text-sm text-purple-400 transition-all hover:bg-purple-500/20"
             >
-              ./connect --dashboard
+              {t("community.cta")}
             </Link>
           </div>
 
           <TerminalBlock>
             <div className="text-purple-400">
               <p className="text-gray-500">eclipse@systems ~ % ./connect --community</p>
-              <p className="mt-2"><span className="text-pink-400">INIT</span> handshake...</p>
-              <p><span className="text-pink-400">RESOLVING:</span> ecli.app</p>
+              <p className="mt-2"><span className="text-pink-400">{t("community.init")}</span> {t("community.handshake")}</p>
+              <p><span className="text-pink-400">{t("community.resolving")}</span> ecli.app</p>
               <p>
-                <span className="text-pink-400">STATUS:</span>{' '}
+                <span className="text-pink-400">{t("terminal.status")}</span>{' '}
                 <span className={
                   infra?.status === 'online'
                     ? 'text-emerald-400'
@@ -265,21 +267,21 @@ export default function Home() {
                 </span>
               </p>
               <p>
-                <span className="text-pink-400">NODES:</span>{' '}
+                <span className="text-pink-400">{t("community.nodes")}</span>{' '}
                 <span className="text-purple-400">{infra ? new Intl.NumberFormat().format(infra.nodeCount) : '...'}</span>
               </p>
               <p className="mt-1 text-xs text-purple-400/60">
-                <span className="text-emerald-400">{infra ? infra.online : '...'}</span> ONLINE • <span className="text-yellow-400">{infra ? infra.degraded : '...'}</span> DEGRADED • <span className="text-red-400">{infra ? infra.offline : '...'}</span> OFFLINE
+                <span className="text-emerald-400">{infra ? infra.online : '...'}</span> {t("community.online")} • <span className="text-yellow-400">{infra ? infra.degraded : '...'}</span> {t("community.degraded")} • <span className="text-red-400">{infra ? infra.offline : '...'}</span> {t("community.offline")}
               </p>
             </div>
           </TerminalBlock>
 
           <div className="mt-4 sm:mt-6 grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              "DevOps Teams",
-              "Startups",
-              "Enterprise",
-              "Gaming Communities",
+              t("community.group1"),
+              t("community.group2"),
+              t("community.group3"),
+              t("community.group4"),
             ].map((org) => (
               <div
                 key={org}
@@ -294,17 +296,15 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="about" className="mb-8">
-          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># About</h2>
+          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("about.title")}</h2>
           <h3 className="mb-3 sm:mb-4 font-mono text-base sm:text-lg md:text-xl">
-            Built by hosters, <span className="text-pink-400">for hosters.</span>
+            {t("about.subtitlePrefix")} <span className="text-pink-400">{t("about.subtitleHighlight")}</span>
           </h3>
           <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
             <p className="font-mono text-xs sm:text-sm leading-relaxed text-purple-400/60">
-              EclipseSystems was created with a simple belief: hosting should feel effortless.
+              {t("about.line1")}
               <br></br>
-              Our platform merges orchestration, security, and team operations into a single,
-              elegant control plane. From game servers to enterprise workloads, Eclipse gives
-              you the power to deploy, scale, and secure — without friction.
+              {t("about.line2")}
             </p>
           </div>
         </section>
@@ -312,74 +312,74 @@ export default function Home() {
         <BinaryStrip />
 
         <section id="pricing" className="mb-8">
-          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Portal Plans</h2>
+          <h2 className="mb-1 sm:mb-2 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("plans.title")}</h2>
           <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60">
-            Choose the portal that fits your workflow. All portals include access to the dashboard.
+            {t("plans.subtitle")}
           </p>
 
           <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-5 backdrop-blur-sm">
-              <h3 className="font-mono text-base sm:text-lg font-bold text-purple-400">free_portal</h3>
-              <p className="mt-1 font-mono text-xs text-purple-400/50">Perfect for newbies!</p>
-              <p className="mt-3 font-mono text-xl sm:text-2xl font-black text-white">Free<span className="text-xs sm:text-sm text-purple-400/50">/forever</span></p>
+              <h3 className="font-mono text-base sm:text-lg font-bold text-purple-400">{t("plans.free.name")}</h3>
+              <p className="mt-1 font-mono text-xs text-purple-400/50">{t("plans.free.tagline")}</p>
+              <p className="mt-3 font-mono text-xl sm:text-2xl font-black text-white">{t("plans.free.price")}<span className="text-xs sm:text-sm text-purple-400/50">{t("plans.free.period")}</span></p>
               <ul className="mt-3 sm:mt-4 space-y-1 font-mono text-xs text-purple-400/60">
-                <li>→ 1 Server</li>
-                <li>→ 1 Port per server</li>
-                <li>→ 1 vCore</li>
-                <li>→ 1028 MB RAM</li>
-                <li>→ 10240 MB Storage</li>
-                <li>→ AIO Template only</li>
-                <li>→ No SLA</li>
+                <li>{t("plans.free.item1")}</li>
+                <li>{t("plans.free.item2")}</li>
+                <li>{t("plans.free.item3")}</li>
+                <li>{t("plans.free.item4")}</li>
+                <li>{t("plans.free.item5")}</li>
+                <li>{t("plans.free.item6")}</li>
+                <li>{t("plans.free.item7")}</li>
               </ul>
             </div>
 
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-5 backdrop-blur-sm">
-              <h3 className="font-mono text-lg font-bold text-purple-400">edu_portal</h3>
-              <p className="mt-1 font-mono text-xs text-purple-400/50">For students & small projects!</p>
-              <p className="mt-3 font-mono text-2xl font-black text-white">Free<span className="text-sm text-purple-400/50">/while student</span></p>
+              <h3 className="font-mono text-lg font-bold text-purple-400">{t("plans.edu.name")}</h3>
+              <p className="mt-1 font-mono text-xs text-purple-400/50">{t("plans.edu.tagline")}</p>
+              <p className="mt-3 font-mono text-2xl font-black text-white">{t("plans.edu.price")}<span className="text-sm text-purple-400/50">{t("plans.edu.period")}</span></p>
               <ul className="mt-4 space-y-1 font-mono text-xs text-purple-400/60">
-                <li>→ 3 Servers</li>
-                <li>→ 3 Ports per server</li>
-                <li>→ 2 vCores</li>
-                <li>→ 2048 MB RAM</li>
-                <li>→ 20248 MB Storage</li>
-                <li>→ Basic Support</li>
-                <li>→ KVM Template Access</li>
-                <li>→ 95% SLA</li>
+                <li>{t("plans.edu.item1")}</li>
+                <li>{t("plans.edu.item2")}</li>
+                <li>{t("plans.edu.item3")}</li>
+                <li>{t("plans.edu.item4")}</li>
+                <li>{t("plans.edu.item5")}</li>
+                <li>{t("plans.edu.item6")}</li>
+                <li>{t("plans.edu.item7")}</li>
+                <li>{t("plans.edu.item8")}</li>
               </ul>
             </div>
 
             <div className="rounded-lg border border-pink-500/40 bg-pink-500/5 p-5 shadow-[0_0_30px_rgba(6,182,212,0.15)] backdrop-blur-sm">
-              <h3 className="font-mono text-lg font-bold text-pink-400">paid_portal</h3>
-              <p className="mt-1 font-mono text-xs text-pink-400/50">Small to medium projects!</p>
-              <p className="mt-3 font-mono text-2xl font-black text-white">€12<span className="text-sm text-pink-400/50">/mo</span></p>
+              <h3 className="font-mono text-lg font-bold text-pink-400">{t("plans.paid.name")}</h3>
+              <p className="mt-1 font-mono text-xs text-pink-400/50">{t("plans.paid.tagline")}</p>
+              <p className="mt-3 font-mono text-2xl font-black text-white">{t("plans.paid.price")}<span className="text-sm text-pink-400/50">{t("plans.paid.period")}</span></p>
               <ul className="mt-4 space-y-1 font-mono text-xs text-pink-400/60">
-                <li>→ 10 Servers</li>
-                <li>→ 3 Ports per server</li>
-                <li>→ 6 vCores</li>
-                <li>→ 16028 MB RAM</li>
-                <li>→ 50240 MB Storage</li>
-                <li>→ Basic Support</li>
-                <li>→ KVM Template Access</li>
-                <li>→ AI Access</li>
-                <li>→ 95% SLA</li>
+                <li>{t("plans.paid.item1")}</li>
+                <li>{t("plans.paid.item2")}</li>
+                <li>{t("plans.paid.item3")}</li>
+                <li>{t("plans.paid.item4")}</li>
+                <li>{t("plans.paid.item5")}</li>
+                <li>{t("plans.paid.item6")}</li>
+                <li>{t("plans.paid.item7")}</li>
+                <li>{t("plans.paid.item8")}</li>
+                <li>{t("plans.paid.item9")}</li>
               </ul>
             </div>
 
             <div className="rounded-lg border border-emerald-400/40 bg-purple-500/5 p-5 shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-sm">
-              <h3 className="font-mono text-lg font-bold text-purple-300">enterprise</h3>
-              <p className="mt-1 font-mono text-xs text-purple-400/50">Medium to large projects!</p>
-              <p className="mt-3 font-mono text-2xl font-black text-white">Varies</p>
+              <h3 className="font-mono text-lg font-bold text-purple-300">{t("plans.enterprise.name")}</h3>
+              <p className="mt-1 font-mono text-xs text-purple-400/50">{t("plans.enterprise.tagline")}</p>
+              <p className="mt-3 font-mono text-2xl font-black text-white">{t("plans.enterprise.price")}</p>
               <ul className="mt-4 space-y-1 font-mono text-xs text-purple-400/60">
-                <li>→ Unmetered Servers</li>
-                <li>→ Entire Node CPU</li>
-                <li>→ Entire Node RAM</li>
-                <li>→ Entire Node Storage</li>
-                <li>→ IPv4 + IPv6</li>
-                <li>→ Premium Support</li>
-                <li>→ KVM Template Access</li>
-                <li>→ AI Access</li>
-                <li>→ Custom SLA</li>
+                <li>{t("plans.enterprise.item1")}</li>
+                <li>{t("plans.enterprise.item2")}</li>
+                <li>{t("plans.enterprise.item3")}</li>
+                <li>{t("plans.enterprise.item4")}</li>
+                <li>{t("plans.enterprise.item5")}</li>
+                <li>{t("plans.enterprise.item6")}</li>
+                <li>{t("plans.enterprise.item7")}</li>
+                <li>{t("plans.enterprise.item8")}</li>
+                <li>{t("plans.enterprise.item9")}</li>
               </ul>
             </div>
           </div>
@@ -388,18 +388,18 @@ export default function Home() {
         <BinaryStrip />
 
         <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># FAQs</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("faq.title")}</h2>
           <div className="space-y-3 sm:space-y-4">
             {[
-              { q: "How do I get started?", a: "Sign up for a free portal account and deploy your first server in minutes. Our panel guides you through every step." },
-              { q: "Can I connect my own nodes?", a: "YES! Eclipse supports connecting your own infrastructure. Enterprise plans include full node management." },
-              { q: "What is included in support?", a: "Basic support includes email & community. Premium support includes priority response, dedicated channels, and direct engineering access." },
+              { q: t("faq.q1"), a: t("faq.a1") },
+              { q: t("faq.q2"), a: t("faq.a2") },
+              { q: t("faq.q3"), a: t("faq.a3") },
               {
-                q: "Is Eclipse open source?", a: (
+                q: t("faq.q4"), a: (
                   <span>
-                    The core panel is open-source for non-commercial purposes. Check our{' '}
+                    {t("faq.a4Prefix")}{' '}
                     <a href="https://github.com/thenoname-gurl/EcliPanel" className="text-pink-400 hover:underline">GitHub</a>{' '}
-                    for more details!
+                    {t("faq.a4Suffix")}
                   </span>
                 )
               },
@@ -416,22 +416,22 @@ export default function Home() {
 
         {/* CTA */}
         <section className="mb-8 text-center">
-          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400"># Ready to deploy?</h2>
+          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400">{t("cta.title")}</h2>
           <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60 px-2">
-            Join thousands of teams using EclipseSystems to power their infrastructure.
+            {t("cta.subtitle")}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               href="/register"
               className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
             >
-              ./register --now
+              {t("cta.register")}
             </Link>
             <Link
               href="/dashboard"
               className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
-              go_to_dashboard()
+              {t("cta.dashboard")}
             </Link>
           </div>
         </section>
@@ -439,13 +439,13 @@ export default function Home() {
         {/* FOOTER */}
         <footer id="contact" className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
           <p className="font-mono text-xs text-purple-400/50">
-            Want a custom setup? Email{" "}
+            {t("footer.customSetup")} {" "}
             <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
               contact@ecli.app
             </a>{" "}
-            or go to{" "}
+            {t("footer.orGoTo")} {" "}
             <Link href="/dashboard" className="text-pink-400 hover:underline">
-              Dashboard
+              {t("footer.dashboard")}
             </Link>.
           </p>
         </footer>

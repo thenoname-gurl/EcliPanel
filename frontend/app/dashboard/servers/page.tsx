@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { PanelHeader } from "@/components/panel/header"
 import { StatusBadge, UsageBar } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -105,20 +106,20 @@ function statusColor(status: string) {
   }
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: string, t?: (key: string) => string) {
   switch (status) {
     case "online":
     case "running":
-      return "Online"
+      return t ? t("status.online") : "Online"
     case "starting":
-      return "Starting"
+      return t ? t("status.starting") : "Starting"
     case "stopping":
-      return "Stopping"
+      return t ? t("status.stopping") : "Stopping"
     case "offline":
     case "stopped":
-      return "Offline"
+      return t ? t("status.offline") : "Offline"
     default:
-      return status || "Unknown"
+      return status || (t ? t("status.unknown") : "Unknown")
   }
 }
 
@@ -155,6 +156,7 @@ function UsageRing({ value, size = 40, stroke = 3.5, color }: { value: number; s
 /* ------------------------------------------------------------------ */
 
 function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: () => void; onCreated: () => void; gamblingModeEnabled: boolean }) {
+  const t = useTranslations("serversPage.newServerModal")
   const [name, setName] = useState("")
   const [eggId, setEggId] = useState<string>("")
   const [eggs, setEggs] = useState<{ id: number; name: string; description?: string }[]>([])
@@ -258,8 +260,8 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) { setError("Server name is required."); return }
-    if (!eggId) { setError("Please select a server type."); return }
+    if (!name.trim()) { setError(t("errors.serverNameRequired")); return }
+    if (!eggId) { setError(t("errors.selectServerType")); return }
     setCreating(true)
     setError(null)
     try {
@@ -317,12 +319,12 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
       } else {
         setCreateResult({
           createdUuid: createRes?.uuid,
-          genericMessage: "Server created successfully.",
+          genericMessage: t("messages.serverCreated"),
         })
       }
       setCreating(false)
     } catch (err: any) {
-      setError(err.message || "Failed to create server.")
+      setError(err.message || t("errors.failedCreate"))
       setCreating(false)
     }
   }
@@ -354,7 +356,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   }, [maxMemory, maxDisk, maxCpu])
 
   const canCreate = name.trim() && eggId && !eggsLoading && eggs.length > 0 && !nodesLoading && nodes.length > 0 &&
-    (user ? (user.emailVerified && (user.passkeyCount ?? 0) > 0) : true)
+    (user ? (user.emailVerified && (((user.passkeyCount ?? 0) > 0) || !!user.twoFactorEnabled)) : true)
 
   const selectedEgg = eggs.find((e) => String(e.id) === String(eggId)) as any
 
@@ -376,8 +378,8 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               <Plus className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">New Server</h2>
-              <p className="text-xs text-muted-foreground">Configure and deploy</p>
+              <h2 className="text-base font-semibold text-foreground">{t("header.title")}</h2>
+              <p className="text-xs text-muted-foreground">{t("header.subtitle")}</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
@@ -398,24 +400,24 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             {user && !user.emailVerified && (
               <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
                 <ShieldCheck className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">Verify your email before creating a server.</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">{t("alerts.verifyEmail")}</p>
               </div>
             )}
-            {user && user.passkeyCount === 0 && (
+            {user && (user.passkeyCount ?? 0) === 0 && !user.twoFactorEnabled && (
               <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
                 <KeyRound className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">Register a passkey under Identity &gt; Security first.</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">{t("alerts.securityRequirement")}</p>
               </div>
             )}
 
             {/* Server Name */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Server Name</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.serverName.label")}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Minecraft Server"
+                placeholder={t("fields.serverName.placeholder")}
                 data-guide-id="new-server-name"
                 className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all"
               />
@@ -424,13 +426,13 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             {/* Server Type & Node - 2-col on desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Template</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.template")}</label>
                 {eggsLoading ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 px-4 rounded-xl border border-border/50 bg-muted/30">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("states.loading")}
                   </div>
                 ) : eggs.length === 0 ? (
-                  <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">No templates available.</p>
+                  <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">{t("states.noTemplates")}</p>
                 ) : (
                   <select
                     value={eggId}
@@ -448,13 +450,13 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Node</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.node")}</label>
                 {nodesLoading ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 px-4 rounded-xl border border-border/50 bg-muted/30">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("states.loading")}
                   </div>
                 ) : nodes.length === 0 ? (
-                  <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">No nodes available.</p>
+                  <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">{t("states.noNodes")}</p>
                 ) : (
                   <select
                     value={nodeId ?? ""}
@@ -474,31 +476,31 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
             {/* Startup */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Startup Command</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.startup.label")}</label>
               <textarea
                 value={startup}
                 readOnly
                 rows={1}
                 className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all"
-                placeholder="Using egg default startup command"
+                placeholder={t("fields.startup.placeholder")}
               />
-              <p className="text-[10px] text-muted-foreground/80">This is default startup command for the selected egg.</p>
+              <p className="text-[10px] text-muted-foreground/80">{t("fields.startup.hint")}</p>
             </div>
 
             {/* Environment */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Environment Variables</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.env.title")}</label>
                 <button
                   type="button"
                   onClick={() => setEnvVars((prev) => [...prev, { key: "", value: "" }])}
                   className="px-2 py-1 text-xs rounded-lg border border-border/50 bg-muted/30 text-foreground hover:bg-muted/50"
                 >
-                  Add variable
+                  {t("fields.env.add")}
                 </button>
               </div>
               {envVars.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">No environment variables configured. Add one to override defaults or define new values.</p>
+                <p className="text-[11px] text-muted-foreground">{t("fields.env.empty")}</p>
               ) : (
                 <div className="space-y-2">
                   {envVars.map((row, idx) => (
@@ -512,7 +514,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                       <input
                         value={row.value}
                         onChange={(e) => setEnvVars((prev) => prev.map((item, i) => i === idx ? { ...item, value: e.target.value } : item))}
-                        placeholder="value"
+                        placeholder={t("fields.env.valuePlaceholder")}
                         className="col-span-6 rounded-xl border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                       />
                       <button
@@ -532,49 +534,49 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             <div data-guide-id="new-server-resources" className="space-y-4 rounded-2xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/20 p-4 sm:p-5">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Resources</p>
+                <p className="text-sm font-semibold text-foreground">{t("resources.title")}</p>
               </div>
 
               {gamblingModeEnabled && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                  Gambling Mode is active via your selected theme. Resource selectors are locked and your blackjack hand now decides CPU, RAM, and disk from your account range.
+                  {t("resources.gamblingActive")}
                 </div>
               )}
 
               {gamblingModeEnabled && (
                 <div className="rounded-xl border border-border/40 bg-muted/20 px-3 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blackjack Table</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("resources.blackjackTable")}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-lg border border-border/50 bg-background/70 px-2 py-2">
-                      <p className="text-muted-foreground">Dealer</p>
+                      <p className="text-muted-foreground">{t("resources.dealer")}</p>
                       <p className="mt-1 font-medium text-foreground">? + ?</p>
                     </div>
                     <div className="rounded-lg border border-border/50 bg-background/70 px-2 py-2">
-                      <p className="text-muted-foreground">You</p>
-                      <p className="mt-1 font-medium text-foreground">Auto-draw until stand target</p>
+                      <p className="text-muted-foreground">{t("resources.you")}</p>
+                      <p className="mt-1 font-medium text-foreground">{t("resources.autoDraw")}</p>
                     </div>
                   </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground">Higher winning hands push your final resources closer to max limits.</p>
+                  <p className="mt-2 text-[11px] text-muted-foreground">{t("resources.higherHands")}</p>
                 </div>
               )}
 
               {gamblingModeEnabled && (
                 <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blackjack Stand Target</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("resources.standTarget")}</label>
                   <div className="mt-1 flex items-center gap-2">
                     <select
                       value={String(blackjackStandAt)}
                       onChange={(e) => setBlackjackStandAt(Number(e.target.value))}
                       className="rounded-lg border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50"
                     >
-                      <option value="15">Stand at 15</option>
-                      <option value="16">Stand at 16</option>
-                      <option value="17">Stand at 17</option>
-                      <option value="18">Stand at 18</option>
-                      <option value="19">Stand at 19</option>
-                      <option value="20">Stand at 20</option>
+                      <option value="15">{t("resources.standAt", { value: 15 })}</option>
+                      <option value="16">{t("resources.standAt", { value: 16 })}</option>
+                      <option value="17">{t("resources.standAt", { value: 17 })}</option>
+                      <option value="18">{t("resources.standAt", { value: 18 })}</option>
+                      <option value="19">{t("resources.standAt", { value: 19 })}</option>
+                      <option value="20">{t("resources.standAt", { value: 20 })}</option>
                     </select>
-                    <p className="text-[11px] text-muted-foreground">You decide when your hand stops drawing cards.</p>
+                    <p className="text-[11px] text-muted-foreground">{t("resources.standHint")}</p>
                   </div>
                 </div>
               )}
@@ -582,9 +584,9 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               {/* Source toggles */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
-                  { label: "Memory", source: memorySource, setSource: setMemorySource, planVal: limits?.memory, nodeVal: nodeMemory, unit: "MB", icon: MemoryStick },
-                  { label: "Disk", source: diskSource, setSource: setDiskSource, planVal: limits?.disk, nodeVal: nodeDisk, unit: "MB", icon: HardDrive },
-                  { label: "CPU", source: cpuSource, setSource: setCpuSource, planVal: limits?.cpu, nodeVal: nodeCpu, unit: "%", icon: Cpu },
+                  { label: t("resources.memory"), source: memorySource, setSource: setMemorySource, planVal: limits?.memory, nodeVal: nodeMemory, unit: "MB", icon: MemoryStick },
+                  { label: t("resources.disk"), source: diskSource, setSource: setDiskSource, planVal: limits?.disk, nodeVal: nodeDisk, unit: "MB", icon: HardDrive },
+                  { label: t("resources.cpu"), source: cpuSource, setSource: setCpuSource, planVal: limits?.cpu, nodeVal: nodeCpu, unit: "%", icon: Cpu },
                 ].map(({ label, source, setSource, planVal, nodeVal, unit, icon: Icon }) => (
                   <div key={label} className="flex items-center gap-2 rounded-xl border border-border/30 bg-background/60 px-3 py-2">
                     <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -594,8 +596,8 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                       onChange={(e) => setSource(e.target.value as "plan" | "node")}
                       disabled={gamblingModeEnabled}
                     >
-                      {planVal != null && <option value="plan">Plan · {planVal}{unit}</option>}
-                      {nodeVal != null && <option value="node">Node · {nodeVal}{unit}</option>}
+                      {planVal != null && <option value="plan">{t("resources.planOption", { value: planVal, unit })}</option>}
+                      {nodeVal != null && <option value="node">{t("resources.nodeOption", { value: nodeVal, unit })}</option>}
                     </select>
                   </div>
                 ))}
@@ -604,15 +606,15 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               {!hasLimits ? (
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {planName !== "free"
-                    ? <>Your <span className="font-medium text-foreground">{planName}</span> plan has no configured limits. Contact an admin.</>
-                    : <>No plan assigned. Resources use defaults.</>
+                    ? <>{t.rich("resources.noLimitsPlan", { planName, strong: (chunks) => <span className="font-medium text-foreground">{chunks}</span> })}</>
+                    : <>{t("resources.noPlanAssigned")}</>
                   }
                 </p>
               ) : (
                 <div className="space-y-5">
                   {maxMemory !== null && (
                     <ResourceSlider
-                      label="Memory"
+                      label={t("resources.memory")}
                       icon={MemoryStick}
                       value={memory}
                       min={128}
@@ -626,7 +628,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   )}
                   {maxDisk !== null && (
                     <ResourceSlider
-                      label="Disk"
+                      label={t("resources.disk")}
                       icon={HardDrive}
                       value={disk}
                       min={1024}
@@ -641,7 +643,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   )}
                   {maxCpu !== null && (
                     <ResourceSlider
-                      label="CPU"
+                      label={t("resources.cpu")}
                       icon={Cpu}
                       value={cpu}
                       min={10}
@@ -660,7 +662,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             {selectedEgg && (selectedEgg.requiresKvm || selectedEgg.requires_kvm) ? (
               <div className="flex items-center justify-center gap-2 text-sm text-foreground">
                 <input id="new-server-kvm" type="checkbox" checked={true} disabled className="h-4 w-4 rounded border-border bg-secondary/50 text-primary" />
-                <label htmlFor="new-server-kvm">KVM Virtualization (required)</label>
+                <label htmlFor="new-server-kvm">{t("kvm.required")}</label>
               </div>
             ) : isAdmin ? (
               <div className="flex items-center justify-center gap-2 text-sm text-foreground">
@@ -671,11 +673,11 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   onChange={(e) => setKvmPassthroughEnabled(e.target.checked)}
                   className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
                 />
-                <label htmlFor="new-server-kvm">Enable KVM Virtualization</label>
+                <label htmlFor="new-server-kvm">{t("kvm.enable")}</label>
               </div>
             ) : null}
             <p className="text-[11px] text-muted-foreground/70 text-center">
-              A port will be auto-assigned from the node&apos;s allocation pool.
+              {t("kvm.portHint")}
             </p>
           </div>
 
@@ -686,7 +688,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               onClick={onClose}
               className="rounded-xl border border-border/50 bg-muted/30 px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all text-center"
             >
-              Cancel
+              {t("actions.cancel")}
             </button>
             <button
               type="submit"
@@ -695,7 +697,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              {creating ? "Deploying…" : "Deploy Server"}
+              {creating ? t("actions.deploying") : t("actions.deploy")}
             </button>
           </div>
         </form>
@@ -708,7 +710,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
               <div className="relative flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">
-                  {createResult.rolled ? "🃏 Blackjack Server Creation Result" : "✅ Server Created"}
+                  {createResult.rolled ? t("result.blackjackTitle") : t("result.createdTitle")}
                 </h3>
                 <button
                   type="button"
@@ -724,72 +726,89 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
                     <p className="font-medium text-foreground">{createResult.genericMessage}</p>
                     {createResult.createdUuid && (
-                      <p className="text-muted-foreground mt-1 break-all">Server ID: {createResult.createdUuid}</p>
+                      <p className="text-muted-foreground mt-1 break-all">{t("result.serverId", { id: createResult.createdUuid })}</p>
                     )}
                   </div>
                 )}
 
                 {createResult.rolled && createResult.blackjack && (
                 <div className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
-                  <p className="font-semibold text-foreground">Creation Notice</p>
+                  <p className="font-semibold text-foreground">{t("result.creationNotice")}</p>
                   <p className="mt-1 text-foreground/90">
-                    Your hand {Number(createResult.blackjack.player?.score || 0)} vs dealer {Number(createResult.blackjack.dealer?.score || 0)}
-                    {createResult.blackjack.outcome === "player"
-                      ? " won"
-                      : createResult.blackjack.outcome === "dealer"
-                        ? " lost"
-                        : " pushed"}.
+                    {t("result.handVsDealer", {
+                      player: Number(createResult.blackjack.player?.score || 0),
+                      dealer: Number(createResult.blackjack.dealer?.score || 0),
+                      outcome:
+                        createResult.blackjack.outcome === "player"
+                          ? t("result.outcomes.won")
+                          : createResult.blackjack.outcome === "dealer"
+                            ? t("result.outcomes.lost")
+                            : t("result.outcomes.pushed"),
+                    })}
                   </p>
                   <p className="text-foreground/90">
-                    Server got RAM {Number(createResult.rolled?.memory || 0)} MB · Disk {Number(createResult.rolled?.disk || 0)} MB · CPU {Number(createResult.rolled?.cpu || 0)}%.
+                    {t("result.serverGot", {
+                      memory: Number(createResult.rolled?.memory || 0),
+                      disk: Number(createResult.rolled?.disk || 0),
+                      cpu: Number(createResult.rolled?.cpu || 0),
+                    })}
                   </p>
                 </div>
                 )}
 
                 {createResult.rolled && (
                 <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground mb-1">Assigned resources</p>
+                  <p className="text-muted-foreground mb-1">{t("result.assignedResources")}</p>
                   <p className="font-medium text-foreground tabular-nums">
-                    RAM {Number(createResult.rolled?.memory || 0)} MB · Disk {Number(createResult.rolled?.disk || 0)} MB · CPU {Number(createResult.rolled?.cpu || 0)}%
+                    {t("result.serverGot", {
+                      memory: Number(createResult.rolled?.memory || 0),
+                      disk: Number(createResult.rolled?.disk || 0),
+                      cpu: Number(createResult.rolled?.cpu || 0),
+                    })}
                   </p>
                 </div>
                 )}
 
                 {createResult.rolled && (
                 <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground mb-1">Lucky roll</p>
+                  <p className="text-muted-foreground mb-1">{t("result.luckyRoll")}</p>
                   <p className={`font-semibold ${createResult.luckyRoll ? "text-emerald-500 animate-pulse" : "text-amber-500"}`}>
-                    {createResult.luckyRoll ? "777 vibes! Luck triggered!!!" : "Nuh uh… no lucky trigger this time."}
+                    {createResult.luckyRoll ? t("result.luckyTriggered") : t("result.luckyMissed")}
                   </p>
                 </div>
                 )}
 
                 {createResult.rolled && createResult.blackjack && (
                 <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground mb-1">Blackjack round</p>
+                  <p className="text-muted-foreground mb-1">{t("result.blackjackRound")}</p>
                   <p className="font-medium text-foreground tabular-nums">
-                    You {Number(createResult.blackjack.player?.score || 0)} ({(createResult.blackjack.player?.cards || []).map((card) => formatBlackjackCard(Number(card))).join(" + ") || "-"}) · Dealer {Number(createResult.blackjack.dealer?.score || 0)} ({(createResult.blackjack.dealer?.cards || []).map((card) => formatBlackjackCard(Number(card))).join(" + ") || "-"})
+                    {t("result.roundSummary", {
+                      playerScore: Number(createResult.blackjack.player?.score || 0),
+                      playerCards: (createResult.blackjack.player?.cards || []).map((card) => formatBlackjackCard(Number(card))).join(" + ") || "-",
+                      dealerScore: Number(createResult.blackjack.dealer?.score || 0),
+                      dealerCards: (createResult.blackjack.dealer?.cards || []).map((card) => formatBlackjackCard(Number(card))).join(" + ") || "-",
+                    })}
                   </p>
-                  <p className="text-muted-foreground mt-1">Your stand target: {Number(createResult.blackjack.playerStandAt || 17)}</p>
+                  <p className="text-muted-foreground mt-1">{t("result.standTarget", { value: Number(createResult.blackjack.playerStandAt || 17) })}</p>
                   <p className={`mt-1 font-semibold ${createResult.blackjack.outcome === "player" ? "text-emerald-500" : createResult.blackjack.outcome === "dealer" ? "text-amber-500" : "text-blue-500"}`}>
                     {createResult.blackjack.outcome === "player"
-                      ? "You beat the dealer."
+                      ? t("result.outcomeMessage.player")
                       : createResult.blackjack.outcome === "dealer"
-                        ? "Dealer wins this hand."
-                        : "Push - hand tied."}
+                        ? t("result.outcomeMessage.dealer")
+                        : t("result.outcomeMessage.push")}
                   </p>
                 </div>
                 )}
 
                 {createResult.rolled && (
                 <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground mb-1">24h bonus (+{((Number(createResult.bonusPercent || 0)) * 100).toFixed(2)}% cap)</p>
+                  <p className="text-muted-foreground mb-1">{t("result.bonusTitle", { percent: ((Number(createResult.bonusPercent || 0)) * 100).toFixed(2) })}</p>
                   <p className="font-medium text-foreground">
                     {createResult.bonusActivated
-                      ? `Activated until ${createResult.bonusExpiresAt ? new Date(createResult.bonusExpiresAt).toLocaleString() : "tomorrow"}`
+                      ? t("result.bonusActivated", { until: createResult.bonusExpiresAt ? new Date(createResult.bonusExpiresAt).toLocaleString() : t("result.untilTomorrow") })
                       : createResult.bonusAppliedToLimits
-                        ? `Already active until ${createResult.bonusExpiresAt ? new Date(createResult.bonusExpiresAt).toLocaleString() : "soon"}`
-                        : "Not active"}
+                        ? t("result.bonusAlreadyActive", { until: createResult.bonusExpiresAt ? new Date(createResult.bonusExpiresAt).toLocaleString() : t("result.untilSoon") })
+                        : t("result.notActive")}
                   </p>
                 </div>
                 )}
@@ -799,7 +818,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   onClick={onClose}
                   className="w-full rounded-xl bg-primary text-primary-foreground py-2 text-sm font-semibold hover:bg-primary/90 transition-all"
                 >
-                  Nice. Close
+                  {t("actions.close")}
                 </button>
               </div>
             </div>
@@ -875,6 +894,7 @@ function ServerCard({
   isFavorite: boolean
   onToggleFavorite: (serverId: string) => void
 }) {
+  const t = useTranslations("serversPage")
   const sid = server.uuid || server.id
   const isOnline = server.status === "online" || server.status === "running"
 
@@ -902,7 +922,7 @@ function ServerCard({
               </h3>
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="capitalize">{statusLabel(server.status)}</span>
+              <span className="capitalize">{statusLabel(server.status, t)}</span>
               {server.resources?.uptime != null && server.resources.uptime > 0 && (
                 <>
                   <span className="text-border">·</span>
@@ -922,7 +942,7 @@ function ServerCard({
                 const sid = server.uuid || server.id
                 if (sid) onToggleFavorite(String(sid))
               }}
-              aria-label={isFavorite ? "Unfavorite server" : "Favorite server"}
+              aria-label={isFavorite ? t("serverCard.unfavorite") : t("serverCard.favorite")}
               className={`rounded-lg p-1 transition-colors ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 stroke-yellow-400' : ''}`} />
@@ -931,7 +951,7 @@ function ServerCard({
             <Link
               href={`/dashboard/servers/${sid}`}
               className="sm:hidden flex items-center justify-center rounded-xl bg-muted/50 p-2.5 text-muted-foreground active:bg-muted transition-colors"
-              aria-label="Console"
+              aria-label={t("actions.console")}
             >
               <Terminal className="h-4 w-4" />
             </Link>
@@ -950,7 +970,7 @@ function ServerCard({
               <Cpu className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">CPU</p>
+              <p className="text-[11px] text-muted-foreground">{t("resources.cpu")}</p>
               <p className="text-xs font-semibold text-foreground tabular-nums">{cpuVal}%</p>
             </div>
           </div>
@@ -962,7 +982,7 @@ function ServerCard({
               <MemoryStick className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">RAM</p>
+              <p className="text-[11px] text-muted-foreground">{t("resources.ram")}</p>
               <p className="text-xs font-semibold text-foreground tabular-nums">{formatBytes(server.resources?.memory_bytes ?? 0)}</p>
             </div>
           </div>
@@ -974,7 +994,7 @@ function ServerCard({
               <HardDrive className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">Disk</p>
+              <p className="text-[11px] text-muted-foreground">{t("resources.disk")}</p>
               <p className="text-xs font-semibold text-foreground tabular-nums">{formatBytes(server.resources?.disk_bytes ?? 0)}</p>
             </div>
           </div>
@@ -998,7 +1018,7 @@ function ServerCard({
             className="flex items-center justify-center gap-1.5 rounded-xl bg-red-500/10 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-red-500 transition-all hover:bg-red-500/15 active:scale-[0.97] disabled:opacity-50 min-h-[36px] sm:min-h-0"
           >
             <Square className="h-3 w-3" />
-            <span>Stop</span>
+            <span>{t("actions.stop")}</span>
           </button>
         ) : (
           <button
@@ -1007,7 +1027,7 @@ function ServerCard({
             className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-emerald-500 transition-all hover:bg-emerald-500/15 active:scale-[0.97] disabled:opacity-50 min-h-[36px] sm:min-h-0"
           >
             <Play className="h-3 w-3" />
-            <span>Start</span>
+            <span>{t("actions.start")}</span>
           </button>
         )}
         <button
@@ -1016,14 +1036,14 @@ function ServerCard({
           className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-amber-500 transition-all hover:bg-amber-500/15 active:scale-[0.97] disabled:opacity-50 min-h-[36px] sm:min-h-0"
         >
           <RotateCcw className="h-3 w-3" />
-          <span>Restart</span>
+          <span>{t("actions.restart")}</span>
         </button>
         <Link
           href={`/dashboard/servers/${sid}`}
           className="ml-auto hidden sm:flex items-center gap-1.5 rounded-xl bg-primary/10 px-3.5 py-1.5 text-xs font-medium text-primary transition-all hover:bg-primary/15"
         >
           <Terminal className="h-3 w-3" />
-          Console
+          {t("actions.console")}
         </Link>
       </div>
     </div>
@@ -1035,6 +1055,7 @@ function ServerCard({
 /* ------------------------------------------------------------------ */
 
 function CodeInstancesModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("serversPage.codeInstances")
   const [list, setList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [stopping, setStopping] = useState<string | null>(null)
@@ -1054,22 +1075,22 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
   useEffect(() => { load() }, [])
 
   const stopInstance = async (id: string) => {
-    if (!confirm("Stop and delete this Code Instance?")) return
+    if (!confirm(t("confirmStop"))) return
     setStopping(id)
     try {
       await apiFetch(API_ENDPOINTS.infraCodeInstanceStop.replace(":id", id), { method: "POST" })
       await load()
     } catch (e: any) {
-      alert("Failed: " + (e?.message || e))
+      alert(t("failedWithReason", { reason: e?.message || e }))
     } finally {
       setStopping(null)
     }
   }
 
   const minutesLeft = (lastActivity?: string | null) => {
-    if (!lastActivity) return "Expires soon"
+    if (!lastActivity) return t("expiresSoon")
     const remaining = Math.max(0, 30 * 60 * 1000 - (Date.now() - new Date(lastActivity).getTime()))
-    return `${Math.ceil(remaining / 60000)}m left`
+    return t("minutesLeft", { minutes: Math.ceil(remaining / 60000) })
   }
 
   return (
@@ -1082,13 +1103,13 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
           <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
         </div>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 flex-shrink-0">
-          <h3 className="text-base font-semibold">Code Instances</h3>
+          <h3 className="text-base font-semibold">{t("title")}</h3>
           <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-3">
-          <p className="text-xs text-muted-foreground">Auto-deleted after 30 min of inactivity.</p>
+          <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -1096,7 +1117,7 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
           ) : list.length === 0 ? (
             <div className="text-center py-12">
               <Terminal className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">No active instances.</p>
+              <p className="text-sm text-muted-foreground">{t("noActive")}</p>
             </div>
           ) : (
             <div className="grid gap-3">
@@ -1108,11 +1129,11 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Link href={`/dashboard/servers/${ci.uuid}`} className="rounded-xl px-4 py-2 bg-primary/10 text-xs font-medium text-primary flex-1 sm:flex-none text-center">
-                      Open
+                      {t("open")}
                     </Link>
                     <button onClick={() => stopInstance(ci.uuid)} disabled={stopping === ci.uuid}
                       className="rounded-xl px-4 py-2 bg-red-500/10 text-xs font-medium text-red-500 flex-1 sm:flex-none text-center disabled:opacity-50">
-                      {stopping === ci.uuid ? "Stopping…" : "Delete"}
+                      {stopping === ci.uuid ? t("stopping") : t("delete")}
                     </button>
                   </div>
                 </div>
@@ -1130,6 +1151,7 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
 /* ------------------------------------------------------------------ */
 
 export default function ServersPage() {
+  const t = useTranslations("serversPage")
   const { user, refreshUser } = useAuth()
   const [search, setSearch] = useState("")
   const [servers, setServers] = useState<any[]>([])
@@ -1250,23 +1272,23 @@ export default function ServersPage() {
       if (res && typeof res === "object" && res.success === false) {
         setPowerToast({
           type: "warning",
-          title: "Dice denied",
-          message: res.message || res.error || "Power action denied by dice roll.",
+          title: t("toasts.diceDeniedTitle"),
+          message: res.message || res.error || t("toasts.powerDenied"),
         })
         return
       }
 
       setPowerToast({
         type: "success",
-        title: "Action sent",
-        message: `${action.toUpperCase()} requested successfully.`,
+        title: t("toasts.actionSentTitle"),
+        message: t("toasts.actionRequested", { action: action.toUpperCase() }),
       })
       setTimeout(loadServers, 1500)
     } catch (e: any) {
       setPowerToast({
         type: "error",
-        title: "Power action failed",
-        message: e?.message || "Unknown error",
+        title: t("toasts.powerFailedTitle"),
+        message: e?.message || t("toasts.unknownError"),
       })
     } finally {
       setPowerLoading(null)
@@ -1297,7 +1319,7 @@ export default function ServersPage() {
       await refreshUser()
     } catch (e: any) {
       setFavoriteServerIds(Array.from(current))
-      alert("Failed to save favorite state: " + (e?.message || "Unknown error"))
+      alert(t("errors.favoriteSaveFailed", { reason: e?.message || t("toasts.unknownError") }))
     }
   }
 
@@ -1328,8 +1350,8 @@ export default function ServersPage() {
 
       setPowerToast({
         type: "warning",
-        title: "Dice Event",
-        message: "Hey I decided to shut down your server, womp womp",
+        title: t("toasts.diceEventTitle"),
+        message: t("toasts.diceShutdown"),
       })
 
       try {
@@ -1341,8 +1363,8 @@ export default function ServersPage() {
         if (res && typeof res === "object" && res.success === false) {
           setPowerToast({
             type: "warning",
-            title: "Dice Event",
-            message: res.message || "Dice tried to shut it down but got blocked.",
+            title: t("toasts.diceEventTitle"),
+            message: res.message || t("toasts.diceBlocked"),
           })
           return
         }
@@ -1351,8 +1373,8 @@ export default function ServersPage() {
       } catch {
         setPowerToast({
           type: "error",
-          title: "Dice Event",
-          message: "Dice wanted chaos, but shutdown failed this time.",
+          title: t("toasts.diceEventTitle"),
+          message: t("toasts.diceFailed"),
         })
       }
     }
@@ -1424,7 +1446,7 @@ export default function ServersPage() {
       {showCodeModal && <CodeInstancesModal onClose={() => setShowCodeModal(false)} />}
       {showNewModal && <NewServerModal onClose={() => setShowNewModal(false)} onCreated={loadServers} gamblingModeEnabled={gamblingModeEnabled} />}
 
-      <PanelHeader title="Servers" description="Manage your game servers" />
+      <PanelHeader title={t("header.title")} description={t("header.description")} />
 
       <ScrollArea className="flex-1 overflow-x-hidden">
         <div className="flex flex-col gap-4 sm:gap-5 p-3 sm:p-5 md:p-6 max-w-[100vw] w-full min-w-0 box-border">
@@ -1433,15 +1455,15 @@ export default function ServersPage() {
           {!loading && servers.length > 0 && (
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">Total</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">{t("stats.total")}</p>
                 <p className="text-xl sm:text-2xl font-bold text-foreground tabular-nums mt-0.5">{servers.length}</p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">Online</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">{t("stats.online")}</p>
                 <p className="text-xl sm:text-2xl font-bold text-emerald-500 tabular-nums mt-0.5">{onlineCount}</p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">Offline</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">{t("stats.offline")}</p>
                 <p className="text-xl sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{servers.length - onlineCount}</p>
               </div>
             </div>
@@ -1451,7 +1473,7 @@ export default function ServersPage() {
           {favoriteServers.length > 0 && (
             <section className="sticky top-0 z-20 rounded-2xl border border-border/50 bg-card p-3 sm:p-4 shadow-sm shadow-black/5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-foreground">Favorites</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t("sections.favorites")}</h3>
                 <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{favoriteServers.length}</span>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1475,7 +1497,7 @@ export default function ServersPage() {
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search servers..."
+                placeholder={t("search.placeholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-border/50 bg-card pl-10 pr-9 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
@@ -1496,7 +1518,7 @@ export default function ServersPage() {
                   className="flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2 text-sm font-medium hover:bg-primary/10 transition-all"
                 >
                   <Server className="h-4 w-4" />
-                  Code Instances
+                  {t("sections.codeInstances")}
                 </button>
               )}
               <button
@@ -1505,7 +1527,7 @@ export default function ServersPage() {
                 className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] transition-all w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4" />
-                New Server
+                {t("actions.newServer")}
               </button>
             </div>
           </div>
@@ -1518,7 +1540,7 @@ export default function ServersPage() {
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">Loading servers…</p>
+              <p className="text-sm text-muted-foreground">{t("states.loadingServers")}</p>
             </div>
           )}
 
@@ -1528,7 +1550,7 @@ export default function ServersPage() {
               {myServers.length > 0 && (
                 <section>
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <h3 className="text-sm font-semibold text-foreground">Your Servers</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t("sections.yourServers")}</h3>
                     <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{myServers.length}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -1552,7 +1574,7 @@ export default function ServersPage() {
               {otherServers.length > 0 && (
                 <section>
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <h3 className="text-sm font-semibold text-foreground">Shared With You</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t("sections.sharedWithYou")}</h3>
                     <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{otherServers.length}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -1582,12 +1604,12 @@ export default function ServersPage() {
                 <Server className="h-7 w-7 text-muted-foreground/40" />
               </div>
               <h3 className="text-base font-semibold text-foreground mb-1.5">
-                {search ? "No servers found" : "No servers yet"}
+                {search ? t("states.noServersFound") : t("states.noServersYet")}
               </h3>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
                 {search
-                  ? "Try a different search term or clear the filter."
-                  : "Deploy your first server and start building something awesome."}
+                  ? t("states.tryDifferentSearch")
+                  : t("states.deployFirst")}
               </p>
               {!search && (
                 <button
@@ -1595,7 +1617,7 @@ export default function ServersPage() {
                   className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all"
                 >
                   <Plus className="h-4 w-4" />
-                  Deploy Server
+                  {t("actions.deployServer")}
                 </button>
               )}
             </div>

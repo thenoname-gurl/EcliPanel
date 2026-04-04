@@ -1,0 +1,4462 @@
+{
+  "layout": {
+    "title": "Eclipse Systems - Next-Gen Hosting Provider",
+    "description": "Simple and oddly satisfying feeling."
+  },
+  "locale": {
+    "label": "Language",
+    "english": "English",
+    "russian": "Russian"
+  },
+  "panelNav": {
+    "sections": {
+      "overview": "Overview",
+      "infrastructure": "Infrastructure",
+      "ai": "AI",
+      "support": "Support",
+      "account": "Account",
+      "administration": "Administration"
+    },
+    "items": {
+      "socDashboard": "SOC Dashboard",
+      "accountActivity": "Account Activity",
+      "organisations": "Organisations",
+      "servers": "Servers",
+      "codeInstances": "Code Instances",
+      "nodes": "Nodes",
+      "aiStudio": "AI Studio",
+      "aiChat": "AI Chat",
+      "tickets": "Tickets",
+      "applications": "Applications",
+      "identity": "Identity",
+      "billing": "Billing",
+      "settings": "Settings",
+      "adminPanel": "Admin Panel"
+    },
+    "badges": {
+      "new": "New",
+      "beta": "Beta",
+      "staff": "Staff"
+    }
+  },
+  "panelHeader": {
+    "search": "Search...",
+    "searchPages": "Search pages...",
+    "noPagesFound": "No pages found",
+    "notifications": "Notifications",
+    "markAllRead": "Mark all read",
+    "noRecentActivity": "No recent activity",
+    "accountEvent": "Account event",
+    "markRead": "Mark read",
+    "viewAllActivity": "View all activity →"
+  },
+  "panelSidebar": {
+    "close": "Close",
+    "requiresUpgrade": "{feature} requires an upgrade",
+    "featureAvailableOn": "This feature is available on the {tier} plan and above. Contact our sales team to unlock it for your account.",
+    "contactSales": "Contact Sales",
+    "maybeLater": "Maybe later",
+    "requiresPlan": "Requires {tier} plan",
+    "accountSettings": "Account settings",
+    "logout": "Logout",
+    "loggingOut": "Logging out...",
+    "userFallback": "User",
+    "dashboardFallback": "Dashboard",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "navigationMenu": "Navigation menu",
+    "closeMenu": "Close menu"
+  },
+  "otpMethodSelector": {
+    "authenticatorApp": "Authenticator App",
+    "backupCode": "Backup Code",
+    "emailCode": "Email Code"
+  },
+  "panelShared": {
+    "status": {
+      "online": "Online",
+      "running": "Running",
+      "open": "Open",
+      "opened": "Opened",
+      "replied": "Replied",
+      "awaitingStaff": "Awaiting Staff",
+      "starting": "Starting",
+      "pending": "Pending",
+      "medium": "Medium",
+      "offline": "Offline",
+      "stopped": "Stopped",
+      "closed": "Closed",
+      "urgent": "Urgent",
+      "high": "High",
+      "low": "Low"
+    }
+  },
+  "enforcementBanner": {
+    "title": "Account requirements incomplete",
+    "description": "You must verify your email and set up either 2FA or a passkey to use this panel.",
+    "emailVerified": "Email verified",
+    "emailNotVerified": "Email not verified",
+    "sendVerificationEmail": "Send verification email",
+    "sending": "Sending…",
+    "resend": "Resend",
+    "resendShort": "Re-send",
+    "codePlaceholder": "6-digit code",
+    "verify": "Verify",
+    "invalidCode": "Invalid code",
+    "securityMethodEnabled": "Security requirement met (2FA or passkey enabled)",
+    "securityMethodMissing": "Enable 2FA or register a passkey",
+    "goToSecurity": "Go to Settings → Security",
+    "requiresHttpsPrefix": "Requires HTTPS — access the panel via",
+    "requiresHttpsSuffix": "to register a passkey."
+  },
+  "footer": {
+    "legalDocuments": "Legal Documents",
+    "imprint": "Imprint",
+    "copyrightShort": "© {year} EclipseSystems",
+    "copyrightLong": "© {year} EclipseSystems under Misiu LLC"
+  },
+  "landing": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "features": "[features]",
+      "about": "[about]",
+      "pricing": "[pricing]",
+      "contact": "[contact]"
+    },
+    "hero": {
+      "nextGen": "Next-Gen",
+      "subtitle": "Hosting Provider that loves cats",
+      "ctaStart": "./start --journey",
+      "ctaSignIn": "sign_in()"
+    },
+    "terminal": {
+      "objective": "OBJECTIVE:",
+      "objectiveValue": "CREATE. BUILD. DEPLOY.",
+      "difficulty": "DIFFICULTY:",
+      "difficultyValue": "EASY",
+      "status": "STATUS:"
+    },
+    "whatIs": {
+      "title": "# What is this?",
+      "subtitlePrefix": "If you are still confused about",
+      "brandUpper": "ECLIPSE SYSTEMS",
+      "subtitleSuffix": "and what this is about:",
+      "card1": {
+        "title": "# Hosting Dream",
+        "line1": "Spin up containers, game servers, web apps. Configure DNS, 2FA, scoped API keys.",
+        "line2": "Just in few clicks.",
+        "item1": "AIO Servers",
+        "item2": "Game Servers",
+        "item3": "Security Audits",
+        "item4": "Dynamic DNS Management"
+      },
+      "card2": {
+        "title": "# That Knows You",
+        "line1": "We know what our costumers want and we provide that.",
+        "line2": "At one place, with ease.",
+        "item1": "Scoped API Keys",
+        "item2": "Audit Logs & Metrics",
+        "item3": "Team Permissions",
+        "item4": "Easy Deployments"
+      }
+    },
+    "features": {
+      "title": "# Features",
+      "item1Title": "simple_panel()",
+      "item1Text": "A minimal, fast panel built for smooth workflows and instant actions.",
+      "item2Title": "scoped_access()",
+      "item2Text": "Roles, permissions, teams, and scoped API keys that work out of the box.",
+      "item3Title": "dynamic_dns()",
+      "item3Text": "Integrated DNS management with direct UI controls and automation.",
+      "item4Title": "security_first()",
+      "item4Text": "Threat detection and full audit history in one place.",
+      "item5Title": "own_nodes()",
+      "item5Text": "Connect your own nodes or manage dedicated ones through a central API.",
+      "item6Title": "open_source()",
+      "item6Text": "Open-source core for maximum transparency."
+    },
+    "community": {
+      "title": "# Community",
+      "subtitle": "Join the network",
+      "description": "From indie studios to enterprise infrastructure - EclipseSystems powers production workloads everywhere.",
+      "cta": "./connect --dashboard",
+      "init": "INIT",
+      "handshake": "handshake...",
+      "resolving": "RESOLVING:",
+      "nodes": "NODES:",
+      "online": "ONLINE",
+      "degraded": "DEGRADED",
+      "offline": "OFFLINE",
+      "group1": "DevOps Teams",
+      "group2": "Startups",
+      "group3": "Enterprise",
+      "group4": "Gaming Communities"
+    },
+    "about": {
+      "title": "# About",
+      "subtitlePrefix": "Built by hosters,",
+      "subtitleHighlight": "for hosters.",
+      "line1": "EclipseSystems was created with a simple belief: hosting should feel effortless.",
+      "line2": "Our platform merges orchestration, security, and team operations into a single, elegant control plane. From game servers to enterprise workloads, Eclipse gives you the power to deploy, scale, and secure — without friction."
+    },
+    "plans": {
+      "title": "# Portal Plans",
+      "subtitle": "Choose the portal that fits your workflow. All portals include access to the dashboard.",
+      "free": {
+        "name": "free_portal",
+        "tagline": "Perfect for newbies!",
+        "price": "Free",
+        "period": "/forever",
+        "item1": "→ 1 Server",
+        "item2": "→ 1 Port per server",
+        "item3": "→ 1 vCore",
+        "item4": "→ 1028 MB RAM",
+        "item5": "→ 10240 MB Storage",
+        "item6": "→ AIO Template only",
+        "item7": "→ No SLA"
+      },
+      "edu": {
+        "name": "edu_portal",
+        "tagline": "For students & small projects!",
+        "price": "Free",
+        "period": "/while student",
+        "item1": "→ 3 Servers",
+        "item2": "→ 3 Ports per server",
+        "item3": "→ 2 vCores",
+        "item4": "→ 2048 MB RAM",
+        "item5": "→ 20248 MB Storage",
+        "item6": "→ Basic Support",
+        "item7": "→ KVM Template Access",
+        "item8": "→ 95% SLA"
+      },
+      "paid": {
+        "name": "paid_portal",
+        "tagline": "Small to medium projects!",
+        "price": "€12",
+        "period": "/mo",
+        "item1": "→ 10 Servers",
+        "item2": "→ 3 Ports per server",
+        "item3": "→ 6 vCores",
+        "item4": "→ 16028 MB RAM",
+        "item5": "→ 50240 MB Storage",
+        "item6": "→ Basic Support",
+        "item7": "→ KVM Template Access",
+        "item8": "→ AI Access",
+        "item9": "→ 95% SLA"
+      },
+      "enterprise": {
+        "name": "enterprise",
+        "tagline": "Medium to large projects!",
+        "price": "Varies",
+        "item1": "→ Unmetered Servers",
+        "item2": "→ Entire Node CPU",
+        "item3": "→ Entire Node RAM",
+        "item4": "→ Entire Node Storage",
+        "item5": "→ IPv4 + IPv6",
+        "item6": "→ Premium Support",
+        "item7": "→ KVM Template Access",
+        "item8": "→ AI Access",
+        "item9": "→ Custom SLA"
+      }
+    },
+    "faq": {
+      "title": "# FAQs",
+      "q1": "How do I get started?",
+      "a1": "Sign up for a free portal account and deploy your first server in minutes. Our panel guides you through every step.",
+      "q2": "Can I connect my own nodes?",
+      "a2": "YES! Eclipse supports connecting your own infrastructure. Enterprise plans include full node management.",
+      "q3": "What is included in support?",
+      "a3": "Basic support includes email & community. Premium support includes priority response, dedicated channels, and direct engineering access.",
+      "q4": "Is Eclipse open source?",
+      "a4Prefix": "The core panel is open-source for non-commercial purposes. Check our",
+      "a4Suffix": "for more details!"
+    },
+    "cta": {
+      "title": "# Ready to deploy?",
+      "subtitle": "Join thousands of teams using EclipseSystems to power their infrastructure.",
+      "register": "./register --now",
+      "dashboard": "go_to_dashboard()"
+    },
+    "footer": {
+      "customSetup": "Want a custom setup? Email",
+      "orGoTo": "or go to",
+      "dashboard": "Dashboard"
+    }
+  },
+  "notFound": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[home]",
+      "features": "[features]",
+      "pricing": "[pricing]",
+      "contact": "[contact]"
+    },
+    "hero": {
+      "errorLabel": "ERROR:",
+      "title": "Page not found",
+      "subtitle": "The requested resource has been lost in the void."
+    },
+    "terminal": {
+      "error404": "ERROR 404:",
+      "notFoundDimension": "Resource not found in any known dimension.",
+      "path": "PATH:",
+      "lookup": "LOOKUP:",
+      "failed": "FAILED",
+      "suggestion": "SUGGESTION:",
+      "returnCoordinates": "Return to known coordinates"
+    },
+    "details": {
+      "title": "# What happened?",
+      "causesTitle": "# Possible Causes",
+      "causesSubtitle": "Blåhaj ate page, or maybe:",
+      "cause1": "→ The page was moved or deleted",
+      "cause2": "→ The URL was mistyped",
+      "cause3": "→ The link you followed is outdated",
+      "cause4": "→ A cat walked across the keyboard",
+      "quickNavTitle": "# Quick Navigation",
+      "quickNavSubtitle": "Here are some places you might want to go:",
+      "homePage": "→ Home Page",
+      "dashboard": "→ Dashboard",
+      "login": "→ Login",
+      "register": "→ Register"
+    },
+    "recovery": {
+      "warn": "WARN:",
+      "noRoute": "No recovery route found.",
+      "scanning": "SCANNING:",
+      "sitemap": "sitemap... 0 matches",
+      "fallback": "FALLBACK:",
+      "redirect": "redirect → /",
+      "recommendation": "# Recommendation: go home, deploy something cool instead."
+    },
+    "cta": {
+      "title": "# Let's get you back on track",
+      "subtitle": "This page doesn't exist, but your next deployment could.",
+      "home": "./navigate --home",
+      "dashboard": "go_to_dashboard()"
+    },
+    "footer": {
+      "lost": "Lost? Email",
+      "orReturn": "or return to",
+      "home": "Home"
+    }
+  },
+  "errorPage": {
+    "brand": "Eclipse Systems",
+    "terminal": {
+      "title": "Terminal — Error",
+      "panic": "PANIC:",
+      "unrecoverable": "Unrecoverable runtime exception detected.",
+      "error": "ERROR:",
+      "digest": "DIGEST:",
+      "exitCode": "EXIT CODE:",
+      "terminated": "Process terminated."
+    },
+    "crash": {
+      "report": "CRASH REPORT",
+      "runtime": "Eclipse Systems Runtime",
+      "timestamp": "Timestamp:",
+      "pid": "PID:",
+      "memory": "Memory:",
+      "digest": "Digest:",
+      "signal": "Signal:",
+      "signalValue": "SIGSEGV (Segmentation fault)",
+      "exception": "Exception:",
+      "message": "Message:",
+      "defaultErrorName": "Error",
+      "defaultErrorMessage": "An unexpected error occurred"
+    },
+    "header": {
+      "fault": "FAULT",
+      "home": "[home]",
+      "dashboard": "[dashboard]"
+    },
+    "hero": {
+      "fatal": "FATAL:",
+      "title": "Something went wrong",
+      "subtitle": "An unhandled exception has crashed this process.",
+      "retryAttempts": "Retry attempts: {count}"
+    },
+    "sections": {
+      "crashReport": "# Crash Report",
+      "diagnostics": "# Diagnostics",
+      "possibleCauses": "# Possible Causes",
+      "causesSubtitle": "Blåhaj ate pixelcat, or maybe:",
+      "cause1": "→ Server-side rendering failure",
+      "cause2": "→ Unhandled promise rejection",
+      "cause3": "→ Invalid state mutation",
+      "cause4": "→ A cat chewed through the cables",
+      "recoveryOptions": "# Recovery Options",
+      "recoverySubtitle": "Try one of these recovery procedures:"
+    },
+    "actions": {
+      "retrying": "Retrying...",
+      "retryThisPage": "→ Retry this page",
+      "returnHome": "→ Return to Home",
+      "goDashboard": "→ Go to Dashboard",
+      "hardReload": "→ Hard reload page"
+    },
+    "recovery": {
+      "warn": "WARN:",
+      "autoUnavailable": "Automatic recovery unavailable.",
+      "scanning": "SCANNING: process state...",
+      "corrupted": "CORRUPTED",
+      "heap": "HEAP:",
+      "heapUnavailable": "Snapshot unavailable",
+      "stack": "STACK:",
+      "stackLost": "Frames lost",
+      "suggestion": "SUGGESTION:",
+      "manualRequired": "Manual intervention required.",
+      "tryReset": "# Try: reset() or navigate to a known route."
+    },
+    "status": {
+      "runtime": "Runtime",
+      "memory": "Memory",
+      "network": "Network",
+      "recovery": "Recovery",
+      "fault": "FAULT",
+      "ok": "OK",
+      "pending": "PENDING",
+      "unknown": "UNKNOWN"
+    },
+    "cta": {
+      "title": "# Need help?",
+      "subtitle": "If this error persists, contact our support team. We'll help you debug.",
+      "retrying": "./retrying...",
+      "retryForce": "./retry --force",
+      "escapeHome": "escape_to_home()"
+    },
+    "footer": {
+      "persistentErrors": "Persistent errors? Email",
+      "orReturn": "or return to",
+      "home": "Home",
+      "reference": "Reference:"
+    }
+  },
+  "login": {
+    "welcomeBack": "Welcome back",
+    "subtitle": "Sign in to your Eclipse Panel account",
+    "verifyDomain": "Verify this domain",
+    "domainWarning": "This panel should be served from <domain>ecli.app</domain>. Navigate to <link>https://ecli.app</link> if your URL differs.",
+    "somethingWentWrong": "Something went wrong",
+    "twoFactorTitle": "Two-factor authentication",
+    "twoFactorSubtitle": "Select your verification method and enter the code",
+    "methodAuthenticator": "Authenticator App",
+    "methodAuthenticatorDesc": "Use your TOTP authenticator app",
+    "methodEmail": "Email Code",
+    "methodEmailDesc": "Receive a code via email",
+    "methodBackup": "Backup Code",
+    "methodBackupDesc": "Use one of your backup codes",
+    "authenticatorCode": "Authenticator Code",
+    "authenticatorCodePlaceholder": "Enter 6-digit code",
+    "backupCode": "Backup Code",
+    "backupCodePlaceholder": "Enter backup code",
+    "emailCode": "Email Code",
+    "emailCodePlaceholder": "Enter email code",
+    "send": "Send",
+    "verifying": "Verifying...",
+    "verify": "Verify",
+    "cancel": "Cancel",
+    "credentials": "Credentials",
+    "emailAddress": "Email Address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "forgotPassword": "Forgot password?",
+    "signingIn": "Signing in...",
+    "signIn": "Sign In",
+    "orContinueWith": "or continue with",
+    "waitingPasskey": "Waiting for passkey...",
+    "signInWithPasskey": "Sign in with Passkey",
+    "termsNotice": "By signing in, you agree to our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>.",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create an account",
+    "securityNote": "Protected by industry-standard encryption",
+    "enterCodeSelectedMethod": "Please enter a code for the selected method.",
+    "invalidServerResponse": "Invalid response from server",
+    "verificationFailed": "Verification failed",
+    "enterEmailBeforePasskey": "Enter your email address first, then click Sign in with Passkey.",
+    "passkeyCancelled": "Passkey authentication cancelled.",
+    "passkeyFailed": "Passkey authentication failed.",
+    "loginFailed": "Login failed",
+    "missingTemporarySession": "Missing temporary session",
+    "failedToSendEmailCode": "Failed to send email code"
+  },
+  "register": {
+    "steps": {
+      "account": "Account",
+      "address": "Address",
+      "verify": "Verify"
+    },
+    "title": "Create your account",
+    "subtitle": "Get started with your servers in just a few steps",
+    "verifyDomain": "Verify this domain",
+    "domainWarning": "This panel should be served from <domain>ecli.app</domain>. Navigate to <link>https://ecli.app</link> if your URL differs.",
+    "registrationUnavailable": "Registration unavailable",
+    "somethingWentWrong": "Something went wrong",
+    "registrationNotAvailable": "Registration is not available at this time.",
+    "signInInstead": "Sign in instead",
+    "personalInfo": "Personal Info",
+    "firstName": "First Name",
+    "firstNamePlaceholder": "Jane",
+    "lastName": "Last Name",
+    "lastNamePlaceholder": "Doe",
+    "emailAddress": "Email Address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Create a strong password",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "+1 (555) 000-0000",
+    "billingAddress": "Billing Address",
+    "companyOptional": "Company (optional)",
+    "companyPlaceholder": "Company name",
+    "streetAddress": "Street Address",
+    "streetAddressPlaceholder": "123 Main Street",
+    "addressLine2Optional": "Address Line 2 (optional)",
+    "addressLine2Placeholder": "Apt, suite, unit, etc.",
+    "city": "City",
+    "cityPlaceholder": "City",
+    "stateProvince": "State / Province",
+    "stateProvincePlaceholder": "State / Province",
+    "zipPostal": "ZIP / Postal Code",
+    "zipPostalPlaceholder": "12345",
+    "country": "Country",
+    "selectCountry": "Select country…",
+    "reviewTitle": "Review your details",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "location": "Location",
+    "securityCheck": "Security Check",
+    "captchaLoadFailed": "Unable to load captcha",
+    "playing": "Playing…",
+    "listenAudioCaptcha": "Listen to audio captcha",
+    "audioPlayFailed": "Unable to play audio. Try refreshing.",
+    "yourAnswer": "Your Answer",
+    "yourAnswerPlaceholder": "Enter the answer",
+    "refreshCaptchaAria": "Refresh captcha",
+    "newCaptchaTitle": "New captcha",
+    "termsNotice": "By creating an account, you agree to our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>.",
+    "back": "Back",
+    "continue": "Continue",
+    "creatingAccount": "Creating account…",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "securityNote": "Protected by industry-standard encryption",
+    "requiredFieldsStep0": "Please fill in all required fields and ensure your password is at least moderate strength.",
+    "requiredFieldsStep1": "Please fill in all required address fields.",
+    "captchaChallengeOrWait": "Please solve the captcha challenge or wait a moment for invisible captcha to become active.",
+    "captchaExpired": "Captcha is not loaded or has expired. Please refresh the captcha and try again.",
+    "invisibleCaptchaMissing": "Invisible captcha token is missing. Try refreshing the page.",
+    "registrationFailed": "Registration failed"
+  },
+  "docs": {
+    "title": "Legal documents",
+    "subtitle": "Things that lawyers love.",
+    "empty": {
+      "title": "No documents found",
+      "prefix": "Add files into",
+      "suffix": "and refresh this page."
+    },
+    "card": {
+      "openInNewTab": "Open in a new tab",
+      "view": "View"
+    }
+  },
+  "license": {
+    "translationNote": "This is a translation. The legally binding version is the original English text.",
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[home]",
+      "dashboard": "[dashboard]"
+    },
+    "hero": {
+      "title": "Community License",
+      "line1Prefix": "Open-source for",
+      "line1Highlight": "non-commercial",
+      "line1Suffix": "use.",
+      "line2Prefix": "Commercial rights reserved to",
+      "line2Highlight": "EclipseSystems"
+    },
+    "terminal": {
+      "windowTitle": "Terminal",
+      "licenseLabel": "LICENSE:",
+      "licenseValue": "EclipseSystems Community License v1.1",
+      "copyrightLabel": "COPYRIGHT:",
+      "copyrightValue": "© 2026 EclipseSystems (Misiu LLC)",
+      "stewardLabel": "STEWARD:",
+      "stewardValue": "Maksym Huzun (noname@ecli.app)",
+      "allowed": "Non-commercial use permitted",
+      "forbidden": "Commercial use reserved"
+    },
+    "quick": {
+      "title": "# Quick Reference",
+      "permittedTitle": "Permitted",
+      "permitted1": "View, read & inspect source code",
+      "permitted2": "Use for personal/educational projects",
+      "permitted3": "Modify for non-commercial purposes",
+      "permitted4": "Research & academic use",
+      "permitted5": "Create non-commercial derivative works",
+      "permitted6": "Share unmodified copies (non-commercial)",
+      "prohibitedTitle": "Prohibited",
+      "prohibited1": "Commercial hosting or SaaS deployment",
+      "prohibited2": "Revenue-generating services",
+      "prohibited3": "Production business deployment",
+      "prohibited4": "Paid consulting with the software",
+      "prohibited5": "Redistribution for commercial purposes",
+      "prohibited6": "Removing attribution or license notices",
+      "attributionTitle": "Attribution Required",
+      "attributionPrefix": "Any deployment must include visible attribution to",
+      "attributionName1": "EclipseSystems",
+      "attributionAnd": "and",
+      "attributionName2": "Maksym Huzun",
+      "attributionSuffix": "with a link to the official repository. This applies to both frontend and backend interfaces."
+    },
+    "full": {
+      "title": "# Full License Text",
+      "docTitle": "EclipseSystems Community License v1.1",
+      "docLine1": "Copyright (c) 2026 EclipseSystems",
+      "docLine2": "A project of Misiu LLC",
+      "docLine3": "Authorized steward: Maksym Huzun (noname@ecli.app)",
+      "sections": {
+        "definitions": {
+          "title": "1. Definitions",
+          "body": "\"Software\" means the source code, documentation, and other materials\nprovided in this repository.\n\n\"User\" means any individual or organization accessing the Software.\n\n\"Non-Commercial Purpose\" means any use that is not intended for or\ndirected toward commercial advantage, monetary compensation, or\nrevenue-generating activity.\n\n\"Commercial Purpose\" means any use of the Software in a manner that\ngenerates revenue, provides paid services, is used in a business\ncontext, or is deployed in production environments.\n\n\"Authorized Stewards\" means EclipseSystems under Misiu LLC and\nindividuals explicitly designated by Maksym Huzun."
+        },
+        "grant": {
+          "title": "2. Grant of Rights",
+          "body": "Subject to the terms of this license, Users are granted a worldwide,\nnon-exclusive, royalty-free license to:\n\n  (a) view, read, and inspect the Software;\n  (b) use the Software for any Non-Commercial Purpose;\n  (c) modify the Software for Non-Commercial Purposes; and\n  (d) create and share Non-Commercial Derivative Works."
+        },
+        "nonCommercial": {
+          "title": "3. Non-Commercial Use",
+          "body": "Non-profit organizations, educational institutions, researchers, and\nindividuals may use, modify, and run the Software for Non-Commercial\nPurposes without restriction."
+        },
+        "commercialReserved": {
+          "title": "4. Commercial Use Reserved",
+          "body": "All rights to use, modify, host, deploy, sublicense, integrate, or\ndistribute the Software for Commercial Purposes are exclusively\nreserved to:\n\n  - EclipseSystems (a project under Misiu LLC), and\n  - Maksym Huzun (noname@ecli.app)\n\nNo other User is granted any commercial rights under any circumstances."
+        },
+        "redistribution": {
+          "title": "5. Redistribution",
+          "body": "Users may redistribute unmodified copies of the Software for\nNon-Commercial Purposes only, provided that:\n\n  (a) this license is included in full, and\n  (b) no fee is charged beyond reasonable distribution costs.\n\nRedistribution for Commercial Purposes is prohibited."
+        },
+        "derivative": {
+          "title": "6. Derivative Works",
+          "body": "Users may create, modify, and share Derivative Works for\nNon-Commercial Purposes only. Any Derivative Work must:\n\n  (a) include this license in full,\n  (b) clearly state that it is a derivative of the original Software,\n  (c) preserve all attribution notices required by Section 9."
+        },
+        "hosting": {
+          "title": "7. Hosting and Deployment Restrictions",
+          "body": "Users may not deploy, host, or make the Software (or any Derivative\nWork) publicly accessible as a service, cloud offering, or production\nsystem, except for Non-Commercial educational, research, or testing\ndemonstrations.\n\nAll commercial hosting and SaaS rights are exclusively reserved to\nEclipseSystems and Maksym Huzun."
+        },
+        "preservation": {
+          "title": "8. License Preservation",
+          "body": "This license and all copyright notices must be preserved in all copies,\nforks, or Derivative Works, except where explicitly exempted for\nAuthorized Stewards."
+        },
+        "attribution": {
+          "title": "9. Attribution Requirement",
+          "body": "Any User deploying, running, or distributing the Software or any\nNon-Commercial Derivative Work must preserve and display a visible\ncopyright and license notice that:\n\n  (a) identifies EclipseSystems and/or Maksym Huzun as the copyright\n      holders,\n  (b) includes a reference or hyperlink directing back to the official\n      EclipseSystems project repository, and\n  (c) is reasonably accessible to end users in either the frontend\n      user interface, backend administrative interface, or both.\n\nThis attribution requirement does not apply to EclipseSystems under\nMisiu LLC or to Authorized Stewards designated by Maksym Huzun."
+        },
+        "termination": {
+          "title": "10. Termination",
+          "body": "Any violation of this license immediately and permanently terminates\nall rights granted herein. Upon termination, the User must cease all\nuse and destroy all copies of the Software."
+        },
+        "noWarranty": {
+          "title": "11. No Warranty",
+          "body": "The Software is provided \"as is,\" without warranty of any kind,\nexpress or implied. In no event shall the copyright holders or\nAuthorized Stewards be liable for any claim, damages, or other\nliability arising from the use of the Software."
+        }
+      }
+    },
+    "faq": {
+      "title": "# License FAQ",
+      "q1": "Can I use this for my school project?",
+      "a1": "Yes! Educational and academic use is fully permitted under this license.",
+      "q2": "Can I modify the code for personal learning?",
+      "a2": "Absolutely. You can view, modify, and experiment with the code for non-commercial purposes.",
+      "q3": "Can I host this as a paid service?",
+      "a3": "No. Commercial hosting, SaaS deployment, and revenue-generating services are reserved exclusively to EclipseSystems and Maksym Huzun.",
+      "q4": "What about open-source contributions?",
+      "a4": "We welcome contributions! Please check our contributing guidelines on GitHub for details on how to contribute.",
+      "q5": "Can I use this for my startup/business?",
+      "a5": "Not without explicit permission. All commercial use rights are reserved. Contact noname@ecli.app for commercial licensing inquiries.",
+      "q6": "What if I violate the license?",
+      "a6": "Any violation immediately terminates your license. You must cease all use and destroy all copies of the software."
+    },
+    "contact": {
+      "title": "# Questions?",
+      "heading": "Need Commercial Access?",
+      "body": "Interested in using EcliPanel or its assets for your business? We offer commercial licensing and enterprise support. Get in touch to discuss your needs and how we can help you leverage EcliPanel for your commercial projects.",
+      "contactCommercial": "contact_commercial()",
+      "viewSource": "view_source()"
+    }
+  },
+  "forgotPasswordPage": {
+    "title": "Reset password",
+    "subtitle": "Enter your email and we’ll send a reset link.",
+    "emailPlaceholder": "Email",
+    "sending": "Sending…",
+    "sendResetEmail": "Send reset email",
+    "backToSignIn": "Back to sign in",
+    "messages": {
+      "sent": "If that email exists, you will receive password reset instructions shortly."
+    },
+    "errors": {
+      "enterEmail": "Please enter your email address",
+      "requestFailed": "Failed to request password reset"
+    }
+  },
+  "restoreEmailPage": {
+    "title": "Restoring your previous email",
+    "redirecting": "Please wait - you will be redirected shortly.",
+    "notRedirectedPrefix": "If you are not redirected,",
+    "clickHere": "click here",
+    "loading": "Loading…",
+    "errors": {
+      "missingToken": "Missing restore token."
+    }
+  },
+  "verifyEmailPage": {
+    "title": "Verifying your email",
+    "redirecting": "Please wait - you will be redirected shortly.",
+    "notRedirectedPrefix": "If you are not redirected,",
+    "clickHere": "click here",
+    "loading": "Loading…",
+    "errors": {
+      "missingToken": "Missing verification token."
+    }
+  },
+  "organisationAcceptPage": {
+    "title": "Accept Organisation Invite",
+    "actions": {
+      "acceptInvite": "Accept Invite"
+    },
+    "messages": {
+      "accepted": "Invitation accepted. Redirecting...",
+      "failed": "Failed to accept invite"
+    }
+  },
+  "wingsPage": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[home]",
+      "features": "[features]",
+      "pricing": "[pricing]",
+      "dashboard": "[dashboard]"
+    },
+    "hero": {
+      "title": "Node Status",
+      "prefix": "Public",
+      "highlight": "7-day",
+      "suffix": "node heartbeat metrics"
+    },
+    "terminal": {
+      "window": "WINDOW:",
+      "nodes": "NODES:",
+      "avgUptime": "AVG_UPTIME:",
+      "totalChecks": "TOTAL_CHECKS:"
+    },
+    "states": {
+      "loading": "Loading...",
+      "error": "Error",
+      "updated": "Updated",
+      "lastUpdated": "Last updated"
+    },
+    "errors": {
+      "fetchFailed": "Failed to fetch uptime history"
+    },
+    "overview": {
+      "title": "# Overview",
+      "window": "Window",
+      "nodes": "Nodes",
+      "avgUptime": "Avg Uptime",
+      "totalChecks": "Total Checks"
+    },
+    "actions": {
+      "refresh": "refresh()"
+    },
+    "nodes": {
+      "title": "# Nodes",
+      "empty": "No nodes available",
+      "uptime": "Uptime",
+      "ok": "OK:",
+      "timeout": "Timeout:",
+      "error": "Error:",
+      "avgMs": "Avg ms:"
+    },
+    "api": {
+      "title": "# API Access",
+      "export": "public_export()",
+      "prefix": "Live historical uptime data is available via",
+      "note": "Refresh interval: 60s. Data is paged and computed from heartbeats recorded by the API."
+    },
+    "cta": {
+      "title": "# Want your own nodes?",
+      "subtitle": "Deploy servers on our infrastructure or connect your own nodes.",
+      "register": "./register --now",
+      "dashboard": "go_to_dashboard()"
+    },
+    "footer": {
+      "needHelp": "Need help? Email",
+      "orGoTo": "or go to",
+      "dashboard": "Dashboard"
+    }
+  },
+  "publicFormPage": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[home]",
+      "dashboard": "[dashboard]",
+      "login": "[login]"
+    },
+    "badges": {
+      "active": "ACTIVE",
+      "closed": "CLOSED",
+      "archived": "ARCHIVED",
+      "publicAnonymous": "PUBLIC_ANON",
+      "publicUsers": "USERS_ONLY",
+      "privateInvite": "INVITE_ONLY"
+    },
+    "loading": {
+      "title": "LOADING...",
+      "subtitle": "// fetching form data from server...",
+      "terminal": "Retrieving form schema..."
+    },
+    "errorState": {
+      "title": "ERROR",
+      "faultLabel": "FAULT:",
+      "faultValue": "Form unavailable",
+      "subtitle": "The requested form could not be located in this dimension.",
+      "terminalError": "ERROR:",
+      "terminalSlug": "SLUG:",
+      "terminalStatus": "STATUS:",
+      "notFound": "NOT_FOUND",
+      "recoveryTitle": "# Recovery Options",
+      "returnHome": "→ Return to Home",
+      "goDashboard": "→ Go to Dashboard"
+    },
+    "success": {
+      "title": "SENT",
+      "label": "SUCCESS:",
+      "value": "Transmission complete",
+      "terminalLine": "Submission received and queued for review.",
+      "statusLabel": "STATUS:",
+      "statusValue": "TRANSMITTED",
+      "formLabel": "FORM:",
+      "submitAgain": "./submit --again",
+      "navigateHome": "navigate_home()"
+    },
+    "warnings": {
+      "authRequired": "This form requires a panel account.",
+      "login": "→ login",
+      "anonymousInfo": "Anonymous submissions are rate-limited to once per hour per IP. Provide your email below to receive follow-ups.",
+      "formClosed": "FORM_CLOSED",
+      "formClosedDetail": "This form is no longer accepting submissions."
+    },
+    "contactEmail": {
+      "label": "// contact_email (optional)",
+      "placeholder": "// you@example.com",
+      "help": "Provide an email to receive updates on your submission."
+    },
+    "progress": {
+      "label": "// completion_progress"
+    },
+    "questions": {
+      "none": "No questions configured for this form."
+    },
+    "actions": {
+      "transmitting": "transmitting...",
+      "submit": "./submit --form",
+      "navigateHome": "navigate_home()",
+      "loginRequired": "// login required to submit"
+    },
+    "messages": {
+      "transmitted": "Submission transmitted successfully."
+    },
+    "errors": {
+      "formUnavailable": "Form not found or not accessible",
+      "questionRequired": "Question \"{question}\" is required",
+      "submitFailed": "Failed to submit",
+      "validationTitle": "VALIDATION_ERROR"
+    },
+    "footer": {
+      "questions": "Questions? Email",
+      "orReturn": "or return to",
+      "home": "Home"
+    }
+  },
+  "resetPasswordPage": {
+    "title": "Set your new password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "resetting": "Resetting...",
+    "resetPassword": "Reset password",
+    "backToSignIn": "Back to sign in",
+    "messages": {
+      "updated": "Password updated successfully. Redirecting to login..."
+    },
+    "errors": {
+      "fillBoth": "Please fill both password fields",
+      "noMatch": "Passwords do not match",
+      "failed": "Failed to reset password"
+    }
+  },
+  "dashboardPage": {
+    "authInProgress": "Authentication in progress...",
+    "header": {
+      "title": "SOC Dashboard",
+      "description": "Security Operations Center Overview"
+    },
+    "stats": {
+      "yourServersOnline": "Your Servers Online",
+      "others": "{online}/{total} others",
+      "totalServersOnline": "Total Servers Online",
+      "threatLevel": "Threat Level",
+      "elevated": "Elevated",
+      "low": "Low",
+      "alertsDetected": "{count} alert(s) detected",
+      "noThreats": "No active threats detected",
+      "uptime": "Uptime",
+      "totalUptime": "Total: {value}%",
+      "noServers": "No servers"
+    },
+    "serverHealth": {
+      "title": "Server Health",
+      "description": "Real-time resource utilization",
+      "noServersOnline": "No servers online",
+      "yourServers": "Your Servers",
+      "otherServers": "Other Servers"
+    },
+    "resourceSummary": {
+      "title": "Resource Summary",
+      "avgCpu": "Avg CPU",
+      "totalRam": "Total RAM",
+      "totalDisk": "Total Disk",
+      "serversOnline": "Servers Online"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "empty": "No recent activity available."
+    },
+    "securityAlerts": {
+      "title": "Security Alerts",
+      "description": "Recent security events and notifications",
+      "noneTitle": "No security alerts",
+      "noneSubtitle": "All systems operating normally",
+      "eventDetected": "Security event detected",
+      "server": "Server",
+      "unknown": "unknown"
+    }
+  },
+  "adminPage": {
+    "header": {
+      "title": "Admin Panel",
+      "description": "System administration and management"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "working": "Working…",
+      "confirmReveal": "Confirm to reveal",
+      "rehidePrivateData": "Re-hide private data",
+      "open": "Open"
+    },
+    "privacy": {
+      "sensitiveDataPrefix": "Sensitive data is currently",
+      "hidden": "hidden",
+      "visible": "visible",
+      "confirmationTitle": "Privacy Confirmation",
+      "confirmationDescription": "This admin panel contains private user data (names, emails, IDs), which is prohibited from being shared with third parties (see NDA, clause 4).\nTo proceed, please confirm that you are not recording your screen or sharing it.",
+      "continueWithRedaction": "Continue with redaction",
+      "notRecording": "I am not recording"
+    },
+    "globalSearch": {
+      "title": "Global Search",
+      "placeholder": "Search users, organisations, servers, orders by id/name/email...",
+      "clearSearch": "Clear search",
+      "searching": "Searching...",
+      "hint": "Enter a query to search across users, organisations, servers, and orders.",
+      "noMatches": "No matches found",
+      "users": "Users ({count})",
+      "organisations": "Organisations ({count})",
+      "servers": "Servers ({count})",
+      "orders": "Orders ({count})",
+      "orderFallback": "Order",
+      "forUser": "for user #{id}"
+    },
+    "tabs": {
+      "users": "Users",
+      "metrics": "Metrics",
+      "exportJobs": "Export Jobs",
+      "organisations": "Organisations",
+      "servers": "Servers",
+      "tickets": "Tickets",
+      "applications": "Applications",
+      "kyc": "KYC",
+      "deletions": "Deletions",
+      "nodes": "Nodes",
+      "eggs": "Eggs",
+      "aiModels": "AI Models",
+      "announcements": "Announcements",
+      "fraud": "Fraud",
+      "roles": "Roles",
+      "logs": "Logs",
+      "oauth": "OAuth",
+      "databases": "Databases",
+      "plans": "Plans",
+      "orders": "Orders",
+      "settings": "Settings"
+    }
+  },
+  "adminExportJobsTab": {
+    "title": "Export Job Queue",
+    "common": {
+      "na": "n/a"
+    },
+    "meta": {
+      "runner": "Runner",
+      "nextRun": "Next run",
+      "lastRun": "Last run",
+      "expiresAt": "Expires at"
+    },
+    "table": {
+      "user": "User",
+      "status": "Status",
+      "progress": "Progress",
+      "created": "Created",
+      "updated": "Updated",
+      "actions": "Actions"
+    },
+    "states": {
+      "empty": "No export jobs yet."
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "download": "Download",
+      "generating": "Generating…",
+      "createShareLink": "Create share link",
+      "copyShareLink": "Copy share link",
+      "copy": "Copy"
+    }
+  },
+  "adminUsersTab": {
+    "common": {
+      "user": "User",
+      "avatar": "avatar"
+    },
+    "search": {
+      "placeholder": "Search users by name or email…",
+      "moreResults": "more results",
+      "totalUsers": "{count} users"
+    },
+    "table": {
+      "user": "User",
+      "role": "Role",
+      "tier": "Tier",
+      "verification": "Verification",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "verification": {
+      "email": "Email",
+      "student": "Student",
+      "id": "ID"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "supportBanned": "Support banned",
+      "banned": "Banned"
+    },
+    "states": {
+      "loading": "Loading users…",
+      "noMatch": "No users match your search"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "total": "{count} total"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "viewProfile": "View profile",
+      "editUser": "Edit user",
+      "view": "View",
+      "edit": "Edit",
+      "suspend": "Suspend",
+      "unsuspend": "Unsuspend",
+      "resetDemo": "Reset demo",
+      "startExportJob": "Start export job",
+      "download": "Download",
+      "deassignStudent": "Deassign student",
+      "requireReverify": "Require reverify",
+      "deleteAccount": "Delete account",
+      "previous": "Previous",
+      "next": "Next"
+    }
+  },
+  "adminTicketsTab": {
+    "common": {
+      "dash": "—"
+    },
+    "filters": {
+      "all": "All",
+      "open": "Open",
+      "awaitingReply": "Awaiting Reply",
+      "replied": "Replied",
+      "closed": "Closed",
+      "archived": "Archived",
+      "aiHandled": "AI-handled"
+    },
+    "search": {
+      "placeholder": "Search by user ID or email…"
+    },
+    "priority": {
+      "label": "Priority",
+      "any": "Any Priority",
+      "urgent": "Urgent",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "selection": {
+      "selected": "{count} selected",
+      "selectAll": "Select all",
+      "totalTickets": "{count} tickets",
+      "confirmArchive": "Archive {count} ticket(s)?",
+      "confirmUnarchive": "Unarchive {count} ticket(s)?"
+    },
+    "table": {
+      "ticket": "Ticket",
+      "user": "User",
+      "department": "Department",
+      "assigned": "Assigned",
+      "priority": "Priority",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "states": {
+      "loading": "Loading tickets…",
+      "noMatch": "No tickets match your filters"
+    },
+    "status": {
+      "opened": "Opened",
+      "awaitingStaffReply": "Awaiting Staff Reply",
+      "replied": "Replied",
+      "closed": "Closed",
+      "archived": "Archived"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "total": "{count} total"
+    },
+    "dialog": {
+      "replyTitle": "Reply — #{id}",
+      "conversation": "Conversation",
+      "supportTeam": "Support Team",
+      "userId": "User #{id}",
+      "noMessages": "No messages",
+      "yourReply": "Your Reply",
+      "typeReply": "Type your reply…",
+      "replyAs": "Reply As",
+      "staff": "Staff",
+      "user": "User",
+      "assignedStaff": "Assigned Staff",
+      "searchStaff": "Search staff by name, email or id",
+      "setStatus": "Set Status"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "reset": "Reset",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "reply": "Reply",
+      "open": "Open",
+      "openInNewTab": "Open in new tab",
+      "previous": "Previous",
+      "next": "Next",
+      "cancel": "Cancel",
+      "sending": "Sending…",
+      "sendReply": "Send Reply"
+    }
+  },
+  "adminOrdersTab": {
+    "header": {
+      "title": "Orders",
+      "subtitle": "Manage plans & resource packs",
+      "orderCount": "{count} orders"
+    },
+    "common": {
+      "orderId": "Order #{id}",
+      "userId": "User #{id}",
+      "planId": "Plan #{id}",
+      "dash": "—",
+      "none": "— none —",
+      "infinity": "∞"
+    },
+    "search": {
+      "placeholder": "Search by user ID or email…"
+    },
+    "table": {
+      "order": "Order",
+      "user": "User",
+      "amount": "Amount",
+      "status": "Status",
+      "dates": "Dates",
+      "created": "Created",
+      "expires": "Expires {date}",
+      "expiresShort": "Expires",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "active",
+      "pending": "pending",
+      "cancelled": "cancelled",
+      "expired": "expired"
+    },
+    "states": {
+      "loading": "Loading orders…",
+      "emptyTitle": "No orders yet",
+      "emptySubtitle": "Issue an order to assign a plan or resource pack to a user."
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "total": "{count} total"
+    },
+    "issueDialog": {
+      "title": "Issue Order",
+      "userRequired": "User *",
+      "searchUser": "Search by name or email",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g. Monthly hosting plan",
+      "planOptional": "Plan (optional)",
+      "amount": "Amount ({currency})",
+      "issueStatus": "Issue status:",
+      "pendingUnpaid": "Pending (unpaid)",
+      "taxPreview": "Tax preview",
+      "expiresOptional": "Expires At (optional)",
+      "notes": "Notes",
+      "notesPlaceholder": "Internal notes"
+    },
+    "applyPlanDialog": {
+      "title": "Apply Plan to User #{id}",
+      "planRequired": "Plan *",
+      "selectPlan": "— select a plan —",
+      "servers": "servers",
+      "expiresOptional": "Expires At (optional)",
+      "assignOrgOptional": "Assign to Organisation ID (optional)",
+      "assignOrgPlaceholder": "Leave blank for user-only",
+      "assignOrgHint": "If set, the organisation's tier will also be upgraded to enterprise.",
+      "notesInternal": "Notes (internal)",
+      "notesPlaceholder": "e.g. Trial period"
+    },
+    "editDialog": {
+      "editOrder": "Edit Order",
+      "editOrderId": "Edit Order #{id}",
+      "description": "Modify order details or change status.",
+      "fields": {
+        "description": "Description",
+        "amount": "Amount ({currency})",
+        "planId": "Plan ID",
+        "notes": "Notes",
+        "expiresAt": "Expires At",
+        "status": "Status"
+      }
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "issueOrder": "Issue Order",
+      "issue": "Issue",
+      "editOrder": "Edit order",
+      "cancelOrder": "Cancel order",
+      "deleteOrder": "Delete order",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "previous": "Previous",
+      "next": "Next",
+      "issuing": "Issuing…",
+      "applying": "Applying…",
+      "saving": "Saving…",
+      "applyPlan": "Apply Plan",
+      "saveChanges": "Save Changes"
+    }
+  },
+  "adminVerificationsTab": {
+    "common": {
+      "user": "User",
+      "avatar": "avatar"
+    },
+    "header": {
+      "title": "ID Verifications",
+      "subtitle": "Review submitted KYC documents",
+      "pendingCount": "{count} pending"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "verified": "Verified",
+      "failed": "Failed"
+    },
+    "table": {
+      "user": "User",
+      "status": "Status",
+      "documents": "Documents",
+      "actions": "Actions"
+    },
+    "documents": {
+      "idDoc": "ID Doc",
+      "idDocument": "ID Document",
+      "selfie": "Selfie",
+      "none": "No documents",
+      "tapToPreview": "Tap to preview",
+      "noneUploaded": "No documents uploaded"
+    },
+    "status": {
+      "pending": "Pending",
+      "pendingReview": "Pending Review",
+      "verified": "Verified",
+      "failed": "Failed"
+    },
+    "states": {
+      "noneFound": "No verification requests found",
+      "noMatch": "No verifications match this filter"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "approve": "Approve",
+      "reject": "Reject",
+      "revoke": "Revoke",
+      "revokeVerification": "Revoke verification",
+      "delete": "Delete",
+      "deleteRecord": "Delete record & files"
+    }
+  },
+  "adminAnnouncementsTab": {
+    "header": {
+      "title": "Announcements",
+      "subtitle": "Send product updates and platform announcements"
+    },
+    "compose": {
+      "title": "Compose",
+      "subject": "Subject",
+      "subjectPlaceholder": "e.g. Platform Maintenance Notice",
+      "message": "Message",
+      "markdownSupported": "Markdown supported",
+      "messagePlaceholder": "Write your announcement…",
+      "characters": "{count} characters",
+      "minRead": "~{minutes} min read",
+      "forceTitle": "Force send to everyone",
+      "forceSubtitle": "Override user email preferences",
+      "forceWarning": "This will send the email to all users regardless of their notification preferences."
+    },
+    "preview": {
+      "title": "Email Preview",
+      "live": "Live preview",
+      "subjectFallback": "Announcement Subject",
+      "from": "From: Eclipse Systems",
+      "justNow": "Just now",
+      "badge": "Preview",
+      "note": "This is an approximate preview. Final rendering may vary by email client."
+    },
+    "alerts": {
+      "required": "Subject and message are required",
+      "testRequired": "Subject and message are required for test send",
+      "testSent": "Test sent — {recipients} recipient(s)",
+      "testFailed": "Test send failed",
+      "testFailedWithReason": "Test send failed: {reason}",
+      "confirmBroadcast": "Send this announcement to ALL users? This will respect or override preferences based on the Force option.",
+      "broadcastSent": "Broadcast sent — {recipients} recipient(s)",
+      "broadcastFailed": "Broadcast failed",
+      "broadcastFailedWithReason": "Broadcast failed: {reason}"
+    },
+    "actions": {
+      "showPreview": "Show preview",
+      "hidePreview": "Hide preview",
+      "sendTest": "Send Test",
+      "test": "Test",
+      "sendBroadcast": "Send Broadcast",
+      "broadcast": "Broadcast",
+      "tapToPreview": "Tap to preview email"
+    }
+  },
+  "adminFraudTab": {
+    "common": {
+      "dash": "—",
+      "error": "error"
+    },
+    "header": {
+      "title": "AI Fraud Detection",
+      "subtitle": "AI scans user billing info for suspicious patterns"
+    },
+    "filters": {
+      "hideSuspended": "Hide suspended"
+    },
+    "states": {
+      "empty": "No fraud alerts — all users look clean",
+      "reasonRedacted": "Sensitive fraud reason redacted"
+    },
+    "status": {
+      "suspended": "Suspended"
+    },
+    "fields": {
+      "address": "Address:",
+      "city": "City:",
+      "country": "Country:",
+      "company": "Company:",
+      "phone": "Phone:",
+      "detected": "Detected"
+    },
+    "alerts": {
+      "scanComplete": "Scan complete — {count} user(s) flagged",
+      "scanFailed": "Scan failed: {reason}",
+      "confirmDismissSelected": "Dismiss {count} selected fraud alert(s)?",
+      "dismissFailed": "Failed to dismiss: {reason}",
+      "failed": "Failed: {reason}",
+      "confirmSuspend": "Suspend user {name}?",
+      "rescanFailed": "Re-scan failed: {reason}"
+    },
+    "actions": {
+      "scanAllUsers": "Scan All Users",
+      "scanningAll": "Scanning All…",
+      "selectAll": "Select All",
+      "unselectAll": "Unselect All",
+      "dismissSelected": "Dismiss Selected ({count})",
+      "dismissing": "Dismissing…",
+      "dismiss": "Dismiss",
+      "suspend": "Suspend",
+      "rescan": "Re-scan"
+    }
+  },
+  "adminDeletionsTab": {
+    "header": {
+      "title": "Deletion Requests",
+      "subtitle": "Review and act on account deletion requests",
+      "pendingCount": "{count} pending"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "pendingDeletion": "Pending Deletion",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "deleted": "Deleted"
+    },
+    "table": {
+      "user": "User",
+      "requested": "Requested",
+      "status": "Status",
+      "actions": "Actions",
+      "timeElapsed": "Time Elapsed"
+    },
+    "time": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo": "{count} days ago"
+    },
+    "states": {
+      "noneFound": "No deletion requests found",
+      "noMatch": "No requests match this filter"
+    },
+    "status": {
+      "pending": "Pending",
+      "pendingReview": "Pending Review",
+      "pendingDeletion": "Pending Deletion",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "deleted": "Deleted",
+      "processed": "Processed",
+      "deletionProcessed": "Deletion processed"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "approveDeletion": "Approve deletion",
+      "approveDelete": "Approve Delete",
+      "keepAccountTitle": "Keep account (reject deletion)",
+      "keepAccount": "Keep Account",
+      "deleteUserNow": "Delete user now",
+      "deleteNow": "Delete Now",
+      "dontDeleteUser": "Don't delete user",
+      "dontDelete": "Don’t Delete",
+      "reconsiderTitle": "Reconsider — approve deletion",
+      "reconsider": "Reconsider",
+      "reconsiderApprove": "Reconsider & Approve"
+    }
+  },
+  "adminMetricsTab": {
+    "common": {
+      "dash": "—"
+    },
+    "header": {
+      "title": "Global Metrics",
+      "lastDays": "Last {days} days"
+    },
+    "errors": {
+      "loadFailed": "Failed to load metrics",
+      "clearFailed": "Failed to clear metrics"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "clearCollectedMetrics": "Clear Collected Metrics",
+      "clearing": "Clearing…",
+      "confirmClear": "Remove all collected metrics data? This cannot be undone."
+    },
+    "cards": {
+      "users": {
+        "title": "Users",
+        "new": "{count} new"
+      },
+      "registrationGrowth": {
+        "title": "Registration Growth",
+        "vsPrevious": "vs previous {days}d"
+      },
+      "organisations": {
+        "title": "Organisations",
+        "new": "{count} new"
+      },
+      "supportOrders": {
+        "title": "Support & Orders",
+        "subtitle": "tickets / orders in window"
+      },
+      "servers": {
+        "title": "Servers",
+        "subtitle": "{online} online · {moving} moving · {offline} offline"
+      }
+    },
+    "serverStatus": {
+      "online": "Online",
+      "transitioning": "Starting/Stopping",
+      "offline": "Offline"
+    },
+    "charts": {
+      "loading": "Loading chart…",
+      "userRegistrations": "User Registrations",
+      "platformActivity": "Platform Activity",
+      "serverStatusLive": "Server Status (Live)",
+      "legend": {
+        "registrations": "Registrations",
+        "organisations": "Orgs",
+        "tickets": "Tickets",
+        "orders": "Orders"
+      }
+    }
+  },
+  "adminPlansTab": {
+    "header": {
+      "title": "Plans",
+      "subtitle": "Define resource tiers and pricing for users.",
+      "planCount": "{count} plan(s) configured"
+    },
+    "common": {
+      "infinity": "∞",
+      "perMonth": "/month"
+    },
+    "resources": {
+      "ram": "RAM",
+      "disk": "Disk",
+      "cpu": "CPU",
+      "servers": "Servers",
+      "dbs": "DBs",
+      "backups": "Backups"
+    },
+    "types": {
+      "free": "Free",
+      "paid": "Paid",
+      "educational": "Educational",
+      "enterprise": "Enterprise"
+    },
+    "badges": {
+      "default": "Default",
+      "hiddenInBilling": "Hidden in Billing"
+    },
+    "states": {
+      "noPlans": "No plans configured",
+      "noPlansSubtitle": "Create your first plan to define resource tiers for users."
+    },
+    "dialog": {
+      "newTitle": "New Plan",
+      "editTitle": "Edit Plan",
+      "resourceLimits": "Resource Limits (leave blank for unlimited)",
+      "fields": {
+        "planName": "Plan Name *",
+        "planNamePlaceholder": "e.g. Starter",
+        "type": "Type",
+        "price": "Price ({currency}/mo)",
+        "description": "Description",
+        "descriptionPlaceholder": "Brief description of the plan",
+        "memoryMb": "Memory (MB)",
+        "memoryPlaceholder": "e.g. 2048",
+        "diskMb": "Disk (MB)",
+        "diskPlaceholder": "e.g. 10240",
+        "cpuPercent": "CPU (%)",
+        "cpuPlaceholder": "e.g. 100",
+        "serverLimit": "Server Limit",
+        "serverLimitPlaceholder": "e.g. 3",
+        "databases": "Databases",
+        "databasesPlaceholder": "e.g. 10",
+        "backups": "Backups",
+        "backupsPlaceholder": "e.g. 20",
+        "portsPerServer": "Ports per Server",
+        "accountDatabasesLimit": "Account Databases Limit",
+        "accountBackupsLimit": "Account Backups Limit",
+        "setAsDefaultPlan": "Set as default plan",
+        "hideFromBillingShowcases": "Hide from Billing showcases",
+        "billingPageFeatures": "Billing Page Features (one per line)",
+        "billingPageFeaturesPlaceholder": "e.g.\n3 Servers\n2048 MB RAM\n10 GB SSD\nPriority Support",
+        "billingPageFeaturesHint": "These lines appear as feature bullets on the user's Billing page."
+      }
+    },
+    "actions": {
+      "syncPortal": "Sync Portal",
+      "newPlan": "New Plan",
+      "createFirstPlan": "Create First Plan",
+      "reapply": "Reapply",
+      "force": "Force",
+      "editPlan": "Edit plan",
+      "deletePlan": "Delete plan",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "saveChanges": "Save Changes",
+      "createPlan": "Create Plan"
+    }
+  },
+  "adminOauthTab": {
+    "stats": {
+      "endpoints": "Endpoints",
+      "scopes": "Scopes",
+      "grantTypes": "Grant Types",
+      "pkce": "PKCE"
+    },
+    "sections": {
+      "discovery": "RFC 8414 Discovery",
+      "discoverySubtitle": "Services discover the server metadata automatically via this well-known URL:",
+      "endpointReference": "Endpoint Reference",
+      "scopeReference": "Scope Reference",
+      "authCodeFlow": "Authorization Code Flow (+ PKCE)",
+      "clientCredentialsFlow": "Client Credentials Flow (service-to-service)",
+      "tokenIntrospection": "Token Introspection (RFC 7662)",
+      "tokenLifetimes": "Token Lifetimes"
+    },
+    "table": {
+      "method": "Method",
+      "path": "Path",
+      "auth": "Auth",
+      "description": "Description"
+    },
+    "registeredApps": {
+      "title": "Registered Apps",
+      "registered": "Registered {date}"
+    },
+    "states": {
+      "noApps": "No OAuth apps registered yet."
+    },
+    "createDialog": {
+      "title": "Register OAuth App",
+      "appName": "App Name *",
+      "appNamePlaceholder": "My Eclipse Service",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "redirectUris": "Redirect URIs",
+      "allowedScopes": "Allowed Scopes",
+      "grantTypes": "Grant Types"
+    },
+    "newSecretDialog": {
+      "title": "App Created — Save Your Secret",
+      "appName": "App Name",
+      "clientId": "Client ID",
+      "clientSecret": "Client Secret",
+      "saved": "I’ve saved the secret"
+    },
+    "editDialog": {
+      "title": "Edit OAuth App — {name}",
+      "redirectUris": "Redirect URIs",
+      "allowedScopes": "Allowed Scopes",
+      "grantTypes": "Grant Types"
+    },
+    "rotateDialog": {
+      "title": "Rotate Client Secret?"
+    },
+    "actions": {
+      "copy": "Copy",
+      "newApp": "New App",
+      "deleteApp": "Delete app",
+      "edit": "Edit",
+      "rotateSecret": "Rotate Secret",
+      "addUri": "Add URI",
+      "cancel": "Cancel",
+      "creating": "Creating…",
+      "createApp": "Create App",
+      "saving": "Saving…",
+      "saveChanges": "Save Changes",
+      "rotating": "Rotating…"
+    }
+  },
+  "adminEggsTab": {
+    "header": {
+      "title": "Server Templates",
+      "eggCount": "{count} egg(s) configured"
+    },
+    "table": {
+      "egg": "Egg",
+      "dockerImage": "Docker Image",
+      "visibility": "Visibility",
+      "actions": "Actions"
+    },
+    "visibility": {
+      "visible": "Visible",
+      "hidden": "Hidden"
+    },
+    "states": {
+      "noEggs": "No eggs configured",
+      "noEggsSubtitle": "Create a new egg or import one to get started."
+    },
+    "tabs": {
+      "basic": "Basic",
+      "variables": "Variables",
+      "processConfig": "Process Config",
+      "installScript": "Install Script"
+    },
+    "fields": {
+      "name": "Name *",
+      "author": "Author",
+      "description": "Description",
+      "primaryDockerImage": "Primary Docker Image *",
+      "startupCommand": "Startup Command *",
+      "visibleToUsers": "Visible to users",
+      "launchRootless": "Launch in rootless mode",
+      "requiresKvm": "Requires KVM (enables KVM virtualization for this template)",
+      "stopCommand": "Stop Command",
+      "installContainer": "Install Container",
+      "entrypoint": "Entrypoint",
+      "installScript": "Install Script",
+      "allowedPortals": "Allowed Portals",
+      "allowedPortalsHint": "When empty, this egg is available to all portals."
+    },
+    "importDialog": {
+      "title": "Import Pterodactyl Egg",
+      "importedSuccessfully": "Egg imported successfully!",
+      "modes": {
+        "pasteJson": "Paste JSON",
+        "fetchFromUrl": "Fetch from URL"
+      },
+      "eggJson": "Egg JSON (PTDL_v1 or PTDL_v2)",
+      "pasteHint": "Paste the full exported egg JSON from Pterodactyl / Pelican.",
+      "rawJsonUrl": "Raw JSON URL",
+      "urlHint": "The panel will fetch this URL server-side. Use a raw GitHub URL for community eggs.",
+      "preview": {
+        "image": "Image",
+        "envVars": "Env vars",
+        "installIncluded": "Install script included",
+        "processIncluded": "Process config included"
+      }
+    },
+    "dialog": {
+      "newTitle": "New Egg",
+      "editTitle": "Edit Egg — {name}"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "importEgg": "Import Egg",
+      "import": "Import",
+      "newEgg": "New Egg",
+      "new": "New",
+      "deleteAll": "Delete All",
+      "clear": "Clear",
+      "editEgg": "Edit egg",
+      "syncToWings": "Sync to Wings",
+      "deleteEgg": "Delete egg",
+      "copyImageName": "Copy image name",
+      "edit": "Edit",
+      "sync": "Sync",
+      "done": "Done",
+      "cancel": "Cancel",
+      "importing": "Importing…",
+      "saving": "Saving…",
+      "createEgg": "Create Egg",
+      "saveChanges": "Save Changes"
+    }
+  },
+  "adminSettingsTab": {
+    "header": {
+      "title": "Panel Settings",
+      "subtitle": "Configure registration, services, and access restrictions"
+    },
+    "alerts": {
+      "failedToSaveSettings": "Failed to save settings"
+    },
+    "sections": {
+      "quickToggles": "Quick Toggles",
+      "featureFlags": "Feature Flags"
+    },
+    "toggles": {
+      "registration": {
+        "label": "Registration",
+        "enabled": "New users can sign up for accounts",
+        "disabled": "Sign-ups are blocked (returns HTTP 503)"
+      },
+      "codeInstances": {
+        "label": "Code Instances",
+        "enabled": "Users can create development instances",
+        "disabled": "Instance creation blocked for non-admins"
+      },
+      "tempEmailFilter": {
+        "label": "Temp Email Filter",
+        "enabled": "Disposable email addresses are blocked",
+        "disabled": "Disposable emails are allowed during registration"
+      },
+      "classicCaptcha": {
+        "label": "Classic Captcha",
+        "enabled": "Image captcha is required for registration",
+        "disabled": "Classic captcha is disabled"
+      },
+      "invisibleCaptcha": {
+        "label": "Invisible Captcha",
+        "enabled": "Behavior-based bot detection is active",
+        "disabled": "Invisible captcha is disabled"
+      },
+      "gamblingMode": {
+        "label": "Gambling Mode",
+        "enabled": "Theme-based gambling behavior is enabled",
+        "disabled": "Gambling features are globally disabled"
+      }
+    },
+    "featureFlags": {
+      "ai": { "label": "AI Services", "note": "AI control plane and LLM models" },
+      "billing": { "label": "Billing System", "note": "Order and subscription management" },
+      "dns": { "label": "DNS Management", "note": "Organization DNS zone control" },
+      "ticketing": { "label": "Support Tickets", "note": "Help desk and chat logs" },
+      "applications": { "label": "Applications", "note": "Staff applications and abuse report forms" },
+      "oauth": { "label": "OAuth Server", "note": "OAuth client and token services" },
+      "codeInstances": { "label": "Code Instances", "note": "Temporary development environments" },
+      "captcha": { "label": "Classic Captcha", "note": "Image-based bot protection" },
+      "captchaInvisible": { "label": "Invisible Captcha", "note": "Behavioral challenge system" }
+    },
+    "gambling": {
+      "title": "Gambling Probabilities",
+      "info": "Values range from 0 to 1 (e.g., 0.5 = 50% chance). Changes affect all users with gambling themes enabled.",
+      "luckyRollChance": "Lucky Roll Chance",
+      "luckyRollHint": "Bonus resource allocation probability",
+      "powerDenyChance": "Power Deny Chance",
+      "powerDenyHint": "Server power action failure rate"
+    },
+    "registration": {
+      "titleEnabled": "Registration Notice",
+      "titleDisabled": "Registration Disabled Message",
+      "placeholderEnabled": "e.g., This is a development build. Data may be reset without notice.",
+      "placeholderDisabled": "e.g., Registration is temporarily closed for system maintenance.",
+      "hintEnabled": "Optional info banner displayed on the login/register page.",
+      "hintDisabled": "Shown to users attempting to access the registration page.",
+      "unavailableTitle": "Registration is currently unavailable"
+    },
+    "billing": {
+      "title": "Billing Currency & Tax Rules",
+      "currencyLabel": "Currency (ISO Code)",
+      "currencyExamples": "Examples: USD, EUR, GBP, JPY",
+      "quickExamples": "Quick Examples",
+      "taxRulesLabel": "Tax Rules (country/group:percent)"
+    },
+    "geoRules": {
+      "title": "Geo-Block Rules",
+      "ruleCount": "{count} rule(s)",
+      "noRules": "No rules",
+      "restrictionLevels": "Restriction Levels",
+      "addRule": "Add Rule",
+      "updateExisting": "This will update the existing rule for {country}",
+      "noMatchingCountries": "No matching countries",
+      "blockedCount": "{count} country/countries blocked",
+      "confirmRemoveAll": "Remove all {count} geo-block rules?",
+      "clearAll": "Clear all",
+      "noneConfigured": "No geo-block rules configured",
+      "noneConfiguredHint": "Add a country code above to restrict access",
+      "rawConfig": "Raw configuration value"
+    },
+    "geoMetrics": {
+      "title": "Geo-Block Impact & Metrics",
+      "loading": "Loading metrics…",
+      "failedToLoad": "Failed to load metrics",
+      "levelGte1": "Level ≥ 1",
+      "levelGte2": "Level ≥ 2",
+      "levelGte3": "Level ≥ 3",
+      "levelGte5": "Level ≥ 5",
+      "level4": "Level 4",
+      "cards": {
+        "totalUsers": "Total Users",
+        "regBlocked": "Reg. Blocked",
+        "idBlocked": "ID Blocked",
+        "freeBlocked": "Free Blocked",
+        "eduBlocked": "Edu Blocked",
+        "subuserOnly": "Subuser Only"
+      },
+      "noMetrics": "No metrics available",
+      "noMetricsHint": "Save settings to generate impact metrics"
+    },
+    "common": {
+      "advanced": "Advanced",
+      "required": "Required"
+    },
+    "actions": {
+      "saving": "Saving…",
+      "saveSettings": "Save Settings",
+      "save": "Save"
+    },
+    "states": {
+      "changesSaved": "Changes saved",
+      "saved": "Saved"
+    }
+  },
+  "adminApplicationsTab": {
+    "states": {
+      "loadingApplicationForms": "Loading application forms..."
+    },
+    "common": {
+      "error": "Error",
+      "dash": "—"
+    },
+    "errors": {
+      "loadApplicationsData": "Failed to load applications data",
+      "formTitleRequired": "Form title is required",
+      "saveForm": "Failed to save form",
+      "deleteForm": "Failed to delete form",
+      "createInvite": "Failed to create invite",
+      "revokeInvite": "Failed to revoke invite",
+      "updateSubmission": "Failed to update submission"
+    },
+    "confirm": {
+      "deleteFormWithSubmissions": "Delete this form and all submissions?"
+    },
+    "forms": {
+      "title": "Forms",
+      "searchPlaceholder": "Search forms by title, description, slug...",
+      "noFormsYet": "No forms yet",
+      "noFormsMatch": "No forms match your search",
+      "tryDifferentSearch": "Try a different search term",
+      "createFirstForm": "Create your first form to get started",
+      "pendingCount": "{count} pending"
+    },
+    "visibilityLabels": {
+      "publicAnonymous": "Anonymous",
+      "publicUsers": "Users",
+      "privateInvite": "Invite Only"
+    },
+    "statusBadge": {
+      "active": "Active",
+      "closed": "Closed",
+      "archived": "Archived",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "status": {
+      "active": "Active",
+      "closedViewOnly": "Closed (view-only)",
+      "archived": "Archived"
+    },
+    "questionTypes": {
+      "shortText": "Short Text",
+      "longText": "Long Text",
+      "email": "Email",
+      "number": "Number",
+      "singleSelect": "Single Select",
+      "multiSelect": "Multi Select",
+      "checkbox": "Checkbox",
+      "date": "Date",
+      "url": "URL"
+    },
+    "questions": {
+      "title": "Questions",
+      "questionFallback": "Question {index}"
+    },
+    "builder": {
+      "createForm": "Create Form",
+      "editForm": "Edit Form",
+      "titleRequired": "Form title is required",
+      "types": {
+        "staffApplication": "Staff Application",
+        "abuseReport": "Abuse Report"
+      },
+      "visibility": {
+        "publicAnonymous": "Public (Anonymous)",
+        "publicUsers": "Public (Users)",
+        "privateInvite": "Private (Invite Only)"
+      },
+      "fields": {
+        "formTitle": "Form Title",
+        "formTitlePlaceholder": "e.g. Moderator Application",
+        "customSlug": "Custom Slug",
+        "customSlugHint": "Leave empty to auto-generate from title",
+        "customSlugPlaceholder": "e.g. moderator-application",
+        "formType": "Form Type",
+        "visibility": "Visibility",
+        "status": "Status",
+        "description": "Description",
+        "descriptionPlaceholder": "Optional intro text shown at the top of the form"
+      },
+      "questionFields": {
+        "label": "Label",
+        "labelPlaceholder": "Question {index} label",
+        "type": "Type",
+        "placeholder": "Placeholder",
+        "placeholderHint": "Optional hint text...",
+        "required": "Required",
+        "options": "Options",
+        "noOptionsYet": "No options yet — add some below",
+        "optionInputPlaceholder": "Type option and press Enter..."
+      }
+    },
+    "invites": {
+      "title": "Invite Links",
+      "createNewInvite": "Create New Invite",
+      "noInviteLinks": "No invite links yet",
+      "fields": {
+        "label": "Label",
+        "emailOptional": "Email (optional)",
+        "maxUses": "Max Uses",
+        "maxUsesHint": "Leave empty for unlimited",
+        "expiresHours": "Expires in (hours)",
+        "expiresHoursHint": "Leave empty for no expiry"
+      },
+      "placeholders": {
+        "label": "e.g. John's invite",
+        "email": "user@example.com",
+        "maxUses": "e.g. 1",
+        "expiresHours": "e.g. 24"
+      }
+    },
+    "submissions": {
+      "title": "Submissions",
+      "noSubmissions": "No submissions",
+      "noFiltered": "No {status} submissions",
+      "willAppear": "Submissions will appear here",
+      "anonymous": "Anonymous",
+      "filters": {
+        "all": "All",
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "archived": "Archived"
+      }
+    },
+    "actions": {
+      "newForm": "New Form",
+      "copyLink": "Copy link",
+      "edit": "Edit",
+      "template": "Template",
+      "deleteForm": "Delete form",
+      "addQuestion": "Add Question",
+      "add": "Add",
+      "saving": "Saving...",
+      "updateForm": "Update Form",
+      "createForm": "Create Form",
+      "cancel": "Cancel",
+      "createInviteLink": "Create Invite Link",
+      "revoke": "Revoke",
+      "copied": "Copied",
+      "copy": "Copy",
+      "refresh": "Refresh",
+      "accept": "Accept",
+      "reject": "Reject",
+      "archive": "Archive",
+      "reset": "Reset"
+    }
+  },
+  "adminDatabaseHostsPanel": {
+    "header": {
+      "title": "Database Hosts"
+    },
+    "errors": {
+      "passwordRequired": "Password is required",
+      "failedToSave": "Failed to save",
+      "failedToDelete": "Failed to delete"
+    },
+    "states": {
+      "loading": "Loading...",
+      "connectionSuccessful": "Connection successful",
+      "connectionFailed": "Connection failed",
+      "emptyHosts": "No database hosts configured. Add one to allow servers to create databases."
+    },
+    "form": {
+      "newTitle": "New Database Host",
+      "editTitle": "Edit Database Host",
+      "fields": {
+        "name": "Name *",
+        "host": "Host *",
+        "port": "Port",
+        "username": "Username *",
+        "password": "Password *",
+        "passwordKeep": "Password (leave blank to keep)",
+        "linkedNodeId": "Linked Node ID (optional)",
+        "maxDatabases": "Max Databases (0 = unlimited)"
+      },
+      "placeholders": {
+        "name": "Production MySQL",
+        "host": "192.168.1.10",
+        "username": "panel_admin",
+        "linkedNodeId": "Leave blank for any node"
+      }
+    },
+    "row": {
+      "userPrefix": "User:",
+      "nodePrefix": "Node",
+      "limitPrefix": "Limit:",
+      "allNodes": "All nodes",
+      "unlimited": "Unlimited"
+    },
+    "actions": {
+      "addHost": "Add Host",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "createHost": "Create Host",
+      "test": "Test",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    }
+  },
+  "adminAiTab": {
+    "header": {
+      "title": "AI Models",
+      "modelCount": "{count} model(s) configured"
+    },
+    "table": {
+      "model": "Model",
+      "type": "Type",
+      "status": "Status",
+      "tags": "Tags",
+      "endpoints": "Endpoints",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "beta": "Beta",
+      "disabled": "Disabled"
+    },
+    "states": {
+      "noModels": "No AI models configured",
+      "noModelsSubtitle": "Add a model to enable AI features across your panel."
+    },
+    "endpoints": {
+      "configured": "{count} configured",
+      "notSet": "not set",
+      "endpointCount": "{count} endpoint(s)",
+      "noEndpoints": "no endpoints"
+    },
+    "cooldowns": {
+      "title": "Rate Limit Cooldowns",
+      "subtitle": "AI endpoint throttling events in the last 24h",
+      "empty": "No rate-limit cooldowns in the last 24 hours",
+      "wait": "{seconds}s wait"
+    },
+    "assignDialog": {
+      "title": "Assign “{name}” to User",
+      "selectUser": "Select User",
+      "searchPlaceholder": "Type name, email or id to search",
+      "limitsHint": "Limits (optional — leave blank for unlimited)",
+      "tokenLimit": "Token Limit",
+      "tokenPlaceholder": "e.g. 100000",
+      "requestLimit": "Request Limit",
+      "requestPlaceholder": "e.g. 500"
+    },
+    "modelDialog": {
+      "newTitle": "New AI Model",
+      "editTitle": "Edit Model — {name}",
+      "fields": {
+        "name": "Name",
+        "namePlaceholder": "gpt-4o",
+        "type": "Type",
+        "status": "Status",
+        "maxTokens": "Max Tokens",
+        "maxTokensPlaceholder": "4096",
+        "description": "Description",
+        "descriptionPlaceholder": "Optional description shown to users",
+        "tags": "Tags",
+        "tagsPlaceholder": "comma-separated tags (e.g. demo, core)",
+        "tagsHint": "Tags can be used to mark models for special purposes (e.g. demo).",
+        "endpointUrl": "Endpoint URL",
+        "endpointPlaceholder": "https://api.openai.com",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "sk-...",
+        "fallbackEndpoints": "Fallback Endpoints",
+        "fallbackEndpointPlaceholder": "https://api.groq.com",
+        "fallbackApiKeyPlaceholder": "api key",
+        "fallbackIdPlaceholder": "id (optional)",
+        "fallbackHint": "Fallback endpoints will be tried sequentially on failure/rate-limit."
+      }
+    },
+    "common": {
+      "none": "none",
+      "dash": "—",
+      "unknown": "unknown"
+    },
+    "actions": {
+      "newModel": "New Model",
+      "new": "New",
+      "refresh": "Refresh",
+      "assignToUsers": "Assign to users",
+      "editModel": "Edit model",
+      "deleteModel": "Delete model",
+      "assign": "Assign",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "assigning": "Assigning…",
+      "assignAccess": "Assign Access",
+      "remove": "Remove",
+      "addEndpoint": "Add an endpoint",
+      "saving": "Saving…",
+      "createModel": "Create Model",
+      "saveChanges": "Save Changes"
+    }
+  },
+  "adminNodesTab": {
+    "header": {
+      "nodeCount": "{count} node(s) registered"
+    },
+    "types": {
+      "free": "Free",
+      "paid": "Paid",
+      "freeAndPaid": "Free + Paid",
+      "enterprise": "Enterprise"
+    },
+    "fields": {
+      "org": "Org",
+      "responseTimeLast120": "Response time · last 120 pings"
+    },
+    "states": {
+      "noNodes": "No nodes registered",
+      "noNodesSubtitle": "Add a Wings node to start hosting servers.",
+      "loading": "Loading…"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "syncToWings": "Sync to Wings",
+      "addNode": "Add Node",
+      "classify": "Classify",
+      "viewWingsConfig": "View Wings config.yml",
+      "fullHistory": "Full history →",
+      "generate": "Generate",
+      "copy": "Copy",
+      "cancel": "Cancel",
+      "creating": "Creating…",
+      "generateTokenFirst": "Generate Token First",
+      "createNode": "Create Node",
+      "done": "Done",
+      "saving": "Saving…",
+      "save": "Save",
+      "close": "Close"
+    },
+    "addDialog": {
+      "title": "Add Node",
+      "configTitle": "Wings Configuration",
+      "fields": {
+        "nodeName": "Node Name",
+        "nodeNamePlaceholder": "EU-1",
+        "nodeType": "Node Type",
+        "fqdn": "FQDN (domain or IP)",
+        "fqdnPlaceholder": "wings.example.com",
+        "wingsPort": "Wings Port",
+        "wingsPortPlaceholder": "8080",
+        "sftpPort": "SFTP Port",
+        "sftpPortPlaceholder": "2022",
+        "ssl": "SSL",
+        "wingsDataDirectory": "Wings Data Directory",
+        "authToken": "Auth Token",
+        "authTokenPlaceholder": "Click Generate or paste your own"
+      },
+      "configReady": "Node {name} registered. Copy the config below to",
+      "afterSaving": "After saving the config, restart Wings with"
+    },
+    "editDialog": {
+      "title": "Edit Node — {name}",
+      "fields": {
+        "nodeType": "Node Type",
+        "portRangeStart": "Port Range Start",
+        "portRangeStartPlaceholder": "e.g. 25500",
+        "portRangeEnd": "Port Range End",
+        "portRangeEndPlaceholder": "e.g. 25600",
+        "defaultBindIp": "Default Bind IP (optional)",
+        "defaultBindIpHint": "IP used for auto-allocated ports. Leave blank for 0.0.0.0."
+      }
+    },
+    "heartbeatDialog": {
+      "title": "Heartbeat History — {name}",
+      "last24Hours": "Last 24 hours",
+      "last7Days": "Last 7 days",
+      "cards": {
+        "uptime": "Uptime",
+        "avgResponse": "Avg response",
+        "checks": "Checks"
+      },
+      "legend": {
+        "timeout": "Timeout",
+        "error": "Error"
+      },
+      "noData": "No heartbeat data for this window."
+    },
+    "configDialog": {
+      "title": "Wings Config — {name}",
+      "loadingToken": "Loading token…",
+      "failedToken": "Failed to load token for this node."
+    }
+  },
+  "adminOrganisationsTab": {
+    "search": {
+      "placeholder": "Search organisations by name or handle…"
+    },
+    "header": {
+      "orgCount": "{count} organisations"
+    },
+    "common": {
+      "logo": "logo"
+    },
+    "table": {
+      "organisation": "Organisation",
+      "handle": "Handle",
+      "owner": "Owner",
+      "tier": "Tier",
+      "members": "Members",
+      "actions": "Actions",
+      "id": "ID"
+    },
+    "states": {
+      "loading": "Loading organisations…",
+      "noMatch": "No organisations match your search"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "total": "{count} total"
+    },
+    "editDialog": {
+      "title": "Edit Organisation",
+      "fields": {
+        "name": "Name",
+        "handle": "Handle",
+        "tier": "Tier",
+        "ownerUserId": "Owner User ID",
+        "userIdPlaceholder": "User ID",
+        "staffOrganisation": "Staff Organisation",
+        "staffOrgHint": "Mark this organisation as staff-owned",
+        "addMemberByUserId": "Add Member by User ID"
+      }
+    },
+    "alerts": {
+      "failed": "Failed: {reason}"
+    },
+    "actions": {
+      "showFullDetails": "Show full details",
+      "redactDetails": "Redact details",
+      "refresh": "Refresh",
+      "editOrganisation": "Edit organisation",
+      "deleteOrganisation": "Delete organisation",
+      "edit": "Edit",
+      "delete": "Delete",
+      "previous": "Previous",
+      "next": "Next",
+      "add": "Add",
+      "adding": "Adding…",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "saveChanges": "Save Changes"
+    }
+  },
+  "adminServersTab": {
+    "search": {
+      "placeholder": "Search servers by name, UUID, or node…"
+    },
+    "header": {
+      "serverCount": "{count} servers"
+    },
+    "common": {
+      "unknown": "Unknown",
+      "unknownLower": "unknown",
+      "default": "default"
+    },
+    "table": {
+      "server": "Server",
+      "uuid": "UUID",
+      "node": "Node",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "states": {
+      "loading": "Loading servers…",
+      "noMatch": "No servers match your search",
+      "unnamedServer": "Unnamed server"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "total": "{count} total"
+    },
+    "editDialog": {
+      "title": "Edit Server",
+      "fields": {
+        "name": "Name",
+        "description": "Description",
+        "ownerUserId": "Owner User ID",
+        "memoryMb": "Memory (MB)",
+        "diskMb": "Disk (MB)",
+        "cpuPercent": "CPU (%)",
+        "swapMb": "Swap (MB)",
+        "dockerImage": "Docker Image",
+        "startupCommand": "Startup Command",
+        "eggTemplate": "Egg Template",
+        "noTemplate": "No template",
+        "networkAllocations": "Network Allocations",
+        "noAllocations": "No allocations configured",
+        "bindIp": "Bind IP",
+        "port": "Port",
+        "displayFqdn": "Display FQDN"
+      }
+    },
+    "createDialog": {
+      "title": "Create Server",
+      "fields": {
+        "serverNameOptional": "Server Name (optional)",
+        "serverNamePlaceholder": "My New Server",
+        "nodeRequired": "Node *",
+        "selectNode": "Select node",
+        "eggOptional": "Egg (optional)",
+        "defaultNodeJs": "Default Node.js",
+        "ownerUserIdOptional": "Owner User ID (optional)",
+        "userIdPlaceholder": "User ID",
+        "resources": "Resources",
+        "memoryMb": "Memory (MB)",
+        "diskMb": "Disk (MB)",
+        "cpuPercent": "CPU (%)",
+        "enableKvmPassthrough": "Enable KVM passthrough"
+      }
+    },
+    "actions": {
+      "showFullDetails": "Show full details",
+      "redactDetails": "Redact details",
+      "refresh": "Refresh",
+      "syncFromWings": "Sync from Wings",
+      "sync": "Sync",
+      "createServer": "Create Server",
+      "create": "Create",
+      "copyUuid": "Copy UUID",
+      "start": "Start",
+      "restart": "Restart",
+      "stop": "Stop",
+      "unsuspend": "Unsuspend",
+      "suspend": "Suspend",
+      "editServer": "Edit server",
+      "deleteServer": "Delete server",
+      "edit": "Edit",
+      "delete": "Delete",
+      "previous": "Previous",
+      "next": "Next",
+      "saveFqdn": "Save FQDN",
+      "cancel": "Cancel",
+      "editFqdn": "Edit FQDN",
+      "setAsDefault": "Set as default",
+      "remove": "Remove",
+      "add": "Add",
+      "reinstall": "Reinstall",
+      "saving": "Saving…",
+      "saveChanges": "Save Changes",
+      "creating": "Creating…"
+    }
+  },
+  "adminLogsTab": {
+    "types": {
+      "audit": "Audit",
+      "apiRequests": "API Requests",
+      "slowQueries": "Slow Queries",
+      "serverErrors": "Server Errors"
+    },
+    "header": {
+      "entries": "{count} entries",
+      "subtitle": "Browse and inspect system logs"
+    },
+    "table": {
+      "time": "Time",
+      "user": "User",
+      "action": "Action",
+      "error": "Error",
+      "manage": "Manage",
+      "endpoint": "Endpoint",
+      "count": "Count",
+      "duration": "Duration",
+      "query": "Query",
+      "stack": "Stack Trace"
+    },
+    "states": {
+      "noLogs": "No logs found",
+      "noDetails": "No details"
+    },
+    "common": {
+      "system": "System",
+      "dash": "—"
+    },
+    "pagination": {
+      "showingSlow": "Showing {count} slow query entries",
+      "page": "Page",
+      "of": "of"
+    },
+    "actions": {
+      "clear": "Clear",
+      "refresh": "Refresh",
+      "previous": "Previous",
+      "next": "Next"
+    }
+  },
+  "adminRolesTab": {
+    "header": {
+      "title": "Role Management",
+      "roleCount": "{count} roles"
+    },
+    "roles": {
+      "title": "Roles",
+      "emptyTitle": "No roles yet",
+      "emptySubtitle": "Create a role to start assigning permissions.",
+      "full": "Full",
+      "permissionCount": "{count} permissions"
+    },
+    "permissions": {
+      "title": "Permissions",
+      "noRoleSelected": "No role selected",
+      "selectRoleHint": "Select a role to manage permissions.",
+      "createRoleFirst": "Create a role first to manage permissions.",
+      "addPermission": "Add Permission",
+      "selectPermission": "Select permission",
+      "noneAssigned": "No permissions assigned.",
+      "fullAccessWarning": "This role has full access to all permissions."
+    },
+    "alerts": {
+      "confirmDeleteRole": "Delete role {name}?"
+    },
+    "actions": {
+      "newRole": "New Role",
+      "new": "New",
+      "refresh": "Refresh",
+      "createRole": "Create Role",
+      "add": "Add"
+    }
+  },
+  "settingsPage": {
+    "header": {
+      "title": "Settings",
+      "description": "Manage your account and preferences"
+    },
+    "tabs": {
+      "profile": "Profile",
+      "security": "Security",
+      "alerts": "Alerts",
+      "api": "API",
+      "theme": "Theme",
+      "editor": "Editor"
+    },
+    "messages": {
+      "failed": "Failed",
+      "failedToSave": "Failed to save",
+      "failedToSaveSettings": "Failed to save settings",
+      "unknown": "unknown"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "updating": "Updating..."
+    },
+    "portal": {
+      "free": "Free Portal",
+      "paid": "Paid Portal",
+      "enterprise": "Enterprise Portal"
+    },
+    "profile": {
+      "userFallback": "User",
+      "badges": "Badges",
+      "basicInformation": "Basic Information",
+      "displayName": "Display Name",
+      "displayNamePlaceholder": "How you appear",
+      "displayNameHint": "This is how other users will see you",
+      "emailAddress": "Email Address",
+      "emailHint": "Used for login and notifications",
+      "legalName": "Legal Name",
+      "legalNameHint": "Used for billing and verification purposes",
+      "firstName": "First Name",
+      "middleName": "Middle Name",
+      "lastName": "Last Name",
+      "optional": "Optional",
+      "billingInformation": "Billing Information",
+      "billingInformationHint": "For invoices and payment processing",
+      "streetAddress": "Street Address",
+      "addressLine2": "Address Line 2",
+      "addressLine2Placeholder": "Apt, Suite (optional)",
+      "company": "Company",
+      "phone": "Phone",
+      "city": "City",
+      "stateProvince": "State / Province",
+      "zipPostal": "ZIP / Postal",
+      "country": "Country",
+      "selectCountry": "Select country",
+      "taxRateFor": "Tax rate for",
+      "selectedCountry": "selected country",
+      "updated": "Profile updated successfully!",
+      "uploadFailed": "Upload failed",
+      "guideHelp": "Replay the setup guide to explore all features and capabilities.",
+      "showGuideAgain": "Show Guide Again"
+    },
+    "security": {
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "currentPasswordPlaceholder": "Enter current password",
+      "newPassword": "New Password",
+      "newPasswordPlaceholder": "New password",
+      "newPasswordHint": "At least 8 characters",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm password",
+      "updatePassword": "Update Password",
+      "passkeys": "Passkeys",
+      "passkeysHint": "Secure your account with biometric or hardware keys",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorHint": "Use an authenticator app for additional security",
+      "sshKeys": "SSH Keys",
+      "sshKeysHint": "Passwordless SFTP/SSH access to your servers",
+      "activeSessions": "Active Sessions",
+      "activeSessionsHint": "Manage your logged-in devices and locations",
+      "passwordUpdated": "Password updated successfully.",
+      "confirmLogoutElsewhere": "This will log you out of all devices except this one. Continue?",
+      "loggedOutElsewhere": "Logged out of all sessions successfully",
+      "confirmDeletion": "⚠️ Request account deletion? This action cannot be undone and all your data will be permanently removed.",
+      "deletionSubmitted": "Deletion request submitted. Our team will process your request within 30 days.",
+      "logoutElsewhere": "Logout Everywhere Else",
+      "requestDeletion": "Request Account Deletion",
+      "errors": {
+        "enterCurrentPassword": "Please enter your current password",
+        "enterNewPassword": "Please enter a new password",
+        "passwordMinLength": "New password must be at least 8 characters",
+        "passwordsDoNotMatch": "Passwords do not match",
+        "failedUpdatePassword": "Failed to update password"
+      }
+    },
+    "notifications": {
+      "title": "Notification Preferences",
+      "subtitle": "Choose which notifications you want to receive",
+      "items": {
+        "serverAlerts": {
+          "label": "Server Alerts",
+          "desc": "Notifications when servers go offline"
+        },
+        "serverLifecycle": {
+          "label": "Server Events",
+          "desc": "Create, stop, start, delete events"
+        },
+        "serverErrors": {
+          "label": "Server Errors",
+          "desc": "Crashes and failures"
+        },
+        "serverActivity": {
+          "label": "Verbose Activity",
+          "desc": "Detailed lifecycle events"
+        },
+        "billing": {
+          "label": "Billing",
+          "desc": "Invoices and payments"
+        },
+        "security": {
+          "label": "Security",
+          "desc": "Login attempts and alerts"
+        },
+        "productUpdates": {
+          "label": "Product Updates",
+          "desc": "New features and announcements"
+        },
+        "tickets": {
+          "label": "Tickets",
+          "desc": "Support ticket replies"
+        },
+        "aiUsage": {
+          "label": "AI Usage",
+          "desc": "Weekly AI credit summary"
+        }
+      }
+    },
+    "passkeys": {
+      "confirmRemove": "Remove this passkey?",
+      "loading": "Loading passkeys...",
+      "emptyTitle": "No passkeys registered",
+      "emptyDescription": "Add a passkey to secure your account with biometric or hardware authentication.",
+      "fallbackName": "Passkey",
+      "waitingForDevice": "Waiting for device...",
+      "registerNew": "Register New Passkey",
+      "errors": {
+        "httpsRequired": "Passkey registration requires a secure connection (HTTPS).",
+        "httpsRequiredShort": "Passkey registration requires a secure connection.",
+        "registrationCancelled": "Registration cancelled",
+        "failedRegister": "Failed to register passkey"
+      }
+    },
+    "ssh": {
+      "confirmRemove": "Remove this SSH key from your account?",
+      "loading": "Loading keys...",
+      "emptyTitle": "No SSH keys",
+      "emptyDescription": "Add SSH keys for passwordless SFTP access to your servers.",
+      "label": "Label",
+      "labelPlaceholder": "e.g. MacBook Pro",
+      "publicKey": "Public Key",
+      "publicKeyPlaceholder": "ssh-ed25519 AAAA... or ssh-rsa AAAA...",
+      "addKey": "Add Key",
+      "addSshKey": "Add SSH Key",
+      "errors": {
+        "failedAdd": "Failed to add key",
+        "failedRemove": "Failed to remove key"
+      }
+    },
+    "twoFactor": {
+      "enabledAlert": "Two-factor enabled - save your recovery codes now.",
+      "disabledAlert": "Two-factor disabled",
+      "confirmDisable": "Disable two-factor authentication?",
+      "notEnabledDescription": "Add an extra layer of security to your account.",
+      "loading": "Loading...",
+      "enable": "Enable 2FA",
+      "scanTitle": "Scan with your authenticator",
+      "scanDescription": "Use Google Authenticator, Authy, or any TOTP-compatible app",
+      "enterCodeManually": "Or enter this code manually:",
+      "copyToClipboard": "Copy to clipboard",
+      "verificationCode": "Verification Code",
+      "enterSixDigit": "Enter 6-digit code",
+      "verificationHint": "Enter the code from your authenticator app",
+      "verifying": "Verifying...",
+      "verifyEnable": "Verify & Enable",
+      "enabledDescription": "Your account is secured with 2FA.",
+      "enterCodeToDisable": "Enter code to disable",
+      "sixDigit": "6-digit code",
+      "disableHint": "This will remove 2FA protection from your account",
+      "disabling": "Disabling...",
+      "disable": "Disable 2FA",
+      "recoveryCodes": "Recovery Codes",
+      "recoveryCodesHint": "Save these codes securely. Each can be used once if you lose access to your authenticator.",
+      "recoveryCopied": "Recovery codes copied to clipboard",
+      "copyAllCodes": "Copy All Codes",
+      "errors": {
+        "failedStartSetup": "Failed to start setup",
+        "missingSecret": "Missing secret",
+        "failedVerify": "Failed to verify",
+        "failedDisable": "Failed to disable"
+      }
+    },
+    "sessions": {
+      "loading": "Loading sessions...",
+      "session": "Session",
+      "current": "Current",
+      "revoke": "Revoke"
+    },
+    "api": {
+      "apiKeys": "API Keys",
+      "apiKeysHint": "Manage programmatic access to your account",
+      "newKey": "New Key",
+      "new": "New",
+      "keyCreated": "Key created",
+      "confirmRevoke": "Revoke this API key?",
+      "keyName": "Key Name",
+      "keyNamePlaceholder": "e.g. Production API",
+      "keyNameHint": "Choose a descriptive name",
+      "keyType": "Key Type",
+      "client": "Client",
+      "admin": "Admin",
+      "permissions": "permissions",
+      "createKey": "Create Key",
+      "loadingKeys": "Loading keys...",
+      "emptyTitle": "No API keys",
+      "emptyDescription": "Create a key to access the Eclipse API programmatically.",
+      "revoke": "Revoke",
+      "documentation": "API Documentation",
+      "documentationHint": "Explore endpoints, schemas, and examples",
+      "viewDocs": "View Docs"
+    },
+    "appearance": {
+      "theme": "Theme",
+      "themeHint": "Customize the look and feel of your dashboard",
+      "language": "Language",
+      "languageHint": "Set your preferred interface language.",
+      "english": "English",
+      "russian": "Russian",
+      "luckMode": "⚠ Luck mode active"
+    },
+    "editor": {
+      "title": "Editor Settings",
+      "subtitle": "Configure code editor behavior and appearance",
+      "resetDefaults": "Reset to Defaults",
+      "aiAssistant": "AI Assistant",
+      "aiAssistantHint": "Inline code completions and suggestions (beta)",
+      "autoIndent": "Auto Indent",
+      "autoIndentHint": "Automatically indent new lines",
+      "showMinimap": "Show Minimap",
+      "showMinimapHint": "Display code minimap for navigation",
+      "formatOnPaste": "Format on Paste",
+      "formatOnPasteHint": "Auto-format pasted code",
+      "formatOnType": "Format on Type",
+      "formatOnTypeHint": "Auto-format while typing",
+      "fontSize": "Font Size",
+      "fontSizeHint": "Editor font size (pixels)",
+      "tabSize": "Tab Size",
+      "tabSizeHint": "Number of spaces per tab",
+      "fontFamily": "Font Family",
+      "fontFamilyHint": "Choose a monospace font for better code readability"
+    }
+  },
+  "identityPage": {
+    "header": {
+      "title": "Identity Verification",
+      "description": "ID verification is optional - complete required steps to unlock enhanced features"
+    },
+    "dialog": {
+      "unavailableTitle": "ID Verification Unavailable",
+      "unavailableDescription": "ID verification is currently disabled for residents of the European Union due to local regulations. If you believe you should still have access, please contact support."
+    },
+    "actions": {
+      "gotIt": "Got it",
+      "uploading": "Uploading...",
+      "submitForVerification": "Submit for Verification",
+      "connectHackClub": "Connect Hack Club",
+      "connectGithub": "Connect GitHub"
+    },
+    "messages": {
+      "submittedForReview": "Verification submitted - your documents are under review."
+    },
+    "errors": {
+      "selectBothFiles": "Please select both files",
+      "failed": "Failed",
+      "failedHackClubFlow": "Failed to start Hack Club flow",
+      "failedGithubFlow": "Failed to start GitHub flow"
+    },
+    "banner": {
+      "completeTitle": "Verification Complete",
+      "partialTitle": "Verification Partially Complete",
+      "completeDescription": "All required steps are verified. Enterprise features and higher resource limits are unlocked.",
+      "partialDescription": "Complete the required steps to unlock enterprise features and higher resource limits.",
+      "required": "Required"
+    },
+    "start": {
+      "title": "Start Verification",
+      "description": "Submit your ID information (optional)",
+      "idDocumentLabel": "Government-Issued ID Document",
+      "idDocumentHint": "Accepted: JPEG, PNG, PDF (max 10MB)",
+      "selfieLabel": "Selfie Photo",
+      "selfieHint": "Take or upload a clear photo of your face (JPEG, PNG)",
+      "selected": "Selected"
+    },
+    "steps": {
+      "common": {
+        "notApplicableEu": "Not applicable for EU residents"
+      },
+      "email": {
+        "title": "Email Verification",
+        "verified": "Your email has been verified",
+        "verifyToContinue": "Verify your email address to continue"
+      },
+      "security": {
+        "title": "Security Verification",
+        "description": "Register a passkey or enable two-factor authentication"
+      },
+      "student": {
+        "title": "Student Verification",
+        "verified": "Student status confirmed",
+        "connectHackClub": "Connect Hack Club to verify educational status",
+        "connectGithub": "Connect GitHub to verify educational status",
+        "comingSoon": "Student verification is coming soon"
+      },
+      "identityDocument": {
+        "title": "Identity Document",
+        "description": "Upload a government-issued ID (optional)"
+      },
+      "selfie": {
+        "title": "Selfie Verification",
+        "description": "Take a photo to match your ID (optional)"
+      }
+    },
+    "stepsSection": {
+      "title": "Verification Steps",
+      "description": "Complete each step to verify your identity"
+    },
+    "status": {
+      "verified": "Verified",
+      "pending": "Pending",
+      "notApplicable": "Not Applicable",
+      "failedResubmit": "Failed - Resubmit",
+      "uploadAbove": "Upload above",
+      "comingSoon": "Coming soon",
+      "locked": "Locked",
+      "lockedTitle": "Complete the previous step first"
+    },
+    "verified": {
+      "title": "Verified Information",
+      "description": "Your verified account details",
+      "fullName": "Full Name",
+      "email": "Email",
+      "accountId": "Account ID",
+      "idDocument": "ID Document",
+      "idStatus": {
+        "verifiedNotApplicableEu": "Verified | Not Applicable for EU residents",
+        "notApplicableEu": "Not Applicable for EU residents",
+        "verified": "Verified",
+        "underReview": "Under Review",
+        "failedResubmit": "Failed — please resubmit",
+        "notUploaded": "Not yet uploaded"
+      }
+    }
+  },
+  "activityPage": {
+    "header": {
+      "title": "Account Activity",
+      "description": "Security audit trail and account events"
+    },
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    },
+    "stats": {
+      "currentPage": "Current Page",
+      "today": "Today",
+      "logins": "Logins",
+      "serverEvents": "Server Events",
+      "onThisPage": "On this page",
+      "page": "Page {page}"
+    },
+    "filters": {
+      "title": "Filter Events",
+      "clear": "Clear",
+      "all": "All",
+      "server": "Server",
+      "login": "Login",
+      "logout": "Logout",
+      "billing": "Billing",
+      "security": "Security",
+      "support": "Support"
+    },
+    "log": {
+      "title": "Activity Log",
+      "shown": "{count} shown",
+      "unknownAction": "Unknown action",
+      "unknown": "Unknown"
+    },
+    "states": {
+      "loadingActivity": "Loading activity...",
+      "noActivityTitle": "No Activity Found",
+      "noActivityMessage": "No activity has been recorded for your account yet.",
+      "noActivityForFilter": "No {filter} events recorded yet."
+    },
+    "details": {
+      "eventDetails": "Event Details",
+      "action": "Action",
+      "targetType": "Target Type",
+      "targetId": "Target ID",
+      "timestamp": "Timestamp",
+      "ipAddress": "IP Address",
+      "userId": "User ID",
+      "metadata": "Metadata",
+      "allProperties": "All Properties",
+      "rawJson": "Raw JSON"
+    },
+    "footer": {
+      "pageEvents": "Page {page} • {count} events"
+    },
+    "actions": {
+      "prev": "Prev",
+      "next": "Next"
+    }
+  },
+  "serversPage": {
+    "header": {
+      "title": "Servers",
+      "description": "Manage your game servers"
+    },
+    "status": {
+      "online": "Online",
+      "starting": "Starting",
+      "stopping": "Stopping",
+      "offline": "Offline",
+      "unknown": "Unknown"
+    },
+    "resources": {
+      "cpu": "CPU",
+      "ram": "RAM",
+      "disk": "Disk"
+    },
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "console": "Console",
+      "newServer": "New Server",
+      "deployServer": "Deploy Server"
+    },
+    "stats": {
+      "total": "Total",
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "sections": {
+      "favorites": "Favorites",
+      "codeInstances": "Code Instances",
+      "yourServers": "Your Servers",
+      "sharedWithYou": "Shared With You"
+    },
+    "search": {
+      "placeholder": "Search servers..."
+    },
+    "states": {
+      "loadingServers": "Loading servers…",
+      "noServersFound": "No servers found",
+      "noServersYet": "No servers yet",
+      "tryDifferentSearch": "Try a different search term or clear the filter.",
+      "deployFirst": "Deploy your first server and start building something awesome."
+    },
+    "serverCard": {
+      "favorite": "Favorite server",
+      "unfavorite": "Unfavorite server"
+    },
+    "toasts": {
+      "diceDeniedTitle": "Dice denied",
+      "powerDenied": "Power action denied by dice roll.",
+      "actionSentTitle": "Action sent",
+      "actionRequested": "{action} requested successfully.",
+      "powerFailedTitle": "Power action failed",
+      "unknownError": "Unknown error",
+      "diceEventTitle": "Dice Event",
+      "diceShutdown": "Hey I decided to shut down your server, womp womp",
+      "diceBlocked": "Dice tried to shut it down but got blocked.",
+      "diceFailed": "Dice wanted chaos, but shutdown failed this time."
+    },
+    "errors": {
+      "favoriteSaveFailed": "Failed to save favorite state: {reason}"
+    },
+    "codeInstances": {
+      "title": "Code Instances",
+      "subtitle": "Auto-deleted after 30 min of inactivity.",
+      "confirmStop": "Stop and delete this Code Instance?",
+      "failedWithReason": "Failed: {reason}",
+      "expiresSoon": "Expires soon",
+      "minutesLeft": "{minutes}m left",
+      "noActive": "No active instances.",
+      "open": "Open",
+      "stopping": "Stopping…",
+      "delete": "Delete"
+    },
+    "newServerModal": {
+      "header": {
+        "title": "New Server",
+        "subtitle": "Configure and deploy"
+      },
+      "alerts": {
+        "verifyEmail": "Verify your email before creating a server.",
+        "securityRequirement": "Enable 2FA or register a passkey under Identity > Security before creating a server."
+      },
+      "fields": {
+        "serverName": {
+          "label": "Server Name",
+          "placeholder": "My Minecraft Server"
+        },
+        "template": "Template",
+        "node": "Node",
+        "startup": {
+          "label": "Startup Command",
+          "placeholder": "Using egg default startup command",
+          "hint": "This is default startup command for the selected egg."
+        },
+        "env": {
+          "title": "Environment Variables",
+          "add": "Add variable",
+          "empty": "No environment variables configured. Add one to override defaults or define new values.",
+          "valuePlaceholder": "value"
+        }
+      },
+      "states": {
+        "loading": "Loading…",
+        "noTemplates": "No templates available.",
+        "noNodes": "No nodes available."
+      },
+      "resources": {
+        "title": "Resources",
+        "gamblingActive": "Gambling Mode is active via your selected theme. Resource selectors are locked and your blackjack hand now decides CPU, RAM, and disk from your account range.",
+        "blackjackTable": "Blackjack Table",
+        "dealer": "Dealer",
+        "you": "You",
+        "autoDraw": "Auto-draw until stand target",
+        "higherHands": "Higher winning hands push your final resources closer to max limits.",
+        "standTarget": "Blackjack Stand Target",
+        "standAt": "Stand at {value}",
+        "standHint": "You decide when your hand stops drawing cards.",
+        "memory": "Memory",
+        "disk": "Disk",
+        "cpu": "CPU",
+        "planOption": "Plan · {value}{unit}",
+        "nodeOption": "Node · {value}{unit}",
+        "noLimitsPlan": "Your <strong>{planName}</strong> plan has no configured limits. Contact an admin.",
+        "noPlanAssigned": "No plan assigned. Resources use defaults."
+      },
+      "kvm": {
+        "required": "KVM Virtualization (required)",
+        "enable": "Enable KVM Virtualization",
+        "portHint": "A port will be auto-assigned from the node's allocation pool."
+      },
+      "messages": {
+        "serverCreated": "Server created successfully."
+      },
+      "errors": {
+        "serverNameRequired": "Server name is required.",
+        "selectServerType": "Please select a server type.",
+        "failedCreate": "Failed to create server."
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "deploying": "Deploying…",
+        "deploy": "Deploy Server",
+        "close": "Nice. Close"
+      },
+      "result": {
+        "blackjackTitle": "🃏 Blackjack Server Creation Result",
+        "createdTitle": "✅ Server Created",
+        "serverId": "Server ID: {id}",
+        "creationNotice": "Creation Notice",
+        "handVsDealer": "Your hand {player} vs dealer {dealer} {outcome}.",
+        "serverGot": "Server got RAM {memory} MB · Disk {disk} MB · CPU {cpu}%.",
+        "assignedResources": "Assigned resources",
+        "luckyRoll": "Lucky roll",
+        "luckyTriggered": "777 vibes! Luck triggered!!!",
+        "luckyMissed": "Nuh uh… no lucky trigger this time.",
+        "blackjackRound": "Blackjack round",
+        "roundSummary": "You {playerScore} ({playerCards}) · Dealer {dealerScore} ({dealerCards})",
+        "standTarget": "Your stand target: {value}",
+        "bonusTitle": "24h bonus (+{percent}% cap)",
+        "bonusActivated": "Activated until {until}",
+        "bonusAlreadyActive": "Already active until {until}",
+        "notActive": "Not active",
+        "untilTomorrow": "tomorrow",
+        "untilSoon": "soon",
+        "outcomes": {
+          "won": "won",
+          "lost": "lost",
+          "pushed": "pushed"
+        },
+        "outcomeMessage": {
+          "player": "You beat the dealer.",
+          "dealer": "Dealer wins this hand.",
+          "push": "Push - hand tied."
+        }
+      }
+    }
+  },
+  "serverConsoleTab": {
+    "status": {
+      "connected": "Connected",
+      "stopping": "Stopping",
+      "disconnected": "Disconnected"
+    },
+    "history": {
+      "empty": "No command history",
+      "recent": "Recent Commands"
+    },
+    "toolbar": {
+      "console": "Console",
+      "copyOutput": "Copy console output",
+      "clearConsole": "Clear console"
+    },
+    "input": {
+      "placeholder": "Enter command..."
+    },
+    "states": {
+      "loadingConsole": "Loading console..."
+    },
+    "footer": {
+      "typeCommandsAbove": "Type commands directly in the console above"
+    },
+    "actions": {
+      "close": "Close",
+      "copy": "Copy",
+      "copied": "Copied",
+      "clear": "Clear",
+      "cancel": "Cancel",
+      "reconnect": "Reconnect",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen"
+    },
+    "terminal": {
+      "errorTag": "ERROR",
+      "consoleCleared": "Console cleared.",
+      "connectingToConsole": "Connecting to server console...",
+      "maxReconnect": "Max reconnection attempts reached. Click Reconnect to try again.",
+      "serverOfflineRetry": "Server appears offline. Retrying in {delaySec}s... (attempt {attempt}/{maxRetries})",
+      "reconnectingIn": "Reconnecting in {delaySec}s... (attempt {attempt}/{maxRetries})",
+      "failedWsCredentials": "Failed to obtain WebSocket credentials.",
+      "websocketError": "WebSocket error: {reason}",
+      "connectionTimedOut": "Connection timed out.",
+      "connected": "Connected",
+      "typeCommands": "Type commands directly.",
+      "sessionExpired": "Session expired. Reconnecting...",
+      "websocketErrorOccurred": "WebSocket error occurred",
+      "authFailed": "Authentication failed ({code}). Click Reconnect to try again.",
+      "disconnected": "Disconnected ({code}{reason})",
+      "serverOffline": "Server appears offline: {reason}",
+      "connectionFailed": "Connection failed: {reason}",
+      "manuallyReconnecting": "Manually reconnecting...",
+      "tags": {
+        "install": "Install",
+        "status": "Status",
+        "daemon": "Daemon",
+        "error": "Error",
+        "authError": "Auth Error"
+      }
+    }
+  },
+  "serverTabShared": {
+    "loading": "Loading...",
+    "error": {
+      "title": "Something went wrong",
+      "tryAgain": "Try again"
+    }
+  },
+  "serverMonacoEditor": {
+    "position": {
+      "lineCol": "Ln {line}, Col {col}",
+      "lines": "{count} lines"
+    },
+    "ai": {
+      "label": "AI",
+      "thinking": "Thinking...",
+      "suggestion": "AI suggestion",
+      "generatedBy": "Generated by AI"
+    },
+    "actions": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "decreaseFont": "Decrease font size",
+      "increaseFont": "Increase font size",
+      "disableWrap": "Disable word wrap",
+      "enableWrap": "Enable word wrap",
+      "search": "Search (Ctrl+F)",
+      "copyAll": "Copy all"
+    },
+    "states": {
+      "loadingEditor": "Loading editor..."
+    }
+  },
+  "serverStatsTab": {
+    "timeWindow": {
+      "live": "Live",
+      "5m": "5m",
+      "10m": "10m",
+      "1h": "1H",
+      "6h": "6H",
+      "24h": "24H",
+      "7d": "7D"
+    },
+    "sections": {
+      "resourceUsage": "Resource Usage"
+    },
+    "charts": {
+      "cpu": "CPU",
+      "memory": "Memory",
+      "disk": "Disk",
+      "network": "Network",
+      "download": "Download",
+      "upload": "Upload",
+      "cpuUsage": "CPU Usage",
+      "memoryUsage": "Memory Usage",
+      "diskUsage": "Disk Usage",
+      "networkTraffic": "Network Traffic"
+    },
+    "labels": {
+      "netUp": "Net ↑",
+      "netDown": "Net ↓",
+      "downloadTraffic7d": "7d Download Traffic",
+      "uploadTraffic7d": "7d Upload Traffic"
+    },
+    "states": {
+      "loadingStatistics": "Loading statistics...",
+      "noDataTitle": "No data available",
+      "noDataMessage": "Stats are collected while the server is running. Check back in a few minutes."
+    },
+    "node": {
+      "system": "Node System",
+      "cpu": "Node CPU",
+      "memory": "Node Memory",
+      "disk": "Node Disk",
+      "version": "Version",
+      "architecture": "Architecture",
+      "cpuAvg24h": "Node CPU Avg (24h)",
+      "net24h": "Node Net 24h (↓ / ↑)",
+      "currentNet": "Current Net (↓ / ↑)",
+      "usage24h": "Node Usage (24h)"
+    }
+  },
+  "serverFilesTab": {
+    "actions": {
+      "create": "Create",
+      "cancel": "Cancel",
+      "save": "Save",
+      "copy": "Copy",
+      "upload": "Upload",
+      "newFile": "New File",
+      "newFolder": "New Folder",
+      "archive": "Archive",
+      "move": "Move",
+      "chmod": "Chmod",
+      "delete": "Delete",
+      "download": "Download",
+      "rename": "Rename",
+      "changePermissions": "Change permissions",
+      "viewImage": "View image",
+      "edit": "Edit"
+    },
+    "table": {
+      "name": "Name",
+      "size": "Size",
+      "modified": "Modified",
+      "actions": "Actions"
+    },
+    "bulk": {
+      "selected": "{count} selected",
+      "recursive": "Recursive"
+    },
+    "inputs": {
+      "fileNamePlaceholder": "filename.txt",
+      "folderNamePlaceholder": "folder-name"
+    },
+    "preview": {
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "resetView": "Reset view",
+      "toggleFullscreen": "Toggle fullscreen"
+    },
+    "states": {
+      "dropToUpload": "Drop files to upload",
+      "loadingFiles": "Loading files...",
+      "emptyDirectory": "Empty directory"
+    },
+    "labels": {
+      "na": "—",
+      "proxied": "proxied",
+      "yesterday": "Yesterday"
+    },
+    "confirm": {
+      "openUnknownType": "This file type may not display correctly. Open anyway?",
+      "deleteFile": "Delete \"{name}\"?",
+      "fileExistsOpen": "\"{name}\" exists. Open it instead?",
+      "applyRecursive": "Apply recursively?",
+      "deleteSelected": "Delete {count} item(s)?"
+    },
+    "prompts": {
+      "renameTo": "Rename to:",
+      "chmodSingle": "Set permissions (octal, e.g. 0644 or 0755):",
+      "chmodBulk": "Set permissions (octal):",
+      "moveToFolder": "Move to folder (relative path):"
+    },
+    "errors": {
+      "uploadFailed": "Upload failed: {reason}",
+      "imagePreviewFailed": "Image preview failed: {reason}",
+      "binaryNotEditable": "This file type cannot be edited. Please download it instead.",
+      "openFailed": "Failed to open file: {reason}",
+      "saveFailed": "Save failed: {reason}",
+      "deleteFailed": "Delete failed: {reason}",
+      "folderExists": "A folder named \"{name}\" already exists.",
+      "itemExists": "Cannot create: an item named \"{name}\" already exists.",
+      "actionFailed": "Failed: {reason}",
+      "renameFailed": "Rename failed: {reason}",
+      "downloadFailed": "Download failed: {reason}",
+      "invalidMode": "Invalid mode. Use octal format (e.g. 0644, 0755)",
+      "invalidModeShort": "Invalid mode",
+      "permissionUpdateFailed": "Permission update failed: {reason}",
+      "archiveFailed": "Archive failed: {reason}",
+      "moveFailed": "Move failed: {reason}",
+      "bulkChmodFailed": "Bulk chmod failed: {reason}",
+      "bulkDeleteFailed": "Bulk delete failed: {reason}"
+    }
+  },
+  "serverDetailPage": {
+    "header": {
+      "serverFallback": "Server",
+      "unnamedServer": "Unnamed Server"
+    },
+    "tabs": {
+      "console": "Console",
+      "statistics": "Statistics",
+      "statsShort": "Stats",
+      "files": "Files",
+      "startup": "Startup",
+      "databases": "Databases",
+      "dbShort": "DB",
+      "schedules": "Schedules",
+      "network": "Network",
+      "netShort": "Net",
+      "backups": "Backups",
+      "activity": "Activity",
+      "subusers": "Subusers",
+      "mounts": "Mounts",
+      "settings": "Settings"
+    },
+    "stats": {
+      "cpu": "CPU",
+      "memory": "Memory",
+      "disk": "Disk",
+      "net": "Net ↑↓"
+    },
+    "states": {
+      "loadingServer": "Loading server…",
+      "serverNotFoundTitle": "Server Not Found",
+      "serverNotFoundDescription": "The server you're looking for doesn't exist or is unavailable.",
+      "loadingConsole": "Loading console…",
+      "loadingStatistics": "Loading statistics…",
+      "loadingFiles": "Loading files…",
+      "enabled": "enabled",
+      "disabled": "disabled",
+      "unknown": "unknown"
+    },
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "kill": "Kill",
+      "transfer": "Transfer",
+      "enableKvm": "Enable KVM",
+      "disableKvm": "Disable KVM",
+      "markStarted": "Mark as Started",
+      "morePowerOptions": "More power options",
+      "adminMode": "Admin Mode",
+      "refreshServer": "Refresh server",
+      "backToServers": "Back to Servers",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "toasts": {
+      "diceDeniedTitle": "Dice denied",
+      "powerDenied": "Power action denied by dice roll.",
+      "actionSentTitle": "Action sent",
+      "actionRequested": "{action} requested successfully.",
+      "powerFailedTitle": "Power action failed",
+      "unknownError": "Unknown error"
+    },
+    "alerts": {
+      "kvmToggled": "KVM {state}.",
+      "kvmToggleFailed": "KVM toggle failed: {reason}",
+      "deleteFailed": "Delete failed: {reason}",
+      "transferInitiated": "Transfer initiated. This may take several minutes.",
+      "markedStarted": "Server marked as started.",
+      "markStartedFailed": "Mark started failed: {reason}"
+    },
+    "errors": {
+      "selectTargetNode": "Please select a target node",
+      "transferFailed": "Transfer failed"
+    },
+    "confirm": {
+      "deleteServer": "Are you sure you want to permanently delete this server? This action cannot be undone."
+    },
+    "dialogs": {
+      "power": {
+        "confirmPrefix": "Confirm",
+        "confirmMessage": "Are you sure you want to {action} the server?",
+        "killWarning": "Killing a server forcibly terminates its process. Data loss may occur."
+      },
+      "transfer": {
+        "title": "Transfer Server",
+        "description": "Select the destination node to transfer this server to.",
+        "destinationNode": "Destination Node",
+        "selectNode": "Select a node…",
+        "notice": "This may take several minutes. Both nodes must be online."
+      }
+    },
+    "kvm": {
+      "filesNotice": "KVM filesystem is managed by cloud-init. Files shown here may not reflect the guest VM's actual filesystem. Use SSH/SFTP to access the VM directly.",
+      "killWarning": "Killing a KVM virtual machine is equivalent to pulling the power plug. The guest OS will not shut down gracefully.",
+      "transferNotice": "Transferring a KVM server requires both nodes to support KVM passthrough. The VM disk image will be migrated."
+    },
+    "network": {
+      "title": "Network Allocations",
+      "requestPort": "Request Port",
+      "add": "Add",
+      "empty": "No network allocations found.",
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "removeAllocation": "Remove allocation",
+      "requestFailed": "Request failed",
+      "failed": "Failed"
+    },
+    "startup": {
+      "selectDockerBeforeSave": "Please select a Docker image before saving.",
+      "saved": "Saved.",
+      "saveFailed": "Save failed: {reason}",
+      "loadFailed": "Failed to load startup configuration.",
+      "serverConfiguration": "Server Configuration",
+      "egg": "Egg",
+      "dockerImage": "Docker Image",
+      "selectDockerImage": "Select Docker Image",
+      "selectImage": "Select image…",
+      "noAlternateDocker": "No alternate docker images are configured for this egg.",
+      "startupCommand": "Startup Command",
+      "detectionTitle": "Startup Detection",
+      "detectionDescription": "Patterns matched against console output to detect startup completion.",
+      "patternPlaceholder": "e.g. Server started",
+      "removePattern": "Remove pattern",
+      "addPattern": "Add Pattern",
+      "environmentVariables": "Environment Variables",
+      "save": "Save",
+      "readOnly": "Read Only",
+      "noEnvironmentVariables": "No environment variables defined."
+    },
+    "mounts": {
+      "title": "Mounts",
+      "kvmNotice": "KVM filesystem is managed by cloud-init and may not display correctly in this panel.",
+      "description": "Mounts bind host directories into your server container.",
+      "empty": "No mounts configured. Mounts are managed by administrators.",
+      "readOnly": "Read Only",
+      "source": "Source",
+      "target": "Target"
+    },
+    "databases": {
+      "title": "Databases",
+      "newDatabase": "New Database",
+      "new": "New",
+      "labelOptional": "Label (optional)",
+      "labelPlaceholder": "e.g. Primary DB",
+      "create": "Create",
+      "empty": "No databases configured.",
+      "user": "User",
+      "hide": "Hide",
+      "show": "Show",
+      "deleteDatabase": "Delete database",
+      "copy": "Copy {field}",
+      "createFailed": "Failed to create database",
+      "confirmDelete": "Delete this database? This will permanently DROP the database.",
+      "credentials": {
+        "host": "Host",
+        "db": "DB",
+        "user": "User",
+        "pass": "Pass",
+        "jdbc": "JDBC"
+      }
+    },
+    "schedules": {
+      "title": "Schedules",
+      "newSchedule": "New Schedule",
+      "new": "New",
+      "name": "Name",
+      "namePlaceholder": "Daily restart",
+      "cronExpression": "Cron Expression",
+      "create": "Create",
+      "empty": "No schedules configured.",
+      "unnamed": "Unnamed",
+      "active": "Active",
+      "inactive": "Inactive",
+      "last": "Last",
+      "never": "Never",
+      "deleteSchedule": "Delete schedule",
+      "confirmDelete": "Delete this schedule?",
+      "failed": "Failed: {reason}"
+    },
+    "backups": {
+      "title": "Backups",
+      "createBackup": "Create Backup",
+      "create": "Create",
+      "empty": "No backups found. Create one to get started.",
+      "backupFallback": "Backup",
+      "backupFailed": "Backup failed",
+      "progress": "{value}% complete",
+      "restore": "Restore",
+      "unlockBackup": "Unlock backup",
+      "lockBackup": "Lock backup",
+      "deleteBackup": "Delete backup",
+      "confirmRestore": "Restore this backup? Current data may be overwritten.",
+      "restoreInitiated": "Restore initiated.",
+      "confirmDelete": "Delete this backup permanently?",
+      "failed": "Failed: {reason}"
+    },
+    "activity": {
+      "title": "Activity Log",
+      "empty": "No activity recorded yet.",
+      "user": "User #{id}",
+      "actions": {
+        "startedServer": "Started server",
+        "stoppedServer": "Stopped server",
+        "restartedServer": "Restarted server",
+        "killedServer": "Killed server",
+        "ranCommand": "Ran command",
+        "modifiedFile": "Modified file",
+        "deletedFiles": "Deleted file(s)",
+        "reinstalledServer": "Reinstalled server"
+      }
+    },
+    "subusers": {
+      "title": "Subusers",
+      "addSubuser": "Add Subuser",
+      "add": "Add",
+      "email": "Email",
+      "permissions": "Permissions",
+      "empty": "No subusers added yet.",
+      "userFallback": "User #{id}",
+      "locked": "Locked",
+      "unlockSubuser": "Unlock subuser",
+      "lockSubuser": "Lock subuser",
+      "removeSubuser": "Remove subuser",
+      "failed": "Failed",
+      "failedWithReason": "Failed: {reason}",
+      "failedUpdateLock": "Failed to update lock: {reason}",
+      "confirmRemove": "Remove this subuser?"
+    },
+    "settings": {
+      "confirmReinstall": "Reinstall this server? All files will be wiped.",
+      "reinstallInitiated": "Reinstall initiated.",
+      "failedWithReason": "Failed: {reason}",
+      "sshDetailsUnavailable": "SSH connection details are not available.",
+      "sftpDetailsUnavailable": "SFTP connection details are not available.",
+      "openingSsh": "Opening SSH client… If nothing happened, copy the command above and use your terminal.",
+      "openingSftp": "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app.",
+      "serverInformation": "Server Information",
+      "uuid": "UUID",
+      "name": "Name",
+      "status": "Status",
+      "node": "Node",
+      "dockerImage": "Docker Image",
+      "virtualization": "Virtualization",
+      "virtualizationKvm": "KVM (Full VM)",
+      "virtualizationDocker": "Docker",
+      "externalAccess": "External Access",
+      "host": "Host",
+      "port": "Port",
+      "username": "Username",
+      "launchSsh": "Launch SSH",
+      "launchSftp": "Launch SFTP",
+      "sshCommand": "SSH Command",
+      "sftpCommand": "SFTP Command",
+      "copySshCommand": "Copy SSH command",
+      "copySftpCommand": "Copy SFTP command",
+      "authNote": "Use your panel password or SSH key to authenticate.",
+      "resourceLimits": "Resource Limits",
+      "ioWeight": "IO Weight",
+      "swap": "Swap",
+      "kvmPassthrough": "KVM Passthrough",
+      "dangerZone": "Danger Zone",
+      "dangerDescription": "These actions are irreversible. Proceed with caution.",
+      "reinstall": "Reinstall",
+      "deleteServer": "Delete Server",
+      "kvmNotes": {
+        "title": "KVM Access Notes",
+        "usePrimary": "Use the primary allocation for SSH/SFTP",
+        "default": "Default",
+        "filesystemManaged": "Filesystem managed by cloud-init",
+        "panelFilesGuest": "Panel files may not reflect guest state"
+      }
+    }
+  },
+  "infrastructureCodeInstancesPage": {
+    "header": {
+      "title": "Code Instances",
+      "description": "Create and manage temporary code environments."
+    },
+    "intro": "Spin up isolated code instances for development and testing.",
+    "actions": {
+      "refresh": "Refresh",
+      "createCodeInstance": "Create Code Instance",
+      "stopDelete": "Stop & Delete",
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "create": "Create"
+    },
+    "table": {
+      "name": "Name",
+      "uuid": "UUID",
+      "resources": "Resources",
+      "resourcesValue": "{memory} MB / {cpu} CPU / {disk} MB",
+      "status": "Status",
+      "lastActivity": "Last Activity",
+      "actions": "Actions"
+    },
+    "states": {
+      "never": "Never",
+      "noInstances": "No code instances found."
+    },
+    "defaults": {
+      "instanceName": "Code Instance"
+    },
+    "dialog": {
+      "title": "Create Code Instance"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "my-code-instance",
+      "memory": "Memory (MB)",
+      "disk": "Disk (MB)",
+      "cpu": "CPU",
+      "instanceTemplate": "Instance Template"
+    },
+    "confirm": {
+      "stopDelete": "Stop and delete this code instance?"
+    },
+    "errors": {
+      "failedLoad": "Failed to load code instances.",
+      "noEggFound": "No code instance template found.",
+      "createFailed": "Failed to create code instance: {reason}",
+      "unexpectedCreateResponse": "Unexpected response while creating code instance.",
+      "failedCreate": "Failed to create code instance: {reason}"
+    }
+  },
+  "infrastructureNodesPage": {
+    "header": {
+      "title": "Infrastructure Nodes",
+      "description": "Manage Wings nodes and networking configuration."
+    },
+    "states": {
+      "demoActive": "Demo mode is active. Creating, editing, and deleting nodes is disabled.",
+      "nodesRegistered": "{count} node(s) registered",
+      "disabledInDemo": "Disabled in demo mode",
+      "loadingNodes": "Loading nodes...",
+      "noNodesTitle": "No nodes yet",
+      "noNodesDescription": "Add your first node to start hosting workloads."
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "addNode": "Add Node",
+      "edit": "Edit",
+      "generate": "Generate",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes"
+    },
+    "alerts": {
+      "demoCreateDisabled": "Creating nodes is disabled in demo mode.",
+      "demoEditDisabled": "Editing nodes is disabled in demo mode.",
+      "demoDeleteDisabled": "Deleting nodes is disabled in demo mode."
+    },
+    "confirm": {
+      "deleteNode": "Delete node \"{name}\"?"
+    },
+    "nodeTypes": {
+      "free": "Free",
+      "paid": "Paid",
+      "freeAndPaid": "Free + Paid",
+      "enterprise": "Enterprise"
+    },
+    "nodeTypeOptions": {
+      "free": "Free",
+      "paid": "Paid",
+      "freeAndPaid": "Free + Paid",
+      "enterprise": "Enterprise"
+    },
+    "labels": {
+      "fqdn": "FQDN",
+      "ssl": "SSL",
+      "noSslProxied": "No SSL (proxied)",
+      "org": "Org"
+    },
+    "dialog": {
+      "addTitle": "Add Node",
+      "editTitle": "Edit Node: {name}"
+    },
+    "sections": {
+      "sftp": "SFTP",
+      "resourceLimits": "Resource Limits",
+      "network": "Network"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "My Node",
+      "nodeId": "Node ID",
+      "nodeIdPlaceholder": "uuid",
+      "nodeIdHint": "Unique identifier used by Wings and API routes.",
+      "fqdnOptional": "FQDN (optional)",
+      "fqdnHint": "Optional hostname used for display and network routing.",
+      "fqdnPlaceholder": "node.example.com",
+      "wingsUrl": "Wings URL",
+      "wingsUrlPlaceholder": "https://node.example.com:8080",
+      "backendWingsUrlOptional": "Backend Wings URL (optional)",
+      "backendWingsUrlHint": "Internal backend-to-node URL. Use this when public and private endpoints differ.",
+      "backendWingsUrlPlaceholder": "http://10.0.0.5:8080",
+      "authToken": "Auth Token",
+      "authTokenPlaceholder": "Paste token or generate one",
+      "nodeType": "Node Type",
+      "linkedOrganisation": "Linked Organisation",
+      "noneOption": "None",
+      "sslHttps": "SSL / HTTPS",
+      "sslHint": "Disable if the Wings node uses HTTP. WebSockets will be proxied through the backend.",
+      "allowedOrigin": "Allowed Origin (WS Proxy)",
+      "allowedOriginPlaceholder": "e.g. https://ecli.app (must match Wings allowed_origins)",
+      "allowedOriginHint": "The panel origin to send when proxying WebSockets to this node. Must match an entry in the Wings daemon config. Defaults to FRONTEND_URL.",
+      "sftpPort": "SFTP Port",
+      "sftpPortPlaceholder": "2022",
+      "sftpProxyPort": "SFTP Proxy Port",
+      "sftpProxyPortPlaceholder": "e.g. 12022",
+      "sftpProxyPortHint": "Backend TCP proxy port for clients that can't reach the node directly.",
+      "memoryMb": "Memory (MB)",
+      "memoryMbPlaceholder": "e.g. 8192",
+      "diskMb": "Disk (MB)",
+      "diskMbPlaceholder": "e.g. 51200",
+      "cpuPercent": "CPU (%)",
+      "cpuPercentPlaceholder": "e.g. 400",
+      "serverLimit": "Server Limit",
+      "serverLimitPlaceholder": "e.g. 20",
+      "defaultIp": "Default IP",
+      "portRangeStart": "Port Range Start",
+      "portRangeEnd": "Port Range End",
+      "monthlyCost": "Monthly Cost ($)"
+    }
+  },
+  "ticketsPage": {
+    "common": {
+      "na": "N/A"
+    },
+    "header": {
+      "title": "Support Tickets",
+      "description": "Manage your support requests"
+    },
+    "banned": {
+      "message": "You are banned from creating or interacting with support tickets. Reason: {reason}. Contact contact@ecli.app to appeal.",
+      "noReason": "No reason provided"
+    },
+    "stats": {
+      "openTickets": "Open Tickets",
+      "pendingReply": "Pending Reply",
+      "totalTickets": "Total Tickets",
+      "avgResponse30d": "Avg Response (30d)",
+      "samples": "Based on {count} samples",
+      "noSamples30d": "No samples in 30d"
+    },
+    "filters": {
+      "searchPlaceholder": "Search tickets...",
+      "status": {
+        "all": "All Status",
+        "open": "Open",
+        "awaitingStaff": "Awaiting Staff",
+        "replied": "Replied",
+        "closed": "Closed",
+        "archived": "Archived"
+      },
+      "priority": {
+        "all": "All Priority",
+        "urgent": "Urgent",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "department": {
+        "all": "All Departments",
+        "technicalSupport": "Technical Support",
+        "billing": "Billing",
+        "sales": "Sales",
+        "security": "Security"
+      }
+    },
+    "actions": {
+      "newTicket": "New Ticket"
+    },
+    "states": {
+      "loading": "Loading tickets...",
+      "noMatch": "No tickets match your search.",
+      "noneYet": "You have no support tickets yet."
+    },
+    "labels": {
+      "dept": "Dept: {value}",
+      "assigned": "Assigned: #{value}",
+      "created": "Created: {value}",
+      "lastReply": "Last reply: {value}",
+      "updated": "Updated: {value}"
+    }
+  },
+  "ticketsNewPage": {
+    "header": {
+      "title": "New Ticket",
+      "description": "Submit a support request"
+    },
+    "hero": {
+      "title": "Open a Support Ticket",
+      "description": "Describe your issue in detail and our team will respond as soon as possible."
+    },
+    "banned": {
+      "message": "You are banned from creating support tickets. Reason: {reason}. Contact contact@ecli.app to appeal.",
+      "noReason": "No reason provided"
+    },
+    "fields": {
+      "subject": {
+        "label": "Subject",
+        "placeholder": "Brief summary of your issue"
+      },
+      "priority": {
+        "label": "Priority",
+        "low": "Low - general question / non-urgent",
+        "medium": "Medium - something is not working as expected",
+        "high": "High - service significantly impacted",
+        "urgent": "Urgent - complete outage / critical issue"
+      },
+      "department": {
+        "label": "Department",
+        "select": "Select department",
+        "support": "Support",
+        "billing": "Billing",
+        "technical": "Technical",
+        "sales": "Sales",
+        "other": "Other"
+      },
+      "message": {
+        "label": "Message",
+        "placeholder": "Describe your issue in as much detail as possible. Include any error messages, steps to reproduce, and what you expected to happen.",
+        "characters": "{count} characters"
+      }
+    },
+    "actions": {
+      "backToTickets": "Back to Tickets",
+      "cancel": "Cancel",
+      "submitting": "Submitting...",
+      "submitTicket": "Submit Ticket"
+    },
+    "errors": {
+      "requiredFields": "Subject and message are required.",
+      "submitFailed": "Failed to submit ticket. Please try again."
+    }
+  },
+  "ticketDetailPage": {
+    "common": {
+      "you": "You",
+      "supportTeam": "Support Team",
+      "information": "Information",
+      "unset": "unset",
+      "unknown": "unknown",
+      "unknownWrapped": "(unknown)",
+      "user": "User",
+      "yes": "Yes",
+      "no": "No",
+      "staff": "Staff",
+      "ai": "AI"
+    },
+    "header": {
+      "ticket": "Ticket"
+    },
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    },
+    "states": {
+      "loadingTicket": "Loading ticket…",
+      "ticketNotFound": "Ticket not found",
+      "ticketClosed": "Ticket closed"
+    },
+    "labels": {
+      "ticketDetails": "Ticket Details",
+      "status": "Status",
+      "priority": "Priority",
+      "created": "Created",
+      "messages": "Messages",
+      "department": "Department",
+      "assigned": "Assigned",
+      "updated": "Updated",
+      "quickActions": "Quick Actions"
+    },
+    "status": {
+      "open": "Open",
+      "awaitingStaff": "Awaiting Staff",
+      "replied": "Replied",
+      "closed": "Closed"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "department": {
+      "none": "(none)",
+      "technicalSupport": "Technical Support",
+      "billing": "Billing",
+      "sales": "Sales",
+      "security": "Security"
+    },
+    "owner": {
+      "ticketOwner": "Ticket Owner",
+      "viewFullProfile": "View full profile",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "portal": "Portal"
+    },
+    "admin": {
+      "admin": "Admin",
+      "adminSettings": "Admin Settings",
+      "aiSettings": "AI Settings",
+      "aiResponses": "AI Responses",
+      "disabled": "Disabled",
+      "enabled": "Enabled",
+      "aiTouched": "AI Touched",
+      "dangerZone": "Danger Zone"
+    },
+    "composer": {
+      "staffPlaceholder": "Write your staff reply…",
+      "userPlaceholder": "Add more information…",
+      "sendHint": "⌘+Enter to send"
+    },
+    "actions": {
+      "backToTickets": "Back to tickets",
+      "close": "Close",
+      "reopen": "Reopen",
+      "closeTicket": "Close Ticket",
+      "reopenTicket": "Reopen Ticket",
+      "saveChanges": "Save Changes",
+      "saving": "Saving…",
+      "ban": "Ban",
+      "unban": "Unban",
+      "deleteTicket": "Delete Ticket",
+      "deleting": "Deleting…",
+      "reply": "Reply",
+      "send": "Send"
+    },
+    "confirm": {
+      "deleteTicket": "Delete this ticket permanently?",
+      "banUser": "Ban this user from support?",
+      "unbanUser": "Unban this user from support?"
+    },
+    "prompt": {
+      "banReason": "Reason for ban (optional):"
+    },
+    "alerts": {
+      "failed": "Failed: {reason}",
+      "failedSend": "Failed to send: {reason}",
+      "failedLoadTicket": "Failed to load ticket",
+      "failedSaveAdmin": "Failed to save admin settings: {reason}",
+      "failedDelete": "Failed to delete: {reason}",
+      "userBanned": "User banned from support",
+      "failedBan": "Failed to ban: {reason}",
+      "userUnbanned": "User unbanned",
+      "failedUnban": "Failed to unban: {reason}"
+    },
+    "errors": {
+      "failedLoadTicket": "Failed to load ticket"
+    },
+    "notifications": {
+      "priorityChanged": "Priority changed to {value}",
+      "departmentChanged": "Department changed to {value}",
+      "markedSpam": "Ticket was marked as spam",
+      "closedByAi": "Ticket was closed by AI",
+      "statusChanged": "Status changed to {value}",
+      "adminUpdated": "Admin ticket settings updated"
+    }
+  },
+  "organisationsPage": {
+    "header": {
+      "title": "Organisations",
+      "description": "Manage your organisations"
+    },
+    "actions": {
+      "newOrganisation": "New Organisation"
+    },
+    "states": {
+      "loading": "Loading...",
+      "none": "You are not a member of any organisations."
+    },
+    "labels": {
+      "role": "Role: {value}",
+      "tier": "Tier: {value}"
+    }
+  },
+  "organisationsCreatePage": {
+    "header": {
+      "title": "New Organisation",
+      "description": "Create a new organisation"
+    },
+    "fields": {
+      "namePlaceholder": "Organisation Name",
+      "handlePlaceholder": "Handle (e.g. acme.ecli.app)"
+    },
+    "tiers": {
+      "free": "Free",
+      "paid": "Paid",
+      "enterprise": "Enterprise"
+    },
+    "actions": {
+      "creating": "Creating...",
+      "create": "Create"
+    },
+    "errors": {
+      "failedCreate": "Failed to create organisation"
+    }
+  },
+  "organisationsDetailPage": {
+    "header": {
+      "fallbackTitle": "Organisation"
+    },
+    "common": {
+      "dash": "—"
+    },
+    "labels": {
+      "orgLogoAlt": "org logo",
+      "cpu": "CPU",
+      "ram": "RAM",
+      "disk": "Disk"
+    },
+    "tiers": {
+      "free": "Free",
+      "pro": "Pro",
+      "enterprise": "Enterprise"
+    },
+    "tabs": {
+      "members": "Members",
+      "orders": "Orders",
+      "servers": "Servers",
+      "nodes": "Nodes",
+      "dns": "DNS",
+      "activity": "Activity"
+    },
+    "roles": {
+      "member": "Member",
+      "admin": "Admin",
+      "owner": "Owner"
+    },
+    "states": {
+      "invalidOrganisation": "Invalid organisation.",
+      "loading": "Loading...",
+      "organisationNotFound": "Organisation not found."
+    },
+    "members": {
+      "count": "{count} members",
+      "none": "No members in this organisation.",
+      "unknownUser": "Unknown user",
+      "userIdLabel": "User #{id}",
+      "pendingInvitations": "Pending invitations",
+      "accepted": "Accepted",
+      "pending": "Pending",
+      "addExistingUser": "Add existing user (admin)",
+      "userIdOptional": "user id (optional)",
+      "orEmail": "or email@example.com",
+      "inviteUser": "Invite a user",
+      "userEmail": "user@example.com"
+    },
+    "orders": {
+      "title": "Organisation Orders",
+      "none": "No orders for this organisation.",
+      "columns": {
+        "id": "ID",
+        "description": "Description",
+        "amount": "Amount",
+        "status": "Status",
+        "date": "Date"
+      }
+    },
+    "servers": {
+      "title": "Organisation Servers",
+      "loading": "Loading servers…",
+      "none": "No servers found for this organisation."
+    },
+    "nodes": {
+      "title": "Organisation Nodes",
+      "loading": "Loading nodes…",
+      "none": "No nodes assigned to this organisation.",
+      "memoryLimit": "Memory Limit",
+      "diskLimit": "Disk Limit",
+      "cpuLimit": "CPU Limit",
+      "serverLimit": "Server Limit",
+      "monthlyCost": "Monthly Cost",
+      "portRange": "Port Range"
+    },
+    "dns": {
+      "title": "Organisation DNS",
+      "subdomainPlaceholder": "subdomain e.g. app.example.com",
+      "loadingSubdomains": "Loading subdomains…",
+      "noSubdomains": "No subdomains found. Add one above or create a root zone in the infrastructure DNS page.",
+      "zone": "Zone: {name}",
+      "id": "ID: {id}",
+      "loadingRecords": "Loading records…",
+      "noRecords": "No records found for this zone.",
+      "ttl": "ttl {ttl}",
+      "ttlShort": "ttl",
+      "proxied": "proxied",
+      "dns": "dns",
+      "editRecord": "Edit DNS record",
+      "name": "name",
+      "content": "content",
+      "autoTtl": "Auto TTL",
+      "addRecordTitle": "Add DNS record (root = @)",
+      "nameExample": "name (e.g. @, www, api)"
+    },
+    "activity": {
+      "title": "Organisation Activity",
+      "loading": "Loading activity…",
+      "none": "No activity recorded for this organisation.",
+      "actions": {
+        "orgCreate": "Created organisation",
+        "orgRemoveMember": "Removed member",
+        "orgChangeRole": "Changed member role",
+        "orgInvite": "Sent invite",
+        "orgAcceptInvite": "Accepted invite",
+        "serverCreate": "Created server",
+        "serverDelete": "Deleted server",
+        "serverUpdate": "Updated server",
+        "serverSuspend": "Suspended server",
+        "serverUnsuspend": "Unsuspended server"
+      }
+    },
+    "actions": {
+      "uploading": "Uploading…",
+      "uploadLogo": "Upload Logo",
+      "leaveOrg": "Leave org",
+      "refresh": "Refresh",
+      "resend": "Resend",
+      "revoke": "Revoke",
+      "addUser": "Add user",
+      "invite": "Invite",
+      "edit": "Edit",
+      "delete": "Delete",
+      "create": "Create",
+      "save": "Save",
+      "cancel": "Cancel",
+      "addRecord": "Add record"
+    },
+    "confirm": {
+      "leaveOrg": "Leave organisation? This will remove your access and related subuser links.",
+      "deleteRecord": "Delete this record?",
+      "revokeInvite": "Revoke this invite?",
+      "removeSubdomain": "Remove subdomain {name} from organisation?"
+    },
+    "alerts": {
+      "leftOrg": "You have left the organisation",
+      "failed": "Failed: {reason}",
+      "failedUpdate": "Failed update: {reason}",
+      "failedDelete": "Failed delete: {reason}",
+      "failedUpdateTier": "Failed to update tier: {reason}",
+      "uploadFailed": "Upload failed: {reason}",
+      "subdomainNameRequired": "Subdomain name required",
+      "orgHandleNotSet": "Organisation handle is not set",
+      "onlyHandleZone": "Only organisation handle zone can be created",
+      "invitationSent": "Invitation sent",
+      "userAdded": "User added to organisation",
+      "inviteResent": "Invite resent",
+      "inviteRevoked": "Invite revoked",
+      "failedDeleteSubdomain": "Failed to delete subdomain: {reason}",
+      "failedChangeRole": "Failed to change role"
+    }
+  },
+  "aiChatPage": {
+    "initialMessage": "Hey there! 👋 I'm your Eclipse AI assistant. I can help you manage servers, debug issues, and optimize your infrastructure. What would you like to work on today?",
+    "header": {
+      "title": "AI Chat",
+      "description": "Chat with your AI assistant",
+      "assistantName": "Eclipse AI",
+      "typing": "Typing...",
+      "online": "Online",
+      "noModels": "No models available",
+      "selectModel": "Select Model"
+    },
+    "suggestions": {
+      "optimize": "Optimize my server",
+      "debug": "Debug an issue",
+      "configure": "Configure settings",
+      "bestPractices": "Best practices"
+    },
+    "actions": {
+      "clearChat": "Clear chat"
+    },
+    "states": {
+      "thinking": "Thinking..."
+    },
+    "quickActions": {
+      "title": "Quick actions"
+    },
+    "composer": {
+      "placeholder": "Ask me anything...",
+      "sendHint": "send",
+      "newLineHint": "new line"
+    },
+    "messageActions": {
+      "title": "Message actions",
+      "copy": "Copy",
+      "good": "Good",
+      "bad": "Bad",
+      "retry": "Retry"
+    },
+    "errors": {
+      "noModelAvailable": "No AI model available. Please contact your administrator to configure one.",
+      "chatResponse": "Error: {reason}",
+      "failedGetResponse": "Failed to get response"
+    }
+  },
+  "aiStudioPage": {
+    "header": {
+      "title": "AI Studio",
+      "description": "AI-powered tools for server management"
+    },
+    "sections": {
+      "aiToolsTitle": "AI Tools",
+      "aiToolsDescription": "Specialized AI tools for your workflow"
+    },
+    "tools": {
+      "comingSoon": "Coming Soon",
+      "codeAssistant": {
+        "name": "Code Assistant",
+        "description": "Generate, debug, and optimize server configurations",
+        "systemPrompt": "You are a Code Assistant for game server management. Help the user generate, debug, and optimize server configuration files (server.properties, spigot.yml, paper.yml, startup scripts, Docker compose files, etc). Provide clear code with explanations.",
+        "placeholder": "Describe what you need — e.g. 'Optimize my paper.yml for 50 players'"
+      },
+      "logAnalyzer": {
+        "name": "Log Analyzer",
+        "description": "Analyze server logs and identify issues automatically",
+        "systemPrompt": "You are a Log Analyzer for game servers. The user will paste server logs. Identify errors, warnings, performance issues, plugin conflicts, and crashes. Provide clear diagnoses and actionable fix steps.",
+        "placeholder": "Paste your server log or describe the error…"
+      },
+      "imageGenerator": {
+        "name": "Image Generator",
+        "description": "Generate server icons and banners with AI"
+      },
+      "configWizard": {
+        "name": "Config Wizard",
+        "description": "Auto-generate optimal server configurations",
+        "systemPrompt": "You are a Config Wizard for game servers. Based on the user's requirements (player count, server type, mods/plugins, hardware specs), generate complete, optimized configuration files. Output ready-to-use config blocks.",
+        "placeholder": "e.g. 'Generate optimized JVM flags for 8GB RAM, Paper 1.21, 100 players'"
+      },
+      "performanceAdvisor": {
+        "name": "Performance Advisor",
+        "description": "AI-powered performance optimization suggestions",
+        "systemPrompt": "You are a Performance Advisor for game servers. Analyze the user's described setup and provide specific optimization suggestions for TPS, memory usage, chunk loading, entity management, and network performance. Be specific with config values.",
+        "placeholder": "Describe your server setup and performance issues…"
+      },
+      "analyticsAi": {
+        "name": "Analytics AI",
+        "description": "Predictive analytics for server resource planning",
+        "systemPrompt": "You are an Analytics AI for server resource planning. Help the user predict resource needs, plan scaling, estimate costs, and analyze usage patterns. Provide data-driven recommendations for server sizing and capacity planning.",
+        "placeholder": "e.g. 'I expect 200 concurrent players, what resources do I need?'"
+      }
+    },
+    "chat": {
+      "startUsing": "Send a message to start using {tool}",
+      "thinking": "Thinking…",
+      "typeMessage": "Type your message..."
+    },
+    "models": {
+      "myModelsTitle": "My AI Models",
+      "myModelsDescription": "Models your administrator has granted you access to",
+      "loading": "Loading models...",
+      "noModelsAssignedTitle": "No models assigned",
+      "noModelsAssignedDescription": "Contact your administrator to get access to AI models.",
+      "allModelsTitle": "All Models",
+      "allModelsDescription": "Full catalogue of available AI models"
+    },
+    "badges": {
+      "beta": "Beta"
+    },
+    "modelStatus": {
+      "accessGranted": "Access granted",
+      "assigned": "Assigned",
+      "notAssigned": "Not assigned"
+    },
+    "errors": {
+      "chatResponse": "Error: {reason}",
+      "failedGetResponse": "Failed to get response"
+    }
+  },
+  "billingPage": {
+    "header": {
+      "title": "Billing",
+      "description": "Manage your subscription and payment methods"
+    },
+    "portal": {
+      "free": "Free Portal",
+      "paid": "Paid Portal",
+      "educational": "Educational Portal",
+      "enterprise": "Enterprise Portal"
+    },
+    "common": {
+      "na": "N/A",
+      "unlimited": "unlimited",
+      "perMonth": "/mo"
+    },
+    "pricing": {
+      "priceVaries": "Price Varies",
+      "custom": "Custom",
+      "customPlan": "Custom Plan",
+      "inclTax": "incl. {taxRate}% tax"
+    },
+    "demo": {
+      "title": "Demo Mode",
+      "badge": "Demo",
+      "description": "Demo mode simulates temporary enterprise access with limited resources and provides limited accessibility to AI models such as openai/gpt-oss-20b which can be used in AI Studio, AI Chat or for AI assistant (inline suggestions) features. Intended for testing and evaluation purposes before purchasing enterprise plan.",
+      "expiresAt": "Your demo expires at",
+      "expired": "Your demo has expired. You can no longer start a new demo.",
+      "used": "Demo mode has already been used for this account. Contact support if you believe this is a mistake.",
+      "footnote": "Demo mode is a temporary sandbox. Changes made during demo may not persist after it ends, and infrastructure actions are limited.",
+      "actions": {
+        "finishing": "Finishing…",
+        "starting": "Starting…",
+        "endDemo": "End Demo",
+        "demoUsed": "Demo Used",
+        "startDemo": "Start Demo"
+      },
+      "errors": {
+        "failedStart": "Failed to start demo mode",
+        "failedFinish": "Failed to finish demo mode"
+      },
+      "toast": {
+        "endedTitle": "Demo ended",
+        "endedDescription": "Your demo session has ended and your account is restored."
+      }
+    },
+    "stats": {
+      "currentPlan": "Current Plan",
+      "monthlyCost": "Monthly Cost",
+      "priceFromOrder": "Price from order or contact sales",
+      "includesTax": "Includes {taxRate}% tax for {country}",
+      "yourBillingCountry": "your billing country",
+      "totalInvoices": "Total Invoices",
+      "planExpires": "Plan Expires",
+      "managedViaSales": "Managed via sales"
+    },
+    "tax": {
+      "title": "Tax Information",
+      "description": "Calculated from your billing country and panel tax rules",
+      "billingCountry": "Billing Country",
+      "notSet": "Not set",
+      "taxRate": "Tax Rate",
+      "preTaxMonthly": "Pre-Tax Monthly",
+      "taxAmount": "Tax Amount"
+    },
+    "activeSubscription": {
+      "title": "Your Active Subscription",
+      "descriptionFallback": "Plan applied by administrator",
+      "manage": "Manage Subscription",
+      "configuredLimits": "Configured limits:",
+      "memory": "Memory",
+      "disk": "Disk",
+      "cpu": "CPU",
+      "serverLimit": "Server limit",
+      "databases": "Databases",
+      "backups": "Backups",
+      "renews": "Renews"
+    },
+    "currentSubscription": {
+      "title": "Current Subscription",
+      "description": "Your active plan and features. To upgrade or change, contact your administrator.",
+      "requestChange": "Request Change",
+      "active": "Active",
+      "connect": "Connect",
+      "contactSales": "Contact Sales",
+      "noPlansVisible": "No plans are currently visible in billing showcase."
+    },
+    "invoices": {
+      "title": "Invoice History",
+      "descriptionBase": "Past payments and invoices",
+      "taxRate": "Tax rate {taxRate}% ({country})",
+      "billingCountry": "billing country",
+      "columns": {
+        "invoice": "Invoice",
+        "description": "Description",
+        "date": "Date",
+        "amountTaxIncl": "Amount (Tax Incl.)",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "loading": "Loading orders...",
+      "empty": "No orders found.",
+      "tax": "tax",
+      "paid": "Paid"
+    },
+    "errors": {
+      "failedStudentVerification": "Failed to start student verification flow",
+      "failedFetchInvoice": "Failed to fetch invoice",
+      "unableDownloadInvoice": "Unable to download invoice"
+    }
+  }
+}

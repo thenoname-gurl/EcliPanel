@@ -13,7 +13,15 @@ import {
   Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { NAVIGATION, BRAND, type NavItem, API_ENDPOINTS } from "@/lib/panel-config"
+import {
+  NAVIGATION,
+  BRAND,
+  API_ENDPOINTS,
+  NAV_SECTION_I18N_KEYS,
+  NAV_ITEM_I18N_KEYS,
+  NAV_BADGE_I18N_KEYS,
+  type NavItem,
+} from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
@@ -23,8 +31,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useTranslations } from "next-intl"
 
 function ContactSalesModal({ item, onClose }: { item: NavItem; onClose: () => void }) {
+  const t = useTranslations("panelSidebar")
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -52,7 +63,7 @@ function ContactSalesModal({ item, onClose }: { item: NavItem; onClose: () => vo
         <button
           onClick={onClose}
           className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
-          aria-label="Close"
+          aria-label={t("close")}
         >
           <X className="h-4 w-4" />
         </button>
@@ -62,12 +73,10 @@ function ContactSalesModal({ item, onClose }: { item: NavItem; onClose: () => vo
         </div>
 
         <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">
-          {item.label} requires an upgrade
+          {t("requiresUpgrade", { feature: item.label })}
         </h3>
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          This feature is available on the{" "}
-          <span className="font-medium text-foreground capitalize">{item.requiredTier}</span>{" "}
-          plan and above. Contact our sales team to unlock it for your account.
+          {t("featureAvailableOn", { tier: item.requiredTier ?? "" })}
         </p>
 
         <div className="flex flex-col gap-2.5">
@@ -76,13 +85,13 @@ function ContactSalesModal({ item, onClose }: { item: NavItem; onClose: () => vo
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
           >
             <Mail className="h-4 w-4" />
-            Contact Sales
+            {t("contactSales")}
           </a>
           <button
             onClick={onClose}
             className="rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-[0.98]"
           >
-            Maybe later
+            {t("maybeLater")}
           </button>
         </div>
       </div>
@@ -103,6 +112,33 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
   const { user, logout } = useAuth()
   const [lockedItem, setLockedItem] = useState<NavItem | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const tSidebar = useTranslations("panelSidebar")
+  const tNav = useTranslations("panelNav")
+
+  const translateNavSection = useCallback(
+    (title: string) => {
+      const key = NAV_SECTION_I18N_KEYS[title]
+      return key ? tNav(`sections.${key}`) : title
+    },
+    [tNav]
+  )
+
+  const translateNavLabel = useCallback(
+    (label: string) => {
+      const key = NAV_ITEM_I18N_KEYS[label]
+      return key ? tNav(`items.${key}`) : label
+    },
+    [tNav]
+  )
+
+  const translateBadge = useCallback(
+    (badge?: string) => {
+      if (!badge) return badge
+      const key = NAV_BADGE_I18N_KEYS[badge]
+      return key ? tNav(`badges.${key}`) : badge
+    },
+    [tNav]
+  )
 
   const isAdmin = useMemo(() => {
     return user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
@@ -262,8 +298,8 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     return user?.displayName
       || (user?.firstName
         ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
-        : user?.email ?? "User")
-  }, [user])
+        : user?.email ?? tSidebar("userFallback"))
+  }, [user, tSidebar])
 
   const userInitial = displayName.charAt(0).toUpperCase()
 
@@ -288,9 +324,14 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
   const filteredNavigation = useMemo(() => {
     return NAVIGATION.map((section) => ({
       ...section,
-      items: section.items.filter(isItemVisible)
+      title: translateNavSection(section.title),
+      items: section.items.filter(isItemVisible).map((item) => ({
+        ...item,
+        label: translateNavLabel(item.label),
+        badge: translateBadge(item.badge),
+      }))
     })).filter((section) => section.items.length > 0)
-  }, [isItemVisible])
+  }, [isItemVisible, translateNavSection, translateNavLabel, translateBadge])
 
   const renderNavItem = (
     item: NavItem, 
@@ -381,7 +422,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             <p className="font-medium">{item.label}</p>
             {locked && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Requires {item.requiredTier} plan
+                {tSidebar("requiresPlan", { tier: item.requiredTier ?? "" })}
               </p>
             )}
           </TooltipContent>
@@ -451,13 +492,13 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                     href="/dashboard/settings"
                     onClick={isMobile ? handleMobileNavigate : undefined}
                     className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
-                    aria-label="Account settings"
+                    aria-label={tSidebar("accountSettings")}
                   >
                     <Settings className="h-4 w-4" />
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-popover text-popover-foreground border-border">
-                  Settings
+                  {tNav("items.settings")}
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -469,13 +510,13 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                       "rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-95",
                       isLoggingOut && "opacity-50 cursor-not-allowed"
                     )}
-                    aria-label="Logout"
+                    aria-label={tSidebar("logout")}
                   >
                     <LogOut className={cn("h-4 w-4", isLoggingOut && "animate-pulse")} />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-popover text-popover-foreground border-border">
-                  {isLoggingOut ? "Logging out..." : "Logout"}
+                  {isLoggingOut ? tSidebar("loggingOut") : tSidebar("logout")}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -503,7 +544,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Settings className="h-3 w-3" />
-                  Settings
+                  {tNav("items.settings")}
                 </Link>
                 <button
                   onClick={handleLogout}
@@ -511,7 +552,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <LogOut className="h-3 w-3" />
-                  Logout
+                  {tSidebar("logout")}
                 </button>
               </div>
             </TooltipContent>
@@ -558,7 +599,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                     ) : (
                       `v${BRAND.version}`
                     )
-                  ) : "Dashboard"}
+                    ) : tSidebar("dashboardFallback")}
                 </span>
               </div>
             )}
@@ -576,7 +617,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="flex h-11 shrink-0 items-center justify-center border-t border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-all active:scale-95"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? tSidebar("expandSidebar") : tSidebar("collapseSidebar")}
             >
               <div className={cn("transition-transform duration-200", collapsed && "rotate-180")}>
                 <ChevronLeft className="h-4 w-4" />
@@ -584,7 +625,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             </button>
           </TooltipTrigger>
           <TooltipContent side={collapsed ? "right" : "top"} sideOffset={8} className="bg-popover text-popover-foreground border-border">
-            {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            {collapsed ? tSidebar("expandSidebar") : tSidebar("collapseSidebar")}
           </TooltipContent>
         </Tooltip>
       </aside>
@@ -601,7 +642,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             className="absolute inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] animate-in slide-in-from-left duration-300"
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation menu"
+            aria-label={tSidebar("navigationMenu")}
           >
             <div className="flex h-full w-full flex-col bg-sidebar shadow-2xl">
               <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-border">
@@ -627,7 +668,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                 <button 
                   onClick={onClose} 
                   className="rounded-lg p-2 -mr-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
-                  aria-label="Close menu"
+                  aria-label={tSidebar("closeMenu")}
                 >
                   <X className="h-5 w-5" />
                 </button>

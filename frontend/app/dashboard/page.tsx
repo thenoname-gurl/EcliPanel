@@ -7,6 +7,7 @@ import { StatCard, SectionHeader, UsageBar } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
 import {
   Server,
   Shield,
@@ -59,9 +60,10 @@ function formatSocActivity(item: any) {
 }
 
 export default function SOCDashboard() {
+  const t = useTranslations("dashboardPage")
   const { user } = useAuth();
   if (!user) {
-    return <div className="p-8 text-center">Authentication in progress...</div>;
+    return <div className="p-8 text-center">{t("authInProgress")}</div>;
   }
   const [servers, setServers] = useState<any[]>([])
   const [recentActivity, setRecentActivity] = useState<any[]>([])
@@ -178,33 +180,33 @@ export default function SOCDashboard() {
   return (
     <>
       <div data-guide-id="dashboard-activity">
-        <PanelHeader title="SOC Dashboard" description="Security Operations Center Overview" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
       </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           {/* Stats Row */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
-              title="Your Servers Online"
+              title={t("stats.yourServersOnline")}
               value={`${myOnlineServers}/${myServers.length}`}
-              subtitle={otherServers.length > 0 ? `${otherOnlineServers}/${otherServers.length} others` : undefined}
+              subtitle={otherServers.length > 0 ? t("stats.others", { online: otherOnlineServers, total: otherServers.length }) : undefined}
               icon={Server}
             />
             <StatCard
-              title="Total Servers Online"
+              title={t("stats.totalServersOnline")}
               value={`${onlineServers}/${totalServers}`}
               icon={Globe}
             />
             <StatCard
-              title="Threat Level"
-              value={socAlerts.length > 0 ? "Elevated" : "Low"}
-              subtitle={socAlerts.length > 0 ? `${socAlerts.length} alert(s) detected` : "No active threats detected"}
+              title={t("stats.threatLevel")}
+              value={socAlerts.length > 0 ? t("stats.elevated") : t("stats.low")}
+              subtitle={socAlerts.length > 0 ? t("stats.alertsDetected", { count: socAlerts.length }) : t("stats.noThreats")}
               icon={Shield}
             />
             <StatCard
-              title="Uptime"
+              title={t("stats.uptime")}
               value={`${myUptimePct}%`}
-              subtitle={totalServers > 0 ? `Total: ${totalUptimePct}%` : "No servers"}
+              subtitle={totalServers > 0 ? t("stats.totalUptime", { value: totalUptimePct }) : t("stats.noServers")}
               icon={Activity}
             />
           </div>
@@ -213,15 +215,15 @@ export default function SOCDashboard() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Server Health */}
             <div className="col-span-1 rounded-xl border border-border bg-card p-5 lg:col-span-2">
-              <SectionHeader title="Server Health" description="Real-time resource utilization" />
+              <SectionHeader title={t("serverHealth.title")} description={t("serverHealth.description")} />
               <div className="mt-4 flex flex-col gap-4">
                 {onlineList.length === 0 && !loading && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No servers online</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">{t("serverHealth.noServersOnline")}</p>
                 )}
 
                 {myOnlineList.length > 0 && (
                   <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-semibold text-foreground">Your Servers</h4>
+                    <h4 className="text-sm font-semibold text-foreground">{t("serverHealth.yourServers")}</h4>
                     <div className="flex flex-col gap-4">
                       {myOnlineList.map(renderServerCard)}
                     </div>
@@ -230,7 +232,7 @@ export default function SOCDashboard() {
 
                 {otherOnlineList.length > 0 && (
                   <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-semibold text-foreground">Other Servers</h4>
+                    <h4 className="text-sm font-semibold text-foreground">{t("serverHealth.otherServers")}</h4>
                     <div className="flex flex-col gap-4">
                       {otherOnlineList.map(renderServerCard)}
                     </div>
@@ -243,12 +245,12 @@ export default function SOCDashboard() {
             <div className="flex flex-col gap-6">
               {/* Resource Summary */}
               <div className="rounded-xl border border-border bg-card p-5">
-                <SectionHeader title="Resource Summary" />
+                <SectionHeader title={t("resourceSummary.title")} />
                 <div className="mt-4 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Cpu className="h-4 w-4" />
-                      <span>Avg CPU</span>
+                      <span>{t("resourceSummary.avgCpu")}</span>
                     </div>
                     <span className="font-mono text-sm text-foreground">
                       {avgCpu}%
@@ -258,7 +260,7 @@ export default function SOCDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MemoryStick className="h-4 w-4" />
-                      <span>Total RAM</span>
+                      <span>{t("resourceSummary.totalRam")}</span>
                     </div>
                     <span className="font-mono text-sm text-foreground">
                       {formatBytes(totalMemUsed)} / {formatBytes(totalMemLimit)}
@@ -268,7 +270,7 @@ export default function SOCDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <HardDrive className="h-4 w-4" />
-                      <span>Total Disk</span>
+                      <span>{t("resourceSummary.totalDisk")}</span>
                     </div>
                     <span className="font-mono text-sm text-foreground">
                       {formatBytes(totalDiskUsed)} / {formatBytes(totalDiskLimit)}
@@ -278,7 +280,7 @@ export default function SOCDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Zap className="h-4 w-4" />
-                      <span>Servers Online</span>
+                      <span>{t("resourceSummary.serversOnline")}</span>
                     </div>
                     <span className="font-mono text-sm text-foreground">
                       {onlineServers}/{totalServers}
@@ -289,11 +291,11 @@ export default function SOCDashboard() {
 
               {/* Recent Activity */}
               <div className="rounded-xl border border-border bg-card p-5">
-                <SectionHeader title="Recent Activity" />
+                <SectionHeader title={t("recentActivity.title")} />
                 <div className="mt-4 flex flex-col gap-3">
                   {recentActivity.length === 0 ? (
                     <div className="rounded-lg border border-border/50 bg-secondary/10 p-4 text-center">
-                      <p className="text-xs text-muted-foreground">No recent activity available.</p>
+                      <p className="text-xs text-muted-foreground">{t("recentActivity.empty")}</p>
                     </div>
                   ) : (
                     recentActivity.map((item) => {
@@ -321,14 +323,14 @@ export default function SOCDashboard() {
 
           {/* Security Alerts */}
           <div className="rounded-xl border border-border bg-card p-5">
-            <SectionHeader title="Security Alerts" description="Recent security events and notifications" />
+            <SectionHeader title={t("securityAlerts.title")} description={t("securityAlerts.description")} />
             <div className="mt-4 flex flex-col gap-3">
               {socAlerts.length === 0 ? (
                 <div className="flex items-center gap-4 rounded-lg border border-success/30 bg-success/5 p-4">
                   <Shield className="h-5 w-5 shrink-0 text-success" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">No security alerts</p>
-                    <p className="text-xs text-muted-foreground">All systems operating normally</p>
+                    <p className="text-sm font-medium text-foreground">{t("securityAlerts.noneTitle")}</p>
+                    <p className="text-xs text-muted-foreground">{t("securityAlerts.noneSubtitle")}</p>
                   </div>
                 </div>
               ) : (
@@ -337,9 +339,9 @@ export default function SOCDashboard() {
                     <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">
-                        {alert.metrics?.alert || alert.metrics?.threat || alert.metrics?.warn || "Security event detected"}
+                        {alert.metrics?.alert || alert.metrics?.threat || alert.metrics?.warn || t("securityAlerts.eventDetected")}
                       </p>
-                      <p className="text-xs text-muted-foreground">Server: {alert.serverId || "unknown"}</p>
+                      <p className="text-xs text-muted-foreground">{t("securityAlerts.server")}: {alert.serverId || t("securityAlerts.unknown")}</p>
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {new Date(alert.timestamp).toLocaleTimeString()}

@@ -2,12 +2,23 @@
 
 import { Bell, Search, Command, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { PORTALS, NAVIGATION, API_ENDPOINTS, type NavItem, type FeatureFlag, type PortalTier } from "@/lib/panel-config"
+import {
+  PORTALS,
+  NAVIGATION,
+  API_ENDPOINTS,
+  NAV_SECTION_I18N_KEYS,
+  NAV_ITEM_I18N_KEYS,
+  NAV_BADGE_I18N_KEYS,
+  type NavItem,
+  type FeatureFlag,
+  type PortalTier,
+} from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
 
 type SearchPageItem = {
   label: string
@@ -17,17 +28,6 @@ type SearchPageItem = {
   feature?: FeatureFlag
   badge?: string
 }
-
-const ALL_PAGES: SearchPageItem[] = NAVIGATION.flatMap((section) =>
-  section.items.map((item) => ({
-    label: item.label,
-    href: item.href,
-    section: section.title,
-    requiredTier: item.requiredTier,
-    feature: item.feature,
-    badge: item.badge,
-  }))
-)
 
 const tierOrder: Record<string, number> = { free: 0, basic: 1, pro: 1, paid: 1, educational: 1, enterprise: 2 }
 
@@ -59,6 +59,7 @@ function NotificationDropdown({
   router,
   onMarkAll,
   onMarkOne,
+  labels,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -68,6 +69,14 @@ function NotificationDropdown({
   router: ReturnType<typeof useRouter>
   onMarkAll: () => void
   onMarkOne: (id: number) => void
+  labels: {
+    notifications: string
+    markAllRead: string
+    noRecentActivity: string
+    accountEvent: string
+    markRead: string
+    viewAllActivity: string
+  }
 }) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ top: 0, right: 0 })
@@ -132,14 +141,14 @@ function NotificationDropdown({
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
           <span className="text-sm font-medium text-foreground">
-            Notifications
+            {labels.notifications}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={onMarkAll}
               className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
             >
-              Mark all read
+              {labels.markAllRead}
             </button>
             <button
               onClick={onClose}
@@ -159,7 +168,7 @@ function NotificationDropdown({
             <div className="flex flex-col items-center justify-center py-8 gap-2">
               <Bell className="h-8 w-8 text-muted-foreground/30" />
               <p className="text-xs text-muted-foreground">
-                No recent activity
+                {labels.noRecentActivity}
               </p>
             </div>
           ) : (
@@ -174,7 +183,7 @@ function NotificationDropdown({
                 <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground truncate">
-                    {n.action || n.event || "Account event"}
+                    {n.action || n.event || labels.accountEvent}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {n.timestamp
@@ -187,7 +196,7 @@ function NotificationDropdown({
                     onClick={() => onMarkOne(n.id)}
                     className="text-[10px] text-muted-foreground hover:text-foreground"
                   >
-                    Mark read
+                    {labels.markRead}
                   </button>
                 )}
               </div>
@@ -203,7 +212,7 @@ function NotificationDropdown({
             }}
             className="text-xs text-primary hover:underline"
           >
-            View all activity →
+            {labels.viewAllActivity}
           </button>
         </div>
       </div>
@@ -222,7 +231,45 @@ export function PanelHeader({
 }) {
   const { user } = useAuth()
   const router = useRouter()
+  const tHeader = useTranslations("panelHeader")
+  const tNav = useTranslations("panelNav")
   const portal = PORTALS[user?.tier as keyof typeof PORTALS] ?? PORTALS.free
+
+  const translateNavSection = useCallback(
+    (title: string) => {
+      const key = NAV_SECTION_I18N_KEYS[title]
+      return key ? tNav(`sections.${key}`) : title
+    },
+    [tNav]
+  )
+
+  const translateNavLabel = useCallback(
+    (label: string) => {
+      const key = NAV_ITEM_I18N_KEYS[label]
+      return key ? tNav(`items.${key}`) : label
+    },
+    [tNav]
+  )
+
+  const translateBadge = useCallback(
+    (badge?: string) => {
+      if (!badge) return badge
+      const key = NAV_BADGE_I18N_KEYS[badge]
+      return key ? tNav(`badges.${key}`) : badge
+    },
+    [tNav]
+  )
+
+  const allPages: SearchPageItem[] = NAVIGATION.flatMap((section) =>
+    section.items.map((item) => ({
+      label: translateNavLabel(item.label),
+      href: item.href,
+      section: translateNavSection(section.title),
+      requiredTier: item.requiredTier,
+      feature: item.feature,
+      badge: translateBadge(item.badge),
+    }))
+  )
 
   const [featureToggles, setFeatureToggles] = useState<Record<FeatureFlag, boolean>>({
     registration: true,
@@ -405,7 +452,7 @@ export function PanelHeader({
     }
   }
 
-  const visiblePages = ALL_PAGES.filter((p) => isItemVisible(p, user, featureToggles))
+  const visiblePages = allPages.filter((p) => isItemVisible(p, user, featureToggles))
 
   const filteredPages =
     searchQuery.length > 0
@@ -436,7 +483,7 @@ export function PanelHeader({
             className="flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-lg border border-border bg-secondary/50 px-2 sm:px-3 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden md:inline text-xs">Search...</span>
+            <span className="hidden md:inline text-xs">{tHeader("search")}</span>
             <kbd className="ml-1 hidden md:inline rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
               <Command className="inline h-2.5 w-2.5" />K
             </kbd>
@@ -477,6 +524,14 @@ export function PanelHeader({
             router={router}
             onMarkAll={markAllRead}
             onMarkOne={markNotificationRead}
+            labels={{
+              notifications: tHeader("notifications"),
+              markAllRead: tHeader("markAllRead"),
+              noRecentActivity: tHeader("noRecentActivity"),
+              accountEvent: tHeader("accountEvent"),
+              markRead: tHeader("markRead"),
+              viewAllActivity: tHeader("viewAllActivity"),
+            }}
           />
         </div>
       </header>
@@ -494,7 +549,7 @@ export function PanelHeader({
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Search pages..."
+                placeholder={tHeader("searchPages")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -519,7 +574,7 @@ export function PanelHeader({
                 <div className="flex flex-col items-center justify-center py-8 gap-2">
                   <Search className="h-8 w-8 text-muted-foreground/30" />
                   <p className="text-xs text-muted-foreground">
-                    No pages found
+                    {tHeader("noPagesFound")}
                   </p>
                 </div>
               ) : (

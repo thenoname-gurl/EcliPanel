@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { PanelHeader } from "@/components/panel/header"
 import { StatusBadge, StatCard } from "@/components/panel/shared"
 import { FeatureGuard } from "@/components/panel/feature-guard"
@@ -22,6 +23,7 @@ import {
 } from "lucide-react"
 
 export default function TicketsPage() {
+  const t = useTranslations("ticketsPage")
   const { user } = useAuth()
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,7 +83,7 @@ export default function TicketsPage() {
   }, [statusFilter, priorityFilter, departmentFilter])
 
   function formatDurationMs(ms: number | null | undefined) {
-    if (ms == null || !Number.isFinite(ms)) return "N/A"
+    if (ms == null || !Number.isFinite(ms)) return t("common.na")
     const seconds = ms / 1000
     if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 2 : 1)}s`
     const totalMinutes = Math.floor(seconds / 60)
@@ -112,24 +114,24 @@ export default function TicketsPage() {
   return (
     <FeatureGuard feature="ticketing">
       <>
-        <PanelHeader title="Support Tickets" description="Manage your support requests" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
       {user?.supportBanned && (
         <div className="mx-6 my-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          You are banned from creating or interacting with support tickets. Reason: {user?.supportBanReason || 'No reason provided'}. Contact contact@ecli.app to appeal.
+          {t("banned.message", { reason: user?.supportBanReason || t("banned.noReason") })}
         </div>
       )}
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
           {/* Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Open Tickets" value={openCount} icon={AlertCircle} />
-            <StatCard title="Pending Reply" value={pendingCount} icon={Clock} />
-            <StatCard title="Total Tickets" value={tickets.length} icon={MessageSquare} />
+            <StatCard title={t("stats.openTickets")} value={openCount} icon={AlertCircle} />
+            <StatCard title={t("stats.pendingReply")} value={pendingCount} icon={Clock} />
+            <StatCard title={t("stats.totalTickets")} value={tickets.length} icon={MessageSquare} />
             <StatCard
-              title="Avg Response (30d)"
+              title={t("stats.avgResponse30d")}
               value={formatDurationMs(globalAvgResponseMs)}
               icon={CheckCircle}
-              subtitle={globalAvgResponseSampleCount > 0 ? `Based on ${globalAvgResponseSampleCount} samples` : 'No samples in 30d'}
+              subtitle={globalAvgResponseSampleCount > 0 ? t("stats.samples", { count: globalAvgResponseSampleCount }) : t("stats.noSamples30d")}
             />
           </div>
 
@@ -140,33 +142,33 @@ export default function TicketsPage() {
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search tickets..."
+                  placeholder={t("filters.searchPlaceholder")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-48"
                 />
               </div>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
-                <option value="">All Status</option>
-                <option value="opened">Open</option>
-                <option value="awaiting_staff_reply">Awaiting Staff</option>
-                <option value="replied">Replied</option>
-                <option value="closed">Closed</option>
-                <option value="archived">Archived</option>
+                <option value="">{t("filters.status.all")}</option>
+                <option value="opened">{t("filters.status.open")}</option>
+                <option value="awaiting_staff_reply">{t("filters.status.awaitingStaff")}</option>
+                <option value="replied">{t("filters.status.replied")}</option>
+                <option value="closed">{t("filters.status.closed")}</option>
+                <option value="archived">{t("filters.status.archived")}</option>
               </select>
               <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
-                <option value="">All Priority</option>
-                <option value="urgent">Urgent</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="">{t("filters.priority.all")}</option>
+                <option value="urgent">{t("filters.priority.urgent")}</option>
+                <option value="high">{t("filters.priority.high")}</option>
+                <option value="medium">{t("filters.priority.medium")}</option>
+                <option value="low">{t("filters.priority.low")}</option>
               </select>
               <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
-                <option value="">All Departments</option>
-                <option value="Technical Support">Technical Support</option>
-                <option value="Billing">Billing</option>
-                <option value="Sales">Sales</option>
-                <option value="Security">Security</option>
+                <option value="">{t("filters.department.all")}</option>
+                <option value="Technical Support">{t("filters.department.technicalSupport")}</option>
+                <option value="Billing">{t("filters.department.billing")}</option>
+                <option value="Sales">{t("filters.department.sales")}</option>
+                <option value="Security">{t("filters.department.security")}</option>
               </select>
             </div>
             <Link
@@ -174,16 +176,16 @@ export default function TicketsPage() {
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
-              New Ticket
+              {t("actions.newTicket")}
             </Link>
           </div>
 
           {/* Tickets List */}
           {loading ? (
-            <p className="text-center text-sm text-muted-foreground py-10">Loading tickets...</p>
+            <p className="text-center text-sm text-muted-foreground py-10">{t("states.loading")}</p>
           ) : filtered.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground py-10">
-              {search ? "No tickets match your search." : "You have no support tickets yet."}
+              {search ? t("states.noMatch") : t("states.noneYet")}
             </p>
           ) : (
             <div className="flex flex-col gap-3">
@@ -221,11 +223,11 @@ export default function TicketsPage() {
                         {ticket.subject}
                       </h3>
                       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                        {ticket.department && <span>Dept: {ticket.department}</span>}
-                        {ticket.assignedTo && <span>Assigned: #{ticket.assignedTo}</span>}
-                        {ticket.created && <span>Created: {new Date(ticket.created).toLocaleDateString()}</span>}
-                        {ticket.lastReply && <span>Last reply: {new Date(ticket.lastReply).toLocaleString()}</span>}
-                        {ticket.updatedAt && !ticket.lastReply && <span>Updated: {new Date(ticket.updatedAt).toLocaleString()}</span>}
+                        {ticket.department && <span>{t("labels.dept", { value: ticket.department })}</span>}
+                        {ticket.assignedTo && <span>{t("labels.assigned", { value: ticket.assignedTo })}</span>}
+                        {ticket.created && <span>{t("labels.created", { value: new Date(ticket.created).toLocaleDateString() })}</span>}
+                        {ticket.lastReply && <span>{t("labels.lastReply", { value: new Date(ticket.lastReply).toLocaleString() })}</span>}
+                        {ticket.updatedAt && !ticket.lastReply && <span>{t("labels.updated", { value: new Date(ticket.updatedAt).toLocaleString() })}</span>}
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />

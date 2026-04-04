@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from "react"
+import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { MonacoFileEditor } from "./MonacoFileEditor"
@@ -69,7 +70,7 @@ const getFileIcon = (filename: string, isDir: boolean) => {
   return <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
 }
 
-const formatDate = (date: string | undefined): string => {
+const formatDate = (date: string | undefined, t?: any): string => {
   if (!date) return "—"
   const d = new Date(date)
   const now = new Date()
@@ -79,7 +80,7 @@ const formatDate = (date: string | undefined): string => {
   if (diffDays === 0) {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   } else if (diffDays === 1) {
-    return "Yesterday"
+    return t ? t("labels.yesterday") : "Yesterday"
   } else if (diffDays < 7) {
     return d.toLocaleDateString([], { weekday: "short" })
   }
@@ -91,9 +92,10 @@ interface ImagePreviewProps {
   filename: string
   onClose: () => void
   onDownload: () => void
+  t: any
 }
 
-function ImagePreviewModal({ url, filename, onClose, onDownload }: ImagePreviewProps) {
+function ImagePreviewModal({ url, filename, onClose, onDownload, t }: ImagePreviewProps) {
   const [scale, setScale] = useState(1)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -171,35 +173,35 @@ function ImagePreviewModal({ url, filename, onClose, onDownload }: ImagePreviewP
           <button
             onClick={() => setScale(s => Math.max(s * 0.8, 0.1))}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Zoom out"
+            title={t("preview.zoomOut")}
           >
             <ZoomOut className="h-5 w-5" />
           </button>
           <button
             onClick={() => setScale(s => Math.min(s * 1.2, 10))}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Zoom in"
+            title={t("preview.zoomIn")}
           >
             <ZoomIn className="h-5 w-5" />
           </button>
           <button
             onClick={resetView}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Reset view"
+            title={t("preview.resetView")}
           >
             <RotateCcw className="h-5 w-5" />
           </button>
           <button
             onClick={toggleFullscreen}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:block"
-            title="Toggle fullscreen"
+            title={t("preview.toggleFullscreen")}
           >
             {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </button>
           <button
             onClick={onDownload}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            title="Download"
+            title={t("actions.download")}
           >
             <Download className="h-5 w-5" />
           </button>
@@ -352,10 +354,11 @@ interface BulkActionsBarProps {
   busy: boolean
   recursive: boolean
   onRecursiveChange: (v: boolean) => void
+  t: any
 }
 
 function BulkActionsBar({
-  selectedCount, onArchive, onMove, onChmod, onDelete, onClear, busy, recursive, onRecursiveChange
+  selectedCount, onArchive, onMove, onChmod, onDelete, onClear, busy, recursive, onRecursiveChange, t
 }: BulkActionsBarProps) {
   if (selectedCount === 0) return null
 
@@ -370,7 +373,7 @@ function BulkActionsBar({
             <X className="h-4 w-4" />
           </button>
           <span className="text-sm font-medium text-foreground">
-            {selectedCount} selected
+            {t("bulk.selected", { count: selectedCount })}
           </span>
         </div>
 
@@ -382,7 +385,7 @@ function BulkActionsBar({
               onChange={(e) => onRecursiveChange(e.target.checked)}
               className="h-3.5 w-3.5 rounded border-border"
             />
-            Recursive
+            {t("bulk.recursive")}
           </label>
 
           <button
@@ -391,7 +394,7 @@ function BulkActionsBar({
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             <Archive className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Archive</span>
+            <span className="hidden sm:inline">{t("actions.archive")}</span>
           </button>
           <button
             onClick={onMove}
@@ -399,7 +402,7 @@ function BulkActionsBar({
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             <Move className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Move</span>
+            <span className="hidden sm:inline">{t("actions.move")}</span>
           </button>
           <button
             onClick={onChmod}
@@ -407,7 +410,7 @@ function BulkActionsBar({
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             <Shield className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Chmod</span>
+            <span className="hidden sm:inline">{t("actions.chmod")}</span>
           </button>
           <button
             onClick={onDelete}
@@ -415,7 +418,7 @@ function BulkActionsBar({
             className="flex items-center gap-1.5 rounded-md bg-destructive/20 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/30 disabled:opacity-60 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Delete</span>
+            <span className="hidden sm:inline">{t("actions.delete")}</span>
           </button>
         </div>
       </div>
@@ -429,9 +432,10 @@ interface CreateFormProps {
   onChange: (v: string) => void
   onSubmit: () => void
   onCancel: () => void
+  t: any
 }
 
-function CreateItemForm({ type, value, onChange, onSubmit, onCancel }: CreateFormProps) {
+function CreateItemForm({ type, value, onChange, onSubmit, onCancel, t }: CreateFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -451,7 +455,7 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel }: CreateFor
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={type === "file" ? "filename.txt" : "folder-name"}
+          placeholder={type === "file" ? t("inputs.fileNamePlaceholder") : t("inputs.folderNamePlaceholder")}
           className="flex-1 min-w-0 rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary"
           onKeyDown={(e) => {
             if (e.key === "Enter") onSubmit()
@@ -461,7 +465,7 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel }: CreateFor
       </div>
       <Button size="sm" onClick={onSubmit} className="gap-1.5">
         <Check className="h-3.5 w-3.5" />
-        Create
+        {t("actions.create")}
       </Button>
       <Button size="sm" variant="ghost" onClick={onCancel}>
         <X className="h-3.5 w-3.5" />
@@ -470,20 +474,21 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel }: CreateFor
   )
 }
 
-function DropZoneOverlay({ isDragActive }: { isDragActive: boolean }) {
+function DropZoneOverlay({ isDragActive, t }: { isDragActive: boolean; t: any }) {
   if (!isDragActive) return null
 
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg m-4 pointer-events-none">
       <div className="flex flex-col items-center gap-3 text-primary">
         <Upload className="h-12 w-12" />
-        <p className="font-medium text-lg">Drop files to upload</p>
+        <p className="font-medium text-lg">{t("states.dropToUpload")}</p>
       </div>
     </div>
   )
 }
 
 export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) {
+  const t = useTranslations("serverFilesTab")
   const [path, setPath] = useState("/")
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -638,7 +643,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       }
       await loadFiles(path)
     } catch (err: any) {
-      alert("Upload failed: " + (err?.message || err))
+      alert(t("errors.uploadFailed", { reason: err?.message || err }))
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -669,7 +674,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
         setImagePreviewUrl(url)
         setImagePreviewName(name)
       } catch (e: any) {
-        alert("Image preview failed: " + (e?.message || e))
+        alert(t("errors.imagePreviewFailed", { reason: e?.message || e }))
       }
       return
     }
@@ -680,11 +685,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     }
 
     if (isBinaryFile(name)) {
-      return alert("This file type cannot be edited. Please download it instead.")
+      return alert(t("errors.binaryNotEditable"))
     }
 
     if (!isTextFile(name)) {
-      const proceed = confirm("This file type may not display correctly. Open anyway?")
+      const proceed = confirm(t("confirm.openUnknownType"))
       if (!proceed) return
     }
 
@@ -696,7 +701,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       setFileContent(typeof data === "string" ? data : JSON.stringify(data, null, 2))
       setEditingFile(filePath)
     } catch (e: any) {
-      alert("Failed to open file: " + e.message)
+      alert(t("errors.openFailed", { reason: e.message }))
     }
   }
 
@@ -710,7 +715,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       })
       setEditingFile(null)
     } catch (e: any) {
-      alert("Save failed: " + e.message)
+      alert(t("errors.saveFailed", { reason: e.message }))
     } finally {
       setSaving(false)
     }
@@ -718,7 +723,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
   const deleteFile = async (filePath: string) => {
     const name = filePath.split("/").pop() || filePath
-    if (!confirm(`Delete "${name}"?`)) return
+    if (!confirm(t("confirm.deleteFile", { name }))) return
     try {
       await apiFetch(API_ENDPOINTS.serverFileDelete.replace(":id", serverId), {
         method: "POST",
@@ -726,7 +731,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       })
       loadFiles(path)
     } catch (e: any) {
-      alert("Delete failed: " + e.message)
+      alert(t("errors.deleteFailed", { reason: e.message }))
     }
   }
 
@@ -738,18 +743,18 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     if (existing) {
       const isDir = isDirectory(existing)
       if (createMode === "folder" && isDir) {
-        alert(`A folder named "${trimmed}" already exists.`)
+        alert(t("errors.folderExists", { name: trimmed }))
         return
       }
       if (createMode === "file" && !isDir) {
-        if (confirm(`"${trimmed}" exists. Open it instead?`)) {
+        if (confirm(t("confirm.fileExistsOpen", { name: trimmed }))) {
           openFile(path + trimmed)
           setCreateMode(null)
           setNewName("")
         }
         return
       }
-      alert(`Cannot create: an item named "${trimmed}" already exists.`)
+      alert(t("errors.itemExists", { name: trimmed }))
       return
     }
 
@@ -769,12 +774,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       setCreateMode(null)
       loadFiles(path)
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("errors.actionFailed", { reason: e.message }))
     }
   }
 
   const renameFile = async (oldName: string) => {
-    const newFileName = prompt("Rename to:", oldName)
+    const newFileName = prompt(t("prompts.renameTo"), oldName)
     if (!newFileName || newFileName === oldName) return
     try {
       await apiFetch(API_ENDPOINTS.serverFileRename.replace(":id", serverId), {
@@ -786,7 +791,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       })
       await loadFiles(path)
     } catch (e: any) {
-      alert("Rename failed: " + (e?.message || e))
+      alert(t("errors.renameFailed", { reason: e?.message || e }))
     }
   }
 
@@ -813,18 +818,18 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       a.remove()
       URL.revokeObjectURL(url)
     } catch (e: any) {
-      alert("Download failed: " + (e?.message || e))
+      alert(t("errors.downloadFailed", { reason: e?.message || e }))
     }
   }
 
   const chmodFile = async (filePath: string) => {
-    const mode = prompt("Set permissions (octal, e.g. 0644 or 0755):", "0644")
+    const mode = prompt(t("prompts.chmodSingle"), "0644")
     if (!mode) return
     if (!/^[0-7]{3,4}$/.test(mode)) {
-      alert("Invalid mode. Use octal format (e.g. 0644, 0755)")
+      alert(t("errors.invalidMode"))
       return
     }
-    const recursive = confirm("Apply recursively?")
+    const recursive = confirm(t("confirm.applyRecursive"))
 
     try {
       await apiFetch(API_ENDPOINTS.serverFileChmod.replace(":id", serverId), {
@@ -836,7 +841,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       })
       await loadFiles(path)
     } catch (e: any) {
-      alert("Permission update failed: " + (e?.message || e))
+      alert(t("errors.permissionUpdateFailed", { reason: e?.message || e }))
     }
   }
 
@@ -851,7 +856,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       setSelectedNames([])
       await loadFiles(path)
     } catch (e: any) {
-      alert("Archive failed: " + e.message)
+      alert(t("errors.archiveFailed", { reason: e.message }))
     } finally {
       setBulkBusy(false)
     }
@@ -859,7 +864,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
   const moveSelected = async () => {
     if (selectedNames.length === 0) return
-    const destination = prompt("Move to folder (relative path):", "")
+    const destination = prompt(t("prompts.moveToFolder"), "")
     if (destination === null) return
     const cleanDest = destination.trim().replace(/^\/+|\/+$/g, "")
     setBulkBusy(true)
@@ -871,7 +876,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       setSelectedNames([])
       await loadFiles(path)
     } catch (e: any) {
-      alert("Move failed: " + e.message)
+      alert(t("errors.moveFailed", { reason: e.message }))
     } finally {
       setBulkBusy(false)
     }
@@ -879,9 +884,9 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
   const chmodSelected = async () => {
     if (selectedNames.length === 0) return
-    const mode = prompt("Set permissions (octal):", "0644")
+    const mode = prompt(t("prompts.chmodBulk"), "0644")
     if (!mode || !/^[0-7]{3,4}$/.test(mode)) {
-      if (mode) alert("Invalid mode")
+      if (mode) alert(t("errors.invalidModeShort"))
       return
     }
     setBulkBusy(true)
@@ -900,7 +905,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       setSelectedNames([])
       await loadFiles(path)
     } catch (e: any) {
-      alert("Bulk chmod failed: " + (e?.message || e))
+      alert(t("errors.bulkChmodFailed", { reason: e?.message || e }))
     } finally {
       setBulkBusy(false)
     }
@@ -908,7 +913,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
   const deleteSelected = async () => {
     if (selectedNames.length === 0) return
-    if (!confirm(`Delete ${selectedNames.length} item(s)?`)) return
+    if (!confirm(t("confirm.deleteSelected", { count: selectedNames.length }))) return
     setBulkBusy(true)
     try {
       await apiFetch(API_ENDPOINTS.serverFileDelete.replace(":id", serverId), {
@@ -918,7 +923,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       setSelectedNames([])
       await loadFiles(path)
     } catch (e: any) {
-      alert("Bulk delete failed: " + e.message)
+      alert(t("errors.bulkDeleteFailed", { reason: e.message }))
     } finally {
       setBulkBusy(false)
     }
@@ -943,11 +948,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Button size="sm" variant="outline" onClick={() => setEditingFile(null)}>
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button size="sm" onClick={saveFile} disabled={saving}>
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-              Save
+              {t("actions.save")}
             </Button>
           </div>
         </div>
@@ -967,6 +972,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
         <ImagePreviewModal
           url={imagePreviewUrl}
           filename={imagePreviewName}
+          t={t}
           onClose={() => {
             URL.revokeObjectURL(imagePreviewUrl)
             setImagePreviewUrl(null)
@@ -976,7 +982,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
         />
       )}
 
-      <DropZoneOverlay isDragActive={isDragActive} />
+      <DropZoneOverlay isDragActive={isDragActive} t={t} />
 
       {sftpInfo?.username && (
         <div className="flex items-center gap-3 border-b border-border bg-secondary/10 px-4 py-2.5">
@@ -992,10 +998,10 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
             }
             className="text-xs text-primary hover:underline shrink-0 flex items-center gap-1"
           >
-            <Copy className="h-3 w-3" /> Copy
+            <Copy className="h-3 w-3" /> {t("actions.copy")}
           </button>
           {sftpInfo.proxied && (
-            <span className="text-[10px] text-yellow-400/80 shrink-0">proxied</span>
+            <span className="text-[10px] text-yellow-400/80 shrink-0">{t("labels.proxied")}</span>
           )}
         </div>
       )}
@@ -1036,7 +1042,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-            <span className="hidden sm:inline">Upload</span>
+            <span className="hidden sm:inline">{t("actions.upload")}</span>
           </button>
 
           <button
@@ -1047,7 +1053,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           >
             <FilePlus className="h-3 w-3" />
-            <span className="hidden sm:inline">New File</span>
+            <span className="hidden sm:inline">{t("actions.newFile")}</span>
           </button>
 
           <button
@@ -1058,7 +1064,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           >
             <FolderPlus className="h-3 w-3" />
-            <span className="hidden sm:inline">New Folder</span>
+            <span className="hidden sm:inline">{t("actions.newFolder")}</span>
           </button>
 
           <button
@@ -1077,6 +1083,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
           onChange={setNewName}
           onSubmit={createItem}
           onCancel={() => setCreateMode(null)}
+          t={t}
         />
       )}
 
@@ -1089,10 +1096,10 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
             className="h-3.5 w-3.5"
           />
         </span>
-        <span>Name</span>
-        <span>Size</span>
-        <span>Modified</span>
-        <span className="text-right">Actions</span>
+        <span>{t("table.name")}</span>
+        <span>{t("table.size")}</span>
+        <span>{t("table.modified")}</span>
+        <span className="text-right">{t("table.actions")}</span>
       </div>
 
       {path !== "/" && (
@@ -1111,11 +1118,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
       <div className={cn("flex-1", selectedNames.length > 0 && "pb-20 sm:pb-0")}>
         {loading ? (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" /> Loading files...
+            <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" /> {t("states.loadingFiles")}
           </div>
         ) : files.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Empty directory
+            {t("states.emptyDirectory")}
           </div>
         ) : (
           sortedFiles.map((file, i) => {
@@ -1160,11 +1167,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
                 </button>
 
                 <span className="hidden sm:block text-xs text-muted-foreground">
-                  {!isDir ? formatBytes(fsize) : "—"}
+                  {!isDir ? formatBytes(fsize) : t("labels.na")}
                 </span>
 
                 <span className="hidden sm:block text-xs text-muted-foreground">
-                  {formatDate(fmod)}
+                  {formatDate(fmod, t)}
                 </span>
 
                 <div className="flex items-center justify-end gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -1172,7 +1179,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
                     <button
                       onClick={() => openFile(path + fname)}
                       className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                      title={isImage ? "View image" : "Edit"}
+                      title={isImage ? t("actions.viewImage") : t("actions.edit")}
                     >
                       {isImage ? <Eye className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
                     </button>
@@ -1181,7 +1188,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
                     <button
                       onClick={() => renameFile(fname)}
                       className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/10 transition-colors"
-                      title="Rename"
+                      title={t("actions.rename")}
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -1190,7 +1197,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
                     <button
                       onClick={() => downloadFile(fname)}
                       className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/10 transition-colors"
-                      title="Download"
+                      title={t("actions.download")}
                     >
                       <Download className="h-3.5 w-3.5" />
                     </button>
@@ -1198,14 +1205,14 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
                   <button
                     onClick={() => chmodFile(path + fname)}
                     className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/10 transition-colors"
-                    title="Change permissions"
+                    title={t("actions.changePermissions")}
                   >
                     <Shield className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => deleteFile(path + fname)}
                     className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    title="Delete"
+                    title={t("actions.delete")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -1225,6 +1232,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
         busy={bulkBusy}
         recursive={chmodRecursive}
         onRecursiveChange={setChmodRecursive}
+        t={t}
       />
     </div>
   )

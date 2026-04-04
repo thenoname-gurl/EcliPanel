@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Badge } from "@/components/ui/badge"
@@ -29,16 +30,17 @@ interface ConsoleTabProps {
 interface StatusBadgeProps {
   connected: boolean
   connectionState: string
+  t: any
 }
 
-function StatusBadge({ connected, connectionState }: StatusBadgeProps) {
+function StatusBadge({ connected, connectionState, t }: StatusBadgeProps) {
   const state = connectionState?.toLowerCase() || ""
   
   const getStatusConfig = () => {
     if (connected || state === "running" || state === "connected") {
       return {
         icon: <Wifi className="h-3 w-3" />,
-        label: "Connected",
+        label: t("status.connected"),
         className: "border-green-500/50 text-green-400 bg-black/60"
       }
     }
@@ -52,13 +54,13 @@ function StatusBadge({ connected, connectionState }: StatusBadgeProps) {
     if (state === "stopping") {
       return {
         icon: <Loader2 className="h-3 w-3 animate-spin" />,
-        label: "Stopping",
+        label: t("status.stopping"),
         className: "border-orange-500/50 text-orange-400 bg-black/60"
       }
     }
     return {
       icon: <WifiOff className="h-3 w-3" />,
-      label: state ? state.charAt(0).toUpperCase() + state.slice(1) : "Disconnected",
+      label: state ? state.charAt(0).toUpperCase() + state.slice(1) : t("status.disconnected"),
       className: "border-red-500/50 text-red-400 bg-black/60"
     }
   }
@@ -83,18 +85,19 @@ interface HistoryPanelProps {
   history: string[]
   onSelect: (cmd: string) => void
   onClose: () => void
+  t: any
 }
 
-function HistoryPanel({ history, onSelect, onClose }: HistoryPanelProps) {
+function HistoryPanel({ history, onSelect, onClose, t }: HistoryPanelProps) {
   if (history.length === 0) {
     return (
       <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 p-4 rounded-md border border-border bg-background shadow-xl text-center">
-        <p className="text-sm text-muted-foreground">No command history</p>
+        <p className="text-sm text-muted-foreground">{t("history.empty")}</p>
         <button
           onClick={onClose}
           className="mt-2 text-xs text-primary hover:underline"
         >
-          Close
+          {t("actions.close")}
         </button>
       </div>
     )
@@ -103,7 +106,7 @@ function HistoryPanel({ history, onSelect, onClose }: HistoryPanelProps) {
   return (
     <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 rounded-md border border-border bg-background shadow-xl max-h-48 overflow-y-auto">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border sticky top-0 bg-secondary/50">
-        <span className="text-xs font-medium text-muted-foreground">Recent Commands</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("history.recent")}</span>
         <button 
           onClick={onClose} 
           className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -134,10 +137,11 @@ interface MobileInputProps {
   onHistoryToggle: () => void
   historyOpen: boolean
   disabled: boolean
+  t: any
 }
 
 function MobileCommandInput({
-  value, onChange, onSend, onHistoryToggle, historyOpen, disabled
+  value, onChange, onSend, onHistoryToggle, historyOpen, disabled, t
 }: MobileInputProps) {
   return (
     <div className="flex items-center gap-2 border-t border-border bg-background px-3 py-2.5">
@@ -159,7 +163,7 @@ function MobileCommandInput({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter command..."
+          placeholder={t("input.placeholder")}
           disabled={disabled}
           className="flex-1 bg-transparent py-1 text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
           onKeyDown={(e) => {
@@ -196,44 +200,45 @@ interface ToolbarProps {
   onCopy: () => void
   copied: boolean
   reconnecting: boolean
+  t: any
 }
 
 function ConsoleToolbar({
   connected, connectionState, isFullscreen, onFullscreenToggle,
-  onClear, onReconnect, onCopy, copied, reconnecting
+  onClear, onReconnect, onCopy, copied, reconnecting, t
 }: ToolbarProps) {
   return (
     <div className="flex items-center justify-between border-b border-border px-4 py-3">
       <div className="flex items-center gap-2">
         <Terminal className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-foreground hidden sm:inline">Console</span>
-        <StatusBadge connected={connected} connectionState={connectionState} />
+        <span className="text-sm font-medium text-foreground hidden sm:inline">{t("toolbar.console")}</span>
+        <StatusBadge connected={connected} connectionState={connectionState} t={t} />
       </div>
       
       <div className="flex items-center gap-2">
         <button
           onClick={onCopy}
           className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          title="Copy console output"
+          title={t("toolbar.copyOutput")}
         >
           {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-          <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+          <span className="hidden sm:inline">{copied ? t("actions.copied") : t("actions.copy")}</span>
         </button>
         
         <button
           onClick={onClear}
           className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          title="Clear console"
+          title={t("toolbar.clearConsole")}
         >
           <Trash2 className="h-3 w-3" />
-          <span className="hidden sm:inline">Clear</span>
+          <span className="hidden sm:inline">{t("actions.clear")}</span>
         </button>
         
         <button
           onClick={onReconnect}
           disabled={reconnecting}
           className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
-          title="Reconnect"
+          title={t("actions.reconnect")}
         >
           <RefreshCw className={cn("h-3 w-3", reconnecting && "animate-spin")} />
         </button>
@@ -241,7 +246,7 @@ function ConsoleToolbar({
         <button
           onClick={onFullscreenToggle}
           className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          title={isFullscreen ? t("actions.exitFullscreen") : t("actions.fullscreen")}
         >
           {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
         </button>
@@ -325,6 +330,7 @@ function processConsoleOutput(text: string): string {
 }
 
 export function ConsoleTab({ serverId }: ConsoleTabProps) {
+  const t = useTranslations("serverConsoleTab")
   const termRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<any>(null)
   const wsRef = useRef<WebSocket | null>(null)
@@ -373,7 +379,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         method: "POST",
         body: JSON.stringify({ command: cmd }),
       }).catch((err: any) => {
-        xtermRef.current?.writeln(`\x1b[31m[ERROR] ${err.message}\x1b[0m`)
+        xtermRef.current?.writeln(`\x1b[31m[${t("terminal.errorTag")}] ${err.message}\x1b[0m`)
       })
     }
     
@@ -401,8 +407,8 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const clearConsole = useCallback(() => {
     xtermRef.current?.clear()
     consoleOutputRef.current = []
-    xtermRef.current?.writeln("\x1b[90mConsole cleared.\x1b[0m")
-  }, [])
+    xtermRef.current?.writeln(`\x1b[90m${t("terminal.consoleCleared")}\x1b[0m`)
+  }, [t])
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return
@@ -492,7 +498,6 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         scrollback: 5000,
         cursorStyle: "underline",
         allowProposedApi: true,
-        windowsMode: false,
       })
 
       const fitAddon = new FitAddon()
@@ -609,7 +614,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         }
       })
 
-      term.writeln("\x1b[90mConnecting to server console...\x1b[0m")
+      term.writeln(`\x1b[90m${t("terminal.connectingToConsole")}\x1b[0m`)
       setConnectionState("connecting")
 
       function scheduleReconnect() {
@@ -619,7 +624,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         retryCountRef.current++
         
         if (retryCountRef.current > MAX_RETRIES) {
-          term.writeln(`\x1b[31mMax reconnection attempts reached. Click Reconnect to try again.\x1b[0m`)
+          term.writeln(`\x1b[31m${t("terminal.maxReconnect")}\x1b[0m`)
           setConnectionState("disconnected")
           setReconnecting(false)
           return
@@ -629,9 +634,9 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         const delaySec = Math.round(delay / 1000)
         
         if (serverOfflineRef.current) {
-          term.writeln(`\x1b[90mServer appears offline. Retrying in ${delaySec}s... (attempt ${retryCountRef.current}/${MAX_RETRIES})\x1b[0m`)
+          term.writeln(`\x1b[90m${t("terminal.serverOfflineRetry", { delaySec, attempt: retryCountRef.current, maxRetries: MAX_RETRIES })}\x1b[0m`)
         } else {
-          term.writeln(`\x1b[33mReconnecting in ${delaySec}s... (attempt ${retryCountRef.current}/${MAX_RETRIES})\x1b[0m`)
+          term.writeln(`\x1b[33m${t("terminal.reconnectingIn", { delaySec, attempt: retryCountRef.current, maxRetries: MAX_RETRIES })}\x1b[0m`)
         }
         
         setConnectionState("reconnecting")
@@ -659,7 +664,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           const token = creds?.data?.token
 
           if (!socketUrl || !token) {
-            term.writeln("\x1b[31mFailed to obtain WebSocket credentials.\x1b[0m")
+            term.writeln(`\x1b[31m${t("terminal.failedWsCredentials")}\x1b[0m`)
             isConnectingRef.current = false
             setReconnecting(false)
             serverOfflineRef.current = true
@@ -675,7 +680,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           try {
             ws = new WebSocket(socketUrl)
           } catch (err: any) {
-            term.writeln(`\x1b[31mWebSocket error: ${err.message || err}\x1b[0m`)
+            term.writeln(`\x1b[31m${t("terminal.websocketError", { reason: err.message || err })}\x1b[0m`)
             isConnectingRef.current = false
             setReconnecting(false)
             scheduleReconnect()
@@ -686,7 +691,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           // Connection timeout — if we don't get onopen within 10s, give up
           const connectTimeout = setTimeout(() => {
             if (ws && ws.readyState === WebSocket.CONNECTING) {
-              term.writeln("\x1b[31mConnection timed out.\x1b[0m")
+              term.writeln(`\x1b[31m${t("terminal.connectionTimedOut")}\x1b[0m`)
               ws.close()
             }
           }, 10000)
@@ -718,7 +723,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   setConnectionState("connected")
                   serverOfflineRef.current = false
                   if (!connectedHintShownRef.current) {
-                    term.writeln("\x1b[32mConnected.\x1b[0m Type commands directly.\r\n")
+                    term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
                     connectedHintShownRef.current = true
                   }
                   ws!.send(JSON.stringify({ event: "send logs", args: [] }))
@@ -742,7 +747,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                 case "install output":
                   for (const line of msg.args || []) {
                     const processed = processConsoleOutput(String(line))
-                    const text = `[Install] ${processed}`
+                    const text = `[${t("terminal.tags.install")}] ${processed}`
                     if (text.trim()) {
                       term.writeln(`\x1b[33m${text}\x1b[0m`)
                       addToOutput(stripAnsiText(text))
@@ -753,7 +758,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                 case "status": {
                   const raw = String(msg.args?.[0] || "")
                   const processed = processConsoleOutput(raw)
-                  term.writeln(`\x1b[36m[Status]\x1b[0m ${processed}`)
+                  term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${processed}`)
                   setConnectionState(raw)
                   const s = raw.toLowerCase()
                   if (s === "running" || s === "connected") {
@@ -778,7 +783,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                 case "daemon message": {
                   const dmMsg = processConsoleOutput(msg.args?.join(" ") || "")
                   if (dmMsg.trim()) {
-                    term.writeln(`\x1b[33m[Daemon]\x1b[0m ${dmMsg}`)
+                    term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${dmMsg}`)
                   }
                   break
                 }
@@ -786,13 +791,13 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                 case "daemon error": {
                   const errMsg = processConsoleOutput(msg.args?.join(" ") || "")
                   if (errMsg.trim()) {
-                    term.writeln(`\x1b[31m[Error]\x1b[0m ${errMsg}`)
+                    term.writeln(`\x1b[31m[${t("terminal.tags.error")}]\x1b[0m ${errMsg}`)
                   }
                   break
                 }
                   
                 case "jwt error":
-                  term.writeln(`\x1b[31m[Auth Error]\x1b[0m ${processConsoleOutput(msg.args?.join(" ") || "")}`)
+                  term.writeln(`\x1b[31m[${t("terminal.tags.authError")}]\x1b[0m ${processConsoleOutput(msg.args?.join(" ") || "")}`)
                   setConnected(false)
                   break
                   
@@ -807,7 +812,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   break
                   
                 case "token expired":
-                  term.writeln("\x1b[31mSession expired. Reconnecting...\x1b[0m")
+                  term.writeln(`\x1b[31m${t("terminal.sessionExpired")}\x1b[0m`)
                   setConnected(false)
                   break
                   
@@ -825,7 +830,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           ws.onerror = () => {
             clearTimeout(connectTimeout)
             if (!cancelledRef.current) {
-              term.writeln("\x1b[31mWebSocket error occurred\x1b[0m")
+              term.writeln(`\x1b[31m${t("terminal.websocketErrorOccurred")}\x1b[0m`)
             }
           }
 
@@ -846,12 +851,12 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
             const isAuthFailure = ev.code === 1008
             
             if (isAuthFailure) {
-              term.writeln(`\x1b[31mAuthentication failed (${ev.code}). Click Reconnect to try again.\x1b[0m`)
+              term.writeln(`\x1b[31m${t("terminal.authFailed", { code: ev.code })}\x1b[0m`)
               setConnectionState("disconnected")
               return
             }
             
-            term.writeln(`\x1b[90mDisconnected (${ev.code}${ev.reason ? `: ${ev.reason}` : ''})\x1b[0m`)
+            term.writeln(`\x1b[90m${t("terminal.disconnected", { code: ev.code, reason: ev.reason ? `: ${ev.reason}` : "" })}\x1b[0m`)
             
             if (isAbnormal) {
               // Mark as potentially offline if we disconnect very quickly
@@ -866,9 +871,9 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           // Check if it's a network/server error indicating the server is offline
           if (msg.includes("fetch") || msg.includes("network") || msg.includes("404") || msg.includes("502") || msg.includes("503")) {
             serverOfflineRef.current = true
-            term.writeln(`\x1b[90mServer appears offline: ${msg}\x1b[0m`)
+            term.writeln(`\x1b[90m${t("terminal.serverOffline", { reason: msg })}\x1b[0m`)
           } else {
-            term.writeln(`\x1b[31mConnection failed: ${msg}\x1b[0m`)
+            term.writeln(`\x1b[31m${t("terminal.connectionFailed", { reason: msg })}\x1b[0m`)
           }
           
           isConnectingRef.current = false
@@ -903,7 +908,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
       term?.dispose()
       xtermRef.current = null
     }
-  }, [serverId, addToOutput]) // Only serverId and addToOutput — no state that changes during runtime
+  }, [serverId, addToOutput, t]) // Only stable dependencies needed for runtime lifecycle
 
   const handleReconnect = useCallback(() => {
     if (reconnecting) return
@@ -929,7 +934,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
     
     setConnected(false)
     setConnectionState("connecting")
-    xtermRef.current?.writeln("\x1b[90mManually reconnecting...\x1b[0m")
+    xtermRef.current?.writeln(`\x1b[90m${t("terminal.manuallyReconnecting")}\x1b[0m`)
 
     // Re-run the effect by unmounting and remounting
     // We do this by toggling a key or simply calling connect again
@@ -941,7 +946,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
     setTimeout(() => {
       window.location.reload()
     }, 200)
-  }, [reconnecting])
+  }, [reconnecting, t])
 
   const handleMobileSend = useCallback(() => {
     if (!mobileCmd.trim()) return
@@ -967,6 +972,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         onCopy={copyOutput}
         copied={copied}
         reconnecting={reconnecting}
+        t={t}
       />
 
       <div className="flex-1 relative min-h-0 bg-[#0a0a0a]">
@@ -985,7 +991,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Loading console...</span>
+              <span className="text-sm">{t("states.loadingConsole")}</span>
             </div>
           </div>
         )}
@@ -997,6 +1003,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
             history={commandHistory}
             onSelect={(cmd) => setMobileCmd(cmd)}
             onClose={() => setShowHistory(false)}
+            t={t}
           />
         )}
         
@@ -1007,23 +1014,24 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           onHistoryToggle={() => setShowHistory(!showHistory)}
           historyOpen={showHistory}
           disabled={!terminalReady}
+          t={t}
         />
       </div>
 
       <div className="hidden sm:flex items-center gap-2 border-t border-border bg-secondary/10 px-4 py-2.5">
         <Terminal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <span className="text-xs text-muted-foreground">
-          Type commands directly in the console above
+          {t("footer.typeCommandsAbove")}
         </span>
         <span className="text-muted-foreground/50 mx-2">•</span>
         <span className="text-xs text-muted-foreground">
           <kbd className="px-1.5 py-0.5 bg-secondary rounded text-[10px] font-mono">Ctrl+C</kbd>
-          <span className="ml-1.5">Cancel</span>
+          <span className="ml-1.5">{t("actions.cancel")}</span>
         </span>
         <span className="text-muted-foreground/50 mx-2">•</span>
         <span className="text-xs text-muted-foreground">
           <kbd className="px-1.5 py-0.5 bg-secondary rounded text-[10px] font-mono">Ctrl+L</kbd>
-          <span className="ml-1.5">Clear</span>
+          <span className="ml-1.5">{t("actions.clear")}</span>
         </span>
       </div>
     </div>

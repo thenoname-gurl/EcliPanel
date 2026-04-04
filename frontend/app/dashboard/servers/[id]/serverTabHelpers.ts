@@ -76,10 +76,20 @@ export function getRelativePath(from: string, to: string): string {
   return [...Array(upCount).fill(".."), ...downParts].join("/") || "."
 }
 
-export function formatDate(date: string | number | Date | undefined): string {
+type RelativeDateLabels = {
+  justNow?: string
+  yesterday?: string
+}
+
+export function formatDate(
+  date: string | number | Date | undefined,
+  labels?: RelativeDateLabels
+): string {
   if (!date) return "—"
   const d = new Date(date)
   if (isNaN(d.getTime())) return "—"
+  const justNowLabel = labels?.justNow ?? "Just now"
+  const yesterdayLabel = labels?.yesterday ?? "Yesterday"
   
   const now = new Date()
   const diffMs = now.getTime() - d.getTime()
@@ -88,10 +98,10 @@ export function formatDate(date: string | number | Date | undefined): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffSecs < 60) return "Just now"
+  if (diffSecs < 60) return justNowLabel
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return "Yesterday"
+  if (diffDays === 1) return yesterdayLabel
   if (diffDays < 7) return d.toLocaleDateString([], { weekday: "short" })
   if (diffDays < 365) return d.toLocaleDateString([], { month: "short", day: "numeric" })
   return d.toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" })

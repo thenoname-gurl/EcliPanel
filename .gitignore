@@ -59,3 +59,4 @@ frontend/public/assets/icons/*.mp4
 
 # Systemd unit files
 systemd/*
+antiabuse/*

@@ -52,6 +52,9 @@ import {
 import { useSearchParams } from "next/navigation"
 import QRCode from "qrcode"
 import { THEMES, applyTheme } from "@/lib/themes"
+import { useLocale, useTranslations } from "next-intl"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { defaultLocale, locales, type AppLocale } from "@/i18n/config"
 
 const AVAILABLE_PERMISSIONS = [
   "servers:read",
@@ -72,6 +75,10 @@ const AVAILABLE_PERMISSIONS = [
   "users:read",
   "users:write",
 ] as const
+
+function isSupportedLocale(value: string): value is AppLocale {
+  return locales.includes(value as AppLocale)
+}
 
 function FormInput({
   label,
@@ -223,6 +230,7 @@ function TabButton({
 }
 
 function PasskeyManager() {
+  const t = useTranslations("settingsPage")
   const { user } = useAuth()
   const [passkeys, setPasskeys] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -251,14 +259,14 @@ function PasskeyManager() {
       setEditingPasskeyName("")
       load()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("messages.failed") + ": " + e.message)
     }
   }
 
   const addPasskey = async () => {
     if (!user) return
     if (typeof window === "undefined" || !window.isSecureContext || !navigator.credentials) {
-      alert("Passkey registration requires a secure connection (HTTPS).")
+      alert(t("passkeys.errors.httpsRequired"))
       return
     }
     const initialCount = passkeys.length
@@ -292,7 +300,7 @@ function PasskeyManager() {
       const credential = (await navigator.credentials.create({
         publicKey: publicKeyOptions,
       })) as PublicKeyCredential | null
-      if (!credential) throw new Error("Registration cancelled")
+      if (!credential) throw new Error(t("passkeys.errors.registrationCancelled"))
       const attestation = credential.response as AuthenticatorAttestationResponse
       const toB64url = (buf: ArrayBuffer) =>
         btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -319,19 +327,19 @@ function PasskeyManager() {
       }
       load()
     } catch (e: any) {
-      alert("Failed to register passkey: " + (e.message || "Unknown error"))
+      alert(t("passkeys.errors.failedRegister") + ": " + (e.message || t("messages.unknown")))
     } finally {
       setRegistering(false)
     }
   }
 
   const removePasskey = async (id: number) => {
-    if (!confirm("Remove this passkey?")) return
+    if (!confirm(t("passkeys.confirmRemove"))) return
     try {
       await apiFetch(API_ENDPOINTS.passkeyDelete.replace(":id", String(id)), { method: "DELETE" })
       setPasskeys((prev) => prev.filter((p) => p.id !== id))
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -343,7 +351,7 @@ function PasskeyManager() {
           <div className="min-w-0">
             <p className="text-xs font-medium text-foreground">HTTPS required</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Passkey registration requires a secure connection.
+              {t("passkeys.errors.httpsRequiredShort")}
             </p>
           </div>
         </div>
@@ -351,7 +359,7 @@ function PasskeyManager() {
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-          <Loader2 className="h-5 w-5 animate-spin" /> Loading passkeys...
+          <Loader2 className="h-5 w-5 animate-spin" /> {t("passkeys.loading")}
         </div>
       ) : passkeys.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
@@ -359,9 +367,9 @@ function PasskeyManager() {
             <Shield className="h-6 w-6 text-warning" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">No passkeys registered</p>
+            <p className="text-sm font-semibold text-foreground">{t("passkeys.emptyTitle")}</p>
             <p className="text-xs text-muted-foreground max-w-xs mt-1">
-              Add a passkey to secure your account with biometric or hardware authentication.
+              {t("passkeys.emptyDescription")}
             </p>
           </div>
         </div>
@@ -405,7 +413,7 @@ function PasskeyManager() {
                   ) : (
                     <>
                       <p className="text-sm font-medium text-foreground truncate">
-                        {pk.name || `Passkey #${pk.id}`}
+                        {pk.name || `${t("passkeys.fallbackName")} #${pk.id}`}
                       </p>
                       <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">
                         {pk.credentialID?.slice(0, 20)}…
@@ -417,7 +425,7 @@ function PasskeyManager() {
               {editingPasskeyId !== pk.id && (
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={() => { setEditingPasskeyId(pk.id); setEditingPasskeyName(pk.name || `Passkey #${pk.id}`) }}
+                    onClick={() => { setEditingPasskeyId(pk.id); setEditingPasskeyName(pk.name || `${t("passkeys.fallbackName")} #${pk.id}`) }}
                     className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                   >
                     <Edit className="h-4 w-4" />
@@ -443,12 +451,12 @@ function PasskeyManager() {
         {registering ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Waiting for device...
+            {t("passkeys.waitingForDevice")}
           </>
         ) : (
           <>
             <Plus className="h-4 w-4" />
-            Register New Passkey
+            {t("passkeys.registerNew")}
           </>
         )}
       </button>
@@ -457,6 +465,7 @@ function PasskeyManager() {
 }
 
 function SshKeyManager() {
+  const t = useTranslations("settingsPage")
   const [keys, setKeys] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState("")
@@ -495,19 +504,19 @@ function SshKeyManager() {
       setShowForm(false)
       await loadKeys()
     } catch (e: any) {
-      setError(e.message || "Failed to add key")
+      setError(e.message || t("ssh.errors.failedAdd"))
     } finally {
       setAdding(false)
     }
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Remove this SSH key from your account?")) return
+    if (!confirm(t("ssh.confirmRemove"))) return
     try {
       await apiFetch(API_ENDPOINTS.sshKeyDelete.replace(":id", String(id)), { method: "DELETE" })
       setKeys((k) => k.filter((x: any) => x.id !== id))
     } catch (e: any) {
-      alert("Failed to remove key: " + e.message)
+      alert(t("ssh.errors.failedRemove") + ": " + e.message)
     }
   }
 
@@ -522,7 +531,7 @@ function SshKeyManager() {
       setEditingSshKeyName("")
       loadKeys()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -530,7 +539,7 @@ function SshKeyManager() {
     <div className="mt-4 flex flex-col gap-2.5 min-w-0">
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-          <Loader2 className="h-5 w-5 animate-spin" /> Loading keys...
+          <Loader2 className="h-5 w-5 animate-spin" /> {t("ssh.loading")}
         </div>
       ) : keys.length === 0 && !showForm ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
@@ -538,9 +547,9 @@ function SshKeyManager() {
             <Key className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">No SSH keys</p>
+            <p className="text-sm font-semibold text-foreground">{t("ssh.emptyTitle")}</p>
             <p className="text-xs text-muted-foreground max-w-xs mt-1">
-              Add SSH keys for passwordless SFTP access to your servers.
+              {t("ssh.emptyDescription")}
             </p>
           </div>
         </div>
@@ -622,15 +631,15 @@ function SshKeyManager() {
               <p className="text-xs text-destructive break-words">{error}</p>
             </div>
           )}
-          <FormInput label="Label" value={name} onChange={setName} placeholder="e.g. MacBook Pro" />
+          <FormInput label={t("ssh.label")} value={name} onChange={setName} placeholder={t("ssh.labelPlaceholder")} />
           <div className="flex flex-col gap-1.5 min-w-0">
-            <label className="text-xs font-medium text-muted-foreground">Public Key</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("ssh.publicKey")}</label>
             <textarea
               value={publicKey}
               onChange={(e) => setPublicKey(e.target.value)}
               rows={4}
               className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none min-w-0 w-full"
-              placeholder="ssh-ed25519 AAAA... or ssh-rsa AAAA..."
+              placeholder={t("ssh.publicKeyPlaceholder")}
             />
           </div>
           <div className="flex gap-2">
@@ -638,7 +647,7 @@ function SshKeyManager() {
               onClick={() => { setShowForm(false); setError(null) }}
               className="flex-1 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
             >
-              Cancel
+              {t("actions.cancel")}
             </button>
             <button
               onClick={handleAdd}
@@ -646,7 +655,7 @@ function SshKeyManager() {
               className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
             >
               {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Add Key
+              {t("ssh.addKey")}
             </button>
           </div>
         </div>
@@ -656,7 +665,7 @@ function SshKeyManager() {
           className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
-          Add SSH Key
+          {t("ssh.addSshKey")}
         </button>
       )}
     </div>
@@ -664,6 +673,7 @@ function SshKeyManager() {
 }
 
 function TwoFactorManager() {
+  const t = useTranslations("settingsPage")
   const { user, refreshUser } = useAuth()
   const [enabled, setEnabled] = useState<boolean>(!!user?.twoFactorEnabled)
   const [secret, setSecret] = useState<string | null>(null)
@@ -686,13 +696,13 @@ function TwoFactorManager() {
       const d = await QRCode.toDataURL(res.otpauth_url || "")
       setQrDataUrl(d)
     } catch (e: any) {
-      alert(e.message || "Failed to start setup")
+      alert(e.message || t("twoFactor.errors.failedStartSetup"))
     }
     setLoading(false)
   }
 
   const verifyAndEnable = async () => {
-    if (!secret) return alert("Missing secret")
+    if (!secret) return alert(t("twoFactor.errors.missingSecret"))
     setLoading(true)
     try {
       const res: any = await apiFetch(API_ENDPOINTS.twoFactorVerify, {
@@ -705,15 +715,15 @@ function TwoFactorManager() {
       setSecret(null)
       setOtpauth(null)
       setQrDataUrl(null)
-      alert("Two-factor enabled — save your recovery codes now.")
+      alert(t("twoFactor.enabledAlert"))
     } catch (e: any) {
-      alert(e.message || "Failed to verify")
+      alert(e.message || t("twoFactor.errors.failedVerify"))
     }
     setLoading(false)
   }
 
   const disable2fa = async () => {
-    if (!confirm("Disable two-factor authentication?")) return
+    if (!confirm(t("twoFactor.confirmDisable"))) return
     setLoading(true)
     try {
       await apiFetch(API_ENDPOINTS.twoFactorDisable, {
@@ -722,9 +732,9 @@ function TwoFactorManager() {
       })
       await refreshUser()
       setEnabled(false)
-      alert("Two-factor disabled")
+      alert(t("twoFactor.disabledAlert"))
     } catch (e: any) {
-      alert(e.message || "Failed to disable")
+      alert(e.message || t("twoFactor.errors.failedDisable"))
     }
     setLoading(false)
   }
@@ -746,7 +756,7 @@ function TwoFactorManager() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">Two-factor is not enabled</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Add an extra layer of security to your account.
+                  {t("twoFactor.notEnabledDescription")}
                 </p>
               </div>
               <button
@@ -754,7 +764,7 @@ function TwoFactorManager() {
                 disabled={loading}
                 className="w-full sm:w-auto shrink-0 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
               >
-                {loading ? "Loading..." : "Enable 2FA"}
+                {loading ? t("twoFactor.loading") : t("twoFactor.enable")}
               </button>
             </div>
           ) : (
@@ -767,13 +777,13 @@ function TwoFactorManager() {
                   </div>
                 )}
                 <div className="text-center max-w-md">
-                  <p className="text-sm font-medium text-foreground mb-1">Scan with your authenticator</p>
+                  <p className="text-sm font-medium text-foreground mb-1">{t("twoFactor.scanTitle")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Use Google Authenticator, Authy, or any TOTP-compatible app
+                    {t("twoFactor.scanDescription")}
                   </p>
                 </div>
                 <div className="w-full min-w-0 overflow-hidden">
-                  <p className="text-xs text-muted-foreground mb-2 text-center">Or enter this code manually:</p>
+                  <p className="text-xs text-muted-foreground mb-2 text-center">{t("twoFactor.enterCodeManually")}</p>
                   <div className="relative">
                     <code className="block font-mono text-xs md:text-sm p-3 md:p-4 rounded-lg border bg-secondary/30 break-all text-center select-all">
                       {secret}
@@ -781,7 +791,7 @@ function TwoFactorManager() {
                     <button
                       onClick={copySecret}
                       className="absolute top-2 right-2 p-2 rounded-lg bg-secondary/80 hover:bg-secondary transition-colors"
-                      title="Copy to clipboard"
+                      title={t("twoFactor.copyToClipboard")}
                     >
                       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
                     </button>
@@ -790,25 +800,25 @@ function TwoFactorManager() {
               </div>
               <div className="flex flex-col gap-3 min-w-0">
                 <FormInput
-                  label="Verification Code"
+                  label={t("twoFactor.verificationCode")}
                   value={token}
                   onChange={setToken}
-                  placeholder="Enter 6-digit code"
-                  hint="Enter the code from your authenticator app"
+                  placeholder={t("twoFactor.enterSixDigit")}
+                  hint={t("twoFactor.verificationHint")}
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setSecret(null); setOtpauth(null); setQrDataUrl(null) }}
                     className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary active:scale-[0.98] transition-all"
                   >
-                    Cancel
+                    {t("actions.cancel")}
                   </button>
                   <button
                     onClick={verifyAndEnable}
                     disabled={loading || !token || token.length !== 6}
                     className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
                   >
-                    {loading ? "Verifying..." : "Verify & Enable"}
+                    {loading ? t("twoFactor.verifying") : t("twoFactor.verifyEnable")}
                   </button>
                 </div>
               </div>
@@ -823,23 +833,23 @@ function TwoFactorManager() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">Two-factor is enabled</p>
-              <p className="text-xs text-muted-foreground">Your account is secured with 2FA.</p>
+              <p className="text-xs text-muted-foreground">{t("twoFactor.enabledDescription")}</p>
             </div>
           </div>
           <div className="flex flex-col gap-3 min-w-0">
             <FormInput
-              label="Enter code to disable"
+              label={t("twoFactor.enterCodeToDisable")}
               value={disableToken}
               onChange={setDisableToken}
-              placeholder="6-digit code"
-              hint="This will remove 2FA protection from your account"
+              placeholder={t("twoFactor.sixDigit")}
+              hint={t("twoFactor.disableHint")}
             />
             <button
               onClick={disable2fa}
               disabled={loading || !disableToken || disableToken.length !== 6}
               className="rounded-lg bg-destructive py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 active:scale-[0.98] transition-all"
             >
-              {loading ? "Disabling..." : "Disable 2FA"}
+              {loading ? t("twoFactor.disabling") : t("twoFactor.disable")}
             </button>
           </div>
         </div>
@@ -850,9 +860,9 @@ function TwoFactorManager() {
           <div className="flex items-start gap-3 mb-4">
             <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
             <div>
-              <h5 className="text-sm font-semibold text-foreground">Recovery Codes</h5>
+              <h5 className="text-sm font-semibold text-foreground">{t("twoFactor.recoveryCodes")}</h5>
               <p className="text-xs text-muted-foreground mt-1">
-                Save these codes securely. Each can be used once if you lose access to your authenticator.
+                {t("twoFactor.recoveryCodesHint")}
               </p>
             </div>
           </div>
@@ -870,12 +880,12 @@ function TwoFactorManager() {
             onClick={() => {
               const text = recoveryCodes.join("\n")
               navigator.clipboard.writeText(text)
-              alert("Recovery codes copied to clipboard")
+              alert(t("twoFactor.recoveryCopied"))
             }}
             className="w-full mt-3 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
           >
             <Copy className="h-4 w-4" />
-            Copy All Codes
+            {t("twoFactor.copyAllCodes")}
           </button>
         </div>
       )}
@@ -884,6 +894,7 @@ function TwoFactorManager() {
 }
 
 function SessionList() {
+  const t = useTranslations("settingsPage")
   const { user } = useAuth()
   const [sessions, setSessions] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -911,7 +922,7 @@ function SessionList() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading sessions...
+        <Loader2 className="h-5 w-5 animate-spin" /> {t("sessions.loading")}
       </div>
     )
   }
@@ -930,11 +941,11 @@ function SessionList() {
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="flex items-center gap-2 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate min-w-0">
-                  Session {sessionId.slice(0, 10)}...
+                  {t("sessions.session")} {sessionId.slice(0, 10)}...
                 </p>
                 {user?.sessionId === sessionId && (
                   <Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-0 text-[10px] px-2 shrink-0">
-                    Current
+                    {t("sessions.current")}
                   </Badge>
                 )}
               </div>
@@ -945,7 +956,7 @@ function SessionList() {
               onClick={() => revoke(sessionId)}
               className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.98]"
             >
-              Revoke
+              {t("sessions.revoke")}
             </button>
           )}
         </div>
@@ -955,6 +966,8 @@ function SessionList() {
 }
 
 export default function SettingsPage() {
+  const t = useTranslations("settingsPage")
+  const locale = useLocale()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<string>(
     () => searchParams.get("tab") || "profile"
@@ -965,6 +978,7 @@ export default function SettingsPage() {
   }, [searchParams])
 
   const [activeTheme, setActiveTheme] = useState("Eclipse Purple")
+  const [settingsLocale, setSettingsLocale] = useState<AppLocale>(isSupportedLocale(locale) ? locale : defaultLocale)
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
   const { user, refreshUser } = useAuth()
 
@@ -1010,23 +1024,23 @@ export default function SettingsPage() {
         method: "POST",
         body: JSON.stringify(body),
       })
-      alert("Key created: " + res.apiKey)
+      alert(t("api.keyCreated") + ": " + res.apiKey)
       setNewKeyName("")
       setNewKeyPerms([])
       setShowApiForm(false)
       loadApiKeys()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("messages.failed") + ": " + e.message)
     }
   }
 
   const revokeApiKey = async (id: number) => {
-    if (!confirm("Revoke this API key?")) return
+    if (!confirm(t("api.confirmRevoke"))) return
     try {
       await apiFetch(API_ENDPOINTS.apiKeyDetail.replace(":id", id.toString()), { method: "DELETE" })
       loadApiKeys()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -1035,19 +1049,19 @@ export default function SettingsPage() {
     setPasswordError("")
     
     if (!currentPassword) {
-      setPasswordError("Please enter your current password")
+      setPasswordError(t("security.errors.enterCurrentPassword"))
       return
     }
     if (!newPassword) {
-      setPasswordError("Please enter a new password")
+      setPasswordError(t("security.errors.enterNewPassword"))
       return
     }
     if (newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters")
+      setPasswordError(t("security.errors.passwordMinLength"))
       return
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match")
+      setPasswordError(t("security.errors.passwordsDoNotMatch"))
       return
     }
 
@@ -1061,9 +1075,9 @@ export default function SettingsPage() {
       setNewPassword("")
       setConfirmPassword("")
       await refreshUser()
-      alert("Password updated successfully.")
+      alert(t("security.passwordUpdated"))
     } catch (err: any) {
-      setPasswordError(err?.message || "Failed to update password")
+      setPasswordError(err?.message || t("security.errors.failedUpdatePassword"))
     } finally {
       setPasswordSaving(false)
     }
@@ -1075,13 +1089,13 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
 
   const portalMarkerByTier: Record<string, string> = {
-    free: "Free Portal",
-    paid: "Paid Portal",
-    enterprise: "Enterprise Portal",
+    free: t("portal.free"),
+    paid: t("portal.paid"),
+    enterprise: t("portal.enterprise"),
   }
   const getPortalMarker = (tier?: string) => {
-    if (!tier) return "Free Portal"
-    return portalMarkerByTier[String(tier).toLowerCase()] ?? "Free Portal"
+    if (!tier) return t("portal.free")
+    return portalMarkerByTier[String(tier).toLowerCase()] ?? t("portal.free")
   }
   const activeTier = String(activePlan?.plan?.type ?? user?.tier ?? "free").toLowerCase()
   const displayCurrency = sanitizeCurrencyCode(billingCurrency)
@@ -1122,6 +1136,18 @@ export default function SettingsPage() {
   }, [user])
 
   useEffect(() => {
+    const fromSettings = user?.settings?.locale
+    if (fromSettings && isSupportedLocale(fromSettings)) {
+      setSettingsLocale(fromSettings)
+      document.cookie = `locale=${fromSettings}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`
+      return
+    }
+    if (locale && isSupportedLocale(locale)) {
+      setSettingsLocale(locale)
+    }
+  }, [user?.settings?.locale, locale])
+
+  useEffect(() => {
     const saved = user?.settings?.theme?.name
     if (saved) {
       setActiveTheme(saved)
@@ -1144,20 +1170,30 @@ export default function SettingsPage() {
       await refreshUser()
     } catch (err: any) {
       console.error("Failed to save settings", err)
-      alert("Failed to save settings: " + (err?.message || "unknown"))
+      alert(t("messages.failedToSaveSettings") + ": " + (err?.message || t("messages.unknown")))
     }
   }
 
+  const updateLocalePreference = async (nextLocale: string) => {
+    if (!isSupportedLocale(nextLocale)) return
+    if (nextLocale === settingsLocale) return
+
+    setSettingsLocale(nextLocale)
+    document.cookie = `locale=${nextLocale}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`
+    await saveUserSettings({ locale: nextLocale })
+    window.location.reload()
+  }
+
   const DEFAULT_NOTIFICATION_PREFS: Record<string, { label: string; desc: string; enabled: boolean }> = {
-    serverAlerts: { label: "Server Alerts", desc: "Notifications when servers go offline", enabled: true },
-    serverLifecycle: { label: "Server Events", desc: "Create, stop, start, delete events", enabled: true },
-    serverErrors: { label: "Server Errors", desc: "Crashes and failures", enabled: true },
-    serverActivity: { label: "Verbose Activity", desc: "Detailed lifecycle events", enabled: false },
-    billing: { label: "Billing", desc: "Invoices and payments", enabled: true },
-    security: { label: "Security", desc: "Login attempts and alerts", enabled: true },
-    productUpdates: { label: "Product Updates", desc: "New features and announcements", enabled: false },
-    tickets: { label: "Tickets", desc: "Support ticket replies", enabled: true },
-    aiUsage: { label: "AI Usage", desc: "Weekly AI credit summary", enabled: false },
+    serverAlerts: { label: t("notifications.items.serverAlerts.label"), desc: t("notifications.items.serverAlerts.desc"), enabled: true },
+    serverLifecycle: { label: t("notifications.items.serverLifecycle.label"), desc: t("notifications.items.serverLifecycle.desc"), enabled: true },
+    serverErrors: { label: t("notifications.items.serverErrors.label"), desc: t("notifications.items.serverErrors.desc"), enabled: true },
+    serverActivity: { label: t("notifications.items.serverActivity.label"), desc: t("notifications.items.serverActivity.desc"), enabled: false },
+    billing: { label: t("notifications.items.billing.label"), desc: t("notifications.items.billing.desc"), enabled: true },
+    security: { label: t("notifications.items.security.label"), desc: t("notifications.items.security.desc"), enabled: true },
+    productUpdates: { label: t("notifications.items.productUpdates.label"), desc: t("notifications.items.productUpdates.desc"), enabled: false },
+    tickets: { label: t("notifications.items.tickets.label"), desc: t("notifications.items.tickets.desc"), enabled: true },
+    aiUsage: { label: t("notifications.items.aiUsage.label"), desc: t("notifications.items.aiUsage.desc"), enabled: false },
   }
 
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>(() => {
@@ -1254,7 +1290,7 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname + "?" + params.toString())
       window.location.reload()
     } catch (e: any) {
-      alert("Failed: " + (e.message || e))
+      alert(t("messages.failed") + ": " + (e.message || e))
     }
   }
 
@@ -1283,27 +1319,27 @@ export default function SettingsPage() {
         }
       )
       await refreshUser()
-      alert("Profile updated successfully!")
+      alert(t("profile.updated"))
     } catch (err: any) {
-      alert("Failed to save: " + err.message)
+      alert(t("messages.failedToSave") + ": " + err.message)
     } finally {
       setSaving(false)
     }
   }
 
   const tabs = [
-    { value: "profile", icon: User, label: "Profile", guideId: "settings-profile" },
-    { value: "security", icon: Lock, label: "Security", guideId: "settings-security" },
-    { value: "notifications", icon: Bell, label: "Alerts", guideId: "settings-notifications" },
-    { value: "api", icon: Code, label: "API", count: apiKeys.length },
-    { value: "appearance", icon: Palette, label: "Theme", guideId: "settings-appearance" },
-    { value: "editor", icon: Settings, label: "Editor", guideId: "settings-editor" },
+    { value: "profile", icon: User, label: t("tabs.profile"), guideId: "settings-profile" },
+    { value: "security", icon: Lock, label: t("tabs.security"), guideId: "settings-security" },
+    { value: "notifications", icon: Bell, label: t("tabs.alerts"), guideId: "settings-notifications" },
+    { value: "api", icon: Code, label: t("tabs.api"), count: apiKeys.length },
+    { value: "appearance", icon: Palette, label: t("tabs.theme"), guideId: "settings-appearance" },
+    { value: "editor", icon: Settings, label: t("tabs.editor"), guideId: "settings-editor" },
   ]
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       <div className="flex-shrink-0">
-        <PanelHeader title="Settings" description="Manage your account and preferences" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -1358,7 +1394,7 @@ export default function SettingsPage() {
                               await apiFetch(API_ENDPOINTS.userAvatar.replace(":id", String(user.id)), { method: "POST", body: fd })
                               await refreshUser()
                             } catch (err: any) {
-                              alert("Upload failed: " + err.message)
+                              alert(t("profile.uploadFailed") + ": " + err.message)
                             }
                           }}
                         />
@@ -1367,7 +1403,7 @@ export default function SettingsPage() {
 
                     {userBadges.length > 0 && (
                       <div className="w-full sm:w-80">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 text-center sm:text-left font-semibold">Badges</p>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 text-center sm:text-left font-semibold">{t("profile.badges")}</p>
                         <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                           {userBadges.map((badge) => (
                             <span
@@ -1387,7 +1423,7 @@ export default function SettingsPage() {
 
                   <div className="text-center sm:text-left flex-1 min-w-0 overflow-hidden">
                     <h3 className="text-lg md:text-xl font-bold text-foreground truncate">
-                      {user?.displayName || user?.firstName || "User"}
+                      {user?.displayName || user?.firstName || t("profile.userFallback")}
                     </h3>
                     <p className="text-sm text-muted-foreground truncate mt-0.5">{user?.email}</p>
                     <div className="flex items-center justify-center sm:justify-start gap-2 mt-3 flex-wrap">
@@ -1402,64 +1438,64 @@ export default function SettingsPage() {
 
               {/* Basic Info */}
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-4">Basic Information</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4">{t("profile.basicInformation")}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormInput 
-                    label="Display Name" 
+                    label={t("profile.displayName")} 
                     value={form.displayName} 
                     onChange={(v) => setForm({ ...form, displayName: v })} 
-                    placeholder="How you appear" 
+                    placeholder={t("profile.displayNamePlaceholder")} 
                     icon={User} 
-                    hint="This is how other users will see you"
+                    hint={t("profile.displayNameHint")}
                   />
                   <FormInput 
-                    label="Email Address" 
+                    label={t("profile.emailAddress")} 
                     type="email" 
                     value={form.email} 
                     onChange={(v) => setForm({ ...form, email: v })} 
                     icon={Mail}
-                    hint="Used for login and notifications"
+                    hint={t("profile.emailHint")}
                   />
                 </div>
               </SettingsCard>
 
               {/* Legal Name */}
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Legal Name</h3>
-                <p className="text-xs text-muted-foreground mb-4">Used for billing and verification purposes</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("profile.legalName")}</h3>
+                <p className="text-xs text-muted-foreground mb-4">{t("profile.legalNameHint")}</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormInput label="First Name" value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
-                  <FormInput label="Middle Name" value={form.middleName} onChange={(v) => setForm({ ...form, middleName: v })} placeholder="Optional" />
-                  <FormInput label="Last Name" value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
+                  <FormInput label={t("profile.firstName")} value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
+                  <FormInput label={t("profile.middleName")} value={form.middleName} onChange={(v) => setForm({ ...form, middleName: v })} placeholder={t("profile.optional")} />
+                  <FormInput label={t("profile.lastName")} value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
                 </div>
               </SettingsCard>
 
               {/* Billing */}
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Billing Information</h3>
-                <p className="text-xs text-muted-foreground mb-4">For invoices and payment processing</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("profile.billingInformation")}</h3>
+                <p className="text-xs text-muted-foreground mb-4">{t("profile.billingInformationHint")}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormInput label="Street Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} icon={MapPin} className="md:col-span-2" />
-                  <FormInput label="Address Line 2" value={form.address2} onChange={(v) => setForm({ ...form, address2: v })} placeholder="Apt, Suite (optional)" className="md:col-span-2" />
-                  <FormInput label="Company" value={form.billingCompany} onChange={(v) => setForm({ ...form, billingCompany: v })} placeholder="Optional" icon={Building} />
-                  <FormInput label="Phone" type="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1 (555) 000-0000" icon={Phone} />
-                  <FormInput label="City" value={form.billingCity} onChange={(v) => setForm({ ...form, billingCity: v })} />
-                  <FormInput label="State / Province" value={form.billingState} onChange={(v) => setForm({ ...form, billingState: v })} />
-                  <FormInput label="ZIP / Postal" value={form.billingZip} onChange={(v) => setForm({ ...form, billingZip: v })} />
+                  <FormInput label={t("profile.streetAddress")} value={form.address} onChange={(v) => setForm({ ...form, address: v })} icon={MapPin} className="md:col-span-2" />
+                  <FormInput label={t("profile.addressLine2")} value={form.address2} onChange={(v) => setForm({ ...form, address2: v })} placeholder={t("profile.addressLine2Placeholder")} className="md:col-span-2" />
+                  <FormInput label={t("profile.company")} value={form.billingCompany} onChange={(v) => setForm({ ...form, billingCompany: v })} placeholder={t("profile.optional")} icon={Building} />
+                  <FormInput label={t("profile.phone")} type="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1 (555) 000-0000" icon={Phone} />
+                  <FormInput label={t("profile.city")} value={form.billingCity} onChange={(v) => setForm({ ...form, billingCity: v })} />
+                  <FormInput label={t("profile.stateProvince")} value={form.billingState} onChange={(v) => setForm({ ...form, billingState: v })} />
+                  <FormInput label={t("profile.zipPostal")} value={form.billingZip} onChange={(v) => setForm({ ...form, billingZip: v })} />
                   <div className="flex flex-col gap-1.5 min-w-0">
-                    <label className="text-xs font-medium text-muted-foreground">Country</label>
+                    <label className="text-xs font-medium text-muted-foreground">{t("profile.country")}</label>
                     <select
                       value={form.billingCountry}
                       onChange={(e) => setForm({ ...form, billingCountry: e.target.value })}
                       className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
                     >
-                      <option value="">Select country</option>
+                      <option value="">{t("profile.selectCountry")}</option>
                       {COUNTRIES.map((country) => (
                         <option key={country.code} value={country.name}>{country.name}</option>
                       ))}
                     </select>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      Tax rate for {form.billingCountry || "selected country"}: <span className="text-foreground font-semibold">{selectedCountryTaxRate.toFixed(2)}%</span>
+                      {t("profile.taxRateFor")} {form.billingCountry || t("profile.selectedCountry")}: <span className="text-foreground font-semibold">{selectedCountryTaxRate.toFixed(2)}%</span>
                       {` `}({displayCurrency})
                     </p>
                   </div>
@@ -1473,12 +1509,12 @@ export default function SettingsPage() {
                     {saving ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Saving...
+                        {t("actions.saving")}
                       </>
                     ) : (
                       <>
                         <Save className="h-4 w-4" />
-                        Save Changes
+                        {t("actions.saveChanges")}
                       </>
                     )}
                   </button>
@@ -1493,7 +1529,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">Need help getting started?</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Replay the setup guide to explore all features and capabilities.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("profile.guideHelp")}</p>
                   </div>
                 </div>
                 <button
@@ -1501,7 +1537,7 @@ export default function SettingsPage() {
                   className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 rounded-lg border border-border bg-background/50 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-background transition-all active:scale-[0.98]"
                 >
                   <BookOpen className="h-4 w-4" />
-                  Show Guide Again
+                  {t("profile.showGuideAgain")}
                 </button>
               </div>
             </div>
@@ -1511,7 +1547,7 @@ export default function SettingsPage() {
           {activeTab === "security" && (
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-4">Change Password</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4">{t("security.changePassword")}</h3>
                 {passwordError && (
                   <div className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
                     <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
@@ -1521,11 +1557,11 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 gap-4">
                   <div className="relative">
                     <FormInput 
-                      label="Current Password" 
+                      label={t("security.currentPassword")} 
                       type={showCurrentPassword ? "text" : "password"}
                       value={currentPassword} 
                       onChange={setCurrentPassword} 
-                      placeholder="Enter current password" 
+                      placeholder={t("security.currentPasswordPlaceholder")} 
                       icon={Lock}
                     />
                     <button
@@ -1539,12 +1575,12 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
                       <FormInput 
-                        label="New Password" 
+                        label={t("security.newPassword")} 
                         type={showNewPassword ? "text" : "password"}
                         value={newPassword} 
                         onChange={setNewPassword} 
-                        placeholder="New password"
-                        hint="At least 8 characters"
+                        placeholder={t("security.newPasswordPlaceholder")}
+                        hint={t("security.newPasswordHint")}
                       />
                       <button
                         type="button"
@@ -1555,11 +1591,11 @@ export default function SettingsPage() {
                       </button>
                     </div>
                     <FormInput 
-                      label="Confirm Password" 
+                      label={t("security.confirmPassword")} 
                       type={showNewPassword ? "text" : "password"}
                       value={confirmPassword} 
                       onChange={setConfirmPassword} 
-                      placeholder="Confirm password" 
+                      placeholder={t("security.confirmPasswordPlaceholder")} 
                     />
                   </div>
                 </div>
@@ -1572,12 +1608,12 @@ export default function SettingsPage() {
                     {passwordSaving ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Updating...
+                        {t("actions.updating")}
                       </>
                     ) : (
                       <>
                         <Save className="h-4 w-4" />
-                        Update Password
+                        {t("security.updatePassword")}
                       </>
                     )}
                   </button>
@@ -1585,58 +1621,58 @@ export default function SettingsPage() {
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Passkeys</h3>
-                <p className="text-xs text-muted-foreground">Secure your account with biometric or hardware keys</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.passkeys")}</h3>
+                <p className="text-xs text-muted-foreground">{t("security.passkeysHint")}</p>
                 <PasskeyManager />
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Two-Factor Authentication</h3>
-                <p className="text-xs text-muted-foreground">Use an authenticator app for additional security</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.twoFactor")}</h3>
+                <p className="text-xs text-muted-foreground">{t("security.twoFactorHint")}</p>
                 <TwoFactorManager />
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">SSH Keys</h3>
-                <p className="text-xs text-muted-foreground">Passwordless SFTP/SSH access to your servers</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.sshKeys")}</h3>
+                <p className="text-xs text-muted-foreground">{t("security.sshKeysHint")}</p>
                 <SshKeyManager />
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Active Sessions</h3>
-                <p className="text-xs text-muted-foreground mb-2">Manage your logged-in devices and locations</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.activeSessions")}</h3>
+                <p className="text-xs text-muted-foreground mb-2">{t("security.activeSessionsHint")}</p>
                 <SessionList />
                 <div className="mt-5 pt-5 border-t border-border flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end">
                   <button
                     onClick={async () => {
-                      if (!confirm("This will log you out of all devices except this one. Continue?")) return
+                      if (!confirm(t("security.confirmLogoutElsewhere"))) return
                       try {
                         await apiFetch(API_ENDPOINTS.sessionLogoutAll, {
                           method: "POST",
                           body: JSON.stringify({ userId: user?.id }),
                         })
-                        alert("Logged out of all sessions successfully")
+                        alert(t("security.loggedOutElsewhere"))
                       } catch (e: any) {
-                        alert("Failed: " + e.message)
+                        alert(t("messages.failed") + ": " + e.message)
                       }
                     }}
                     className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/50 transition-all active:scale-[0.98]"
                   >
-                    Logout Everywhere Else
+                    {t("security.logoutElsewhere")}
                   </button>
                   <button
                     onClick={async () => {
-                      if (!confirm("⚠️ Request account deletion? This action cannot be undone and all your data will be permanently removed.")) return
+                      if (!confirm(t("security.confirmDeletion"))) return
                       try {
                         await apiFetch(API_ENDPOINTS.deletionRequests, { method: "POST" })
-                        alert("Deletion request submitted. Our team will process your request within 30 days.")
+                        alert(t("security.deletionSubmitted"))
                       } catch (e: any) {
-                        alert("Failed: " + e.message)
+                        alert(t("messages.failed") + ": " + e.message)
                       }
                     }}
                     className="rounded-lg bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-[0.98]"
                   >
-                    Request Account Deletion
+                    {t("security.requestDeletion")}
                   </button>
                 </div>
               </SettingsCard>
@@ -1648,8 +1684,8 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">Notification Preferences</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Choose which notifications you want to receive</p>
+                  <h3 className="text-sm font-semibold text-foreground">{t("notifications.title")}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{t("notifications.subtitle")}</p>
                 </div>
                 <div className="flex flex-col gap-2.5 min-w-0">
                   {Object.keys(DEFAULT_NOTIFICATION_PREFS).map((key) => {
@@ -1671,7 +1707,7 @@ export default function SettingsPage() {
                                 await saveUserSettings({ notifications: newPrefs })
                               } catch (e: any) {
                                 setNotificationPrefs(notificationPrefs)
-                                alert("Failed to save: " + (e?.message || "unknown"))
+                                alert(t("messages.failedToSave") + ": " + (e?.message || t("messages.unknown")))
                               }
                             }}
                           />
@@ -1690,8 +1726,8 @@ export default function SettingsPage() {
               <SettingsCard>
                 <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">API Keys</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Manage programmatic access to your account</p>
+                    <h3 className="text-sm font-semibold text-foreground">{t("api.apiKeys")}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("api.apiKeysHint")}</p>
                   </div>
                   {!showApiForm && (
                     <button
@@ -1699,29 +1735,29 @@ export default function SettingsPage() {
                       className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] shrink-0"
                     >
                       <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">New Key</span>
-                      <span className="sm:hidden">New</span>
+                      <span className="hidden sm:inline">{t("api.newKey")}</span>
+                      <span className="sm:hidden">{t("api.new")}</span>
                     </button>
                   )}
                 </div>
 
                 {showApiForm && (
                   <div className="rounded-xl border border-border bg-secondary/10 p-4 mb-5 space-y-4 min-w-0 overflow-hidden animate-in slide-in-from-top-2">
-                    <FormInput label="Key Name" value={newKeyName} onChange={setNewKeyName} placeholder="e.g. Production API" hint="Choose a descriptive name" />
+                    <FormInput label={t("api.keyName")} value={newKeyName} onChange={setNewKeyName} placeholder={t("api.keyNamePlaceholder")} hint={t("api.keyNameHint")} />
                     <div className="flex flex-col gap-1.5 min-w-0">
-                      <label className="text-xs font-medium text-muted-foreground">Key Type</label>
+                      <label className="text-xs font-medium text-muted-foreground">{t("api.keyType")}</label>
                       <select
                         value={newKeyType}
                         onChange={(e) => setNewKeyType(e.target.value)}
                         className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 w-full"
                       >
-                        <option value="client">Client</option>
-                        {isAdmin && <option value="admin">Admin</option>}
+                        <option value="client">{t("api.client")}</option>
+                        {isAdmin && <option value="admin">{t("api.admin")}</option>}
                       </select>
                     </div>
                     {newKeyType === "client" && (
                       <div className="flex flex-col gap-1.5 min-w-0">
-                        <label className="text-xs font-medium text-muted-foreground">Permissions</label>
+                        <label className="text-xs font-medium text-muted-foreground">{t("api.permissions")}</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-border bg-secondary/20 p-3 md:p-4 max-h-64 overflow-y-auto min-w-0">
                           {AVAILABLE_PERMISSIONS.map((perm) => (
                             <label key={perm} className="flex items-center gap-2.5 text-xs cursor-pointer py-1.5 min-w-0 hover:bg-secondary/30 rounded px-2 transition-colors">
@@ -1745,14 +1781,14 @@ export default function SettingsPage() {
                         onClick={() => { setShowApiForm(false); setNewKeyName(""); setNewKeyPerms([]) }}
                         className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-all active:scale-[0.98]"
                       >
-                        Cancel
+                        {t("actions.cancel")}
                       </button>
                       <button
                         onClick={createApiKey}
                         disabled={!newKeyName.trim()}
                         className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                       >
-                        Create Key
+                        {t("api.createKey")}
                       </button>
                     </div>
                   </div>
@@ -1760,7 +1796,7 @@ export default function SettingsPage() {
 
                 {apiLoading ? (
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-                    <Loader2 className="h-5 w-5 animate-spin" /> Loading keys...
+                    <Loader2 className="h-5 w-5 animate-spin" /> {t("api.loadingKeys")}
                   </div>
                 ) : apiKeys.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
@@ -1768,8 +1804,8 @@ export default function SettingsPage() {
                       <Code className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">No API keys</p>
-                      <p className="text-xs text-muted-foreground mt-1">Create a key to access the Eclipse API programmatically.</p>
+                      <p className="text-sm font-semibold text-foreground">{t("api.emptyTitle")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("api.emptyDescription")}</p>
                     </div>
                   </div>
                 ) : (
@@ -1779,14 +1815,14 @@ export default function SettingsPage() {
                         <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {k.type} • {k.permissions?.length || 0} permissions
+                            {k.type} • {k.permissions?.length || 0} {t("api.permissions")}
                           </p>
                         </div>
                         <button
                           onClick={() => revokeApiKey(k.id)}
                           className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
                         >
-                          Revoke
+                          {t("api.revoke")}
                         </button>
                       </div>
                     ))}
@@ -1797,15 +1833,15 @@ export default function SettingsPage() {
               <SettingsCard>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 min-w-0">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">API Documentation</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Explore endpoints, schemas, and examples</p>
+                    <h3 className="text-sm font-semibold text-foreground">{t("api.documentation")}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("api.documentationHint")}</p>
                   </div>
                   <button
                     onClick={() => window.open("https://backend.ecli.app/openapi", "_blank")}
                     className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/80 transition-all active:scale-[0.98]"
                   >
                     <BookOpen className="h-4 w-4" />
-                    View Docs
+                    {t("api.viewDocs")}
                     <ExternalLink className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1818,8 +1854,21 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">Theme</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Customize the look and feel of your dashboard</p>
+                  <h3 className="text-sm font-semibold text-foreground">{t("appearance.theme")}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{t("appearance.themeHint")}</p>
+                </div>
+                <div className="mb-4 rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4">
+                  <label className="text-xs font-medium text-muted-foreground">{t("appearance.language")}</label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">{t("appearance.languageHint")}</p>
+                  <Select value={settingsLocale} onValueChange={updateLocalePreference}>
+                    <SelectTrigger className="h-9 w-full md:w-[220px]" aria-label={t("appearance.language")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">{t("appearance.english")}</SelectItem>
+                      <SelectItem value="ru">{t("appearance.russian")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 min-w-0">
                   {THEMES.map((theme) => {
@@ -1857,7 +1906,7 @@ export default function SettingsPage() {
                             </p>
                           )}
                           {isGamblingTheme && (
-                            <p className="text-[10px] text-destructive mt-1.5 font-medium">⚠ Luck mode active</p>
+                            <p className="text-[10px] text-destructive mt-1.5 font-medium">{t("appearance.luckMode")}</p>
                           )}
                         </div>
                         {isActive && (
@@ -1879,47 +1928,47 @@ export default function SettingsPage() {
               <SettingsCard>
                 <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">Editor Settings</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Configure code editor behavior and appearance</p>
+                    <h3 className="text-sm font-semibold text-foreground">{t("editor.title")}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("editor.subtitle")}</p>
                   </div>
                   <button
                     onClick={() => updateEditorSettings(DEFAULT_EDITOR_SETTINGS)}
                     className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Reset to Defaults
+                    {t("editor.resetDefaults")}
                   </button>
                 </div>
 
                 <div className="flex flex-col gap-2.5 min-w-0">
                   <SettingRow
                     icon={Sparkles}
-                    title="AI Assistant"
-                    description="Inline code completions and suggestions (beta)"
+                    title={t("editor.aiAssistant")}
+                    description={t("editor.aiAssistantHint")}
                     action={<Switch checked={!!editorSettings.aiAssistant} onCheckedChange={(v) => updateEditorSettings({ aiAssistant: v })} />}
                   />
                   <SettingRow
-                    title="Auto Indent"
-                    description="Automatically indent new lines"
+                    title={t("editor.autoIndent")}
+                    description={t("editor.autoIndentHint")}
                     action={<Switch checked={!!editorSettings.autoIndent} onCheckedChange={(v) => updateEditorSettings({ autoIndent: v })} />}
                   />
                   <SettingRow
-                    title="Show Minimap"
-                    description="Display code minimap for navigation"
+                    title={t("editor.showMinimap")}
+                    description={t("editor.showMinimapHint")}
                     action={<Switch checked={!!editorSettings.minimap} onCheckedChange={(v) => updateEditorSettings({ minimap: v })} />}
                   />
                   <SettingRow
-                    title="Format on Paste"
-                    description="Auto-format pasted code"
+                    title={t("editor.formatOnPaste")}
+                    description={t("editor.formatOnPasteHint")}
                     action={<Switch checked={!!editorSettings.formatOnPaste} onCheckedChange={(v) => updateEditorSettings({ formatOnPaste: v })} />}
                   />
                   <SettingRow
-                    title="Format on Type"
-                    description="Auto-format while typing"
+                    title={t("editor.formatOnType")}
+                    description={t("editor.formatOnTypeHint")}
                     action={<Switch checked={!!editorSettings.formatOnType} onCheckedChange={(v) => updateEditorSettings({ formatOnType: v })} />}
                   />
                   <SettingRow
-                    title="Font Size"
-                    description="Editor font size (pixels)"
+                    title={t("editor.fontSize")}
+                    description={t("editor.fontSizeHint")}
                     action={
                       <input
                         type="number"
@@ -1932,8 +1981,8 @@ export default function SettingsPage() {
                     }
                   />
                   <SettingRow
-                    title="Tab Size"
-                    description="Number of spaces per tab"
+                    title={t("editor.tabSize")}
+                    description={t("editor.tabSizeHint")}
                     action={
                       <input
                         type="number"
@@ -1947,7 +1996,7 @@ export default function SettingsPage() {
                   />
                   <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/50 bg-secondary/20 min-w-0">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-foreground">Font Family</span>
+                      <span className="text-sm font-medium text-foreground">{t("editor.fontFamily")}</span>
                     </div>
                     <select
                       value={editorSettings.fontFamily ?? DEFAULT_EDITOR_SETTINGS.fontFamily}
@@ -1962,7 +2011,7 @@ export default function SettingsPage() {
                       </option>
                       <option value='"Arial", "Helvetica", sans-serif'>Arial / Sans</option>
                     </select>
-                    <p className="text-xs text-muted-foreground">Choose a monospace font for better code readability</p>
+                    <p className="text-xs text-muted-foreground">{t("editor.fontFamilyHint")}</p>
                   </div>
                 </div>
               </SettingsCard>

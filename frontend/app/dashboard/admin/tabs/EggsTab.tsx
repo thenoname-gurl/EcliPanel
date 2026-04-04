@@ -9,8 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Box, Copy, Edit, Eye, EyeOff, Loader2, Package, Plus, RefreshCw, Trash2, Upload } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export default function EggsTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminEggsTab")
   const {
     eggs,
     forceRefreshTab,
@@ -93,16 +95,16 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                 <Package className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Server Templates</p>
+                <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {eggs.length} egg{eggs.length !== 1 ? "s" : ""} configured
+                  {t("header.eggCount", { count: eggs.length })}
                 </p>
               </div>
             </div>
             <button
               onClick={() => forceRefreshTab("eggs")}
               className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-              title="Refresh"
+              title={t("actions.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -121,8 +123,8 @@ export default function EggsTab({ ctx }: { ctx: any }) {
               className="h-8 gap-1.5 border-border text-muted-foreground"
             >
               <Upload className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Import Egg</span>
-              <span className="sm:hidden">Import</span>
+              <span className="hidden sm:inline">{t("actions.importEgg")}</span>
+              <span className="sm:hidden">{t("actions.import")}</span>
             </Button>
             <Button
               size="sm"
@@ -130,8 +132,8 @@ export default function EggsTab({ ctx }: { ctx: any }) {
               className="bg-primary text-primary-foreground h-8 gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New Egg</span>
-              <span className="sm:hidden">New</span>
+              <span className="hidden sm:inline">{t("actions.newEgg")}</span>
+              <span className="sm:hidden">{t("actions.new")}</span>
             </Button>
             <div className="flex-1" />
             {eggs.length > 0 && (
@@ -142,8 +144,8 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                 className="h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Delete All</span>
-                <span className="sm:hidden">Clear</span>
+                <span className="hidden sm:inline">{t("actions.deleteAll")}</span>
+                <span className="sm:hidden">{t("actions.clear")}</span>
               </Button>
             )}
           </div>
@@ -156,9 +158,9 @@ export default function EggsTab({ ctx }: { ctx: any }) {
             <Package className="h-6 w-6 text-primary/60" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">No eggs configured</p>
+            <p className="text-sm font-medium text-foreground">{t("states.noEggs")}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Create a new egg or import one to get started.
+              {t("states.noEggsSubtitle")}
             </p>
           </div>
           <div className="flex items-center gap-2 mt-1">
@@ -175,10 +177,10 @@ export default function EggsTab({ ctx }: { ctx: any }) {
               className="gap-1.5"
             >
               <Upload className="h-3.5 w-3.5" />
-              Import
+              {t("actions.import")}
             </Button>
             <Button size="sm" onClick={openNewEgg} className="bg-primary text-primary-foreground gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> New Egg
+              <Plus className="h-3.5 w-3.5" /> {t("actions.newEgg")}
             </Button>
           </div>
         </div>
@@ -189,10 +191,10 @@ export default function EggsTab({ ctx }: { ctx: any }) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-4 py-3 text-left font-medium">Egg</th>
-                    <th className="px-4 py-3 text-left font-medium">Docker Image</th>
-                    <th className="px-4 py-3 text-left font-medium">Visibility</th>
-                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.egg")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.dockerImage")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.visibility")}</th>
+                    <th className="px-4 py-3 text-right font-medium">{t("table.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -225,14 +227,14 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                             }`}
                         >
                           {egg.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                          {egg.visible ? "Visible" : "Hidden"}
+                          {egg.visible ? t("visibility.visible") : t("visibility.hidden")}
                         </button>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEditEgg(egg)}
-                            title="Edit egg"
+                            title={t("actions.editEgg")}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                           >
                             <Edit className="h-3.5 w-3.5" />
@@ -240,7 +242,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                           <button
                             onClick={() => forceSyncEgg(egg)}
                             disabled={syncingEggIds.includes(egg.id)}
-                            title="Sync to Wings"
+                            title={t("actions.syncToWings")}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40"
                           >
                             {syncingEggIds.includes(egg.id)
@@ -250,7 +252,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                           </button>
                           <button
                             onClick={() => deleteEgg(egg)}
-                            title="Delete egg"
+                            title={t("actions.deleteEgg")}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -287,21 +289,21 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                           }`}
                       >
                         {egg.visible ? <Eye className="h-2.5 w-2.5" /> : <EyeOff className="h-2.5 w-2.5" />}
-                        {egg.visible ? "Visible" : "Hidden"}
+                        {egg.visible ? t("visibility.visible") : t("visibility.hidden")}
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="px-4 pb-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Docker Image</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t("table.dockerImage")}</p>
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2">
                     <Box className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-mono text-xs text-muted-foreground truncate">{egg.dockerImage}</span>
                     <button
                       onClick={() => navigator.clipboard?.writeText(egg.dockerImage || "")}
                       className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors ml-auto"
-                      title="Copy image name"
+                      title={t("actions.copyImageName")}
                     >
                       <Copy className="h-3 w-3" />
                     </button>
@@ -314,7 +316,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
                   >
                     <Edit className="h-3.5 w-3.5" />
-                    <span>Edit</span>
+                    <span>{t("actions.edit")}</span>
                   </button>
                   <button
                     onClick={() => forceSyncEgg(egg)}
@@ -325,7 +327,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       : <RefreshCw className="h-3.5 w-3.5" />
                     }
-                    <span>Sync</span>
+                    <span>{t("actions.sync")}</span>
                   </button>
                   <button
                     onClick={() => deleteEgg(egg)}
@@ -345,25 +347,25 @@ export default function EggsTab({ ctx }: { ctx: any }) {
       <DialogContent className="border-border bg-card sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
-            <Upload className="h-4 w-4" /> Import Pterodactyl Egg
+            <Upload className="h-4 w-4" /> {t("importDialog.title")}
           </DialogTitle>
         </DialogHeader>
 
         {importEggPreview ? (
           <div className="flex flex-col gap-4 py-2">
             <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 flex flex-col gap-2">
-              <p className="text-sm font-medium text-green-400">Egg imported successfully!</p>
+              <p className="text-sm font-medium text-green-400">{t("importDialog.importedSuccessfully")}</p>
               <p className="text-sm text-foreground font-semibold">{importEggPreview.name}</p>
               {importEggPreview.description && <p className="text-xs text-muted-foreground">{importEggPreview.description}</p>}
               <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span>Image: <span className="font-mono text-foreground">{importEggPreview.dockerImage}</span></span>
-                <span>Env vars: <span className="text-foreground">{(importEggPreview.envVars ?? []).length}</span></span>
-                {importEggPreview.installScript && <span className="text-green-400">✓ Install script included</span>}
-                {importEggPreview.processConfig && <span className="text-green-400">✓ Process config included</span>}
+                <span>{t("importDialog.preview.image")}: <span className="font-mono text-foreground">{importEggPreview.dockerImage}</span></span>
+                <span>{t("importDialog.preview.envVars")}: <span className="text-foreground">{(importEggPreview.envVars ?? []).length}</span></span>
+                {importEggPreview.installScript && <span className="text-green-400">✓ {t("importDialog.preview.installIncluded")}</span>}
+                {importEggPreview.processConfig && <span className="text-green-400">✓ {t("importDialog.preview.processIncluded")}</span>}
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={() => { setImportEggOpen(false); setImportEggPreview(null) }}>Done</Button>
+              <Button onClick={() => { setImportEggOpen(false); setImportEggPreview(null) }}>{t("actions.done")}</Button>
             </DialogFooter>
           </div>
         ) : (
@@ -373,37 +375,37 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                 onClick={() => setImportEggMode("paste")}
                 className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${importEggMode === "paste" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
               >
-                Paste JSON
+                {t("importDialog.modes.pasteJson")}
               </button>
               <button
                 onClick={() => setImportEggMode("url")}
                 className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${importEggMode === "url" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
               >
-                Fetch from URL
+                {t("importDialog.modes.fetchFromUrl")}
               </button>
             </div>
 
             {importEggMode === "paste" ? (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Egg JSON (PTDL_v1 or PTDL_v2)</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("importDialog.eggJson")}</label>
                 <textarea
                   className="h-52 w-full rounded-md border border-border bg-secondary/30 p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder={'{\n  "meta": { "version": "PTDL_v2" },\n  "name": "My Egg",\n  ...\n}'}
                   value={importEggJson}
                   onChange={(e) => setImportEggJson(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">Paste the full exported egg JSON from Pterodactyl / Pelican.</p>
+                <p className="text-xs text-muted-foreground">{t("importDialog.pasteHint")}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Raw JSON URL</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("importDialog.rawJsonUrl")}</label>
                 <input
                   className="w-full rounded-md border border-border bg-secondary/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="https://raw.githubusercontent.com/pterodactyl/eggs/master/.../egg-paper.json"
                   value={importEggUrl}
                   onChange={(e) => setImportEggUrl(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">The panel will fetch this URL server-side. Use a raw GitHub URL for community eggs.</p>
+                <p className="text-xs text-muted-foreground">{t("importDialog.urlHint")}</p>
               </div>
             )}
 
@@ -412,9 +414,9 @@ export default function EggsTab({ ctx }: { ctx: any }) {
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setImportEggOpen(false)} className="border-border">Cancel</Button>
+              <Button variant="outline" onClick={() => setImportEggOpen(false)} className="border-border">{t("actions.cancel")}</Button>
               <Button onClick={doImportEgg} disabled={importEggLoading} className="bg-primary text-primary-foreground">
-                {importEggLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Importing…</> : "Import Egg"}
+                {importEggLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> {t("actions.importing")}</> : t("actions.importEgg")}
               </Button>
             </DialogFooter>
           </div>
@@ -426,15 +428,15 @@ export default function EggsTab({ ctx }: { ctx: any }) {
       <DialogContent className="border-border bg-card sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">
-            {eggDialog === "new" ? "New Egg" : `Edit Egg — ${eggDialog?.name || ""}`}
+            {eggDialog === "new" ? t("dialog.newTitle") : t("dialog.editTitle", { name: eggDialog?.name || "" })}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex gap-1 rounded-lg border border-border p-1 bg-secondary/20 mt-1">
-          {(["basic", "variables", "config", "advanced"] as const).map((t) => (
-            <button key={t} onClick={() => setEggTab(t)}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium capitalize transition-colors ${eggTab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {t === "config" ? "Process Config" : t === "advanced" ? "Install Script" : t.charAt(0).toUpperCase() + t.slice(1)}
+          {(["basic", "variables", "config", "advanced"] as const).map((tabKey) => (
+            <button key={tabKey} onClick={() => setEggTab(tabKey)}
+              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium capitalize transition-colors ${eggTab === tabKey ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              {tabKey === "config" ? t("tabs.processConfig") : tabKey === "advanced" ? t("tabs.installScript") : tabKey === "basic" ? t("tabs.basic") : t("tabs.variables")}
             </button>
           ))}
         </div>
@@ -444,20 +446,20 @@ export default function EggsTab({ ctx }: { ctx: any }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name *</label>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.name")}</label>
                   <input value={eggName} onChange={(e) => setEggName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" placeholder="Minecraft Java" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Author</label>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.author")}</label>
                   <input value={eggAuthor} onChange={(e) => setEggAuthor(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" placeholder="support@pterodactyl.io" />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.description")}</label>
                 <input value={eggDesc} onChange={(e) => setEggDesc(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" placeholder="Optional description" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Docker Image *</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.primaryDockerImage")}</label>
                 <input value={eggImage} onChange={(e) => setEggImage(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" placeholder="ghcr.io/pterodactyl/yolks:java_21" />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -465,7 +467,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                 <textarea value={eggDockerImagesRaw} onChange={(e) => setEggDockerImagesRaw(e.target.value)} rows={3} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary/50 resize-none" placeholder={'{\n  "Java 21": "ghcr.io/pterodactyl/yolks:java_21",\n  "Java 17": "ghcr.io/pterodactyl/yolks:java_17"\n}'} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Startup Command *</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.startupCommand")}</label>
                 <input value={eggStartup} onChange={(e) => setEggStartup(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" placeholder="java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}" />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -484,15 +486,15 @@ export default function EggsTab({ ctx }: { ctx: any }) {
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={eggVisible} onChange={(e) => setEggVisible(e.target.checked)} className="accent-primary" />
-                <span className="text-sm text-foreground">Visible to users</span>
+                <span className="text-sm text-foreground">{t("fields.visibleToUsers")}</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={eggRootless} onChange={(e) => setEggRootless(e.target.checked)} className="accent-primary" />
-                <span className="text-sm text-foreground">Launch in rootless mode</span>
+                <span className="text-sm text-foreground">{t("fields.launchRootless")}</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={eggRequiresKvm} onChange={(e) => setEggRequiresKvm(e.target.checked)} className="accent-primary" />
-                <span className="text-sm text-foreground">Requires KVM (enables KVM virtualization for this template)</span>
+                <span className="text-sm text-foreground">{t("fields.requiresKvm")}</span>
               </label>
             </>
           )}
@@ -519,7 +521,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
           {eggTab === "config" && (
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stop Command</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.stopCommand")}</label>
                 <input value={eggProcessStop} onChange={(e) => setEggProcessStop(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" placeholder="stop" />
                 <p className="text-xs text-muted-foreground">Use <code className="font-mono bg-secondary/50 px-1 rounded">SIGKILL</code> or <code className="font-mono bg-secondary/50 px-1 rounded">SIGTERM</code> for signal-based stop, or any text command.</p>
               </div>
@@ -535,20 +537,20 @@ export default function EggsTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Install Container</label>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.installContainer")}</label>
                   <input value={eggInstallContainer} onChange={(e) => setEggInstallContainer(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" placeholder="ghcr.io/pterodactyl/installers:debian" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Entrypoint</label>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.entrypoint")}</label>
                   <input value={eggInstallEntrypoint} onChange={(e) => setEggInstallEntrypoint(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" placeholder="bash" />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Install Script</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.installScript")}</label>
                 <textarea value={eggInstallScript} onChange={(e) => setEggInstallScript(e.target.value)} rows={14} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary/50 resize-none" placeholder={"#!/bin/bash\napt-get install -y curl\n# ...\n"} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Allowed Portals</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("fields.allowedPortals")}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['free', 'paid', 'enterprise'].map((tier) => (
                     <label key={tier} className="flex items-center gap-2 text-sm">
@@ -565,16 +567,16 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                     </label>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">When empty, this egg is available to all portals.</p>
+                <p className="text-xs text-muted-foreground">{t("fields.allowedPortalsHint")}</p>
               </div>
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setEggDialog(null)} className="border-border">Cancel</Button>
+          <Button variant="outline" onClick={() => setEggDialog(null)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={saveEgg} disabled={eggLoading || !eggName.trim() || !eggImage.trim() || !eggStartup.trim()} className="bg-primary text-primary-foreground">
-            {eggLoading ? "Saving…" : eggDialog === "new" ? "Create Egg" : "Save Changes"}
+            {eggLoading ? t("actions.saving") : eggDialog === "new" ? t("actions.createEgg") : t("actions.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

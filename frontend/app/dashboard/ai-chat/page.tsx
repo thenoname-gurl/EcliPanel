@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { useTranslations } from "next-intl"
 import { PanelHeader } from "@/components/panel/header"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { FeatureGuard } from "@/components/panel/feature-guard"
@@ -33,24 +34,30 @@ interface Message {
 
 const STORAGE_KEY = "ecli_ai_chat_messages"
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content:
-      "Hey there! 👋 I'm your Eclipse AI assistant. I can help you manage servers, debug issues, and optimize your infrastructure. What would you like to work on today?",
-    timestamp: new Date(),
-  },
-]
+function getInitialMessages(t: any): Message[] {
+  return [
+    {
+      id: "1",
+      role: "assistant",
+      content: t("initialMessage"),
+      timestamp: new Date(),
+    },
+  ]
+}
 
-const SUGGESTIONS = [
-  { icon: Zap, text: "Optimize my server", color: "text-yellow-400" },
-  { icon: MessageSquare, text: "Debug an issue", color: "text-blue-400" },
-  { icon: Bot, text: "Configure settings", color: "text-green-400" },
-  { icon: Sparkles, text: "Best practices", color: "text-purple-400" },
-]
+function getSuggestions(t: any) {
+  return [
+    { icon: Zap, text: t("suggestions.optimize"), color: "text-yellow-400" },
+    { icon: MessageSquare, text: t("suggestions.debug"), color: "text-blue-400" },
+    { icon: Bot, text: t("suggestions.configure"), color: "text-green-400" },
+    { icon: Sparkles, text: t("suggestions.bestPractices"), color: "text-purple-400" },
+  ]
+}
 
 export default function AIChatPage() {
+  const t = useTranslations("aiChatPage")
+  const INITIAL_MESSAGES = getInitialMessages(t)
+  const SUGGESTIONS = getSuggestions(t)
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const raw =
@@ -156,8 +163,7 @@ export default function AIChatPage() {
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content:
-            "No AI model available. Please contact your administrator to configure one.",
+          content: t("errors.noModelAvailable"),
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, botMsg])
@@ -192,7 +198,7 @@ export default function AIChatPage() {
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `Error: ${err.message || "Failed to get response"}`,
+        content: t("errors.chatResponse", { reason: err.message || t("errors.failedGetResponse") }),
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, botMsg])
@@ -216,12 +222,12 @@ export default function AIChatPage() {
   }))
 
   const selectedModelLabel =
-    modelOptions?.find((m) => m.id === selectedModel)?.label || "Select Model"
+    modelOptions?.find((m) => m.id === selectedModel)?.label || t("header.selectModel")
 
   return (
     <FeatureGuard feature="ai">
       <div className="h-full flex flex-col overflow-hidden">
-        <PanelHeader title="AI Chat" description="Chat with your AI assistant" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
 
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="shrink-0 border-b border-border/50 bg-card/30 backdrop-blur-xl">
@@ -235,10 +241,10 @@ export default function AIChatPage() {
                 </div>
                 <div className="min-w-0">
                   <h2 className="text-xs sm:text-sm font-semibold text-foreground">
-                    Eclipse AI
+                    {t("header.assistantName")}
                   </h2>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">
-                    {isTyping ? "Typing..." : "Online"}
+                    {isTyping ? t("header.typing") : t("header.online")}
                   </p>
                 </div>
               </div>
@@ -289,7 +295,7 @@ export default function AIChatPage() {
                           ))}
                           {!modelOptions?.length && (
                             <p className="px-3 py-2 text-xs text-muted-foreground">
-                              No models available
+                              {t("header.noModels")}
                             </p>
                           )}
                         </div>
@@ -301,7 +307,7 @@ export default function AIChatPage() {
                 <button
                   onClick={() => setMessages(INITIAL_MESSAGES)}
                   className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-secondary/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  title="Clear chat"
+                  title={t("actions.clearChat")}
                 >
                   <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
@@ -366,7 +372,7 @@ export default function AIChatPage() {
                           <button
                             onClick={() => copyToClipboard(msg.content, msg.id)}
                             className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
-                            title="Copy"
+                            title={t("messageActions.copy")}
                           >
                             {copiedId === msg.id ? (
                               <Check className="h-3 w-3 text-green-500" />
@@ -376,19 +382,19 @@ export default function AIChatPage() {
                           </button>
                           <button
                             className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
-                            title="Good response"
+                            title={t("messageActions.good")}
                           >
                             <ThumbsUp className="h-3 w-3" />
                           </button>
                           <button
                             className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
-                            title="Bad response"
+                            title={t("messageActions.bad")}
                           >
                             <ThumbsDown className="h-3 w-3" />
                           </button>
                           <button
                             className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
-                            title="Regenerate"
+                            title={t("messageActions.retry")}
                           >
                             <RotateCcw className="h-3 w-3" />
                           </button>
@@ -444,7 +450,7 @@ export default function AIChatPage() {
                         />
                       </div>
                       <span className="text-[10px] sm:text-xs text-muted-foreground/60">
-                        Thinking...
+                        {t("states.thinking")}
                       </span>
                     </div>
                   </div>
@@ -458,7 +464,7 @@ export default function AIChatPage() {
           {messages.length <= 1 && !isTyping && (
             <div className="shrink-0 border-t border-border/50 bg-card/30 backdrop-blur-xl px-3 py-2.5 sm:px-6 sm:py-3">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground/60 mb-2 text-center font-medium uppercase tracking-wider">
-                Quick actions
+                {t("quickActions.title")}
               </p>
               <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-w-md mx-auto">
                 {SUGGESTIONS.map((s, i) => (
@@ -499,7 +505,7 @@ export default function AIChatPage() {
                           handleSend()
                         }
                       }}
-                      placeholder="Ask me anything..."
+                      placeholder={t("composer.placeholder")}
                       rows={1}
                       className="w-full resize-none bg-transparent px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-foreground placeholder:text-muted-foreground/50 outline-none max-h-[120px] leading-relaxed"
                       style={{ minHeight: "44px" }}
@@ -530,13 +536,13 @@ export default function AIChatPage() {
                   <kbd className="px-1.5 py-0.5 rounded bg-secondary/50 text-[9px] font-mono">
                     Enter
                   </kbd>{" "}
-                  send
+                  {t("composer.sendHint")}
                 </span>
                 <span className="text-[10px] text-muted-foreground/40">
                   <kbd className="px-1.5 py-0.5 rounded bg-secondary/50 text-[9px] font-mono">
                     Shift+Enter
                   </kbd>{" "}
-                  new line
+                  {t("composer.newLineHint")}
                 </span>
               </div>
             </div>
@@ -559,14 +565,14 @@ export default function AIChatPage() {
               </div>
 
               <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium mb-3 px-1">
-                Message actions
+                {t("messageActions.title")}
               </p>
 
               <div className="grid grid-cols-4 gap-2">
                 {[
                   {
                     icon: Copy,
-                    label: "Copy",
+                    label: t("messageActions.copy"),
                     action: () => {
                       const msg = messages.find((m) => m.id === activeMessageMenu)
                       if (msg) copyToClipboard(msg.content, msg.id)
@@ -575,17 +581,17 @@ export default function AIChatPage() {
                   },
                   {
                     icon: ThumbsUp,
-                    label: "Good",
+                    label: t("messageActions.good"),
                     action: () => setActiveMessageMenu(null),
                   },
                   {
                     icon: ThumbsDown,
-                    label: "Bad",
+                    label: t("messageActions.bad"),
                     action: () => setActiveMessageMenu(null),
                   },
                   {
                     icon: RotateCcw,
-                    label: "Retry",
+                    label: t("messageActions.retry"),
                     action: () => setActiveMessageMenu(null),
                   },
                 ].map((item, i) => (

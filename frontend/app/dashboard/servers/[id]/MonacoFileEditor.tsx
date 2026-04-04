@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, lazy, Suspense, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "@/lib/editor-settings"
@@ -68,6 +69,7 @@ function EditorToolbar({
   onCopy,
   copied
 }: EditorToolbarProps) {
+  const t = useTranslations("serverMonacoEditor")
   return (
     <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-2 py-1.5 sm:px-3 overflow-x-auto">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -80,13 +82,13 @@ function EditorToolbar({
         
         <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
           <AlignLeft className="h-3.5 w-3.5" />
-          <span>Ln {cursorPosition.line}, Col {cursorPosition.column}</span>
+          <span>{t("position.lineCol", { line: cursorPosition.line, col: cursorPosition.column })}</span>
         </div>
         
         <div className="hidden sm:block h-4 w-px bg-border" />
         
         <span className="hidden sm:inline text-xs text-muted-foreground">
-          {lineCount} lines
+          {t("position.lines", { count: lineCount })}
         </span>
 
         {aiEnabled && (
@@ -98,7 +100,7 @@ function EditorToolbar({
             )}>
               <Sparkles className={cn("h-3 w-3", aiLoading && "animate-pulse")} />
               <span className="hidden sm:inline">
-                {aiLoading ? "Thinking..." : "AI"}
+                {aiLoading ? t("ai.thinking") : t("ai.label")}
               </span>
             </div>
           </>
@@ -109,14 +111,14 @@ function EditorToolbar({
         <button
           onClick={onUndo}
           className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden"
-          title="Undo"
+          title={t("actions.undo")}
         >
           <Undo className="h-4 w-4" />
         </button>
         <button
           onClick={onRedo}
           className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden"
-          title="Redo"
+          title={t("actions.redo")}
         >
           <Redo className="h-4 w-4" />
         </button>
@@ -127,7 +129,7 @@ function EditorToolbar({
           <button
             onClick={() => onFontSizeChange(Math.max(10, fontSize - 1))}
             className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title="Decrease font size"
+            title={t("actions.decreaseFont")}
           >
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
@@ -137,7 +139,7 @@ function EditorToolbar({
           <button
             onClick={() => onFontSizeChange(Math.min(24, fontSize + 1))}
             className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title="Increase font size"
+            title={t("actions.increaseFont")}
           >
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
@@ -153,7 +155,7 @@ function EditorToolbar({
               ? "text-primary bg-primary/10" 
               : "text-muted-foreground hover:text-foreground hover:bg-secondary"
           )}
-          title={wordWrap ? "Disable word wrap" : "Enable word wrap"}
+          title={wordWrap ? t("actions.disableWrap") : t("actions.enableWrap")}
         >
           <WrapText className="h-4 w-4" />
         </button>
@@ -161,7 +163,7 @@ function EditorToolbar({
         <button
           onClick={onSearch}
           className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Search (Ctrl+F)"
+          title={t("actions.search")}
         >
           <Search className="h-4 w-4" />
         </button>
@@ -169,7 +171,7 @@ function EditorToolbar({
         <button
           onClick={onCopy}
           className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Copy all"
+          title={t("actions.copyAll")}
         >
           {copied ? (
             <Check className="h-4 w-4 text-green-400" />
@@ -188,19 +190,21 @@ interface MobilePositionBarProps {
 }
 
 function MobilePositionBar({ cursorPosition, lineCount }: MobilePositionBarProps) {
+  const t = useTranslations("serverMonacoEditor")
   return (
     <div className="flex sm:hidden items-center justify-between border-t border-border bg-secondary/30 px-3 py-1.5 text-xs text-muted-foreground">
-      <span>Ln {cursorPosition.line}, Col {cursorPosition.column}</span>
-      <span>{lineCount} lines</span>
+      <span>{t("position.lineCol", { line: cursorPosition.line, col: cursorPosition.column })}</span>
+      <span>{t("position.lines", { count: lineCount })}</span>
     </div>
   )
 }
 
 function EditorLoadingFallback() {
+  const t = useTranslations("serverMonacoEditor")
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[300px] bg-[#1e1e1e]">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-3" />
-      <p className="text-sm text-muted-foreground">Loading editor...</p>
+      <p className="text-sm text-muted-foreground">{t("states.loadingEditor")}</p>
     </div>
   )
 }
@@ -211,6 +215,7 @@ export function MonacoFileEditor({
   language, 
   editorSettings 
 }: MonacoFileEditorProps) {
+  const t = useTranslations("serverMonacoEditor")
   const settings = { ...DEFAULT_EDITOR_SETTINGS, ...(editorSettings || {}) }
   
   const editorRef = useRef<any>(null)
@@ -229,7 +234,7 @@ export function MonacoFileEditor({
   const [cursorPosition, setCursorPosition] = useState<CursorPosition>({ line: 1, column: 1 })
   const [lineCount, setLineCount] = useState(1)
   const [wordWrap, setWordWrap] = useState(true)
-  const [fontSize, setFontSize] = useState(settings.fontSize)
+  const [fontSize, setFontSize] = useState<number>(settings.fontSize ?? DEFAULT_EDITOR_SETTINGS.fontSize ?? 14)
   const [copied, setCopied] = useState(false)
   const [editorHeight, setEditorHeight] = useState("500px")
 
@@ -328,15 +333,15 @@ export function MonacoFileEditor({
             const snippet = insertText.split('\n')[0].trim()
             const label = snippet.length > 0 
               ? (snippet.length > 60 ? snippet.slice(0, 57) + '...' : snippet) 
-              : 'AI suggestion'
+              : t("ai.suggestion")
 
             const item = {
               label,
               kind: monacoRef.current.languages.CompletionItemKind.Snippet,
               insertText,
               insertTextRules: monacoRef.current.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              detail: 'AI suggestion',
-              documentation: 'Generated by AI',
+              detail: t("ai.suggestion"),
+              documentation: t("ai.generatedBy"),
             }
 
             const result = { suggestions: [item] }

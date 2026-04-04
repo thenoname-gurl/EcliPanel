@@ -760,9 +760,10 @@ export async function serverRoutes(app: any, prefix = '') {
       const passkeyCount = await AppDataSource.getRepository(
         require('../models/passkey.entity').Passkey
       ).count({ where: { user: { id: user.id } } });
-      if (passkeyCount === 0) {
+      const hasSecurityMethod = passkeyCount > 0 || !!user.twoFactorEnabled;
+      if (!hasSecurityMethod) {
         ctx.set.status = 403;
-        return { error: 'You must register a passkey before creating servers' };
+        return { error: 'You must enable 2FA or register a passkey before creating servers' };
       }
 
       if (geoLevel >= 3 && (effectivePortalType === 'free' || effectivePortalType === 'educational')) {

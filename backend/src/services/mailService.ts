@@ -9,6 +9,69 @@ let templateWorker: any = null;
 const workerResponseMap = new Map<string, (val: any) => void>();
 let workerCounter = 0;
 
+function buildDefaultFromAddress() {
+  const fromEnv = process.env.SMTP_FROM || process.env.MAIL_FROM;
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+
+  const user = process.env.SMTP_USER || process.env.MAIL_USER;
+  if (user && user.trim()) return user.trim();
+
+  return 'noreply@ecli.app';
+}
+
+function normalizeFromHeader(from: nodemailer.SendMailOptions['from']) {
+  const defaultName = process.env.SMTP_FROM_NAME || process.env.MAIL_FROM_NAME || 'EclipseSystems';
+  const fallback = `${defaultName} <${buildDefaultFromAddress()}>`;
+
+  if (!from) return fallback;
+
+  if (typeof from === 'string') {
+    const trimmed = from.trim();
+    if (!trimmed) return fallback;
+    if (trimmed.includes('<') && trimmed.includes('>')) return trimmed;
+    if (trimmed.includes('@')) return `${defaultName} <${trimmed}>`;
+    return fallback;
+  }
+
+  if (Array.isArray(from)) {
+    if (from.length === 0) return fallback;
+    return normalizeFromHeader(from[0]);
+  }
+
+  if (typeof from === 'object') {
+    const addrObj = from as { address?: string; name?: string };
+    const address = addrObj.address?.trim() || buildDefaultFromAddress();
+    const name = addrObj.name?.trim() || defaultName;
+    return `${name} <${address}>`;
+  }
+
+  return fallback;
+}
+
+function extractAddress(value: nodemailer.SendMailOptions['from']) {
+  if (!value) return '';
+  const normalized = normalizeFromHeader(value);
+  const match = normalized.match(/<([^>]+)>/);
+  if (match?.[1]) return match[1].trim().toLowerCase();
+  return normalized.trim().toLowerCase();
+}
+
+function htmlToText(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export async function initMail() {
   const host = process.env.SMTP_HOST || process.env.MAIL_HOST;
   const port = Number(process.env.SMTP_PORT || process.env.MAIL_PORT) || 587;
@@ -16,11 +79,15 @@ export async function initMail() {
   const user = process.env.SMTP_USER || process.env.MAIL_USER;
   const pass = process.env.SMTP_PASS || process.env.MAIL_PASS;
   const allowInvalidTls = (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
+  const poolEnabled = (process.env.SMTP_POOL || process.env.MAIL_POOL || 'true') === 'true';
 
   transporter = nodemailer.createTransport({
     host,
     port,
     secure,
+    pool: poolEnabled,
+    maxConnections: Number(process.env.SMTP_MAX_CONNECTIONS || process.env.MAIL_MAX_CONNECTIONS) || 5,
+    maxMessages: Number(process.env.SMTP_MAX_MESSAGES || process.env.MAIL_MAX_MESSAGES) || 100,
     auth: user || pass ? { user, pass } : undefined,
     tls: allowInvalidTls
       ? {
@@ -28,7 +95,7 @@ export async function initMail() {
           checkServerIdentity: () => undefined,
         }
       : undefined,
-  });
+  } as any);
   await transporter.verify();
 }
 
@@ -109,6 +176,35 @@ export async function sendMail(options: nodemailer.SendMailOptions & { template?
   if (options.template) {
     options.html = await renderTemplateAsync(options.template, options.vars || {});
   }
+
+  options.from = normalizeFromHeader(options.from);
+
+  if (!options.replyTo) {
+    options.replyTo = process.env.SMTP_REPLY_TO || process.env.MAIL_REPLY_TO || extractAddress(options.from);
+  }
+
+  if (options.html && !options.text) {
+    options.text = htmlToText(String(options.html));
+  }
+
+  const fromAddress = extractAddress(options.from);
+  const domain = fromAddress.includes('@') ? fromAddress.split('@')[1] : '';
+  if (!options.messageId && domain) {
+    options.messageId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@${domain}>`;
+  }
+
+  options.headers = {
+    'X-Mailer': 'EcliPanel Mailer',
+    ...(options.headers || {}),
+  };
+
+  if (!options.envelope && fromAddress) {
+    options.envelope = {
+      from: fromAddress,
+      to: options.to as any,
+    };
+  }
+
   if (!transporter) await initMail();
   return transporter.sendMail(options);
 }

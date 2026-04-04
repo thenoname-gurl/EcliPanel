@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +37,7 @@ function formatBytes(bytes: number) {
 }
 
 export default function OrganisationDetail() {
+  const t = useTranslations("organisationsDetailPage")
   const params = useParams()
   const id = params?.id as string | undefined
   const orgId = id ?? ""
@@ -77,15 +79,15 @@ export default function OrganisationDetail() {
   const isAdmin = user && (user.role === "admin" || user.role === "rootAdmin" || user.role === "*")
 
   const leaveOrg = async () => {
-    if (!confirm('Leave organisation? This will remove your access and related subuser links.')) return
+    if (!confirm(t('confirm.leaveOrg'))) return
     if (!orgId || !user) return
     try {
       await apiFetch(API_ENDPOINTS.organisationLeave.replace(":id", orgId), { method: 'POST' })
       setOrg((o: any) => ({ ...o, users: (o.users || []).filter((u: any) => u.id !== user.id) }))
-      alert('You have left the organisation')
+      alert(t('alerts.leftOrg'))
       router.push('/dashboard')
     } catch (err: any) {
-      alert('Failed: ' + err.message)
+      alert(t('alerts.failed', { reason: err.message }))
     }
   }
 
@@ -117,8 +119,8 @@ export default function OrganisationDetail() {
     if (display) return display
     if (legal) return legal
     if (member.email) return member.email
-    if (member.id != null) return `User #${member.id}`
-    return "Unknown user"
+    if (member.id != null) return t('members.userIdLabel', { id: member.id })
+    return t('members.unknownUser')
   }
 
   useEffect(() => {
@@ -292,17 +294,17 @@ export default function OrganisationDetail() {
     const handle = org?.handle?.replace(/\.$/, '')
     let name = subdomainNewName.trim() || handle || ''
     if (!name) {
-      alert('Subdomain name required')
+      alert(t('alerts.subdomainNameRequired'))
       return
     }
 
     if (!handle) {
-      alert('Organisation handle is not set')
+      alert(t('alerts.orgHandleNotSet'))
       return
     }
 
     if (name !== handle) {
-      alert('Only organisation handle zone can be created')
+      alert(t('alerts.onlyHandleZone'))
       return
     }
 
@@ -311,7 +313,7 @@ export default function OrganisationDetail() {
       setSubdomainNewName('')
       await loadSubdomains()
     } catch (e: any) {
-      alert('Failed: ' + e.message)
+      alert(t('alerts.failed', { reason: e.message }))
     }
   }
 
@@ -334,7 +336,7 @@ export default function OrganisationDetail() {
       setSubdomainRecordForm({ name: '', type: 'A', ttl: 3600, content: '', proxied: false, autoTtl: false })
       await loadSubdomainRecords(subdomainSelection)
     } catch (e: any) {
-      alert('Failed: ' + e.message)
+      alert(t('alerts.failed', { reason: e.message }))
     }
   }
 
@@ -353,13 +355,13 @@ export default function OrganisationDetail() {
       setSubdomainEditingRecord(null)
       await loadSubdomainRecords(subdomainSelection)
     } catch (e: any) {
-      alert('Failed update: ' + e.message)
+      alert(t('alerts.failedUpdate', { reason: e.message }))
     }
   }
 
   const deleteSubdomainRecord = async (record: any) => {
     if (!subdomainSelection || !record?.id) return
-    if (!confirm('Delete this record?')) return
+    if (!confirm(t('confirm.deleteRecord'))) return
     try {
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord
         .replace(':id', orgId)
@@ -369,7 +371,7 @@ export default function OrganisationDetail() {
       )
       await loadSubdomainRecords(subdomainSelection)
     } catch (e: any) {
-      alert('Failed delete: ' + e.message)
+      alert(t('alerts.failedDelete', { reason: e.message }))
     }
   }
 
@@ -380,9 +382,9 @@ export default function OrganisationDetail() {
     if (tab === "dns" && subdomains.length === 0 && !subdomainsLoading) loadSubdomains()
   }
 
-  if (!id) return <p className="p-6 text-sm text-destructive">Invalid organisation.</p>
-  if (loading) return <p className="p-6 text-sm text-muted-foreground">Loading...</p>
-  if (!org) return <p className="p-6 text-sm text-destructive">Organisation not found.</p>
+  if (!id) return <p className="p-6 text-sm text-destructive">{t('states.invalidOrganisation')}</p>
+  if (loading) return <p className="p-6 text-sm text-muted-foreground">{t('states.loading')}</p>
+  if (!org) return <p className="p-6 text-sm text-destructive">{t('states.organisationNotFound')}</p>
 
   const sendInvite = async () => {
     if (!inviteEmail.trim()) return
@@ -392,9 +394,9 @@ export default function OrganisationDetail() {
         body: JSON.stringify({ email: inviteEmail }),
       })
       setInviteEmail("")
-      alert("Invitation sent")
+      alert(t('alerts.invitationSent'))
     } catch (err: any) {
-      alert("Failed: " + err.message)
+      alert(t('alerts.failed', { reason: err.message }))
     }
   }
 
@@ -412,30 +414,30 @@ export default function OrganisationDetail() {
         setMembers((m) => [...m, res.target])
         setAddUserEmail("")
         setAddUserId("")
-        alert("User added to organisation")
+        alert(t('alerts.userAdded'))
       }
     } catch (err: any) {
-      alert("Failed: " + err.message)
+      alert(t('alerts.failed', { reason: err.message }))
     }
   }
 
   const resendInvite = async (inviteId: number) => {
     try {
       await apiFetch(API_ENDPOINTS.organisationResendInvite.replace(":id", id).replace(":inviteId", inviteId.toString()), { method: "POST" });
-      alert("Invite resent")
+      alert(t('alerts.inviteResent'))
     } catch (err: any) {
-      alert("Failed: " + err.message)
+      alert(t('alerts.failed', { reason: err.message }))
     }
   }
 
   const revokeInvite = async (inviteId: number) => {
-    if (!confirm('Revoke this invite?')) return
+    if (!confirm(t('confirm.revokeInvite'))) return
     try {
       await apiFetch(API_ENDPOINTS.organisationRevokeInvite.replace(":id", id).replace(":inviteId", inviteId.toString()), { method: "DELETE" });
       setOrg((o: any) => ({ ...o, invites: (o.invites || []).filter((iv: any) => iv.id !== inviteId) }))
-      alert('Invite revoked')
+      alert(t('alerts.inviteRevoked'))
     } catch (err: any) {
-      alert('Failed: ' + err.message)
+      alert(t('alerts.failed', { reason: err.message }))
     }
   }
 
@@ -451,7 +453,7 @@ export default function OrganisationDetail() {
     }
   }
 
-  const headerTitle = org.name || "Organisation"
+  const headerTitle = org.name || t('header.fallbackTitle')
   const headerDescription = `${org.handle || ""} · ${org.portalTier || "free"}`.replace(/^ · /, "")
 
   return (
@@ -462,7 +464,7 @@ export default function OrganisationDetail() {
           {/* Org Header / Logo */}
           <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-4 min-w-0 box-border overflow-hidden">
             {org.avatarUrl ? (
-              <img src={getAvatarUrl(org.avatarUrl)} alt="org logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
+              <img src={getAvatarUrl(org.avatarUrl)} alt={t('labels.orgLogoAlt')} className="h-16 w-16 rounded-xl object-cover border border-border" />
             ) : (
               <div className="h-16 w-16 rounded-xl bg-secondary/50 border border-border flex items-center justify-center text-2xl text-muted-foreground font-bold">
                 {org.name?.[0]?.toUpperCase()}
@@ -489,18 +491,18 @@ export default function OrganisationDetail() {
                         })
                         setOrg({ ...org, portalTier: tier })
                       } catch (err: any) {
-                        alert("Failed to update tier: " + err.message)
+                        alert(t('alerts.failedUpdateTier', { reason: err.message }))
                       }
                     }}
                     className="rounded-lg border border-border bg-input px-2 py-1.5 text-sm text-foreground"
                   >
-                    <option value="free">Free</option>
-                    <option value="paid">Pro</option>
-                    <option value="enterprise">Enterprise</option>
+                    <option value="free">{t('tiers.free')}</option>
+                    <option value="paid">{t('tiers.pro')}</option>
+                    <option value="enterprise">{t('tiers.enterprise')}</option>
                   </select>
                   <label className="cursor-pointer">
                     <span className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors">
-                      {logoUploading ? "Uploading…" : "Upload Logo"}
+                      {logoUploading ? t('actions.uploading') : t('actions.uploadLogo')}
                     </span>
                     <input
                       type="file"
@@ -517,7 +519,7 @@ export default function OrganisationDetail() {
                           const res = await apiFetch(API_ENDPOINTS.orgAvatar.replace(":id", id), { method: "POST", body: fd })
                           setOrg((o: any) => ({ ...o, avatarUrl: res.url }))
                         } catch (err: any) {
-                          alert("Upload failed: " + err.message)
+                          alert(t('alerts.uploadFailed', { reason: err.message }))
                         } finally {
                           setLogoUploading(false)
                         }
@@ -525,7 +527,7 @@ export default function OrganisationDetail() {
                     />
                   </label>
                   {user && activeOrgRole !== 'owner' && (
-                    <Button size="sm" variant="destructive" onClick={leaveOrg}>Leave org</Button>
+                    <Button size="sm" variant="destructive" onClick={leaveOrg}>{t('actions.leaveOrg')}</Button>
                   )}
                 </>
               )}
@@ -536,22 +538,22 @@ export default function OrganisationDetail() {
           <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); handleTabChange(value); }} className="w-full">
             <TabsList className="flex gap-2 overflow-x-auto scrollbar-none border border-border bg-secondary/50 px-2">
               <TabsTrigger value="members" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
-                <Users className="h-3.5 w-3.5" /> Members
+                <Users className="h-3.5 w-3.5" /> {t('tabs.members')}
               </TabsTrigger>
               <TabsTrigger value="orders" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
-                <Receipt className="h-3.5 w-3.5" /> Orders
+                <Receipt className="h-3.5 w-3.5" /> {t('tabs.orders')}
               </TabsTrigger>
               <TabsTrigger value="servers" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
-                <Server className="h-3.5 w-3.5" /> Servers
+                <Server className="h-3.5 w-3.5" /> {t('tabs.servers')}
               </TabsTrigger>
               <TabsTrigger value="nodes" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
-                <Network className="h-3.5 w-3.5" /> Nodes
+                <Network className="h-3.5 w-3.5" /> {t('tabs.nodes')}
               </TabsTrigger>
               <TabsTrigger value="dns" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
-                <Globe className="h-3.5 w-3.5" /> DNS
+                <Globe className="h-3.5 w-3.5" /> {t('tabs.dns')}
               </TabsTrigger>
               <TabsTrigger value="activity" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex items-center gap-1.5 whitespace-nowrap">
-                <Activity className="h-3.5 w-3.5" /> Activity
+                <Activity className="h-3.5 w-3.5" /> {t('tabs.activity')}
               </TabsTrigger>
             </TabsList>
 
@@ -559,10 +561,10 @@ export default function OrganisationDetail() {
             <TabsContent value="members" className="mt-4">
               <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">{members.length} member{members.length !== 1 ? "s" : ""}</p>
+                  <p className="text-sm font-medium text-foreground">{t('members.count', { count: members.length })}</p>
                 </div>
                 {members.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No members in this organisation.</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('members.none')}</div>
                 ) : (
                   <div className="divide-y divide-border">
                     {members.map((m) => {
@@ -596,14 +598,14 @@ export default function OrganisationDetail() {
                                   )
                                   setMembers((prev) => prev.map((u) => (u.id === m.id ? { ...u, orgRole: newRole } : u)))
                                 } catch {
-                                  alert("Failed to change role")
+                                  alert(t('alerts.failedChangeRole'))
                                 }
                               }}
                               className="rounded-lg border border-border bg-input px-2 py-1 text-xs text-foreground"
                             >
-                              <option value="member">Member</option>
-                              <option value="admin">Admin</option>
-                              <option value="owner">Owner</option>
+                              <option value="member">{t('roles.member')}</option>
+                              <option value="admin">{t('roles.admin')}</option>
+                              <option value="owner">{t('roles.owner')}</option>
                             </select>
                             <Badge variant="outline" className="text-[10px]">{m.orgRole}</Badge>
                             {isManager && (
@@ -623,7 +625,7 @@ export default function OrganisationDetail() {
                 {/* Pending invites */}
                 {org.invites && org.invites.length > 0 && (
                   <div className="border-t border-border p-4">
-                    <p className="text-xs font-medium text-foreground mb-2">Pending invitations</p>
+                    <p className="text-xs font-medium text-foreground mb-2">{t('members.pendingInvitations')}</p>
                     <div className="space-y-2">
                       {org.invites.map((iv: any) => (
                         <div key={iv.id} className="flex items-center justify-between text-sm text-muted-foreground">
@@ -633,12 +635,12 @@ export default function OrganisationDetail() {
                               variant={iv.accepted ? 'secondary' : 'outline'}
                               className={iv.accepted ? 'text-xs' : 'text-xs border-warning/30 bg-warning/10 text-warning'}
                             >
-                              {iv.accepted ? 'Accepted' : 'Pending'}
+                              {iv.accepted ? t('members.accepted') : t('members.pending')}
                             </Badge>
                             {(isManager || isAdmin) && !iv.accepted && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => resendInvite(iv.id)}>Resend</Button>
-                                <Button size="sm" variant="destructive" onClick={() => revokeInvite(iv.id)}>Revoke</Button>
+                                <Button size="sm" variant="outline" onClick={() => resendInvite(iv.id)}>{t('actions.resend')}</Button>
+                                <Button size="sm" variant="destructive" onClick={() => revokeInvite(iv.id)}>{t('actions.revoke')}</Button>
                               </>
                             )}
                           </div>
@@ -650,33 +652,33 @@ export default function OrganisationDetail() {
                 {/* Admin: Add user directly */}
                 {isAdmin && (
                   <div className="border-t border-border p-4">
-                    <p className="text-xs font-medium text-foreground mb-2">Add existing user (admin)</p>
+                    <p className="text-xs font-medium text-foreground mb-2">{t('members.addExistingUser')}</p>
                     <div className="flex gap-2 mb-2">
-                      <Input placeholder="user id (optional)" value={addUserId} onChange={(e) => setAddUserId(e.target.value)} className="w-28" />
-                      <Input placeholder="or email@example.com" value={addUserEmail} onChange={(e) => setAddUserEmail(e.target.value)} className="flex-1" />
+                      <Input placeholder={t('members.userIdOptional')} value={addUserId} onChange={(e) => setAddUserId(e.target.value)} className="w-28" />
+                      <Input placeholder={t('members.orEmail')} value={addUserEmail} onChange={(e) => setAddUserEmail(e.target.value)} className="flex-1" />
                       <select value={addUserRole} onChange={(e) => setAddUserRole(e.target.value)} className="rounded-lg border border-border bg-input px-2 py-1 text-xs">
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
+                        <option value="member">{t('roles.member')}</option>
+                        <option value="admin">{t('roles.admin')}</option>
+                        <option value="owner">{t('roles.owner')}</option>
                       </select>
                     </div>
                     <div>
-                      <Button size="sm" onClick={addUserDirect}>Add user</Button>
+                      <Button size="sm" onClick={addUserDirect}>{t('actions.addUser')}</Button>
                     </div>
                   </div>
                 )}
                 {/* Invite */}
                 <div className="border-t border-border p-4">
-                  <p className="text-xs font-medium text-foreground mb-2">Invite a user</p>
+                  <p className="text-xs font-medium text-foreground mb-2">{t('members.inviteUser')}</p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="user@example.com"
+                      placeholder={t('members.userEmail')}
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       className="flex-1"
                     />
                     <Button size="sm" onClick={sendInvite}>
-                      <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Invite
+                      <UserPlus className="h-3.5 w-3.5 mr-1.5" /> {t('actions.invite')}
                     </Button>
                   </div>
                 </div>
@@ -687,27 +689,27 @@ export default function OrganisationDetail() {
             <TabsContent value="orders" className="mt-4">
               <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">Organisation Orders</p>
+                  <p className="text-sm font-medium text-foreground">{t('orders.title')}</p>
                 </div>
                 {orders.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No orders for this organisation.</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('orders.none')}</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-border text-xs text-muted-foreground">
-                          <th className="px-4 py-3 text-left font-medium">ID</th>
-                          <th className="px-4 py-3 text-left font-medium">Description</th>
-                          <th className="px-4 py-3 text-left font-medium">Amount</th>
-                          <th className="px-4 py-3 text-left font-medium">Status</th>
-                          <th className="px-4 py-3 text-left font-medium">Date</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('orders.columns.id')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('orders.columns.description')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('orders.columns.amount')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('orders.columns.status')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('orders.columns.date')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {orders.map((o) => (
                           <tr key={o.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                             <td className="px-4 py-3 font-mono text-sm text-foreground">{o.id}</td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{o.description || "—"}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{o.description || t('common.dash')}</td>
                             <td className="px-4 py-3 font-mono text-sm text-foreground">${Number(o.amount ?? 0).toFixed(2)}</td>
                             <td className="px-4 py-3">
                               <Badge
@@ -724,7 +726,7 @@ export default function OrganisationDetail() {
                               </Badge>
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}
+                              {o.createdAt ? new Date(o.createdAt).toLocaleDateString() : t('common.dash')}
                             </td>
                           </tr>
                         ))}
@@ -739,15 +741,15 @@ export default function OrganisationDetail() {
             <TabsContent value="servers" className="mt-4">
               <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">Organisation Servers</p>
+                  <p className="text-sm font-medium text-foreground">{t('servers.title')}</p>
                   <Button size="sm" variant="outline" onClick={loadServers} disabled={serversLoading}>
-                    {serversLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
+                    {serversLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
                 {serversLoading ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Loading servers…</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('servers.loading')}</div>
                 ) : servers.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No servers found for this organisation.</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('servers.none')}</div>
                 ) : (
                   <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {servers.map((s: any) => {
@@ -779,7 +781,7 @@ export default function OrganisationDetail() {
                           <div className="flex flex-col gap-2">
                             <div>
                               <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground flex items-center gap-1"><Cpu className="h-3 w-3" /> CPU</span>
+                                <span className="text-muted-foreground flex items-center gap-1"><Cpu className="h-3 w-3" /> {t('labels.cpu')}</span>
                                 <span className="text-foreground font-mono">{cpuPct}%</span>
                               </div>
                               <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -788,7 +790,7 @@ export default function OrganisationDetail() {
                             </div>
                             <div>
                               <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground flex items-center gap-1"><MemoryStick className="h-3 w-3" /> RAM</span>
+                                <span className="text-muted-foreground flex items-center gap-1"><MemoryStick className="h-3 w-3" /> {t('labels.ram')}</span>
                                 <span className="text-foreground font-mono">{formatBytes(memBytes)}{memLimit > 0 ? ` / ${formatBytes(memLimit)}` : ""}</span>
                               </div>
                               {memLimit > 0 && (
@@ -798,7 +800,7 @@ export default function OrganisationDetail() {
                               )}
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground flex items-center gap-1"><HardDrive className="h-3 w-3" /> Disk</span>
+                              <span className="text-muted-foreground flex items-center gap-1"><HardDrive className="h-3 w-3" /> {t('labels.disk')}</span>
                               <span className="text-foreground font-mono">{formatBytes(diskBytes)}</span>
                             </div>
                           </div>
@@ -815,15 +817,15 @@ export default function OrganisationDetail() {
             <TabsContent value="nodes" className="mt-4">
               <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">Organisation Nodes</p>
+                  <p className="text-sm font-medium text-foreground">{t('nodes.title')}</p>
                   <Button size="sm" variant="outline" onClick={loadNodes} disabled={nodesLoading}>
-                    {nodesLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
+                    {nodesLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
                 {nodesLoading ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Loading nodes…</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('nodes.loading')}</div>
                 ) : nodes.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No nodes assigned to this organisation.</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('nodes.none')}</div>
                 ) : (
                   <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {nodes.map((n: any) => (
@@ -838,37 +840,37 @@ export default function OrganisationDetail() {
                         <div className="flex flex-col gap-1.5 text-xs">
                           {n.memory != null && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Memory Limit</span>
+                              <span className="text-muted-foreground">{t('nodes.memoryLimit')}</span>
                               <span className="text-foreground font-mono">{formatBytes(n.memory * 1024 * 1024)}</span>
                             </div>
                           )}
                           {n.disk != null && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Disk Limit</span>
+                              <span className="text-muted-foreground">{t('nodes.diskLimit')}</span>
                               <span className="text-foreground font-mono">{formatBytes(n.disk * 1024 * 1024)}</span>
                             </div>
                           )}
                           {n.cpu != null && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">CPU Limit</span>
+                              <span className="text-muted-foreground">{t('nodes.cpuLimit')}</span>
                               <span className="text-foreground font-mono">{n.cpu}%</span>
                             </div>
                           )}
                           {n.serverLimit != null && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Server Limit</span>
+                              <span className="text-muted-foreground">{t('nodes.serverLimit')}</span>
                               <span className="text-foreground font-mono">{n.serverLimit}</span>
                             </div>
                           )}
                           {n.cost != null && n.cost > 0 && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Monthly Cost</span>
+                              <span className="text-muted-foreground">{t('nodes.monthlyCost')}</span>
                               <span className="text-foreground font-mono">${Number(n.cost).toFixed(2)}/mo</span>
                             </div>
                           )}
                           {n.portRangeStart != null && n.portRangeEnd != null && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Port Range</span>
+                              <span className="text-muted-foreground">{t('nodes.portRange')}</span>
                               <span className="text-foreground font-mono">{n.portRangeStart}–{n.portRangeEnd}</span>
                             </div>
                           )}
@@ -881,7 +883,7 @@ export default function OrganisationDetail() {
                               onClick={() => router.push(`/dashboard/infrastructure/nodes?edit=${n.nodeId || n.id}`)}
                               className="border-border h-7 px-2 text-xs gap-1"
                             >
-                              <Edit className="h-3 w-3" /> Edit
+                                <Edit className="h-3 w-3" /> {t('actions.edit')}
                             </Button>
                           </div>
                         )}
@@ -896,29 +898,29 @@ export default function OrganisationDetail() {
             <TabsContent value="dns" className="mt-4">
               <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">Organisation DNS</p>
+                  <p className="text-sm font-medium text-foreground">{t('dns.title')}</p>
                   <div className="flex items-center gap-2">
                     {!(subdomains || []).some((z: any) => String(z.name || '').replace(/\.$/, '') === String(org?.handle || '').replace(/\.$/, '')) && (
                       <>
                         <Input
                           value={subdomainNewName}
                           onChange={(e) => setSubdomainNewName(e.target.value)}
-                          placeholder="subdomain e.g. app.example.com"
+                          placeholder={t('dns.subdomainPlaceholder')}
                           className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                         />
-                        <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')}>Create</Button>
+                        <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')}>{t('actions.create')}</Button>
                       </>
                     )}
                     <Button size="sm" variant="outline" onClick={() => loadSubdomains()} disabled={subdomainsLoading}>
-                      {subdomainsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
+                      {subdomainsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
                     </Button>
                   </div>
                 </div>
 
                 {subdomainsLoading ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Loading subdomains…</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('dns.loadingSubdomains')}</div>
                 ) : subdomains.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No subdomains found. Add one above or create a root zone in the infrastructure DNS page.</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('dns.noSubdomains')}</div>
                 ) : (
                   <div className="grid gap-2 p-4">
                     {subdomains.map((sub) => (
@@ -937,17 +939,17 @@ export default function OrganisationDetail() {
                             size="sm"
                             variant="destructive"
                             onClick={async () => {
-                              if (!confirm(`Remove subdomain ${sub.name} from organisation?`)) return
+                              if (!confirm(t('confirm.removeSubdomain', { name: sub.name }))) return
                               try {
                                 await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(':id', orgId).replace(':zoneId', sub.id), { method: 'DELETE' })
                                 if (subdomainSelection?.id === sub.id) setSubdomainSelection(null)
                                 await loadSubdomains()
                               } catch (e: any) {
-                                alert('Failed to delete subdomain: ' + e.message)
+                                alert(t('alerts.failedDeleteSubdomain', { reason: e.message }))
                               }
                             }}
                           >
-                            Delete
+                            {t('actions.delete')}
                           </Button>
                         )}
                       </div>
@@ -957,20 +959,20 @@ export default function OrganisationDetail() {
 
                 {subdomainSelection && (
                   <div className="p-4 border-t border-border">
-                    <p className="text-sm font-medium text-foreground">Zone: {subdomainSelection.name}</p>
-                    <p className="text-xs text-muted-foreground">ID: {subdomainSelection.id}</p>
+                    <p className="text-sm font-medium text-foreground">{t('dns.zone', { name: subdomainSelection.name })}</p>
+                    <p className="text-xs text-muted-foreground">{t('dns.id', { id: subdomainSelection.id })}</p>
                     <div className="mt-3">
                       {subdomainRecordsLoading ? (
-                        <p className="text-sm text-muted-foreground">Loading records…</p>
+                        <p className="text-sm text-muted-foreground">{t('dns.loadingRecords')}</p>
                       ) : subdomainRecords.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No records found for this zone.</p>
+                        <p className="text-sm text-muted-foreground">{t('dns.noRecords')}</p>
                       ) : (
                         <div className="space-y-2">
                           {subdomainRecords.map((r) => (
                             <div key={r.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                               <div className="min-w-0">
                                 <p className="font-mono text-sm text-foreground truncate">{r.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{r.type} • ttl {r.ttl} • <Badge variant="outline" className="text-[10px]">{r.proxied ? 'proxied' : 'dns'}</Badge></p>
+                                <p className="text-xs text-muted-foreground truncate">{r.type} • {t('dns.ttl', { ttl: r.ttl })} • <Badge variant="outline" className="text-[10px]">{r.proxied ? t('dns.proxied') : t('dns.dns')}</Badge></p>
                               </div>
                               <div className="flex items-center gap-2">
                                 <p className="font-mono text-sm text-foreground truncate max-w-[180px]">{r.content}</p>
@@ -978,10 +980,10 @@ export default function OrganisationDetail() {
                                   setSubdomainEditId(String(r.id))
                                   setSubdomainEditingRecord({ name: r.name, type: r.type, ttl: r.ttl, content: r.content, proxied: !!r.proxied, autoTtl: r.ttl === 1 })
                                 }}>
-                                  Edit
+                                  {t('actions.edit')}
                                 </Button>
                                 <Button size="sm" variant="destructive" onClick={() => deleteSubdomainRecord(r)}>
-                                  Delete
+                                  {t('actions.delete')}
                                 </Button>
                               </div>
                             </div>
@@ -992,43 +994,43 @@ export default function OrganisationDetail() {
 
                     {subdomainEditId && subdomainEditingRecord && (
                       <div className="mt-4 p-3 rounded-lg border border-border bg-secondary/10">
-                        <p className="text-sm font-medium mb-2">Edit DNS record</p>
+                        <p className="text-sm font-medium mb-2">{t('dns.editRecord')}</p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-                          <Input placeholder="name" value={subdomainEditingRecord.name}
+                          <Input placeholder={t('dns.name')} value={subdomainEditingRecord.name}
                             onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, name: e.target.value }))}
                           />
                           <select className="rounded-lg border border-border bg-input px-3 py-2 text-sm" value={subdomainEditingRecord.type}
                             onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, type: e.target.value }))}>
                             <option>A</option> <option>AAAA</option> <option>CNAME</option> <option>TXT</option>
                           </select>
-                          <Input type="number" placeholder="ttl" value={subdomainEditingRecord.ttl}
+                          <Input type="number" placeholder={t('dns.ttlShort')} value={subdomainEditingRecord.ttl}
                             onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, ttl: Number(e.target.value) }))}
                             disabled={!!subdomainEditingRecord.autoTtl}
                           />
-                          <Input placeholder="content" value={subdomainEditingRecord.content}
+                          <Input placeholder={t('dns.content')} value={subdomainEditingRecord.content}
                             onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, content: e.target.value }))}
                           />
                           <div className="flex items-center gap-2">
                             <label className="inline-flex items-center text-sm">
                               <input type="checkbox" className="mr-2" checked={!!subdomainEditingRecord.autoTtl} onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, autoTtl: e.target.checked }))} />
-                              <span className="text-xs text-muted-foreground">Auto TTL</span>
+                              <span className="text-xs text-muted-foreground">{t('dns.autoTtl')}</span>
                             </label>
                             <label className="inline-flex items-center text-sm">
                               <input type="checkbox" className="mr-2" checked={!!subdomainEditingRecord.proxied} onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, proxied: e.target.checked }))} />
-                              <span className="text-xs text-muted-foreground">Proxied</span>
+                              <span className="text-xs text-muted-foreground">{t('dns.proxied')}</span>
                             </label>
                           </div>
-                          <Button onClick={updateSubdomainRecord}>Save</Button>
+                          <Button onClick={updateSubdomainRecord}>{t('actions.save')}</Button>
                         </div>
                         <div className="mt-2 flex gap-2">
-                          <Button variant="outline" onClick={() => { setSubdomainEditId(null); setSubdomainEditingRecord(null); }}>Cancel</Button>
+                          <Button variant="outline" onClick={() => { setSubdomainEditId(null); setSubdomainEditingRecord(null); }}>{t('actions.cancel')}</Button>
                         </div>
                       </div>
                     )}
                     <div className="mt-4 border-t border-border pt-4">
-                      <p className="text-sm font-medium text-foreground mb-2">Add DNS record (root = @)</p>
+                      <p className="text-sm font-medium text-foreground mb-2">{t('dns.addRecordTitle')}</p>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-                        <Input placeholder="name (e.g. @, www, api)" value={subdomainRecordForm.name}
+                        <Input placeholder={t('dns.nameExample')} value={subdomainRecordForm.name}
                           onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, name: e.target.value }))}
                         />
                         <select className="rounded-lg border border-border bg-input px-3 py-2 text-sm" value={subdomainRecordForm.type}
@@ -1038,24 +1040,24 @@ export default function OrganisationDetail() {
                           <option>CNAME</option>
                           <option>TXT</option>
                         </select>
-                        <Input type="number" placeholder="ttl" value={subdomainRecordForm.ttl}
+                        <Input type="number" placeholder={t('dns.ttlShort')} value={subdomainRecordForm.ttl}
                           onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, ttl: Number(e.target.value) }))}
                           disabled={subdomainRecordForm.autoTtl}
                         />
-                        <Input placeholder="content" value={subdomainRecordForm.content}
+                        <Input placeholder={t('dns.content')} value={subdomainRecordForm.content}
                           onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, content: e.target.value }))}
                         />
                         <div className="flex items-center gap-2">
                           <label className="inline-flex items-center text-sm">
                             <input type="checkbox" className="mr-2" checked={subdomainRecordForm.autoTtl} onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, autoTtl: e.target.checked }))} />
-                            <span className="text-xs text-muted-foreground">Auto TTL</span>
+                            <span className="text-xs text-muted-foreground">{t('dns.autoTtl')}</span>
                           </label>
                           <label className="inline-flex items-center text-sm">
                             <input type="checkbox" className="mr-2" checked={subdomainRecordForm.proxied} onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, proxied: e.target.checked }))} />
-                            <span className="text-xs text-muted-foreground">Proxied</span>
+                            <span className="text-xs text-muted-foreground">{t('dns.proxied')}</span>
                           </label>
                         </div>
-                        <Button onClick={addSubdomainRecord}>Add record</Button>
+                        <Button onClick={addSubdomainRecord}>{t('actions.addRecord')}</Button>
                       </div>
                       <div className="mt-2">
                         <label className="text-xs text-muted-foreground">
@@ -1073,29 +1075,29 @@ export default function OrganisationDetail() {
             <TabsContent value="activity" className="mt-4">
               <div className="rounded-xl border border-border bg-card">
                 <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">Organisation Activity</p>
+                  <p className="text-sm font-medium text-foreground">{t('activity.title')}</p>
                   <Button size="sm" variant="outline" onClick={loadActivity} disabled={activityLoading}>
-                    {activityLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
+                    {activityLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
                 {activityLoading ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Loading activity…</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('activity.loading')}</div>
                 ) : activity.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No activity recorded for this organisation.</div>
+                  <div className="p-8 text-center text-sm text-muted-foreground">{t('activity.none')}</div>
                 ) : (
                   <div className="divide-y divide-border">
                     {activity.map((log: any) => {
                       const actionLabels: Record<string, string> = {
-                        "org:create": "Created organisation",
-                        "org:remove_member": "Removed member",
-                        "org:change_role": "Changed member role",
-                        "org:invite": "Sent invite",
-                        "org:accept_invite": "Accepted invite",
-                        "server:create": "Created server",
-                        "server:delete": "Deleted server",
-                        "server:update": "Updated server",
-                        "server:suspend": "Suspended server",
-                        "server:unsuspend": "Unsuspended server",
+                        "org:create": t('activity.actions.orgCreate'),
+                        "org:remove_member": t('activity.actions.orgRemoveMember'),
+                        "org:change_role": t('activity.actions.orgChangeRole'),
+                        "org:invite": t('activity.actions.orgInvite'),
+                        "org:accept_invite": t('activity.actions.orgAcceptInvite'),
+                        "server:create": t('activity.actions.serverCreate'),
+                        "server:delete": t('activity.actions.serverDelete'),
+                        "server:update": t('activity.actions.serverUpdate'),
+                        "server:suspend": t('activity.actions.serverSuspend'),
+                        "server:unsuspend": t('activity.actions.serverUnsuspend'),
                       }
                       const label = actionLabels[log.action] || log.action
                       const meta = log.metadata || {}

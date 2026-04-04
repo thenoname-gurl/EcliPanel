@@ -10,8 +10,10 @@ import {
 } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/api-client"
 import { BookOpen, Edit, FileCode, Globe, Key, Lock, Package, Plus, RefreshCw, Shield, Trash2, XCircle, Zap } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export default function OauthTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminOauthTab")
   const {
     setOauthCreateName,
     setOauthCreateDesc,
@@ -54,10 +56,10 @@ export default function OauthTab({ ctx }: { ctx: any }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: Globe, label: "Endpoints", value: "13" },
-          { icon: Key, label: "Scopes", value: "7" },
-          { icon: Zap, label: "Grant Types", value: "3" },
-          { icon: Lock, label: "PKCE", value: "S256 / plain" },
+          { icon: Globe, label: t("stats.endpoints"), value: "13" },
+          { icon: Key, label: t("stats.scopes"), value: "7" },
+          { icon: Zap, label: t("stats.grantTypes"), value: "3" },
+          { icon: Lock, label: t("stats.pkce"), value: "S256 / plain" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
@@ -76,14 +78,14 @@ export default function OauthTab({ ctx }: { ctx: any }) {
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Globe className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">RFC 8414 Discovery</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.discovery")}</p>
             </div>
             <div className="p-4">
-              <p className="text-xs text-muted-foreground mb-3">Services discover the server metadata automatically via this well-known URL:</p>
+              <p className="text-xs text-muted-foreground mb-3">{t("sections.discoverySubtitle")}</p>
               <div className="relative">
                 <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto">
                   {`GET /.well-known/oauth-authorization-server`}</pre>
-                <button onClick={() => navigator.clipboard.writeText("GET /.well-known/oauth-authorization-server")} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
+                <button onClick={() => navigator.clipboard.writeText("GET /.well-known/oauth-authorization-server")} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">Returns <code className="font-mono text-foreground">issuer</code>, <code className="font-mono text-foreground">authorization_endpoint</code>, <code className="font-mono text-foreground">token_endpoint</code>, supported scopes and grant types.</p>
             </div>
@@ -92,16 +94,16 @@ export default function OauthTab({ ctx }: { ctx: any }) {
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <BookOpen className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">Endpoint Reference</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.endpointReference")}</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-4 py-2.5 text-left font-medium w-20">Method</th>
-                    <th className="px-4 py-2.5 text-left font-medium">Path</th>
-                    <th className="px-4 py-2.5 text-left font-medium">Auth</th>
-                    <th className="px-4 py-2.5 text-left font-medium">Description</th>
+                    <th className="px-4 py-2.5 text-left font-medium w-20">{t("table.method")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium">{t("table.path")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium">{t("table.auth")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium">{t("table.description")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -143,7 +145,7 @@ export default function OauthTab({ ctx }: { ctx: any }) {
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Shield className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">Scope Reference</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.scopeReference")}</p>
             </div>
             <div className="p-4 flex flex-col gap-2">
               {[
@@ -166,7 +168,7 @@ export default function OauthTab({ ctx }: { ctx: any }) {
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Zap className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">Authorization Code Flow (+ PKCE)</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.authCodeFlow")}</p>
             </div>
             <div className="flex flex-col gap-3 p-4">
               {[
@@ -225,7 +227,7 @@ Authorization: Bearer <access_token>`,
                   <p className="text-xs font-semibold text-foreground">{s.step}</p>
                   <div className="relative">
                     <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{s.code}</pre>
-                    <button onClick={() => navigator.clipboard.writeText(s.code)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
+                    <button onClick={() => navigator.clipboard.writeText(s.code)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
                   </div>
                   {s.note && <p className="text-[11px] text-muted-foreground">{s.note}</p>}
                 </div>
@@ -236,7 +238,7 @@ Authorization: Bearer <access_token>`,
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Key className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">Client Credentials Flow (service-to-service)</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.clientCredentialsFlow")}</p>
             </div>
             <div className="p-4 flex flex-col gap-3">
               <p className="text-xs text-muted-foreground">No user involved — use when an Eclipse backend service authenticates directly as the app.</p>
@@ -250,7 +252,7 @@ Content-Type: application/json
   "client_secret": "<clientSecret>",
   "scope": "servers:read"
 }`}</pre>
-                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token\nContent-Type: application/json\n\n{\n  "grant_type": "client_credentials",\n  "client_id": "<clientId>",\n  "client_secret": "<clientSecret>",\n  "scope": "servers:read"\n}`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
+                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token\nContent-Type: application/json\n\n{\n  "grant_type": "client_credentials",\n  "client_id": "<clientId>",\n  "client_secret": "<clientSecret>",\n  "scope": "servers:read"\n}`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
               <p className="text-[11px] text-muted-foreground">The app must have <code className="font-mono text-foreground">client_credentials</code> in its <code className="font-mono text-foreground">grantTypes</code> when registered.</p>
             </div>
@@ -259,7 +261,7 @@ Content-Type: application/json
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <FileCode className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">Token Introspection (RFC 7662)</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.tokenIntrospection")}</p>
             </div>
             <div className="p-4 flex flex-col gap-3">
               <p className="text-xs text-muted-foreground">Resource servers can validate any access token without calling userinfo. Returns <code className="font-mono text-foreground">{`{ "active": false }`}</code> for invalid/expired tokens.</p>
@@ -283,7 +285,7 @@ Content-Type: application/json
   "iat": 1741219200,
   "sub": "42"
 }`}</pre>
-                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token/introspect`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
+                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token/introspect`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
           </div>
@@ -294,7 +296,7 @@ Content-Type: application/json
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-primary" />
-                <p className="text-sm font-medium text-foreground">Registered Apps</p>
+                <p className="text-sm font-medium text-foreground">{t("registeredApps.title")}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -309,7 +311,7 @@ Content-Type: application/json
                   }}
                   className="bg-primary text-primary-foreground h-7 gap-1 px-2 text-xs"
                 >
-                  <Plus className="h-3 w-3" /> New App
+                  <Plus className="h-3 w-3" /> {t("actions.newApp")}
                 </Button>
                 <button
                   onClick={async () => {
@@ -325,7 +327,7 @@ Content-Type: application/json
               </div>
             </div>
             {oauthApps.length === 0 ? (
-              <p className="px-4 py-6 text-center text-xs text-muted-foreground">No OAuth apps registered yet.</p>
+              <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("states.noApps")}</p>
             ) : (
               <div className="divide-y divide-border">
                 {oauthApps.map((oa: any) => (
@@ -341,7 +343,7 @@ Content-Type: application/json
                           } catch { }
                         }}
                         className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        title="Delete app"
+                        title={t("actions.deleteApp")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -370,17 +372,17 @@ Content-Type: application/json
                         onClick={() => openEditOAuthApp(oa)}
                         className="flex items-center gap-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       >
-                        <Edit className="h-3 w-3" /> Edit
+                        <Edit className="h-3 w-3" /> {t("actions.edit")}
                       </button>
                       <button
                         onClick={() => setOauthRotateApp(oa)}
                         className="flex items-center gap-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       >
-                        <RefreshCw className="h-3 w-3" /> Rotate Secret
+                        <RefreshCw className="h-3 w-3" /> {t("actions.rotateSecret")}
                       </button>
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      Registered {oa.createdAt ? new Date(oa.createdAt).toLocaleDateString() : "—"}
+                      {t("registeredApps.registered", { date: oa.createdAt ? new Date(oa.createdAt).toLocaleDateString() : "—" })}
                     </p>
                   </div>
                 ))}
@@ -391,7 +393,7 @@ Content-Type: application/json
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Lock className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">Token Lifetimes</p>
+              <p className="text-sm font-medium text-foreground">{t("sections.tokenLifetimes")}</p>
             </div>
             <div className="p-4 flex flex-col gap-2">
               {[
@@ -435,29 +437,29 @@ Content-Type: application/json
     <Dialog open={oauthCreateOpen} onOpenChange={setOauthCreateOpen}>
       <DialogContent className="max-w-lg bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Register OAuth App</DialogTitle>
+          <DialogTitle className="text-foreground">{t("createDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-1">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">App Name *</label>
+            <label className="text-xs font-medium text-foreground">{t("createDialog.appName")}</label>
             <input
               value={oauthCreateName}
               onChange={(e) => setOauthCreateName(e.target.value)}
-              placeholder="My Eclipse Service"
+              placeholder={t("createDialog.appNamePlaceholder")}
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Description</label>
+            <label className="text-xs font-medium text-foreground">{t("createDialog.description")}</label>
             <input
               value={oauthCreateDesc}
               onChange={(e) => setOauthCreateDesc(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("createDialog.descriptionPlaceholder")}
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Redirect URIs</label>
+            <label className="text-xs font-medium text-foreground">{t("createDialog.redirectUris")}</label>
             <div className="flex flex-col gap-2">
               {oauthCreateRedirects.map((uri: string, idx: number) => (
                 <div key={idx} className="flex gap-2">
@@ -481,12 +483,12 @@ Content-Type: application/json
               ))}
               <button onClick={() => setOauthCreateRedirects((p: string[]) => [...p, ""])}
                 className="flex items-center gap-1 self-start rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
-                <Plus className="h-3 w-3" /> Add URI
+                <Plus className="h-3 w-3" /> {t("actions.addUri")}
               </button>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Allowed Scopes</label>
+            <label className="text-xs font-medium text-foreground">{t("createDialog.allowedScopes")}</label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {["profile", "email", "orgs:read", "billing:read", "servers:read", "servers:write", "admin"].map((scope) => (
                 <label key={scope} className="flex items-center gap-1.5 cursor-pointer">
@@ -499,7 +501,7 @@ Content-Type: application/json
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Grant Types</label>
+            <label className="text-xs font-medium text-foreground">{t("createDialog.grantTypes")}</label>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {["authorization_code", "client_credentials", "refresh_token"].map((grant) => (
                 <label key={grant} className="flex items-center gap-1.5 cursor-pointer">
@@ -513,9 +515,9 @@ Content-Type: application/json
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOauthCreateOpen(false)} className="border-border">Cancel</Button>
+          <Button variant="outline" onClick={() => setOauthCreateOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitCreateOAuthApp} disabled={oauthCreateLoading || !oauthCreateName.trim()} className="bg-primary text-primary-foreground">
-            {oauthCreateLoading ? "Creating…" : "Create App"}
+            {oauthCreateLoading ? t("actions.creating") : t("actions.createApp")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -524,7 +526,7 @@ Content-Type: application/json
     <Dialog open={!!oauthNewSecret} onOpenChange={(open) => { if (!open) setOauthNewSecret(null) }}>
       <DialogContent className="max-w-md bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">App Created — Save Your Secret</DialogTitle>
+          <DialogTitle className="text-foreground">{t("newSecretDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-1">
           <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-300">
@@ -532,29 +534,29 @@ Content-Type: application/json
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">App Name</p>
+              <p className="text-xs text-muted-foreground">{t("newSecretDialog.appName")}</p>
               <p className="text-sm font-medium text-foreground">{oauthNewSecret?.name}</p>
             </div>
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">Client ID</p>
+              <p className="text-xs text-muted-foreground">{t("newSecretDialog.clientId")}</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded-lg border border-border bg-black/40 px-3 py-2 text-xs font-mono text-foreground break-all">{oauthNewSecret?.clientId}</code>
                 <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientId || "")}
-                  className="shrink-0 rounded border border-border bg-secondary/80 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">Copy</button>
+                  className="shrink-0 rounded border border-border bg-secondary/80 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">Client Secret</p>
+              <p className="text-xs text-muted-foreground">{t("newSecretDialog.clientSecret")}</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs font-mono text-yellow-200 break-all">{oauthNewSecret?.clientSecret}</code>
                 <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientSecret || "")}
-                  className="shrink-0 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-300 hover:bg-yellow-500/20 transition-colors">Copy</button>
+                  className="shrink-0 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-300 hover:bg-yellow-500/20 transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => setOauthNewSecret(null)} className="bg-primary text-primary-foreground">I&apos;ve saved the secret</Button>
+          <Button onClick={() => setOauthNewSecret(null)} className="bg-primary text-primary-foreground">{t("newSecretDialog.saved")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -562,11 +564,11 @@ Content-Type: application/json
     <Dialog open={!!oauthEditApp} onOpenChange={(open) => { if (!open) setOauthEditApp(null) }}>
       <DialogContent className="max-w-lg bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Edit OAuth App — {oauthEditApp?.name}</DialogTitle>
+          <DialogTitle className="text-foreground">{t("editDialog.title", { name: oauthEditApp?.name || "" })}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-1">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Redirect URIs</label>
+            <label className="text-xs font-medium text-foreground">{t("editDialog.redirectUris")}</label>
             <div className="flex flex-col gap-2">
               {oauthEditRedirects.map((uri: string, idx: number) => (
                 <div key={idx} className="flex gap-2">
@@ -590,12 +592,12 @@ Content-Type: application/json
               ))}
               <button onClick={() => setOauthEditRedirects((p: string[]) => [...p, ""])}
                 className="flex items-center gap-1 self-start rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
-                <Plus className="h-3 w-3" /> Add URI
+                <Plus className="h-3 w-3" /> {t("actions.addUri")}
               </button>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Allowed Scopes</label>
+            <label className="text-xs font-medium text-foreground">{t("editDialog.allowedScopes")}</label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {["profile", "email", "orgs:read", "billing:read", "servers:read", "servers:write", "admin"].map((scope) => (
                 <label key={scope} className="flex items-center gap-1.5 cursor-pointer">
@@ -608,7 +610,7 @@ Content-Type: application/json
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">Grant Types</label>
+            <label className="text-xs font-medium text-foreground">{t("editDialog.grantTypes")}</label>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {["authorization_code", "client_credentials", "refresh_token"].map((grant) => (
                 <label key={grant} className="flex items-center gap-1.5 cursor-pointer">
@@ -622,9 +624,9 @@ Content-Type: application/json
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOauthEditApp(null)} className="border-border">Cancel</Button>
+          <Button variant="outline" onClick={() => setOauthEditApp(null)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitEditOAuthApp} disabled={oauthEditLoading} className="bg-primary text-primary-foreground">
-            {oauthEditLoading ? "Saving…" : "Save Changes"}
+            {oauthEditLoading ? t("actions.saving") : t("actions.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -633,7 +635,7 @@ Content-Type: application/json
     <Dialog open={!!oauthRotateApp} onOpenChange={(open) => { if (!open) setOauthRotateApp(null) }}>
       <DialogContent className="max-w-sm bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Rotate Client Secret?</DialogTitle>
+          <DialogTitle className="text-foreground">{t("rotateDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="py-2">
           <p className="text-sm text-muted-foreground">
@@ -643,9 +645,9 @@ Content-Type: application/json
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOauthRotateApp(null)} className="border-border">Cancel</Button>
+          <Button variant="outline" onClick={() => setOauthRotateApp(null)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={confirmRotateOAuthSecret} disabled={oauthRotateLoading} className="bg-destructive text-destructive-foreground">
-            {oauthRotateLoading ? "Rotating…" : "Rotate Secret"}
+            {oauthRotateLoading ? t("actions.rotating") : t("actions.rotateSecret")}
           </Button>
         </DialogFooter>
       </DialogContent>

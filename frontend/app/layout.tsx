@@ -3,27 +3,33 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { API_ENDPOINTS } from '@/lib/panel-config'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: 'Eclipse Systems - Next-Gen Hosting Provider',
-  description: 'Simple and oddly statisfying feeling.',
-  icons: {
-    icon: [
-      {
-        url: '/assets/icons/logo.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/assets/icons/logo.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-    ],
-    apple: '/assets/icons/logo.png',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('layout');
+
+  return {
+    title: t('title'),
+    description: t('description'),
+    icons: {
+      icon: [
+        {
+          url: '/assets/icons/logo.png',
+          media: '(prefers-color-scheme: light)',
+        },
+        {
+          url: '/assets/icons/logo.png',
+          media: '(prefers-color-scheme: dark)',
+        },
+      ],
+      apple: '/assets/icons/logo.png',
+    },
+  };
 }
 
 export const viewport: Viewport = {
@@ -40,6 +46,8 @@ import Guide from "@/components/Guide";
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const hdrs = await headers();
+  const locale = await getLocale();
+  const messages = await getMessages();
   const cookieHeader = hdrs.get('cookie') || '';
 
   const themesMap = Object.fromEntries(
@@ -95,22 +103,24 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   })();`;
 
   return (
-    <html lang="en">
+    <html lang={locale}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
       <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
-        <AuthProvider>
-          <Suspense fallback={null}>
-            <Guide />
-          </Suspense>
-          <Suspense fallback={null}>
-            <GlobalQueryBanner />
-          </Suspense>
-          <RenderLogger />
-          <div className="flex-1 flex flex-col min-w-0">{children}</div>
-          <Footer hideOnDashboard />
-        </AuthProvider>
+        <NextIntlClientProvider messages={messages}>
+          <AuthProvider>
+            <Suspense fallback={null}>
+              <Guide />
+            </Suspense>
+            <Suspense fallback={null}>
+              <GlobalQueryBanner />
+            </Suspense>
+            <RenderLogger />
+            <div className="flex-1 flex flex-col min-w-0">{children}</div>
+            <Footer hideOnDashboard />
+          </AuthProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

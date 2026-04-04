@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -61,16 +62,20 @@ interface Organisation {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const NODE_TYPE_META: Record<string, { label: string; color: string }> = {
-  free:         { label: "Free",         color: "border-green-500/30 bg-green-500/10 text-green-400" },
-  paid:         { label: "Paid",         color: "border-blue-500/30 bg-blue-500/10 text-blue-400" },
-  free_and_paid:{ label: "Free + Paid",  color: "border-purple-500/30 bg-purple-500/10 text-purple-400" },
-  enterprise:   { label: "Enterprise",   color: "border-orange-500/30 bg-orange-500/10 text-orange-400" },
+function getNodeTypeMeta(t: any): Record<string, { label: string; color: string }> {
+  return {
+    free: { label: t("nodeTypes.free"), color: "border-green-500/30 bg-green-500/10 text-green-400" },
+    paid: { label: t("nodeTypes.paid"), color: "border-blue-500/30 bg-blue-500/10 text-blue-400" },
+    free_and_paid: { label: t("nodeTypes.freeAndPaid"), color: "border-purple-500/30 bg-purple-500/10 text-purple-400" },
+    enterprise: { label: t("nodeTypes.enterprise"), color: "border-orange-500/30 bg-orange-500/10 text-orange-400" },
+  }
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function InfraNodesPage() {
+  const t = useTranslations("infrastructureNodesPage")
+  const NODE_TYPE_META = getNodeTypeMeta(t)
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -78,7 +83,8 @@ export default function InfraNodesPage() {
   const [orgs, setOrgs] = useState<Organisation[]>([])
   const [loading, setLoading] = useState(true)
   const [generatedToken, setGeneratedToken] = useState<string | null>(null)
-  const demoActive = !!user?.demoExpiresAt && new Date(user.demoExpiresAt) > new Date()
+  const demoExpiresAt = (user as any)?.demoExpiresAt as string | undefined
+  const demoActive = !!demoExpiresAt && new Date(demoExpiresAt) > new Date()
   const [editNodeId, setEditNodeId] = useState<string | null>(null)
 
   // ── Create/Edit dialog ──
@@ -167,7 +173,7 @@ export default function InfraNodesPage() {
   // ── Open dialogs ──
   function openNew() {
     if (demoActive) {
-      alert('Demo mode is active. Node creation is disabled in demo mode.');
+      alert(t("alerts.demoCreateDisabled"));
       return;
     }
     setNodeDialog("new")
@@ -212,7 +218,7 @@ export default function InfraNodesPage() {
 
   async function saveNode() {
     if (demoActive) {
-      alert('Demo mode is active. Node editing is disabled in demo mode.');
+      alert(t("alerts.demoEditDisabled"));
       return;
     }
     setNodeLoading(true)
@@ -243,7 +249,7 @@ export default function InfraNodesPage() {
         body.token = nodeToken
         const created = await apiFetch(API_ENDPOINTS.nodes, { method: "POST", body: JSON.stringify(body) })
         setNodes((prev) => [...prev, created.node || created])
-      } else if (nodeDialog && nodeDialog !== "new") {
+      } else if (nodeDialog) {
         const res = await apiFetch(`${API_ENDPOINTS.nodes}/${(nodeDialog as Node).id}`, {
           method: "PUT",
           body: JSON.stringify(body),
@@ -262,10 +268,10 @@ export default function InfraNodesPage() {
 
   async function deleteNode(node: Node) {
     if (demoActive) {
-      alert('Demo mode is active. Node deletion is disabled in demo mode.');
+      alert(t("alerts.demoDeleteDisabled"));
       return;
     }
-    if (!confirm(`Delete node "${node.name}"? All server mappings on this node will break.`)) return
+    if (!confirm(t("confirm.deleteNode", { name: node.name }))) return
     await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
   }
@@ -276,15 +282,14 @@ export default function InfraNodesPage() {
     <>
       <ScrollArea className="h-screen">
         <PanelHeader
-          title="Nodes"
-          description="Manage infrastructure nodes and their tier classifications."
-          icon={HardDrive}
+          title={t("header.title")}
+          description={t("header.description")}
         />
 
         {demoActive ? (
           <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 mx-6">
             <p className="text-sm font-medium text-warning-foreground">
-              Demo mode is active. Node management is disabled and changes won't affect real infrastructure.
+              {t("states.demoActive")}
             </p>
           </div>
         ) : null}
@@ -294,15 +299,15 @@ export default function InfraNodesPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
-                {nodes.length} node{nodes.length !== 1 ? "s" : ""} registered
+                {t("states.nodesRegistered", { count: nodes.length })}
               </span>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={loadNodes} className="border-border h-9 gap-1.5">
-                <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                <RefreshCw className="h-3.5 w-3.5" /> {t("actions.refresh")}
               </Button>
-              <Button size="sm" onClick={openNew} disabled={demoActive} className="bg-primary text-primary-foreground h-9 gap-1.5" title={demoActive ? 'Disabled in demo mode' : undefined}>
-                <Plus className="h-3.5 w-3.5" /> Add Node
+              <Button size="sm" onClick={openNew} disabled={demoActive} className="bg-primary text-primary-foreground h-9 gap-1.5" title={demoActive ? t("states.disabledInDemo") : undefined}>
+                <Plus className="h-3.5 w-3.5" /> {t("actions.addNode")}
               </Button>
             </div>
           </div>
@@ -310,15 +315,15 @@ export default function InfraNodesPage() {
           {/* Node grid */}
           {loading ? (
             <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
-              Loading nodes…
+              {t("states.loadingNodes")}
             </div>
           ) : nodes.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-12 text-center">
               <HardDrive className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium text-foreground">No nodes registered</p>
-              <p className="text-xs text-muted-foreground mt-1">Add a node to start hosting servers.</p>
-              <Button size="sm" onClick={openNew} disabled={demoActive} className="mt-4 bg-primary text-primary-foreground gap-1.5" title={demoActive ? 'Disabled in demo mode' : undefined}>
-                <Plus className="h-3.5 w-3.5" /> Add Node
+              <p className="text-sm font-medium text-foreground">{t("states.noNodesTitle")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("states.noNodesDescription")}</p>
+              <Button size="sm" onClick={openNew} disabled={demoActive} className="mt-4 bg-primary text-primary-foreground gap-1.5" title={demoActive ? t("states.disabledInDemo") : undefined}>
+                <Plus className="h-3.5 w-3.5" /> {t("actions.addNode")}
               </Button>
             </div>
           ) : (
@@ -339,7 +344,7 @@ export default function InfraNodesPage() {
                         </div>
                         <p className="mt-1 font-mono text-xs text-muted-foreground break-all">{node.url}</p>
                         {node.fqdn ? (
-                          <p className="mt-1 text-[12px] text-muted-foreground">FQDN: {node.fqdn}</p>
+                          <p className="mt-1 text-[12px] text-muted-foreground">{t("labels.fqdn")}: {node.fqdn}</p>
                         ) : null}
                       </div>
                       <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs shrink-0">
@@ -353,11 +358,11 @@ export default function InfraNodesPage() {
                         {meta.label}
                       </Badge>
                       <Badge variant="outline" className={`text-xs ${node.useSSL !== false ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'}`}>
-                        {node.useSSL !== false ? 'SSL' : 'No SSL (proxied)'}
+                        {node.useSSL !== false ? t("labels.ssl") : t("labels.noSslProxied")}
                       </Badge>
                       {node.organisation && (
                         <span className="text-xs text-muted-foreground">
-                          Org: {node.organisation.name}
+                          {t("labels.org")}: {node.organisation.name}
                         </span>
                       )}
                     </div>
@@ -370,7 +375,7 @@ export default function InfraNodesPage() {
                         onClick={() => openEdit(node)}
                         className="border-border h-7 px-2 text-xs gap-1"
                       >
-                        <Edit className="h-3 w-3" /> Edit
+                        <Edit className="h-3 w-3" /> {t("actions.edit")}
                       </Button>
                       <Button
                         size="sm"
@@ -394,77 +399,77 @@ export default function InfraNodesPage() {
         <DialogContent className="border-border bg-card sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              {nodeDialog === "new" ? "Add Node" : `Edit Node — ${(nodeDialog as Node)?.name}`}
+              {nodeDialog === "new" ? t("dialog.addTitle") : t("dialog.editTitle", { name: (nodeDialog as Node)?.name || "" })}
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-3 py-2">
             {/* Name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.name")}</label>
               <input
                 value={nodeName}
                 onChange={(e) => setNodeName(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                placeholder="EU Node 1"
+                placeholder={t("form.namePlaceholder")}
               />
             </div>
 
             {/* Node ID */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node ID</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.nodeId")}</label>
               <input
                 value={nodeIdValue}
                 onChange={(e) => setNodeIdValue(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                placeholder="e.g. 1897775d-8e9b-4804-ba21-b3ea07b36cdc"
+                placeholder={t("form.nodeIdPlaceholder")}
               />
-              <p className="text-[10px] text-muted-foreground">Used as the identifier in Wings configs. Must be a 32‑hex character UUID (dashes allowed).</p>
+              <p className="text-[10px] text-muted-foreground">{t("form.nodeIdHint")}</p>
             </div>
 
             {/* FQDN */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">FQDN (optional)</label>
-              <p className="text-[10px] text-muted-foreground">Optional: set a node-wide hostname to display for network addresses. Wings still uses numeric IPs in configs.</p>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.fqdnOptional")}</label>
+              <p className="text-[10px] text-muted-foreground">{t("form.fqdnHint")}</p>
               <input
                 value={nodeFqdn}
                 onChange={(e) => setNodeFqdn(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                placeholder="e.g. node-eu.example.com"
+                placeholder={t("form.fqdnPlaceholder")}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wings URL</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.wingsUrl")}</label>
               <input
                 value={nodeUrl}
                 onChange={(e) => setNodeUrl(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                placeholder="https://wings.example.com:8080"
+                placeholder={t("form.wingsUrlPlaceholder")}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backend Wings URL (optional)</label>
-              <p className="text-[10px] text-muted-foreground">Optional: URL the backend should use to contact Wings (e.g. an internal LAN address). If set, backend-to-Wings traffic will use this URL while user-facing operations continue to use the public Wings URL.</p>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.backendWingsUrlOptional")}</label>
+              <p className="text-[10px] text-muted-foreground">{t("form.backendWingsUrlHint")}</p>
               <input
                 value={nodeBackendWingsUrl}
                 onChange={(e) => setNodeBackendWingsUrl(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                placeholder="http://10.0.0.5:8080"
+                placeholder={t("form.backendWingsUrlPlaceholder")}
               />
             </div>
 
             {/* Token — only on create */}
             {nodeDialog === "new" && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Auth Token</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.authToken")}</label>
                 <div className="flex gap-2">
                   <input
                     value={nodeToken}
                     onChange={(e) => setNodeToken(e.target.value)}
                     className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="Paste or generate a token"
+                    placeholder={t("form.authTokenPlaceholder")}
                   />
                   <Button
                     size="sm"
@@ -472,7 +477,7 @@ export default function InfraNodesPage() {
                     onClick={generateToken}
                     className="border-border shrink-0 h-9 px-3 text-xs"
                   >
-                    Generate
+                    {t("actions.generate")}
                   </Button>
                 </div>
                 {generatedToken && (
@@ -491,29 +496,29 @@ export default function InfraNodesPage() {
 
             {/* Node Type */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node Type</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.nodeType")}</label>
               <select
                 value={nodeType}
                 onChange={(e) => setNodeType(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               >
-                <option value="free">Free — available to all users</option>
-                <option value="paid">Paid — paid tier and above</option>
-                <option value="free_and_paid">Free + Paid — any paying or free user</option>
-                <option value="enterprise">Enterprise — linked organisation only</option>
+                <option value="free">{t("nodeTypeOptions.free")}</option>
+                <option value="paid">{t("nodeTypeOptions.paid")}</option>
+                <option value="free_and_paid">{t("nodeTypeOptions.freeAndPaid")}</option>
+                <option value="enterprise">{t("nodeTypeOptions.enterprise")}</option>
               </select>
             </div>
 
             {/* Organisation — only relevant for enterprise nodes */}
             {nodeType === "enterprise" && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Linked Organisation</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.linkedOrganisation")}</label>
                 <select
                   value={nodeOrgId}
                   onChange={(e) => setNodeOrgId(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 >
-                  <option value="">— None —</option>
+                  <option value="">{t("form.noneOption")}</option>
                   {(Array.isArray(orgs) ? orgs : []).map((o) => (
                     <option key={o.id} value={String(o.id)}>{o.name} (@{o.handle})</option>
                   ))}
@@ -524,8 +529,8 @@ export default function InfraNodesPage() {
             {/* SSL toggle */}
             <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3 py-2">
               <div>
-                <p className="text-xs font-medium text-foreground">SSL / HTTPS</p>
-                <p className="text-[10px] text-muted-foreground">Disable if the Wings node uses HTTP. WebSockets will be proxied through the backend.</p>
+                <p className="text-xs font-medium text-foreground">{t("form.sslHttps")}</p>
+                <p className="text-[10px] text-muted-foreground">{t("form.sslHint")}</p>
               </div>
               <button
                 type="button"
@@ -543,42 +548,42 @@ export default function InfraNodesPage() {
             {/* Allowed origin override (for WS proxy) */}
             {!nodeUseSSL && (
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-muted-foreground">Allowed Origin (WS Proxy)</label>
+                <label className="text-[10px] text-muted-foreground">{t("form.allowedOrigin")}</label>
                 <input
                   value={nodeAllowedOrigin}
                   onChange={(e) => setNodeAllowedOrigin(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                  placeholder={"e.g. https://ecli.app (must match Wings allowed_origins)"}
+                  placeholder={t("form.allowedOriginPlaceholder")}
                 />
-                <p className="text-[10px] text-muted-foreground">The panel origin to send when proxying WebSockets to this node. Must match an entry in the Wings daemon config. Defaults to FRONTEND_URL.</p>
+                <p className="text-[10px] text-muted-foreground">{t("form.allowedOriginHint")}</p>
               </div>
             )}
 
             {/* SFTP settings */}
             <div className="border-t border-border pt-3 mt-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">SFTP</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{t("sections.sftp")}</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">SFTP Port</label>
+                  <label className="text-[10px] text-muted-foreground">{t("form.sftpPort")}</label>
                   <input
                     value={nodeSftpPort}
                     onChange={(e) => setNodeSftpPort(e.target.value)}
                     type="number"
                     className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="2022"
+                    placeholder={t("form.sftpPortPlaceholder")}
                   />
                 </div>
                 {!nodeUseSSL && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-muted-foreground">SFTP Proxy Port</label>
+                    <label className="text-[10px] text-muted-foreground">{t("form.sftpProxyPort")}</label>
                     <input
                       value={nodeSftpProxyPort}
                       onChange={(e) => setNodeSftpProxyPort(e.target.value)}
                       type="number"
                       className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                      placeholder="e.g. 12022"
+                      placeholder={t("form.sftpProxyPortPlaceholder")}
                     />
-                    <p className="text-[10px] text-muted-foreground">Backend TCP proxy port for clients that can&apos;t reach the node directly.</p>
+                    <p className="text-[10px] text-muted-foreground">{t("form.sftpProxyPortHint")}</p>
                   </div>
                 )}
               </div>
@@ -586,46 +591,46 @@ export default function InfraNodesPage() {
 
             {/* Resource limits section */}
             <div className="border-t border-border pt-3 mt-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Resource Limits</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{t("sections.resourceLimits")}</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">Memory (MB)</label>
+                  <label className="text-[10px] text-muted-foreground">{t("form.memoryMb")}</label>
                   <input
                     value={nodeMemory}
                     onChange={(e) => setNodeMemory(e.target.value)}
                     type="number"
                     className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="e.g. 8192"
+                    placeholder={t("form.memoryMbPlaceholder")}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">Disk (MB)</label>
+                  <label className="text-[10px] text-muted-foreground">{t("form.diskMb")}</label>
                   <input
                     value={nodeDisk}
                     onChange={(e) => setNodeDisk(e.target.value)}
                     type="number"
                     className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="e.g. 51200"
+                    placeholder={t("form.diskMbPlaceholder")}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">CPU (%)</label>
+                  <label className="text-[10px] text-muted-foreground">{t("form.cpuPercent")}</label>
                   <input
                     value={nodeCpu}
                     onChange={(e) => setNodeCpu(e.target.value)}
                     type="number"
                     className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="e.g. 400"
+                    placeholder={t("form.cpuPercentPlaceholder")}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">Server Limit</label>
+                  <label className="text-[10px] text-muted-foreground">{t("form.serverLimit")}</label>
                   <input
                     value={nodeServerLimit}
                     onChange={(e) => setNodeServerLimit(e.target.value)}
                     type="number"
                     className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                    placeholder="e.g. 20"
+                    placeholder={t("form.serverLimitPlaceholder")}
                   />
                 </div>
               </div>
@@ -633,10 +638,10 @@ export default function InfraNodesPage() {
 
             {/* Network config */}
             <div className="border-t border-border pt-3 mt-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Network</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{t("sections.network")}</p>
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">Default IP</label>
+                  <label className="text-[10px] text-muted-foreground">{t("form.defaultIp")}</label>
                   <input
                     value={nodeDefaultIp}
                     onChange={(e) => setNodeDefaultIp(e.target.value)}
@@ -646,7 +651,7 @@ export default function InfraNodesPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-muted-foreground">Port Range Start</label>
+                    <label className="text-[10px] text-muted-foreground">{t("form.portRangeStart")}</label>
                     <input
                       value={nodePortStart}
                       onChange={(e) => setNodePortStart(e.target.value)}
@@ -656,7 +661,7 @@ export default function InfraNodesPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-muted-foreground">Port Range End</label>
+                    <label className="text-[10px] text-muted-foreground">{t("form.portRangeEnd")}</label>
                     <input
                       value={nodePortEnd}
                       onChange={(e) => setNodePortEnd(e.target.value)}
@@ -671,7 +676,7 @@ export default function InfraNodesPage() {
 
             {/* Cost */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Monthly Cost ($)</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("form.monthlyCost")}</label>
               <input
                 value={nodeCost}
                 onChange={(e) => setNodeCost(e.target.value)}
@@ -685,7 +690,7 @@ export default function InfraNodesPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setNodeDialog(null)} className="border-border">
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button
               onClick={saveNode}
@@ -697,7 +702,7 @@ export default function InfraNodesPage() {
               }
               className="bg-primary text-primary-foreground"
             >
-              {nodeLoading ? "Saving…" : nodeDialog === "new" ? "Add Node" : "Save Changes"}
+              {nodeLoading ? t("actions.saving") : nodeDialog === "new" ? t("actions.addNode") : t("actions.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>

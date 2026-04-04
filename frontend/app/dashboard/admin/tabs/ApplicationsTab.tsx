@@ -41,6 +41,7 @@ import {
   Inbox,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 type FormQuestion = {
   id: string
@@ -100,22 +101,10 @@ const QUESTION_TYPES: Array<FormQuestion["type"]> = [
   "select", "multi_select", "checkbox", "date", "url",
 ]
 
-const QUESTION_TYPE_LABELS: Record<FormQuestion["type"], string> = {
-  short_text: "Short Text",
-  long_text: "Long Text",
-  email: "Email",
-  number: "Number",
-  select: "Single Select",
-  multi_select: "Multi Select",
-  checkbox: "Checkbox",
-  date: "Date",
-  url: "URL",
-}
-
 function makeQuestion(idx: number): FormQuestion {
   return {
     id: `q${idx}_${Date.now()}`,
-    label: `Question ${idx}`,
+    label: "",
     type: "short_text",
     required: false,
     placeholder: "",
@@ -129,13 +118,14 @@ function getOrigin() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("adminApplicationsTab")
   const config: Record<string, { label: string; className: string; dot: string }> = {
-    active: { label: "Active", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dot: "bg-emerald-400" },
-    closed: { label: "Closed", className: "bg-red-500/10 text-red-400 border-red-500/20", dot: "bg-red-400" },
-    archived: { label: "Archived", className: "bg-gray-500/10 text-gray-400 border-gray-500/20", dot: "bg-gray-400" },
-    pending: { label: "Pending", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20", dot: "bg-yellow-400" },
-    accepted: { label: "Accepted", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dot: "bg-emerald-400" },
-    rejected: { label: "Rejected", className: "bg-red-500/10 text-red-400 border-red-500/20", dot: "bg-red-400" },
+    active: { label: t("statusBadge.active"), className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dot: "bg-emerald-400" },
+    closed: { label: t("statusBadge.closed"), className: "bg-red-500/10 text-red-400 border-red-500/20", dot: "bg-red-400" },
+    archived: { label: t("statusBadge.archived"), className: "bg-gray-500/10 text-gray-400 border-gray-500/20", dot: "bg-gray-400" },
+    pending: { label: t("statusBadge.pending"), className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20", dot: "bg-yellow-400" },
+    accepted: { label: t("statusBadge.accepted"), className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dot: "bg-emerald-400" },
+    rejected: { label: t("statusBadge.rejected"), className: "bg-red-500/10 text-red-400 border-red-500/20", dot: "bg-red-400" },
   }
   const c = config[status] || config.active
   return (
@@ -147,10 +137,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function VisibilityIcon({ visibility }: { visibility: FormVisibility }) {
+  const t = useTranslations("adminApplicationsTab")
   const config = {
-    public_anonymous: { icon: Globe, label: "Anonymous", className: "text-blue-400" },
-    public_users: { icon: Users, label: "Users", className: "text-purple-400" },
-    private_invite: { icon: Lock, label: "Invite Only", className: "text-orange-400" },
+    public_anonymous: { icon: Globe, label: t("visibilityLabels.publicAnonymous"), className: "text-blue-400" },
+    public_users: { icon: Users, label: t("visibilityLabels.publicUsers"), className: "text-purple-400" },
+    private_invite: { icon: Lock, label: t("visibilityLabels.privateInvite"), className: "text-orange-400" },
   }
   const c = config[visibility]
   return (
@@ -221,6 +212,18 @@ const selectClass = "h-10 w-full rounded-lg border border-border bg-secondary/30
 const textareaClass = "w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all resize-none"
 
 export default function ApplicationsTab() {
+  const t = useTranslations("adminApplicationsTab")
+  const questionTypeLabels: Record<FormQuestion["type"], string> = {
+    short_text: t("questionTypes.shortText"),
+    long_text: t("questionTypes.longText"),
+    email: t("questionTypes.email"),
+    number: t("questionTypes.number"),
+    select: t("questionTypes.singleSelect"),
+    multi_select: t("questionTypes.multiSelect"),
+    checkbox: t("questionTypes.checkbox"),
+    date: t("questionTypes.date"),
+    url: t("questionTypes.url"),
+  }
   const [forms, setForms] = useState<AppForm[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [selectedFormId, setSelectedFormId] = useState<number | null>(null)
@@ -274,7 +277,7 @@ export default function ApplicationsTab() {
       setSubmissions(Array.isArray(s) ? s : [])
       if (!selectedFormId && formsData.length > 0) setSelectedFormId(Number(formsData[0].id))
     } catch (err: any) {
-      setError(err?.message || "Failed to load applications data")
+      setError(err?.message || t("errors.loadApplicationsData"))
     } finally {
       setLoading(false)
     }
@@ -358,7 +361,7 @@ export default function ApplicationsTab() {
   }
 
   const saveForm = async () => {
-    if (!title.trim()) { setError("Form title is required"); return }
+    if (!title.trim()) { setError(t("errors.formTitleRequired")); return }
     setSaving(true); setError(null)
     try {
       const schema: FormSchema = {
@@ -379,20 +382,20 @@ export default function ApplicationsTab() {
       await loadAll()
       if (!selectedFormId) resetBuilder()
     } catch (err: any) {
-      setError(err?.message || "Failed to save form")
+      setError(err?.message || t("errors.saveForm"))
     } finally {
       setSaving(false)
     }
   }
 
   const deleteForm = async (id: number) => {
-    if (!confirm("Delete this form and all its submissions? This cannot be undone.")) return
+    if (!confirm(t("confirm.deleteFormWithSubmissions"))) return
     try {
       await apiFetch(API_ENDPOINTS.adminApplicationForm.replace(":id", String(id)), { method: "DELETE" })
       if (selectedFormId === id) resetBuilder()
       await loadAll()
     } catch (err: any) {
-      setError(err?.message || "Failed to delete form")
+      setError(err?.message || t("errors.deleteForm"))
     }
   }
 
@@ -411,7 +414,7 @@ export default function ApplicationsTab() {
       setInviteLabel(""); setInviteEmail(""); setInviteMaxUses(""); setInviteExpiresHours("")
       await loadInvites(selectedForm.id, selectedForm.slug)
     } catch (err: any) {
-      setError(err?.message || "Failed to create invite")
+      setError(err?.message || t("errors.createInvite"))
     }
   }
 
@@ -420,7 +423,7 @@ export default function ApplicationsTab() {
       await apiFetch(API_ENDPOINTS.adminApplicationInvite.replace(":inviteId", String(inviteId)), { method: "DELETE" })
       if (selectedForm) await loadInvites(selectedForm.id, selectedForm.slug)
     } catch (err: any) {
-      setError(err?.message || "Failed to revoke invite")
+      setError(err?.message || t("errors.revokeInvite"))
     }
   }
 
@@ -431,7 +434,7 @@ export default function ApplicationsTab() {
       })
       await loadAll()
     } catch (err: any) {
-      setError(err?.message || "Failed to update submission")
+      setError(err?.message || t("errors.updateSubmission"))
     }
   }
 
@@ -474,7 +477,7 @@ export default function ApplicationsTab() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading application forms...</p>
+        <p className="text-sm text-muted-foreground">{t("states.loadingApplicationForms")}</p>
       </div>
     )
   }
@@ -485,7 +488,7 @@ export default function ApplicationsTab() {
         <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 animate-in slide-in-from-top-2">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-destructive">Error</p>
+            <p className="text-sm font-medium text-destructive">{t("common.error")}</p>
             <p className="text-sm text-destructive/80 mt-0.5">{error}</p>
           </div>
           <button onClick={() => setError(null)} className="text-destructive/60 hover:text-destructive transition-colors">
@@ -498,7 +501,7 @@ export default function ApplicationsTab() {
       <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-6">
         {/* Left: Form List */}
         <SectionCard
-          title="Forms"
+          title={t("forms.title")}
           icon={Layers}
           badge={
             <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
@@ -511,7 +514,7 @@ export default function ApplicationsTab() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
-              New Form
+              {t("actions.newForm")}
             </button>
           }
         >
@@ -522,7 +525,7 @@ export default function ApplicationsTab() {
               <input
                 value={formSearch}
                 onChange={(e) => setFormSearch(e.target.value)}
-                placeholder="Search forms..."
+                placeholder={t("forms.searchPlaceholder")}
                 className={cn(inputClass, "pl-9")}
               />
             </div>
@@ -532,10 +535,10 @@ export default function ApplicationsTab() {
                 <ClipboardList className="h-12 w-12 text-muted-foreground/30" />
                 <div className="text-center">
                   <p className="text-sm font-medium text-foreground">
-                    {formSearch ? "No forms match your search" : "No forms yet"}
+                    {formSearch ? t("forms.noFormsMatch") : t("forms.noFormsYet")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {formSearch ? "Try a different search term" : "Create your first form to get started"}
+                    {formSearch ? t("forms.tryDifferentSearch") : t("forms.createFirstForm")}
                   </p>
                 </div>
               </div>
@@ -564,7 +567,7 @@ export default function ApplicationsTab() {
                             <p className="text-sm font-semibold text-foreground truncate">{form.title}</p>
                             {pendingCount > 0 && (
                               <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                                {pendingCount} pending
+                                {t("forms.pendingCount", { count: pendingCount })}
                               </span>
                             )}
                           </div>
@@ -593,7 +596,7 @@ export default function ApplicationsTab() {
                           <button
                             onClick={(e) => { e.stopPropagation(); copy(publicLink, `link-${form.id}`) }}
                             className="shrink-0 p-1 rounded hover:bg-secondary transition-colors"
-                            title="Copy link"
+                            title={t("actions.copyLink")}
                           >
                             {copiedId === `link-${form.id}` ? (
                               <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -610,20 +613,20 @@ export default function ApplicationsTab() {
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-secondary transition-colors"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
-                          Edit
+                          {t("actions.edit")}
                         </button>
                         <button
                           onClick={() => duplicateFormAsTemplate(form)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-secondary transition-colors"
                         >
                           <Layers className="h-3.5 w-3.5" />
-                          Template
+                          {t("actions.template")}
                         </button>
                         <div className="flex-1" />
                         <button
                           onClick={() => deleteForm(form.id)}
                           className="p-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors"
-                          title="Delete form"
+                          title={t("actions.deleteForm")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -638,7 +641,7 @@ export default function ApplicationsTab() {
 
         {/* Right: Form Builder */}
         <SectionCard
-          title={selectedFormId ? "Edit Form" : "Create Form"}
+          title={selectedFormId ? t("builder.editForm") : t("builder.createForm")}
           icon={selectedFormId ? Edit3 : Plus}
           action={
             selectedFormId ? (
@@ -647,7 +650,7 @@ export default function ApplicationsTab() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                New Form
+                {t("actions.newForm")}
               </button>
             ) : null
           }
@@ -655,49 +658,49 @@ export default function ApplicationsTab() {
           <div className="flex flex-col gap-5">
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput label="Form Title" required>
+              <FormInput label={t("builder.fields.formTitle")} required>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Staff Application Form"
+                  placeholder={t("builder.fields.formTitlePlaceholder")}
                   className={inputClass}
                 />
               </FormInput>
-              <FormInput label="Custom Slug" hint="Used in the public URL /forms/{slug}">
+              <FormInput label={t("builder.fields.customSlug")} hint={t("builder.fields.customSlugHint")}>
                 <input
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
-                  placeholder="e.g. staff-application"
+                  placeholder={t("builder.fields.customSlugPlaceholder")}
                   className={inputClass}
                 />
               </FormInput>
-              <FormInput label="Form Type">
+              <FormInput label={t("builder.fields.formType")}>
                 <select value={kind} onChange={(e) => setKind(e.target.value as any)} className={selectClass}>
-                  <option value="staff_application">Staff Application</option>
-                  <option value="abuse_report">Abuse Report</option>
+                  <option value="staff_application">{t("builder.types.staffApplication")}</option>
+                  <option value="abuse_report">{t("builder.types.abuseReport")}</option>
                 </select>
               </FormInput>
-              <FormInput label="Visibility">
+              <FormInput label={t("builder.fields.visibility")}>
                 <select value={visibility} onChange={(e) => setVisibility(e.target.value as FormVisibility)} className={selectClass}>
-                  <option value="public_anonymous">Public Anonymous (1hr rate limit)</option>
-                  <option value="public_users">Public — Panel Account Required</option>
-                  <option value="private_invite">Private — Invite Only</option>
+                  <option value="public_anonymous">{t("builder.visibility.publicAnonymous")}</option>
+                  <option value="public_users">{t("builder.visibility.publicUsers")}</option>
+                  <option value="private_invite">{t("builder.visibility.privateInvite")}</option>
                 </select>
               </FormInput>
-              <FormInput label="Status">
+              <FormInput label={t("builder.fields.status")}>
                 <select value={status} onChange={(e) => setStatus(e.target.value as FormStatus)} className={selectClass}>
-                  <option value="active">Active</option>
-                  <option value="closed">Closed (view only)</option>
-                  <option value="archived">Archived</option>
+                  <option value="active">{t("status.active")}</option>
+                  <option value="closed">{t("status.closedViewOnly")}</option>
+                  <option value="archived">{t("status.archived")}</option>
                 </select>
               </FormInput>
             </div>
 
-            <FormInput label="Description">
+            <FormInput label={t("builder.fields.description")}>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of the form's purpose..."
+                placeholder={t("builder.fields.descriptionPlaceholder")}
                 rows={3}
                 className={textareaClass}
               />
@@ -708,7 +711,7 @@ export default function ApplicationsTab() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-primary" />
-                  <h4 className="text-sm font-semibold text-foreground">Questions</h4>
+                  <h4 className="text-sm font-semibold text-foreground">{t("questions.title")}</h4>
                   <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                     {questions.length}
                   </span>
@@ -718,7 +721,7 @@ export default function ApplicationsTab() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add Question
+                  {t("actions.addQuestion")}
                 </button>
               </div>
 
@@ -735,10 +738,10 @@ export default function ApplicationsTab() {
                         Q{idx + 1}
                       </span>
                       <span className="text-xs text-muted-foreground truncate flex-1">
-                        {q.label || `Question ${idx + 1}`}
+                        {q.label || t("questions.questionFallback", { index: idx + 1 })}
                       </span>
                       <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-                        {QUESTION_TYPE_LABELS[q.type]}
+                        {questionTypeLabels[q.type]}
                       </span>
                       <button
                         onClick={() => removeQuestion(idx)}
@@ -751,15 +754,15 @@ export default function ApplicationsTab() {
 
                     {/* Question Body */}
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <FormInput label="Label">
+                      <FormInput label={t("builder.questionFields.label")}>
                         <input
                           value={q.label || ""}
                           onChange={(e) => updateQuestion(idx, { label: e.target.value })}
-                          placeholder={`Question ${idx + 1} label`}
+                          placeholder={t("builder.questionFields.labelPlaceholder", { index: idx + 1 })}
                           className={inputClass}
                         />
                       </FormInput>
-                      <FormInput label="Type">
+                      <FormInput label={t("builder.questionFields.type")}>
                         <select
                           value={q.type}
                           onChange={(e) => {
@@ -769,16 +772,16 @@ export default function ApplicationsTab() {
                           }}
                           className={selectClass}
                         >
-                          {QUESTION_TYPES.map((t) => (
-                            <option key={t} value={t}>{QUESTION_TYPE_LABELS[t]}</option>
+                          {QUESTION_TYPES.map((questionType) => (
+                            <option key={questionType} value={questionType}>{questionTypeLabels[questionType]}</option>
                           ))}
                         </select>
                       </FormInput>
-                      <FormInput label="Placeholder">
+                      <FormInput label={t("builder.questionFields.placeholder")}>
                         <input
                           value={q.placeholder || ""}
                           onChange={(e) => updateQuestion(idx, { placeholder: e.target.value })}
-                          placeholder="Optional hint text..."
+                          placeholder={t("builder.questionFields.placeholderHint")}
                           className={inputClass}
                         />
                       </FormInput>
@@ -798,7 +801,7 @@ export default function ApplicationsTab() {
                               )}
                             />
                           </div>
-                          <span className="text-sm font-medium text-foreground">Required</span>
+                          <span className="text-sm font-medium text-foreground">{t("builder.questionFields.required")}</span>
                         </label>
                       </div>
                     </div>
@@ -808,11 +811,11 @@ export default function ApplicationsTab() {
                       <div className="px-4 pb-4 space-y-3">
                         <div className="flex items-center gap-2">
                           <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Options</p>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("builder.questionFields.options")}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {(q.options || []).length === 0 ? (
-                            <p className="text-xs text-muted-foreground italic">No options yet — add some below</p>
+                            <p className="text-xs text-muted-foreground italic">{t("builder.questionFields.noOptionsYet")}</p>
                           ) : (
                             (q.options || []).map((option, optIdx) => (
                               <span
@@ -836,14 +839,14 @@ export default function ApplicationsTab() {
                             value={optionDrafts[idx] || ""}
                             onChange={(e) => setOptionDrafts((p) => ({ ...p, [idx]: e.target.value }))}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addQuestionOption(idx) } }}
-                            placeholder="Type option and press Enter..."
+                            placeholder={t("builder.questionFields.optionInputPlaceholder")}
                             className={cn(inputClass, "flex-1")}
                           />
                           <button
                             onClick={() => addQuestionOption(idx)}
                             className="px-3 py-2 rounded-lg border border-border bg-secondary text-xs font-medium hover:bg-secondary/80 transition-colors whitespace-nowrap"
                           >
-                            Add
+                            {t("actions.add")}
                           </button>
                         </div>
                       </div>
@@ -861,9 +864,9 @@ export default function ApplicationsTab() {
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {saving ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" />Saving…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" />{t("actions.saving")}</>
                 ) : (
-                  <><Send className="h-4 w-4" />{selectedFormId ? "Update Form" : "Create Form"}</>
+                  <><Send className="h-4 w-4" />{selectedFormId ? t("actions.updateForm") : t("actions.createForm")}</>
                 )}
               </button>
               {selectedFormId && (
@@ -871,11 +874,11 @@ export default function ApplicationsTab() {
                   onClick={resetBuilder}
                   className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                 >
-                  Cancel
+                  {t("actions.cancel")}
                 </button>
               )}
               {!title.trim() && (
-                <p className="text-xs text-muted-foreground">Title is required</p>
+                <p className="text-xs text-muted-foreground">{t("builder.titleRequired")}</p>
               )}
             </div>
           </div>
@@ -885,7 +888,7 @@ export default function ApplicationsTab() {
       {/* Invite Links */}
       {selectedForm?.visibility === "private_invite" && (
         <SectionCard
-          title={`Invite Links — ${selectedForm.title}`}
+          title={`${t("invites.title")} — ${selectedForm.title}`}
           icon={Link2}
           badge={
             <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
@@ -896,19 +899,19 @@ export default function ApplicationsTab() {
           <div className="flex flex-col gap-5">
             {/* Create Invite Form */}
             <div className="rounded-xl border border-border bg-secondary/20 p-4 space-y-4">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Create New Invite</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("invites.createNewInvite")}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <FormInput label="Label">
-                  <input value={inviteLabel} onChange={(e) => setInviteLabel(e.target.value)} placeholder="e.g. John's invite" className={inputClass} />
+                <FormInput label={t("invites.fields.label")}>
+                  <input value={inviteLabel} onChange={(e) => setInviteLabel(e.target.value)} placeholder={t("invites.placeholders.label")} className={inputClass} />
                 </FormInput>
-                <FormInput label="Email (optional)">
-                  <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="user@example.com" className={inputClass} />
+                <FormInput label={t("invites.fields.emailOptional")}>
+                  <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder={t("invites.placeholders.email")} className={inputClass} />
                 </FormInput>
-                <FormInput label="Max Uses" hint="Leave blank for unlimited">
-                  <input value={inviteMaxUses} onChange={(e) => setInviteMaxUses(e.target.value)} placeholder="e.g. 1" type="number" min="1" className={inputClass} />
+                <FormInput label={t("invites.fields.maxUses")} hint={t("invites.fields.maxUsesHint")}>
+                  <input value={inviteMaxUses} onChange={(e) => setInviteMaxUses(e.target.value)} placeholder={t("invites.placeholders.maxUses")} type="number" min="1" className={inputClass} />
                 </FormInput>
-                <FormInput label="Expires (hours)" hint="Leave blank for no expiry">
-                  <input value={inviteExpiresHours} onChange={(e) => setInviteExpiresHours(e.target.value)} placeholder="e.g. 24" type="number" min="1" className={inputClass} />
+                <FormInput label={t("invites.fields.expiresHours")} hint={t("invites.fields.expiresHoursHint")}>
+                  <input value={inviteExpiresHours} onChange={(e) => setInviteExpiresHours(e.target.value)} placeholder={t("invites.placeholders.expiresHours")} type="number" min="1" className={inputClass} />
                 </FormInput>
               </div>
               <button
@@ -916,7 +919,7 @@ export default function ApplicationsTab() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
               >
                 <Plus className="h-4 w-4" />
-                Create Invite Link
+                {t("actions.createInviteLink")}
               </button>
             </div>
 
@@ -924,7 +927,7 @@ export default function ApplicationsTab() {
             {invites.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-3">
                 <Link2 className="h-10 w-10 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">No invite links yet</p>
+                <p className="text-sm text-muted-foreground">{t("invites.noInviteLinks")}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -972,7 +975,7 @@ export default function ApplicationsTab() {
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors"
                           >
                             <X className="h-3.5 w-3.5" />
-                            Revoke
+                            {t("actions.revoke")}
                           </button>
                         )}
                       </div>
@@ -996,9 +999,9 @@ export default function ApplicationsTab() {
                           className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                         >
                           {copiedId === copyId ? (
-                            <><Check className="h-3.5 w-3.5 text-emerald-400" />Copied</>
+                            <><Check className="h-3.5 w-3.5 text-emerald-400" />{t("actions.copied")}</>
                           ) : (
-                            <><Copy className="h-3.5 w-3.5" />Copy</>
+                            <><Copy className="h-3.5 w-3.5" />{t("actions.copy")}</>
                           )}
                         </button>
                       </div>
@@ -1013,7 +1016,7 @@ export default function ApplicationsTab() {
 
       {/* Submissions */}
       <SectionCard
-        title={`Submissions${selectedForm ? ` — ${selectedForm.title}` : ""}`}
+        title={`${t("submissions.title")}${selectedForm ? ` — ${selectedForm.title}` : ""}`}
         icon={Inbox}
         badge={
           <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
@@ -1024,7 +1027,7 @@ export default function ApplicationsTab() {
           <button
             onClick={loadAll}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title="Refresh"
+            title={t("actions.refresh")}
           >
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -1044,7 +1047,7 @@ export default function ApplicationsTab() {
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+                {t(`submissions.filters.${f}`)}
                 <span className={cn(
                   "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
                   submissionFilter === f ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-muted-foreground"
@@ -1059,9 +1062,9 @@ export default function ApplicationsTab() {
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Inbox className="h-12 w-12 text-muted-foreground/30" />
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground">No submissions</p>
+                <p className="text-sm font-medium text-foreground">{t("submissions.noSubmissions")}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {submissionFilter !== "all" ? `No ${submissionFilter} submissions` : "Submissions will appear here"}
+                  {submissionFilter !== "all" ? t("submissions.noFiltered", { status: submissionFilter }) : t("submissions.willAppear")}
                 </p>
               </div>
             </div>
@@ -1098,7 +1101,7 @@ export default function ApplicationsTab() {
                             {submission.user?.email ||
                               [submission.user?.firstName, submission.user?.lastName].filter(Boolean).join(" ") ||
                               submission.ipAddress ||
-                              "Anonymous"}
+                              t("submissions.anonymous")}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
@@ -1120,7 +1123,7 @@ export default function ApplicationsTab() {
                                 <div key={key} className="space-y-1">
                                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{key}</p>
                                   <p className="text-sm text-foreground bg-secondary/30 rounded-lg px-3 py-2 border border-border/50">
-                                    {Array.isArray(val) ? val.join(", ") : String(val ?? "—")}
+                                    {Array.isArray(val) ? val.join(", ") : String(val ?? t("common.dash"))}
                                   </p>
                                 </div>
                               ))}
@@ -1140,7 +1143,7 @@ export default function ApplicationsTab() {
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40 text-xs font-medium transition-colors disabled:cursor-not-allowed"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Accept
+                            {t("actions.accept")}
                           </button>
                           <button
                             onClick={() => updateSubmissionStatus(submission.id, "rejected")}
@@ -1148,7 +1151,7 @@ export default function ApplicationsTab() {
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:opacity-40 text-xs font-medium transition-colors disabled:cursor-not-allowed"
                           >
                             <XCircle className="h-3.5 w-3.5" />
-                            Reject
+                            {t("actions.reject")}
                           </button>
                           <button
                             onClick={() => updateSubmissionStatus(submission.id, "archived")}
@@ -1156,7 +1159,7 @@ export default function ApplicationsTab() {
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 text-xs font-medium transition-colors disabled:cursor-not-allowed"
                           >
                             <Archive className="h-3.5 w-3.5" />
-                            Archive
+                            {t("actions.archive")}
                           </button>
                           <button
                             onClick={() => updateSubmissionStatus(submission.id, "pending")}
@@ -1164,7 +1167,7 @@ export default function ApplicationsTab() {
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 text-xs font-medium transition-colors disabled:cursor-not-allowed"
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
-                            Reset
+                            {t("actions.reset")}
                           </button>
                         </div>
                       </div>
