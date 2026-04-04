@@ -173,12 +173,23 @@ export async function planRoutes(app: any, prefix = '') {
     let updated = 0;
     const toSave: User[] = [];
     for (const u of users) {
-      if (!force && isCustomLimits(u.limits, planLimits)) continue;
+      const existingPlanScopedLimits = plan.type === 'educational' ? (u.educationLimits || u.limits) : u.limits;
+      if (!force && isCustomLimits(existingPlanScopedLimits, planLimits)) continue;
 
       if (Object.keys(planLimits).length > 0) {
-        u.limits = { ...planLimits };
+        if (plan.type === 'educational') {
+          u.educationLimits = { ...planLimits };
+          u.limits = { ...planLimits };
+        } else {
+          u.limits = { ...planLimits };
+        }
       } else {
-        u.limits = null;
+        if (plan.type === 'educational') {
+          u.educationLimits = null;
+          u.limits = null;
+        } else {
+          u.limits = null;
+        }
       }
 
       toSave.push(u);

@@ -154,6 +154,7 @@ export const API_ENDPOINTS = {
   serverStats: "/api/servers/:id/stats",
   serverStatsHistory: "/api/servers/:id/stats/history",
   serverStatsNode: "/api/servers/:id/stats/node",
+  serverStatsNodeHistory: "/api/servers/:id/stats/node/history",
   serverFileChmod: "/api/servers/:id/files/chmod",
   serverConfigEgg: "/api/servers/:id/configuration/egg",
   serverActivity: "/api/servers/:id/activity",
@@ -281,6 +282,7 @@ export const API_ENDPOINTS = {
   // Admin
   adminStats: "/api/admin/stats",
   adminMetrics: "/api/admin/metrics",
+  adminMetricsClear: "/api/admin/metrics/clear",
   adminUsers: "/api/admin/users",
   adminProductUpdates: "/api/admin/product-updates",
   adminOrganisations: "/api/admin/organisations",

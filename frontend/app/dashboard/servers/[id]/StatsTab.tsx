@@ -316,16 +316,72 @@ function NetworkChart({ data, recharts }: ChartProps) {
 
 interface NodeInfoProps {
   nodeInfo: any
+  nodeHistory?: any[]
 }
 
-function NodeInfoPanel({ nodeInfo }: NodeInfoProps) {
+function NodeInfoPanel({ nodeInfo, nodeHistory = [] }: NodeInfoProps) {
   const [expanded, setExpanded] = useState(false)
-  
-  if (!nodeInfo || Object.keys(nodeInfo).length === 0) return null
+  const hasNodeInfo = !!nodeInfo && Object.keys(nodeInfo).length > 0
 
   const nodeCpu = nodeInfo?.cpu?.used ?? null
   const nodeMemUsed = nodeInfo?.memory?.used ?? null
   const nodeMemTotal = nodeInfo?.memory?.total ?? null
+
+  const getNodeValue = useCallback((row: any, paths: string[]): number => {
+    const source = row?.metrics ?? row ?? {}
+    for (const path of paths) {
+      const parts = path.split('.')
+      let cur: any = source
+      for (const part of parts) {
+        if (cur == null) break
+        cur = cur[part]
+      }
+      const num = Number(cur)
+      if (Number.isFinite(num)) return num
+    }
+    return 0
+  }, [])
+
+  const nodeHistorySummary = useMemo(() => {
+    if (!Array.isArray(nodeHistory) || nodeHistory.length < 2) {
+      return { cpuAvg: 0, rx24h: 0, tx24h: 0 }
+    }
+
+    const cpuSamples = nodeHistory.map((r) => getNodeValue(r, ["cpu.used", "cpu.total", "cpu", "cpu_absolute"]))
+    const cpuAvg = cpuSamples.length > 0
+      ? cpuSamples.reduce((acc, v) => acc + v, 0) / cpuSamples.length
+      : 0
+
+    const readCounter = (row: any, key: "rx" | "tx") => getNodeValue(row, [
+      `network.${key}_bytes`,
+      `network.${key}`,
+      key === "rx" ? "network.received" : "network.sent",
+    ])
+
+    let rxTotal = 0
+    let txTotal = 0
+    let prevRx = readCounter(nodeHistory[0], "rx")
+    let prevTx = readCounter(nodeHistory[0], "tx")
+
+    for (let i = 1; i < nodeHistory.length; i++) {
+      const curRx = readCounter(nodeHistory[i], "rx")
+      const curTx = readCounter(nodeHistory[i], "tx")
+      const drx = curRx - prevRx
+      const dtx = curTx - prevTx
+      if (drx > 0) rxTotal += drx
+      if (dtx > 0) txTotal += dtx
+      prevRx = curRx
+      prevTx = curTx
+    }
+
+    return {
+      cpuAvg: Number.isFinite(cpuAvg) ? cpuAvg : 0,
+      rx24h: Math.max(0, rxTotal),
+      tx24h: Math.max(0, txTotal),
+    }
+  }, [nodeHistory, getNodeValue])
+
+  if (!hasNodeInfo) return null
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -382,6 +438,18 @@ function NodeInfoPanel({ nodeInfo }: NodeInfoProps) {
                 </p>
               </div>
             )}
+            <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Node CPU Avg (24h)</p>
+              <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
+                {nodeHistorySummary.cpuAvg.toFixed(2)}%
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Node Net 24h (↓ / ↑)</p>
+              <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
+                {formatBytes(nodeHistorySummary.rx24h)} / {formatBytes(nodeHistorySummary.tx24h)}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -394,6 +462,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   const [live, setLive] = useState<any>(null)
   const [liveResources, setLiveResources] = useState<any>(serverProp?.resources ?? null)
   const [nodeInfo, setNodeInfo] = useState<any>(null)
+  const [nodeHistory, setNodeHistory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -442,6 +511,11 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
       setHistory(Array.isArray(histData) ? histData : [])
       setLive(liveData)
       setNodeInfo(nodeData)
+
+      const nodeHistRows = await apiFetch(
+        API_ENDPOINTS.serverStatsNodeHistory.replace(":id", serverId) + "?window=24h&points=144"
+      ).catch(() => [])
+      setNodeHistory(Array.isArray(nodeHistRows) ? nodeHistRows : [])
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -789,7 +863,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
         </div>
       )}
 
-      <NodeInfoPanel nodeInfo={nodeInfo} />
+      <NodeInfoPanel nodeInfo={nodeInfo} nodeHistory={nodeHistory} />
     </div>
   )
 }

@@ -105,6 +105,7 @@ export default function MetricsTab() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
   const [data, setData] = useState<MetricsResponse | null>(null)
+  const [clearing, setClearing] = useState(false)
 
   const load = useCallback(async (days: WindowDays, initial = false) => {
     if (initial) setLoading(true)
@@ -124,6 +125,20 @@ export default function MetricsTab() {
   useEffect(() => {
     load(windowDays, true)
   }, [windowDays, load])
+
+  const clearCollectedMetrics = useCallback(async () => {
+    if (!confirm("Remove all collected metrics data? This cannot be undone.")) return
+    setClearing(true)
+    setError("")
+    try {
+      await apiFetch(API_ENDPOINTS.adminMetricsClear, { method: "POST" })
+      await load(windowDays, false)
+    } catch (e: any) {
+      setError(e?.message || "Failed to clear metrics")
+    } finally {
+      setClearing(false)
+    }
+  }, [load, windowDays])
 
   const summary = data?.summary
   const series = useMemo(() => data?.series || [], [data])
@@ -163,6 +178,15 @@ export default function MetricsTab() {
             >
               <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10"
+              onClick={clearCollectedMetrics}
+              disabled={loading || refreshing || clearing}
+            >
+              {clearing ? "Clearing…" : "Clear Collected Metrics"}
             </Button>
           </div>
         </div>

@@ -906,7 +906,9 @@ export default function AdminPanel() {
   const [privateMode, setPrivateMode] = useState(true)
   const [privacyDialogOpen, setPrivacyDialogOpen] = useState(true)
   const [pendingViewUserDialog, setPendingViewUserDialog] = useState<AdminUser | null>(null)
+  const [pendingViewServerDialog, setPendingViewServerDialog] = useState<AdminServer | null>(null)
   const [viewUserQueryHandled, setViewUserQueryHandled] = useState(false)
+  const [viewServerQueryHandled, setViewServerQueryHandled] = useState(false)
   const [redactServers, setRedactServers] = useState<boolean>(true)
   const [redactOrganisations, setRedactOrganisations] = useState<boolean>(true)
 
@@ -1843,6 +1845,48 @@ export default function AdminPanel() {
     openFromQuery()
   }, [searchParams, privacyDialogOpen, users, viewUserQueryHandled]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const viewServerUuid = (searchParams.get("viewServer") || "").trim()
+
+    if (viewServerQueryHandled) return
+    if (!viewServerUuid) return
+
+    const openFromQuery = async () => {
+      setActiveTab("servers")
+      await loadTab("servers")
+
+      let selectedServer: AdminServer | null = null
+      const existingServer = servers.find((s) => s.uuid === viewServerUuid)
+      if (existingServer) {
+        selectedServer = existingServer
+      } else {
+        const fetchedServers = await fetchServers(1, viewServerUuid)
+        const match = Array.isArray(fetchedServers)
+          ? fetchedServers.find((s: any) => s.uuid === viewServerUuid)
+          : null
+        selectedServer = match ? match : ({ uuid: viewServerUuid } as AdminServer)
+      }
+
+      if (!selectedServer) {
+        setViewServerQueryHandled(true)
+        return
+      }
+
+      if (privacyDialogOpen) {
+        setPendingViewServerDialog(selectedServer)
+      } else {
+        openEditServer(selectedServer)
+      }
+
+      setViewServerQueryHandled(true)
+      const params = new URLSearchParams(Array.from(searchParams.entries()))
+      params.delete("viewServer")
+      router.replace(`${window.location.pathname}?${params.toString()}`)
+    }
+
+    openFromQuery()
+  }, [searchParams, servers, privacyDialogOpen, viewServerQueryHandled]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const filteredUsers = users
 
   // ── Filtered tickets ──
@@ -2161,16 +2205,6 @@ export default function AdminPanel() {
   }
 
   async function openEditServer(srv: AdminServer) {
-    setEsName(srv.name || "")
-    setEsDesc(srv.configuration?.meta?.description || srv.description || "")
-    setEsUserId(String(srv.owner || ""))
-    setEsMemory(String(srv.configuration?.build?.memory_limit || ""))
-    setEsDisk(String(srv.configuration?.build?.disk_space || ""))
-    setEsCpu(String(srv.configuration?.build?.cpu_limit || ""))
-    setEsSwap(String(srv.configuration?.build?.swap || "0"))
-    setEsDockerImage(srv.configuration?.docker?.image || "")
-    setEsStartup(srv.configuration?.invocation || "")
-    setEsEggId(srv.eggId ? String(srv.eggId) : undefined)
     setEsError("")
     setEsReinstalling(false)
     setEsAllocations([])
@@ -2178,7 +2212,52 @@ export default function AdminPanel() {
     setEsAllocPort("")
     setEsAllocFqdn("")
     setEsEditFqdnIdx(null)
-    setEditServerDialog(srv)
+
+    let mergedServer: AdminServer = srv
+    try {
+      const full = await apiFetch(API_ENDPOINTS.serverDetail.replace(":id", srv.uuid))
+      if (full && typeof full === "object") {
+        mergedServer = { ...srv, ...full }
+      }
+    } catch {
+      // skip
+    }
+
+    const mergedAny = mergedServer as any
+    const cfgBuild = mergedAny?.configuration?.build || {}
+    const rootBuild = mergedAny?.build || {}
+    const cfgDocker = mergedAny?.configuration?.docker || {}
+    const rootContainer = mergedAny?.container || {}
+
+    setEsName(mergedAny.name || "")
+    setEsDesc(
+      mergedAny?.configuration?.meta?.description ||
+        mergedAny?.description ||
+        mergedAny?.configuration?.meta?.name ||
+        ""
+    )
+    setEsUserId(String(mergedAny.owner || mergedAny.userId || ""))
+    setEsMemory(String(cfgBuild.memory_limit ?? rootBuild.memory_limit ?? mergedAny.memory ?? ""))
+    setEsDisk(String(cfgBuild.disk_space ?? rootBuild.disk_space ?? mergedAny.disk ?? ""))
+    setEsCpu(String(cfgBuild.cpu_limit ?? rootBuild.cpu_limit ?? mergedAny.cpu ?? ""))
+    setEsSwap(String(cfgBuild.swap ?? rootBuild.swap ?? mergedAny.swap ?? "0"))
+    setEsDockerImage(
+      cfgDocker.image ||
+        rootContainer.image ||
+        mergedAny?.configuration?.container?.image ||
+        mergedAny.dockerImage ||
+        ""
+    )
+    setEsStartup(mergedAny?.configuration?.invocation || mergedAny.invocation || mergedAny.startup || "")
+    setEsEggId(
+      mergedAny.eggId
+        ? String(mergedAny.eggId)
+        : mergedAny?.egg?.id
+          ? String(mergedAny.egg.id)
+          : undefined
+    )
+    setEsAutoSyncOnEggChange(mergedAny?.configuration?.autoSyncOnEggChange !== false)
+    setEditServerDialog(mergedServer)
     // load existing allocations from panel DB
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", srv.uuid))
       .then((data: any) => {
@@ -2188,14 +2267,6 @@ export default function AdminPanel() {
     // ensure eggs are loaded for the egg selector
     if (eggs.length === 0) {
       apiFetch(API_ENDPOINTS.adminEggs).then((data: any) => setEggs(data || [])).catch(() => { })
-    }
-    try {
-      const full = await apiFetch(`/api/servers/${srv.uuid}`)
-      if (full && full.configuration) {
-        setEsAutoSyncOnEggChange(full.configuration.autoSyncOnEggChange !== false)
-      }
-    } catch {
-      // skip
     }
   }
 
@@ -3138,6 +3209,10 @@ remote: ${panelUrl}`
               setPendingViewUserDialog(viewUserDialog);
               setViewUserDialog(null);
             }
+            if (editServerDialog) {
+              setPendingViewServerDialog(editServerDialog);
+              setEditServerDialog(null);
+            }
             setPrivacyDialogOpen(true);
           }}>
             {privateMode ? "Confirm to reveal" : "Re-hide private data"}
@@ -3182,6 +3257,10 @@ remote: ${panelUrl}`
                 openViewUser(pendingViewUserDialog);
                 setPendingViewUserDialog(null);
               }
+              if (pendingViewServerDialog) {
+                openEditServer(pendingViewServerDialog);
+                setPendingViewServerDialog(null);
+              }
             }}>
               Continue with redaction
             </Button>
@@ -3193,6 +3272,10 @@ remote: ${panelUrl}`
               if (pendingViewUserDialog) {
                 openViewUser(pendingViewUserDialog);
                 setPendingViewUserDialog(null);
+              }
+              if (pendingViewServerDialog) {
+                openEditServer(pendingViewServerDialog);
+                setPendingViewServerDialog(null);
               }
             }}>
               I am not recording
@@ -5611,7 +5694,7 @@ remote: ${panelUrl}`
                     <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
                       <SelectValue placeholder="— No template —" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[10000]">
                       <SelectItem value="none">— No template —</SelectItem>
                       {eggs.map((egg) => (
                         <SelectItem key={egg.id} value={String(egg.id)}>
