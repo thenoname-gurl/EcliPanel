@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import {
   AlertTriangle,
   Info,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
@@ -250,6 +251,7 @@ type OtpMethod = "totp" | "email" | "backup"
 export default function LoginPage() {
   const { login, refreshUser } = useAuth()
   const router = useRouter()
+  const t = useTranslations("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -294,7 +296,7 @@ export default function LoginPage() {
       }
       router.replace("/dashboard")
     } catch (err: any) {
-      setError(err.message || "Login failed")
+      setError(err.message || t("loginFailed"))
     } finally {
       setLoading(false)
     }
@@ -310,13 +312,13 @@ export default function LoginPage() {
       })
       setError(null)
     } catch (e: any) {
-      setError(e.message || "Failed to send email code")
+      setError(e.message || t("failedToSendEmailCode"))
     }
     setSendingEmail(false)
   }
 
   const verify2fa = async () => {
-    if (!tempToken) return setError("Missing temporary session")
+    if (!tempToken) return setError(t("missingTemporarySession"))
     setLoading(true)
     try {
       const body: any = { tempToken }
@@ -324,7 +326,7 @@ export default function LoginPage() {
       if (otpMethod === "backup" && backupCode) body.backupCode = backupCode
       if (otpMethod === "email" && emailCode) body.emailCode = emailCode
       if (!body.token && !body.backupCode && !body.emailCode) {
-        setError("Please enter a code for the selected method.")
+        setError(t("enterCodeSelectedMethod"))
         setLoading(false)
         return
       }
@@ -336,10 +338,10 @@ export default function LoginPage() {
         await refreshUser()
         router.replace("/dashboard")
       } else {
-        setError("Invalid response from server")
+        setError(t("invalidServerResponse"))
       }
     } catch (e: any) {
-      setError(e.message || "Verification failed")
+      setError(e.message || t("verificationFailed"))
     } finally {
       setLoading(false)
     }
@@ -347,7 +349,7 @@ export default function LoginPage() {
 
   const handlePasskey = async () => {
     if (!email) {
-      setError("Enter your email address first, then click Sign in with Passkey.")
+      setError(t("enterEmailBeforePasskey"))
       return
     }
     setError(null)
@@ -368,7 +370,7 @@ export default function LoginPage() {
       }
 
       const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null
-      if (!credential) throw new Error("Passkey authentication cancelled.")
+      if (!credential) throw new Error(t("passkeyCancelled"))
 
       const assertionResponse = credential.response as AuthenticatorAssertionResponse
 
@@ -398,7 +400,7 @@ export default function LoginPage() {
       await refreshUser()
       router.push("/dashboard")
     } catch (err: any) {
-      setError(err.message || "Passkey authentication failed.")
+      setError(err.message || t("passkeyFailed"))
     } finally {
       setPasskeyLoading(false)
     }
@@ -428,10 +430,10 @@ export default function LoginPage() {
               <Shield className="h-7 w-7 text-primary" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-              Welcome back
+              {t("welcomeBack")}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
-              Sign in to your Eclipse Panel account
+              {t("subtitle")}
             </p>
           </div>
 
@@ -443,7 +445,7 @@ export default function LoginPage() {
                 {domainOk === false && !dismissedDomainWarning && (
                   <AlertBanner
                     variant="warning"
-                    title="Verify this domain"
+                    title={t("verifyDomain")}
                     onDismiss={() => {
                       try {
                         localStorage.setItem("domainWarningDismissed", "1")
@@ -452,18 +454,20 @@ export default function LoginPage() {
                     }}
                   >
                     <p>
-                      This panel should be served from{" "}
-                      <span className="font-medium">ecli.app</span>. Navigate to{" "}
-                      <a href="https://ecli.app" className="underline font-medium">
-                        https://ecli.app
-                      </a>{" "}
-                      if your URL differs.
+                      {t.rich("domainWarning", {
+                        domain: (chunks: ReactNode) => <span className="font-medium">{chunks}</span>,
+                        link: (chunks: ReactNode) => (
+                          <a href="https://ecli.app" className="underline font-medium">
+                            {chunks}
+                          </a>
+                        ),
+                      })}
                     </p>
                   </AlertBanner>
                 )}
 
                 {error && (
-                  <AlertBanner variant="error" title="Something went wrong">
+                  <AlertBanner variant="error" title={t("somethingWentWrong")}>
                     {error}
                   </AlertBanner>
                 )}
@@ -476,31 +480,31 @@ export default function LoginPage() {
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
                       <KeyRound className="h-6 w-6 text-primary" />
                     </div>
-                    <h2 className="text-lg font-semibold text-foreground">Two-factor authentication</h2>
+                    <h2 className="text-lg font-semibold text-foreground">{t("twoFactorTitle")}</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Select your verification method and enter the code
+                      {t("twoFactorSubtitle")}
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <TwoFactorMethodButton
                       icon={Smartphone}
-                      label="Authenticator App"
-                      description="Use your TOTP authenticator app"
+                      label={t("methodAuthenticator")}
+                      description={t("methodAuthenticatorDesc")}
                       selected={otpMethod === "totp"}
                       onClick={() => setOtpMethod("totp")}
                     />
                     <TwoFactorMethodButton
                       icon={MailCheck}
-                      label="Email Code"
-                      description="Receive a code via email"
+                      label={t("methodEmail")}
+                      description={t("methodEmailDesc")}
                       selected={otpMethod === "email"}
                       onClick={() => setOtpMethod("email")}
                     />
                     <TwoFactorMethodButton
                       icon={KeyRound}
-                      label="Backup Code"
-                      description="Use one of your backup codes"
+                      label={t("methodBackup")}
+                      description={t("methodBackupDesc")}
                       selected={otpMethod === "backup"}
                       onClick={() => setOtpMethod("backup")}
                     />
@@ -512,8 +516,8 @@ export default function LoginPage() {
                         <InputField
                           icon={Smartphone}
                           name="totp"
-                          placeholder="Enter 6-digit code"
-                          label="Authenticator Code"
+                          placeholder={t("authenticatorCodePlaceholder")}
+                          label={t("authenticatorCode")}
                           value={twoFactorCode}
                           onChange={(e) => setTwoFactorCode(e.target.value)}
                           autoComplete="one-time-code"
@@ -524,8 +528,8 @@ export default function LoginPage() {
                         <InputField
                           icon={KeyRound}
                           name="backup"
-                          placeholder="Enter backup code"
-                          label="Backup Code"
+                          placeholder={t("backupCodePlaceholder")}
+                          label={t("backupCode")}
                           value={backupCode}
                           onChange={(e) => setBackupCode(e.target.value)}
                         />
@@ -538,8 +542,8 @@ export default function LoginPage() {
                               <InputField
                                 icon={MailCheck}
                                 name="emailCode"
-                                placeholder="Enter email code"
-                                label="Email Code"
+                                placeholder={t("emailCodePlaceholder")}
+                                label={t("emailCode")}
                                 value={emailCode}
                                 onChange={(e) => setEmailCode(e.target.value)}
                                 autoComplete="one-time-code"
@@ -561,7 +565,7 @@ export default function LoginPage() {
                                 {sendingEmail ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  "Send"
+                                  t("send")
                                 )}
                               </button>
                             </div>
@@ -585,11 +589,11 @@ export default function LoginPage() {
                           {loading ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Verifying...
+                              {t("verifying")}
                             </>
                           ) : (
                             <>
-                              Verify
+                              {t("verify")}
                               <ChevronRight className="h-4 w-4" />
                             </>
                           )}
@@ -604,7 +608,7 @@ export default function LoginPage() {
                             "focus:outline-none focus:ring-2 focus:ring-primary/20"
                           )}
                         >
-                          Cancel
+                          {t("cancel")}
                         </button>
                       </div>
                     </div>
@@ -613,14 +617,14 @@ export default function LoginPage() {
               ) : (
                 /* Login Form */
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <SectionDivider label="Credentials" icon={Lock} />
+                  <SectionDivider label={t("credentials")} icon={Lock} />
 
                   <InputField
                     icon={Mail}
                     name="email"
                     type="email"
-                    placeholder="you@example.com"
-                    label="Email Address"
+                    placeholder={t("emailPlaceholder")}
+                    label={t("emailAddress")}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -631,8 +635,8 @@ export default function LoginPage() {
                     icon={Lock}
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    label="Password"
+                    placeholder={t("passwordPlaceholder")}
+                    label={t("password")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -642,7 +646,7 @@ export default function LoginPage() {
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -658,7 +662,7 @@ export default function LoginPage() {
                       href="/forgot-password"
                       className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                     >
-                      Forgot password?
+                      {t("forgotPassword")}
                     </Link>
                   </div>
 
@@ -676,17 +680,17 @@ export default function LoginPage() {
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Signing in...
+                        {t("signingIn")}
                       </>
                     ) : (
                       <>
-                        Sign In
+                        {t("signIn")}
                         <ChevronRight className="h-4 w-4" />
                       </>
                     )}
                   </button>
 
-                  <SectionDivider label="or continue with" />
+                  <SectionDivider label={t("orContinueWith")} />
 
                   <button
                     type="button"
@@ -703,12 +707,12 @@ export default function LoginPage() {
                     {passkeyLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Waiting for passkey...
+                        {t("waitingPasskey")}
                       </>
                     ) : (
                       <>
                         <Fingerprint className="h-4 w-4" />
-                        Sign in with Passkey
+                        {t("signInWithPasskey")}
                       </>
                     )}
                   </button>
@@ -716,25 +720,28 @@ export default function LoginPage() {
                   {/* Terms */}
                   <div className="rounded-xl bg-secondary/10 border border-border/40 p-4">
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      By signing in, you agree to our{" "}
-                      <a
-                        href="https://ecli.app/documents/Terms%20of%20Service.pdf"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline font-medium"
-                      >
-                        Terms of Service
-                      </a>{" "}
-                      and{" "}
-                      <a
-                        href="https://ecli.app/documents/Privacy%20Policy.pdf"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline font-medium"
-                      >
-                        Privacy Policy
-                      </a>
-                      .
+                      {t.rich("termsNotice", {
+                        terms: (chunks: ReactNode) => (
+                          <a
+                            href="https://ecli.app/documents/Terms%20of%20Service.pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline font-medium"
+                          >
+                            {chunks}
+                          </a>
+                        ),
+                        privacy: (chunks: ReactNode) => (
+                          <a
+                            href="https://ecli.app/documents/Privacy%20Policy.pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline font-medium"
+                          >
+                            {chunks}
+                          </a>
+                        ),
+                      })}
                     </p>
                   </div>
                 </form>
@@ -744,12 +751,12 @@ export default function LoginPage() {
             {/* Footer */}
             <div className="border-t border-border/40 bg-secondary/10 px-4 sm:px-8 py-4">
               <p className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
+                {t("noAccount")}{" "}
                 <Link
                   href="/register"
                   className="text-primary hover:text-primary/80 font-medium transition-colors"
                 >
-                  Create an account
+                  {t("createAccount")}
                 </Link>
               </p>
             </div>
@@ -757,7 +764,7 @@ export default function LoginPage() {
 
           {/* Bottom text */}
           <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
-            Protected by industry-standard encryption
+            {t("securityNote")}
           </p>
         </div>
       </div>

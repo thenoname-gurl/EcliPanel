@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Button } from "@/components/ui/button"
+import { useTranslations } from "next-intl"
 import { BarChart3, RefreshCw, TrendingUp, Users, Building2, MessageSquare, Receipt, Server } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -100,6 +101,7 @@ function MetricsTooltip({ active, payload, label }: any) {
 }
 
 export default function MetricsTab() {
+  const t = useTranslations("adminMetricsTab")
   const [windowDays, setWindowDays] = useState<WindowDays>(30)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -115,38 +117,38 @@ export default function MetricsTab() {
       const response = await apiFetch(`${API_ENDPOINTS.adminMetrics}?days=${days}`)
       setData(response)
     } catch (e: any) {
-      setError(e?.message || "Failed to load metrics")
+      setError(e?.message || t("errors.loadFailed"))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     load(windowDays, true)
   }, [windowDays, load])
 
   const clearCollectedMetrics = useCallback(async () => {
-    if (!confirm("Remove all collected metrics data? This cannot be undone.")) return
+    if (!confirm(t("actions.confirmClear"))) return
     setClearing(true)
     setError("")
     try {
       await apiFetch(API_ENDPOINTS.adminMetricsClear, { method: "POST" })
       await load(windowDays, false)
     } catch (e: any) {
-      setError(e?.message || "Failed to clear metrics")
+      setError(e?.message || t("errors.clearFailed"))
     } finally {
       setClearing(false)
     }
-  }, [load, windowDays])
+  }, [load, t, windowDays])
 
   const summary = data?.summary
   const series = useMemo(() => data?.series || [], [data])
   const serverStatusData = useMemo(() => [
-    { name: "Online", value: summary?.serversOnline || 0, fill: CHART_COLORS.serverOnline },
-    { name: "Starting/Stopping", value: summary?.serversTransitioning || 0, fill: CHART_COLORS.serverTransitioning },
-    { name: "Offline", value: summary?.serversOffline || 0, fill: CHART_COLORS.serverOffline },
-  ], [summary])
+    { name: t("serverStatus.online"), value: summary?.serversOnline || 0, fill: CHART_COLORS.serverOnline },
+    { name: t("serverStatus.transitioning"), value: summary?.serversTransitioning || 0, fill: CHART_COLORS.serverTransitioning },
+    { name: t("serverStatus.offline"), value: summary?.serversOffline || 0, fill: CHART_COLORS.serverOffline },
+  ], [summary, t])
 
   return (
     <div className="flex flex-col gap-4">
@@ -154,8 +156,8 @@ export default function MetricsTab() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            <p className="text-sm font-semibold text-foreground">Global Metrics</p>
-            <span className="text-xs text-muted-foreground">Last {windowDays} days</span>
+            <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
+            <span className="text-xs text-muted-foreground">{t("header.lastDays", { days: windowDays })}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-1">
@@ -177,7 +179,7 @@ export default function MetricsTab() {
               disabled={loading || refreshing}
             >
               <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
+              {t("actions.refresh")}
             </Button>
             <Button
               variant="outline"
@@ -186,7 +188,7 @@ export default function MetricsTab() {
               onClick={clearCollectedMetrics}
               disabled={loading || refreshing || clearing}
             >
-              {clearing ? "Clearing…" : "Clear Collected Metrics"}
+              {clearing ? t("actions.clearing") : t("actions.clearCollectedMetrics")}
             </Button>
           </div>
         </div>
@@ -197,52 +199,52 @@ export default function MetricsTab() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Users</span>
+            <span className="text-xs text-muted-foreground">{t("cards.users.title")}</span>
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-          <p className="text-xl font-mono font-semibold text-foreground">{summary ? summary.totalUsers.toLocaleString() : "—"}</p>
-          <p className="text-xs text-muted-foreground mt-1">{summary ? `${summary.registrationsCurrent.toLocaleString()} new` : ""}</p>
+          <p className="text-xl font-mono font-semibold text-foreground">{summary ? summary.totalUsers.toLocaleString() : t("common.dash")}</p>
+          <p className="text-xs text-muted-foreground mt-1">{summary ? t("cards.users.new", { count: summary.registrationsCurrent }) : ""}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Registration Growth</span>
+            <span className="text-xs text-muted-foreground">{t("cards.registrationGrowth.title")}</span>
             <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <p className={`text-xl font-mono font-semibold ${summary && summary.registrationGrowthPercent < 0 ? "text-destructive" : "text-foreground"}`}>
-            {summary ? formatDelta(summary.registrationGrowthPercent) : "—"}
+            {summary ? formatDelta(summary.registrationGrowthPercent) : t("common.dash")}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">vs previous {windowDays}d</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("cards.registrationGrowth.vsPrevious", { days: windowDays })}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Organisations</span>
+            <span className="text-xs text-muted-foreground">{t("cards.organisations.title")}</span>
             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-          <p className="text-xl font-mono font-semibold text-foreground">{summary ? summary.totalOrganisations.toLocaleString() : "—"}</p>
-          <p className="text-xs text-muted-foreground mt-1">{summary ? `${summary.organisationsCurrent.toLocaleString()} new` : ""}</p>
+          <p className="text-xl font-mono font-semibold text-foreground">{summary ? summary.totalOrganisations.toLocaleString() : t("common.dash")}</p>
+          <p className="text-xs text-muted-foreground mt-1">{summary ? t("cards.organisations.new", { count: summary.organisationsCurrent }) : ""}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Support & Orders</span>
+            <span className="text-xs text-muted-foreground">{t("cards.supportOrders.title")}</span>
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <p className="text-xl font-mono font-semibold text-foreground">
-            {summary ? `${summary.ticketsCurrent.toLocaleString()} / ${summary.ordersCurrent.toLocaleString()}` : "—"}
+            {summary ? `${summary.ticketsCurrent.toLocaleString()} / ${summary.ordersCurrent.toLocaleString()}` : t("common.dash")}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">tickets / orders in window</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("cards.supportOrders.subtitle")}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-3 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Servers</span>
+            <span className="text-xs text-muted-foreground">{t("cards.servers.title")}</span>
             <Server className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-          <p className="text-xl font-mono font-semibold text-foreground">{summary ? summary.totalServers.toLocaleString() : "—"}</p>
+          <p className="text-xl font-mono font-semibold text-foreground">{summary ? summary.totalServers.toLocaleString() : t("common.dash")}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {summary ? `${summary.serversOnline} online · ${summary.serversTransitioning} moving · ${summary.serversOffline} offline` : ""}
+            {summary ? t("cards.servers.subtitle", { online: summary.serversOnline, moving: summary.serversTransitioning, offline: summary.serversOffline }) : ""}
           </p>
         </div>
       </div>
@@ -250,10 +252,10 @@ export default function MetricsTab() {
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <Users className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">User Registrations</p>
+          <p className="text-sm font-semibold text-foreground">{t("charts.userRegistrations")}</p>
         </div>
         {loading ? (
-          <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading chart…</div>
+          <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">{t("charts.loading")}</div>
         ) : (
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -268,7 +270,7 @@ export default function MetricsTab() {
                 <XAxis dataKey="date" tickFormatter={formatDayLabel} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={28} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} width={38} />
                 <Tooltip content={<MetricsTooltip />} />
-                <Area type="monotone" dataKey="registrations" name="Registrations" stroke={CHART_COLORS.registrations} fill="url(#registrationsGrad)" strokeWidth={2.5} dot={false} />
+                <Area type="monotone" dataKey="registrations" name={t("charts.legend.registrations")} stroke={CHART_COLORS.registrations} fill="url(#registrationsGrad)" strokeWidth={2.5} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -278,10 +280,10 @@ export default function MetricsTab() {
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <Receipt className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Platform Activity</p>
+          <p className="text-sm font-semibold text-foreground">{t("charts.platformActivity")}</p>
         </div>
         {loading ? (
-          <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading chart…</div>
+          <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">{t("charts.loading")}</div>
         ) : (
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -291,9 +293,9 @@ export default function MetricsTab() {
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} width={38} />
                 <Tooltip content={<MetricsTooltip />} />
                 <Legend />
-                <Line type="monotone" dataKey="organisations" name="Orgs" stroke={CHART_COLORS.organisations} strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="tickets" name="Tickets" stroke={CHART_COLORS.tickets} strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="orders" name="Orders" stroke={CHART_COLORS.orders} strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="organisations" name={t("charts.legend.organisations")} stroke={CHART_COLORS.organisations} strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="tickets" name={t("charts.legend.tickets")} stroke={CHART_COLORS.tickets} strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="orders" name={t("charts.legend.orders")} stroke={CHART_COLORS.orders} strokeWidth={2.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -303,10 +305,10 @@ export default function MetricsTab() {
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <Server className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Server Status (Live)</p>
+          <p className="text-sm font-semibold text-foreground">{t("charts.serverStatusLive")}</p>
         </div>
         {loading ? (
-          <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">Loading chart…</div>
+          <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">{t("charts.loading")}</div>
         ) : (
           <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -315,7 +317,7 @@ export default function MetricsTab() {
                 <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} width={38} />
                 <Tooltip content={<MetricsTooltip />} />
-                <Bar dataKey="value" name="Servers" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="value" name={t("cards.servers.title")} radius={[6, 6, 0, 0]}>
                   {serverStatusData.map((entry) => (
                     <Cell key={entry.name} fill={entry.fill} />
                   ))}

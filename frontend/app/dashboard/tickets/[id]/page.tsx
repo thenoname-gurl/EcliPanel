@@ -1,6 +1,7 @@
 "use client"
 
 import { use, useState, useEffect, useRef } from "react"
+import { useTranslations } from "next-intl"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import Link from "next/link"
@@ -44,18 +45,18 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
-function getTicketUserName(ticket: any) {
+function getTicketUserName(ticket: any, t?: any) {
   if (ticket?.userName) return ticket.userName
   if (ticket?.user?.displayName) return ticket.user.displayName
   if (ticket?.user?.firstName || ticket?.user?.lastName) {
     return `${ticket.user.firstName || ""} ${ticket.user.lastName || ""}`.trim()
   }
   if (ticket?.user?.email) return ticket.user.email
-  return "You"
+  return t ? t("common.you") : "You"
 }
 
-function buildMessages(ticket: any) {
-  const userName = getTicketUserName(ticket)
+function buildMessages(ticket: any, t?: any) {
+  const userName = getTicketUserName(ticket, t)
   if (Array.isArray(ticket?.messages) && ticket.messages.length) {
     return ticket.messages.map((m: any, idx: number) => ({
       id: `msg-${idx}`,
@@ -67,10 +68,10 @@ function buildMessages(ticket: any) {
                 (typeof m.staffDisplayName === "string" && m.staffDisplayName.trim()) ||
                 (typeof m.staffName === "string" && m.staffName.trim()) ||
                 (typeof m.staffLegalName === "string" && m.staffLegalName.trim()) ||
-                "Support Team"
+                (t ? t("common.supportTeam") : "Support Team")
               ))
           : m.sender === "system"
-            ? "Information"
+            ? (t ? t("common.information") : "Information")
             : userName,
       senderRole:
         m.sender === "staff"
@@ -105,7 +106,7 @@ function buildMessages(ticket: any) {
   if (ticket?.adminReply) {
     msgs.push({
       id: "msg-reply",
-      sender: "Support Team",
+      sender: t ? t("common.supportTeam") : "Support Team",
       senderRole: "staff",
       content: ticket.adminReply,
       timestamp: ticket.updatedAt || ticket.created,
@@ -114,32 +115,38 @@ function buildMessages(ticket: any) {
   return msgs
 }
 
-function getTicketChangeNotifications(oldTicket: any, newTicket: any) {
+function getTicketChangeNotifications(oldTicket: any, newTicket: any, t?: any) {
   const changes: Array<{ icon: any; text: string }> = []
   if (!oldTicket || !newTicket) return changes
   if (oldTicket.priority !== newTicket.priority)
     changes.push({
       icon: Tag,
-      text: `Priority changed to ${newTicket.priority ?? "unset"}`,
+      text: t
+        ? t("notifications.priorityChanged", { value: newTicket.priority ?? t("common.unset") })
+        : `Priority changed to ${newTicket.priority ?? "unset"}`,
     })
   if (oldTicket.department !== newTicket.department)
     changes.push({
       icon: Info,
-      text: `Department changed to ${newTicket.department ?? "unset"}`,
+      text: t
+        ? t("notifications.departmentChanged", { value: newTicket.department ?? t("common.unset") })
+        : `Department changed to ${newTicket.department ?? "unset"}`,
     })
   if (!oldTicket.aiMarkedSpam && newTicket.aiMarkedSpam)
-    changes.push({ icon: AlertCircle, text: "Ticket was marked as spam" })
+    changes.push({ icon: AlertCircle, text: t ? t("notifications.markedSpam") : "Ticket was marked as spam" })
   if (!oldTicket.aiClosed && newTicket.aiClosed)
-    changes.push({ icon: CheckCircle, text: "Ticket was closed by AI" })
+    changes.push({ icon: CheckCircle, text: t ? t("notifications.closedByAi") : "Ticket was closed by AI" })
   if (oldTicket.status !== newTicket.status)
     changes.push({
       icon: Info,
-      text: `Status changed to ${newTicket.status ?? "unknown"}`,
+      text: t
+        ? t("notifications.statusChanged", { value: newTicket.status ?? t("common.unknown") })
+        : `Status changed to ${newTicket.status ?? "unknown"}`,
     })
   return changes
 }
 
-function TimeAgo({ date }: { date: string }) {
+function TimeAgo({ date, t }: { date: string; t: any }) {
   const d = new Date(date)
   const now = new Date()
   const diffMs = now.getTime() - d.getTime()
@@ -148,10 +155,10 @@ function TimeAgo({ date }: { date: string }) {
   const diffDays = Math.floor(diffHours / 24)
 
   let timeAgo: string
-  if (diffMins < 1) timeAgo = "just now"
-  else if (diffMins < 60) timeAgo = `${diffMins}m ago`
-  else if (diffHours < 24) timeAgo = `${diffHours}h ago`
-  else timeAgo = `${diffDays}d ago`
+  if (diffMins < 1) timeAgo = t("time.justNow")
+  else if (diffMins < 60) timeAgo = t("time.minutesAgo", { count: diffMins })
+  else if (diffHours < 24) timeAgo = t("time.hoursAgo", { count: diffHours })
+  else timeAgo = t("time.daysAgo", { count: diffDays })
 
   return (
     <span title={d.toLocaleString()} className="cursor-help">
@@ -165,6 +172,7 @@ export default function TicketDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const t = useTranslations("ticketDetailPage")
   const { id } = use(params)
   const { user } = useAuth()
   const isAdmin =
@@ -205,13 +213,14 @@ export default function TicketDetailPage({
         )
         const diff = getTicketChangeNotifications(
           prevTicketRef.current,
-          data
+          data,
+          t
         )
         if (diff.length > 0)
           setChangeNotifications((prev) => [...prev, ...diff])
         prevTicketRef.current = data
         setTicket(data)
-        setMessages(buildMessages(data))
+        setMessages(buildMessages(data, t))
         setReplyPriority(data?.priority || "medium")
         setAdminStatus(data?.status || "")
         setAdminPriority(data?.priority || "medium")
@@ -221,7 +230,7 @@ export default function TicketDetailPage({
         if (isAdmin)
           setReplyAs(data?.userId === user?.id ? "user" : "staff")
       } catch (e: any) {
-        setError(e.message || "Failed to load ticket")
+        setError(e.message || t("errors.failedLoadTicket"))
       } finally {
         setLoading(false)
       }
@@ -237,20 +246,21 @@ export default function TicketDetailPage({
         if (!data) return
         const diff = getTicketChangeNotifications(
           prevTicketRef.current,
-          data
+          data,
+          t
         )
         if (diff.length > 0)
           setChangeNotifications((prev) => [...prev, ...diff])
         prevTicketRef.current = data
         setTicket(data)
-        setMessages(buildMessages(data))
+        setMessages(buildMessages(data, t))
       } catch {
         // ignore poll errors
       }
     }, 7000)
 
     return () => clearInterval(pollId)
-  }, [id, isAdmin, user?.id])
+  }, [id, isAdmin, user?.id, t])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -296,16 +306,17 @@ export default function TicketDetailPage({
       )
       const diff = getTicketChangeNotifications(
         prevTicketRef.current,
-        updated
+        updated,
+        t
       )
       if (diff.length > 0)
         setChangeNotifications((prev) => [...prev, ...diff])
       prevTicketRef.current = updated
       setTicket(updated)
-      setMessages(buildMessages(updated))
+      setMessages(buildMessages(updated, t))
       setReply("")
     } catch (e: any) {
-      alert("Failed to send: " + e.message)
+      alert(t("alerts.failedSend", { reason: e.message }))
     } finally {
       setSending(false)
     }
@@ -322,10 +333,10 @@ export default function TicketDetailPage({
         }
       )
       setTicket(updated)
-      setMessages(buildMessages(updated))
+      setMessages(buildMessages(updated, t))
       setAdminStatus(updated.status)
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("alerts.failed", { reason: e.message }))
     }
   }
 
@@ -347,14 +358,14 @@ export default function TicketDetailPage({
         }
       )
       setTicket(updated)
-      setMessages(buildMessages(updated))
+      setMessages(buildMessages(updated, t))
       setChangeNotifications((prev) => [
         ...prev,
-        { icon: Info, text: "Admin ticket settings updated" },
+        { icon: Info, text: t("notifications.adminUpdated") },
       ])
       setShowAdminPanel(false)
     } catch (e: any) {
-      alert("Failed to save admin settings: " + e.message)
+      alert(t("alerts.failedSaveAdmin", { reason: e.message }))
     } finally {
       setSavingAdmin(false)
     }
@@ -362,7 +373,7 @@ export default function TicketDetailPage({
 
   const deleteTicket = async () => {
     if (!ticket || !isAdmin) return
-    if (!confirm("Delete this ticket permanently?")) return
+    if (!confirm(t("confirm.deleteTicket"))) return
     setDeleting(true)
     try {
       await apiFetch(
@@ -371,7 +382,7 @@ export default function TicketDetailPage({
       )
       window.location.href = "/dashboard/tickets"
     } catch (e: any) {
-      alert("Failed to delete: " + e.message)
+      alert(t("alerts.failedDelete", { reason: e.message }))
     } finally {
       setDeleting(false)
     }
@@ -393,12 +404,12 @@ export default function TicketDetailPage({
   if (loading)
     return (
       <div className="h-full flex flex-col overflow-hidden">
-        <PanelHeader title="Ticket" />
+        <PanelHeader title={t("header.ticket")} />
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">
-              Loading ticket…
+              {t("states.loadingTicket")}
             </p>
           </div>
         </div>
@@ -408,20 +419,20 @@ export default function TicketDetailPage({
   if (error || !ticket)
     return (
       <div className="h-full flex flex-col overflow-hidden">
-        <PanelHeader title="Ticket" />
+        <PanelHeader title={t("header.ticket")} />
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <div className="rounded-full bg-destructive/10 p-4">
             <AlertCircle className="h-8 w-8 text-destructive/50" />
           </div>
           <p className="text-sm text-muted-foreground">
-            {error || "Ticket not found"}
+            {error || t("states.ticketNotFound")}
           </p>
           <Link
             href="/dashboard/tickets"
             className="text-sm text-primary hover:underline flex items-center gap-1.5"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to tickets
+            {t("actions.backToTickets")}
           </Link>
         </div>
       </div>
@@ -434,13 +445,13 @@ export default function TicketDetailPage({
       <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
-            Status
+            {t("labels.status")}
           </p>
           <StatusBadge status={ticket.status} />
         </div>
         <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
-            Priority
+            {t("labels.priority")}
           </p>
           <div className="flex items-center gap-1.5">
             <span
@@ -453,10 +464,10 @@ export default function TicketDetailPage({
         </div>
         <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
-            Created
+            {t("labels.created")}
           </p>
           <p className="text-xs sm:text-sm text-foreground">
-            <TimeAgo date={ticket.created} />
+            <TimeAgo date={ticket.created} t={t} />
           </p>
           <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
             {new Date(ticket.created).toLocaleDateString()}
@@ -464,7 +475,7 @@ export default function TicketDetailPage({
         </div>
         <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
-            Messages
+            {t("labels.messages")}
           </p>
           <div className="flex items-center gap-1.5">
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -480,7 +491,7 @@ export default function TicketDetailPage({
           <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-muted-foreground">
               <Building2 className="h-3 w-3" />
-              Department
+              {t("labels.department")}
             </div>
             <span className="text-[11px] sm:text-xs font-medium text-foreground">
               {ticket.department}
@@ -491,7 +502,7 @@ export default function TicketDetailPage({
           <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-muted-foreground">
               <User className="h-3 w-3" />
-              Assigned
+              {t("labels.assigned")}
             </div>
             <span className="text-[11px] sm:text-xs font-medium text-foreground font-mono">
               #{ticket.assignedTo}
@@ -502,10 +513,10 @@ export default function TicketDetailPage({
           <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              Updated
+              {t("labels.updated")}
             </div>
             <span className="text-[11px] sm:text-xs text-foreground">
-              <TimeAgo date={ticket.updatedAt} />
+              <TimeAgo date={ticket.updatedAt} t={t} />
             </span>
           </div>
         )}
@@ -513,7 +524,7 @@ export default function TicketDetailPage({
 
       <div className="flex flex-col gap-2">
         <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          Quick Actions
+          {t("labels.quickActions")}
         </p>
         {!isClosed ? (
           <button
@@ -524,7 +535,7 @@ export default function TicketDetailPage({
             className="flex items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all w-full"
           >
             <XCircle className="h-4 w-4" />
-            Close Ticket
+            {t("actions.closeTicket")}
           </button>
         ) : (
           <button
@@ -535,7 +546,7 @@ export default function TicketDetailPage({
             className="flex items-center justify-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all w-full"
           >
             <CheckCircle className="h-4 w-4" />
-            Reopen Ticket
+            {t("actions.reopenTicket")}
           </button>
         )}
       </div>
@@ -547,56 +558,56 @@ export default function TicketDetailPage({
       <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            Status
+            {t("labels.status")}
           </label>
           <select
             value={adminStatus}
             onChange={(e) => setAdminStatus(e.target.value)}
             className="rounded-lg border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
           >
-            <option value="opened">Open</option>
-            <option value="awaiting_staff_reply">Awaiting Staff</option>
-            <option value="replied">Replied</option>
-            <option value="closed">Closed</option>
+            <option value="opened">{t("status.open")}</option>
+            <option value="awaiting_staff_reply">{t("status.awaitingStaff")}</option>
+            <option value="replied">{t("status.replied")}</option>
+            <option value="closed">{t("status.closed")}</option>
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            Priority
+            {t("labels.priority")}
           </label>
           <select
             value={adminPriority}
             onChange={(e) => setAdminPriority(e.target.value)}
             className="rounded-lg border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
           >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
+            <option value="low">{t("priority.low")}</option>
+            <option value="medium">{t("priority.medium")}</option>
+            <option value="high">{t("priority.high")}</option>
+            <option value="urgent">{t("priority.urgent")}</option>
           </select>
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          Department
+          {t("labels.department")}
         </label>
         <select
           value={adminDepartment || ""}
           onChange={(e) => setAdminDepartment(e.target.value)}
           className="rounded-lg border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
         >
-          <option value="">(none)</option>
-          <option value="Technical Support">Technical Support</option>
-          <option value="Billing">Billing</option>
-          <option value="Sales">Sales</option>
-          <option value="Security">Security</option>
+          <option value="">{t("department.none")}</option>
+          <option value="Technical Support">{t("department.technicalSupport")}</option>
+          <option value="Billing">{t("department.billing")}</option>
+          <option value="Sales">{t("department.sales")}</option>
+          <option value="Security">{t("department.security")}</option>
         </select>
       </div>
 
       <div className="flex flex-col gap-2">
         <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          AI Settings
+          {t("admin.aiSettings")}
         </p>
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -614,10 +625,10 @@ export default function TicketDetailPage({
             )}
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-medium truncate">
-                AI Responses
+                {t("admin.aiResponses")}
               </p>
               <p className="text-[9px] sm:text-[10px] opacity-70">
-                {adminAiDisabled ? "Disabled" : "Enabled"}
+                {adminAiDisabled ? t("admin.disabled") : t("admin.enabled")}
               </p>
             </div>
           </button>
@@ -632,10 +643,10 @@ export default function TicketDetailPage({
             <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-medium truncate">
-                AI Touched
+                {t("admin.aiTouched")}
               </p>
               <p className="text-[9px] sm:text-[10px] opacity-70">
-                {adminAiTouched ? "Yes" : "No"}
+                {adminAiTouched ? t("common.yes") : t("common.no")}
               </p>
             </div>
           </button>
@@ -651,24 +662,24 @@ export default function TicketDetailPage({
         {savingAdmin ? (
           <>
             <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-            Saving…
+            {t("actions.saving")}
           </>
         ) : (
-          "Save Changes"
+          t("actions.saveChanges")
         )}
       </Button>
 
       <div className="border-t border-border pt-3 sm:pt-4">
         <p className="text-[9px] sm:text-[10px] font-medium text-red-400 uppercase tracking-wider mb-2 sm:mb-3">
-          Danger Zone
+          {t("admin.dangerZone")}
         </p>
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={async () => {
-                if (!confirm("Ban this user from support?")) return
+                if (!confirm(t("confirm.banUser"))) return
                 const reason =
-                  prompt("Reason for ban (optional):") || ""
+                  prompt(t("prompt.banReason")) || ""
                 try {
                   await apiFetch(
                     `/api/admin/users/${ticket.userId}`,
@@ -680,19 +691,19 @@ export default function TicketDetailPage({
                       }),
                     }
                   )
-                  alert("User banned from support")
+                  alert(t("alerts.userBanned"))
                 } catch (e: any) {
-                  alert("Failed to ban: " + e.message)
+                  alert(t("alerts.failedBan", { reason: e.message }))
                 }
               }}
               className="flex items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all"
             >
               <Ban className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              Ban
+              {t("actions.ban")}
             </button>
             <button
               onClick={async () => {
-                if (!confirm("Unban this user from support?"))
+                if (!confirm(t("confirm.unbanUser")))
                   return
                 try {
                   await apiFetch(
@@ -705,15 +716,15 @@ export default function TicketDetailPage({
                       }),
                     }
                   )
-                  alert("User unbanned")
+                  alert(t("alerts.userUnbanned"))
                 } catch (e: any) {
-                  alert("Failed to unban: " + e.message)
+                  alert(t("alerts.failedUnban", { reason: e.message }))
                 }
               }}
               className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-2 text-[11px] sm:text-xs font-medium text-muted-foreground hover:bg-secondary/50 active:scale-[0.98] transition-all"
             >
               <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              Unban
+              {t("actions.unban")}
             </button>
           </div>
           <button
@@ -726,7 +737,7 @@ export default function TicketDetailPage({
             ) : (
               <Trash2 className="h-3.5 w-3.5" />
             )}
-            {deleting ? "Deleting…" : "Delete Ticket"}
+            {deleting ? t("actions.deleting") : t("actions.deleteTicket")}
           </button>
         </div>
       </div>
@@ -776,7 +787,7 @@ export default function TicketDetailPage({
                     className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all"
                   >
                     <XCircle className="h-3.5 w-3.5" />
-                    Close
+                    {t("actions.close")}
                   </button>
                 ) : (
                   <button
@@ -784,7 +795,7 @@ export default function TicketDetailPage({
                     className="flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all"
                   >
                     <CheckCircle className="h-3.5 w-3.5" />
-                    Reopen
+                    {t("actions.reopen")}
                   </button>
                 )}
               </div>
@@ -799,7 +810,7 @@ export default function TicketDetailPage({
                   }`}
                 >
                   <Settings2 className="h-3.5 w-3.5" />
-                  Admin
+                  {t("admin.admin")}
                 </button>
               )}
 
@@ -818,34 +829,34 @@ export default function TicketDetailPage({
           {isAdmin && ticket?.user && (
             <div className="mx-3 mb-4 rounded-lg border border-border bg-secondary/20 p-3 text-sm text-foreground">
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ticket Owner</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("owner.ticketOwner")}</h2>
                 <Link
                   href={`/dashboard/admin?viewUser=${ticket.user.id}`}
                   className="text-xs text-primary hover:underline"
                 >
-                  View full profile
+                  {t("owner.viewFullProfile")}
                 </Link>
               </div>
               <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Name</p>
+                  <p className="text-[10px] text-muted-foreground">{t("owner.name")}</p>
                   <p className="text-sm font-medium text-foreground">
-                    {ticket.user.displayName || `${ticket.user.firstName || ''} ${ticket.user.lastName || ''}`.trim() || "(unknown)"}
+                    {ticket.user.displayName || `${ticket.user.firstName || ''} ${ticket.user.lastName || ''}`.trim() || t("common.unknownWrapped")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Email</p>
+                  <p className="text-[10px] text-muted-foreground">{t("owner.email")}</p>
                   <p className="text-sm font-medium text-foreground">{ticket.user.email}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Role</p>
+                  <p className="text-[10px] text-muted-foreground">{t("owner.role")}</p>
                   <p className="text-sm font-medium text-foreground">
-                    {ticket.user.role || ticket.user.orgRole || "user"}
+                    {ticket.user.role || ticket.user.orgRole || t("common.user")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Portal</p>
-                  <p className="text-sm font-medium text-foreground">{ticket.user.portalType || "unknown"}</p>
+                  <p className="text-[10px] text-muted-foreground">{t("owner.portal")}</p>
+                  <p className="text-sm font-medium text-foreground">{ticket.user.portalType || t("common.unknown")}</p>
                 </div>
               </div>
             </div>
@@ -874,7 +885,7 @@ export default function TicketDetailPage({
                 <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-foreground">
-                      Ticket Details
+                      {t("labels.ticketDetails")}
                     </h3>
                     <button
                       onClick={() => setShowMobileDetails(false)}
@@ -896,7 +907,7 @@ export default function TicketDetailPage({
                       >
                         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                           <Settings2 className="h-4 w-4 text-primary" />
-                          Admin Settings
+                          {t("admin.adminSettings")}
                         </span>
                         <ChevronDown
                           className={`h-4 w-4 text-muted-foreground transition-transform ${showAdminPanel ? "rotate-180" : ""}`}
@@ -917,7 +928,7 @@ export default function TicketDetailPage({
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <Settings2 className="h-4 w-4 text-primary" />
-                    Admin Settings
+                    {t("admin.adminSettings")}
                   </h3>
                   <button
                     onClick={() => setShowAdminPanel(false)}
@@ -1026,16 +1037,16 @@ export default function TicketDetailPage({
                           </span>
                           {isStaff && (
                             <Badge className="bg-primary/10 text-primary border-primary/20 text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0">
-                              Staff
+                              {t("common.staff")}
                             </Badge>
                           )}
                           {msg.ai && (
                             <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0">
-                              AI
+                              {t("common.ai")}
                             </Badge>
                           )}
                           <span className="text-[9px] sm:text-[10px] text-muted-foreground/60">
-                            <TimeAgo date={msg.timestamp} />
+                            <TimeAgo date={msg.timestamp} t={t} />
                           </span>
                         </div>
                       )}
@@ -1076,8 +1087,8 @@ export default function TicketDetailPage({
                     }}
                     placeholder={
                       isAdmin
-                        ? "Write your staff reply…"
-                        : "Add more information…"
+                        ? t("composer.staffPlaceholder")
+                        : t("composer.userPlaceholder")
                     }
                     rows={1}
                     className="w-full bg-transparent px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-foreground placeholder:text-muted-foreground/50 outline-none resize-none max-h-[120px] leading-relaxed"
@@ -1105,7 +1116,7 @@ export default function TicketDetailPage({
                             <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           )}
                           <span>
-                            {replyAs === "staff" ? "Staff" : "User"}
+                            {replyAs === "staff" ? t("common.staff") : t("common.user")}
                           </span>
                         </button>
                       )}
@@ -1118,15 +1129,15 @@ export default function TicketDetailPage({
                           }
                           className="rounded-full border border-border bg-secondary/50 px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] text-foreground outline-none cursor-pointer hover:border-primary/30 transition-colors"
                         >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
+                          <option value="low">{t("priority.low")}</option>
+                          <option value="medium">{t("priority.medium")}</option>
+                          <option value="high">{t("priority.high")}</option>
+                          <option value="urgent">{t("priority.urgent")}</option>
                         </select>
                       )}
 
                       <span className="text-[9px] sm:text-[10px] text-muted-foreground/40 hidden sm:inline">
-                        ⌘+Enter to send
+                        {t("composer.sendHint")}
                       </span>
                     </div>
 
@@ -1145,7 +1156,7 @@ export default function TicketDetailPage({
                         <Send className="h-3.5 w-3.5" />
                       )}
                       <span className="hidden sm:inline">
-                        {isAdmin ? "Reply" : "Send"}
+                        {isAdmin ? t("actions.reply") : t("actions.send")}
                       </span>
                     </button>
                   </div>
@@ -1158,13 +1169,13 @@ export default function TicketDetailPage({
                 <div className="flex items-center justify-center gap-2 sm:gap-3 rounded-xl border border-dashed border-border py-2.5 sm:py-3">
                   <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Ticket closed
+                    {t("states.ticketClosed")}
                   </p>
                   <button
                     onClick={() => setStatus("open")}
                     className="text-xs sm:text-sm font-medium text-primary hover:underline"
                   >
-                    Reopen
+                    {t("actions.reopen")}
                   </button>
                 </div>
               </div>
@@ -1176,7 +1187,7 @@ export default function TicketDetailPage({
         <div className="hidden lg:flex w-72 shrink-0 flex-col border-l border-border bg-card/30 overflow-y-auto overscroll-contain">
           <div className="p-4 sm:p-5">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-              Ticket Details
+              {t("labels.ticketDetails")}
             </h3>
             <TicketDetailsContent />
           </div>

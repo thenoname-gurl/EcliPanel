@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "@/lib/editor-settings"
 import { PanelHeader } from "@/components/panel/header"
@@ -282,6 +283,7 @@ function CollapsibleSection({
 
 interface PowerActionsProps {
   server: any
+  t: any
   powerLoading: boolean
   markStartedLoading?: boolean
   onAction: (action: string) => void
@@ -295,6 +297,7 @@ interface PowerActionsProps {
 
 function PowerActions({
   server,
+  t,
   powerLoading,
   markStartedLoading,
   onAction,
@@ -401,7 +404,7 @@ function PowerActions({
             role="menuitem"
           >
             <RotateCcw className="h-4 w-4 flex-shrink-0" />
-            <span>Restart</span>
+            <span>{t("actions.restart")}</span>
           </button>
           <button
             onClick={() => {
@@ -413,7 +416,7 @@ function PowerActions({
             role="menuitem"
           >
             <Power className="h-4 w-4 flex-shrink-0" />
-            <span>Kill</span>
+            <span>{t("actions.kill")}</span>
           </button>
           {canTransfer && onTransfer && (
             <>
@@ -427,7 +430,7 @@ function PowerActions({
                 role="menuitem"
               >
                 <Repeat className="h-4 w-4 flex-shrink-0" />
-                <span>Transfer</span>
+                <span>{t("actions.transfer")}</span>
               </button>
             </>
           )}
@@ -445,7 +448,7 @@ function PowerActions({
               >
                 <Monitor className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1 text-left truncate">
-                  {kvmEnabled ? "Disable KVM" : "Enable KVM"}
+                  {kvmEnabled ? t("actions.disableKvm") : t("actions.enableKvm")}
                 </span>
                 {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
               </button>
@@ -462,7 +465,7 @@ function PowerActions({
               role="menuitem"
             >
               <Check className="h-4 w-4 flex-shrink-0" />
-              <span className="flex-1 text-left truncate">Mark as Started</span>
+              <span className="flex-1 text-left truncate">{t("actions.markStarted")}</span>
               {markStartedLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
             </button>
           )}
@@ -486,7 +489,7 @@ function PowerActions({
         ) : (
           <Play className="h-4 w-4" />
         )}
-        <span className="hidden sm:inline ml-1.5">Start</span>
+        <span className="hidden sm:inline ml-1.5">{t("actions.start")}</span>
       </Button>
 
       <Button
@@ -497,7 +500,7 @@ function PowerActions({
         onClick={() => onAction("stop")}
       >
         <Square className="h-4 w-4" />
-        <span className="hidden sm:inline ml-1.5">Stop</span>
+        <span className="hidden sm:inline ml-1.5">{t("actions.stop")}</span>
       </Button>
 
       <div className="relative">
@@ -509,7 +512,7 @@ function PowerActions({
           className={cn("h-9 w-9 p-0", menuOpen && "bg-secondary")}
           aria-expanded={menuOpen}
           aria-haspopup="true"
-          aria-label="More power options"
+          aria-label={t("actions.morePowerOptions")}
         >
           <MoreVertical className="h-4 w-4" />
         </Button>
@@ -587,6 +590,7 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
 // ─── Resource Stats ──────────────────────────────────────────────────────────
 
 function ResourceStats({ resources }: { resources: any }) {
+  const t = useTranslations("serverDetailPage")
   const prevNetworkRef = useRef<{ tx: number; rx: number; ts: number } | null>(null)
   const [currentNetMbps, setCurrentNetMbps] = useState({ tx: 0, rx: 0 })
 
@@ -624,11 +628,11 @@ function ResourceStats({ resources }: { resources: any }) {
   if (!resources) return null
 
   const stats = [
-    { label: "CPU", value: `${(resources.cpu_absolute ?? 0).toFixed(1)}%`, color: "#3b82f6" },
-    { label: "Memory", value: formatBytes(resources.memory_bytes ?? 0), color: "#8b5cf6" },
-    { label: "Disk", value: formatBytes(resources.disk_bytes ?? 0), color: "#f59e0b" },
+    { label: t("stats.cpu"), value: `${(resources.cpu_absolute ?? 0).toFixed(1)}%`, color: "#3b82f6" },
+    { label: t("stats.memory"), value: formatBytes(resources.memory_bytes ?? 0), color: "#8b5cf6" },
+    { label: t("stats.disk"), value: formatBytes(resources.disk_bytes ?? 0), color: "#f59e0b" },
     {
-      label: "Net ↑↓",
+      label: t("stats.net"),
       value: `${formatAdaptiveMbps(currentNetMbps.tx)} / ${formatAdaptiveMbps(currentNetMbps.rx)}`,
       color: "#22c55e",
     },
@@ -646,6 +650,7 @@ function ResourceStats({ resources }: { resources: any }) {
 // ─── Main Server Detail Page ─────────────────────────────────────────────────
 
 export default function ServerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = useTranslations("serverDetailPage")
   const { id } = use(params)
   const router = useRouter()
   const { user } = useAuth()
@@ -733,29 +738,29 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         if (res && typeof res === "object" && res.success === false) {
           setPowerToast({
             type: "warning",
-            title: "Dice denied",
-            message: res.message || res.error || "Power action denied by dice roll.",
+            title: t("toasts.diceDeniedTitle"),
+            message: res.message || res.error || t("toasts.powerDenied"),
           })
           return
         }
 
         setPowerToast({
           type: "success",
-          title: "Action sent",
-          message: `${action.toUpperCase()} requested successfully.`,
+          title: t("toasts.actionSentTitle"),
+          message: t("toasts.actionRequested", { action: action.toUpperCase() }),
         })
         setTimeout(loadServer, 1500)
       } catch (e: any) {
         setPowerToast({
           type: "error",
-          title: "Power action failed",
-          message: e?.message || "Unknown error",
+          title: t("toasts.powerFailedTitle"),
+          message: e?.message || t("toasts.unknownError"),
         })
       } finally {
         setPowerLoading(false)
       }
     },
-    [id, loadServer]
+    [id, loadServer, t]
   )
 
   const confirmPowerAction = useCallback((action: string) => {
@@ -780,24 +785,24 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         body: JSON.stringify({ enable }),
       })
       await loadServer()
-      alert(`KVM ${enable ? "enabled" : "disabled"}.`)
+      alert(t("alerts.kvmToggled", { state: enable ? t("states.enabled") : t("states.disabled") }))
     } catch (e: any) {
-      alert(`KVM toggle failed: ${e?.message || e}`)
+      alert(t("alerts.kvmToggleFailed", { reason: e?.message || e }))
     } finally {
       setKvmLoading(false)
     }
-  }, [server, id, loadServer])
+  }, [server, id, loadServer, t])
 
   const deleteServer = useCallback(async () => {
-    if (!confirm("Are you sure you want to permanently delete this server? This action cannot be undone."))
+    if (!confirm(t("confirm.deleteServer")))
       return
     try {
       await apiFetch(API_ENDPOINTS.serverDelete.replace(":id", id), { method: "DELETE" })
       router.push("/dashboard/servers")
     } catch (e: any) {
-      alert("Delete failed: " + e.message)
+      alert(t("alerts.deleteFailed", { reason: e.message }))
     }
-  }, [id, router])
+  }, [id, router, t])
 
   const loadNodes = useCallback(async () => {
     try {
@@ -815,7 +820,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   const doTransfer = useCallback(async () => {
     if (!transferNodeId) {
-      setTransferError("Please select a target node")
+      setTransferError(t("errors.selectTargetNode"))
       return
     }
     setTransferLoading(true)
@@ -829,13 +834,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       setTransferNodeId(null)
       setTransferNodes([])
       loadServer()
-      alert("Transfer initiated. This may take several minutes.")
+      alert(t("alerts.transferInitiated"))
     } catch (e: any) {
-      setTransferError(e.message || "Transfer failed")
+      setTransferError(e.message || t("errors.transferFailed"))
     } finally {
       setTransferLoading(false)
     }
-  }, [transferNodeId, id, loadServer])
+  }, [transferNodeId, id, loadServer, t])
 
   const canTransfer = !!(
     user &&
@@ -861,13 +866,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         method: "POST",
       })
       await loadServer()
-      alert("Server marked as started.")
+      alert(t("alerts.markedStarted"))
     } catch (e: any) {
-      alert("Mark started failed: " + (e?.message || e))
+      alert(t("alerts.markStartedFailed", { reason: e?.message || e }))
     } finally {
       setMarkStartedLoading(false)
     }
-  }, [id, loadServer])
+  }, [id, loadServer, t])
 
   const isOwnerOrAdmin = !!(
     user &&
@@ -887,20 +892,20 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   const tabs: TabItem[] = useMemo(
     () => [
-      { id: "console", label: "Console", icon: Terminal },
-      { id: "stats", label: "Statistics", icon: BarChart3, shortLabel: "Stats" },
-      { id: "files", label: "Files", icon: Folder },
-      { id: "startup", label: "Startup", icon: Variable },
-      { id: "databases", label: "Databases", icon: Database, shortLabel: "DB" },
-      { id: "schedules", label: "Schedules", icon: Clock },
-      { id: "network", label: "Network", icon: Network, shortLabel: "Net" },
-      { id: "backups", label: "Backups", icon: HardDrive },
-      { id: "activity", label: "Activity", icon: Activity },
-      { id: "subusers", label: "Subusers", icon: Users },
-      { id: "mounts", label: "Mounts", icon: Box },
-      { id: "settings", label: "Settings", icon: Settings },
+      { id: "console", label: t("tabs.console"), icon: Terminal },
+      { id: "stats", label: t("tabs.statistics"), icon: BarChart3, shortLabel: t("tabs.statsShort") },
+      { id: "files", label: t("tabs.files"), icon: Folder },
+      { id: "startup", label: t("tabs.startup"), icon: Variable },
+      { id: "databases", label: t("tabs.databases"), icon: Database, shortLabel: t("tabs.dbShort") },
+      { id: "schedules", label: t("tabs.schedules"), icon: Clock },
+      { id: "network", label: t("tabs.network"), icon: Network, shortLabel: t("tabs.netShort") },
+      { id: "backups", label: t("tabs.backups"), icon: HardDrive },
+      { id: "activity", label: t("tabs.activity"), icon: Activity },
+      { id: "subusers", label: t("tabs.subusers"), icon: Users },
+      { id: "mounts", label: t("tabs.mounts"), icon: Box },
+      { id: "settings", label: t("tabs.settings"), icon: Settings },
     ],
-    []
+    [t]
   )
 
   const tabPermissionMap: Record<string, string | null> = useMemo(
@@ -946,7 +951,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading server…</p>
+          <p className="text-sm text-muted-foreground">{t("states.loadingServer")}</p>
         </div>
       </div>
     )
@@ -959,13 +964,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           <AlertTriangle className="h-8 w-8 text-destructive" />
         </div>
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-foreground mb-1">Server Not Found</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-1">{t("states.serverNotFoundTitle")}</h2>
           <p className="text-sm text-muted-foreground">
-            The server you&apos;re looking for doesn&apos;t exist or is unavailable.
+            {t("states.serverNotFoundDescription")}
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push("/dashboard/servers")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Servers
+          <ArrowLeft className="h-4 w-4 mr-2" /> {t("actions.backToServers")}
         </Button>
       </div>
     )
@@ -1022,7 +1027,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       {/* Header */}
       <div data-guide-id="server-header" className="flex-shrink-0">
         <PanelHeader
-          title={server.name || server.uuid?.slice(0, 8) || "Server"}
+          title={server.name || server.uuid?.slice(0, 8) || t("header.serverFallback")}
           description={`${server.uuid || id}`}
         />
       </div>
@@ -1041,7 +1046,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               />
               <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-foreground truncate">
-                  {server.name || "Unnamed Server"}
+                  {server.name || t("header.unnamedServer")}
                 </p>
                 <p className="text-[11px] text-muted-foreground truncate font-mono hidden sm:block">
                   {server.uuid || id}
@@ -1052,7 +1057,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                   variant="outline"
                   className={cn("text-xs whitespace-nowrap", statusColor.split(" ")[0])}
                 >
-                  {server.status || "unknown"}
+                  {server.status || t("states.unknown")}
                 </Badge>
                 {isKvm && (
                   <Badge
@@ -1069,6 +1074,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             <div className="flex items-center justify-between gap-2 min-w-0">
               <PowerActions
                 server={server}
+                t={t}
                 powerLoading={powerLoading}
                 markStartedLoading={markStartedLoading}
                 kvmLoading={kvmLoading}
@@ -1092,7 +1098,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                     className="h-9"
                   >
                     <ExternalLink className="h-4 w-4 mr-1.5" />
-                    Admin Mode
+                    {t("actions.adminMode")}
                   </Button>
                 )}
                 <Button
@@ -1100,7 +1106,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                   variant="ghost"
                   onClick={loadServer}
                   className="h-9 w-9 p-0"
-                  aria-label="Refresh server"
+                  aria-label={t("actions.refreshServer")}
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
@@ -1121,20 +1127,20 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           {/* Tab Content */}
           <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 w-full">
             {activeTab === "console" && (
-              <Suspense fallback={<LoadingState message="Loading console…" />}>
+              <Suspense fallback={<LoadingState message={t("states.loadingConsole")} />}>
                 <ConsoleTabLazy serverId={id} />
               </Suspense>
             )}
             {activeTab === "stats" && (
-              <Suspense fallback={<LoadingState message="Loading statistics…" />}>
+              <Suspense fallback={<LoadingState message={t("states.loadingStatistics")} />}>
                 <StatsTabLazy serverId={id} server={server} />
               </Suspense>
             )}
             {activeTab === "files" && (
-              <Suspense fallback={<LoadingState message="Loading files…" />}>
+              <Suspense fallback={<LoadingState message={t("states.loadingFiles")} />}>
                 {isKvm && (
                   <div className="p-3 sm:p-4 pb-0">
-                    <KvmInfoNotice message="KVM filesystem is managed by cloud-init. Files shown here may not reflect the guest VM's actual filesystem. Use SSH/SFTP to access the VM directly." />
+                    <KvmInfoNotice message={t("kvm.filesNotice")} />
                   </div>
                 )}
                 <FilesTabLazy
@@ -1187,7 +1193,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Confirm{" "}
+              {t("dialogs.power.confirmPrefix")} 
               {pendingPowerAction
                 ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)
                 : ""}
@@ -1195,22 +1201,21 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </DialogHeader>
           <div className="py-3">
             <p className="text-sm text-muted-foreground break-words">
-              Are you sure you want to{" "}
-              <span className="font-medium text-foreground">{pendingPowerAction}</span> the server?
+              {t("dialogs.power.confirmMessage", { action: pendingPowerAction || "" })}
             </p>
             {pendingPowerAction === "kill" && (
               <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-destructive break-words min-w-0">
-                    Killing a server forcibly terminates its process. Data loss may occur.
+                    {t("dialogs.power.killWarning")}
                   </p>
                 </div>
               </div>
             )}
             {isKvm && pendingPowerAction === "kill" && (
               <div className="mt-2">
-                <KvmInfoNotice message="Killing a KVM virtual machine is equivalent to pulling the power plug. The guest OS will not shut down gracefully." />
+                <KvmInfoNotice message={t("kvm.killWarning")} />
               </div>
             )}
           </div>
@@ -1224,7 +1229,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               disabled={powerLoading}
               className="w-full sm:w-auto"
             >
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button
               variant={pendingPowerAction === "kill" ? "destructive" : "default"}
@@ -1235,7 +1240,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               {powerLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {pendingPowerAction
                 ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)
-                : "Confirm"}
+                : t("actions.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1254,17 +1259,17 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       >
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Transfer Server</DialogTitle>
+            <DialogTitle className="text-foreground">{t("dialogs.transfer.title")}</DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-4">
             <p className="text-sm text-muted-foreground break-words">
-              Select the destination node to transfer this server to.
+              {t("dialogs.transfer.description")}
             </p>
             {isKvm && (
-              <KvmInfoNotice message="Transferring a KVM server requires both nodes to support KVM passthrough. The VM disk image will be migrated." />
+              <KvmInfoNotice message={t("kvm.transferNotice")} />
             )}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">Destination Node</label>
+              <label className="text-xs font-medium text-foreground">{t("dialogs.transfer.destinationNode")}</label>
               <select
                 value={transferNodeId ?? ""}
                 onChange={(e) =>
@@ -1272,7 +1277,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 }
                 className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
               >
-                <option value="">Select a node…</option>
+                <option value="">{t("dialogs.transfer.selectNode")}</option>
                 {transferNodes.map((n: any) => (
                   <option key={n.id} value={n.id}>
                     {n.name || n.nodeId || n.id}{" "}
@@ -1287,7 +1292,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              This may take several minutes. Both nodes must be online.
+              {t("dialogs.transfer.notice")}
             </p>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -1297,7 +1302,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               disabled={transferLoading}
               className="w-full sm:w-auto"
             >
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button
               onClick={doTransfer}
@@ -1305,7 +1310,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               className="w-full sm:w-auto"
             >
               {transferLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Transfer
+              {t("actions.transfer")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1317,6 +1322,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 // ─── Databases Tab ───────────────────────────────────────────────────────────
 
 function DatabasesTab({ serverId }: { serverId: string }) {
+  const t = useTranslations("serverDetailPage")
   const [databases, setDatabases] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -1358,14 +1364,14 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       setFormLabel("")
       setShowForm(false)
     } catch (e: any) {
-      setCreateError(e?.message || "Failed to create database")
+      setCreateError(e?.message || t("databases.createFailed"))
     } finally {
       setCreating(false)
     }
   }
 
   const deleteDb = async (dbId: number) => {
-    if (!confirm("Delete this database? This will permanently DROP the database.")) return
+    if (!confirm(t("databases.confirmDelete"))) return
     setDeletingId(dbId)
     try {
       await apiFetch(
@@ -1416,7 +1422,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
-        title="Databases"
+        title={t("databases.title")}
         icon={Database}
         action={
           <Button
@@ -1427,8 +1433,8 @@ function DatabasesTab({ serverId }: { serverId: string }) {
             }}
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            <span className="hidden sm:inline">New Database</span>
-            <span className="sm:hidden">New</span>
+            <span className="hidden sm:inline">{t("databases.newDatabase")}</span>
+            <span className="sm:hidden">{t("databases.new")}</span>
           </Button>
         }
       />
@@ -1436,10 +1442,10 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       {showForm && (
         <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 overflow-hidden">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Label (optional)</label>
+            <label className="text-xs font-medium text-foreground">{t("databases.labelOptional")}</label>
             <input
               className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
-              placeholder="e.g. Primary DB"
+              placeholder={t("databases.labelPlaceholder")}
               value={formLabel}
               onChange={(e) => setFormLabel(e.target.value)}
             />
@@ -1452,17 +1458,17 @@ function DatabasesTab({ serverId }: { serverId: string }) {
           <div className="flex gap-2">
             <Button size="sm" onClick={createDb} disabled={creating} className="h-9">
               {creating && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              Create
+              {t("databases.create")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="h-9">
-              Cancel
+              {t("actions.cancel")}
             </Button>
           </div>
         </div>
       )}
 
       {databases.length === 0 ? (
-        <EmptyState icon={Database} message="No databases configured." />
+        <EmptyState icon={Database} message={t("databases.empty")} />
       ) : (
         <div className="space-y-3 min-w-0">
           {databases.map((db: any) => (
@@ -1479,7 +1485,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     <p className="text-xs text-muted-foreground font-mono truncate">{db.name}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    User: {db.username}
+                    {t("databases.user")}: {db.username}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1495,12 +1501,12 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     ) : creds[db.id] ? (
                       <>
                         <EyeOff className="h-4 w-4 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Hide</span>
+                        <span className="hidden sm:inline">{t("databases.hide")}</span>
                       </>
                     ) : (
                       <>
                         <Eye className="h-4 w-4 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Show</span>
+                        <span className="hidden sm:inline">{t("databases.show")}</span>
                       </>
                     )}
                   </Button>
@@ -1510,7 +1516,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     onClick={() => deleteDb(db.id)}
                     disabled={deletingId === db.id}
                     className="h-9 w-9 p-0"
-                    aria-label="Delete database"
+                    aria-label={t("databases.deleteDatabase")}
                   >
                     {deletingId === db.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1525,19 +1531,19 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                 <div className="rounded-lg bg-background border border-border p-3 space-y-2 min-w-0 overflow-hidden">
                   {[
                     {
-                      label: "Host",
+                      label: t("databases.credentials.host"),
                       value: `${creds[db.id].host}:${creds[db.id].port}`,
                       key: `host-${db.id}`,
                     },
-                    { label: "DB", value: creds[db.id].name, key: `db-${db.id}` },
-                    { label: "User", value: creds[db.id].username, key: `user-${db.id}` },
+                    { label: t("databases.credentials.db"), value: creds[db.id].name, key: `db-${db.id}` },
+                    { label: t("databases.credentials.user"), value: creds[db.id].username, key: `user-${db.id}` },
                     {
-                      label: "Pass",
+                      label: t("databases.credentials.pass"),
                       value: creds[db.id].password,
                       key: `pass-${db.id}`,
                       sensitive: true,
                     },
-                    { label: "JDBC", value: creds[db.id].jdbc, key: `jdbc-${db.id}` },
+                    { label: t("databases.credentials.jdbc"), value: creds[db.id].jdbc, key: `jdbc-${db.id}` },
                   ].map((row) => (
                     <div key={row.key} className="flex items-center gap-2 min-w-0">
                       <span className="text-xs text-muted-foreground w-12 flex-shrink-0">
@@ -1553,7 +1559,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                         variant="ghost"
                         className="h-7 w-7 p-0 flex-shrink-0"
                         onClick={() => copyText(row.value, row.key)}
-                        aria-label={`Copy ${row.label}`}
+                        aria-label={t("databases.copy", { field: row.label })}
                       >
                         {copied === row.key ? (
                           <Check className="h-3 w-3 text-green-400" />
@@ -1576,6 +1582,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
 // ─── Schedules Tab ───────────────────────────────────────────────────────────
 
 function SchedulesTab({ serverId }: { serverId: string }) {
+  const t = useTranslations("serverDetailPage")
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -1624,14 +1631,14 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       })
       load()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("schedules.failed", { reason: e.message }))
     } finally {
       setCreating(false)
     }
   }
 
   const deleteSchedule = async (sid: string) => {
-    if (!confirm("Delete this schedule?")) return
+    if (!confirm(t("schedules.confirmDelete"))) return
     try {
       await apiFetch(
         API_ENDPOINTS.serverScheduleDelete.replace(":id", serverId).replace(":sid", sid),
@@ -1639,7 +1646,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       )
       load()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("schedules.failed", { reason: e.message }))
     }
   }
 
@@ -1657,13 +1664,13 @@ function SchedulesTab({ serverId }: { serverId: string }) {
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
-        title="Schedules"
+        title={t("schedules.title")}
         icon={Clock}
         action={
           <Button size="sm" onClick={() => setShowForm(!showForm)}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            <span className="hidden sm:inline">New Schedule</span>
-            <span className="sm:hidden">New</span>
+            <span className="hidden sm:inline">{t("schedules.newSchedule")}</span>
+            <span className="sm:hidden">{t("schedules.new")}</span>
           </Button>
         }
       />
@@ -1671,18 +1678,18 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       {showForm && (
         <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Name</label>
+            <label className="text-xs font-medium text-foreground">{t("schedules.name")}</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Daily restart"
+              placeholder={t("schedules.namePlaceholder")}
               className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Cron Expression</label>
+            <label className="text-xs font-medium text-foreground">{t("schedules.cronExpression")}</label>
             <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {cronFields.map((field, idx) => (
                 <div key={field} className="space-y-1 min-w-0">
@@ -1703,7 +1710,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
           <div className="flex gap-2">
             <Button size="sm" onClick={createSchedule} disabled={creating} className="h-9">
               {creating && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              Create
+              {t("schedules.create")}
             </Button>
             <Button
               size="sm"
@@ -1711,14 +1718,14 @@ function SchedulesTab({ serverId }: { serverId: string }) {
               onClick={() => setShowForm(false)}
               className="h-9"
             >
-              Cancel
+              {t("actions.cancel")}
             </Button>
           </div>
         </div>
       )}
 
       {schedules.length === 0 ? (
-        <EmptyState icon={Clock} message="No schedules configured." />
+        <EmptyState icon={Clock} message={t("schedules.empty")} />
       ) : (
         <div className="space-y-3 min-w-0">
           {schedules.map((sched: any) => (
@@ -1728,7 +1735,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
             >
               <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-foreground truncate">
-                  {sched.name || "Unnamed"}
+                  {sched.name || t("schedules.unnamed")}
                 </p>
                 <p className="text-xs text-muted-foreground font-mono mt-1 truncate">
                   {sched.cron_minute} {sched.cron_hour} {sched.cron_day_of_month}{" "}
@@ -1742,10 +1749,10 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                       sched.is_active ? "text-green-400" : "text-muted-foreground"
                     )}
                   >
-                    {sched.is_active ? "Active" : "Inactive"}
+                    {sched.is_active ? t("schedules.active") : t("schedules.inactive")}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground truncate min-w-0">
-                    Last: {sched.last_run_at ? new Date(sched.last_run_at).toLocaleString() : "Never"}
+                    {t("schedules.last")}: {sched.last_run_at ? new Date(sched.last_run_at).toLocaleString() : t("schedules.never")}
                   </span>
                 </div>
               </div>
@@ -1754,7 +1761,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                 variant="destructive"
                 onClick={() => deleteSchedule(String(sched.id))}
                 className="flex-shrink-0 h-9 w-9 p-0"
-                aria-label="Delete schedule"
+                aria-label={t("schedules.deleteSchedule")}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -1769,6 +1776,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 // ─── Network Tab ─────────────────────────────────────────────────────────────
 
 function NetworkTab({ serverId }: { serverId: string }) {
+  const t = useTranslations("serverDetailPage")
   const [allocations, setAllocations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
@@ -1793,7 +1801,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
     } catch (e: any) {
-      setRequestError(e?.message || "Request failed")
+      setRequestError(e?.message || t("network.requestFailed"))
     } finally {
       setRequesting(false)
     }
@@ -1811,7 +1819,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
     } catch (e: any) {
-      alert(e?.message || "Failed")
+      alert(e?.message || t("network.failed"))
     } finally {
       setDeleting(null)
     }
@@ -1822,7 +1830,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
-        title="Network Allocations"
+        title={t("network.title")}
         icon={Network}
         action={
           <Button size="sm" onClick={requestPorts} disabled={requesting}>
@@ -1831,8 +1839,8 @@ function NetworkTab({ serverId }: { serverId: string }) {
             ) : (
               <Plus className="h-3.5 w-3.5 mr-1.5" />
             )}
-            <span className="hidden sm:inline">Request Port</span>
-            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">{t("network.requestPort")}</span>
+            <span className="sm:hidden">{t("network.add")}</span>
           </Button>
         }
       />
@@ -1844,7 +1852,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
       )}
 
       {allocations.length === 0 ? (
-        <EmptyState icon={Network} message="No network allocations found." />
+        <EmptyState icon={Network} message={t("network.empty")} />
       ) : (
         <div className="space-y-2 min-w-0">
           {allocations.map((alloc: any, i: number) => {
@@ -1860,7 +1868,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
                       {alloc.fqdn || alloc.ip}:{alloc.port}
                     </span>
                     <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap">
-                      {alloc.is_default ? "Primary" : "Secondary"}
+                      {alloc.is_default ? t("network.primary") : t("network.secondary")}
                     </Badge>
                   </div>
                   {alloc.fqdn && alloc.ip && alloc.fqdn !== alloc.ip && (
@@ -1876,7 +1884,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
                     onClick={() => deassignPort(alloc.ip, alloc.port)}
                     disabled={deleting === key}
                     className="flex-shrink-0 h-9 w-9 p-0"
-                    aria-label="Remove allocation"
+                    aria-label={t("network.removeAllocation")}
                   >
                     {deleting === key ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1897,6 +1905,7 @@ function NetworkTab({ serverId }: { serverId: string }) {
 // ─── Backups Tab ─────────────────────────────────────────────────────────────
 
 function BackupsTab({ serverId }: { serverId: string }) {
+  const t = useTranslations("serverDetailPage")
   const [backups, setBackups] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -1925,27 +1934,27 @@ function BackupsTab({ serverId }: { serverId: string }) {
       })
       load()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("backups.failed", { reason: e.message }))
     } finally {
       setCreating(false)
     }
   }
 
   const restoreBackup = async (bid: string) => {
-    if (!confirm("Restore this backup? Current data may be overwritten.")) return
+    if (!confirm(t("backups.confirmRestore"))) return
     try {
       await apiFetch(
         API_ENDPOINTS.serverBackupRestore.replace(":id", serverId).replace(":bid", bid),
         { method: "POST" }
       )
-      alert("Restore initiated.")
+      alert(t("backups.restoreInitiated"))
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("backups.failed", { reason: e.message }))
     }
   }
 
   const deleteBackup = async (bid: string) => {
-    if (!confirm("Delete this backup permanently?")) return
+    if (!confirm(t("backups.confirmDelete"))) return
     try {
       await apiFetch(
         API_ENDPOINTS.serverBackupDelete.replace(":id", serverId).replace(":bid", bid),
@@ -1953,7 +1962,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
       )
       load()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("backups.failed", { reason: e.message }))
     }
   }
 
@@ -1965,7 +1974,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
       })
       load()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("backups.failed", { reason: e.message }))
     }
   }
 
@@ -1974,7 +1983,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
-        title="Backups"
+        title={t("backups.title")}
         icon={HardDrive}
         action={
           <Button size="sm" onClick={createBackup} disabled={creating}>
@@ -1983,14 +1992,14 @@ function BackupsTab({ serverId }: { serverId: string }) {
             ) : (
               <Plus className="h-3.5 w-3.5 mr-1.5" />
             )}
-            <span className="hidden sm:inline">Create Backup</span>
-            <span className="sm:hidden">Create</span>
+            <span className="hidden sm:inline">{t("backups.createBackup")}</span>
+            <span className="sm:hidden">{t("backups.create")}</span>
           </Button>
         }
       />
 
       {backups.length === 0 ? (
-        <EmptyState icon={HardDrive} message="No backups found. Create one to get started." />
+        <EmptyState icon={HardDrive} message={t("backups.empty")} />
       ) : (
         <div className="space-y-3 min-w-0">
           {backups.map((backup: any) => {
@@ -2016,7 +2025,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                         {backup.displayName ||
                           backup.display_name ||
                           backup.name ||
-                          "Backup"}
+                          t("backups.backupFallback")}
                       </p>
                       {isLocked && (
                         <Lock className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />
@@ -2029,7 +2038,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                         : "—"}
                     </p>
                     {backup.is_successful === false && (
-                      <p className="text-xs text-destructive mt-1">Backup failed</p>
+                      <p className="text-xs text-destructive mt-1">{t("backups.backupFailed")}</p>
                     )}
                   </div>
                 </div>
@@ -2045,7 +2054,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      {Math.round(Number(backup.progress) || 0)}% complete
+                      {t("backups.progress", { value: Math.round(Number(backup.progress) || 0) })}
                     </p>
                   </div>
                 )}
@@ -2058,7 +2067,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                     className="h-9 px-3 text-xs"
                   >
                     <RotateCcw className="h-4 w-4 mr-1.5" />
-                    Restore
+                    {t("backups.restore")}
                   </Button>
                   <Button
                     size="sm"
@@ -2067,7 +2076,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                       lockBackup(String(backup.uuid || backup.id), !isLocked)
                     }
                     className="h-9 w-9 p-0"
-                    aria-label={isLocked ? "Unlock backup" : "Lock backup"}
+                    aria-label={isLocked ? t("backups.unlockBackup") : t("backups.lockBackup")}
                   >
                     {isLocked ? (
                       <Unlock className="h-4 w-4" />
@@ -2081,7 +2090,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                     onClick={() => deleteBackup(String(backup.uuid || backup.id))}
                     disabled={isLocked}
                     className="h-9 w-9 p-0"
-                    aria-label="Delete backup"
+                    aria-label={t("backups.deleteBackup")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -2098,6 +2107,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
 // ─── Startup Tab ─────────────────────────────────────────────────────────────
 
 function StartupTab({ serverId }: { serverId: string }) {
+  const t = useTranslations("serverDetailPage")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startup, setStartup] = useState<any>(null)
@@ -2128,7 +2138,7 @@ function StartupTab({ serverId }: { serverId: string }) {
 
   const saveEnv = async () => {
     if (dockerImageOptions.length > 0 && !selectedDockerImage) {
-      alert("Please select a Docker image before saving.")
+      alert(t("startup.selectDockerBeforeSave"))
       return
     }
 
@@ -2144,9 +2154,9 @@ function StartupTab({ serverId }: { serverId: string }) {
           dockerImage: selectedDockerImage || undefined,
         }),
       })
-      alert("Saved.")
+      alert(t("startup.saved"))
     } catch (e: any) {
-      alert("Save failed: " + e.message)
+      alert(t("startup.saveFailed", { reason: e.message }))
     } finally {
       setSaving(false)
     }
@@ -2155,7 +2165,7 @@ function StartupTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
   if (!startup)
     return (
-      <EmptyState icon={AlertCircle} message="Failed to load startup configuration." />
+      <EmptyState icon={AlertCircle} message={t("startup.loadFailed")} />
     )
 
   const envVarDefs: any[] = startup.envVars || []
@@ -2170,17 +2180,17 @@ function StartupTab({ serverId }: { serverId: string }) {
       className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden"
     >
       {/* Startup Info */}
-      <CollapsibleSection title="Server Configuration" icon={Variable} defaultOpen>
+      <CollapsibleSection title={t("startup.serverConfiguration")} icon={Variable} defaultOpen>
         <div className="space-y-3 min-w-0 pt-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <InfoRow label="Egg" value={startup.eggName || "—"} />
-            <InfoRow label="Docker Image" value={selectedDockerImage || "—"} mono />
+            <InfoRow label={t("startup.egg")} value={startup.eggName || "—"} />
+            <InfoRow label={t("startup.dockerImage")} value={selectedDockerImage || "—"} mono />
           </div>
 
           {dockerImageOptions.length > 0 ? (
             <div className="space-y-1.5 min-w-0">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Select Docker Image
+                {t("startup.selectDockerImage")}
               </label>
               <select
                 value={selectedDockerImage}
@@ -2188,7 +2198,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                 className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0 appearance-none"
               >
                 <option value="" disabled>
-                  Select image…
+                  {t("startup.selectImage")}
                 </option>
                 {dockerImageOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -2199,13 +2209,13 @@ function StartupTab({ serverId }: { serverId: string }) {
             </div>
           ) : (
             <p className="text-xs text-muted-foreground break-words">
-              No alternate docker images are configured for this egg.
+              {t("startup.noAlternateDocker")}
             </p>
           )}
 
           {startup.startup && (
             <div className="rounded-lg border border-border bg-secondary/30 p-3 min-w-0 overflow-hidden">
-              <p className="text-[10px] text-muted-foreground mb-1">Startup Command</p>
+              <p className="text-[10px] text-muted-foreground mb-1">{t("startup.startupCommand")}</p>
               <p className="text-xs font-mono text-foreground break-all leading-relaxed">
                 {startup.startup}
               </p>
@@ -2215,10 +2225,10 @@ function StartupTab({ serverId }: { serverId: string }) {
       </CollapsibleSection>
 
       {/* Detection Patterns */}
-      <CollapsibleSection title="Startup Detection" icon={Activity}>
+      <CollapsibleSection title={t("startup.detectionTitle")} icon={Activity}>
         <div className="space-y-3 min-w-0 pt-3">
           <p className="text-xs text-muted-foreground break-words">
-            Patterns matched against console output to detect startup completion.
+            {t("startup.detectionDescription")}
           </p>
           {donePatterns.map((pattern, i) => (
             <div key={i} className="flex items-center gap-2 min-w-0">
@@ -2230,7 +2240,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                   next[i] = e.target.value
                   setDonePatterns(next)
                 }}
-                placeholder="e.g. Server started"
+                placeholder={t("startup.patternPlaceholder")}
                 className="flex-1 min-w-0 rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
               <Button
@@ -2241,7 +2251,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                   setDonePatterns(next.length > 0 ? next : [" "])
                 }}
                 className="text-destructive hover:text-destructive h-9 w-9 p-0 flex-shrink-0"
-                aria-label="Remove pattern"
+                aria-label={t("startup.removePattern")}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -2252,7 +2262,7 @@ function StartupTab({ serverId }: { serverId: string }) {
             variant="outline"
             onClick={() => setDonePatterns([...donePatterns, ""])}
           >
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Pattern
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> {t("startup.addPattern")}
           </Button>
         </div>
       </CollapsibleSection>
@@ -2260,7 +2270,7 @@ function StartupTab({ serverId }: { serverId: string }) {
       {/* Environment Variables */}
       <div className="space-y-3 min-w-0">
         <SectionHeader
-          title="Environment Variables"
+          title={t("startup.environmentVariables")}
           icon={Variable}
           action={
             <Button
@@ -2274,7 +2284,7 @@ function StartupTab({ serverId }: { serverId: string }) {
               ) : (
                 <Save className="h-4 w-4 mr-1.5" />
               )}
-              Save
+              {t("startup.save")}
             </Button>
           }
         />
@@ -2308,7 +2318,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                       variant="outline"
                       className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap"
                     >
-                      Read Only
+                      {t("startup.readOnly")}
                     </Badge>
                   )}
                 </div>
@@ -2335,7 +2345,7 @@ function StartupTab({ serverId }: { serverId: string }) {
             )
           })}
           {allKeys.size === 0 && (
-            <EmptyState icon={Variable} message="No environment variables defined." />
+            <EmptyState icon={Variable} message={t("startup.noEnvironmentVariables")} />
           )}
         </div>
       </div>
@@ -2346,6 +2356,7 @@ function StartupTab({ serverId }: { serverId: string }) {
 // ─── Mounts Tab ──────────────────────────────────────────────────────────────
 
 function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
+  const t = useTranslations("serverDetailPage")
   const [mounts, setMounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2360,22 +2371,22 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
-      <SectionHeader title="Mounts" icon={Box} />
+      <SectionHeader title={t("mounts.title")} icon={Box} />
 
       {isKvm && (
-        <KvmInfoNotice message="KVM filesystem is managed by cloud-init and may not display correctly in this panel." />
+        <KvmInfoNotice message={t("mounts.kvmNotice")} />
       )}
 
       {!isKvm && (
         <p className="text-xs text-muted-foreground break-words">
-          Mounts bind host directories into your server container.
+          {t("mounts.description")}
         </p>
       )}
 
       {mounts.length === 0 ? (
         <EmptyState
           icon={Box}
-          message="No mounts configured. Mounts are managed by administrators."
+          message={t("mounts.empty")}
         />
       ) : (
         <div className="space-y-3 min-w-0">
@@ -2394,7 +2405,7 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
                     variant="outline"
                     className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap"
                   >
-                    Read Only
+                    {t("mounts.readOnly")}
                   </Badge>
                 )}
               </div>
@@ -2403,13 +2414,13 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="rounded border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
-                  <span className="text-[10px] text-muted-foreground">Source</span>
+                  <span className="text-[10px] text-muted-foreground">{t("mounts.source")}</span>
                   <p className="text-xs font-mono text-foreground truncate">
                     {mount.source || "—"}
                   </p>
                 </div>
                 <div className="rounded border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
-                  <span className="text-[10px] text-muted-foreground">Target</span>
+                  <span className="text-[10px] text-muted-foreground">{t("mounts.target")}</span>
                   <p className="text-xs font-mono text-foreground truncate">
                     {mount.target || "—"}
                   </p>
@@ -2426,6 +2437,7 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
 // ─── Activity Tab ────────────────────────────────────────────────────────────
 
 function ActivityTab({ serverId }: { serverId: string }) {
+  const t = useTranslations("serverDetailPage")
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2439,22 +2451,22 @@ function ActivityTab({ serverId }: { serverId: string }) {
   if (loading) return <LoadingState />
 
   const actionLabels: Record<string, string> = {
-    "server:power:start": "Started server",
-    "server:power:stop": "Stopped server",
-    "server:power:restart": "Restarted server",
-    "server:power:kill": "Killed server",
-    "server:console:command": "Ran command",
-    "server:file:write": "Modified file",
-    "server:file:delete": "Deleted file(s)",
-    "server:reinstall": "Reinstalled server",
+    "server:power:start": t("activity.actions.startedServer"),
+    "server:power:stop": t("activity.actions.stoppedServer"),
+    "server:power:restart": t("activity.actions.restartedServer"),
+    "server:power:kill": t("activity.actions.killedServer"),
+    "server:console:command": t("activity.actions.ranCommand"),
+    "server:file:write": t("activity.actions.modifiedFile"),
+    "server:file:delete": t("activity.actions.deletedFiles"),
+    "server:reinstall": t("activity.actions.reinstalledServer"),
   }
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
-      <SectionHeader title="Activity Log" icon={Activity} />
+      <SectionHeader title={t("activity.title")} icon={Activity} />
 
       {logs.length === 0 ? (
-        <EmptyState icon={Activity} message="No activity recorded yet." />
+        <EmptyState icon={Activity} message={t("activity.empty")} />
       ) : (
         <div className="space-y-2 min-w-0">
           {logs.map((log) => (
@@ -2473,7 +2485,7 @@ function ActivityTab({ serverId }: { serverId: string }) {
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px] text-muted-foreground">
-                  <span>User #{log.userId}</span>
+                  <span>{t("activity.user", { id: log.userId })}</span>
                   {log.ipAddress && <span className="hidden sm:inline">• {log.ipAddress}</span>}
                   <span>• {new Date(log.timestamp).toLocaleString()}</span>
                 </div>
@@ -2497,6 +2509,7 @@ function SubusersTab({
   subuserEntry?: any
   isOwnerOrAdmin?: boolean
 }) {
+  const t = useTranslations("serverDetailPage")
   const [subusers, setSubusers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -2507,17 +2520,17 @@ function SubusersTab({
   const { user } = useAuth()
 
   const PERMISSIONS = [
-    { key: "console", label: "Console" },
-    { key: "files", label: "Files" },
-    { key: "backups", label: "Backups" },
-    { key: "startup", label: "Startup" },
-    { key: "settings", label: "Settings" },
-    { key: "databases", label: "Databases" },
-    { key: "schedules", label: "Schedules" },
-    { key: "activity", label: "Activity" },
-    { key: "stats", label: "Stats" },
-    { key: "network", label: "Network" },
-    { key: "mounts", label: "Mounts" },
+    { key: "console", label: t("tabs.console") },
+    { key: "files", label: t("tabs.files") },
+    { key: "backups", label: t("tabs.backups") },
+    { key: "startup", label: t("tabs.startup") },
+    { key: "settings", label: t("tabs.settings") },
+    { key: "databases", label: t("tabs.databases") },
+    { key: "schedules", label: t("tabs.schedules") },
+    { key: "activity", label: t("tabs.activity") },
+    { key: "stats", label: t("tabs.statistics") },
+    { key: "network", label: t("tabs.network") },
+    { key: "mounts", label: t("tabs.mounts") },
   ]
   const [selectedPerms, setSelectedPerms] = useState<string[]>(["console"])
 
@@ -2547,21 +2560,21 @@ function SubusersTab({
       setShowAdd(false)
       loadSubusers()
     } catch (e: any) {
-      setError(e.message || "Failed")
+      setError(e.message || t("subusers.failed"))
     } finally {
       setAdding(false)
     }
   }
 
   const handleRemove = async (subuserId: number) => {
-    if (!confirm("Remove this subuser?")) return
+    if (!confirm(t("subusers.confirmRemove"))) return
     try {
       await apiFetch(`/api/servers/${serverId}/subusers/${subuserId}`, {
         method: "DELETE",
       })
       loadSubusers()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("subusers.failedWithReason", { reason: e.message }))
     }
   }
 
@@ -2583,7 +2596,7 @@ function SubusersTab({
       )
       loadSubusers()
     } catch (e: any) {
-      alert("Failed to update lock: " + (e?.message || e))
+      alert(t("subusers.failedUpdateLock", { reason: e?.message || e }))
     } finally {
       setLocking((s) => ({ ...s, [su.id]: false }))
     }
@@ -2601,14 +2614,14 @@ function SubusersTab({
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
-        title="Subusers"
+        title={t("subusers.title")}
         icon={Users}
         action={
           canAdd ? (
             <Button size="sm" onClick={() => setShowAdd(true)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              <span className="hidden sm:inline">Add Subuser</span>
-              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">{t("subusers.addSubuser")}</span>
+              <span className="sm:hidden">{t("subusers.add")}</span>
             </Button>
           ) : null
         }
@@ -2623,7 +2636,7 @@ function SubusersTab({
           )}
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Email</label>
+            <label className="text-xs font-medium text-foreground">{t("subusers.email")}</label>
             <input
               type="email"
               value={email}
@@ -2634,7 +2647,7 @@ function SubusersTab({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Permissions</label>
+            <label className="text-xs font-medium text-foreground">{t("subusers.permissions")}</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
               {PERMISSIONS.map((p) => (
                 <label
@@ -2662,7 +2675,7 @@ function SubusersTab({
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} disabled={adding} className="h-9">
               {adding && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              Add
+              {t("subusers.add")}
             </Button>
             <Button
               size="sm"
@@ -2670,14 +2683,14 @@ function SubusersTab({
               onClick={() => setShowAdd(false)}
               className="h-9"
             >
-              Cancel
+              {t("actions.cancel")}
             </Button>
           </div>
         </div>
       )}
 
       {subusers.length === 0 ? (
-        <EmptyState icon={Users} message="No subusers added yet." />
+        <EmptyState icon={Users} message={t("subusers.empty")} />
       ) : (
         <div className="space-y-2 min-w-0">
           {subusers.map((su) => {
@@ -2698,7 +2711,7 @@ function SubusersTab({
               >
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <p className="text-sm font-medium text-foreground truncate">
-                    {su.userEmail || su.email || `User #${su.userId}`}
+                    {su.userEmail || su.email || t("subusers.userFallback", { id: su.userId })}
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1.5 items-center">
                     {(su.permissions || []).map((p: string) => (
@@ -2712,7 +2725,7 @@ function SubusersTab({
                         className="text-[10px] ml-1 flex items-center gap-1"
                       >
                         <Lock className="h-3 w-3" />
-                        Locked
+                        {t("subusers.locked")}
                       </Badge>
                     )}
                   </div>
@@ -2725,7 +2738,7 @@ function SubusersTab({
                       onClick={() => toggleLock(su)}
                       className="h-9 w-9 p-0"
                       disabled={!!locking[su.id]}
-                      aria-label={su.locked ? "Unlock subuser" : "Lock subuser"}
+                      aria-label={su.locked ? t("subusers.unlockSubuser") : t("subusers.lockSubuser")}
                     >
                       {locking[su.id] ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -2742,7 +2755,7 @@ function SubusersTab({
                     onClick={() => handleRemove(su.id)}
                     className="flex-shrink-0 h-9 w-9 p-0"
                     disabled={removeDisabled}
-                    aria-label="Remove subuser"
+                    aria-label={t("subusers.removeSubuser")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -2771,6 +2784,7 @@ function SettingsTab({
   reload: () => void
   isKvm?: boolean
 }) {
+  const t = useTranslations("serverDetailPage")
   const [reinstalling, setReinstalling] = useState(false)
   const [launchNotice, setLaunchNotice] = useState<string | null>(null)
   const [primaryAlloc, setPrimaryAlloc] = useState<any>(
@@ -2803,17 +2817,17 @@ function SettingsTab({
   }, [server, serverId])
 
   const handleReinstall = async () => {
-    if (!confirm("Reinstall this server? All files will be wiped.")) return
+    if (!confirm(t("settings.confirmReinstall"))) return
     setReinstalling(true)
     try {
       await apiFetch(API_ENDPOINTS.serverReinstall.replace(":id", serverId), {
         method: "POST",
         body: JSON.stringify({}),
       })
-      alert("Reinstall initiated.")
+      alert(t("settings.reinstallInitiated"))
       reload()
     } catch (e: any) {
-      alert("Failed: " + e.message)
+      alert(t("settings.failedWithReason", { reason: e.message }))
     } finally {
       setReinstalling(false)
     }
@@ -2838,15 +2852,13 @@ function SettingsTab({
     const port = sftpPort
     const u = sftpUser
     if (!host || host === "—" || !port) {
-      setLaunchNotice("SSH connection details are not available.")
+      setLaunchNotice(t("settings.sshDetailsUnavailable"))
       setTimeout(() => setLaunchNotice(null), 4000)
       return
     }
     const sshUri = `ssh://${encodeURIComponent(u)}@${host}:${port}`
     window.open(sshUri, "_blank")
-    setLaunchNotice(
-      "Opening SSH client… If nothing happened, copy the command above and use your terminal."
-    )
+    setLaunchNotice(t("settings.openingSsh"))
     setTimeout(() => setLaunchNotice(null), 5000)
   }
 
@@ -2855,15 +2867,13 @@ function SettingsTab({
     const port = sftpPort
     const u = sftpUser
     if (!host || host === "—" || !port) {
-      setLaunchNotice("SFTP connection details are not available.")
+      setLaunchNotice(t("settings.sftpDetailsUnavailable"))
       setTimeout(() => setLaunchNotice(null), 4000)
       return
     }
     const sftpUri = `sftp://${encodeURIComponent(u)}@${host}:${port}`
     window.open(sftpUri, "_blank")
-    setLaunchNotice(
-      "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app."
-    )
+    setLaunchNotice(t("settings.openingSftp"))
     setTimeout(() => setLaunchNotice(null), 5000)
   }
 
@@ -2873,29 +2883,29 @@ function SettingsTab({
       {isKvm && <KvmBanner />}
 
       {/* Server Info */}
-      <CollapsibleSection title="Server Information" icon={Info} defaultOpen>
+      <CollapsibleSection title={t("settings.serverInformation")} icon={Info} defaultOpen>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0 pt-3">
-          <InfoRow label="UUID" value={server.uuid || serverId} mono copyable />
-          <InfoRow label="Name" value={server.name || "—"} />
-          <InfoRow label="Status" value={server.status || "—"} />
-          <InfoRow label="Node" value={server.node || "—"} />
-          <InfoRow label="Docker Image" value={server.container?.image || "—"} mono />
+          <InfoRow label={t("settings.uuid")} value={server.uuid || serverId} mono copyable />
+          <InfoRow label={t("settings.name")} value={server.name || "—"} />
+          <InfoRow label={t("settings.status")} value={server.status || "—"} />
+          <InfoRow label={t("settings.node")} value={server.node || "—"} />
+          <InfoRow label={t("settings.dockerImage")} value={server.container?.image || "—"} mono />
           {isKvm ? (
-            <InfoRow label="Virtualization" value="KVM (Full VM)" />
+            <InfoRow label={t("settings.virtualization")} value={t("settings.virtualizationKvm")} />
           ) : (
-            <InfoRow label="Virtualization" value="Docker" />
+            <InfoRow label={t("settings.virtualization")} value={t("settings.virtualizationDocker")} />
           )}
         </div>
       </CollapsibleSection>
 
       {/* SFTP/SSH Access */}
       {server.sftp && (
-        <CollapsibleSection title="External Access" icon={Network}>
+        <CollapsibleSection title={t("settings.externalAccess")} icon={Network}>
           <div className="space-y-3 min-w-0 pt-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <InfoRow label="Host" value={sftpHost} mono copyable />
-              <InfoRow label="Port" value={sftpPort} mono copyable />
-              <InfoRow label="Username" value={sftpUser} mono copyable />
+              <InfoRow label={t("settings.host")} value={sftpHost} mono copyable />
+              <InfoRow label={t("settings.port")} value={sftpPort} mono copyable />
+              <InfoRow label={t("settings.username")} value={sftpUser} mono copyable />
             </div>
 
             {/* Launch Buttons */}
@@ -2907,7 +2917,7 @@ function SettingsTab({
                 className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-10 sm:h-9 px-3"
               >
                 <Terminal className="h-4 w-4 mr-2" />
-                Launch SSH
+                {t("settings.launchSsh")}
                 <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
               </Button>
               <Button
@@ -2917,7 +2927,7 @@ function SettingsTab({
                 className="flex-1 sm:flex-none border-blue-500/30 text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/20 h-10 sm:h-9 px-3"
               >
                 <Folder className="h-4 w-4 mr-2" />
-                Launch SFTP
+                {t("settings.launchSftp")}
                 <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
               </Button>
             </div>
@@ -2937,7 +2947,7 @@ function SettingsTab({
                 {/* SSH command */}
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                    SSH Command
+                    {t("settings.sshCommand")}
                   </p>
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 overflow-hidden">
@@ -2952,7 +2962,7 @@ function SettingsTab({
                       variant="outline"
                       className="shrink-0 h-9 w-9 p-0"
                       onClick={() => navigator.clipboard.writeText(sshCmd)}
-                      aria-label="Copy SSH command"
+                      aria-label={t("settings.copySshCommand")}
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -2961,7 +2971,7 @@ function SettingsTab({
                 {/* SFTP command */}
                 <div className="space-y-1">
                   <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                    SFTP Command
+                    {t("settings.sftpCommand")}
                   </p>
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 overflow-hidden">
@@ -2976,7 +2986,7 @@ function SettingsTab({
                       variant="outline"
                       className="shrink-0 h-9 w-9 p-0"
                       onClick={() => navigator.clipboard.writeText(sftpCmd)}
-                      aria-label="Copy SFTP command"
+                      aria-label={t("settings.copySftpCommand")}
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -2990,23 +3000,23 @@ function SettingsTab({
                 <div className="flex items-start gap-2 min-w-0">
                   <Monitor className="h-4 w-4 text-indigo-400 flex-shrink-0 mt-0.5" />
                   <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
-                    <p className="text-xs font-medium text-indigo-300">KVM Access Notes</p>
+                    <p className="text-xs font-medium text-indigo-300">{t("settings.kvmNotes.title")}</p>
                     <ul className="text-xs text-indigo-400/70 space-y-1 list-disc pl-4">
-                      <li>Use the primary allocation for SSH/SFTP</li>
+                      <li>{t("settings.kvmNotes.usePrimary")}</li>
                       <li className="break-all">
-                        Default:{" "}
+                        {t("settings.kvmNotes.default")}:{" "}
                         <code className="bg-indigo-500/10 px-1 rounded">root</code> /{" "}
                         <code className="bg-indigo-500/10 px-1 rounded">changeme</code>
                       </li>
-                      <li>Filesystem managed by cloud-init</li>
-                      <li>Panel files may not reflect guest state</li>
+                      <li>{t("settings.kvmNotes.filesystemManaged")}</li>
+                      <li>{t("settings.kvmNotes.panelFilesGuest")}</li>
                     </ul>
                   </div>
                 </div>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground break-words">
-                Use your panel password or SSH key to authenticate.
+                {t("settings.authNote")}
               </p>
             )}
           </div>
@@ -3015,14 +3025,14 @@ function SettingsTab({
 
       {/* Build Configuration */}
       {server.build && (
-        <CollapsibleSection title="Resource Limits" icon={Cpu}>
+        <CollapsibleSection title={t("settings.resourceLimits")} icon={Cpu}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0 pt-3">
-            <InfoRow label="Memory" value={`${server.build.memory_limit || 0} MB`} />
-            <InfoRow label="Disk" value={`${server.build.disk_space || 0} MB`} />
-            <InfoRow label="CPU" value={`${server.build.cpu_limit || 0}%`} />
-            <InfoRow label="IO Weight" value={String(server.build.io_weight || 500)} />
-            <InfoRow label="Swap" value={`${server.build.swap || 0} MB`} />
-            {isKvm && <InfoRow label="KVM Passthrough" value="Enabled" />}
+            <InfoRow label={t("stats.memory")} value={`${server.build.memory_limit || 0} MB`} />
+            <InfoRow label={t("stats.disk")} value={`${server.build.disk_space || 0} MB`} />
+            <InfoRow label={t("stats.cpu")} value={`${server.build.cpu_limit || 0}%`} />
+            <InfoRow label={t("settings.ioWeight")} value={String(server.build.io_weight || 500)} />
+            <InfoRow label={t("settings.swap")} value={`${server.build.swap || 0} MB`} />
+            {isKvm && <InfoRow label={t("settings.kvmPassthrough")} value={t("states.enabled")} />}
           </div>
         </CollapsibleSection>
       )}
@@ -3032,10 +3042,10 @@ function SettingsTab({
         <div>
           <h3 className="text-sm font-semibold text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">Danger Zone</span>
+            <span className="truncate">{t("settings.dangerZone")}</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-1 break-words">
-            These actions are irreversible. Proceed with caution.
+            {t("settings.dangerDescription")}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -3048,7 +3058,7 @@ function SettingsTab({
           >
             {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
             <RefreshCw className="h-4 w-4 mr-1.5" />
-            Reinstall
+            {t("settings.reinstall")}
           </Button>
           <Button
             variant="destructive"
@@ -3057,7 +3067,7 @@ function SettingsTab({
             className="w-full sm:w-auto h-10 sm:h-9"
           >
             <Trash2 className="h-4 w-4 mr-1.5" />
-            Delete Server
+            {t("settings.deleteServer")}
           </Button>
         </div>
       </div>

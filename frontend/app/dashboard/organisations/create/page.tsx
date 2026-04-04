@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PanelHeader } from "@/components/panel/header";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiFetch } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/panel-config";
 
 export default function CreateOrganisationPage() {
+  const t = useTranslations("organisationsCreatePage");
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
   const [tier, setTier] = useState<string>("free");
@@ -26,7 +28,7 @@ export default function CreateOrganisationPage() {
       });
       router.push("/dashboard/organisations");
     } catch (err: any) {
-      setError(err.message || "Failed to create organisation");
+      setError(err.message || t("errors.failedCreate"));
     } finally {
       setLoading(false);
     }
@@ -34,7 +36,7 @@ export default function CreateOrganisationPage() {
 
   return (
     <>
-      <PanelHeader title="New Organisation" description="Create a new organisation" />
+      <PanelHeader title={t("header.title")} description={t("header.description")} />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex h-full items-center justify-center p-6">
           <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
@@ -43,14 +45,14 @@ export default function CreateOrganisationPage() {
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Organisation Name"
+                placeholder={t("fields.namePlaceholder")}
                 required
                 className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
               />
               <input
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
-                placeholder="Handle (e.g. acme.ecli.app)"
+                placeholder={t("fields.handlePlaceholder")}
                 required
                 className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
               />
@@ -59,16 +61,16 @@ export default function CreateOrganisationPage() {
                 onChange={(e) => setTier(e.target.value)}
                 className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
               >
-                <option value="free">Free</option>
-                <option value="paid">Paid</option>
-                <option value="enterprise">Enterprise</option>
+                <option value="free">{t("tiers.free")}</option>
+                <option value="paid">{t("tiers.paid")}</option>
+                <option value="enterprise">{t("tiers.enterprise")}</option>
               </select>
               <button
                 type="submit"
                 disabled={loading}
                 className="mt-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
-                {loading ? "Creating..." : "Create"}
+                {loading ? t("actions.creating") : t("actions.create")}
               </button>
             </form>
           </div>

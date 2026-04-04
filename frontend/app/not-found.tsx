@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 
 function BinaryStrip() {
   const [binary, setBinary] = useState("")
@@ -91,6 +92,7 @@ function GlitchText({ text }: { text: string }) {
 
 export default function NotFound() {
   const [path, setPath] = useState("")
+  const t = useTranslations("notFound")
 
   useEffect(() => {
     setPath(window.location.pathname)
@@ -110,14 +112,14 @@ export default function NotFound() {
               <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-6 w-6 sm:h-8 sm:w-8 object-contain" />
             </div>
             <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
-              Eclipse Systems
+              {t("brand")}
             </span>
           </div>
           <nav className="hidden gap-6 font-mono text-xs sm:text-sm text-purple-400/70 md:flex">
-            <Link href="/" className="transition-colors hover:text-purple-300">[home]</Link>
-            <Link href="/#features" className="transition-colors hover:text-purple-300">[features]</Link>
-            <Link href="/#pricing" className="transition-colors hover:text-purple-300">[pricing]</Link>
-            <Link href="/#contact" className="transition-colors hover:text-purple-300">[contact]</Link>
+            <Link href="/" className="transition-colors hover:text-purple-300">{t("nav.home")}</Link>
+            <Link href="/#features" className="transition-colors hover:text-purple-300">{t("nav.features")}</Link>
+            <Link href="/#pricing" className="transition-colors hover:text-purple-300">{t("nav.pricing")}</Link>
+            <Link href="/#contact" className="transition-colors hover:text-purple-300">{t("nav.contact")}</Link>
           </nav>
         </header>
 
@@ -128,10 +130,10 @@ export default function NotFound() {
             </span>
           </h1>
           <p className="mx-auto mb-2 max-w-xl font-mono text-lg sm:text-xl md:text-2xl text-purple-400/80 px-4">
-            <span className="text-pink-400">ERROR:</span> Page not found
+            <span className="text-pink-400">{t("hero.errorLabel")}</span> {t("hero.title")}
           </p>
           <p className="mx-auto mb-6 max-w-md font-mono text-xs sm:text-sm text-purple-400/50 px-4">
-            The requested resource has been lost in the void.
+            {t("hero.subtitle")}
           </p>
         </section>
 
@@ -140,11 +142,11 @@ export default function NotFound() {
             <div className="text-purple-400">
               <p className="text-gray-500">eclipse@systems ~ % curl {path || "/unknown"}</p>
               <p className="mt-2">
-                <span className="text-red-400">ERROR 404:</span> <TypingText text="Resource not found in any known dimension." />
+                <span className="text-red-400">{t("terminal.error404")}</span> <TypingText text={t("terminal.notFoundDimension")} />
               </p>
-              <p className="mt-1"><span className="text-pink-400">PATH:</span> <span className="text-red-400/80">{path || "/unknown"}</span></p>
-              <p><span className="text-pink-400">LOOKUP:</span> <span className="text-yellow-400">FAILED</span></p>
-              <p><span className="text-pink-400">SUGGESTION:</span> Return to known coordinates</p>
+              <p className="mt-1"><span className="text-pink-400">{t("terminal.path")}</span> <span className="text-red-400/80">{path || "/unknown"}</span></p>
+              <p><span className="text-pink-400">{t("terminal.lookup")}</span> <span className="text-yellow-400">{t("terminal.failed")}</span></p>
+              <p><span className="text-pink-400">{t("terminal.suggestion")}</span> {t("terminal.returnCoordinates")}</p>
             </div>
           </TerminalBlock>
         </section>
@@ -152,45 +154,45 @@ export default function NotFound() {
         <BinaryStrip />
 
         <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># What happened?</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("details.title")}</h2>
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
-              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400"># Possible Causes</h3>
+              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400">{t("details.causesTitle")}</h3>
               <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
-                Blåhaj ate page, or maybe:
+                {t("details.causesSubtitle")}
               </p>
               <ul className="space-y-2 font-mono text-sm text-pink-400">
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">→ The page was moved or deleted</li>
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">→ The URL was mistyped</li>
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">→ The link you followed is outdated</li>
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">→ A cat walked across the keyboard</li>
+                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause1")}</li>
+                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause2")}</li>
+                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause3")}</li>
+                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause4")}</li>
               </ul>
             </div>
 
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
-              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400"># Quick Navigation</h3>
+              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400">{t("details.quickNavTitle")}</h3>
               <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
-                Here are some places you might want to go:
+                {t("details.quickNavSubtitle")}
               </p>
               <ul className="space-y-2 font-mono text-sm">
                 <li>
                   <Link href="/" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    → Home Page
+                    {t("details.homePage")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    → Dashboard
+                    {t("details.dashboard")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/login" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    → Login
+                    {t("details.login")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/register" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    → Register
+                    {t("details.register")}
                   </Link>
                 </li>
               </ul>
@@ -204,10 +206,10 @@ export default function NotFound() {
           <TerminalBlock>
             <div className="text-purple-400">
               <p className="text-gray-500">eclipse@systems ~ % ./recover --path {path || "/unknown"}</p>
-              <p className="mt-2"><span className="text-yellow-400">WARN:</span> No recovery route found.</p>
-              <p><span className="text-pink-400">SCANNING:</span> sitemap... <span className="text-red-400">0 matches</span></p>
-              <p><span className="text-pink-400">FALLBACK:</span> <span className="text-emerald-400">redirect → /</span></p>
-              <p className="mt-2 text-gray-500"># Recommendation: go home, deploy something cool instead.</p>
+              <p className="mt-2"><span className="text-yellow-400">{t("recovery.warn")}</span> {t("recovery.noRoute")}</p>
+              <p><span className="text-pink-400">{t("recovery.scanning")}</span> {t("recovery.sitemap")}</p>
+              <p><span className="text-pink-400">{t("recovery.fallback")}</span> <span className="text-emerald-400">{t("recovery.redirect")}</span></p>
+              <p className="mt-2 text-gray-500">{t("recovery.recommendation")}</p>
             </div>
           </TerminalBlock>
         </section>
@@ -216,22 +218,22 @@ export default function NotFound() {
 
         {/* CTA */}
         <section className="mb-8 text-center">
-          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400"># Let&apos;s get you back on track</h2>
+          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400">{t("cta.title")}</h2>
           <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60 px-2">
-            This page doesn&apos;t exist, but your next deployment could.
+            {t("cta.subtitle")}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               href="/"
               className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
             >
-              ./navigate --home
+              {t("cta.home")}
             </Link>
             <Link
               href="/dashboard"
               className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
-              go_to_dashboard()
+              {t("cta.dashboard")}
             </Link>
           </div>
         </section>
@@ -239,13 +241,13 @@ export default function NotFound() {
         {/* FOOTER */}
         <footer className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
           <p className="font-mono text-xs text-purple-400/50">
-            Lost? Email{" "}
+            {t("footer.lost")} {" "}
             <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
               contact@ecli.app
             </a>{" "}
-            or return to{" "}
+            {t("footer.orReturn")} {" "}
             <Link href="/" className="text-pink-400 hover:underline">
-              Home
+              {t("footer.home")}
             </Link>.
           </p>
         </footer>

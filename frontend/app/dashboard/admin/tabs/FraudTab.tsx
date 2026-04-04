@@ -3,9 +3,11 @@
 import { Badge } from "@/components/ui/badge"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
 import { Brain, Loader2, RefreshCw, Shield } from "lucide-react"
 
 export default function FraudTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminFraudTab")
   const {
     setFraudScanningAll,
     fraudScanningAll,
@@ -32,8 +34,8 @@ export default function FraudTab({ ctx }: { ctx: any }) {
     <div className="rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">AI Fraud Detection</p>
-          <p className="text-xs text-muted-foreground mt-0.5">AI scans user billing info for suspicious patterns</p>
+          <p className="text-sm font-medium text-foreground">{t("header.title")}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("header.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -41,11 +43,11 @@ export default function FraudTab({ ctx }: { ctx: any }) {
               setFraudScanningAll(true)
               try {
                 const res = await apiFetch(API_ENDPOINTS.adminFraudScanAll, { method: "POST" })
-                alert(`Scan complete — ${res.flagged} user(s) flagged`)
+                alert(t("alerts.scanComplete", { count: res.flagged }))
                 const data = await apiFetch(API_ENDPOINTS.adminFraudAlerts)
                 setFraudAlerts(data || [])
               } catch (e: any) {
-                alert("Scan failed: " + e.message)
+                alert(t("alerts.scanFailed", { reason: e.message }))
               } finally {
                 setFraudScanningAll(false)
               }
@@ -54,7 +56,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
             className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
           >
             {fraudScanningAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
-            {fraudScanningAll ? "Scanning All…" : "Scan All Users"}
+            {fraudScanningAll ? t("actions.scanningAll") : t("actions.scanAllUsers")}
           </button>
           <button
             onClick={() => forceRefreshTab("fraud")}
@@ -68,7 +70,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
       {displayedFraudAlerts.length === 0 ? (
         <div className="p-8 text-center">
           <Shield className="h-8 w-8 mx-auto text-success/60 mb-2" />
-          <p className="text-sm text-muted-foreground">No fraud alerts — all users look clean</p>
+          <p className="text-sm text-muted-foreground">{t("states.empty")}</p>
         </div>
       ) : (
         <>
@@ -76,7 +78,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
             <div className="flex items-center gap-2">
               <label className="flex items-center text-xs text-muted-foreground gap-2">
                 <input type="checkbox" checked={hideSuspendedFraud} onChange={(e) => setHideSuspendedFraud(e.target.checked)} className="accent-primary" />
-                Hide suspended
+                {t("filters.hideSuspended")}
               </label>
               <button
                 onClick={() => {
@@ -87,12 +89,12 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                 }}
                 className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground"
               >
-                {selectAllFraud ? "Unselect All" : "Select All"}
+                {selectAllFraud ? t("actions.unselectAll") : t("actions.selectAll")}
               </button>
               <button
                 onClick={async () => {
                   if (selectedFraudIds.length === 0) return
-                  if (!(await confirmAsync(`Dismiss ${selectedFraudIds.length} selected fraud alert(s)?`))) return
+                  if (!(await confirmAsync(t("alerts.confirmDismissSelected", { count: selectedFraudIds.length })))) return
                   setBulkDismissing(true)
                   try {
                     await apiFetch(API_ENDPOINTS.adminFraudBulkDismiss, { method: "POST", body: JSON.stringify({ ids: selectedFraudIds }) })
@@ -100,7 +102,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                     setSelectedFraudIds([])
                     setSelectAllFraud(false)
                   } catch (e: any) {
-                    alert("Failed to dismiss: " + (e?.message || "error"))
+                    alert(t("alerts.dismissFailed", { reason: e?.message || t("common.error") }))
                   } finally {
                     setBulkDismissing(false)
                   }
@@ -108,7 +110,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                 disabled={selectedFraudIds.length === 0 || bulkDismissing}
                 className="text-xs rounded px-2 py-1 border border-border bg-secondary/50 text-foreground disabled:opacity-50"
               >
-                {bulkDismissing ? "Dismissing…" : `Dismiss Selected (${selectedFraudIds.length})`}
+                {bulkDismissing ? t("actions.dismissing") : t("actions.dismissSelected", { count: selectedFraudIds.length })}
               </button>
             </div>
             <div />
@@ -140,21 +142,21 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                     </span>
                     <span className="text-xs text-muted-foreground">{redact(alert.email)}</span>
                     {alert.suspended && (
-                      <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">Suspended</Badge>
+                      <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">{t("status.suspended")}</Badge>
                     )}
                   </div>
                   <p className={privateMode ? "text-xs text-destructive/80 mt-1 blur-sm" : "text-xs text-destructive/80 mt-1"}>
-                    {privateMode ? "Sensitive fraud reason redacted" : alert.fraudReason}
+                    {privateMode ? t("states.reasonRedacted") : alert.fraudReason}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {alert.address && <p><span className="text-foreground/60">Address:</span> {redact(alert.address)}{alert.address2 ? `, ${redact(alert.address2)}` : ""}</p>}
-                    {alert.billingCity && <p><span className="text-foreground/60">City:</span> {redact(alert.billingCity)}{alert.billingState ? `, ${redact(alert.billingState)}` : ""} {redact(alert.billingZip)}</p>}
-                    {alert.billingCountry && <p><span className="text-foreground/60">Country:</span> {redact(alert.billingCountry)}</p>}
-                    {alert.billingCompany && <p><span className="text-foreground/60">Company:</span> {redact(alert.billingCompany)}</p>}
-                    {alert.phone && <p><span className="text-foreground/60">Phone:</span> {redact(alert.phone)}</p>}
+                    {alert.address && <p><span className="text-foreground/60">{t("fields.address")}</span> {redact(alert.address)}{alert.address2 ? `, ${redact(alert.address2)}` : ""}</p>}
+                    {alert.billingCity && <p><span className="text-foreground/60">{t("fields.city")}</span> {redact(alert.billingCity)}{alert.billingState ? `, ${redact(alert.billingState)}` : ""} {redact(alert.billingZip)}</p>}
+                    {alert.billingCountry && <p><span className="text-foreground/60">{t("fields.country")}</span> {redact(alert.billingCountry)}</p>}
+                    {alert.billingCompany && <p><span className="text-foreground/60">{t("fields.company")}</span> {redact(alert.billingCompany)}</p>}
+                    {alert.phone && <p><span className="text-foreground/60">{t("fields.phone")}</span> {redact(alert.phone)}</p>}
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Detected {alert.fraudDetectedAt ? new Date(alert.fraudDetectedAt).toLocaleString() : "—"}
+                    {t("fields.detected")} {alert.fraudDetectedAt ? new Date(alert.fraudDetectedAt).toLocaleString() : t("common.dash")}
                   </p>
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0">
@@ -167,17 +169,17 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                         })
                         setFraudAlerts((prev: any[]) => prev.filter((a: any) => a.id !== alert.id))
                       } catch (e: any) {
-                        alert("Failed: " + e.message)
+                        alert(t("alerts.failed", { reason: e.message }))
                       }
                     }}
                     className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
                   >
-                    Dismiss
+                    {t("actions.dismiss")}
                   </button>
                   {!alert.suspended && (
                     <button
                       onClick={async () => {
-                        if (!(await confirmAsync(`Suspend user ${alert.firstName} ${alert.lastName}?`))) return
+                        if (!(await confirmAsync(t("alerts.confirmSuspend", { name: `${alert.firstName} ${alert.lastName}` })))) return
                         try {
                           await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
                             method: "PUT",
@@ -185,12 +187,12 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                           })
                           setFraudAlerts((prev: any[]) => prev.map((a: any) => a.id === alert.id ? { ...a, suspended: true } : a))
                         } catch (e: any) {
-                          alert("Failed: " + e.message)
+                          alert(t("alerts.failed", { reason: e.message }))
                         }
                       }}
                       className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
                     >
-                      Suspend
+                      {t("actions.suspend")}
                     </button>
                   )}
                   <button
@@ -204,7 +206,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                           setFraudAlerts((prev: any[]) => prev.map((a: any) => a.id === alert.id ? { ...a, fraudReason: res.reasons?.join("; ") } : a))
                         }
                       } catch (e: any) {
-                        alert("Re-scan failed: " + e.message)
+                        alert(t("alerts.rescanFailed", { reason: e.message }))
                       } finally {
                         setFraudScanning(false)
                       }
@@ -212,7 +214,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                     disabled={fraudScanning}
                     className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
                   >
-                    Re-scan
+                    {t("actions.rescan")}
                   </button>
                 </div>
               </div>

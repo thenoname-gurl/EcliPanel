@@ -417,6 +417,38 @@ export interface NavSection {
   items: NavItem[]
 }
 
+export const NAV_SECTION_I18N_KEYS: Record<string, string> = {
+  Overview: "overview",
+  Infrastructure: "infrastructure",
+  AI: "ai",
+  Support: "support",
+  Account: "account",
+  Administration: "administration",
+}
+
+export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
+  "SOC Dashboard": "socDashboard",
+  "Account Activity": "accountActivity",
+  Organisations: "organisations",
+  Servers: "servers",
+  "Code Instances": "codeInstances",
+  Nodes: "nodes",
+  "AI Studio": "aiStudio",
+  "AI Chat": "aiChat",
+  Tickets: "tickets",
+  Applications: "applications",
+  Identity: "identity",
+  Billing: "billing",
+  Settings: "settings",
+  "Admin Panel": "adminPanel",
+}
+
+export const NAV_BADGE_I18N_KEYS: Record<string, string> = {
+  New: "new",
+  Beta: "beta",
+  Staff: "staff",
+}
+
 export const NAVIGATION: NavSection[] = [
   {
     title: "Overview",

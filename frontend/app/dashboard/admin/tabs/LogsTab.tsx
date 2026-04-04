@@ -3,9 +3,11 @@
 import { Button } from "@/components/ui/button"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
 import { AlertTriangle, Bot, ChevronLeft, ChevronRight, Globe, RefreshCw, ScrollText, Shield, Timer, Trash2 } from "lucide-react"
 
 export default function LogsTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminLogsTab")
   const {
     logType,
     setLogType,
@@ -31,10 +33,10 @@ export default function LogsTab({ ctx }: { ctx: any }) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  {logType === "serverErrors" ? "Server Errors" : logType === "requests" ? "API Request Logs" : logType === "slow" ? "Slow Queries" : "Audit Logs"}
+                  {logType === "serverErrors" ? t("types.serverErrors") : logType === "requests" ? t("types.apiRequests") : logType === "slow" ? t("types.slowQueries") : t("types.audit")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {logsTotal ? `${logsTotal} entries` : "System activity & diagnostics"}
+                  {logsTotal ? t("header.entries", { count: logsTotal }) : t("header.subtitle")}
                 </p>
               </div>
             </div>
@@ -52,7 +54,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                   className="h-8 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Clear</span>
+                  <span className="hidden sm:inline">{t("actions.clear")}</span>
                 </Button>
               )}
               <button
@@ -64,7 +66,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                   }
                 }}
                 className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                title="Refresh"
+                title={t("actions.refresh")}
               >
                 <RefreshCw className="h-4 w-4" />
               </button>
@@ -72,24 +74,24 @@ export default function LogsTab({ ctx }: { ctx: any }) {
           </div>
 
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-            {(["audit", "requests", "slow", "serverErrors"] as const).map((t) => {
+            {(["audit", "requests", "slow", "serverErrors"] as const).map((tKey) => {
               const config: Record<string, { label: string; icon: any; color: string }> = {
-                audit: { label: "Audit", icon: Shield, color: "text-indigo-400" },
-                requests: { label: "API Requests", icon: Globe, color: "text-blue-400" },
-                slow: { label: "Slow Queries", icon: Timer, color: "text-orange-400" },
-                serverErrors: { label: "Server Errors", icon: AlertTriangle, color: "text-red-400" },
+                audit: { label: t("types.audit"), icon: Shield, color: "text-indigo-400" },
+                requests: { label: t("types.apiRequests"), icon: Globe, color: "text-blue-400" },
+                slow: { label: t("types.slowQueries"), icon: Timer, color: "text-orange-400" },
+                serverErrors: { label: t("types.serverErrors"), icon: AlertTriangle, color: "text-red-400" },
               }
-              const c = config[t]
+              const c = config[tKey]
               const Icon = c.icon
-              const isActive = logType === t
+              const isActive = logType === tKey
 
               return (
                 <button
-                  key={t}
+                  key={tKey}
                   onClick={async () => {
-                    setLogType(t)
+                    setLogType(tKey)
                     try {
-                      await fetchLogs(1, t, logsUserFilter)
+                      await fetchLogs(1, tKey, logsUserFilter)
                     } catch { }
                   }}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive
@@ -111,30 +113,30 @@ export default function LogsTab({ ctx }: { ctx: any }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border text-xs text-muted-foreground">
-                <th className="px-4 py-3 text-left font-medium">Time</th>
+                <th className="px-4 py-3 text-left font-medium">{t("table.time")}</th>
                 {(logType === "audit" || logType === "requests" || logType === "serverErrors") && (
-                  <th className="px-4 py-3 text-left font-medium">User</th>
+                  <th className="px-4 py-3 text-left font-medium">{t("table.user")}</th>
                 )}
                 {logType === "audit" && (
-                  <th className="px-4 py-3 text-left font-medium">Action</th>
+                  <th className="px-4 py-3 text-left font-medium">{t("table.action")}</th>
                 )}
                 {logType === "serverErrors" && (
                   <>
-                    <th className="px-4 py-3 text-left font-medium">Action</th>
-                    <th className="px-4 py-3 text-left font-medium">Error</th>
-                    <th className="px-4 py-3 text-left font-medium">Manage</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.action")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.error")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.manage")}</th>
                   </>
                 )}
                 {logType === "requests" && (
                   <>
-                    <th className="px-4 py-3 text-left font-medium">Endpoint</th>
-                    <th className="px-4 py-3 text-left font-medium">Count</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.endpoint")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.count")}</th>
                   </>
                 )}
                 {logType === "slow" && (
                   <>
-                    <th className="px-4 py-3 text-left font-medium">Duration</th>
-                    <th className="px-4 py-3 text-left font-medium">Query</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.duration")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.query")}</th>
                   </>
                 )}
               </tr>
@@ -145,7 +147,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                   <td colSpan={logType === "requests" || logType === "serverErrors" ? 4 : 3} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <ScrollText className="h-8 w-8 text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">No logs found</p>
+                      <p className="text-sm text-muted-foreground">{t("states.noLogs")}</p>
                     </div>
                   </td>
                 </tr>
@@ -199,14 +201,14 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                               {log.userId === 0 ? (
                                 <>
                                   <Bot className="h-3 w-3" />
-                                  System
+                                    {t("common.system")}
                                 </>
                               ) : (
                                 redact(log.userId)
                               )}
                             </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
+                              <span className="text-xs text-muted-foreground">{t("common.dash")}</span>
                           )}
                         </td>
                       )}
@@ -228,11 +230,11 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                           </td>
                           <td className="px-4 py-3 max-w-[14rem] overflow-hidden text-ellipsis">
                             <div className="text-xs text-muted-foreground break-words">
-                              {log.metadata?.message || log.metadata?.error || log.metadata?.detail || "(no details)"}
+                              {log.metadata?.message || log.metadata?.error || log.metadata?.detail || t("states.noDetails")}
                             </div>
                             {log.metadata?.stack && (
                               <details className="text-[10px] text-muted-foreground mt-1">
-                                <summary>Stack</summary>
+                                <summary>{t("table.stack")}</summary>
                                 <pre className="whitespace-pre-wrap max-h-28 overflow-auto">{log.metadata.stack}</pre>
                               </details>
                             )}
@@ -299,7 +301,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
           <div className="rounded-xl border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <ScrollText className="h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">No logs found</p>
+              <p className="text-sm text-muted-foreground">{t("states.noLogs")}</p>
             </div>
           </div>
         ) : (
@@ -373,7 +375,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                         </div>
                       ) : log.userId !== undefined && log.userId !== null ? (
                         <span className="text-xs text-muted-foreground">
-                          {log.userId === 0 ? "System" : redact(log.userId)}
+                          {log.userId === 0 ? t("common.system") : redact(log.userId)}
                         </span>
                       ) : null}
                     </div>
@@ -406,16 +408,16 @@ export default function LogsTab({ ctx }: { ctx: any }) {
           <p className="text-xs text-muted-foreground">
             {logType === "slow" ? (
               <>
-                Showing <span className="font-medium text-foreground">{logs.length}</span> slow queries
+                {t("pagination.showingSlow", { count: logs.length })}
               </>
             ) : (
               <>
-                Page <span className="font-medium text-foreground">{logsPage}</span>
+                {t("pagination.page")} <span className="font-medium text-foreground">{logsPage}</span>
                 {logsTotal ? (
-                  <> of <span className="font-medium text-foreground">{Math.max(1, Math.ceil(logsTotal / logsPer))}</span></>
+                  <> {t("pagination.of")} <span className="font-medium text-foreground">{Math.max(1, Math.ceil(logsTotal / logsPer))}</span></>
                 ) : null}
                 {logsTotal ? (
-                  <span className="hidden sm:inline"> · {logsTotal} entries</span>
+                  <span className="hidden sm:inline"> · {t("header.entries", { count: logsTotal })}</span>
                 ) : null}
               </>
             )}
@@ -430,7 +432,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                 className="h-8 px-3 text-xs"
               >
                 <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
-                <span className="hidden sm:inline ml-1">Previous</span>
+                <span className="hidden sm:inline ml-1">{t("actions.previous")}</span>
               </Button>
               <Button
                 size="sm"
@@ -439,7 +441,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                 disabled={(logsTotal !== null && logsPage >= Math.ceil((logsTotal || 0) / logsPer)) || logsLoading}
                 className="h-8 px-3 text-xs"
               >
-                <span className="hidden sm:inline mr-1">Next</span>
+                <span className="hidden sm:inline mr-1">{t("actions.next")}</span>
                 <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
               </Button>
             </div>

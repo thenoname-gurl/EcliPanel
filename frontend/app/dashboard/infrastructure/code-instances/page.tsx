@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -26,6 +27,7 @@ interface CodeInstance {
 }
 
 export default function CodeInstancesPage() {
+  const t = useTranslations("infrastructureCodeInstancesPage")
   const { user } = useAuth()
   const [instances, setInstances] = useState<CodeInstance[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,7 +50,7 @@ export default function CodeInstancesPage() {
       const data = await apiFetch(API_ENDPOINTS.infraCodeInstances)
       setInstances(data || [])
     } catch (e) {
-      setError('Failed to load code instances')
+      setError(t("errors.failedLoad"))
     } finally {
       setLoading(false)
     }
@@ -58,10 +60,8 @@ export default function CodeInstancesPage() {
     load()
   }, [user])
 
-    // eggId is defaulted to 264; no lookup required
-
   const stopInstance = async (uuid: string) => {
-    if (!confirm('Stop and delete this code instance? Your data will be removed unless saved externally.')) return
+    if (!confirm(t("confirm.stopDelete"))) return
     await apiFetch(`${API_ENDPOINTS.infraCodeInstances}/${uuid}/stop`, { method: "POST" })
     await load()
   }
@@ -69,14 +69,14 @@ export default function CodeInstancesPage() {
   const createInstance = async () => {
     if (!user) return
     if (!eggId) {
-      alert('No code-server egg found — cannot create instance.')
+      alert(t("errors.noEggFound"))
       return
     }
     setCreating(true)
     try {
       const payload: any = {
         eggId,
-        name: name || 'Code Instance',
+        name: name || t("defaults.instanceName"),
         memory: Number(memory),
         disk: Number(disk),
         cpu: Number(cpu),
@@ -85,15 +85,15 @@ export default function CodeInstancesPage() {
       const res = await apiFetch('/api/servers', { method: 'POST', body: JSON.stringify(payload) })
       if (res && res.uuid) {
         setShowCreate(false)
-        setName('')
+        setName("")
         await load()
       } else if (res && res.error) {
-        alert('Create failed: ' + res.error)
+        alert(t("errors.createFailed", { reason: res.error }))
       } else {
-        alert('Unexpected response from server create')
+        alert(t("errors.unexpectedCreateResponse"))
       }
     } catch (e: any) {
-      alert('Failed to create instance: ' + (e?.message || e))
+      alert(t("errors.failedCreate", { reason: e?.message || e }))
     } finally {
       setCreating(false)
     }
@@ -103,13 +103,13 @@ export default function CodeInstancesPage() {
     <FeatureGuard feature="codeInstances">
       <>
         <ScrollArea className="h-screen">
-        <PanelHeader title="Code Instances" description="Temporary Code-Server instances; inactive instances are deleted after 30 minutes of inactivity." />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">Temporary Code-Server instances allows you to run a temporary development environment.</div>
+        <div className="text-sm text-muted-foreground">{t("intro")}</div>
         <div className="space-x-2">
-          <Button onClick={load} disabled={loading}>Refresh</Button>
-          <Button onClick={() => setShowCreate(true)} variant="default">Create Code Instance</Button>
+          <Button onClick={load} disabled={loading}>{t("actions.refresh")}</Button>
+          <Button onClick={() => setShowCreate(true)} variant="default">{t("actions.createCodeInstance")}</Button>
         </div>
       </div>
 
@@ -119,27 +119,27 @@ export default function CodeInstancesPage() {
         <table className="min-w-full w-full border-collapse">
           <thead className="bg-muted text-muted-foreground text-sm">
             <tr>
-              <th className="p-3 text-left">Name</th>
-              <th className="p-3 text-left">UUID</th>
-              <th className="p-3 text-left">Resources</th>
-              <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left">Last Activity</th>
-              <th className="p-3 text-left">Actions</th>
+              <th className="p-3 text-left">{t("table.name")}</th>
+              <th className="p-3 text-left">{t("table.uuid")}</th>
+              <th className="p-3 text-left">{t("table.resources")}</th>
+              <th className="p-3 text-left">{t("table.status")}</th>
+              <th className="p-3 text-left">{t("table.lastActivity")}</th>
+              <th className="p-3 text-left">{t("table.actions")}</th>
             </tr>
           </thead>
           <tbody>
             {instances.map(i => (
               <tr key={i.uuid} className="border-t">
-                <td className="p-3">{i.name || 'Code Instance'}</td>
+                <td className="p-3">{i.name || t("defaults.instanceName")}</td>
                 <td className="p-3"><code className="text-xs">{i.uuid}</code></td>
-                <td className="p-3">{i.memory}MB • {i.cpu} CPU • {i.disk}MB</td>
+                <td className="p-3">{t("table.resourcesValue", { memory: i.memory, cpu: i.cpu, disk: i.disk })}</td>
                 <td className="p-3">{i.status}</td>
-                <td className="p-3">{i.lastActivityAt ? new Date(i.lastActivityAt).toLocaleString() : 'never'}</td>
-                <td className="p-3"><Button variant="destructive" size="sm" onClick={() => stopInstance(i.uuid)}>Stop & Delete</Button></td>
+                <td className="p-3">{i.lastActivityAt ? new Date(i.lastActivityAt).toLocaleString() : t("states.never")}</td>
+                <td className="p-3"><Button variant="destructive" size="sm" onClick={() => stopInstance(i.uuid)}>{t("actions.stopDelete")}</Button></td>
               </tr>
             ))}
             {!instances.length && !loading && (
-              <tr><td className="p-3" colSpan={6}>No code instances currently provisioned.</td></tr>
+              <tr><td className="p-3" colSpan={6}>{t("states.noInstances")}</td></tr>
             )}
           </tbody>
         </table>
@@ -148,32 +148,32 @@ export default function CodeInstancesPage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Code Instance</DialogTitle>
+            <DialogTitle>{t("dialog.title")}</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-2">
             <div>
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Code Instance" />
+              <Label>{t("form.name")}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("form.namePlaceholder")} />
             </div>
 
             <div>
-              <Label>Memory (MB)</Label>
+              <Label>{t("form.memory")}</Label>
               <Input value={memory} onChange={(e) => setMemory(e.target.value)} />
             </div>
 
             <div>
-              <Label>Disk (MB)</Label>
+              <Label>{t("form.disk")}</Label>
               <Input value={disk} onChange={(e) => setDisk(e.target.value)} />
             </div>
 
             <div>
-              <Label>CPU (cores)</Label>
+              <Label>{t("form.cpu")}</Label>
               <Input value={cpu} onChange={(e) => setCpu(e.target.value)} />
             </div>
 
             <div>
-              <Label>Instance Template</Label>
+              <Label>{t("form.instanceTemplate")}</Label>
               <div className="flex items-center space-x-2">
                 <Input value={eggId ? String(eggId) : ''} readOnly />
               </div>
@@ -181,8 +181,8 @@ export default function CodeInstancesPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={createInstance} disabled={creating}>{creating ? 'Creating...' : 'Create'}</Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t("actions.cancel")}</Button>
+            <Button onClick={createInstance} disabled={creating}>{creating ? t("actions.creating") : t("actions.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

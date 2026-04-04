@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react"
+import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { cn } from "@/lib/utils"
@@ -47,15 +48,17 @@ interface ChartDataPoint {
   txMB: number
 }
 
-const TIME_WINDOW_OPTIONS: { value: TimeWindow; label: string }[] = [
-  { value: "live", label: "Live" },
-  { value: "5m", label: "5m" },
-  { value: "10m", label: "10m" },
-  { value: "1h", label: "1H" },
-  { value: "6h", label: "6H" },
-  { value: "24h", label: "24H" },
-  { value: "7d", label: "7D" },
-]
+function getTimeWindowOptions(t: any): { value: TimeWindow; label: string }[] {
+  return [
+    { value: "live", label: t("timeWindow.live") },
+    { value: "5m", label: t("timeWindow.5m") },
+    { value: "10m", label: t("timeWindow.10m") },
+    { value: "1h", label: t("timeWindow.1h") },
+    { value: "6h", label: t("timeWindow.6h") },
+    { value: "24h", label: t("timeWindow.24h") },
+    { value: "7d", label: t("timeWindow.7d") },
+  ]
+}
 
 const CHART_COLORS = {
   cpu: "#3b82f6",
@@ -118,6 +121,7 @@ interface ChartProps {
 }
 
 function CpuChart({ data, recharts }: ChartProps) {
+  const t = useTranslations("serverStatsTab")
   const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } = recharts
 
   return (
@@ -151,7 +155,7 @@ function CpuChart({ data, recharts }: ChartProps) {
         <Area 
           type="monotone" 
           dataKey="cpu" 
-          name="CPU" 
+          name={t("charts.cpu")}
           stroke={CHART_COLORS.cpu} 
           fill="url(#cpuGrad)" 
           strokeWidth={2} 
@@ -165,6 +169,7 @@ function CpuChart({ data, recharts }: ChartProps) {
 }
 
 function MemoryChart({ data, recharts }: ChartProps) {
+  const t = useTranslations("serverStatsTab")
   const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } = recharts
 
   return (
@@ -197,7 +202,7 @@ function MemoryChart({ data, recharts }: ChartProps) {
         <Area 
           type="monotone" 
           dataKey="memMB" 
-          name="Memory" 
+          name={t("charts.memory")}
           stroke={CHART_COLORS.mem} 
           fill="url(#memGrad)" 
           strokeWidth={2} 
@@ -211,6 +216,7 @@ function MemoryChart({ data, recharts }: ChartProps) {
 }
 
 function DiskChart({ data, recharts }: ChartProps) {
+  const t = useTranslations("serverStatsTab")
   const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } = recharts
 
   return (
@@ -243,7 +249,7 @@ function DiskChart({ data, recharts }: ChartProps) {
         <Area 
           type="monotone" 
           dataKey="diskMB" 
-          name="Disk" 
+          name={t("charts.disk")}
           stroke={CHART_COLORS.disk} 
           fill="url(#diskGrad)" 
           strokeWidth={2} 
@@ -257,6 +263,7 @@ function DiskChart({ data, recharts }: ChartProps) {
 }
 
 function NetworkChart({ data, recharts }: ChartProps) {
+  const t = useTranslations("serverStatsTab")
   const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = recharts
 
   return (
@@ -297,7 +304,7 @@ function NetworkChart({ data, recharts }: ChartProps) {
         <Area 
           type="monotone" 
           dataKey="rxMB" 
-          name="Download" 
+          name={t("charts.download")}
           stroke={CHART_COLORS.rx} 
           fill="url(#rxGrad)" 
           strokeWidth={2} 
@@ -308,7 +315,7 @@ function NetworkChart({ data, recharts }: ChartProps) {
         <Area 
           type="monotone" 
           dataKey="txMB" 
-          name="Upload" 
+          name={t("charts.upload")}
           stroke={CHART_COLORS.tx} 
           fill="url(#txGrad)" 
           strokeWidth={2} 
@@ -413,6 +420,7 @@ function NodeUsageChart({ data, recharts }: { data: NodeChartPoint[]; recharts: 
 }
 
 function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) {
+  const t = useTranslations("serverStatsTab")
   const [expanded, setExpanded] = useState(false)
   const hasNodeInfo = !!nodeInfo && Object.keys(nodeInfo).length > 0
 
@@ -572,7 +580,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
       >
         <div className="flex items-center gap-2">
           <Server className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Node System</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("node.system")}</h3>
         </div>
         {expanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -586,7 +594,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {nodeCpu !== null && (
               <ProgressStat
-                label="Node CPU"
+                label={t("node.cpu")}
                 value={Number(nodeCpu)}
                 max={100}
                 unit="%"
@@ -596,7 +604,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
             )}
             {nodeMemUsed !== null && nodeMemTotal !== null && (
               <ProgressStat
-                label="Node Memory"
+                label={t("node.memory")}
                 value={nodeMemUsed}
                 max={nodeMemTotal}
                 color={CHART_COLORS.mem}
@@ -605,7 +613,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
             )}
             {nodeDiskUsed !== null && nodeDiskTotal !== null && (
               <ProgressStat
-                label="Node Disk"
+                label={t("node.disk")}
                 value={nodeDiskUsed}
                 max={nodeDiskTotal}
                 color={CHART_COLORS.disk}
@@ -614,7 +622,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
             )}
             {(nodeInfo.version || nodeInfo.kernel_version) && (
               <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Version</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.version")}</p>
                 <p className="text-xs sm:text-sm font-mono font-medium text-foreground truncate">
                   {nodeInfo.version || nodeInfo.kernel_version || "—"}
                 </p>
@@ -622,26 +630,26 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
             )}
             {(nodeInfo.architecture || nodeInfo.arch) && (
               <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Architecture</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.architecture")}</p>
                 <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                   {nodeInfo.architecture || nodeInfo.arch}
                 </p>
               </div>
             )}
             <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Node CPU Avg (24h)</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.cpuAvg24h")}</p>
               <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                 {nodeHistorySummary.cpuAvg.toFixed(2)}%
               </p>
             </div>
             <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Node Net 24h (↓ / ↑)</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.net24h")}</p>
               <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                 {formatBytes(nodeHistorySummary.rx24h)} / {formatBytes(nodeHistorySummary.tx24h)}
               </p>
             </div>
             <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Current Net (↓ / ↑)</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.currentNet")}</p>
               <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                 {formatAdaptiveMbps(currentNodeNetMbps.rx)} / {formatAdaptiveMbps(currentNodeNetMbps.tx)}
               </p>
@@ -650,7 +658,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
 
           {recharts && nodeUsageChartData.length > 1 && (
             <div className="mt-3 sm:mt-4 rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-2">Node Usage (24h)</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-2">{t("node.usage24h")}</p>
               <NodeUsageChart data={nodeUsageChartData} recharts={recharts} />
             </div>
           )}
@@ -661,6 +669,8 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
 }
 
 export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
+  const t = useTranslations("serverStatsTab")
+  const TIME_WINDOW_OPTIONS = getTimeWindowOptions(t)
   const [history, setHistory] = useState<any[]>([])
   const [live, setLive] = useState<any>(null)
   const [liveResources, setLiveResources] = useState<any>(serverProp?.resources ?? null)
@@ -952,20 +962,20 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   }, [live, liveSource])
 
   if (loading && !recharts) {
-    return <LoadingState message="Loading statistics..." />
+    return <LoadingState message={t("states.loadingStatistics")} />
   }
 
   const chartTabs = [
-    { value: "cpu" as const, label: "CPU", icon: Cpu },
-    { value: "memory" as const, label: "Memory", icon: MemoryStick },
-    { value: "disk" as const, label: "Disk", icon: HardDrive },
-    { value: "network" as const, label: "Network", icon: Network },
+    { value: "cpu" as const, label: t("charts.cpu"), icon: Cpu },
+    { value: "memory" as const, label: t("charts.memory"), icon: MemoryStick },
+    { value: "disk" as const, label: t("charts.disk"), icon: HardDrive },
+    { value: "network" as const, label: t("charts.network"), icon: Network },
   ]
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <SectionHeader title="Resource Usage" icon={Activity} />
+        <SectionHeader title={t("sections.resourceUsage")} icon={Activity} />
         
         <div className="flex items-center gap-2">
           <ToggleGroup
@@ -987,29 +997,29 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
       {/* Live Stats */}
       <CardGrid columns={5}>
         <MiniStat 
-          label="CPU" 
+          label={t("charts.cpu")}
           value={`${Number(liveCpu).toFixed(1)}%`} 
           color={CHART_COLORS.cpu} 
         />
         <MiniStat 
-          label="Memory" 
+          label={t("charts.memory")}
           value={formatBytes(liveMem)} 
           sub={liveMemLimit ? `/ ${formatBytes(liveMemLimit)}` : undefined} 
           color={CHART_COLORS.mem} 
         />
         <MiniStat 
-          label="Disk" 
+          label={t("charts.disk")}
           value={formatBytes(liveDisk)} 
           color={CHART_COLORS.disk} 
         />
         <MiniStat 
-          label="Net ↑" 
+          label={t("labels.netUp")}
           value={formatAdaptiveMbps(serverCurrentNetMbps.tx)} 
           sub={formatBytes(liveNetTx)}
           color={CHART_COLORS.tx} 
         />
         <MiniStat 
-          label="Net ↓" 
+          label={t("labels.netDown")}
           value={formatAdaptiveMbps(serverCurrentNetMbps.rx)} 
           sub={formatBytes(liveNetRx)}
           color={CHART_COLORS.rx} 
@@ -1019,12 +1029,12 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
       {/* Total Traffic */}
       <CardGrid columns={2}>
         <MiniStat
-          label="7d Download Traffic"
+          label={t("labels.downloadTraffic7d")}
           value={formatBytes(sevenDayTraffic.rx)}
           color={CHART_COLORS.rx}
         />
         <MiniStat
-          label="7d Upload Traffic"
+          label={t("labels.uploadTraffic7d")}
           value={formatBytes(sevenDayTraffic.tx)}
           color={CHART_COLORS.tx}
         />
@@ -1066,19 +1076,19 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
 
           {/* Desktop: All charts */}
           <div className="hidden sm:grid sm:grid-cols-2 gap-4">
-            <ChartCard title="CPU Usage" icon={Cpu}>
+            <ChartCard title={t("charts.cpuUsage")} icon={Cpu}>
               <CpuChart data={effectiveChartData} recharts={recharts} />
             </ChartCard>
             
-            <ChartCard title="Memory Usage" icon={MemoryStick}>
+            <ChartCard title={t("charts.memoryUsage")} icon={MemoryStick}>
               <MemoryChart data={effectiveChartData} recharts={recharts} />
             </ChartCard>
             
-            <ChartCard title="Disk Usage" icon={HardDrive}>
+            <ChartCard title={t("charts.diskUsage")} icon={HardDrive}>
               <DiskChart data={effectiveChartData} recharts={recharts} />
             </ChartCard>
             
-            <ChartCard title="Network Traffic" icon={Network}>
+            <ChartCard title={t("charts.networkTraffic")} icon={Network}>
               <NetworkChart data={effectiveChartData} recharts={recharts} />
             </ChartCard>
           </div>
@@ -1086,8 +1096,8 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
       ) : !loading ? (
         <EmptyState
           icon={Activity}
-          title="No data available"
-          message="Stats are collected while the server is running. Check back in a few minutes."
+          title={t("states.noDataTitle")}
+          message={t("states.noDataMessage")}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

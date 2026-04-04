@@ -2,33 +2,35 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 function RestoreEmailClient() {
+  const t = useTranslations("restoreEmailPage");
   const params = useSearchParams();
   const token = params?.get("token");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
-      setError("Missing restore token.");
+      setError(t("errors.missingToken"));
       return;
     }
 
     const apiPath = `/api/auth/restore-email?token=${encodeURIComponent(token)}`;
     window.location.assign(apiPath);
-  }, [token]);
+  }, [token, t]);
 
   return (
     <div className="flex h-screen items-center justify-center bg-background">
       <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8 text-center">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Restoring your previous email</h2>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">{t("title")}</h2>
         {error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : (
-          <p className="text-sm text-muted-foreground">Please wait - you will be redirected shortly.</p>
+          <p className="text-sm text-muted-foreground">{t("redirecting")}</p>
         )}
         <p className="mt-4 text-xs text-muted-foreground">
-          If you are not redirected, <a href={`/api/auth/restore-email?token=${token}`} className="text-primary underline">click here</a>.
+          {t("notRedirectedPrefix")} <a href={`/api/auth/restore-email?token=${token}`} className="text-primary underline">{t("clickHere")}</a>.
         </p>
       </div>
     </div>
@@ -36,8 +38,10 @@ function RestoreEmailClient() {
 }
 
 export default function RestoreEmailPage() {
+  const t = useTranslations("restoreEmailPage");
+
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading…</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">{t("loading")}</div>}>
       <RestoreEmailClient />
     </Suspense>
   );

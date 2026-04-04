@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
+import { useTranslations } from "next-intl"
 
 type Question = {
   id: string
@@ -159,11 +160,11 @@ function FormInput({ q, value, onChange }: { q: Question; value: any; onChange: 
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, labels }: { status: string; labels: Record<string, string> }) {
   const config: Record<string, { color: string; bg: string; border: string; label: string }> = {
-    active: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", label: "ACTIVE" },
-    closed: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30", label: "CLOSED" },
-    archived: { color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/30", label: "ARCHIVED" },
+    active: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", label: labels.active },
+    closed: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30", label: labels.closed },
+    archived: { color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/30", label: labels.archived },
   }
   const c = config[status] || config.archived
   return (
@@ -174,11 +175,11 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function VisibilityBadge({ visibility }: { visibility: string }) {
+function VisibilityBadge({ visibility, labels }: { visibility: string; labels: Record<string, string> }) {
   const map: Record<string, string> = {
-    public_anonymous: "PUBLIC_ANON",
-    public_users: "USERS_ONLY",
-    private_invite: "INVITE_ONLY",
+    public_anonymous: labels.publicAnonymous,
+    public_users: labels.publicUsers,
+    private_invite: labels.privateInvite,
   }
   return (
     <span className="inline-flex items-center rounded border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 font-mono text-xs text-purple-400">
@@ -188,6 +189,7 @@ function VisibilityBadge({ visibility }: { visibility: string }) {
 }
 
 export default function PublicFormPage() {
+  const t = useTranslations("publicFormPage")
   const params = useParams<{ slug: string }>()
   const searchParams = useSearchParams()
   const { user } = useAuth()
@@ -219,13 +221,13 @@ export default function PublicFormPage() {
         const data = await apiFetch(url)
         setForm(data)
       } catch (err: any) {
-        setError(err?.message || "Form not found or not accessible")
+        setError(err?.message || t("errors.formUnavailable"))
       } finally {
         setLoading(false)
       }
     }
     if (slug) load()
-  }, [slug, inviteToken])
+  }, [slug, inviteToken, t])
 
   const canSubmit = useMemo(() => {
     if (!form) return false
@@ -240,9 +242,9 @@ export default function PublicFormPage() {
       if (!q.required) continue
       const value = answers[q.id]
       if (q.type === "checkbox" || q.type === "multi_select") {
-        if (!Array.isArray(value) || value.length === 0) return `Question "${q.label}" is required`
+        if (!Array.isArray(value) || value.length === 0) return t("errors.questionRequired", { question: q.label })
       } else if (value == null || String(value).trim() === "") {
-        return `Question "${q.label}" is required`
+        return t("errors.questionRequired", { question: q.label })
       }
     }
     return null
@@ -267,11 +269,11 @@ export default function PublicFormPage() {
           body: JSON.stringify({ answers, inviteToken: inviteToken || undefined, reporterEmail: reporterEmail || undefined }),
         })
       }
-      setSuccess("Submission transmitted successfully.")
+      setSuccess(t("messages.transmitted"))
       setAnswers({})
       setReporterEmail("")
     } catch (err: any) {
-      setError(err?.message || "Failed to submit")
+      setError(err?.message || t("errors.submitFailed"))
     } finally {
       setSaving(false)
     }
@@ -306,13 +308,13 @@ export default function PublicFormPage() {
               <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-6 w-6 sm:h-8 sm:w-8 object-contain" />
             </div>
             <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
-              Eclipse Systems
+              {t("brand")}
             </span>
           </div>
           <nav className="hidden gap-6 font-mono text-xs sm:text-sm text-purple-400/70 md:flex">
-            <Link href="/" className="transition-colors hover:text-purple-300">[home]</Link>
-            <Link href="/dashboard" className="transition-colors hover:text-purple-300">[dashboard]</Link>
-            <Link href="/login" className="transition-colors hover:text-purple-300">[login]</Link>
+            <Link href="/" className="transition-colors hover:text-purple-300">{t("nav.home")}</Link>
+            <Link href="/dashboard" className="transition-colors hover:text-purple-300">{t("nav.dashboard")}</Link>
+            <Link href="/login" className="transition-colors hover:text-purple-300">{t("nav.login")}</Link>
           </nav>
         </header>
 
@@ -321,17 +323,17 @@ export default function PublicFormPage() {
           <div className="space-y-6">
             <div className="text-center py-8">
               <p className="font-mono text-2xl sm:text-4xl font-black text-purple-400/60 animate-pulse">
-                LOADING...
+                {t("loading.title")}
               </p>
               <p className="mt-3 font-mono text-sm text-purple-400/40">
-                // fetching form data from server...
+                {t("loading.subtitle")}
               </p>
             </div>
             <TerminalBlock>
               <div className="text-purple-400">
                 <p className="text-gray-500">eclipse@systems ~ % fetch /forms/{slug}</p>
                 <p className="mt-2 text-yellow-400 animate-pulse">
-                  <TypingText text="Retrieving form schema..." speed={60} />
+                  <TypingText text={t("loading.terminal") } speed={60} />
                 </p>
               </div>
             </TerminalBlock>
@@ -345,14 +347,14 @@ export default function PublicFormPage() {
             <section className="text-center py-4">
               <h1 className="mb-4 font-mono text-5xl sm:text-7xl font-black tracking-tighter">
                 <span className="bg-gradient-to-r from-red-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-                  ERROR
+                  {t("errorState.title")}
                 </span>
               </h1>
               <p className="font-mono text-lg sm:text-xl text-purple-400/80">
-                <span className="text-pink-400">FAULT:</span> Form unavailable
+                <span className="text-pink-400">{t("errorState.faultLabel")}</span> {t("errorState.faultValue")}
               </p>
               <p className="mt-2 font-mono text-xs sm:text-sm text-purple-400/50">
-                The requested form could not be located in this dimension.
+                {t("errorState.subtitle")}
               </p>
             </section>
 
@@ -360,16 +362,16 @@ export default function PublicFormPage() {
               <div className="text-purple-400">
                 <p className="text-gray-500">eclipse@systems ~ % fetch /forms/{slug}</p>
                 <p className="mt-2">
-                  <span className="text-red-400">ERROR:</span>{" "}
+                  <span className="text-red-400">{t("errorState.terminalError")}</span>{" "}
                   <TypingText text={error} />
                 </p>
                 <p className="mt-1">
-                  <span className="text-pink-400">SLUG:</span>{" "}
+                  <span className="text-pink-400">{t("errorState.terminalSlug")}</span>{" "}
                   <span className="text-red-400/80">{slug}</span>
                 </p>
                 <p>
-                  <span className="text-pink-400">STATUS:</span>{" "}
-                  <span className="text-red-400">NOT_FOUND</span>
+                  <span className="text-pink-400">{t("errorState.terminalStatus")}</span>{" "}
+                  <span className="text-red-400">{t("errorState.notFound")}</span>
                 </p>
               </div>
             </TerminalBlock>
@@ -377,16 +379,16 @@ export default function PublicFormPage() {
             <BinaryStrip />
 
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm space-y-3">
-              <h3 className="font-mono text-lg font-bold text-purple-400"># Recovery Options</h3>
+              <h3 className="font-mono text-lg font-bold text-purple-400">{t("errorState.recoveryTitle")}</h3>
               <ul className="space-y-2 font-mono text-sm">
                 <li>
                   <Link href="/" className="flex items-center gap-2 rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    → Return to Home
+                    {t("errorState.returnHome")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard" className="flex items-center gap-2 rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    → Go to Dashboard
+                    {t("errorState.goDashboard")}
                   </Link>
                 </li>
               </ul>
@@ -404,11 +406,11 @@ export default function PublicFormPage() {
                 <section className="text-center py-6">
                   <h1 className="mb-4 font-mono text-4xl sm:text-6xl font-black tracking-tighter">
                     <span className="bg-gradient-to-r from-emerald-400 via-green-300 to-purple-400 bg-clip-text text-transparent">
-                      SENT
+                      {t("success.title")}
                     </span>
                   </h1>
                   <p className="font-mono text-lg sm:text-xl text-purple-400/80">
-                    <span className="text-emerald-400">SUCCESS:</span> Transmission complete
+                    <span className="text-emerald-400">{t("success.label")}</span> {t("success.value")}
                   </p>
                 </section>
 
@@ -417,14 +419,14 @@ export default function PublicFormPage() {
                     <p className="text-gray-500">eclipse@systems ~ % submit /forms/{form.slug}</p>
                     <p className="mt-2">
                       <span className="text-emerald-400">OK:</span>{" "}
-                      <TypingText text="Submission received and queued for review." />
+                      <TypingText text={t("success.terminalLine")} />
                     </p>
                     <p className="mt-1">
-                      <span className="text-pink-400">STATUS:</span>{" "}
-                      <span className="text-emerald-400">TRANSMITTED</span>
+                      <span className="text-pink-400">{t("success.statusLabel")}</span>{" "}
+                      <span className="text-emerald-400">{t("success.statusValue")}</span>
                     </p>
                     <p>
-                      <span className="text-pink-400">FORM:</span>{" "}
+                      <span className="text-pink-400">{t("success.formLabel")}</span>{" "}
                       <span className="text-purple-300">{form.slug}</span>
                     </p>
                   </div>
@@ -437,13 +439,13 @@ export default function PublicFormPage() {
                     onClick={() => setSuccess(null)}
                     className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
                   >
-                    ./submit --again
+                    {t("success.submitAgain")}
                   </button>
                   <Link
                     href="/"
                     className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
                   >
-                    navigate_home()
+                    {t("success.navigateHome")}
                   </Link>
                 </div>
               </div>
@@ -458,8 +460,8 @@ export default function PublicFormPage() {
                       </span>
                     </h1>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <StatusBadge status={form.status} />
-                      <VisibilityBadge visibility={form.visibility} />
+                      <StatusBadge status={form.status} labels={{ active: t("badges.active"), closed: t("badges.closed"), archived: t("badges.archived") }} />
+                      <VisibilityBadge visibility={form.visibility} labels={{ publicAnonymous: t("badges.publicAnonymous"), publicUsers: t("badges.publicUsers"), privateInvite: t("badges.privateInvite") }} />
                     </div>
                   </div>
                   {form.description && (
@@ -509,12 +511,12 @@ export default function PublicFormPage() {
                     <div className="font-mono text-sm">
                       <p className="text-yellow-300 font-semibold">AUTH_REQUIRED</p>
                       <p className="text-yellow-400/70 mt-1 text-xs">
-                        This form requires a panel account.{" "}
+                        {t("warnings.authRequired")}{" "}
                         <Link
                           href={`/login?next=${encodeURIComponent(`/forms/${form.slug}`)}`}
                           className="text-pink-400 hover:underline"
                         >
-                          → login
+                          {t("warnings.login")}
                         </Link>
                       </p>
                     </div>
@@ -525,7 +527,7 @@ export default function PublicFormPage() {
                   <div className="flex items-start gap-3 rounded-lg border border-purple-500/20 bg-black/40 px-4 py-3 backdrop-blur-sm">
                     <span className="font-mono text-purple-400 text-sm leading-none mt-0.5 flex-shrink-0">//</span>
                     <p className="font-mono text-xs text-purple-400/60 leading-relaxed">
-                      Anonymous submissions are rate-limited to once per hour per IP. Provide your email below to receive follow-ups.
+                      {t("warnings.anonymousInfo")}
                     </p>
                   </div>
                 )}
@@ -534,9 +536,9 @@ export default function PublicFormPage() {
                   <div className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 backdrop-blur-sm">
                     <span className="font-mono text-red-400 text-lg leading-none mt-0.5 flex-shrink-0">✕</span>
                     <div className="font-mono text-sm">
-                      <p className="text-red-300 font-semibold">FORM_CLOSED</p>
+                      <p className="text-red-300 font-semibold">{t("warnings.formClosed")}</p>
                       <p className="text-red-400/70 mt-1 text-xs">
-                        This form is no longer accepting submissions.
+                        {t("warnings.formClosedDetail")}
                       </p>
                     </div>
                   </div>
@@ -546,17 +548,17 @@ export default function PublicFormPage() {
                 {form.visibility !== "public_users" && (
                   <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-5 backdrop-blur-sm space-y-2">
                     <label className="font-mono text-xs text-purple-400/70 uppercase tracking-wider">
-                      // contact_email (optional)
+                      {t("contactEmail.label")}
                     </label>
                     <input
                       type="email"
                       value={reporterEmail}
                       onChange={(e) => setReporterEmail(e.target.value)}
-                      placeholder="// you@example.com"
+                      placeholder={t("contactEmail.placeholder")}
                       className="w-full rounded border border-purple-500/20 bg-black/40 px-3 py-2 h-10 font-mono text-sm text-purple-100 placeholder:text-purple-400/30 outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30 transition-all"
                     />
                     <p className="font-mono text-[10px] text-purple-400/40">
-                      Provide an email to receive updates on your submission.
+                      {t("contactEmail.help")}
                     </p>
                   </div>
                 )}
@@ -565,7 +567,7 @@ export default function PublicFormPage() {
                 {questions.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-mono text-xs text-purple-400/50">
-                      <span>// completion_progress</span>
+                      <span>{t("progress.label")}</span>
                       <span className="text-purple-300">{progressPercent}%</span>
                     </div>
                     <div className="h-1 w-full rounded-full bg-purple-500/10 overflow-hidden">
@@ -583,7 +585,7 @@ export default function PublicFormPage() {
                     <TerminalBlock>
                       <p className="text-yellow-400">
                         <span className="text-gray-500">// </span>
-                        No questions configured for this form.
+                        {t("questions.none")}
                       </p>
                     </TerminalBlock>
                   ) : (
@@ -620,7 +622,7 @@ export default function PublicFormPage() {
                   <div className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 backdrop-blur-sm">
                     <span className="font-mono text-red-400 flex-shrink-0">✕</span>
                     <div>
-                      <p className="font-mono text-xs font-semibold text-red-300">VALIDATION_ERROR</p>
+                      <p className="font-mono text-xs font-semibold text-red-300">{t("errors.validationTitle")}</p>
                       <p className="font-mono text-xs text-red-400/80 mt-1">{error}</p>
                     </div>
                   </div>
@@ -638,20 +640,20 @@ export default function PublicFormPage() {
                     {saving ? (
                       <span className="flex items-center gap-2">
                         <span className="inline-block h-3 w-3 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
-                        transmitting...
+                          {t("actions.transmitting")}
                       </span>
                     ) : (
-                      "./submit --form"
+                        t("actions.submit")
                     )}
                   </button>
                   <Link
                     href="/"
                     className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
                   >
-                    navigate_home()
+                      {t("actions.navigateHome")}
                   </Link>
                   {!canSubmit && form.status === "active" && form.visibility === "public_users" && !user && (
-                    <p className="font-mono text-xs text-red-400/70">// login required to submit</p>
+                      <p className="font-mono text-xs text-red-400/70">{t("actions.loginRequired")}</p>
                   )}
                 </div>
               </>
@@ -664,13 +666,13 @@ export default function PublicFormPage() {
         {/* Footer */}
         <footer className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm mt-4">
           <p className="font-mono text-xs text-purple-400/50">
-            Questions? Email{" "}
+            {t("footer.questions")} {" "}
             <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
               contact@ecli.app
             </a>{" "}
-            or return to{" "}
+            {t("footer.orReturn")} {" "}
             <Link href="/" className="text-pink-400 hover:underline">
-              Home
+              {t("footer.home")}
             </Link>.
           </p>
         </footer>

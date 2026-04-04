@@ -31,6 +31,7 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 function ToggleCard({
   icon: Icon,
@@ -169,6 +170,7 @@ function StatCard({
 }
 
 export default function SettingsTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminSettingsTab")
   const {
     settingsSaved,
     settingsSaving,
@@ -227,7 +229,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         setGeoBlockMetricsLoading(false)
       }
     } catch (e: any) {
-      alert(e.message || "Failed to save settings")
+      alert(e.message || t("alerts.failedToSaveSettings"))
     } finally {
       setSettingsSaving(false)
     }
@@ -238,26 +240,26 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Panel Settings</h2>
-          <p className="text-sm text-muted-foreground mt-1">Configure registration, services, and access restrictions</p>
+          <h2 className="text-xl font-bold text-foreground">{t("header.title")}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{t("header.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           {settingsSaved && (
             <div className="flex items-center gap-2 text-sm text-green-400 animate-in fade-in slide-in-from-right-2">
               <CheckCircle2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Changes saved</span>
+              <span className="hidden sm:inline">{t("states.changesSaved")}</span>
             </div>
           )}
           <Button disabled={settingsSaving} onClick={handleSave} className="bg-primary text-primary-foreground shadow-sm" size="sm">
             {settingsSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving…
+                {t("actions.saving")}
               </>
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                Save Settings
+                {t("actions.saveSettings")}
               </>
             )}
           </Button>
@@ -268,16 +270,16 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Quick Toggles</h3>
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t("sections.quickToggles")}</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ToggleCard
             icon={panelSettings.registrationEnabled ? Unlock : Lock}
-            label="Registration"
+            label={t("toggles.registration.label")}
             description={
               panelSettings.registrationEnabled
-                ? "New users can sign up for accounts"
-                : "Sign-ups are blocked (returns HTTP 503)"
+                ? t("toggles.registration.enabled")
+                : t("toggles.registration.disabled")
             }
             enabled={panelSettings.registrationEnabled}
             onToggle={() => setPanelSettings((s: any) => ({ ...s, registrationEnabled: !s.registrationEnabled }))}
@@ -286,11 +288,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
 
           <ToggleCard
             icon={FileCode}
-            label="Code Instances"
+            label={t("toggles.codeInstances.label")}
             description={
               panelSettings.codeInstancesEnabled
-                ? "Users can create development instances"
-                : "Instance creation blocked for non-admins"
+                ? t("toggles.codeInstances.enabled")
+                : t("toggles.codeInstances.disabled")
             }
             enabled={panelSettings.codeInstancesEnabled}
             onToggle={() =>
@@ -308,11 +310,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
 
           <ToggleCard
             icon={Shield}
-            label="Temp Email Filter"
+            label={t("toggles.tempEmailFilter.label")}
             description={
               panelSettings.featureToggles?.tempEmailFilter
-                ? "Disposable email addresses are blocked"
-                : "Disposable emails are allowed during registration"
+                ? t("toggles.tempEmailFilter.enabled")
+                : t("toggles.tempEmailFilter.disabled")
             }
             enabled={!!panelSettings.featureToggles?.tempEmailFilter}
             onToggle={() =>
@@ -329,11 +331,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
 
           <ToggleCard
             icon={Shield}
-            label="Classic Captcha"
+            label={t("toggles.classicCaptcha.label")}
             description={
               panelSettings.featureToggles?.captcha
-                ? "Image captcha is required for registration"
-                : "Classic captcha is disabled"
+                ? t("toggles.classicCaptcha.enabled")
+                : t("toggles.classicCaptcha.disabled")
             }
             enabled={!!panelSettings.featureToggles?.captcha}
             onToggle={() =>
@@ -350,11 +352,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
 
           <ToggleCard
             icon={Shield}
-            label="Invisible Captcha"
+            label={t("toggles.invisibleCaptcha.label")}
             description={
               panelSettings.featureToggles?.captchaInvisible
-                ? "Behavior-based bot detection is active"
-                : "Invisible captcha is disabled"
+                ? t("toggles.invisibleCaptcha.enabled")
+                : t("toggles.invisibleCaptcha.disabled")
             }
             enabled={!!panelSettings.featureToggles?.captchaInvisible}
             onToggle={() =>
@@ -371,11 +373,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
 
           <ToggleCard
             icon={BarChart3}
-            label="Gambling Mode"
+            label={t("toggles.gamblingMode.label")}
             description={
               panelSettings.gamblingEnabled
-                ? "Theme-based gambling behavior is enabled"
-                : "Gambling features are globally disabled"
+                ? t("toggles.gamblingMode.enabled")
+                : t("toggles.gamblingMode.disabled")
             }
             enabled={!!panelSettings.gamblingEnabled}
             onToggle={() =>
@@ -397,20 +399,20 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <Activity className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Feature Flags</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("sections.featureFlags")}</h3>
         </div>
         <div className="p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { key: "ai", label: "AI Services", note: "AI control plane and LLM models" },
-              { key: "billing", label: "Billing System", note: "Order and subscription management" },
-              { key: "dns", label: "DNS Management", note: "Organization DNS zone control" },
-              { key: "ticketing", label: "Support Tickets", note: "Help desk and chat logs" },
-              { key: "applications", label: "Applications", note: "Staff applications and abuse report forms" },
-              { key: "oauth", label: "OAuth Server", note: "OAuth client and token services" },
-              { key: "codeInstances", label: "Code Instances", note: "Temporary development environments" },
-              { key: "captcha", label: "Classic Captcha", note: "Image-based bot protection" },
-              { key: "captchaInvisible", label: "Invisible Captcha", note: "Behavioral challenge system" },
+              { key: "ai", label: t("featureFlags.ai.label"), note: t("featureFlags.ai.note") },
+              { key: "billing", label: t("featureFlags.billing.label"), note: t("featureFlags.billing.note") },
+              { key: "dns", label: t("featureFlags.dns.label"), note: t("featureFlags.dns.note") },
+              { key: "ticketing", label: t("featureFlags.ticketing.label"), note: t("featureFlags.ticketing.note") },
+              { key: "applications", label: t("featureFlags.applications.label"), note: t("featureFlags.applications.note") },
+              { key: "oauth", label: t("featureFlags.oauth.label"), note: t("featureFlags.oauth.note") },
+              { key: "codeInstances", label: t("featureFlags.codeInstances.label"), note: t("featureFlags.codeInstances.note") },
+              { key: "captcha", label: t("featureFlags.captcha.label"), note: t("featureFlags.captcha.note") },
+              { key: "captchaInvisible", label: t("featureFlags.captchaInvisible.label"), note: t("featureFlags.captchaInvisible.note") },
             ].map((feature) => (
               <div
                 key={feature.key}
@@ -462,22 +464,22 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2 border-b border-amber-500/20 px-5 py-4">
             <BarChart3 className="h-4 w-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-foreground">Gambling Probabilities</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("gambling.title")}</h3>
             <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Advanced
+              {t("common.advanced")}
             </span>
           </div>
           <div className="p-5">
             <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-200/90 leading-relaxed">
-                Values range from 0 to 1 (e.g., 0.5 = 50% chance). Changes affect all users with gambling themes enabled.
+                {t("gambling.info")}
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Lucky Roll Chance</span>
+                  <span>{t("gambling.luckyRollChance")}</span>
                   <span className="text-amber-400 font-mono">{((panelSettings.gamblingResourceLuckyChance ?? 0.0777) * 100).toFixed(2)}%</span>
                 </label>
                 <input
@@ -494,11 +496,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                   }
                   className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-amber-500"
                 />
-                <p className="text-[11px] text-muted-foreground">Bonus resource allocation probability</p>
+                <p className="text-[11px] text-muted-foreground">{t("gambling.luckyRollHint")}</p>
               </div>
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>Power Deny Chance</span>
+                  <span>{t("gambling.powerDenyChance")}</span>
                   <span className="text-red-400 font-mono">{((panelSettings.gamblingPowerDenyChance ?? 0.5) * 100).toFixed(2)}%</span>
                 </label>
                 <input
@@ -515,7 +517,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                   }
                   className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-red-500"
                 />
-                <p className="text-[11px] text-muted-foreground">Server power action failure rate</p>
+                <p className="text-[11px] text-muted-foreground">{t("gambling.powerDenyHint")}</p>
               </div>
             </div>
           </div>
@@ -527,11 +529,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <MessageSquare className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">
-            {panelSettings.registrationEnabled ? "Registration Notice" : "Registration Disabled Message"}
+            {panelSettings.registrationEnabled ? t("registration.titleEnabled") : t("registration.titleDisabled")}
           </h3>
           {!panelSettings.registrationEnabled && (
             <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
-              Required
+              {t("common.required")}
             </span>
           )}
         </div>
@@ -543,15 +545,15 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               onChange={(e) => setPanelSettings((s: any) => ({ ...s, registrationNotice: e.target.value }))}
               placeholder={
                 panelSettings.registrationEnabled
-                  ? "e.g., This is a development build. Data may be reset without notice."
-                  : "e.g., Registration is temporarily closed for system maintenance."
+                  ? t("registration.placeholderEnabled")
+                  : t("registration.placeholderDisabled")
               }
               className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
             />
             <p className="text-xs text-muted-foreground leading-relaxed">
               {panelSettings.registrationEnabled
-                ? "Optional info banner displayed on the login/register page."
-                : "Shown to users attempting to access the registration page."}
+                ? t("registration.hintEnabled")
+                : t("registration.hintDisabled")}
             </p>
           </div>
 
@@ -566,7 +568,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 <div className="flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
                   <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-400 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-yellow-300">Registration is currently unavailable</p>
+                    <p className="text-sm font-semibold text-yellow-300">{t("registration.unavailableTitle")}</p>
                     {panelSettings.registrationNotice && (
                       <p className="mt-1.5 text-sm text-yellow-200/90 leading-relaxed">{panelSettings.registrationNotice}</p>
                     )}
@@ -587,12 +589,12 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <Globe className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Billing Currency & Tax Rules</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("billing.title")}</h3>
         </div>
         <div className="p-5 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency (ISO Code)</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("billing.currencyLabel")}</label>
               <input
                 value={panelSettings.billingCurrency || "USD"}
                 onChange={(e) =>
@@ -605,10 +607,10 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 maxLength={3}
                 className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all uppercase"
               />
-              <p className="text-xs text-muted-foreground">Examples: USD, EUR, GBP, JPY</p>
+              <p className="text-xs text-muted-foreground">{t("billing.currencyExamples")}</p>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quick Examples</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("billing.quickExamples")}</label>
               <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-1.5 text-xs text-muted-foreground leading-relaxed">
                 <p>
                   <code className="px-1.5 py-0.5 rounded bg-secondary/80 text-foreground font-mono text-[11px]">eu:20</code> → 20% for
@@ -628,7 +630,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
           </div>
           <div className="space-y-2">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Tax Rules (country/group:percent)
+                {t("billing.taxRulesLabel")}
             </label>
             <textarea
               rows={5}
@@ -651,7 +653,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Geo-Block Rules</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("geoRules.title")}</h3>
           </div>
           {(() => {
             const entries = panelSettings.geoBlockCountries
@@ -659,11 +661,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               : []
             return entries.length > 0 ? (
               <span className="text-[10px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30">
-                {entries.length} {entries.length === 1 ? "rule" : "rules"}
+                {t("geoRules.ruleCount", { count: entries.length })}
               </span>
             ) : (
               <span className="text-[10px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border">
-                No rules
+                {t("geoRules.noRules")}
               </span>
             )
           })()}
@@ -770,7 +772,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 {/* Level Reference */}
                 <div className="px-5 py-4 bg-secondary/10">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                    Restriction Levels
+                    {t("geoRules.restrictionLevels")}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(levelConfig).map(([lvl, config]) => (
@@ -823,14 +825,14 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       className="bg-primary text-primary-foreground shadow-sm w-full sm:w-auto"
                     >
                       <Plus className="h-4 w-4 mr-1.5" />
-                      Add Rule
+                      {t("geoRules.addRule")}
                     </Button>
                   </div>
                   {newCountry.length === 2 && entries.some((e) => e.country === newCountry.toUpperCase()) && (
                     <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                       <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
                       <p className="text-xs text-yellow-300">
-                        This will update the existing rule for <strong>{newCountry.toUpperCase()}</strong>
+                        {t("geoRules.updateExisting", { country: newCountry.toUpperCase() })}
                       </p>
                     </div>
                   )}
@@ -860,7 +862,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                           {filteredEntries.length === 0 ? (
                             <div className="py-12 text-center">
                               <Search className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                              <p className="text-sm text-muted-foreground">No matching countries</p>
+                              <p className="text-sm text-muted-foreground">{t("geoRules.noMatchingCountries")}</p>
                             </div>
                           ) : (
                             <div className="divide-y divide-border">
@@ -927,18 +929,18 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       {/* Summary Footer */}
                       <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
                         <span className="font-medium">
-                          {entries.length} {entries.length === 1 ? "country" : "countries"} blocked
+                          {t("geoRules.blockedCount", { count: entries.length })}
                         </span>
                         {entries.length > 0 && (
                           <button
                             onClick={() => {
-                              if (confirm(`Remove all ${entries.length} geo-block rules?`)) {
+                              if (confirm(t("geoRules.confirmRemoveAll", { count: entries.length }))) {
                                 setPanelSettings((s: any) => ({ ...s, geoBlockCountries: "" }))
                               }
                             }}
                             className="text-destructive/70 hover:text-destructive transition-colors font-medium"
                           >
-                            Clear all
+                            {t("geoRules.clearAll")}
                           </button>
                         )}
                       </div>
@@ -947,8 +949,8 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                     <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-12 gap-3">
                       <Globe className="h-12 w-12 text-muted-foreground/30" />
                       <div className="text-center">
-                        <p className="text-sm font-medium text-foreground">No geo-block rules configured</p>
-                        <p className="text-xs text-muted-foreground mt-1">Add a country code above to restrict access</p>
+                        <p className="text-sm font-medium text-foreground">{t("geoRules.noneConfigured")}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t("geoRules.noneConfiguredHint")}</p>
                       </div>
                     </div>
                   )}
@@ -958,7 +960,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 <details className="group">
                   <summary className="flex items-center gap-2 px-5 py-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground hover:bg-secondary/20 transition-colors select-none">
                     <Code className="h-4 w-4" />
-                    Raw configuration value
+                    {t("geoRules.rawConfig")}
                     <ChevronDown className="h-4 w-4 ml-auto transition-transform group-open:rotate-180" />
                   </summary>
                   <div className="px-5 pb-4">
@@ -988,7 +990,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         >
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Geo-Block Impact & Metrics</span>
+            <span className="text-sm font-semibold text-foreground">{t("geoMetrics.title")}</span>
           </div>
           <ChevronDown
             className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedSections.geoMetrics && "rotate-180")}
@@ -1000,13 +1002,13 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               {geoBlockMetricsLoading ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
                   <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                  <p className="text-sm text-muted-foreground">Loading metrics…</p>
+                  <p className="text-sm text-muted-foreground">{t("geoMetrics.loading")}</p>
                 </div>
               ) : geoBlockMetricsError ? (
                 <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
                   <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-destructive">Failed to load metrics</p>
+                    <p className="text-sm font-medium text-destructive">{t("geoMetrics.failedToLoad")}</p>
                     <p className="text-xs text-destructive/80 mt-1">{geoBlockMetricsError}</p>
                   </div>
                 </div>
@@ -1014,29 +1016,29 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 <div className="space-y-6">
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <StatCard label="Total Users" value={geoBlockMetrics.totalUsers} icon={Users} color="text-primary" />
+                    <StatCard label={t("geoMetrics.cards.totalUsers")} value={geoBlockMetrics.totalUsers} icon={Users} color="text-primary" />
                     <StatCard
-                      label="Reg. Blocked"
-                      sublabel="Level ≥ 5"
+                      label={t("geoMetrics.cards.regBlocked")}
+                      sublabel={t("geoMetrics.levelGte5")}
                       value={geoBlockMetrics.blocked.registration}
                       color="text-red-400"
                     />
                     <StatCard
-                      label="ID Blocked"
-                      sublabel="Level ≥ 1"
+                      label={t("geoMetrics.cards.idBlocked")}
+                      sublabel={t("geoMetrics.levelGte1")}
                       value={geoBlockMetrics.blocked.idVerification}
                       color="text-blue-400"
                     />
-                    <StatCard label="Free Blocked" sublabel="Level ≥ 2" value={geoBlockMetrics.blocked.free} color="text-yellow-400" />
+                    <StatCard label={t("geoMetrics.cards.freeBlocked")} sublabel={t("geoMetrics.levelGte2")} value={geoBlockMetrics.blocked.free} color="text-yellow-400" />
                     <StatCard
-                      label="Edu Blocked"
-                      sublabel="Level ≥ 3"
+                      label={t("geoMetrics.cards.eduBlocked")}
+                      sublabel={t("geoMetrics.levelGte3")}
                       value={geoBlockMetrics.blocked.educational}
                       color="text-orange-400"
                     />
                     <StatCard
-                      label="Subuser Only"
-                      sublabel="Level 4"
+                      label={t("geoMetrics.cards.subuserOnly")}
+                      sublabel={t("geoMetrics.level4")}
                       value={geoBlockMetrics.blocked.subuserOnly}
                       color="text-red-400"
                     />
@@ -1089,8 +1091,8 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <BarChart3 className="h-12 w-12 text-muted-foreground/30" />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-foreground">No metrics available</p>
-                    <p className="text-xs text-muted-foreground mt-1">Save settings to generate impact metrics</p>
+                    <p className="text-sm font-medium text-foreground">{t("geoMetrics.noMetrics")}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("geoMetrics.noMetricsHint")}</p>
                   </div>
                 </div>
               )}
@@ -1105,7 +1107,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
           {settingsSaved && (
             <div className="flex items-center gap-2 text-sm text-green-400 animate-in fade-in slide-in-from-bottom-2">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Saved</span>
+              <span>{t("states.saved")}</span>
             </div>
           )}
           <div className="flex-1" />
@@ -1113,12 +1115,12 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
             {settingsSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving…
+                {t("actions.saving")}
               </>
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                Save
+                {t("actions.save")}
               </>
             )}
           </Button>

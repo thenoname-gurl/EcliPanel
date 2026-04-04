@@ -1,6 +1,7 @@
 "use client"
 
 import { ReactNode } from "react"
+import { useTranslations } from "next-intl"
 import { Loader2, AlertCircle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -46,6 +47,7 @@ interface LoadingStateProps {
 }
 
 export function LoadingState({ message = "Loading...", size = "md", className }: LoadingStateProps) {
+  const t = useTranslations("serverTabShared")
   const sizeClasses = {
     sm: "h-4 w-4",
     md: "h-5 w-5",
@@ -65,7 +67,7 @@ export function LoadingState({ message = "Loading...", size = "md", className }:
       className
     )}>
       <Loader2 className={cn("animate-spin text-muted-foreground mb-2", sizeClasses[size])} />
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-sm text-muted-foreground">{message === "Loading..." ? t("loading") : message}</p>
     </div>
   )
 }
@@ -106,6 +108,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ title = "Something went wrong", message, onRetry, className }: ErrorStateProps) {
+  const t = useTranslations("serverTabShared")
   return (
     <div className={cn(
       "flex flex-col items-center justify-center py-12 px-4 text-center",
@@ -114,14 +117,14 @@ export function ErrorState({ title = "Something went wrong", message, onRetry, c
       <div className="rounded-full bg-destructive/10 p-3 mb-3">
         <AlertCircle className="h-6 w-6 text-destructive" />
       </div>
-      <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>
+      <h3 className="text-sm font-medium text-foreground mb-1">{title === "Something went wrong" ? t("error.title") : title}</h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-4">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
           className="text-sm text-primary hover:underline"
         >
-          Try again
+          {t("error.tryAgain")}
         </button>
       )}
     </div>

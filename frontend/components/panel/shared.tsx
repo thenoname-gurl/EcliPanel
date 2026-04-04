@@ -1,9 +1,12 @@
+"use client"
+
 /**
  * Reusable stat card component for dashboards.
  * Wire with backend by passing dynamic values to the props.
  */
 import { type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 interface StatCardProps {
   title: string
@@ -58,22 +61,23 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = "p
  * Status indicator dot with label
  */
 export function StatusBadge({ status }: { status: "online" | "offline" | "starting" | "running" | "stopped" | "pending" | "open" | "opened" | "replied" | "awaiting_staff_reply" | "closed" | "urgent" | "high" | "medium" | "low" }) {
+  const t = useTranslations("panelShared")
   const config: Record<string, { color: string; label: string }> = {
-    online: { color: "bg-success", label: "Online" },
-    running: { color: "bg-success", label: "Running" },
-    open: { color: "bg-info", label: "Open" },
-    opened: { color: "bg-info", label: "Opened" },
-    replied: { color: "bg-info", label: "Replied" },
-    awaiting_staff_reply: { color: "bg-warning", label: "Awaiting Staff" },
-    starting: { color: "bg-warning", label: "Starting" },
-    pending: { color: "bg-warning", label: "Pending" },
-    medium: { color: "bg-warning", label: "Medium" },
-    offline: { color: "bg-destructive", label: "Offline" },
-    stopped: { color: "bg-destructive", label: "Stopped" },
-    closed: { color: "bg-muted-foreground", label: "Closed" },
-    urgent: { color: "bg-destructive", label: "Urgent" },
-    high: { color: "bg-destructive", label: "High" },
-    low: { color: "bg-success", label: "Low" },
+    online: { color: "bg-success", label: t("status.online") },
+    running: { color: "bg-success", label: t("status.running") },
+    open: { color: "bg-info", label: t("status.open") },
+    opened: { color: "bg-info", label: t("status.opened") },
+    replied: { color: "bg-info", label: t("status.replied") },
+    awaiting_staff_reply: { color: "bg-warning", label: t("status.awaitingStaff") },
+    starting: { color: "bg-warning", label: t("status.starting") },
+    pending: { color: "bg-warning", label: t("status.pending") },
+    medium: { color: "bg-warning", label: t("status.medium") },
+    offline: { color: "bg-destructive", label: t("status.offline") },
+    stopped: { color: "bg-destructive", label: t("status.stopped") },
+    closed: { color: "bg-muted-foreground", label: t("status.closed") },
+    urgent: { color: "bg-destructive", label: t("status.urgent") },
+    high: { color: "bg-destructive", label: t("status.high") },
+    low: { color: "bg-success", label: t("status.low") },
   }
 
   const { color, label } = config[status] ?? { color: "bg-muted-foreground", label: status }

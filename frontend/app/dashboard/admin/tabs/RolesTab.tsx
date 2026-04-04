@@ -3,9 +3,11 @@
 import { Button } from "@/components/ui/button"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
 import { AlertTriangle, Key, List, Loader2, MousePointerClick, Plus, RefreshCw, Shield, Trash2, X } from "lucide-react"
 
 export default function RolesTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminRolesTab")
   const {
     roles,
     selectedRole,
@@ -31,9 +33,9 @@ export default function RolesTab({ ctx }: { ctx: any }) {
               <Shield className="h-4 w-4 text-amber-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Roles & Permissions</p>
+              <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
               <p className="text-xs text-muted-foreground">
-                {roles.length} role{roles.length !== 1 ? "s" : ""} configured
+                {t("header.roleCount", { count: roles.length })}
               </p>
             </div>
           </div>
@@ -44,13 +46,13 @@ export default function RolesTab({ ctx }: { ctx: any }) {
               className="bg-primary text-primary-foreground h-8 gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New Role</span>
-              <span className="sm:hidden">New</span>
+              <span className="hidden sm:inline">{t("actions.newRole")}</span>
+              <span className="sm:hidden">{t("actions.new")}</span>
             </Button>
             <button
               onClick={() => forceRefreshTab("roles")}
               className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-              title="Refresh"
+              title={t("actions.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -62,7 +64,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
         <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <List className="h-3.5 w-3.5 text-primary" />
-            <p className="text-xs font-medium text-foreground">Roles</p>
+            <p className="text-xs font-medium text-foreground">{t("roles.title")}</p>
             <span className="ml-auto text-[10px] text-muted-foreground">{roles.length}</span>
           </div>
 
@@ -72,15 +74,15 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 <Shield className="h-5 w-5 text-amber-400/60" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground">No roles yet</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Create your first role to manage permissions.</p>
+                <p className="text-sm font-medium text-foreground">{t("roles.emptyTitle")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("roles.emptySubtitle")}</p>
               </div>
               <Button
                 size="sm"
                 onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
                 className="bg-primary text-primary-foreground gap-1.5 mt-1"
               >
-                <Plus className="h-3.5 w-3.5" /> Create Role
+                <Plus className="h-3.5 w-3.5" /> {t("actions.createRole")}
               </Button>
             </div>
           ) : (
@@ -107,7 +109,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                           </p>
                           {hasWildcard && (
                             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-destructive/10 text-destructive border border-destructive/20">
-                              FULL
+                              {t("roles.full")}
                             </span>
                           )}
                         </div>
@@ -117,14 +119,14 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                         <div className="flex items-center gap-1.5 mt-1">
                           <Key className="h-2.5 w-2.5 text-muted-foreground" />
                           <span className="text-[10px] text-muted-foreground">
-                            {permCount} permission{permCount !== 1 ? "s" : ""}
+                            {t("roles.permissionCount", { count: permCount })}
                           </span>
                         </div>
                       </div>
                       <button
                         onClick={async (e) => {
                           e.stopPropagation()
-                          if (!(await confirmAsync(`Delete role "${role.name}"?`))) return
+                          if (!(await confirmAsync(t("alerts.confirmDeleteRole", { name: role.name })))) return
                           await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" })
                           setRoles((prev: any[]) => prev.filter((r: any) => r.id !== role.id))
                           if (selectedRole?.id === role.id) setSelectedRole(null)
@@ -161,7 +163,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                             </p>
                             {hasWildcard && (
                               <span className="rounded px-1 py-0.5 text-[10px] font-bold bg-destructive/10 text-destructive">
-                                FULL
+                                {t("roles.full")}
                               </span>
                             )}
                           </div>
@@ -171,14 +173,14 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                           <div className="flex items-center gap-1.5 mt-1.5">
                             <Key className="h-2.5 w-2.5 text-muted-foreground" />
                             <span className="text-[10px] text-muted-foreground">
-                              {permCount} permission{permCount !== 1 ? "s" : ""}
+                              {t("roles.permissionCount", { count: permCount })}
                             </span>
                           </div>
                         </div>
                         <button
                           onClick={async (e) => {
                             e.stopPropagation()
-                            if (!(await confirmAsync(`Delete role "${role.name}"?`))) return
+                            if (!(await confirmAsync(t("alerts.confirmDeleteRole", { name: role.name })))) return
                             await apiFetch(`${API_ENDPOINTS.roles}/${role.id}`, { method: "DELETE" })
                             setRoles((prev: any[]) => prev.filter((r: any) => r.id !== role.id))
                             if (selectedRole?.id === role.id) setSelectedRole(null)
@@ -200,7 +202,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <Key className="h-3.5 w-3.5 text-primary" />
             <p className="text-xs font-medium text-foreground">
-              {selectedRole ? "Permissions" : "Permissions"}
+              {t("permissions.title")}
             </p>
             {selectedRole && (
               <>
@@ -219,9 +221,9 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 <MousePointerClick className="h-5 w-5 text-muted-foreground/60" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground">No role selected</p>
+                <p className="text-sm font-medium text-foreground">{t("permissions.noRoleSelected")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {roles.length > 0 ? "Select a role to manage its permissions." : "Create a role first."}
+                  {roles.length > 0 ? t("permissions.selectRoleHint") : t("permissions.createRoleFirst")}
                 </p>
               </div>
             </div>
@@ -229,7 +231,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
             <div className="flex-1 flex flex-col">
               <div className="p-4 border-b border-border bg-secondary/10">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Add Permission
+                  {t("permissions.addPermission")}
                 </p>
                 <div className="flex gap-2">
                   <select
@@ -237,7 +239,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     onChange={(e) => setNewPermValue(e.target.value)}
                     className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 cursor-pointer"
                   >
-                    <option value="">— select a permission —</option>
+                    <option value="">{t("permissions.selectPermission")}</option>
                     <optgroup label="Global">
                       <option value="*">* (full access)</option>
                     </optgroup>
@@ -313,7 +315,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     ) : (
                       <>
                         <Plus className="h-3 w-3" />
-                        <span className="hidden sm:inline">Add</span>
+                        <span className="hidden sm:inline">{t("actions.add")}</span>
                       </>
                     )}
                   </Button>
@@ -324,7 +326,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 {(selectedRole.permissions || []).length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 py-10 px-4">
                     <Key className="h-6 w-6 text-muted-foreground/40" />
-                    <p className="text-xs text-muted-foreground">No permissions assigned yet</p>
+                    <p className="text-xs text-muted-foreground">{t("permissions.noneAssigned")}</p>
                   </div>
                 ) : (
                   <>
@@ -402,7 +404,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 <div className="flex items-start gap-2.5 border-t border-destructive/20 bg-destructive/5 px-4 py-3">
                   <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
                   <p className="text-[11px] text-destructive">
-                    This role has full access (<code className="font-mono font-bold">*</code>). Users with this role can perform any action.
+                    {t("permissions.fullAccessWarning")}
                   </p>
                 </div>
               )}

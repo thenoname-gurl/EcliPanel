@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { RefreshCw, Server, Activity, Globe } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 interface HeartbeatPoint {
   timestamp: string
@@ -145,6 +146,7 @@ function NodeSparkline({ data, compact = true }: { data: HeartbeatPoint[]; compa
 }
 
 export default function WingsStatusPage() {
+  const t = useTranslations("wingsPage")
   const [status, setStatus] = useState<PublicWingsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -159,7 +161,7 @@ export default function WingsStatusPage() {
         const data = await res.json()
         if (mounted) setStatus(data)
       } catch (e: any) {
-        if (mounted) setError(e?.message || 'Failed to fetch uptime history')
+        if (mounted) setError(e?.message || t('errors.fetchFailed'))
       } finally {
         if (mounted) setLoading(false)
       }
@@ -167,7 +169,7 @@ export default function WingsStatusPage() {
     fetchData()
     const iv = setInterval(fetchData, 60_000)
     return () => { mounted = false; clearInterval(iv) }
-  }, [])
+  }, [t])
 
   return (
     <main className="relative min-h-screen bg-[#0a0a0a] text-white">
@@ -185,14 +187,14 @@ export default function WingsStatusPage() {
               <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-6 w-6 sm:h-8 sm:w-8 object-contain" />
             </div>
             <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
-              Eclipse Systems
+              {t("brand")}
             </span>
           </div>
           <nav className="hidden gap-6 font-mono text-xs sm:text-sm text-purple-400/70 md:flex">
-            <Link href="/" className="transition-colors hover:text-purple-300">[home]</Link>
-            <Link href="/#features" className="transition-colors hover:text-purple-300">[features]</Link>
-            <Link href="/#pricing" className="transition-colors hover:text-purple-300">[pricing]</Link>
-            <Link href="/dashboard" className="transition-colors hover:text-purple-300">[dashboard]</Link>
+            <Link href="/" className="transition-colors hover:text-purple-300">{t("nav.home")}</Link>
+            <Link href="/#features" className="transition-colors hover:text-purple-300">{t("nav.features")}</Link>
+            <Link href="/#pricing" className="transition-colors hover:text-purple-300">{t("nav.pricing")}</Link>
+            <Link href="/dashboard" className="transition-colors hover:text-purple-300">{t("nav.dashboard")}</Link>
           </nav>
         </header>
 
@@ -200,11 +202,11 @@ export default function WingsStatusPage() {
         <section className="mb-8 text-center">
           <h1 className="mb-4 font-mono text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter">
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-              Node Status
+              {t("hero.title")}
             </span>
           </h1>
           <p className="mx-auto mb-6 max-w-xl font-mono text-sm sm:text-base text-purple-400/80 px-4">
-            Public <span className="text-pink-400">7-day</span> node heartbeat metrics
+            {t("hero.prefix")} <span className="text-pink-400">{t("hero.highlight")}</span> {t("hero.suffix")}
           </p>
         </section>
 
@@ -214,24 +216,24 @@ export default function WingsStatusPage() {
             <div className="text-purple-400">
               <p className="text-gray-500">eclipse@systems ~ % ./status --nodes</p>
               <p className="mt-2">
-                <span className="text-pink-400">WINDOW:</span> {status?.window ?? '7d'}
+                <span className="text-pink-400">{t("terminal.window")}</span> {status?.window ?? '7d'}
               </p>
               <p>
-                <span className="text-pink-400">NODES:</span>{' '}
+                <span className="text-pink-400">{t("terminal.nodes")}</span>{' '}
                 <span className="text-purple-400">{status?.summary.total_nodes ?? '...'}</span>
               </p>
               <p>
-                <span className="text-pink-400">AVG_UPTIME:</span>{' '}
+                <span className="text-pink-400">{t("terminal.avgUptime")}</span>{' '}
                 <span className={getUptimeColorClass(status?.summary.average_uptime_pct ?? 0)}>
                   {status?.summary.average_uptime_pct?.toFixed(1) ?? '...'}%
                 </span>
               </p>
               <p>
-                <span className="text-pink-400">TOTAL_CHECKS:</span>{' '}
+                <span className="text-pink-400">{t("terminal.totalChecks")}</span>{' '}
                 <span className="text-purple-400">{status?.summary.total_checks ? new Intl.NumberFormat().format(status.summary.total_checks) : '...'}</span>
               </p>
               <p className="mt-1 text-xs text-purple-400/60">
-                {loading ? 'Loading...' : error ? `Error: ${error}` : `Updated: ${new Date(status?.generatedAt || '').toLocaleString()}`}
+                {loading ? t('states.loading') : error ? `${t('states.error')}: ${error}` : `${t('states.updated')}: ${new Date(status?.generatedAt || '').toLocaleString()}`}
               </p>
             </div>
           </TerminalBlock>
@@ -241,24 +243,24 @@ export default function WingsStatusPage() {
 
         {/* Stats Grid */}
         <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Overview</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("overview.title")}</h2>
           <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-4 text-center backdrop-blur-sm">
-              <p className="font-mono text-xs text-purple-400/60">Window</p>
+              <p className="font-mono text-xs text-purple-400/60">{t("overview.window")}</p>
               <p className="mt-1 font-mono text-xl sm:text-2xl font-bold text-white">{status?.window ?? '7d'}</p>
             </div>
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-4 text-center backdrop-blur-sm">
-              <p className="font-mono text-xs text-purple-400/60">Nodes</p>
+              <p className="font-mono text-xs text-purple-400/60">{t("overview.nodes")}</p>
               <p className="mt-1 font-mono text-xl sm:text-2xl font-bold text-white">{status?.summary.total_nodes ?? '-'}</p>
             </div>
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-4 text-center backdrop-blur-sm">
-              <p className="font-mono text-xs text-purple-400/60">Avg Uptime</p>
+              <p className="font-mono text-xs text-purple-400/60">{t("overview.avgUptime")}</p>
               <p className={`mt-1 font-mono text-xl sm:text-2xl font-bold ${getUptimeColorClass(status?.summary.average_uptime_pct ?? 0)}`}>
                 {status?.summary.average_uptime_pct?.toFixed(1) ?? '-'}%
               </p>
             </div>
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-3 sm:p-4 text-center backdrop-blur-sm">
-              <p className="font-mono text-xs text-purple-400/60">Total Checks</p>
+              <p className="font-mono text-xs text-purple-400/60">{t("overview.totalChecks")}</p>
               <p className="mt-1 font-mono text-xl sm:text-2xl font-bold text-white">{status?.summary.total_checks ? new Intl.NumberFormat().format(status.summary.total_checks) : '-'}</p>
             </div>
           </div>
@@ -269,22 +271,22 @@ export default function WingsStatusPage() {
         {/* Refresh Button */}
         <div className="mb-4 flex items-center gap-2 font-mono text-xs text-purple-400/60">
           <Activity className="h-4 w-4" />
-          <span>{loading ? 'Loading...' : error ? `Error: ${error}` : `Last updated: ${new Date(status?.generatedAt || '').toLocaleString()}`}</span>
+          <span>{loading ? t('states.loading') : error ? `${t('states.error')}: ${error}` : `${t('states.lastUpdated')}: ${new Date(status?.generatedAt || '').toLocaleString()}`}</span>
           <button
             onClick={() => window.location.reload()}
             className="ml-auto rounded border border-purple-500/30 px-3 py-1.5 font-mono text-xs text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400 hover:bg-purple-500/10"
           >
-            <RefreshCw className="inline h-3 w-3 mr-1" /> refresh()
+            <RefreshCw className="inline h-3 w-3 mr-1" /> {t("actions.refresh")}
           </button>
         </div>
 
         {/* Node Cards */}
         <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># Nodes</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("nodes.title")}</h2>
 
           {status?.nodes?.length === 0 && !loading && !error && (
             <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 text-center font-mono text-sm text-purple-400/60 backdrop-blur-sm">
-              No nodes available
+              {t("nodes.empty")}
             </div>
           )}
 
@@ -300,7 +302,7 @@ export default function WingsStatusPage() {
                     <p className="font-mono text-xs text-purple-400/60">{node.url}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-xs text-purple-400/60">Uptime</p>
+                    <p className="font-mono text-xs text-purple-400/60">{t("nodes.uptime")}</p>
                     <p className={`font-mono text-xl sm:text-2xl font-bold ${getUptimeColorClass(node.summary.uptime_pct)}`}>
                       {node.summary.uptime_pct}%
                     </p>
@@ -313,16 +315,16 @@ export default function WingsStatusPage() {
 
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
                   <div className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-purple-400/80">
-                    <span className="text-emerald-400">OK:</span> {node.summary.okCount}
+                    <span className="text-emerald-400">{t("nodes.ok")}</span> {node.summary.okCount}
                   </div>
                   <div className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-purple-400/80">
-                    <span className="text-yellow-400">Timeout:</span> {node.summary.timeoutCount}
+                    <span className="text-yellow-400">{t("nodes.timeout")}</span> {node.summary.timeoutCount}
                   </div>
                   <div className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-purple-400/80">
-                    <span className="text-red-400">Error:</span> {node.summary.errorCount}
+                    <span className="text-red-400">{t("nodes.error")}</span> {node.summary.errorCount}
                   </div>
                   <div className="rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-purple-400/80">
-                    <span className="text-pink-400">Avg ms:</span> {node.summary.avg_ms ?? '—'}
+                    <span className="text-pink-400">{t("nodes.avgMs")}</span> {node.summary.avg_ms ?? '—'}
                   </div>
                 </div>
               </div>
@@ -334,19 +336,19 @@ export default function WingsStatusPage() {
 
         {/* Public Export Info */}
         <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400"># API Access</h2>
+          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("api.title")}</h2>
           <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-3 font-mono text-sm text-pink-400">
-              <Globe className="h-4 w-4" /> public_export()
+              <Globe className="h-4 w-4" /> {t("api.export")}
             </div>
             <p className="font-mono text-xs sm:text-sm text-purple-400/60 leading-relaxed">
-              Live historical uptime data is available via{' '}
+              {t("api.prefix")}{' '}
               <code className="rounded border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-pink-400">
                 /public/wings?window=7d
               </code>
             </p>
             <p className="mt-2 font-mono text-xs text-purple-400/60">
-              Refresh interval: 60s. Data is paged and computed from heartbeats recorded by the API.
+              {t("api.note")}
             </p>
           </div>
         </section>
@@ -355,22 +357,22 @@ export default function WingsStatusPage() {
 
         {/* CTA */}
         <section className="mb-8 text-center">
-          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400"># Want your own nodes?</h2>
+          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400">{t("cta.title")}</h2>
           <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60 px-2">
-            Deploy servers on our infrastructure or connect your own nodes.
+            {t("cta.subtitle")}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               href="/register"
               className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
             >
-              ./register --now
+              {t("cta.register")}
             </Link>
             <Link
               href="/dashboard"
               className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
             >
-              go_to_dashboard()
+              {t("cta.dashboard")}
             </Link>
           </div>
         </section>
@@ -378,13 +380,13 @@ export default function WingsStatusPage() {
         {/* Footer */}
         <footer className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
           <p className="font-mono text-xs text-purple-400/50">
-            Need help? Email{" "}
+            {t("footer.needHelp")} {" "}
             <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
               contact@ecli.app
             </a>{" "}
-            or go to{" "}
+            {t("footer.orGoTo")} {" "}
             <Link href="/dashboard" className="text-pink-400 hover:underline">
-              Dashboard
+              {t("footer.dashboard")}
             </Link>.
           </p>
         </footer>

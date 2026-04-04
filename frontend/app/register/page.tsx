@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { COUNTRIES } from "@/lib/countries"
 import { apiFetch } from "@/lib/api-client"
@@ -380,8 +381,9 @@ function StepIndicator({
 
 /* ─── Main Component ─── */
 export default function RegisterPage() {
+  const t = useTranslations("register")
   const [step, setStep] = useState(0)
-  const steps = ["Account", "Address", "Verify"]
+  const steps = [t("steps.account"), t("steps.address"), t("steps.verify")]
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -547,11 +549,11 @@ export default function RegisterPage() {
 
   const nextStep = () => {
     if (step === 0 && !canProceedStep0) {
-      setError("Please fill in all required fields and ensure your password is at least moderate strength.")
+      setError(t("requiredFieldsStep0"))
       return
     }
     if (step === 1 && !canProceedStep1) {
-      setError("Please fill in all required address fields.")
+      setError(t("requiredFieldsStep1"))
       return
     }
     setError(null)
@@ -580,14 +582,14 @@ export default function RegisterPage() {
 
     if (usingCustomCaptcha && usingInvisibleCaptcha) {
       if (!hasCustomCaptcha && !hasInvisibleCaptcha) {
-        setError("Please solve the captcha challenge or wait a moment for invisible captcha to become active.")
+        setError(t("captchaChallengeOrWait"))
         return
       }
     } else if (usingCustomCaptcha && !hasCustomCaptcha) {
-      setError("Captcha is not loaded or has expired. Please refresh the captcha and try again.")
+      setError(t("captchaExpired"))
       return
     } else if (usingInvisibleCaptcha && !hasInvisibleCaptcha) {
-      setError("Invisible captcha token is missing. Try refreshing the page.")
+      setError(t("invisibleCaptchaMissing"))
       return
     }
 
@@ -604,7 +606,7 @@ export default function RegisterPage() {
       })
       router.push("/login")
     } catch (err: any) {
-      setError(err.message || "Registration failed")
+      setError(err.message || t("registrationFailed"))
     } finally {
       setLoading(false)
     }
@@ -630,10 +632,10 @@ export default function RegisterPage() {
               <Shield className="h-7 w-7 text-primary" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-              Create your account
+              {t("title")}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
-              Get started with your servers in just a few steps
+              {t("subtitle")}
             </p>
           </div>
 
@@ -652,29 +654,31 @@ export default function RegisterPage() {
                 {domainOk === false && !dismissedDomainWarning && (
                   <AlertBanner
                     variant="warning"
-                    title="Verify this domain"
+                    title={t("verifyDomain")}
                     onDismiss={() => {
                       try { localStorage.setItem("domainWarningDismissed", "1") } catch {}
                       setDismissedDomainWarning(true)
                     }}
                   >
                     <p>
-                      This panel should be served from{" "}
-                      <span className="font-medium">ecli.app</span>. Navigate to{" "}
-                      <a href="https://ecli.app" className="underline font-medium">
-                        https://ecli.app
-                      </a>{" "}
-                      if your URL differs.
+                      {t.rich("domainWarning", {
+                        domain: (chunks: ReactNode) => <span className="font-medium">{chunks}</span>,
+                        link: (chunks: ReactNode) => (
+                          <a href="https://ecli.app" className="underline font-medium">
+                            {chunks}
+                          </a>
+                        ),
+                      })}
                     </p>
                   </AlertBanner>
                 )}
                 {registrationDisabled && (
-                  <AlertBanner variant="warning" title="Registration unavailable">
+                  <AlertBanner variant="warning" title={t("registrationUnavailable")}>
                     {notice && <p>{notice}</p>}
                   </AlertBanner>
                 )}
                 {error && (
-                  <AlertBanner variant="error" title="Something went wrong">
+                  <AlertBanner variant="error" title={t("somethingWentWrong")}>
                     {error}
                   </AlertBanner>
                 )}
@@ -682,22 +686,22 @@ export default function RegisterPage() {
 
               {registrationDisabled ? (
                 <div className="text-center py-10">
-                  <p className="text-muted-foreground mb-5">Registration is not available at this time.</p>
+                  <p className="text-muted-foreground mb-5">{t("registrationNotAvailable")}</p>
                   <a href="/login" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors">
-                    Sign in instead <ChevronRight className="h-4 w-4" />
+                    {t("signInInstead")} <ChevronRight className="h-4 w-4" />
                   </a>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className={cn("space-y-4 transition-all duration-300", step !== 0 && "hidden")}>
-                    <SectionDivider label="Personal Info" icon={User} />
+                    <SectionDivider label={t("personalInfo")} icon={User} />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <InputField
                         icon={User}
                         name="firstName"
-                        placeholder="Jane"
-                        label="First Name"
+                        placeholder={t("firstNamePlaceholder")}
+                        label={t("firstName")}
                         value={form.firstName}
                         onChange={handleChange}
                         required
@@ -706,8 +710,8 @@ export default function RegisterPage() {
                       <InputField
                         icon={User}
                         name="lastName"
-                        placeholder="Doe"
-                        label="Last Name"
+                        placeholder={t("lastNamePlaceholder")}
+                        label={t("lastName")}
                         value={form.lastName}
                         onChange={handleChange}
                         required
@@ -719,8 +723,8 @@ export default function RegisterPage() {
                       icon={Mail}
                       name="email"
                       type="email"
-                      placeholder="you@example.com"
-                      label="Email Address"
+                      placeholder={t("emailPlaceholder")}
+                      label={t("emailAddress")}
                       value={form.email}
                       onChange={handleChange}
                       required
@@ -732,8 +736,8 @@ export default function RegisterPage() {
                         icon={Lock}
                         name="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="Create a strong password"
-                        label="Password"
+                        placeholder={t("passwordPlaceholder")}
+                        label={t("password")}
                         value={form.password}
                         onChange={(e) => {
                           handleChange(e)
@@ -746,7 +750,7 @@ export default function RegisterPage() {
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
-                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                           >
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
@@ -795,8 +799,8 @@ export default function RegisterPage() {
                       icon={Phone}
                       name="phone"
                       type="tel"
-                      placeholder="+1 (555) 000-0000"
-                      label="Phone Number"
+                      placeholder={t("phonePlaceholder")}
+                      label={t("phoneNumber")}
                       value={form.phone}
                       onChange={handleChange}
                       required
@@ -805,13 +809,13 @@ export default function RegisterPage() {
                   </div>
 
                   <div className={cn("space-y-4 transition-all duration-300", step !== 1 && "hidden")}>
-                    <SectionDivider label="Billing Address" icon={MapPin} />
+                    <SectionDivider label={t("billingAddress")} icon={MapPin} />
 
                     <InputField
                       icon={Building2}
                       name="billingCompany"
-                      placeholder="Company name"
-                      label="Company (optional)"
+                      placeholder={t("companyPlaceholder")}
+                      label={t("companyOptional")}
                       value={form.billingCompany}
                       onChange={handleChange}
                       autoComplete="organization"
@@ -820,8 +824,8 @@ export default function RegisterPage() {
                     <InputField
                       icon={MapPin}
                       name="address"
-                      placeholder="123 Main Street"
-                      label="Street Address"
+                      placeholder={t("streetAddressPlaceholder")}
+                      label={t("streetAddress")}
                       value={form.address}
                       onChange={handleChange}
                       required
@@ -830,8 +834,8 @@ export default function RegisterPage() {
 
                     <InputField
                       name="address2"
-                      placeholder="Apt, suite, unit, etc."
-                      label="Address Line 2 (optional)"
+                      placeholder={t("addressLine2Placeholder")}
+                      label={t("addressLine2Optional")}
                       value={form.address2}
                       onChange={handleChange}
                       autoComplete="address-line2"
@@ -840,8 +844,8 @@ export default function RegisterPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <InputField
                         name="billingCity"
-                        placeholder="City"
-                        label="City"
+                        placeholder={t("cityPlaceholder")}
+                        label={t("city")}
                         value={form.billingCity}
                         onChange={handleChange}
                         required
@@ -849,8 +853,8 @@ export default function RegisterPage() {
                       />
                       <InputField
                         name="billingState"
-                        placeholder="State / Province"
-                        label="State / Province"
+                        placeholder={t("stateProvincePlaceholder")}
+                        label={t("stateProvince")}
                         value={form.billingState}
                         onChange={handleChange}
                         required
@@ -861,8 +865,8 @@ export default function RegisterPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <InputField
                         name="billingZip"
-                        placeholder="12345"
-                        label="ZIP / Postal Code"
+                        placeholder={t("zipPostalPlaceholder")}
+                        label={t("zipPostal")}
                         value={form.billingZip}
                         onChange={handleChange}
                         required
@@ -871,13 +875,13 @@ export default function RegisterPage() {
                       <SelectField
                         icon={Globe}
                         name="billingCountry"
-                        label="Country"
+                        label={t("country")}
                         value={form.billingCountry}
                         onChange={handleChange}
                         required
                       >
                         <option value="" className="bg-background text-muted-foreground">
-                          Select country…
+                          {t("selectCountry")}
                         </option>
                         {COUNTRIES.map((c) => (
                           <option key={c.code} value={c.name} className="bg-background text-foreground">
@@ -892,23 +896,23 @@ export default function RegisterPage() {
                     <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-3">
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Review your details
+                        {t("reviewTitle")}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div>
-                          <span className="text-muted-foreground text-xs">Name</span>
+                          <span className="text-muted-foreground text-xs">{t("name")}</span>
                           <p className="text-foreground">{form.firstName} {form.lastName}</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground text-xs">Email</span>
+                          <span className="text-muted-foreground text-xs">{t("email")}</span>
                           <p className="text-foreground truncate">{form.email}</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground text-xs">Phone</span>
+                          <span className="text-muted-foreground text-xs">{t("phone")}</span>
                           <p className="text-foreground">{form.phone}</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground text-xs">Location</span>
+                          <span className="text-muted-foreground text-xs">{t("location")}</span>
                           <p className="text-foreground">{form.billingCity}, {form.billingCountry}</p>
                         </div>
                       </div>
@@ -916,7 +920,7 @@ export default function RegisterPage() {
 
                     {hasCaptcha && (
                       <>
-                        <SectionDivider label="Security Check" icon={Shield} />
+                        <SectionDivider label={t("securityCheck")} icon={Shield} />
                         <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-4">
                           <div className="relative rounded-lg overflow-hidden bg-background border border-border/50">
                             {captchaLoading ? (
@@ -927,7 +931,7 @@ export default function RegisterPage() {
                               <img src={captchaImage} alt="Captcha" className="mx-auto h-24 w-full object-contain p-2" />
                             ) : (
                               <div className="flex items-center justify-center h-24">
-                                <p className="text-xs text-muted-foreground">Unable to load captcha</p>
+                                <p className="text-xs text-muted-foreground">{t("captchaLoadFailed")}</p>
                               </div>
                             )}
                           </div>
@@ -948,15 +952,15 @@ export default function RegisterPage() {
                                 )}
                               >
                                 {audioPlaying ? (
-                                  <><VolumeX className="h-4 w-4 animate-pulse" /><span>Playing…</span></>
+                                  <><VolumeX className="h-4 w-4 animate-pulse" /><span>{t("playing")}</span></>
                                 ) : (
-                                  <><Volume2 className="h-4 w-4" /><span>Listen to audio captcha</span></>
+                                  <><Volume2 className="h-4 w-4" /><span>{t("listenAudioCaptcha")}</span></>
                                 )}
                               </button>
                               {audioError && (
                                 <p className="text-xs text-destructive flex items-center gap-1.5">
                                   <AlertTriangle className="h-3 w-3" />
-                                  Unable to play audio. Try refreshing.
+                                  {t("audioPlayFailed")}
                                 </p>
                               )}
                             </div>
@@ -965,8 +969,8 @@ export default function RegisterPage() {
                           <div className="flex gap-2">
                             <InputField
                               name="captchaAnswer"
-                              placeholder="Enter the answer"
-                              label="Your Answer"
+                              placeholder={t("yourAnswerPlaceholder")}
+                              label={t("yourAnswer")}
                               value={form.captchaAnswer}
                               onChange={handleChange}
                               required
@@ -984,8 +988,8 @@ export default function RegisterPage() {
                                   "disabled:opacity-50 disabled:cursor-not-allowed",
                                   "focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 )}
-                                aria-label="Refresh captcha"
-                                title="New captcha"
+                                aria-label={t("refreshCaptchaAria")}
+                                title={t("newCaptchaTitle")}
                               >
                                 <RefreshCw className={cn("h-4 w-4", captchaLoading && "animate-spin")} />
                               </button>
@@ -997,25 +1001,28 @@ export default function RegisterPage() {
 
                     <div className="rounded-xl bg-secondary/10 border border-border/40 p-4">
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        By creating an account, you agree to our{" "}
-                        <a
-                          href="https://ecli.app/documents/Terms%20of%20Service.pdf"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline font-medium"
-                        >
-                          Terms of Service
-                        </a>{" "}
-                        and{" "}
-                        <a
-                          href="https://ecli.app/documents/Privacy%20Policy.pdf"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline font-medium"
-                        >
-                          Privacy Policy
-                        </a>
-                        .
+                        {t.rich("termsNotice", {
+                          terms: (chunks: ReactNode) => (
+                            <a
+                              href="https://ecli.app/documents/Terms%20of%20Service.pdf"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline font-medium"
+                            >
+                              {chunks}
+                            </a>
+                          ),
+                          privacy: (chunks: ReactNode) => (
+                            <a
+                              href="https://ecli.app/documents/Privacy%20Policy.pdf"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline font-medium"
+                            >
+                              {chunks}
+                            </a>
+                          ),
+                        })}
                       </p>
                     </div>
                   </div>
@@ -1032,7 +1039,7 @@ export default function RegisterPage() {
                           "focus:outline-none focus:ring-2 focus:ring-primary/20"
                         )}
                       >
-                        Back
+                        {t("back")}
                       </button>
                     )}
 
@@ -1047,7 +1054,7 @@ export default function RegisterPage() {
                           "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
                         )}
                       >
-                        Continue
+                        {t("continue")}
                         <ChevronRight className="h-4 w-4" />
                       </button>
                     ) : (
@@ -1063,9 +1070,9 @@ export default function RegisterPage() {
                         )}
                       >
                         {loading ? (
-                          <><Loader2 className="h-4 w-4 animate-spin" />Creating account…</>
+                          <><Loader2 className="h-4 w-4 animate-spin" />{t("creatingAccount")}</>
                         ) : (
-                          <>Create Account<ChevronRight className="h-4 w-4" /></>
+                          <>{t("createAccount")}<ChevronRight className="h-4 w-4" /></>
                         )}
                       </button>
                     )}
@@ -1076,16 +1083,16 @@ export default function RegisterPage() {
 
             <div className="border-t border-border/40 bg-secondary/10 px-4 sm:px-8 py-4">
               <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
+                {t("alreadyHaveAccount")}{" "}
                 <a href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
-                  Sign in
+                  {t("signIn")}
                 </a>
               </p>
             </div>
           </div>
 
           <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
-            Protected by industry-standard encryption
+            {t("securityNote")}
           </p>
         </div>
       </div>

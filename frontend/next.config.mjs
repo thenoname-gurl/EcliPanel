@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
+import createNextIntlPlugin from 'next-intl/plugin';
+
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
 const wingsBase = process.env.NEXT_PUBLIC_WINGS_BASE || 'http://localhost:8080';
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig = {
   typescript: {
@@ -44,4 +47,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+export default withNextIntl(nextConfig)

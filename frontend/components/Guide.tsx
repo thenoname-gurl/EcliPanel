@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import {
     Shield,
     User,
@@ -215,6 +216,95 @@ const steps = [
     },
 ];
 
+const GUIDE_RU_TEXT: Record<string, string> = {
+    "Setup security first": "Сначала настройте безопасность",
+    "Verify email and register passkeys in the security tab.": "Подтвердите email и зарегистрируйте passkey во вкладке безопасности.",
+    "Click Security then passkeys and register a new passkey.": "Откройте Безопасность, затем passkey и зарегистрируйте новый ключ.",
+    "Profile setup": "Настройка профиля",
+    "Set display name and avatar so your team recognizes you.": "Установите отображаемое имя и аватар, чтобы команда вас узнавала.",
+    "On Profile, set your display name, email, profile picture and some other information.": "Во вкладке Профиль укажите отображаемое имя, email, аватар и другую информацию.",
+    "Themes and appearance": "Темы и внешний вид",
+    "Choose your UI theme and editor font settings.": "Выберите тему интерфейса и настройки шрифта редактора.",
+    "Select theme and customization options in Appearance tab.": "Выберите тему и параметры кастомизации во вкладке Внешний вид.",
+    "Notifications": "Уведомления",
+    "Configure notification preferences for server events.": "Настройте уведомления о событиях сервера.",
+    "Enable or disable notifications according to your workflow.": "Включайте и отключайте уведомления под свой рабочий процесс.",
+    "Editor settings": "Настройки редактора",
+    "Adjust editor and terminal settings to your taste.": "Настройте редактор и терминал под себя.",
+    "Set themes, tab size, and editor preferences.": "Настройте тему, размер табов и параметры редактора.",
+    "Identity verification": "Проверка личности",
+    "Connect student identity and optionally upload documents.": "Подключите студенческую идентификацию и при необходимости загрузите документы.",
+    "In Identity, click Connect Hack Club or GitHub for student plan.": "Во вкладке Идентификация нажмите подключение Hack Club или GitHub для студенческого плана.",
+    "Account Activity": "Активность аккаунта",
+    "Check your account activity and recent actions.": "Проверьте активность аккаунта и последние действия.",
+    "Review your account activity and recent actions.": "Просмотрите активность аккаунта и недавние действия.",
+    "Billing": "Биллинг",
+    "Manage plan and billing details.": "Управляйте тарифом и платежными данными.",
+    "Review active plan and charges here.": "Здесь можно посмотреть активный план и списания.",
+    "Account activity": "Активность аккаунта",
+    "View recent account actions and audit logs.": "Просматривайте недавние действия аккаунта и журналы аудита.",
+    "Check recent activity feed on dashboard.": "Проверьте ленту недавней активности на дашборде.",
+    "Create your first server": "Создайте первый сервер",
+    "Create a server from the Servers page.": "Создайте сервер на странице Серверы.",
+    "Click New Server and follow the wizard.": "Нажмите Новый сервер и следуйте шагам мастера.",
+    "Choose a template": "Выберите шаблон",
+    "Select a server template (game/runtime) in the New Server modal.": "Выберите шаблон сервера (игра/рантайм) в окне создания сервера.",
+    "Pick the template that matches the server you want to run.": "Выберите шаблон, который подходит вашему серверу.",
+    "Select a node": "Выберите ноду",
+    "Choose the node where your server will be deployed.": "Выберите ноду, на которой будет развернут сервер.",
+    "Pick an available node (location/plan) to host your server.": "Выберите доступную ноду (локация/план) для размещения сервера.",
+    "Server name": "Имя сервера",
+    "Give your server a short, recognizable name.": "Дайте серверу короткое и понятное имя.",
+    "Enter a name such as 'My Minecraft Server'.": "Введите имя, например «Мой Minecraft сервер».",
+    "Resources": "Ресурсы",
+    "Set memory, disk and CPU for your server.": "Укажите память, диск и CPU для сервера.",
+    "Adjust resources according to your plan and node.": "Настройте ресурсы в соответствии с тарифом и нодой.",
+    "Deploy the server": "Разверните сервер",
+    "Finalize by deploying the server.": "Завершите настройку развертыванием сервера.",
+    "Press Deploy Server to create and start your server.": "Нажмите Развернуть сервер, чтобы создать и запустить его.",
+    "Choose your server": "Выберите свой сервер",
+    "Select a server from the list to view details.": "Выберите сервер из списка, чтобы открыть детали.",
+    "Click any server card to open its details page.": "Нажмите на любую карточку сервера, чтобы открыть страницу деталей.",
+    "Your server header": "Заголовок сервера",
+    "This shows your server name and id.": "Здесь отображаются имя и ID сервера.",
+    "The server name and quick info appear here.": "Здесь отображаются имя сервера и краткая информация.",
+    "Resource overview": "Обзор ресурсов",
+    "Monitor CPU, RAM, Disk and Network usage.": "Отслеживайте использование CPU, RAM, диска и сети.",
+    "These stats show current resource usage for the server.": "Эта статистика показывает текущее использование ресурсов сервера.",
+    "Files tab": "Вкладка Файлы",
+    "Manage your server files and uploads.": "Управляйте файлами сервера и загрузками.",
+    "Open Files to browse or upload files to your server.": "Откройте Файлы, чтобы просматривать и загружать файлы на сервер.",
+    "Configure startup": "Настройте запуск",
+    "Open Startup tab in a server and select docker image.": "Откройте вкладку Запуск и выберите Docker-образ.",
+    "Select startup tab and adjust image/settings as needed.": "Откройте вкладку запуска и настройте образ/параметры при необходимости.",
+    Databases: "Базы данных",
+    "Manage databases attached to this server.": "Управляйте базами данных, подключенными к этому серверу.",
+    "Create, view and delete server databases here.": "Здесь можно создавать, просматривать и удалять базы данных сервера.",
+    Settings: "Настройки",
+    "Server-level settings and configuration.": "Настройки и конфигурация на уровне сервера.",
+    "Adjust server settings, mounts and subusers.": "Настраивайте параметры сервера, монтирования и субпользователей.",
+    Console: "Консоль",
+    "Open the console to view live output and type commands.": "Откройте консоль, чтобы видеть вывод в реальном времени и вводить команды.",
+    "Use the Console tab to interact with your server in real time.": "Используйте вкладку Консоль для работы с сервером в реальном времени.",
+    Guide: "Гайд",
+    "Navigating...": "Переход...",
+    "Looking for element...": "Поиск элемента...",
+    "Go to this page": "Перейти на эту страницу",
+    "Element not visible on this page": "Элемент не виден на этой странице",
+    Finish: "Завершить",
+    Next: "Далее",
+    navigate: "навигация",
+    minimize: "свернуть",
+    "Eclipse Guide": "Eclipse Гайд",
+    "Close guide": "Закрыть гайд",
+    "Minimize (Esc)": "Свернуть (Esc)",
+};
+
+function localizeGuide(locale: string, text: string): string {
+    if (locale !== "ru") return text;
+    return GUIDE_RU_TEXT[text] ?? text;
+}
+
 type GuidePhase = "welcome" | "guide" | "complete";
 
 function useUrlChange() {
@@ -262,9 +352,11 @@ function useUrlChange() {
 function WelcomeScreen({
     onStart,
     onSkip,
+    locale,
 }: {
     onStart: () => void;
     onSkip: () => void;
+    locale: string;
 }) {
     return (
         <div className="fixed inset-0 z-[200001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -290,10 +382,10 @@ function WelcomeScreen({
 
                     <div className="text-center mb-6">
                         <h1 className="text-xl font-bold text-foreground mb-1">
-                            Welcome to Eclipse Systems!
+                            {localizeGuide(locale, "Welcome to Eclipse Systems!")}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            We&apos;re thrilled to have you here
+                            {localizeGuide(locale, "We're thrilled to have you here")}
                         </p>
                     </div>
 
@@ -302,12 +394,10 @@ function WelcomeScreen({
                             <Zap className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-sm font-medium text-foreground">
-                                    Quick Setup Guide
+                                    {localizeGuide(locale, "Quick Setup Guide")}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    We&apos;ll walk you through setting up your
-                                    account, configuring your profile, and
-                                    creating your first server.
+                                    {localizeGuide(locale, "We'll walk you through setting up your account, configuring your profile, and creating your first server.")}
                                 </p>
                             </div>
                         </div>
@@ -316,12 +406,12 @@ function WelcomeScreen({
                             <Info className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-sm font-medium text-foreground">
-                                    Takes about 5-10 minutes
+                                    {localizeGuide(locale, "Takes about 5-10 minutes")}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    You can minimize or skip at any time.
+                                    {localizeGuide(locale, "You can minimize or skip at any time.")}
                                     <br />
-                                    Check the settings to revisit.
+                                    {localizeGuide(locale, "Check the settings to revisit.")}
                                 </p>
                             </div>
                         </div>
@@ -333,13 +423,13 @@ function WelcomeScreen({
                             className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                         >
                             <Rocket className="w-4 h-4" />
-                            Start the Guide
+                            {localizeGuide(locale, "Start the Guide")}
                         </button>
                         <button
                             onClick={onSkip}
                             className="w-full h-9 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                         >
-                            Skip for now
+                            {localizeGuide(locale, "Skip for now")}
                         </button>
                     </div>
 
@@ -354,7 +444,7 @@ function WelcomeScreen({
     );
 }
 
-function CompletionScreen({ onClose }: { onClose: () => void }) {
+function CompletionScreen({ onClose, locale }: { onClose: () => void; locale: string }) {
     return (
         <div className="fixed inset-0 z-[200001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300">
@@ -374,10 +464,10 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
 
                     <div className="text-center mb-6">
                         <h1 className="text-xl font-bold text-foreground mb-1">
-                            You&apos;re All Set!
+                            {localizeGuide(locale, "You're All Set!")}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Congratulations on completing the guide
+                            {localizeGuide(locale, "Congratulations on completing the guide")}
                         </p>
                     </div>
 
@@ -387,30 +477,30 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                                 <Zap className="w-4 h-4 text-green-500" />
                             </div>
                             <span className="font-semibold text-sm text-foreground">
-                                What you&apos;ve learned:
+                                {localizeGuide(locale, "What you've learned:")}
                             </span>
                         </div>
                         <ul className="space-y-2 text-xs text-muted-foreground">
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
                                 <span>
-                                    Setting up account security & passkeys
+                                    {localizeGuide(locale, "Setting up account security & passkeys")}
                                 </span>
                             </li>
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
                                 <span>
-                                    Customizing your profile & preferences
+                                    {localizeGuide(locale, "Customizing your profile & preferences")}
                                 </span>
                             </li>
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
-                                <span>Creating and managing servers</span>
+                                <span>{localizeGuide(locale, "Creating and managing servers")}</span>
                             </li>
                             <li className="flex items-center gap-2">
                                 <Check className="w-3 h-3 text-green-500" />
                                 <span>
-                                    Using the console, files & databases
+                                    {localizeGuide(locale, "Using the console, files & databases")}
                                 </span>
                             </li>
                         </ul>
@@ -420,11 +510,10 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                         <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                         <div>
                             <p className="text-sm font-medium text-foreground">
-                                Need help?
+                                {localizeGuide(locale, "Need help?")}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Check out our documentation or open a support
-                                ticket anytime. We&apos;re here to help!
+                                {localizeGuide(locale, "Check out our documentation or open a support ticket anytime. We're here to help!")}
                             </p>
                         </div>
                     </div>
@@ -434,7 +523,7 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
                         className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
                         <Sparkles className="w-4 h-4" />
-                        Start Exploring
+                        {localizeGuide(locale, "Start Exploring")}
                     </button>
 
                     <p className="text-center text-[10px] text-muted-foreground/60 mt-4">
@@ -450,6 +539,7 @@ function CompletionScreen({ onClose }: { onClose: () => void }) {
 export default function Guide() {
     const router = useRouter();
     const pathname = usePathname();
+    const locale = useLocale();
     const currentUrl = useUrlChange();
 
     const [show, setShow] = useState(false);
@@ -950,13 +1040,14 @@ export default function Guide() {
             <WelcomeScreen
                 onStart={handleStartGuide}
                 onSkip={handleCloseGuide}
+                locale={locale}
             />
         );
         return portalEl ? createPortal(welcomeJsx, portalEl) : welcomeJsx;
     }
 
     if (phase === "complete") {
-        const completeJsx = <CompletionScreen onClose={handleCloseGuide} />;
+        const completeJsx = <CompletionScreen onClose={handleCloseGuide} locale={locale} />;
         return portalEl ? createPortal(completeJsx, portalEl) : completeJsx;
     }
 
@@ -980,10 +1071,10 @@ export default function Guide() {
                 </span>
                 <div className="flex flex-col items-start">
                     <span className="text-[11px] font-semibold text-foreground leading-tight">
-                        Guide
+                        {localizeGuide(locale, "Guide")}
                     </span>
                     <span className="text-[10px] text-muted-foreground leading-tight">
-                        Step {step + 1} of {steps.length}
+                        {locale === "ru" ? `Шаг ${step + 1} из ${steps.length}` : `Step ${step + 1} of ${steps.length}`}
                     </span>
                 </div>
                 <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1069,7 +1160,7 @@ export default function Guide() {
                                 className="w-6 h-6 rounded-md shrink-0"
                             />
                             <span className="text-xs font-semibold text-foreground truncate">
-                                Eclipse Guide
+                                {localizeGuide(locale, "Eclipse Guide")}
                             </span>
                             <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                                 {step + 1}/{steps.length}
@@ -1079,14 +1170,14 @@ export default function Guide() {
                             <button
                                 className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                                 onClick={() => setMinimized(true)}
-                                title="Minimize (Esc)"
+                                title={localizeGuide(locale, "Minimize (Esc)")}
                             >
                                 <Minus className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                                 onClick={handleCloseGuide}
-                                title="Close guide"
+                                title={localizeGuide(locale, "Close guide")}
                             >
                                 <X className="w-3.5 h-3.5" />
                             </button>
@@ -1101,10 +1192,10 @@ export default function Guide() {
 
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-sm font-semibold text-foreground leading-tight">
-                                    {currentStep.title}
+                                    {localizeGuide(locale, currentStep.title)}
                                 </h3>
                                 <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                                    {currentStep.text}
+                                    {localizeGuide(locale, currentStep.text)}
                                 </p>
                             </div>
                         </div>
@@ -1113,7 +1204,7 @@ export default function Guide() {
                             <div className="mt-2.5 flex gap-2 items-start rounded-lg bg-primary/5 border border-primary/10 px-2.5 py-2">
                                 <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-px" />
                                 <span className="text-[11px] text-foreground/80 leading-snug">
-                                    {currentStep.helper}
+                                    {localizeGuide(locale, currentStep.helper)}
                                 </span>
                             </div>
                         )}
@@ -1121,7 +1212,7 @@ export default function Guide() {
                         {navigating && (
                             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                <span>Navigating...</span>
+                                <span>{localizeGuide(locale, "Navigating...")}</span>
                             </div>
                         )}
 
@@ -1131,7 +1222,7 @@ export default function Guide() {
                             !offRoute && (
                                 <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                                     <Loader2 className="w-3 h-3 animate-spin" />
-                                    <span>Looking for element...</span>
+                                    <span>{localizeGuide(locale, "Looking for element...")}</span>
                                 </div>
                             )}
 
@@ -1146,7 +1237,7 @@ export default function Guide() {
                                 }}
                             >
                                 <ArrowRight className="w-3 h-3" />
-                                Go to this page
+                                {localizeGuide(locale, "Go to this page")}
                             </button>
                         )}
 
@@ -1158,7 +1249,7 @@ export default function Guide() {
                                 <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-600 dark:text-amber-500">
                                     <Info className="w-3 h-3" />
                                     <span>
-                                        Element not visible on this page
+                                        {localizeGuide(locale, "Element not visible on this page")}
                                     </span>
                                 </div>
                             )}
@@ -1168,7 +1259,7 @@ export default function Guide() {
                                 className="h-8 w-8 rounded-lg flex items-center justify-center border border-border bg-background hover:bg-secondary/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
                                 onClick={prev}
                                 disabled={isFirst}
-                                title="Previous (←)"
+                                title={locale === "ru" ? "Назад (←)" : "Previous (←)"}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </button>
@@ -1178,7 +1269,7 @@ export default function Guide() {
                                     <button
                                         key={i}
                                         onClick={() => setStep(i)}
-                                        title={s.title}
+                                        title={localizeGuide(locale, s.title)}
                                         className={`h-1.5 rounded-full transition-all duration-300 ${i === step
                                                 ? "flex-[3] bg-primary"
                                                 : i < step
@@ -1195,15 +1286,15 @@ export default function Guide() {
                                     onClick={() => setPhase("complete")}
                                 >
                                     <Check className="w-3.5 h-3.5" />
-                                    Finish
+                                    {localizeGuide(locale, "Finish")}
                                 </button>
                             ) : (
                                 <button
                                     className="h-8 rounded-lg px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all flex items-center gap-1 shrink-0"
                                     onClick={next}
-                                    title="Next (→)"
+                                    title={locale === "ru" ? "Далее (→)" : "Next (→)"}
                                 >
-                                    Next
+                                    {localizeGuide(locale, "Next")}
                                     <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                             )}
@@ -1217,13 +1308,13 @@ export default function Guide() {
                                 <kbd className="px-1 py-px rounded bg-muted text-[9px] font-mono">
                                     →
                                 </kbd>
-                                navigate
+                                {localizeGuide(locale, "navigate")}
                             </span>
                             <span className="flex items-center gap-0.5">
                                 <kbd className="px-1 py-px rounded bg-muted text-[9px] font-mono">
                                     esc
                                 </kbd>
-                                minimize
+                                {localizeGuide(locale, "minimize")}
                             </span>
                         </div>
                     </div>

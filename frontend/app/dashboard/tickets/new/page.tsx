@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Send } from "lucide-react"
@@ -11,6 +12,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 
 export default function NewTicketPage() {
+  const t = useTranslations("ticketsNewPage")
   const router = useRouter()
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
@@ -23,7 +25,7 @@ export default function NewTicketPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!subject.trim() || !message.trim()) {
-      setError("Subject and message are required.")
+      setError(t("errors.requiredFields"))
       return
     }
     setSubmitting(true)
@@ -35,7 +37,7 @@ export default function NewTicketPage() {
       })
       router.push("/dashboard/tickets")
     } catch (err: any) {
-      setError(err?.message ?? "Failed to submit ticket. Please try again.")
+      setError(err?.message ?? t("errors.submitFailed"))
       setSubmitting(false)
     }
   }
@@ -43,7 +45,7 @@ export default function NewTicketPage() {
   return (
     <FeatureGuard feature="ticketing">
       <div className="flex h-screen flex-col bg-background">
-        <PanelHeader title="New Ticket" description="Submit a support request" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
         <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="mx-auto max-w-2xl p-6 space-y-6">
           {/* Back */}
@@ -52,15 +54,15 @@ export default function NewTicketPage() {
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Tickets
+            {t("actions.backToTickets")}
           </button>
 
           {/* Card */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-5">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Open a Support Ticket</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("hero.title")}</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Describe your issue in detail and our team will respond as soon as possible.
+                {t("hero.description")}
               </p>
             </div>
 
@@ -72,7 +74,7 @@ export default function NewTicketPage() {
 
             {user?.supportBanned && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                You are banned from creating support tickets. Reason: {user.supportBanReason || 'No reason provided'}. Contact contact@ecli.app to appeal.
+                {t("banned.message", { reason: user.supportBanReason || t("banned.noReason") })}
               </div>
             )}
 
@@ -80,12 +82,12 @@ export default function NewTicketPage() {
               {/* Subject */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground" htmlFor="subject">
-                  Subject <span className="text-destructive">*</span>
+                  {t("fields.subject.label")} <span className="text-destructive">*</span>
                 </label>
                 <input
                   id="subject"
                   type="text"
-                  placeholder="Brief summary of your issue"
+                  placeholder={t("fields.subject.placeholder")}
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   maxLength={120}
@@ -97,7 +99,7 @@ export default function NewTicketPage() {
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground" htmlFor="priority">
-                    Priority
+                    {t("fields.priority.label")}
                   </label>
                   <select
                     id="priority"
@@ -105,15 +107,15 @@ export default function NewTicketPage() {
                     onChange={(e) => setPriority(e.target.value)}
                     className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
                   >
-                    <option value="low">Low - general question / non-urgent</option>
-                    <option value="medium">Medium - something is not working as expected</option>
-                    <option value="high">High - service significantly impacted</option>
-                    <option value="urgent">Urgent - complete outage / critical issue</option>
+                    <option value="low">{t("fields.priority.low")}</option>
+                    <option value="medium">{t("fields.priority.medium")}</option>
+                    <option value="high">{t("fields.priority.high")}</option>
+                    <option value="urgent">{t("fields.priority.urgent")}</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground" htmlFor="department">
-                    Department
+                    {t("fields.department.label")}
                   </label>
                   <select
                     id="department"
@@ -121,12 +123,12 @@ export default function NewTicketPage() {
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
                   >
-                    <option value="">Select department</option>
-                    <option value="Support">Support</option>
-                    <option value="Billing">Billing</option>
-                    <option value="Technical">Technical</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Other">Other</option>
+                    <option value="">{t("fields.department.select")}</option>
+                    <option value="Support">{t("fields.department.support")}</option>
+                    <option value="Billing">{t("fields.department.billing")}</option>
+                    <option value="Technical">{t("fields.department.technical")}</option>
+                    <option value="Sales">{t("fields.department.sales")}</option>
+                    <option value="Other">{t("fields.department.other")}</option>
                   </select>
                 </div>
               </div>
@@ -134,17 +136,17 @@ export default function NewTicketPage() {
               {/* Message */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground" htmlFor="message">
-                  Message <span className="text-destructive">*</span>
+                  {t("fields.message.label")} <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   id="message"
-                  placeholder="Describe your issue in as much detail as possible. Include any error messages, steps to reproduce, and what you expected to happen."
+                  placeholder={t("fields.message.placeholder")}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={8}
                   className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
                 />
-                <p className="text-xs text-muted-foreground text-right">{message.length} characters</p>
+                <p className="text-xs text-muted-foreground text-right">{t("fields.message.characters", { count: message.length })}</p>
               </div>
 
               {/* Submit */}
@@ -154,7 +156,7 @@ export default function NewTicketPage() {
                   onClick={() => router.push("/dashboard/tickets")}
                   className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/80"
                 >
-                  Cancel
+                  {t("actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -164,12 +166,12 @@ export default function NewTicketPage() {
                   {submitting ? (
                     <>
                       <span className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-                      Submitting...
+                      {t("actions.submitting")}
                     </>
                   ) : (
                     <>
                       <Send className="h-3.5 w-3.5" />
-                      Submit Ticket
+                      {t("actions.submitTicket")}
                     </>
                   )}
                 </button>

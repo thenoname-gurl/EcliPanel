@@ -6,14 +6,15 @@ import SearchableUserSelect from "@/components/SearchableUserSelect"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Brain, CheckCircle, Edit, FileCode, Image, Loader2, MessageSquare, Plus, RefreshCw, Timer, Trash2, UserPlus } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export default function AiTab({ ctx }: { ctx: any }) {
+  const t = useTranslations("adminAiTab")
   const {
     aiModels,
     openNewAIModel,
@@ -68,9 +69,9 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 <Brain className="h-4 w-4 text-violet-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">AI Models</p>
+                <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {aiModels.length} model{aiModels.length !== 1 ? "s" : ""} configured
+                  {t("header.modelCount", { count: aiModels.length })}
                 </p>
               </div>
             </div>
@@ -81,13 +82,13 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 className="bg-primary text-primary-foreground h-8 gap-1.5"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">New Model</span>
-                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">{t("actions.newModel")}</span>
+                <span className="sm:hidden">{t("actions.new")}</span>
               </Button>
               <button
                 onClick={() => loadTab("ai")}
                 className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                title="Refresh"
+                title={t("actions.refresh")}
               >
                 <RefreshCw className="h-4 w-4" />
               </button>
@@ -102,11 +103,11 @@ export default function AiTab({ ctx }: { ctx: any }) {
             <Brain className="h-6 w-6 text-violet-400/60" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">No AI models configured</p>
-            <p className="text-xs text-muted-foreground mt-1">Add a model to enable AI features across your panel.</p>
+            <p className="text-sm font-medium text-foreground">{t("states.noModels")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("states.noModelsSubtitle")}</p>
           </div>
           <Button size="sm" onClick={openNewAIModel} className="bg-primary text-primary-foreground gap-1.5 mt-1">
-            <Plus className="h-3.5 w-3.5" /> New Model
+            <Plus className="h-3.5 w-3.5" /> {t("actions.newModel")}
           </Button>
         </div>
       ) : (
@@ -116,12 +117,12 @@ export default function AiTab({ ctx }: { ctx: any }) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-4 py-3 text-left font-medium">Model</th>
-                    <th className="px-4 py-3 text-left font-medium">Type</th>
-                    <th className="px-4 py-3 text-left font-medium">Status</th>
-                    <th className="px-4 py-3 text-left font-medium">Tags</th>
-                    <th className="px-4 py-3 text-left font-medium">Endpoints</th>
-                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.model")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.type")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.status")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.tags")}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t("table.endpoints")}</th>
+                    <th className="px-4 py-3 text-right font-medium">{t("table.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -179,7 +180,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                                 </span>
                               ))
                             ) : (
-                              <span className="text-xs text-muted-foreground italic">none</span>
+                              <span className="text-xs text-muted-foreground italic">{t("common.none")}</span>
                             )}
                           </div>
                         </td>
@@ -187,21 +188,21 @@ export default function AiTab({ ctx }: { ctx: any }) {
                           <div className="flex items-center gap-1.5">
                             <div className={`h-2 w-2 rounded-full shrink-0 ${endpointCount > 0 ? "bg-emerald-400" : "bg-muted-foreground"}`} />
                             <span className="text-xs text-muted-foreground">
-                              {endpointCount > 0 ? `${endpointCount} configured` : "not set"}
+                              {endpointCount > 0 ? t("endpoints.configured", { count: endpointCount }) : t("endpoints.notSet")}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => openAssignAiModel(m)} title="Assign to users"
+                            <button onClick={() => openAssignAiModel(m)} title={t("actions.assignToUsers")}
                               className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => openEditAIModel(m)} title="Edit model"
+                            <button onClick={() => openEditAIModel(m)} title={t("actions.editModel")}
                               className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                               <Edit className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => deleteAIModel(m)} title="Delete model"
+                            <button onClick={() => deleteAIModel(m)} title={t("actions.deleteModel")}
                               className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -220,9 +221,9 @@ export default function AiTab({ ctx }: { ctx: any }) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-3 py-3 text-left font-medium">Model</th>
-                    <th className="px-3 py-3 text-left font-medium">Status</th>
-                    <th className="px-3 py-3 text-right font-medium">Actions</th>
+                    <th className="px-3 py-3 text-left font-medium">{t("table.model")}</th>
+                    <th className="px-3 py-3 text-left font-medium">{t("table.status")}</th>
+                    <th className="px-3 py-3 text-right font-medium">{t("table.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -247,7 +248,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 <span className="capitalize">{m.config?.type || "text"}</span>
                                 {" · "}
-                                {endpointCount > 0 ? `${endpointCount} endpoint${endpointCount !== 1 ? "s" : ""}` : "no endpoints"}
+                                {endpointCount > 0 ? t("endpoints.endpointCount", { count: endpointCount }) : t("endpoints.noEndpoints")}
                               </p>
                             </div>
                           </div>
@@ -260,15 +261,15 @@ export default function AiTab({ ctx }: { ctx: any }) {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-0.5">
-                            <button onClick={() => openAssignAiModel(m)} title="Assign"
+                            <button onClick={() => openAssignAiModel(m)} title={t("actions.assign")}
                               className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => openEditAIModel(m)} title="Edit"
+                            <button onClick={() => openEditAIModel(m)} title={t("actions.edit")}
                               className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                               <Edit className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => deleteAIModel(m)} title="Delete"
+                            <button onClick={() => deleteAIModel(m)} title={t("actions.delete")}
                               className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -285,9 +286,9 @@ export default function AiTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-3 md:hidden">
             {aiModels.map((m: any, i: number) => {
               const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
-                active: { class: "text-emerald-400", dot: "bg-emerald-400", label: "Active" },
-                beta: { class: "text-warning", dot: "bg-warning", label: "Beta" },
-                disabled: { class: "text-destructive", dot: "bg-destructive", label: "Disabled" },
+                active: { class: "text-emerald-400", dot: "bg-emerald-400", label: t("status.active") },
+                beta: { class: "text-warning", dot: "bg-warning", label: t("status.beta") },
+                disabled: { class: "text-destructive", dot: "bg-destructive", label: t("status.disabled") },
               }
               const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
               const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
@@ -317,20 +318,20 @@ export default function AiTab({ ctx }: { ctx: any }) {
 
                   <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border">
                     <div className="bg-card px-3 py-2.5">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Type</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.type")}</p>
                       <p className="text-xs font-medium text-foreground capitalize">{m.config?.type || "text"}</p>
                     </div>
                     <div className="bg-card px-3 py-2.5">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Endpoints</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.endpoints")}</p>
                       <div className="flex items-center gap-1">
                         <span className={`h-1.5 w-1.5 rounded-full ${endpointCount > 0 ? "bg-emerald-400" : "bg-muted-foreground"}`} />
-                        <span className="text-xs font-medium text-foreground">{endpointCount || "—"}</span>
+                        <span className="text-xs font-medium text-foreground">{endpointCount || t("common.dash")}</span>
                       </div>
                     </div>
                     <div className="bg-card px-3 py-2.5">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Tags</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.tags")}</p>
                       <p className="text-xs text-foreground truncate">
-                        {Array.isArray(m.tags) && m.tags.length > 0 ? m.tags.join(", ") : "—"}
+                        {Array.isArray(m.tags) && m.tags.length > 0 ? m.tags.join(", ") : t("common.dash")}
                       </p>
                     </div>
                   </div>
@@ -351,14 +352,14 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     >
                       <UserPlus className="h-3.5 w-3.5" />
-                      <span>Assign</span>
+                      <span>{t("actions.assign")}</span>
                     </button>
                     <button
                       onClick={() => openEditAIModel(m)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
                     >
                       <Edit className="h-3.5 w-3.5" />
-                      <span>Edit</span>
+                      <span>{t("actions.edit")}</span>
                     </button>
                     <button
                       onClick={() => deleteAIModel(m)}
@@ -381,14 +382,14 @@ export default function AiTab({ ctx }: { ctx: any }) {
               <Timer className="h-4 w-4 text-orange-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Rate Limit Cooldowns</p>
-              <p className="text-xs text-muted-foreground">AI endpoint throttling events in the last 24h</p>
+              <p className="text-sm font-semibold text-foreground">{t("cooldowns.title")}</p>
+              <p className="text-xs text-muted-foreground">{t("cooldowns.subtitle")}</p>
             </div>
           </div>
           <button
             onClick={() => loadTab("ai")}
             className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-            title="Refresh"
+            title={t("actions.refresh")}
           >
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -397,7 +398,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
         {aiModelCooldowns.length === 0 ? (
           <div className="flex items-center gap-3 px-4 py-6 justify-center">
             <CheckCircle className="h-4 w-4 text-emerald-400" />
-            <p className="text-sm text-muted-foreground">No rate-limit cooldowns in the last 24 hours</p>
+            <p className="text-sm text-muted-foreground">{t("cooldowns.empty")}</p>
           </div>
         ) : (
           <>
@@ -415,13 +416,13 @@ export default function AiTab({ ctx }: { ctx: any }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {c.modelName || c.modelId || "unknown"}
+                          {c.modelName || c.modelId || t("common.unknown")}
                         </p>
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium ${isLong
                           ? "bg-destructive/10 text-destructive"
                           : "bg-orange-500/10 text-orange-400"
                           }`}>
-                          {waitSec}s wait
+                          {t("cooldowns.wait", { seconds: waitSec })}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
@@ -444,7 +445,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                   <div key={i} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {c.modelName || c.modelId || "unknown"}
+                        {c.modelName || c.modelId || t("common.unknown")}
                       </p>
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium shrink-0 ${isLong
                         ? "bg-destructive/10 text-destructive"
@@ -471,36 +472,36 @@ export default function AiTab({ ctx }: { ctx: any }) {
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-muted-foreground" />
-            Assign “{assignAiModel?.name}” to User
+            {t("assignDialog.title", { name: assignAiModel?.name || "" })}
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select User</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("assignDialog.selectUser")}</label>
             <SearchableUserSelect
               value={assignAiUserId}
               onChange={(v) => setAssignAiUserId(v)}
-              placeholder="Type name, email or id to search"
+              placeholder={t("assignDialog.searchPlaceholder")}
               initialList={users}
             />
           </div>
-          <p className="text-xs text-muted-foreground">Limits (optional — leave blank for unlimited)</p>
+          <p className="text-xs text-muted-foreground">{t("assignDialog.limitsHint")}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token Limit</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("assignDialog.tokenLimit")}</label>
               <input
                 type="number"
-                placeholder="e.g. 100000"
+                placeholder={t("assignDialog.tokenPlaceholder")}
                 value={assignAiLimitTokens}
                 onChange={(e) => setAssignAiLimitTokens(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Request Limit</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("assignDialog.requestLimit")}</label>
               <input
                 type="number"
-                placeholder="e.g. 500"
+                placeholder={t("assignDialog.requestPlaceholder")}
                 value={assignAiLimitRequests}
                 onChange={(e) => setAssignAiLimitRequests(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
@@ -509,13 +510,13 @@ export default function AiTab({ ctx }: { ctx: any }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setAssignAiModel(null)} className="border-border">Cancel</Button>
+          <Button variant="outline" onClick={() => setAssignAiModel(null)} className="border-border">{t("actions.cancel")}</Button>
           <Button
             onClick={submitAssignAiModel}
             disabled={assignAiLoading || !assignAiUserId}
             className="bg-primary text-primary-foreground"
           >
-            {assignAiLoading ? "Assigning…" : "Assign Access"}
+            {assignAiLoading ? t("actions.assigning") : t("actions.assignAccess")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -526,19 +527,19 @@ export default function AiTab({ ctx }: { ctx: any }) {
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <Brain className="h-4 w-4 text-muted-foreground" />
-            {aiModelDialog === "new" ? "New AI Model" : `Edit Model — ${aiModelDialog?.name || ""}`}
+            {aiModelDialog === "new" ? t("modelDialog.newTitle") : t("modelDialog.editTitle", { name: aiModelDialog?.name || "" })}
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.name")}</label>
               <input value={aiModelName} onChange={(e) => setAiModelName(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                placeholder="gpt-4o" />
+                placeholder={t("modelDialog.fields.namePlaceholder")} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.type")}</label>
               <select value={aiModelType} onChange={(e) => setAiModelType(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="text">Text</option>
@@ -550,7 +551,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.status")}</label>
               <select value={aiModelStatus} onChange={(e) => setAiModelStatus(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="active">Active</option>
@@ -559,45 +560,45 @@ export default function AiTab({ ctx }: { ctx: any }) {
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Max Tokens</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.maxTokens")}</label>
               <input value={aiModelMaxTokens} onChange={(e) => setAiModelMaxTokens(e.target.value)} type="number"
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                placeholder="4096" />
+                placeholder={t("modelDialog.fields.maxTokensPlaceholder")} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.description")}</label>
             <input value={aiModelDescription} onChange={(e) => setAiModelDescription(e.target.value)}
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-              placeholder="Optional description shown to users" />
+              placeholder={t("modelDialog.fields.descriptionPlaceholder")} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tags</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.tags")}</label>
             <input value={aiModelTags} onChange={(e) => setAiModelTags(e.target.value)}
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-              placeholder="comma-separated tags (e.g. demo, core)" />
-            <p className="text-xs text-muted-foreground">Tags can be used to mark models for special purposes (e.g. <span className="font-semibold">demo</span>).</p>
+              placeholder={t("modelDialog.fields.tagsPlaceholder")} />
+            <p className="text-xs text-muted-foreground">{t("modelDialog.fields.tagsHint")}</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Endpoint URL</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.endpointUrl")}</label>
             <input value={aiModelEndpoint} onChange={(e) => setAiModelEndpoint(e.target.value)}
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-              placeholder="https://api.openai.com" />
+              placeholder={t("modelDialog.fields.endpointPlaceholder")} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Key</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.apiKey")}</label>
             <input value={aiModelApiKey} onChange={(e) => setAiModelApiKey(e.target.value)} type="password"
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-              placeholder="sk-..." />
+              placeholder={t("modelDialog.fields.apiKeyPlaceholder")} />
           </div>
           <div className="mt-2">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fallback Endpoints</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.fallbackEndpoints")}</div>
             {aiModelExtraEndpoints.map((ep: any, index: number) => (
               <div key={index} className="grid grid-cols-12 gap-2 items-end mt-2">
                 <div className="col-span-4">
                   <input
                     value={ep.endpoint}
-                    placeholder="https://api.groq.com"
+                    placeholder={t("modelDialog.fields.fallbackEndpointPlaceholder")}
                     onChange={(e) => {
                       const next = [...aiModelExtraEndpoints]
                       next[index] = { ...next[index], endpoint: e.target.value }
@@ -609,7 +610,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 <div className="col-span-4">
                   <input
                     value={ep.apiKey || ""}
-                    placeholder="api key"
+                    placeholder={t("modelDialog.fields.fallbackApiKeyPlaceholder")}
                     onChange={(e) => {
                       const next = [...aiModelExtraEndpoints]
                       next[index] = { ...next[index], apiKey: e.target.value }
@@ -621,7 +622,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 <div className="col-span-3">
                   <input
                     value={ep.id || ""}
-                    placeholder="id (optional)"
+                    placeholder={t("modelDialog.fields.fallbackIdPlaceholder")}
                     onChange={(e) => {
                       const next = [...aiModelExtraEndpoints]
                       next[index] = { ...next[index], id: e.target.value }
@@ -635,7 +636,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                     type="button"
                     onClick={() => setAiModelExtraEndpoints(aiModelExtraEndpoints.filter((_: any, i: number) => i !== index))}
                     className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive"
-                  >Remove</button>
+                  >{t("actions.remove")}</button>
                 </div>
               </div>
             ))}
@@ -643,15 +644,15 @@ export default function AiTab({ ctx }: { ctx: any }) {
               type="button"
               onClick={() => setAiModelExtraEndpoints([...aiModelExtraEndpoints, { endpoint: "", apiKey: "" }])}
               className="mt-2 rounded-lg border border-border bg-secondary/60 px-3 py-1 text-xs"
-            >Add an endpoint</button>
-            <p className="text-xs text-muted-foreground mt-1">Fallback endpoints will be tried sequentially on failure/rate-limit.</p>
+            >{t("actions.addEndpoint")}</button>
+            <p className="text-xs text-muted-foreground mt-1">{t("modelDialog.fields.fallbackHint")}</p>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setAiModelDialog(null)} className="border-border">Cancel</Button>
+          <Button variant="outline" onClick={() => setAiModelDialog(null)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={saveAIModel} disabled={aiModelLoading || !aiModelName.trim()}
             className="bg-primary text-primary-foreground">
-            {aiModelLoading ? "Saving…" : aiModelDialog === "new" ? "Create Model" : "Save Changes"}
+            {aiModelLoading ? t("actions.saving") : aiModelDialog === "new" ? t("actions.createModel") : t("actions.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

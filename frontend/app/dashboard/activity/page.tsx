@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 import {
   Server,
   LogIn,
@@ -86,7 +87,7 @@ function guessType(action: string): string {
   return "auth"
 }
 
-function formatTimeAgo(timestamp: string): string {
+function formatTimeAgo(timestamp: string, t: (key: string, values?: Record<string, any>) => string): string {
   const now = new Date()
   const then = new Date(timestamp)
   const diffMs = now.getTime() - then.getTime()
@@ -94,10 +95,10 @@ function formatTimeAgo(timestamp: string): string {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t("time.justNow")
+  if (diffMins < 60) return t("time.minutesAgo", { count: diffMins })
+  if (diffHours < 24) return t("time.hoursAgo", { count: diffHours })
+  if (diffDays < 7) return t("time.daysAgo", { count: diffDays })
   return then.toLocaleDateString()
 }
 
@@ -170,16 +171,17 @@ function EmptyState({ icon: Icon = AlertCircle, title, message }: {
   )
 }
 
-function LoadingState() {
+function LoadingState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 sm:py-16">
       <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-muted-foreground mb-3" />
-      <p className="text-xs sm:text-sm text-muted-foreground">Loading activity...</p>
+      <p className="text-xs sm:text-sm text-muted-foreground">{message}</p>
     </div>
   )
 }
 
 export default function AccountActivity() {
+  const t = useTranslations("activityPage")
   const { user } = useAuth()
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -231,12 +233,12 @@ export default function AccountActivity() {
   }
 
   const filterTypes = [
-    { key: "server", label: "Server" },
-    { key: "login", label: "Login" },
-    { key: "logout", label: "Logout" },
-    { key: "billing", label: "Billing" },
-    { key: "security", label: "Security" },
-    { key: "support", label: "Support" },
+    { key: "server", label: t("filters.server") },
+    { key: "login", label: t("filters.login") },
+    { key: "logout", label: t("filters.logout") },
+    { key: "billing", label: t("filters.billing") },
+    { key: "security", label: t("filters.security") },
+    { key: "support", label: t("filters.support") },
   ]
 
   // Stats from current page data
@@ -255,7 +257,7 @@ export default function AccountActivity() {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       <div data-guide-id="activity-dashboard" className="flex-shrink-0">
-        <PanelHeader title="Account Activity" description="Security audit trail and account events" />
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -266,34 +268,34 @@ export default function AccountActivity() {
             <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Current Page</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.currentPage")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.onPage}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Page {page}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("stats.page", { page })}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Today</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.today")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.today}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">On this page</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("stats.onThisPage")}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <LogIn className="h-4 w-4 text-green-400 flex-shrink-0" />
-                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Logins</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.logins")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.logins}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">On this page</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("stats.onThisPage")}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <Server className="h-4 w-4 text-purple-400 flex-shrink-0" />
-                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Server Events</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.serverEvents")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.servers}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">On this page</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("stats.onThisPage")}</p>
             </div>
           </div>
 
@@ -301,7 +303,7 @@ export default function AccountActivity() {
           <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-3 min-w-0">
               <Filter className="h-4 w-4 text-primary flex-shrink-0" />
-              <span className="text-sm font-medium text-foreground">Filter Events</span>
+              <span className="text-sm font-medium text-foreground">{t("filters.title")}</span>
               {filter && (
                 <Button
                   size="sm"
@@ -310,7 +312,7 @@ export default function AccountActivity() {
                   className="ml-auto h-6 px-2 text-xs text-muted-foreground hover:text-foreground flex-shrink-0"
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Clear
+                  {t("filters.clear")}
                 </Button>
               )}
             </div>
@@ -325,7 +327,7 @@ export default function AccountActivity() {
                 )}
               >
                 <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                <span>All</span>
+                <span>{t("filters.all")}</span>
               </button>
               {filterTypes.map(({ key, label }) => {
                 const Icon = typeIcons[key] ?? Server
@@ -355,15 +357,15 @@ export default function AccountActivity() {
             <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-border bg-secondary/20 min-w-0">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-medium text-foreground truncate">Activity Log</span>
+                <span className="text-sm font-medium text-foreground truncate">{t("log.title")}</span>
                 <Badge variant="outline" className="text-[10px] flex-shrink-0">
-                  {displayLogs.length} shown
+                  {t("log.shown", { count: displayLogs.length })}
                 </Badge>
               </div>
               {/* Pagination */}
               <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
-                  Page {page}
+                  {t("stats.page", { page })}
                 </span>
                 <Button
                   size="sm"
@@ -389,12 +391,12 @@ export default function AccountActivity() {
             {/* Content */}
             <div className="min-w-0">
               {loading ? (
-                <LoadingState />
+                <LoadingState message={t("states.loadingActivity")} />
               ) : displayLogs.length === 0 ? (
                 <EmptyState
                   icon={Activity}
-                  title="No Activity Found"
-                  message={filter ? `No ${filter} events recorded yet.` : "No activity has been recorded for your account yet."}
+                  title={t("states.noActivityTitle")}
+                  message={filter ? t("states.noActivityForFilter", { filter }) : t("states.noActivityMessage")}
                 />
               ) : (
                 <div className="divide-y divide-border">
@@ -433,7 +435,7 @@ export default function AccountActivity() {
                               <div className="min-w-0 flex-1 overflow-hidden">
                                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
                                   <p className="text-sm font-medium text-foreground truncate min-w-0">
-                                    {formatAction(item.action ?? "Unknown action")}
+                                    {formatAction(item.action ?? t("log.unknownAction"))}
                                   </p>
                                   <Badge variant="outline" className={cn("text-[10px] flex-shrink-0", badgeColor)}>
                                     {type}
@@ -447,7 +449,7 @@ export default function AccountActivity() {
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <div className="text-right hidden sm:block">
                                   <p className="text-xs text-muted-foreground">
-                                    {item.timestamp ? formatTimeAgo(item.timestamp) : ""}
+                                    {item.timestamp ? formatTimeAgo(item.timestamp, t) : ""}
                                   </p>
                                   {item.ipAddress && (
                                     <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
@@ -484,7 +486,7 @@ export default function AccountActivity() {
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                                 <span className="text-[10px] text-muted-foreground">
-                                  {item.timestamp ? formatTimeAgo(item.timestamp) : "-"}
+                                  {item.timestamp ? formatTimeAgo(item.timestamp, t) : "-"}
                                 </span>
                               </div>
                               {item.ipAddress && (
@@ -506,36 +508,36 @@ export default function AccountActivity() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
                                 <InfoItem
                                   icon={Activity}
-                                  label="Action"
-                                  value={item.action || "Unknown"}
+                                  label={t("details.action")}
+                                  value={item.action || t("log.unknown")}
                                 />
                                 <InfoItem
                                   icon={Box}
-                                  label="Target Type"
+                                  label={t("details.targetType")}
                                   value={item.targetType || "-"}
                                 />
                                 <InfoItem
                                   icon={Hash}
-                                  label="Target ID"
+                                  label={t("details.targetId")}
                                   value={item.targetId?.toString() || "-"}
                                   mono
                                   copyable
                                 />
                                 <InfoItem
                                   icon={Clock}
-                                  label="Timestamp"
+                                  label={t("details.timestamp")}
                                   value={item.timestamp ? new Date(item.timestamp).toLocaleString() : "-"}
                                 />
                                 <InfoItem
                                   icon={Globe}
-                                  label="IP Address"
+                                  label={t("details.ipAddress")}
                                   value={item.ipAddress || "-"}
                                   mono
                                   copyable
                                 />
                                 <InfoItem
                                   icon={User}
-                                  label="User ID"
+                                  label={t("details.userId")}
                                   value={item.userId?.toString() || "-"}
                                   mono
                                 />
@@ -543,7 +545,7 @@ export default function AccountActivity() {
 
                               {item.metadata && Object.keys(item.metadata).length > 0 && (
                                 <div className="pt-2 border-t border-border min-w-0 overflow-hidden">
-                                  <p className="text-xs text-muted-foreground mb-2">Metadata</p>
+                                  <p className="text-xs text-muted-foreground mb-2">{t("details.metadata")}</p>
                                   <div className="rounded-md border border-border bg-background overflow-hidden">
                                     <div className="overflow-x-auto">
                                       <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
@@ -567,7 +569,7 @@ export default function AccountActivity() {
             {!loading && displayLogs.length > 0 && (
               <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-t border-border bg-secondary/10 min-w-0">
                 <span className="text-xs text-muted-foreground truncate">
-                  Page {page} • {displayLogs.length} events
+                  {t("footer.pageEvents", { page, count: displayLogs.length })}
                 </span>
                 <div className="flex gap-2 flex-shrink-0">
                   <Button
@@ -578,7 +580,7 @@ export default function AccountActivity() {
                     className="h-8 px-2 sm:px-3 text-xs"
                   >
                     <ChevronLeft className="h-3.5 w-3.5 sm:mr-1" />
-                    <span className="hidden sm:inline">Prev</span>
+                    <span className="hidden sm:inline">{t("actions.prev")}</span>
                   </Button>
                   <Button
                     size="sm"
@@ -587,7 +589,7 @@ export default function AccountActivity() {
                     onClick={() => loadLogs(page + 1)}
                     className="h-8 px-2 sm:px-3 text-xs"
                   >
-                    <span className="hidden sm:inline">Next</span>
+                    <span className="hidden sm:inline">{t("actions.next")}</span>
                     <ChevronRight className="h-3.5 w-3.5 sm:ml-1" />
                   </Button>
                 </div>
@@ -601,7 +603,7 @@ export default function AccountActivity() {
               <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-border bg-primary/5 min-w-0">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Eye className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span className="text-sm font-medium text-foreground truncate">Event Details</span>
+                  <span className="text-sm font-medium text-foreground truncate">{t("details.eventDetails")}</span>
                 </div>
                 <Button
                   size="sm"
@@ -616,17 +618,17 @@ export default function AccountActivity() {
               <div className="p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
                 {/* Quick Info Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
-                  <InfoItem icon={Activity} label="Action" value={selectedLog.action || "Unknown"} />
-                  <InfoItem icon={Box} label="Target Type" value={selectedLog.targetType || "-"} />
-                  <InfoItem icon={Hash} label="Target ID" value={selectedLog.targetId?.toString() || "-"} mono copyable />
-                  <InfoItem icon={Clock} label="Timestamp" value={selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : "-"} />
-                  <InfoItem icon={Globe} label="IP Address" value={selectedLog.ipAddress || "-"} mono copyable />
-                  <InfoItem icon={User} label="User ID" value={selectedLog.userId?.toString() || "-"} mono />
+                  <InfoItem icon={Activity} label={t("details.action")} value={selectedLog.action || t("log.unknown")} />
+                  <InfoItem icon={Box} label={t("details.targetType")} value={selectedLog.targetType || "-"} />
+                  <InfoItem icon={Hash} label={t("details.targetId")} value={selectedLog.targetId?.toString() || "-"} mono copyable />
+                  <InfoItem icon={Clock} label={t("details.timestamp")} value={selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : "-"} />
+                  <InfoItem icon={Globe} label={t("details.ipAddress")} value={selectedLog.ipAddress || "-"} mono copyable />
+                  <InfoItem icon={User} label={t("details.userId")} value={selectedLog.userId?.toString() || "-"} mono />
                 </div>
 
                 {/* All Properties */}
                 <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">All Properties</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">{t("details.allProperties")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
                     {Object.entries(selectedLog).map(([key, value]) => (
                       <div key={key} className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-2.5 min-w-0 overflow-hidden">
@@ -641,7 +643,7 @@ export default function AccountActivity() {
 
                 {/* Raw JSON */}
                 <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Raw JSON</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">{t("details.rawJson")}</p>
                   <div className="rounded-md border border-border bg-background overflow-hidden">
                     <div className="overflow-x-auto">
                       <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
