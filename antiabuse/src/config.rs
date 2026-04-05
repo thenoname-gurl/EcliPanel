@@ -226,4 +226,3 @@ pub fn from_env() -> Result<Config> {
             .unwrap_or_else(|| "yara".to_string()),
     })
 }
-
