@@ -32,6 +32,24 @@ jobs:
         run: |
           bun run build
 
+  antiabuse:
+    name: Anti-Abuse (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Run anti-abuse cargo check
+        working-directory: antiabuse
+        run: cargo check
+
   frontend:
     name: Frontend (pnpm + Node)
     runs-on: ubuntu-latest

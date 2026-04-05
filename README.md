@@ -3,69 +3,53 @@
 </p>
 
 # What is EcliPanel?
+EcliPanel is an enterprise grade server management platform with built in DNS management for organisations,
+team control, Docker support, and KVM (QEMU) virtualization.
 
-EcliPanel is enterprise solution for sever-management with built in DNS management for organisations,
-team control, Docker and KVM (QEMU) virtualization.
+It also includes integrated applications for staff workflows, feedback collection, and abuse reporting.
+On top of that, EcliPanel offers AI assisted features and a powerful anti-abuse detection system.
 
-EcliPanel as features built in applications (forms) for staff members, feedbacks and abuse reports.
-On top of that EcliPanel features AI powered features and great anti-abuse (abuse detection) system.
+# Why was EcliPanel v3 made?
+EcliPanel v3 is a complete rewrite of the original EcliPanel v1, which itself was built on top of the Jexactyl panel. Maintenance of EcliPanel v1 was not possible due of its size and architecture.
 
-EcliPanel (v3) is a complete rewrite of the original EcliPanel v1, which itself was built on top of the Jexactyl panel.
-
+# What is our goal?
 The goal of this iteration is to provide a fully in‑house backend and modernized frontend while keeping the codebase open source for non commercial use.
 
-Interested on how this project looks? Check out showcase [by clicking here](/SHOWCASE.md)
+# You're already interested?
+Want to see more than code? Check out showcase [by clicking here](/SHOWCASE.md) or by visiting [hosting that uses EcliPanel v3 in production](https://ecli.app/).
 
+# Structure
+This repository contains three folders:
 
-> ⚠️ **Open Source (Non‑Commercial Only)**  
-> This project is open source under a **non‑commercial license**. 
-> The source code is fully available, but commercial use is restricted to  
-> **EclipseSystems (Misiu LLC)** and **Maksym Huzun**.
-> Overview: https://ecli.app/license and [LICENSE](/LICENSE)
->
-> **AI Usage Transparency:**  
-> We maintain a strict *0% AI‑generated backend policy*.
-> All backend logic is hand‑crafted.
-> AI assistance is limited to:
-> – error explanation
-> – debugging guidance
-> – non‑creative code completion
-> – documentation clarity
-> – vulnerability fixes
->
-> For community expectations, see:  
-> – [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)  
-> – [`SECURITY.md`](./SECURITY.md)
-
-This repository contains two folders:
-
-- `/backend` – Elysia/TypeScript panel API interacting with Wings nodes and
+- `/backend` – Elysia/Bun panel API interacting with Wings nodes and
   MariaDB.
 - `/frontend` – Next.js (React) application. Pages communicate with the
   backend (and optionally directly with Wings) via the helper and etc.
+- `/antiabuse` – Rust based anti-abuse (abuse detection) system daemon that is run on every node to stop DDoS, port scanning, crypto mining and nezha proxies.
+- `/systemd` – Systemd unit files.
 
 ## Running the stack
 
-1. **Start Wings**
-We use wings-rs (https://github.com/calagopus/wings) and develop around them,
-You may use wings-go (pterodactyl stock) but it is untested and some features will not work!
+1. **Install Wings**
+We use wings-rs (https://github.com/calagopus/wings) and develop around them.
+You may **NOT** use wings-go (pterodactyl stock) as most features will not work!
+
+After installing wings complete backend and frontend setup then start them again.
 
 2. **Start backend**
    ```powershell
    cd backend
    # Bun is recommended since it runs the TypeScript directly, but..
-   # the old Node build path still works if Bun isn't installed
    bun install      # or `pnpm install`/`npm install` if you prefer
    sudo apt install ffmpeg #if using captcha
    sudo apt install espeak #if using captcha
-   bun run gen:jwt-secret # generate JWT Secret (set in .env as JWT_SECRET=generated-string)
-   bun run gen:jwt-secret # generate Encryption Key just like JWT Secret (set in .env as NODE_ENCRYPTION_KEY=generated-string)
-   nano .env        # edit .env (see .env.example)
+   bun run gen:jwt-secret # generate all secrets needed by .env and set them manually!
+   nano .env              # edit .env (see .env.example)
    bun run gen:default-role # create default role
    # for development you can simply run:
    bun src/index.ts
    # or use the helper scripts which choose Bun when available:
-   ./build.sh      # compiles TS for Node if needed (Skip if using bun)
+   ./build.sh      # compiles TS for Node if needed (Skip if using bun/node is untested!)
    ./start.sh      # launches the server (Do this directly if using bun)
    ```
    Backend listens on specified port (see `.env`).
@@ -127,32 +111,14 @@ cd frontend && pnpm run build # build
 pnpm run start # start
 ```
 
-### Optional: process managers
+### Optional: systemd setup
 
-For stable long-running services in production, use a process manager such as `pm2`, `systemd`, or `docker` to keep services alive and restart on failure.
-
-### Optional & Advanced: Deploys with Docker
-
-If you want a container setup, you can wrap each service in a Dockerfile and use docker-compose to orchestrate the frontend, backend, and Wings.
+I have included system files inside of /systemd folder that are used for https://ecli.app/ production deployment, feel free to use them for production deployment but change patches!
 
 ### Notes
 
 - The backend uses the `.env` file in `backend/`.
 - The frontend uses `.env` in `frontend/`.
-
-### Troubleshooting
-
-If the frontend cannot reach the backend, check:
-- `NEXT_PUBLIC_API_BASE` is set correctly (just in case)
-- backend is running & reachable
-- reverse proxy is passing through `/api/*` and `/wings/*` correctly
-
-### Wings sockets
-
-The panel will only open a background socket listener for Wings if at least
-one node record exists in the database.
-You must add a node via the `/nodes` API before any socket activity will start.
-This avoids any attempt to reach an absent Wings endpoint when the system is fresh.
 
 ## Notes
 
@@ -184,6 +150,15 @@ Before and after optimization showed performance improvement on most pages avg a
   <img src="./showcase/After-Optimisation.png" alt="After optimization" width="45%" />
 </p>
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=thenoname-gurl%2FEcliPanel&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=thenoname-gurl/EcliPanel&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=thenoname-gurl/EcliPanel&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=thenoname-gurl/EcliPanel&type=date&legend=top-left" />
+ </picture>
+</a>
 
 Happy exploring!
 >Side note: 
