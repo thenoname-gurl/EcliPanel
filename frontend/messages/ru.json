@@ -1016,6 +1016,9 @@
       "title": "Инциденты анти-абуза",
       "subtitle": "Последние срабатывания с AI-риск оценкой"
     },
+    "search": {
+      "placeholder": "Поиск по серверу, ноде, IP, типу детекта..."
+    },
     "summary": {
       "total": "Всего инцидентов",
       "highRisk": "Высокий риск (80+)",
@@ -1026,7 +1029,19 @@
     "agents": {
       "title": "Запущенные anti-abuse агенты",
       "none": "Активные anti-abuse агенты не обнаружены",
-      "lastSeenAgo": "последний сигнал {seconds}с назад"
+      "lastSeenAgo": "последний сигнал {seconds}с назад",
+      "justNow": "только что",
+      "secondsAgo": "{count}с назад",
+      "minutesAgo": "{count}м назад",
+      "hoursAgo": "{count}ч назад"
+    },
+    "table": {
+      "server": "Сервер",
+      "detection": "Обнаружение",
+      "risk": "Риск",
+      "status": "Статус",
+      "time": "Время",
+      "actions": "Действия"
     },
     "filters": {
       "sort": "Сортировка",
@@ -1046,14 +1061,17 @@
       "source": "Источник",
       "target": "Цель",
       "suspend": "Приостановлен",
+      "suspended": "Приостановлен",
       "aiAction": "AI действие",
       "status": "Статус",
-      "attachedCandidates": "Кандидаты прикреплённого сервера"
+      "attachedCandidates": "Кандидаты прикреплённого сервера",
+      "id": "ID"
     },
     "actions": {
       "refresh": "Обновить",
       "apply": "Применить",
       "markSolved": "Отметить решённым",
+      "details": "Детали",
       "dismiss": "Отклонить",
       "delete": "Удалить",
       "selectAllVisible": "Выбрать видимые",
@@ -1072,9 +1090,26 @@
       "empty": "Нет инцидентов для текущих фильтров",
       "saving": "Сохранение..."
     },
+    "bulk": {
+      "selected": "выбрано"
+    },
+    "riskLevels": {
+      "critical": "Критический",
+      "high": "Высокий",
+      "medium": "Средний",
+      "low": "Низкий",
+      "none": "Н/Д"
+    },
+    "status": {
+      "pending": "В ожидании",
+      "resolved": "Решён",
+      "dismissed": "Отклонён",
+      "archived": "В архиве"
+    },
     "pagination": {
       "page": "Страница",
       "of": "из",
+      "total": "{count} всего",
       "previous": "Предыдущая",
       "next": "Следующая"
     },
@@ -2017,7 +2052,8 @@
       "noFormsMatch": "Формы не найдены",
       "tryDifferentSearch": "Попробуйте другой поисковый запрос",
       "createFirstForm": "Создайте первую форму, чтобы начать",
-      "pendingCount": "{count} на рассмотрении"
+      "pendingCount": "{count} на рассмотрении",
+      "formFallback": "Форма {id}"
     },
     "visibilityLabels": {
       "publicAnonymous": "Анонимная",
@@ -2050,7 +2086,8 @@
     },
     "questions": {
       "title": "Вопросы",
-      "questionFallback": "Вопрос {index}"
+      "questionFallback": "Вопрос {index}",
+      "shortLabel": "Q"
     },
     "builder": {
       "createForm": "Создать форму",
@@ -2093,6 +2130,10 @@
       "title": "Пригласительные ссылки",
       "createNewInvite": "Создать новое приглашение",
       "noInviteLinks": "Пригласительных ссылок пока нет",
+      "inviteFallback": "Приглашение #{id}",
+      "never": "Никогда",
+      "usageCount": "{used}/{max} использований",
+      "usageCountUnlimited": "{used} использований",
       "fields": {
         "label": "Метка",
         "emailOptional": "Email (необязательно)",
@@ -2121,6 +2162,21 @@
         "rejected": "Отклонённые",
         "archived": "В архиве"
       }
+    },
+    "table": {
+      "form": "Форма",
+      "type": "Тип",
+      "visibility": "Видимость",
+      "status": "Статус",
+      "submissions": "Заявки",
+      "submitter": "Отправитель",
+      "submitted": "Отправлено",
+      "link": "Ссылка",
+      "id": "ID",
+      "actions": "Действия"
+    },
+    "bulk": {
+      "selected": "выбрано"
     },
     "actions": {
       "newForm": "Новая форма",

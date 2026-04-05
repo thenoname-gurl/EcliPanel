@@ -219,6 +219,7 @@ function NotificationDropdown({
     </>
   )
 
+  if (typeof document === "undefined") return null
   return createPortal(dropdownContent, document.body)
 }
 

@@ -1016,6 +1016,9 @@
       "title": "Anti-Abuse Incidents",
       "subtitle": "Recent detections with AI risk triage"
     },
+    "search": {
+      "placeholder": "Search by server, node, IP, detection type..."
+    },
     "summary": {
       "total": "Total incidents",
       "highRisk": "High risk (80+)",
@@ -1026,7 +1029,19 @@
     "agents": {
       "title": "Running anti-abuse agents",
       "none": "No active anti-abuse agents detected",
-      "lastSeenAgo": "last seen {seconds}s ago"
+      "lastSeenAgo": "last seen {seconds}s ago",
+      "justNow": "just now",
+      "secondsAgo": "{count}s ago",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago"
+    },
+    "table": {
+      "server": "Server",
+      "detection": "Detection",
+      "risk": "Risk",
+      "status": "Status",
+      "time": "Time",
+      "actions": "Actions"
     },
     "filters": {
       "sort": "Sort by",
@@ -1046,14 +1061,17 @@
       "source": "Source",
       "target": "Target",
       "suspend": "Suspended",
+      "suspended": "Suspended",
       "aiAction": "AI action",
       "status": "Status",
-      "attachedCandidates": "Attached server candidates"
+      "attachedCandidates": "Attached server candidates",
+      "id": "ID"
     },
     "actions": {
       "refresh": "Refresh",
       "apply": "Apply",
       "markSolved": "Mark solved",
+      "details": "Details",
       "dismiss": "Dismiss",
       "delete": "Delete",
       "selectAllVisible": "Select visible",
@@ -1072,9 +1090,26 @@
       "empty": "No incidents found for current filters",
       "saving": "Saving..."
     },
+    "bulk": {
+      "selected": "selected"
+    },
+    "riskLevels": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "none": "N/A"
+    },
+    "status": {
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed",
+      "archived": "Archived"
+    },
     "pagination": {
       "page": "Page",
       "of": "of",
+      "total": "{count} total",
       "previous": "Previous",
       "next": "Next"
     },
@@ -2017,7 +2052,8 @@
       "noFormsMatch": "No forms match your search",
       "tryDifferentSearch": "Try a different search term",
       "createFirstForm": "Create your first form to get started",
-      "pendingCount": "{count} pending"
+      "pendingCount": "{count} pending",
+      "formFallback": "Form {id}"
     },
     "visibilityLabels": {
       "publicAnonymous": "Anonymous",
@@ -2050,7 +2086,8 @@
     },
     "questions": {
       "title": "Questions",
-      "questionFallback": "Question {index}"
+      "questionFallback": "Question {index}",
+      "shortLabel": "Q"
     },
     "builder": {
       "createForm": "Create Form",
@@ -2093,6 +2130,10 @@
       "title": "Invite Links",
       "createNewInvite": "Create New Invite",
       "noInviteLinks": "No invite links yet",
+      "inviteFallback": "Invite #{id}",
+      "never": "Never",
+      "usageCount": "{used}/{max} uses",
+      "usageCountUnlimited": "{used} uses",
       "fields": {
         "label": "Label",
         "emailOptional": "Email (optional)",
@@ -2121,6 +2162,21 @@
         "rejected": "Rejected",
         "archived": "Archived"
       }
+    },
+    "table": {
+      "form": "Form",
+      "type": "Type",
+      "visibility": "Visibility",
+      "status": "Status",
+      "submissions": "Submissions",
+      "submitter": "Submitter",
+      "submitted": "Submitted",
+      "link": "Link",
+      "id": "ID",
+      "actions": "Actions"
+    },
+    "bulk": {
+      "selected": "selected"
     },
     "actions": {
       "newForm": "New Form",
