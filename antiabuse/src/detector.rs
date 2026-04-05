@@ -12,7 +12,7 @@ use crate::state::{
 };
 use chrono::Utc;
 use serde_json::json;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -46,6 +46,35 @@ fn is_sequential(ports: &VecDeque<u16>, trigger: usize) -> bool {
     }
 
     false
+}
+
+fn prune_timed_events(events: &mut VecDeque<(Instant, String)>, now: Instant, keep_window: Duration) {
+    while let Some((ts, _)) = events.front() {
+        if now.duration_since(*ts) > keep_window {
+            events.pop_front();
+        } else {
+            break;
+        }
+    }
+}
+
+fn timed_event_metrics(
+    events: &VecDeque<(Instant, String)>,
+    now: Instant,
+    window: Duration,
+) -> (usize, usize) {
+    let mut hits = 0usize;
+    let mut unique_ips: HashSet<&str> = HashSet::new();
+
+    for (ts, ip) in events.iter().rev() {
+        if now.duration_since(*ts) > window {
+            break;
+        }
+        hits += 1;
+        unique_ips.insert(ip.as_str());
+    }
+
+    (hits, unique_ips.len())
 }
 
 fn pick_action(strike_count: u32, cfg: &Config) -> EnforcementAction {
@@ -188,6 +217,7 @@ pub async fn process_connection(
             Protocol::Tcp => {
                 if is_big_hit && ddos_eligible {
                     state.tcp_big_hits += 1;
+                    state.tcp_unique_ips.insert(remote_ip.clone());
                 }
             }
             Protocol::Udp => {
@@ -213,6 +243,20 @@ pub async fn process_connection(
         if ddos_eligible {
             state.unique_ips.insert(remote_ip.clone());
         }
+
+        let max_threshold_window = config
+            .fast_threshold_window
+            .max(config.slow_threshold_window);
+
+        if is_big_hit && ddos_eligible {
+            match protocol {
+                Protocol::Tcp => state.tcp_big_hit_events.push_back((now, remote_ip.clone())),
+                Protocol::Udp => state.udp_big_hit_events.push_back((now, remote_ip.clone())),
+            }
+        }
+
+        prune_timed_events(&mut state.tcp_big_hit_events, now, max_threshold_window);
+        prune_timed_events(&mut state.udp_big_hit_events, now, max_threshold_window);
 
         let port_scan_key = match protocol {
             Protocol::Tcp => format!("tcp:{}", event.dest_ip),
@@ -267,10 +311,41 @@ pub async fn process_connection(
             .map(|s| s.len())
             .unwrap_or(0);
 
+        let (fast_window_hits, fast_window_unique_ips, slow_window_hits, slow_window_unique_ips) =
+            match protocol {
+                Protocol::Tcp => {
+                    let (fast_hits, fast_ips) = timed_event_metrics(
+                        &state.tcp_big_hit_events,
+                        now,
+                        config.fast_threshold_window,
+                    );
+                    let (slow_hits, slow_ips) = timed_event_metrics(
+                        &state.tcp_big_hit_events,
+                        now,
+                        config.slow_threshold_window,
+                    );
+                    (fast_hits, fast_ips, slow_hits, slow_ips)
+                }
+                Protocol::Udp => {
+                    let (fast_hits, fast_ips) = timed_event_metrics(
+                        &state.udp_big_hit_events,
+                        now,
+                        config.fast_threshold_window,
+                    );
+                    let (slow_hits, slow_ips) = timed_event_metrics(
+                        &state.udp_big_hit_events,
+                        now,
+                        config.slow_threshold_window,
+                    );
+                    (fast_hits, fast_ips, slow_hits, slow_ips)
+                }
+            };
+
         let metrics = json!({
             "protocol": protocol.as_str(),
             "bigHits": state.big_hits,
             "tcpBigHits": state.tcp_big_hits,
+            "tcpUniqueIps": state.tcp_unique_ips.len(),
             "udpHits": state.udp_hits,
             "udpUniqueIps": state.udp_unique_ips.len(),
             "amplificationHits": state.amplification_hits,
@@ -280,6 +355,12 @@ pub async fn process_connection(
             "uniquePortsCombined": unique_ports_combined,
             "miningPortHits": state.mining_hits,
             "miningUniqueTargets": state.mining_unique_ips.len(),
+            "fastWindowMs": config.fast_threshold_window.as_millis(),
+            "slowWindowMs": config.slow_threshold_window.as_millis(),
+            "fastWindowHits": fast_window_hits,
+            "fastWindowUniqueIps": fast_window_unique_ips,
+            "slowWindowHits": slow_window_hits,
+            "slowWindowUniqueIps": slow_window_unique_ips,
             "ddosEligible": ddos_eligible,
             "isInbound": is_inbound,
             "isAmplificationPort": is_amplification,
@@ -350,38 +431,60 @@ pub async fn process_connection(
                 metrics: metrics.clone(),
                 recent_events: recent_events.clone(),
             })
-        } else if state.big_hits >= config.fast_big_hit_threshold
-            && state.unique_ips.len() >= config.fast_ip_threshold
+        } else if {
+            let (big_hits, unique_ips) = (fast_window_hits, fast_window_unique_ips);
+
+            if protocol == Protocol::Tcp && unique_ports_combined <= 1 {
+                let elevated_hit_threshold = config.fast_big_hit_threshold.saturating_mul(10).max(50);
+                let elevated_ip_threshold = config.fast_ip_threshold.saturating_mul(4).max(20);
+                big_hits >= elevated_hit_threshold && unique_ips >= elevated_ip_threshold
+            } else {
+                big_hits >= config.fast_big_hit_threshold && unique_ips >= config.fast_ip_threshold
+            }
+        }
         {
             let detection_type = match protocol {
                 Protocol::Tcp => "ddos_fast_threshold_tcp",
                 Protocol::Udp => "ddos_fast_threshold_udp",
             };
+            let (big_hits, unique_ips) = (fast_window_hits, fast_window_unique_ips);
             Some(DetectionTrigger {
                 detection_type: detection_type.to_string(),
                 reason: format!(
-                    "fast threshold ({}): {} big hits across {} IPs",
+                    "fast threshold ({}): {} big hits across {} IPs in {}ms",
                     protocol.as_str().to_uppercase(),
-                    state.big_hits,
-                    state.unique_ips.len()
+                    big_hits,
+                    unique_ips,
+                    config.fast_threshold_window.as_millis()
                 ),
                 metrics: metrics.clone(),
                 recent_events: recent_events.clone(),
             })
-        } else if state.big_hits >= config.slow_big_hit_threshold
-            && state.unique_ips.len() >= config.slow_ip_threshold
+        } else if {
+            let (big_hits, unique_ips) = (slow_window_hits, slow_window_unique_ips);
+
+            if protocol == Protocol::Tcp && unique_ports_combined <= 1 {
+                let elevated_hit_threshold = config.slow_big_hit_threshold.saturating_mul(5).max(100);
+                let elevated_ip_threshold = config.slow_ip_threshold.saturating_mul(3).max(30);
+                big_hits >= elevated_hit_threshold && unique_ips >= elevated_ip_threshold
+            } else {
+                big_hits >= config.slow_big_hit_threshold && unique_ips >= config.slow_ip_threshold
+            }
+        }
         {
             let detection_type = match protocol {
                 Protocol::Tcp => "ddos_slow_threshold_tcp",
                 Protocol::Udp => "ddos_slow_threshold_udp",
             };
+            let (big_hits, unique_ips) = (slow_window_hits, slow_window_unique_ips);
             Some(DetectionTrigger {
                 detection_type: detection_type.to_string(),
                 reason: format!(
-                    "slow threshold ({}): {} big hits across {} IPs",
+                    "slow threshold ({}): {} big hits across {} IPs in {}ms",
                     protocol.as_str().to_uppercase(),
-                    state.big_hits,
-                    state.unique_ips.len()
+                    big_hits,
+                    unique_ips,
+                    config.slow_threshold_window.as_millis()
                 ),
                 metrics: metrics.clone(),
                 recent_events: recent_events.clone(),
@@ -500,6 +603,11 @@ pub async fn process_connection(
         _ => true,
     };
 
+    if action == EnforcementAction::Suspend && !config.auto_suspend_enabled {
+        enforcement_note = Some("auto suspend disabled by config".to_string());
+        effective_action = EnforcementAction::Alert;
+    }
+
     if action == EnforcementAction::Suspend && !suspend_allowed {
         enforcement_note = Some(format!("server status '{}' blocks suspend", server_status.unwrap_or_else(|| "unknown".to_string())));
         effective_action = EnforcementAction::Alert;
@@ -562,7 +670,9 @@ pub async fn process_connection(
             }
         }
     } else {
-        enforcement_note = Some("alert-only action selected".to_string());
+        if enforcement_note.is_none() {
+            enforcement_note = Some("alert-only action selected".to_string());
+        }
     }
 
     let payload = json!({
