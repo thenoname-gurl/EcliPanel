@@ -160,12 +160,6 @@ Before and after optimization showed performance improvement on most pages avg a
  </picture>
 </a>
 
-## Our valuable contributors!
-
-[//]: kontrolplane/generate-contributors-list
-
-[//]: kontrolplane/generate-contributors-list
-
 Happy exploring!
 >Side note: 
 > [This project](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) took part in [flavortown](https://flavortown.hack.club/?ref=eclipsesystems)!
