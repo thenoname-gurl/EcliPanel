@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
 @Entity()
-@Index(['serverId', 'timestamp'])
+@Index('IDX_soc_data_server_timestamp', ['serverId', 'timestamp'])
 export class SocData {
   @PrimaryGeneratedColumn()
   id: number;
