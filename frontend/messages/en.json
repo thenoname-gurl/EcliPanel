@@ -569,7 +569,7 @@
     }
   },
   "license": {
-    "translationNote": "This is a translation. The legally binding version is the original English text.",
+    "translationNote": "This is original legally binding version of the license.",
     "brand": "Eclipse Systems",
     "nav": {
       "home": "[home]",
@@ -2053,6 +2053,7 @@
       "tryDifferentSearch": "Try a different search term",
       "createFirstForm": "Create your first form to get started",
       "pendingCount": "{count} pending",
+      "formsCount": "forms",
       "formFallback": "Form {id}"
     },
     "visibilityLabels": {
@@ -2151,6 +2152,8 @@
     },
     "submissions": {
       "title": "Submissions",
+      "searchAll": "Search all submissions",
+      "searchIn": "Search in",
       "noSubmissions": "No submissions",
       "noFiltered": "No {status} submissions",
       "willAppear": "Submissions will appear here",
@@ -2175,6 +2178,16 @@
       "id": "ID",
       "actions": "Actions"
     },
+    "labels": {
+      "pending": "pending"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "total": "Total: {count}",
+      "previous": "Previous",
+      "next": "Next"
+    },
     "bulk": {
       "selected": "selected"
     },
@@ -2182,6 +2195,8 @@
       "newForm": "New Form",
       "copyLink": "Copy link",
       "edit": "Edit",
+      "view": "View",
+      "viewSubmissions": "View submissions",
       "template": "Template",
       "deleteForm": "Delete form",
       "addQuestion": "Add Question",

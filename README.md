@@ -2,12 +2,17 @@
   <img src="./eclipanel.png" alt="EcliPanel" width="640" />
 </p>
 
-EcliPanel v3 is a complete rewrite of the original EcliPanel v1, which itself was built on top of the Jexactyl panel.
+# What is EcliPanel?
+
+EcliPanel is enterprise solution for sever-management with built in DNS management for organisations,
+team control, Docker and KVM (QEMU) virtualization.
+
+EcliPanel as features built in applications (forms) for staff members, feedbacks and abuse reports.
+On top of that EcliPanel features AI powered features and great anti-abuse (abuse detection) system.
+
+EcliPanel (v3) is a complete rewrite of the original EcliPanel v1, which itself was built on top of the Jexactyl panel.
 
 The goal of this iteration is to provide a fully in‑house backend and modernized frontend while keeping the codebase open source for non commercial use.
-
-
-⚠️ This is still in-dev project bugs might happen, tho it was tested and should be save to use in production!
 
 Interested on how this project looks? Check out showcase [by clicking here](/SHOWCASE.md)
 

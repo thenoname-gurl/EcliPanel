@@ -28,12 +28,10 @@ import {
   Mail,
   Plus,
   RefreshCw,
-  RotateCcw,
   Search,
   Send,
   Tag,
   Trash2,
-  UserCheck,
   Users,
   X,
   XCircle,
@@ -60,7 +58,7 @@ type FormSchema = {
 }
 
 type FormVisibility = "public_anonymous" | "public_users" | "private_invite"
-type FormStatus     = "active" | "archived" | "closed"
+type FormStatus = "active" | "archived" | "closed"
 
 type AppForm = {
   id: number
@@ -111,16 +109,22 @@ const FORM_STATUS_CONFIG: Record<string, { badge: string; dot: string; label: st
 }
 
 const SUBMISSION_STATUS_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
-  pending:  { badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",   dot: "bg-yellow-400",  label: "Pending"  },
+  pending:  { badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",    dot: "bg-yellow-400",  label: "Pending"  },
   accepted: { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: "Accepted" },
-  rejected: { badge: "border-red-500/30 bg-red-500/10 text-red-400",            dot: "bg-red-400",     label: "Rejected" },
-  archived: { badge: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",         dot: "bg-zinc-400",    label: "Archived" },
+  rejected: { badge: "border-red-500/30 bg-red-500/10 text-red-400",             dot: "bg-red-400",     label: "Rejected" },
+  archived: { badge: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",          dot: "bg-zinc-400",    label: "Archived" },
 }
 
 const VISIBILITY_CONFIG: Record<FormVisibility, { icon: React.ElementType; label: string; badge: string }> = {
-  public_anonymous: { icon: Globe, label: "Public",      badge: "border-blue-500/30 bg-blue-500/10 text-blue-400"       },
-  public_users:     { icon: Users, label: "Users only",  badge: "border-purple-500/30 bg-purple-500/10 text-purple-400" },
-  private_invite:   { icon: Lock,  label: "Invite only", badge: "border-orange-500/30 bg-orange-500/10 text-orange-400" },
+  public_anonymous: { icon: Globe, label: "Public",      badge: "border-blue-500/30 bg-blue-500/10 text-blue-400"         },
+  public_users:     { icon: Users, label: "Users only",  badge: "border-purple-500/30 bg-purple-500/10 text-purple-400"   },
+  private_invite:   { icon: Lock,  label: "Invite only", badge: "border-orange-500/30 bg-orange-500/10 text-orange-400"   },
+}
+
+const VISIBILITY_LABEL_KEYS: Record<FormVisibility, string> = {
+  public_anonymous: "visibilityLabels.publicAnonymous",
+  public_users: "visibilityLabels.publicUsers",
+  private_invite: "visibilityLabels.privateInvite",
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,22 +154,26 @@ const selectCls =
 const textareaCls =
   "w-full min-w-0 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all resize-none"
 
-function StatusDot({ status, config }: { status: string; config: Record<string, { badge: string; dot: string; label: string }> }) {
+function StatusDot({ status, config, label }: {
+  status: string
+  config: Record<string, { badge: string; dot: string; label: string }>
+  label?: string
+}) {
   const c = config[status] ?? Object.values(config)[0]
   return (
-    <Badge variant="outline" className={cn("text-[10px] gap-1", c.badge)}>
+    <Badge variant="outline" className={cn("text-[10px] gap-1 shrink-0 whitespace-nowrap", c.badge)}>
       <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", c.dot)} />
-      {c.label}
+      {label ?? c.label}
     </Badge>
   )
 }
 
-function VisiBadge({ visibility }: { visibility: FormVisibility }) {
+function VisiBadge({ visibility, label }: { visibility: FormVisibility; label?: string }) {
   const c = VISIBILITY_CONFIG[visibility]
   return (
-    <Badge variant="outline" className={cn("text-[10px] gap-1", c.badge)}>
+    <Badge variant="outline" className={cn("text-[10px] gap-1 shrink-0 whitespace-nowrap", c.badge)}>
       <c.icon className="h-2.5 w-2.5 shrink-0" />
-      {c.label}
+      {label ?? c.label}
     </Badge>
   )
 }
@@ -174,7 +182,7 @@ function Field({ label, required, hint, children }: {
   label?: string; required?: boolean; hint?: string; children: React.ReactNode
 }) {
   return (
-    <div className="min-w-0 space-y-1.5">
+    <div className="min-w-0 w-full space-y-1.5">
       {label && (
         <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
           {label}{required && <span className="text-destructive ml-1">*</span>}
@@ -186,24 +194,21 @@ function Field({ label, required, hint, children }: {
   )
 }
 
-function SectionHeader({
-  icon: Icon, title, badge, action,
-}: {
-  icon?: React.ElementType; title: string
-  badge?: React.ReactNode; action?: React.ReactNode
+function SectionHeader({ icon: Icon, title, badge, action }: {
+  icon?: React.ElementType; title: string; badge?: React.ReactNode; action?: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border">
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+    <div className="flex items-center justify-between gap-2 px-4 py-3.5 border-b border-border min-w-0">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {Icon && (
           <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Icon className="h-3.5 w-3.5 text-primary" />
           </div>
         )}
-        <h3 className="text-sm font-semibold text-foreground leading-none">{title}</h3>
-        {badge}
+        <h3 className="text-sm font-semibold text-foreground leading-none truncate">{title}</h3>
+        {badge && <span className="shrink-0">{badge}</span>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="shrink-0 ml-2">{action}</div>}
     </div>
   )
 }
@@ -236,7 +241,7 @@ function EmptyCard({ icon: Icon, text }: { icon: React.ElementType; text: string
     <div className="rounded-xl border border-border bg-card px-4 py-12">
       <div className="flex flex-col items-center gap-2">
         <Icon className="h-8 w-8 text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">{text}</p>
+        <p className="text-sm text-muted-foreground text-center">{text}</p>
       </div>
     </div>
   )
@@ -258,18 +263,15 @@ function QuestionCard({
   const hasOptions = question.type === "select" || question.type === "multi_select" || question.type === "checkbox"
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden w-full">
+    <div className="rounded-xl border border-border bg-card overflow-hidden w-full min-w-0">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/20 border-b border-border/60">
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/20 border-b border-border/60 min-w-0">
         <GripVertical className="h-4 w-4 text-muted-foreground/30 shrink-0" />
         <span className="text-[10px] font-black text-muted-foreground/60 font-mono bg-secondary px-1.5 py-0.5 rounded shrink-0">
-          {t("questions.shortLabel")} {index + 1}
+          Q{index + 1}
         </span>
         <span className="text-xs text-foreground font-medium truncate flex-1 min-w-0">
-          {question.label || t("questions.questionFallback", { index: index + 1 })}
-        </span>
-        <span className="text-[10px] font-semibold text-primary/80 bg-primary/8 border border-primary/15 px-2 py-0.5 rounded-full hidden sm:inline shrink-0">
-          {questionTypeLabels[question.type]}
+          {question.label || `Question ${index + 1}`}
         </span>
         <button
           onClick={onRemove} disabled={total === 1}
@@ -279,17 +281,17 @@ function QuestionCard({
         </button>
       </div>
 
-      {/* Fields */}
-      <div className="p-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Fields — always single col to prevent overflow */}
+      <div className="p-3 grid grid-cols-1 gap-3 min-w-0">
         <Field label={t("builder.questionFields.label")}>
           <input value={question.label || ""} onChange={(e) => onUpdate({ label: e.target.value })}
-            placeholder={t("builder.questionFields.labelPlaceholder", { index: index + 1 })} className={inputCls} />
+            placeholder={`Question ${index + 1}`} className={inputCls} />
         </Field>
         <Field label={t("builder.questionFields.type")}>
           <select value={question.type} onChange={(e) => {
-            const t = e.target.value as FormQuestion["type"]
-            const sel = t === "select" || t === "multi_select" || t === "checkbox"
-            onUpdate({ type: t, options: sel ? question.options || [] : [] })
+            const nt = e.target.value as FormQuestion["type"]
+            const sel = nt === "select" || nt === "multi_select" || nt === "checkbox"
+            onUpdate({ type: nt, options: sel ? question.options || [] : [] })
           }} className={selectCls}>
             {QUESTION_TYPES.map((qt) => <option key={qt} value={qt}>{questionTypeLabels[qt]}</option>)}
           </select>
@@ -298,35 +300,37 @@ function QuestionCard({
           <input value={question.placeholder || ""} onChange={(e) => onUpdate({ placeholder: e.target.value })}
             placeholder={t("builder.questionFields.placeholderHint")} className={inputCls} />
         </Field>
-        <div className="flex items-end">
-          <button type="button" onClick={() => onUpdate({ required: !question.required })}
-            className={cn(
-              "flex items-center gap-3 w-full h-10 px-3 rounded-lg border transition-all text-sm font-medium",
-              question.required
-                ? "border-primary/40 bg-primary/8 text-primary"
-                : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
-            )}>
-            <div className={cn("relative w-9 h-5 rounded-full transition-colors shrink-0", question.required ? "bg-primary" : "bg-secondary border border-border")}>
-              <span className={cn("absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform", question.required ? "translate-x-4" : "translate-x-0")} />
-            </div>
-            {t("builder.questionFields.required")}
-          </button>
-        </div>
+        <button type="button" onClick={() => onUpdate({ required: !question.required })}
+          className={cn(
+            "flex items-center gap-3 w-full h-10 px-3 rounded-lg border transition-all text-sm font-medium",
+            question.required
+              ? "border-primary/40 bg-primary/8 text-primary"
+              : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
+          )}>
+          <div className={cn("relative w-9 h-5 rounded-full transition-colors shrink-0",
+            question.required ? "bg-primary" : "bg-secondary border border-border")}>
+            <span className={cn("absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform",
+              question.required ? "translate-x-4" : "translate-x-0")} />
+          </div>
+          {t("builder.questionFields.required")}
+        </button>
       </div>
 
       {/* Options */}
       {hasOptions && (
-        <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-border/60 pt-3">
+        <div className="px-3 pb-3 pt-3 space-y-2.5 border-t border-border/60 min-w-0">
           <div className="flex items-center gap-1.5">
             <Tag className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("builder.questionFields.options")}</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              {t("builder.questionFields.options")}
+            </span>
             <CountBadge count={(question.options || []).length} />
           </div>
           {(question.options || []).length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {(question.options || []).map((opt, oi) => (
-                <span key={oi} className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground">
-                  <span className="max-w-[120px] truncate">{opt}</span>
+                <span key={oi} className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs font-medium text-foreground">
+                  <span className="truncate max-w-[120px]">{opt}</span>
                   <button onClick={() => onRemoveOption(oi)} className="text-muted-foreground/60 hover:text-red-400 transition-colors shrink-0">
                     <X className="h-2.5 w-2.5" />
                   </button>
@@ -336,13 +340,13 @@ function QuestionCard({
           ) : (
             <p className="text-[11px] text-muted-foreground/60 italic">{t("builder.questionFields.noOptionsYet")}</p>
           )}
-          <div className="flex gap-2 min-w-0">
+          <div className="flex gap-2 w-full min-w-0">
             <input value={optionDraft} onChange={(e) => onOptionDraftChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onAddOption() } }}
               placeholder={t("builder.questionFields.optionInputPlaceholder")}
               className={cn(inputCls, "flex-1 min-w-0 h-9 text-xs")} />
             <button onClick={onAddOption}
-              className="shrink-0 h-9 px-3 rounded-lg border border-border bg-secondary text-xs font-medium hover:bg-secondary/80 transition-colors">
+              className="shrink-0 h-9 px-3 rounded-lg border border-border bg-secondary text-xs font-medium hover:bg-secondary/80 transition-colors whitespace-nowrap">
               {t("actions.add")}
             </button>
           </div>
@@ -371,41 +375,37 @@ export default function ApplicationsTab() {
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  const [forms, setForms]           = useState<AppForm[]>([])
+  const [forms, setForms]             = useState<AppForm[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
-  const [invites, setInvites]       = useState<Invite[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [saving, setSaving]         = useState(false)
-  const [error, setError]           = useState<string | null>(null)
+  const [invites, setInvites]         = useState<Invite[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [saving, setSaving]           = useState(false)
+  const [error, setError]             = useState<string | null>(null)
 
-  // Active form selection
   const [selectedFormId, setSelectedFormId] = useState<number | null>(null)
 
-  // Builder fields
-  const [bTitle, setBTitle]         = useState("")
-  const [bDesc, setBDesc]           = useState("")
-  const [bSlug, setBSlug]           = useState("")
-  const [bKind, setBKind]           = useState<"staff_application" | "abuse_report">("staff_application")
-  const [bVis, setBVis]             = useState<FormVisibility>("public_users")
-  const [bStatus, setBStatus]       = useState<FormStatus>("active")
-  const [bQuestions, setBQuestions] = useState<FormQuestion[]>([makeQuestion(1)])
+  const [bTitle, setBTitle]           = useState("")
+  const [bDesc, setBDesc]             = useState("")
+  const [bSlug, setBSlug]             = useState("")
+  const [bKind, setBKind]             = useState<"staff_application" | "abuse_report">("staff_application")
+  const [bVis, setBVis]               = useState<FormVisibility>("public_users")
+  const [bStatus, setBStatus]         = useState<FormStatus>("active")
+  const [bQuestions, setBQuestions]   = useState<FormQuestion[]>([makeQuestion(1)])
   const [showBuilder, setShowBuilder] = useState(false)
 
-  // Invite fields
-  const [invLabel, setInvLabel]     = useState("")
-  const [invEmail, setInvEmail]     = useState("")
-  const [invMaxUses, setInvMaxUses] = useState("")
-  const [invExpires, setInvExpires] = useState("")
+  const [invLabel, setInvLabel]       = useState("")
+  const [invEmail, setInvEmail]       = useState("")
+  const [invMaxUses, setInvMaxUses]   = useState("")
+  const [invExpires, setInvExpires]   = useState("")
 
-  // UI state
-  const [formSearch, setFormSearch]       = useState("")
-  const [subSearch, setSubSearch]         = useState("")
-  const [subFilter, setSubFilter]         = useState("all")
-  const [optionDrafts, setOptionDrafts]   = useState<Record<number, string>>({})
-  const [copiedId, setCopiedId]           = useState<string | null>(null)
-  const [expandedSubs, setExpandedSubs]   = useState<Set<number>>(new Set())
+  const [formSearch, setFormSearch]         = useState("")
+  const [subSearch, setSubSearch]           = useState("")
+  const [subFilter, setSubFilter]           = useState("all")
+  const [optionDrafts, setOptionDrafts]     = useState<Record<number, string>>({})
+  const [copiedId, setCopiedId]             = useState<string | null>(null)
+  const [expandedSubs, setExpandedSubs]     = useState<Set<number>>(new Set())
   const [selectedSubIds, setSelectedSubIds] = useState<number[]>([])
-  const [subPage, setSubPage]             = useState(1)
+  const [subPage, setSubPage]               = useState(1)
   const SUB_PER_PAGE = 20
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -546,9 +546,14 @@ export default function ApplicationsTab() {
           options: (q.options || []).map((o) => String(o).trim()).filter(Boolean),
         })),
       }
-      const payload = { title: bTitle.trim(), description: bDesc.trim(), slug: bSlug.trim() || undefined, kind: bKind, visibility: bVis, status: bStatus, schema }
+      const payload = {
+        title: bTitle.trim(), description: bDesc.trim(),
+        slug: bSlug.trim() || undefined, kind: bKind,
+        visibility: bVis, status: bStatus, schema,
+      }
       if (selectedFormId) {
-        await apiFetch(API_ENDPOINTS.adminApplicationForm.replace(":id", String(selectedFormId)), { method: "PUT", body: JSON.stringify(payload) })
+        await apiFetch(API_ENDPOINTS.adminApplicationForm.replace(":id", String(selectedFormId)),
+          { method: "PUT", body: JSON.stringify(payload) })
       } else {
         await apiFetch(API_ENDPOINTS.adminApplicationsForms, { method: "POST", body: JSON.stringify(payload) })
       }
@@ -596,9 +601,8 @@ export default function ApplicationsTab() {
 
   const updateSubStatus = useCallback(async (id: number, status: Submission["status"]) => {
     try {
-      await apiFetch(API_ENDPOINTS.adminApplicationSubmission.replace(":id", String(id)), {
-        method: "PUT", body: JSON.stringify({ status }),
-      })
+      await apiFetch(API_ENDPOINTS.adminApplicationSubmission.replace(":id", String(id)),
+        { method: "PUT", body: JSON.stringify({ status }) })
       await loadAll()
     } catch (err: any) { setError(err?.message || "Failed to update") }
   }, [loadAll])
@@ -616,29 +620,33 @@ export default function ApplicationsTab() {
     if (!selectedSubIds.length) return
     if (!confirm(t("confirm.bulkDeleteSubmissions", { count: selectedSubIds.length }))) return
     try {
-      await apiFetch(API_ENDPOINTS.adminApplicationsSubmissionsBulkDelete, {
-        method: "POST", body: JSON.stringify({ ids: selectedSubIds }),
-      })
+      await apiFetch(API_ENDPOINTS.adminApplicationsSubmissionsBulkDelete,
+        { method: "POST", body: JSON.stringify({ ids: selectedSubIds }) })
       setSelectedSubIds([])
       await loadAll()
     } catch (err: any) { setError(err?.message || "Failed to bulk delete") }
   }, [selectedSubIds, loadAll, t])
 
-  // ── Clipboard ──────────────────────────────────────────────────────────────
-
   const copy = useCallback(async (text: string, id: string) => {
-    try { await navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(() => setCopiedId(null), 2000) }
-    catch {}
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch {}
+  }, [])
+
+  const toggleExpand = useCallback((id: number) => {
+    setExpandedSubs((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }, [])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-4 w-full overflow-x-hidden">
+    <div className="flex flex-col gap-4">
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
           <span className="text-sm text-destructive flex-1 min-w-0 break-words">{error}</span>
           <button onClick={() => setError(null)} className="shrink-0 text-destructive/60 hover:text-destructive transition-colors">
             <X className="h-4 w-4" />
@@ -646,47 +654,44 @@ export default function ApplicationsTab() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          SECTION 1 — FORMS
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════
+          SECTION 1 — FORMS HEADER BAR
+      ══════════════════════════════════════════════════════════════════ */}
 
-      {/* Forms search / header bar */}
       <div className="rounded-xl border border-border bg-card">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
-          <div className="relative flex-1 max-w-md">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-              <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <input
-                type="text" placeholder={t("forms.searchPlaceholder")} value={formSearch}
-                onChange={(e) => setFormSearch(e.target.value)}
-                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-              />
-              {formSearch && (
-                <button onClick={() => setFormSearch("")} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+        <div className="flex flex-col gap-3 p-3 sm:p-4">
+          {/* Search */}
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <input type="text" placeholder={t("forms.searchPlaceholder")} value={formSearch}
+              onChange={(e) => setFormSearch(e.target.value)}
+              className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
+            {formSearch && (
+              <button onClick={() => setFormSearch("")} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-muted-foreground hidden sm:inline">{forms.length} {t("forms.formsCount")}</span>
-            <button onClick={loadAll} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title={t("actions.refresh")}>
-              <RefreshCw className="h-4 w-4" />
-            </button>
-            <button
-              onClick={openNewForm}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" /> {t("actions.newForm")}
-            </button>
+          {/* Actions */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">{forms.length} {t("forms.formsCount")}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={loadAll} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                <RefreshCw className="h-4 w-4" />
+              </button>
+              <button onClick={openNewForm}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors whitespace-nowrap">
+                <Plus className="h-3.5 w-3.5" />{t("actions.newForm")}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Forms — desktop table */}
-      <div className="rounded-xl border border-border bg-card hidden lg:block">
+      {/* ── Forms desktop table ── */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden hidden lg:block">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-border text-xs text-muted-foreground">
                 <th className="px-4 py-3 text-left font-medium">{t("table.form")}</th>
@@ -716,19 +721,15 @@ export default function ApplicationsTab() {
                   const formSubs = submissions.filter((s) => Number(s.formId) === Number(form.id))
                   const pending = formSubs.filter((s) => s.status === "pending").length
                   const isEditing = Number(selectedFormId) === Number(form.id) && showBuilder
-
                   return (
                     <tr key={form.id} className={cn("border-b border-border/50 transition-colors group", isEditing ? "bg-primary/5" : "hover:bg-secondary/20")}>
-                      {/* Form name */}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 max-w-[220px]">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-medium text-foreground truncate max-w-[200px]">{form.title}</span>
-                          {form.description && (
-                            <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">{form.description}</span>
-                          )}
+                          <span className="text-sm font-medium text-foreground truncate">{form.title}</span>
+                          {form.description && <span className="text-[11px] text-muted-foreground truncate">{form.description}</span>}
                           {publicLink && (
                             <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[180px]">/forms/{form.slug}</span>
+                              <span className="text-[10px] font-mono text-muted-foreground truncate">/forms/{form.slug}</span>
                               <button onClick={() => copy(publicLink, `link-${form.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
                                 {copiedId === `link-${form.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                               </button>
@@ -736,54 +737,25 @@ export default function ApplicationsTab() {
                           )}
                         </div>
                       </td>
-
-                      {/* Kind */}
                       <td className="px-4 py-3">
-                        <Badge variant="outline" className="text-[10px] border-border bg-secondary/50 text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] border-border bg-secondary/50 text-muted-foreground whitespace-nowrap">
                           {form.kind === "staff_application" ? t("builder.types.staffApplication") : t("builder.types.abuseReport")}
                         </Badge>
                       </td>
-
-                      {/* Visibility */}
-                      <td className="px-4 py-3">
-                        <VisiBadge visibility={form.visibility} />
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <StatusDot status={form.status} config={FORM_STATUS_CONFIG} />
-                      </td>
-
-                      {/* Submissions */}
+                      <td className="px-4 py-3"><VisiBadge visibility={form.visibility} label={t(VISIBILITY_LABEL_KEYS[form.visibility])} /></td>
+                      <td className="px-4 py-3"><StatusDot status={form.status} config={FORM_STATUS_CONFIG} label={t(`statusBadge.${form.status}`)} /></td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-sm font-medium text-foreground">{formSubs.length}</span>
-                          {pending > 0 && (
-                            <span className="text-[10px] text-yellow-400">{pending} pending</span>
-                          )}
+                          {pending > 0 && <span className="text-[10px] text-yellow-400">{pending} {t("labels.pending")}</span>}
                         </div>
                       </td>
-
-                      {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEditForm(form)} title={t("actions.edit")}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                            <Edit3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => duplicateForm(form)} title={t("actions.template")}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                            <Layers className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => { setSelectedFormId(form.id); setShowBuilder(false); setSubFilter("all") }}
-                            title={t("actions.viewSubmissions")}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                            <Inbox className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => deleteForm(form.id)} title={t("actions.deleteForm")}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <button onClick={() => openEditForm(form)} title={t("actions.edit")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Edit3 className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => duplicateForm(form)} title={t("actions.template")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Layers className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setSelectedFormId(form.id); setShowBuilder(false); setSubFilter("all") }} title={t("actions.viewSubmissions")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Inbox className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => deleteForm(form.id)} title={t("actions.deleteForm")} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </td>
                     </tr>
@@ -795,17 +767,22 @@ export default function ApplicationsTab() {
         </div>
       </div>
 
-      {/* Forms — mobile cards */}
+      {/* ── Forms mobile cards — AntiAbuse pattern ── */}
       <div className="flex flex-col gap-3 lg:hidden">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3 animate-pulse">
-              <div className="h-4 w-40 rounded bg-secondary" />
-              <div className="flex gap-2">
-                <div className="h-5 w-16 rounded-full bg-secondary" />
-                <div className="h-5 w-20 rounded-full bg-secondary" />
+            <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse">
+              <div className="flex items-start gap-3 p-4 pb-3">
+                <div className="h-4 w-36 rounded bg-secondary" />
+                <div className="h-5 w-14 rounded-full bg-secondary ml-auto" />
               </div>
-              <div className="grid grid-cols-3 gap-px h-9 rounded bg-secondary" />
+              <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                <div className="bg-card px-4 py-2.5 h-14" />
+                <div className="bg-card px-4 py-2.5 h-14" />
+              </div>
+              <div className="grid grid-cols-4 gap-px border-t border-border">
+                {[0,1,2,3].map(j => <div key={j} className="h-10 bg-secondary/20" />)}
+              </div>
             </div>
           ))
         ) : filteredForms.length === 0 ? (
@@ -818,46 +795,45 @@ export default function ApplicationsTab() {
 
             return (
               <div key={form.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                {/* Top */}
+
+                {/* Top: title + status — mirrors AntiAbuse top section */}
                 <div className="flex items-start gap-3 p-4 pb-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <FileText className="h-4 w-4 text-primary" />
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{form.title}</p>
                         {form.description && (
-                          <p className="text-[11px] text-muted-foreground truncate">{form.description}</p>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{form.description}</p>
                         )}
                       </div>
-                      <StatusDot status={form.status} config={FORM_STATUS_CONFIG} />
+                      <StatusDot status={form.status} config={FORM_STATUS_CONFIG} label={t(`statusBadge.${form.status}`)} />
                     </div>
+                    {/* Badges row */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <VisiBadge visibility={form.visibility} />
-                      <Badge variant="outline" className="text-[10px] border-border bg-secondary/50 text-muted-foreground">
-                        {form.kind === "staff_application" ? "Staff" : "Abuse"}
+                      <VisiBadge visibility={form.visibility} label={t(VISIBILITY_LABEL_KEYS[form.visibility])} />
+                      <Badge variant="outline" className="text-[10px] border-border bg-secondary/50 text-muted-foreground whitespace-nowrap shrink-0">
+                        {form.kind === "staff_application" ? t("builder.types.staffApplication") : t("builder.types.abuseReport")}
                       </Badge>
                       {pending > 0 && (
-                        <Badge variant="outline" className="text-[10px] border-yellow-500/30 bg-yellow-500/10 text-yellow-400">
-                          {pending} pending
+                        <Badge variant="outline" className="text-[10px] border-yellow-500/30 bg-yellow-500/10 text-yellow-400 whitespace-nowrap shrink-0">
+                          {pending} {t("labels.pending")}
                         </Badge>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Stats row */}
+                {/* Mid stats grid — AntiAbuse pattern */}
                 <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
                   <div className="bg-card px-4 py-2.5">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.submissions")}</p>
                     <p className="text-sm font-semibold text-foreground">{formSubs.length}</p>
                   </div>
-                  <div className="bg-card px-4 py-2.5">
+                  <div className="bg-card px-4 py-2.5 min-w-0 overflow-hidden">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.link")}</p>
                     {publicLink ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-muted-foreground truncate flex-1 min-w-0">/forms/{form.slug}</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0 flex-1">/{form.slug}</span>
                         <button onClick={() => copy(publicLink, `link-${form.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
                           {copiedId === `link-${form.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                         </button>
@@ -868,17 +844,15 @@ export default function ApplicationsTab() {
                   </div>
                 </div>
 
-                {/* Action bar — mirrors UsersTab */}
+                {/* Action bar — AntiAbuse divide-x pattern */}
                 <div className="flex items-center border-t border-border divide-x divide-border">
                   <button onClick={() => openEditForm(form)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-                    <Edit3 className="h-3.5 w-3.5" />
-                    <span>{t("actions.edit")}</span>
+                    <Edit3 className="h-3.5 w-3.5" /><span>{t("actions.edit")}</span>
                   </button>
                   <button onClick={() => { setSelectedFormId(form.id); setShowBuilder(false); setSubFilter("all") }}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-                    <Inbox className="h-3.5 w-3.5" />
-                    <span>{t("actions.view")}</span>
+                    <Inbox className="h-3.5 w-3.5" /><span>{t("actions.view")}</span>
                   </button>
                   <button onClick={() => duplicateForm(form)}
                     className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
@@ -895,27 +869,25 @@ export default function ApplicationsTab() {
         )}
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          SECTION 2 — FORM BUILDER (slide-in panel style)
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════
+          SECTION 2 — FORM BUILDER
+      ══════════════════════════════════════════════════════════════════ */}
 
       {showBuilder && (
         <div className="rounded-xl border border-border bg-card overflow-hidden w-full">
           <SectionHeader
             icon={selectedFormId ? Edit3 : Plus}
             title={selectedFormId ? t("builder.editForm") : t("builder.createForm")}
-            badge={selectedFormId ? <CountBadge count={bQuestions.length} /> : undefined}
+            badge={<CountBadge count={bQuestions.length} />}
             action={
-              <button onClick={() => setShowBuilder(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button onClick={() => setShowBuilder(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <X className="h-4 w-4" />
               </button>
             }
           />
-
-          <div className="p-4 space-y-4 min-w-0">
+          <div className="p-3 sm:p-4 space-y-4 min-w-0">
             {/* Basic info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={t("builder.fields.formTitle")} required>
                 <input value={bTitle} onChange={(e) => setBTitle(e.target.value)} placeholder={t("builder.fields.formTitlePlaceholder")} className={inputCls} />
               </Field>
@@ -943,29 +915,25 @@ export default function ApplicationsTab() {
                 </select>
               </Field>
             </div>
-
-<Field label={t("builder.fields.description")}>
-                <textarea value={bDesc} onChange={(e) => setBDesc(e.target.value)}
-                  placeholder={t("builder.fields.descriptionPlaceholder")} rows={2} className={textareaCls} />
+            <Field label={t("builder.fields.description")}>
+              <textarea value={bDesc} onChange={(e) => setBDesc(e.target.value)}
+                placeholder={t("builder.fields.descriptionPlaceholder")} rows={2} className={textareaCls} />
             </Field>
 
             {/* Questions */}
-            <div className="space-y-3 min-w-0">
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-primary shrink-0" />
                   <span className="text-sm font-semibold text-foreground">{t("questions.title")}</span>
                   <CountBadge count={bQuestions.length} />
                 </div>
-                <button
-                  onClick={() => setBQuestions((p) => [...p, makeQuestion(p.length + 1)])}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary transition-colors shrink-0"
-                >
-                  <Plus className="h-3.5 w-3.5" /> {t("actions.add")}
+                <button onClick={() => setBQuestions((p) => [...p, makeQuestion(p.length + 1)])}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary transition-colors shrink-0 whitespace-nowrap">
+                  <Plus className="h-3.5 w-3.5" />{t("actions.add")}
                 </button>
               </div>
-
-              <div className="space-y-2.5 min-w-0">
+              <div className="space-y-2.5">
                 {bQuestions.map((q, idx) => (
                   <QuestionCard
                     key={`${q.id}-${idx}`} question={q} index={idx} total={bQuestions.length}
@@ -976,27 +944,27 @@ export default function ApplicationsTab() {
                     onAddOption={() => {
                       const draft = String(optionDrafts[idx] || "").trim()
                       if (!draft) return
-                      const cur = q.options || []
-                      if (cur.includes(draft)) { setOptionDrafts((p) => ({ ...p, [idx]: "" })); return }
+                      if ((q.options || []).includes(draft)) { setOptionDrafts((p) => ({ ...p, [idx]: "" })); return }
                       setBQuestions((p) => p.map((item, i) => i === idx ? { ...item, options: [...(item.options || []), draft] } : item))
                       setOptionDrafts((p) => ({ ...p, [idx]: "" }))
                     }}
-                    onRemoveOption={(oi) => setBQuestions((p) => p.map((item, i) => i === idx ? { ...item, options: (item.options || []).filter((_, j) => j !== oi) } : item))}
+                    onRemoveOption={(oi) => setBQuestions((p) => p.map((item, i) =>
+                      i === idx ? { ...item, options: (item.options || []).filter((_, j) => j !== oi) } : item))}
                   />
                 ))}
               </div>
             </div>
 
             {/* Save row */}
-            <div className="flex items-center gap-3 pt-2 border-t border-border flex-wrap">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-border">
               <button onClick={saveForm} disabled={saving || !bTitle.trim()}
-                className="flex items-center gap-2 h-10 px-5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                className="flex items-center justify-center gap-2 h-10 px-5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                 {saving
-                  ? <><RefreshCw className="h-4 w-4 animate-spin" /> {t("actions.saving")}</>
-                  : <><Send className="h-4 w-4" /> {selectedFormId ? t("actions.updateForm") : t("actions.createForm")}</>}
+                  ? <><RefreshCw className="h-4 w-4 animate-spin" />{t("actions.saving")}</>
+                  : <><Send className="h-4 w-4" />{selectedFormId ? t("actions.updateForm") : t("actions.createForm")}</>}
               </button>
               <button onClick={() => setShowBuilder(false)}
-                className="h-10 px-4 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                className="flex items-center justify-center h-10 px-4 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 {t("actions.cancel")}
               </button>
             </div>
@@ -1004,9 +972,9 @@ export default function ApplicationsTab() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          SECTION 3 — INVITE LINKS (only for private_invite forms)
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════
+          SECTION 3 — INVITE LINKS
+      ══════════════════════════════════════════════════════════════════ */}
 
       {selectedForm?.visibility === "private_invite" && !showBuilder && (
         <div className="rounded-xl border border-border bg-card overflow-hidden w-full">
@@ -1015,12 +983,11 @@ export default function ApplicationsTab() {
             title={`${t("invites.title")} — ${selectedForm.title}`}
             badge={<CountBadge count={invites.length} />}
           />
-
-          <div className="p-4 space-y-4 min-w-0">
-            {/* Create invite — compact inline grid */}
-            <div className="rounded-xl border border-border bg-secondary/10 p-4 space-y-3 min-w-0">
+          <div className="p-3 sm:p-4 space-y-4">
+            {/* Create invite */}
+            <div className="rounded-xl border border-border bg-secondary/10 p-3 space-y-3">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("invites.createNewInvite")}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label={t("invites.fields.label")}>
                   <input value={invLabel} onChange={(e) => setInvLabel(e.target.value)} placeholder={t("invites.placeholders.label")} className={inputCls} />
                 </Field>
@@ -1035,21 +1002,20 @@ export default function ApplicationsTab() {
                 </Field>
               </div>
               <button onClick={createInvite}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
-                <Plus className="h-4 w-4" /> {t("actions.createInviteLink")}
+                className="flex items-center justify-center gap-2 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors w-full sm:w-auto">
+                <Plus className="h-4 w-4" />{t("actions.createInviteLink")}
               </button>
             </div>
 
-            {/* Invite list — desktop table */}
+            {/* Invite desktop table */}
             {invites.length > 0 && (
               <div className="rounded-xl border border-border overflow-hidden hidden lg:block">
-                <table className="w-full">
+                <table className="w-full min-w-[560px]">
                   <thead>
                     <tr className="border-b border-border text-xs text-muted-foreground bg-secondary/10">
                       <th className="px-4 py-3 text-left font-medium">{t("invites.fields.label")}</th>
                       <th className="px-4 py-3 text-left font-medium">{t("invites.fields.emailOptional")}</th>
                       <th className="px-4 py-3 text-left font-medium">{t("invites.fields.maxUses")}</th>
-                      <th className="px-4 py-3 text-left font-medium">{t("invites.fields.expiresHours")}</th>
                       <th className="px-4 py-3 text-left font-medium">{t("table.link")}</th>
                       <th className="px-4 py-3 text-right font-medium">{t("table.actions")}</th>
                     </tr>
@@ -1058,22 +1024,19 @@ export default function ApplicationsTab() {
                     {invites.map((inv) => {
                       const link = `${getOrigin()}/forms/${selectedForm.slug}?invite=${inv.token}`
                       const usagePct = inv.maxUses ? Math.min(100, (inv.uses / inv.maxUses) * 100) : 0
-
                       return (
                         <tr key={inv.id} className={cn("border-b border-border/50 group transition-colors hover:bg-secondary/20", inv.revoked && "opacity-50")}>
                           <td className="px-4 py-3">
                             <span className="text-sm font-medium text-foreground">{inv.label || t("invites.inviteFallback", { id: inv.id })}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-xs text-muted-foreground">{inv.email || t("common.dash")}</span>
+                            <span className="text-xs text-muted-foreground">{inv.email || "—"}</span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <span className="text-xs text-foreground">
-                              {inv.maxUses != null
-                                ? t("invites.usageCount", { used: inv.uses, max: inv.maxUses })
-                                : t("invites.usageCountUnlimited", { used: inv.uses })}
-                            </span>
+                              <span className="text-xs text-foreground whitespace-nowrap">
+                                {inv.maxUses != null ? t("invites.usageCount", { used: inv.uses, max: inv.maxUses }) : t("invites.usageCountUnlimited", { used: inv.uses })}
+                              </span>
                               {inv.maxUses != null && (
                                 <div className="h-1.5 w-20 rounded-full bg-secondary overflow-hidden">
                                   <div className="h-full bg-primary rounded-full" style={{ width: `${usagePct}%` }} />
@@ -1081,13 +1044,8 @@ export default function ApplicationsTab() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className="text-xs text-muted-foreground">
-                              {inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : t("invites.never")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5 max-w-[220px]">
+                          <td className="px-4 py-3 max-w-[200px]">
+                            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                               <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0">{link}</span>
                               <button onClick={() => copy(link, `inv-${inv.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
                                 {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
@@ -1095,10 +1053,9 @@ export default function ApplicationsTab() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-end">
                               {!inv.revoked && (
-                                <button onClick={() => revokeInvite(inv.id)} title={t("actions.revoke")}
-                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                                <button onClick={() => revokeInvite(inv.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               )}
@@ -1112,55 +1069,69 @@ export default function ApplicationsTab() {
               </div>
             )}
 
-            {/* Invite list — mobile cards */}
+            {/* Invite mobile cards — AntiAbuse pattern */}
             {invites.length === 0 ? (
               <EmptyCard icon={Link2} text={t("invites.noInviteLinks")} />
             ) : (
-              <div className="flex flex-col gap-2 lg:hidden">
+              <div className="flex flex-col gap-3 lg:hidden">
                 {invites.map((inv) => {
                   const link = `${getOrigin()}/forms/${selectedForm.slug}?invite=${inv.token}`
                   const usagePct = inv.maxUses ? Math.min(100, (inv.uses / inv.maxUses) * 100) : 0
-
                   return (
                     <div key={inv.id} className={cn("rounded-xl border border-border bg-card overflow-hidden", inv.revoked && "opacity-50")}>
+
+                      {/* Top */}
                       <div className="flex items-start gap-3 p-4 pb-3">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <span className="text-sm font-semibold text-foreground">{inv.label || t("invites.inviteFallback", { id: inv.id })}</span>
-                            {inv.revoked && <StatusDot status="archived" config={FORM_STATUS_CONFIG} />}
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <p className="text-sm font-semibold text-foreground truncate min-w-0">
+                              {inv.label || t("invites.inviteFallback", { id: inv.id })}
+                            </p>
+                            {inv.revoked && <StatusDot status="archived" config={FORM_STATUS_CONFIG} label={t("statusBadge.archived")} />}
                           </div>
-                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
-                            {inv.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{inv.email}</span>}
-                            <span className="flex items-center gap-1">
-                              <Hash className="h-3 w-3" />
-                              {inv.maxUses != null
-                                ? t("invites.usageCount", { used: inv.uses, max: inv.maxUses })
-                                : t("invites.usageCountUnlimited", { used: inv.uses })}
-                            </span>
-                            {inv.expiresAt && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(inv.expiresAt).toLocaleDateString()}</span>}
+                          {/* Link pill */}
+                          <div className="flex items-center gap-1.5 min-w-0 overflow-hidden rounded-lg bg-secondary/40 border border-border/60 px-2 py-1">
+                            <Link2 className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+                            <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0 flex-1">{link}</span>
+                            <button onClick={() => copy(link, `inv-${inv.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
+                              {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                            </button>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Stats grid — AntiAbuse pattern */}
+                      <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                        <div className="bg-card px-4 py-2.5">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("invites.fields.maxUses")}</p>
+                          <p className="text-xs font-medium text-foreground">
+                            {inv.maxUses != null ? t("invites.usageCount", { used: inv.uses, max: inv.maxUses }) : t("invites.usageCountUnlimited", { used: inv.uses })}
+                          </p>
                           {inv.maxUses != null && (
-                            <div className="mt-2 h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                            <div className="mt-1.5 h-1 w-full rounded-full bg-secondary overflow-hidden">
                               <div className="h-full bg-primary rounded-full" style={{ width: `${usagePct}%` }} />
                             </div>
                           )}
                         </div>
+                        <div className="bg-card px-4 py-2.5">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("invites.fields.expiresHours")}</p>
+                          <p className="text-xs font-medium text-foreground">
+                            {inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : t("invites.never")}
+                          </p>
+                          {inv.email && (
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                              <Mail className="h-2.5 w-2.5 shrink-0" />{inv.email}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Link pill */}
-                      <div className="flex items-center gap-2 mx-4 mb-3 px-2.5 py-1.5 rounded-lg bg-secondary/50 border border-border/60 overflow-hidden min-w-0">
-                        <Link2 className="h-3 w-3 text-muted-foreground/60 shrink-0" />
-                        <span className="text-[10px] font-mono text-muted-foreground truncate flex-1 min-w-0">{link}</span>
-                        <button onClick={() => copy(link, `inv-${inv.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
-                          {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                        </button>
-                      </div>
-
+                      {/* Action bar — AntiAbuse divide-x */}
                       {!inv.revoked && (
-                        <div className="border-t border-border">
+                        <div className="flex items-center border-t border-border divide-x divide-border">
                           <button onClick={() => revokeInvite(inv.id)}
-                            className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
-                            <X className="h-3.5 w-3.5" /> {t("actions.revoke")}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                            <X className="h-3.5 w-3.5" /><span>{t("actions.revoke")}</span>
                           </button>
                         </div>
                       )}
@@ -1173,60 +1144,56 @@ export default function ApplicationsTab() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
+      {/* ══════════════════════════════════════════════════════════════════
           SECTION 4 — SUBMISSIONS
-      ════════════════════════════════════════════════════════════════════ */}
+      ══════════════════════════════════════════════════════════════════ */}
 
-      {/* Submissions search / header bar */}
+      {/* Submissions header */}
       <div className="rounded-xl border border-border bg-card">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
-          <div className="relative flex-1 max-w-md">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
-              <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                placeholder={selectedForm ? `${t("submissions.searchIn")} ${selectedForm.title}…` : t("submissions.searchAll")}
-                value={subSearch}
-                onChange={(e) => { setSubSearch(e.target.value); setSubPage(1) }}
-                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
-              />
-              {subSearch && (
-                <button onClick={() => { setSubSearch(""); setSubPage(1) }} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+        <div className="flex flex-col gap-3 p-3 sm:p-4">
+          {/* Search */}
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <input type="text"
+              placeholder={selectedForm ? `${t("submissions.searchIn")} ${selectedForm.title}…` : t("submissions.searchAll")}
+              value={subSearch} onChange={(e) => { setSubSearch(e.target.value); setSubPage(1) }}
+              className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
+            {subSearch && (
+              <button onClick={() => { setSubSearch(""); setSubPage(1) }} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            {/* Filter tabs — scrollable on mobile */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+          {/* Filter tabs + refresh */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0">
               {(["all", "pending", "accepted", "rejected", "archived"] as const).map((f) => (
                 <button key={f} onClick={() => { setSubFilter(f); setSubPage(1) }}
                   className={cn(
-                    "shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
+                    "shrink-0 flex items-center gap-1 h-7 px-2 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all",
                     subFilter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   )}>
                   {t(`submissions.filters.${f}`)}
-                  <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full tabular-nums",
+                  <span className={cn("text-[10px] font-black px-1 py-px rounded-full tabular-nums",
                     subFilter === f ? "bg-white/20 text-primary-foreground" : "bg-secondary text-muted-foreground")}>
                     {subCounts[f]}
                   </span>
                 </button>
               ))}
             </div>
-            <button onClick={loadAll} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title={t("actions.refresh")}>
+            <button onClick={loadAll} className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Bulk bar — inside header card when selection active */}
+        {/* Bulk bar — AntiAbuse style */}
         {selectedSubIds.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap px-4 pb-4 pt-0">
+          <div className="flex items-center gap-2 flex-wrap px-3 sm:px-4 py-3 border-t border-border">
             <span className="text-xs font-semibold text-foreground shrink-0">{selectedSubIds.length} {t("bulk.selected")}</span>
             <button onClick={bulkDeleteSubs}
               className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors">
-              <Trash2 className="h-3.5 w-3.5" /> {t("actions.bulkDelete", { count: selectedSubIds.length })}
+              <Trash2 className="h-3.5 w-3.5" />{t("actions.bulkDeleteSubmissions", { count: selectedSubIds.length })}
             </button>
             <button onClick={() => setSelectedSubIds([])} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0">
               <X className="h-4 w-4" />
@@ -1235,10 +1202,10 @@ export default function ApplicationsTab() {
         )}
       </div>
 
-      {/* Submissions — desktop table */}
-      <div className="rounded-xl border border-border bg-card hidden lg:block">
+      {/* ── Submissions desktop table ── */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden hidden lg:block">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-border text-xs text-muted-foreground">
                 <th className="px-4 py-3 text-left w-8">
@@ -1276,10 +1243,7 @@ export default function ApplicationsTab() {
                 <EmptyRow icon={Inbox} text={t("submissions.noSubmissions")} />
               ) : (
                 pagedSubs.map((sub) => {
-                  const submitter =
-                    sub.user?.email ||
-                    [sub.user?.firstName, sub.user?.lastName].filter(Boolean).join(" ") ||
-                    sub.ipAddress || t("submissions.anonymous")
+                  const submitter = sub.user?.email || [sub.user?.firstName, sub.user?.lastName].filter(Boolean).join(" ") || sub.ipAddress || t("submissions.anonymous")
                   const isExpanded = expandedSubs.has(sub.id)
                   let parsed: Record<string, any> | null = null
                   try { parsed = JSON.parse(sub.content) } catch {}
@@ -1292,58 +1256,43 @@ export default function ApplicationsTab() {
                             onChange={() => setSelectedSubIds((p) => p.includes(sub.id) ? p.filter((v) => v !== sub.id) : [...p, sub.id])}
                             className="h-4 w-4 rounded border-border accent-primary" />
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                        <td className="px-4 py-3 max-w-[160px]">
+                          <div className="flex items-center gap-2 min-w-0">
                             <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                               {(sub.user?.firstName?.[0] || sub.user?.email?.[0] || "?").toUpperCase()}
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate max-w-[140px]">{submitter}</p>
-                            </div>
+                            <p className="text-sm font-medium text-foreground truncate min-w-0">{submitter}</p>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-muted-foreground truncate max-w-[140px] block">
+                        <td className="px-4 py-3 max-w-[160px]">
+                          <span className="text-xs text-muted-foreground truncate block">
                             {sub.form?.title || t("forms.formFallback", { id: sub.formId })}
                           </span>
                         </td>
+                        <td className="px-4 py-3"><StatusDot status={sub.status} config={SUBMISSION_STATUS_CONFIG} label={t(`statusBadge.${sub.status}`)} /></td>
                         <td className="px-4 py-3">
-                          <StatusDot status={sub.status} config={SUBMISSION_STATUS_CONFIG} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-muted-foreground">{formatDate(sub.createdAt)}</span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(sub.createdAt)}</span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => setExpandedSubs((p) => { const n = new Set(p); n.has(sub.id) ? n.delete(sub.id) : n.add(sub.id); return n })}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                            <button onClick={() => toggleExpand(sub.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
                             </button>
-                            <button onClick={() => updateSubStatus(sub.id, "accepted")} disabled={sub.status === "accepted"}
-                              title={t("actions.accept")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-30 transition-colors">
+                            <button onClick={() => updateSubStatus(sub.id, "accepted")} disabled={sub.status === "accepted"} className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-30 transition-colors">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => updateSubStatus(sub.id, "rejected")} disabled={sub.status === "rejected"}
-                              title={t("actions.reject")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 transition-colors">
+                            <button onClick={() => updateSubStatus(sub.id, "rejected")} disabled={sub.status === "rejected"} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 transition-colors">
                               <XCircle className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => updateSubStatus(sub.id, "archived")} disabled={sub.status === "archived"}
-                              title={t("actions.archive")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 transition-colors">
+                            <button onClick={() => updateSubStatus(sub.id, "archived")} disabled={sub.status === "archived"} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 transition-colors">
                               <Archive className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => deleteSub(sub.id)}
-                              title={t("actions.delete")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                            <button onClick={() => deleteSub(sub.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </td>
                       </tr>
-
-                      {/* Expanded content row */}
                       {isExpanded && (
                         <tr key={`${sub.id}-exp`} className="border-b border-border/50 bg-secondary/10">
                           <td />
@@ -1351,18 +1300,16 @@ export default function ApplicationsTab() {
                             {parsed && typeof parsed === "object" ? (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {Object.entries(parsed).map(([k, v]) => (
-                                  <div key={k} className="space-y-1">
+                                  <div key={k} className="space-y-1 min-w-0">
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{k}</p>
-                                    <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-sm text-foreground break-words">
+                                    <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-sm text-foreground break-words overflow-hidden">
                                       {Array.isArray(v) ? v.join(", ") : String(v ?? "—")}
                                     </div>
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <pre className="whitespace-pre-wrap break-words text-xs bg-secondary/40 rounded-lg p-4 border border-border text-foreground overflow-x-auto">
-                                {sub.content}
-                              </pre>
+                              <pre className="whitespace-pre-wrap break-all text-xs bg-secondary/40 rounded-lg p-4 border border-border text-foreground overflow-x-auto max-w-full">{sub.content}</pre>
                             )}
                           </td>
                         </tr>
@@ -1376,57 +1323,61 @@ export default function ApplicationsTab() {
         </div>
       </div>
 
-      {/* Submissions — mobile cards */}
+      {/* ── Submissions mobile cards — AntiAbuse pattern ── */}
       <div className="flex flex-col gap-3 lg:hidden">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3 animate-pulse">
-              <div className="flex items-center gap-3">
+            <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse">
+              <div className="flex items-start gap-3 p-4 pb-3">
                 <div className="h-4 w-4 rounded bg-secondary shrink-0" />
                 <div className="h-8 w-8 rounded-full bg-secondary shrink-0" />
-                <div className="flex-1 space-y-1">
-                  <div className="h-4 w-32 rounded bg-secondary" />
+                <div className="flex-1 min-w-0">
+                  <div className="h-4 w-32 rounded bg-secondary mb-1.5" />
                   <div className="h-3 w-24 rounded bg-secondary" />
                 </div>
-                <div className="h-5 w-16 rounded-full bg-secondary" />
+                <div className="h-5 w-14 rounded-full bg-secondary" />
               </div>
-              <div className="grid grid-cols-3 gap-px h-9 rounded bg-secondary" />
+              <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                <div className="bg-card px-4 py-2.5 h-12" />
+                <div className="bg-card px-4 py-2.5 h-12" />
+              </div>
+              <div className="h-10 border-t border-border bg-secondary/20" />
             </div>
           ))
         ) : pagedSubs.length === 0 ? (
           <EmptyCard icon={Inbox} text={t("submissions.noSubmissions")} />
         ) : (
           pagedSubs.map((sub) => {
-            const submitter =
-              sub.user?.email ||
-              [sub.user?.firstName, sub.user?.lastName].filter(Boolean).join(" ") ||
-              sub.ipAddress || t("submissions.anonymous")
+            const submitter = sub.user?.email || [sub.user?.firstName, sub.user?.lastName].filter(Boolean).join(" ") || sub.ipAddress || t("submissions.anonymous")
             const isExpanded = expandedSubs.has(sub.id)
             let parsed: Record<string, any> | null = null
             try { parsed = JSON.parse(sub.content) } catch {}
 
             return (
               <div key={sub.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                {/* Top — avatar + name + status */}
+
+                {/* Top: checkbox + avatar + name + status — AntiAbuse top section */}
                 <div className="flex items-start gap-3 p-4 pb-3">
                   <input type="checkbox" checked={selectedSubIds.includes(sub.id)}
                     onChange={() => setSelectedSubIds((p) => p.includes(sub.id) ? p.filter((v) => v !== sub.id) : [...p, sub.id])}
                     className="mt-0.5 h-4 w-4 rounded border-border accent-primary shrink-0" />
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
                     {(sub.user?.firstName?.[0] || sub.user?.email?.[0] || "?").toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-0.5">
-                      <p className="text-sm font-semibold text-foreground truncate">{submitter}</p>
-                      <StatusDot status={sub.status} config={SUBMISSION_STATUS_CONFIG} />
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{submitter}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {sub.form?.title || t("forms.formFallback", { id: sub.formId })}
+                        </p>
+                      </div>
+                      <StatusDot status={sub.status} config={SUBMISSION_STATUS_CONFIG} label={t(`statusBadge.${sub.status}`)} />
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {sub.form?.title || t("forms.formFallback", { id: sub.formId })}
-                    </p>
                   </div>
                 </div>
 
-                {/* Stats grid */}
+                {/* Mid stats grid — AntiAbuse pattern */}
                 <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
                   <div className="bg-card px-4 py-2.5">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.submitted")}</p>
@@ -1438,44 +1389,39 @@ export default function ApplicationsTab() {
                   </div>
                 </div>
 
-                {/* Expanded content */}
+                {/* Expandable details — AntiAbuse pattern */}
                 {isExpanded && (
                   <div className="border-t border-border px-4 py-3 space-y-2.5 bg-secondary/10">
                     {parsed && typeof parsed === "object" ? (
                       Object.entries(parsed).map(([k, v]) => (
-                        <div key={k} className="space-y-1">
+                        <div key={k} className="space-y-1 min-w-0">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{k}</p>
-                          <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-xs text-foreground break-words">
+                          <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-xs text-foreground break-words overflow-hidden">
                             {Array.isArray(v) ? v.join(", ") : String(v ?? "—")}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <pre className="whitespace-pre-wrap break-words text-xs bg-secondary/40 rounded-lg p-3 border border-border text-foreground overflow-x-auto">
-                        {sub.content}
-                      </pre>
+                      <pre className="whitespace-pre-wrap break-all text-xs bg-secondary/40 rounded-lg p-3 border border-border text-foreground overflow-x-auto max-w-full">{sub.content}</pre>
                     )}
                   </div>
                 )}
 
-                {/* Action bar — mirrors UsersTab exactly */}
+                {/* Action bar — exact AntiAbuse divide-x pattern */}
                 <div className="flex items-center border-t border-border divide-x divide-border">
                   <button onClick={() => updateSubStatus(sub.id, "accepted")} disabled={sub.status === "accepted"}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-30 transition-colors">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t("actions.accept")}</span>
+                    <CheckCircle2 className="h-3.5 w-3.5" /><span>{t("actions.accept")}</span>
                   </button>
                   <button onClick={() => updateSubStatus(sub.id, "rejected")} disabled={sub.status === "rejected"}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30 transition-colors">
-                    <XCircle className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t("actions.reject")}</span>
+                    <XCircle className="h-3.5 w-3.5" /><span>{t("actions.reject")}</span>
                   </button>
                   <button onClick={() => updateSubStatus(sub.id, "archived")} disabled={sub.status === "archived"}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 disabled:opacity-30 transition-colors">
-                    <Archive className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t("actions.archive")}</span>
+                    <Archive className="h-3.5 w-3.5" /><span>{t("actions.archive")}</span>
                   </button>
-                  <button onClick={() => setExpandedSubs((p) => { const n = new Set(p); n.has(sub.id) ? n.delete(sub.id) : n.add(sub.id); return n })}
+                  <button onClick={() => toggleExpand(sub.id)}
                     className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
                     <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
                   </button>
@@ -1490,7 +1436,7 @@ export default function ApplicationsTab() {
         )}
       </div>
 
-      {/* Submissions pagination */}
+      {/* ── Pagination ── */}
       <div className="rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
@@ -1503,13 +1449,11 @@ export default function ApplicationsTab() {
             )}
           </p>
           <div className="flex items-center gap-1.5">
-            <Button size="sm" variant="outline" onClick={() => setSubPage((p) => Math.max(1, p - 1))}
-              disabled={subPage <= 1} className="h-8 px-3 text-xs">
+            <Button size="sm" variant="outline" onClick={() => setSubPage((p) => Math.max(1, p - 1))} disabled={subPage <= 1} className="h-8 px-3 text-xs">
               <ChevronLeft className="h-3.5 w-3.5 mr-1 sm:mr-0" />
               <span className="hidden sm:inline ml-1">{t("pagination.previous")}</span>
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setSubPage((p) => Math.min(subTotalPages, p + 1))}
-              disabled={subPage >= subTotalPages} className="h-8 px-3 text-xs">
+            <Button size="sm" variant="outline" onClick={() => setSubPage((p) => Math.min(subTotalPages, p + 1))} disabled={subPage >= subTotalPages} className="h-8 px-3 text-xs">
               <span className="hidden sm:inline mr-1">{t("pagination.next")}</span>
               <ChevronRight className="h-3.5 w-3.5 ml-1 sm:ml-0" />
             </Button>

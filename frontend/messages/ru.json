@@ -2053,6 +2053,7 @@
       "tryDifferentSearch": "Попробуйте другой поисковый запрос",
       "createFirstForm": "Создайте первую форму, чтобы начать",
       "pendingCount": "{count} на рассмотрении",
+      "formsCount": "форм",
       "formFallback": "Форма {id}"
     },
     "visibilityLabels": {
@@ -2151,6 +2152,8 @@
     },
     "submissions": {
       "title": "Заявки",
+      "searchAll": "Поиск по всем заявкам",
+      "searchIn": "Поиск в",
       "noSubmissions": "Заявок нет",
       "noFiltered": "Нет заявок со статусом «{status}»",
       "willAppear": "Заявки будут отображаться здесь",
@@ -2175,6 +2178,16 @@
       "id": "ID",
       "actions": "Действия"
     },
+    "labels": {
+      "pending": "на рассмотрении"
+    },
+    "pagination": {
+      "page": "Страница",
+      "of": "из",
+      "total": "Всего: {count}",
+      "previous": "Предыдущая",
+      "next": "Следующая"
+    },
     "bulk": {
       "selected": "выбрано"
     },
@@ -2182,6 +2195,8 @@
       "newForm": "Новая форма",
       "copyLink": "Копировать ссылку",
       "edit": "Редактировать",
+      "view": "Просмотреть",
+      "viewSubmissions": "Просмотреть заявки",
       "template": "Шаблон",
       "deleteForm": "Удалить форму",
       "addQuestion": "Добавить вопрос",
