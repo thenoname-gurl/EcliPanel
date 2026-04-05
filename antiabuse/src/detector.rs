@@ -1,11 +1,22 @@
 use crate::backend::BackendClient;
 use crate::config::Config;
-use crate::state::{ConnectionEvent, DetectionTrigger, EnforcementAction, ServerState, SharedState, StrikeState};
+use crate::state::{
+    ConnectionEvent,
+    DetectionTrigger,
+    EnforcementAction,
+    IncidentRollupState,
+    Protocol,
+    ServerState,
+    SharedState,
+    StrikeState,
+};
 use chrono::Utc;
 use serde_json::json;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+const PORT_SCAN_REPORT_WINDOW: Duration = Duration::from_secs(5 * 60);
 
 // EcliPolice when???????
 // I won't lie, this is A HELL OF A MESS THAT BARELY WORKS-
@@ -54,7 +65,7 @@ fn is_node_fallback_id(server_id: &str) -> bool {
 }
 
 fn should_force_suspend(trigger: &DetectionTrigger, config: &Config) -> bool {
-    if trigger.detection_type != "port_scan_unique_ports" {
+    if !trigger.detection_type.starts_with("port_scan_unique_ports") {
         return false;
     }
 
@@ -91,6 +102,42 @@ fn is_private_or_local_ip(ip: &str) -> bool {
         || (a == 169 && b == 254)
 }
 
+fn is_amplification_port(port: u16) -> bool {
+    matches!(
+        port,
+        19
+        | 53
+        | 111
+        | 123
+        | 137
+        | 161
+        | 389
+        | 520
+        | 751
+        | 1434
+        | 1900
+        | 5353
+        | 11211
+        | 27015
+    )
+}
+
+fn is_udp_flood_port(port: u16) -> bool {
+    is_amplification_port(port)
+        || matches!(
+            port,
+            80 | 443 | 8080
+            | 69
+            | 500 | 4500
+            | 514
+            | 1194
+            | 3478 | 3479
+            | 5060 | 5061
+            | 27000..=27050
+            | 25565
+        )
+}
+
 pub async fn process_connection(
     event: ConnectionEvent,
     config: &Config,
@@ -98,6 +145,7 @@ pub async fn process_connection(
     backend: &BackendClient,
 ) {
     let now = Instant::now();
+    let protocol = event.protocol;
 
     let trigger: Option<DetectionTrigger> = {
         let mut containers = shared.containers.write().await;
@@ -111,6 +159,8 @@ pub async fn process_connection(
 
         let is_big_hit = !config.safe_ports.contains(&event.dest_port);
         let is_mining_port = config.mining_ports.contains(&event.dest_port);
+        let is_amplification = protocol == Protocol::Udp && is_amplification_port(event.dest_port);
+        let is_udp_risky = protocol == Protocol::Udp && is_udp_flood_port(event.dest_port);
 
         let remote_ip = if event.server_is_source {
             event.dest_ip.clone()
@@ -119,8 +169,27 @@ pub async fn process_connection(
         };
 
         let is_inbound = !event.server_is_source;
+        let is_outbound = event.server_is_source;
         let is_public_remote = !is_private_or_local_ip(&remote_ip);
         let ddos_eligible = is_inbound && is_public_remote;
+
+        match protocol {
+            Protocol::Tcp => {
+                if is_big_hit && ddos_eligible {
+                    state.tcp_big_hits += 1;
+                }
+            }
+            Protocol::Udp => {
+                if ddos_eligible {
+                    state.udp_hits += 1;
+                    state.udp_unique_ips.insert(remote_ip.clone());
+                }
+                if is_amplification && is_outbound {
+                    state.amplification_hits += 1;
+                    state.amplification_targets.insert(remote_ip.clone());
+                }
+            }
+        }
 
         if is_big_hit && ddos_eligible {
             state.big_hits += 1;
@@ -134,7 +203,18 @@ pub async fn process_connection(
             state.unique_ips.insert(remote_ip.clone());
         }
 
+        let port_scan_key = match protocol {
+            Protocol::Tcp => format!("tcp:{}", event.dest_ip),
+            Protocol::Udp => format!("udp:{}", event.dest_ip),
+        };
+
         if is_big_hit {
+            state
+                .ports_per_dest
+                .entry(port_scan_key.clone())
+                .or_default()
+                .insert(event.dest_port);
+
             state
                 .ports_per_dest
                 .entry(event.dest_ip.clone())
@@ -144,7 +224,7 @@ pub async fn process_connection(
 
         let seq_ports = state
             .recent_ports_per_dest
-            .entry(event.dest_ip.clone())
+            .entry(port_scan_key.clone())
             .or_insert_with(VecDeque::new);
         seq_ports.push_back(event.dest_port);
         let max_recent = config.sequential_port_trigger + 1;
@@ -154,9 +234,11 @@ pub async fn process_connection(
 
         state.recent_events.push_back(json!({
             "ts": Utc::now().to_rfc3339(),
+            "protocol": protocol.as_str(),
             "sourceIp": event.src_ip,
             "targetIp": event.dest_ip,
             "targetPort": event.dest_port,
+            "direction": if is_inbound { "inbound" } else { "outbound" },
         }));
         while state.recent_events.len() > 30 {
             state.recent_events.pop_front();
@@ -164,65 +246,134 @@ pub async fn process_connection(
 
         let unique_ports_on_dest = state
             .ports_per_dest
+            .get(&port_scan_key)
+            .map(|s| s.len())
+            .unwrap_or(0);
+
+        let unique_ports_combined = state
+            .ports_per_dest
             .get(&event.dest_ip)
             .map(|s| s.len())
             .unwrap_or(0);
 
         let metrics = json!({
+            "protocol": protocol.as_str(),
             "bigHits": state.big_hits,
+            "tcpBigHits": state.tcp_big_hits,
+            "udpHits": state.udp_hits,
+            "udpUniqueIps": state.udp_unique_ips.len(),
+            "amplificationHits": state.amplification_hits,
+            "amplificationTargets": state.amplification_targets.len(),
             "uniqueIps": state.unique_ips.len(),
             "uniquePortsOnTarget": unique_ports_on_dest,
+            "uniquePortsCombined": unique_ports_combined,
             "miningPortHits": state.mining_hits,
             "miningUniqueTargets": state.mining_unique_ips.len(),
             "ddosEligible": ddos_eligible,
             "isInbound": is_inbound,
+            "isAmplificationPort": is_amplification,
+            "isUdpRisky": is_udp_risky,
             "windowMs": config.window.as_millis(),
         });
 
-        let recent_events = state.recent_events.iter().cloned().collect();
+        let recent_events: Vec<_> = state.recent_events.iter().cloned().collect();
 
-        let candidate_trigger = if unique_ports_on_dest >= config.unique_ports_threshold {
+        let candidate_trigger = if protocol == Protocol::Udp
+            && state.amplification_hits >= config.amplification_hit_threshold
+            && state.amplification_targets.len() >= config.amplification_target_threshold
+        {
+            Some(DetectionTrigger {
+                detection_type: "udp_amplification_attack".to_string(),
+                reason: format!(
+                    "UDP amplification attack: {} requests to {} unique targets on amplification ports",
+                    state.amplification_hits,
+                    state.amplification_targets.len()
+                ),
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
+            })
+        } else if protocol == Protocol::Udp
+            && state.udp_hits >= config.udp_flood_hit_threshold
+            && state.udp_unique_ips.len() >= config.udp_flood_ip_threshold
+        {
+            Some(DetectionTrigger {
+                detection_type: "udp_flood".to_string(),
+                reason: format!(
+                    "UDP flood detected: {} hits from {} unique IPs",
+                    state.udp_hits,
+                    state.udp_unique_ips.len()
+                ),
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
+            })
+        } else if unique_ports_on_dest >= config.unique_ports_threshold {
+            Some(DetectionTrigger {
+                detection_type: format!("port_scan_unique_ports_{}", protocol.as_str()),
+                reason: format!(
+                    "{} port scan on {}: {} unique ports",
+                    protocol.as_str().to_uppercase(),
+                    event.dest_ip,
+                    unique_ports_on_dest
+                ),
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
+            })
+        } else if unique_ports_combined >= config.unique_ports_threshold {
             Some(DetectionTrigger {
                 detection_type: "port_scan_unique_ports".to_string(),
                 reason: format!(
-                    "port scan on {}: {} unique ports",
-                    event.dest_ip, unique_ports_on_dest
+                    "port scan on {}: {} unique ports (combined protocols)",
+                    event.dest_ip, unique_ports_combined
                 ),
-                metrics,
-                recent_events,
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
             })
         } else if is_sequential(seq_ports, config.sequential_port_trigger) {
             Some(DetectionTrigger {
-                detection_type: "port_scan_sequential".to_string(),
-                reason: format!("sequential port scan detected (reached port {})", event.dest_port),
-                metrics,
-                recent_events,
+                detection_type: format!("port_scan_sequential_{}", protocol.as_str()),
+                reason: format!(
+                    "{} sequential port scan detected (reached port {})",
+                    protocol.as_str().to_uppercase(),
+                    event.dest_port
+                ),
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
             })
         } else if state.big_hits >= config.fast_big_hit_threshold
             && state.unique_ips.len() >= config.fast_ip_threshold
         {
+            let detection_type = match protocol {
+                Protocol::Tcp => "ddos_fast_threshold_tcp",
+                Protocol::Udp => "ddos_fast_threshold_udp",
+            };
             Some(DetectionTrigger {
-                detection_type: "ddos_fast_threshold".to_string(),
+                detection_type: detection_type.to_string(),
                 reason: format!(
-                    "fast threshold: {} big hits across {} IPs",
+                    "fast threshold ({}): {} big hits across {} IPs",
+                    protocol.as_str().to_uppercase(),
                     state.big_hits,
                     state.unique_ips.len()
                 ),
-                metrics,
-                recent_events,
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
             })
         } else if state.big_hits >= config.slow_big_hit_threshold
             && state.unique_ips.len() >= config.slow_ip_threshold
         {
+            let detection_type = match protocol {
+                Protocol::Tcp => "ddos_slow_threshold_tcp",
+                Protocol::Udp => "ddos_slow_threshold_udp",
+            };
             Some(DetectionTrigger {
-                detection_type: "ddos_slow_threshold".to_string(),
+                detection_type: detection_type.to_string(),
                 reason: format!(
-                    "slow threshold: {} big hits across {} IPs",
+                    "slow threshold ({}): {} big hits across {} IPs",
+                    protocol.as_str().to_uppercase(),
                     state.big_hits,
                     state.unique_ips.len()
                 ),
-                metrics,
-                recent_events,
+                metrics: metrics.clone(),
+                recent_events: recent_events.clone(),
             })
         } else if state.mining_hits >= config.mining_port_hit_threshold
             && state.mining_unique_ips.len() >= config.mining_ip_threshold
@@ -242,17 +393,11 @@ pub async fn process_connection(
         };
 
         if let Some(trigger) = candidate_trigger {
-            let dedupe_key = format!("{}:{}", trigger.detection_type, event.dest_ip);
-            let is_force_suspend_port_scan = trigger.detection_type == "port_scan_unique_ports"
-                && unique_ports_on_target(&trigger) >= config.port_scan_auto_suspend_unique_ports;
+            let dedupe_key = format!("{}:{}:{}", trigger.detection_type, protocol.as_str(), event.dest_ip);
 
-            let should_emit = if is_force_suspend_port_scan {
-                true
-            } else {
-                match state.last_detection_at.get(&dedupe_key) {
-                    Some(last) => now.duration_since(*last) >= config.detection_cooldown,
-                    None => true,
-                }
+            let should_emit = match state.last_detection_at.get(&dedupe_key) {
+                Some(last) => now.duration_since(*last) >= config.detection_cooldown,
+                None => true,
             };
 
             if should_emit {
@@ -286,8 +431,12 @@ pub async fn process_connection(
         entry.count
     };
 
+    let is_amplification_attack = trigger.detection_type == "udp_amplification_attack";
+
     let action = if is_node_fallback_id(&event.server_id) {
         EnforcementAction::Alert
+    } else if is_amplification_attack {
+        EnforcementAction::Suspend
     } else if should_force_suspend(&trigger, config) {
         EnforcementAction::Suspend
     } else {
@@ -321,6 +470,7 @@ pub async fn process_connection(
     let mut suspend_attempted = false;
     let mut suspend_success = false;
     let mut enforcement_note: Option<String> = None;
+    let mut effective_action = action;
 
     if action == EnforcementAction::Suspend {
         let allow_suspend = {
@@ -355,6 +505,7 @@ pub async fn process_connection(
             }
         } else {
             enforcement_note = Some("suspend cooldown active".to_string());
+            effective_action = EnforcementAction::Alert;
         }
     } else if action == EnforcementAction::Throttle {
         match backend
@@ -389,7 +540,7 @@ pub async fn process_connection(
         "targetIp": event.dest_ip,
         "targetPort": event.dest_port,
         "detectionType": trigger.detection_type,
-        "enforcementAction": action.as_str(),
+        "enforcementAction": effective_action.as_str(),
         "strikeCount": strike_count,
         "suspendAttempted": suspend_attempted,
         "suspendSuccess": suspend_success,
@@ -401,7 +552,65 @@ pub async fn process_connection(
         "suspectedServerNames": suspected_server_names,
     });
 
-    if let Err(err) = backend.report_incident(payload).await {
+    let should_rollup_port_scan = trigger.detection_type.starts_with("port_scan_");
+    let rollup_key = if should_rollup_port_scan {
+        Some(format!(
+            "{}:{}:{}",
+            payload
+                .get("serverId")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default(),
+            trigger.detection_type,
+            payload
+                .get("targetIp")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+        ))
+    } else {
+        None
+    };
+
+    let existing_incident_id = if let Some(key) = &rollup_key {
+        let rollups = shared.incident_rollups.read().await;
+        rollups.get(key).and_then(|entry| {
+            if now.duration_since(entry.last_at) <= PORT_SCAN_REPORT_WINDOW {
+                entry.last_submission_id
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    };
+
+    let report_payload = if let Some(incident_id) = existing_incident_id {
+        match payload.clone() {
+            serde_json::Value::Object(mut map) => {
+                map.insert("incidentId".to_string(), json!(incident_id));
+                serde_json::Value::Object(map)
+            }
+            other => other,
+        }
+    } else {
+        payload.clone()
+    };
+
+    match backend.report_incident(report_payload).await {
+        Ok(response) => {
+            if let Some(key) = rollup_key {
+                let mut rollups = shared.incident_rollups.write().await;
+                let entry = rollups
+                    .entry(key)
+                    .or_insert(IncidentRollupState {
+                        last_submission_id: None,
+                        last_at: now,
+                    });
+                entry.last_at = now;
+                entry.last_submission_id = response.submission_id.or(existing_incident_id);
+            }
+        }
+        Err(err) => {
         eprintln!("[antiabuse] failed to report incident: {err:#}");
+        }
     }
 }

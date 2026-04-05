@@ -3,42 +3,74 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Instant;
 use tokio::sync::RwLock;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Protocol {
+    Tcp,
+    Udp,
+}
+
+impl Protocol {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Protocol::Tcp => "tcp",
+            Protocol::Udp => "udp",
+        }
+    }
+}
+
+impl Default for Protocol {
+    fn default() -> Self {
+        Protocol::Tcp
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConnectionEvent {
+    pub server_id: String,
     pub src_ip: String,
     pub src_port: u16,
     pub dest_ip: String,
     pub dest_port: u16,
-    pub server_id: String,
     pub server_is_source: bool,
     pub suspected_server_ids: Vec<String>,
+    pub protocol: Protocol,
 }
 
 #[derive(Debug)]
 pub struct ServerState {
+    pub last_reset: Instant,
     pub big_hits: usize,
+    pub tcp_big_hits: usize,
+    pub udp_hits: usize,
+    pub udp_unique_ips: HashSet<String>,
+    pub amplification_hits: usize,
+    pub amplification_targets: HashSet<String>,
     pub unique_ips: HashSet<String>,
     pub ports_per_dest: HashMap<String, HashSet<u16>>,
     pub recent_ports_per_dest: HashMap<String, VecDeque<u16>>,
-    pub recent_events: VecDeque<Value>,
     pub mining_hits: usize,
     pub mining_unique_ips: HashSet<String>,
+    pub recent_events: VecDeque<Value>,
     pub last_detection_at: HashMap<String, Instant>,
-    pub last_reset: Instant,
 }
 
 impl ServerState {
     pub fn fresh(now: Instant) -> Self {
         Self {
+            last_reset: now,
             big_hits: 0,
+            tcp_big_hits: 0,
+            udp_hits: 0,
+            udp_unique_ips: HashSet::new(),
+            amplification_hits: 0,
+            amplification_targets: HashSet::new(),
             unique_ips: HashSet::new(),
             ports_per_dest: HashMap::new(),
             recent_ports_per_dest: HashMap::new(),
-            recent_events: VecDeque::new(),
             mining_hits: 0,
             mining_unique_ips: HashSet::new(),
+            recent_events: VecDeque::new(),
             last_detection_at: HashMap::new(),
-            last_reset: now,
         }
     }
 }
@@ -74,6 +106,12 @@ pub struct StrikeState {
     pub last_at: Instant,
 }
 
+#[derive(Debug, Clone)]
+pub struct IncidentRollupState {
+    pub last_submission_id: Option<i64>,
+    pub last_at: Instant,
+}
+
 #[derive(Debug)]
 pub struct SharedState {
     pub ip_to_server: RwLock<HashMap<String, String>>,
@@ -84,6 +122,7 @@ pub struct SharedState {
     pub containers: RwLock<HashMap<String, ServerState>>,
     pub last_suspended: RwLock<HashMap<String, Instant>>,
     pub strikes: RwLock<HashMap<String, StrikeState>>,
+    pub incident_rollups: RwLock<HashMap<String, IncidentRollupState>>,
 }
 
 impl SharedState {
@@ -97,6 +136,7 @@ impl SharedState {
             containers: RwLock::new(HashMap::new()),
             last_suspended: RwLock::new(HashMap::new()),
             strikes: RwLock::new(HashMap::new()),
+            incident_rollups: RwLock::new(HashMap::new()),
         }
     }
 }

@@ -60,7 +60,7 @@ export async function notifyServerOwnerSuspended(params: {
     await sendMail({
       to: user.email,
       from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
-      subject: `[EcliPanel] Server suspended: ${serverName}`,
+      subject: `Server suspended: ${serverName} - EclipseSystems`,
       template: 'notification',
       vars: {
         title: 'Server Suspension Notice',

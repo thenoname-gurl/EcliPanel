@@ -3186,6 +3186,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const suspendAttempted = !!body.suspendAttempted;
     const suspendSuccess = !!body.suspendSuccess;
     const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse', 120);
+    const incidentId = Number(body.incidentId);
 
     let form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
     if (!form) {
@@ -3207,6 +3208,67 @@ export async function adminRoutes(app: any, prefix = '') {
         createdBy: (ctx.user as User | undefined)?.id,
       });
       form = await formRepo.save(form);
+    }
+
+    if (Number.isFinite(incidentId) && incidentId > 0) {
+      const existing = await submissionRepo.findOne({ where: { id: incidentId, formId: form.id } as any });
+
+      if (existing) {
+        const appendLines = [
+          '',
+          '--- Incident update ---',
+          `Detector: ${detectorName}`,
+          `Detection Type: ${detectionType}`,
+          `Reason: ${reason}`,
+          `Source IP: ${sourceIp || 'unknown'}`,
+          `Target: ${targetIp || 'unknown'}${Number.isFinite(targetPort) ? `:${targetPort}` : ''}`,
+          `Suspend attempted: ${suspendAttempted ? 'yes' : 'no'}`,
+          `Suspend success: ${suspendSuccess ? 'yes' : 'no'}`,
+          `Time: ${new Date().toISOString()}`,
+        ];
+
+        const metrics = body.metrics && typeof body.metrics === 'object' ? body.metrics : null;
+        const events = Array.isArray(body.recentEvents) ? body.recentEvents.slice(-30) : [];
+
+        if (metrics) {
+          appendLines.push(`Metrics: ${sanitizeAntiAbuseText(JSON.stringify(metrics), 4000)}`);
+        }
+        if (events.length > 0) {
+          appendLines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
+        }
+
+        existing.content = `${existing.content || ''}\n${appendLines.join('\n')}`.slice(0, 20_000);
+
+        const existingMeta = (existing.meta && typeof existing.meta === 'object') ? existing.meta : {};
+        const previousUpdates = Number((existingMeta as any).updateCount) || 0;
+        existing.meta = {
+          ...(existingMeta as any),
+          lastUpdateAt: new Date().toISOString(),
+          updateCount: previousUpdates + 1,
+          latest: {
+            detector: detectorName,
+            detectionType,
+            reason,
+            sourceIp,
+            targetIp,
+            targetPort: Number.isFinite(targetPort) ? targetPort : null,
+            suspendAttempted,
+            suspendSuccess,
+            metrics,
+            recentEvents: events,
+          },
+        } as any;
+
+        const updated = await submissionRepo.save(existing);
+        return {
+          success: true,
+          updated: true,
+          submissionId: updated.id,
+          formId: form.id,
+          emailSent: false,
+          emailError: null,
+        };
+      }
     }
 
     const lines = [

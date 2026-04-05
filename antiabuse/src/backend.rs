@@ -3,6 +3,11 @@ use anyhow::{Context, Result};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
 
+#[derive(Debug, Clone)]
+pub struct IncidentReportResult {
+    pub submission_id: Option<i64>,
+}
+
 #[derive(Clone)]
 pub struct BackendClient {
     client: reqwest::Client,
@@ -123,7 +128,7 @@ impl BackendClient {
         Ok(())
     }
 
-    pub async fn report_incident(&self, payload: Value) -> Result<()> {
+    pub async fn report_incident(&self, payload: Value) -> Result<IncidentReportResult> {
         let url = format!("{}/admin/antiabuse/events", self.backend_url);
         let res = self
             .client
@@ -139,7 +144,12 @@ impl BackendClient {
             anyhow::bail!("antiabuse event failed: {} {}", status, body);
         }
 
-        Ok(())
+        let body = res.json::<Value>().await.unwrap_or(Value::Null);
+        let submission_id = body
+            .get("submissionId")
+            .and_then(|v| v.as_i64());
+
+        Ok(IncidentReportResult { submission_id })
     }
 
     pub async fn send_heartbeat(&self, payload: Value) -> Result<()> {

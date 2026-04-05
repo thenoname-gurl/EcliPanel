@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        let Some((src_ip, src_port, dest_ip, dest_port)) = parser::parse_tcpdump_line(&line) else {
+        let Some((src_ip, src_port, dest_ip, dest_port, protocol)) = parser::parse_tcpdump_line(&line) else {
             continue;
         };
 
@@ -225,13 +225,14 @@ async fn main() -> Result<()> {
         };
 
         let event = ConnectionEvent {
+            server_id,
             src_ip,
             src_port,
             dest_ip,
             dest_port,
-            server_id,
             server_is_source,
             suspected_server_ids,
+            protocol,
         };
 
         detector::process_connection(event, &config, shared.clone(), &backend).await;
