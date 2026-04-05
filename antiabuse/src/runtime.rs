@@ -212,7 +212,7 @@ pub async fn refresh_ip_map(client: &BackendClient, shared: Arc<SharedState>, cf
             let mut source_port_owners: HashMap<u16, HashSet<String>> = HashMap::new();
             let mut new_server_name = HashMap::new();
 
-            for server in servers {
+            for server in &servers {
                 let server_id = server
                     .get("uuid")
                     .and_then(Value::as_str)
@@ -301,6 +301,35 @@ pub async fn refresh_ip_map(client: &BackendClient, shared: Arc<SharedState>, cf
                 }
             }
 
+            let mut new_server_status = HashMap::new();
+            for server in &servers {
+                let uuid = server
+                    .get("configuration")
+                    .and_then(|c| c.get("uuid"))
+                    .and_then(|v| v.as_str())
+                    .or_else(|| server.get("uuid").and_then(|v| v.as_str()))
+                    .map(ToString::to_string);
+                if let Some(id) = uuid {
+                    let is_suspended = server
+                        .get("is_suspended")
+                        .or_else(|| server.get("suspended"))
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    let raw_status = server
+                        .get("state")
+                        .or_else(|| server.get("status"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let status = if is_suspended {
+                        "suspended".to_string()
+                    } else {
+                        raw_status
+                    };
+                    new_server_status.insert(id, status);
+                }
+            }
+
             let mut new_source_port_to_server = HashMap::new();
             let mut ambiguous_ports = 0usize;
             for (port, owners) in &source_port_owners {
@@ -342,6 +371,10 @@ pub async fn refresh_ip_map(client: &BackendClient, shared: Arc<SharedState>, cf
             {
                 let mut port_map_guard = shared.source_port_to_server.write().await;
                 *port_map_guard = new_source_port_to_server;
+            }
+            {
+                let mut status_guard = shared.server_status.write().await;
+                *status_guard = new_server_status;
             }
             {
                 let mut name_guard = shared.server_name.write().await;

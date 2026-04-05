@@ -162,14 +162,25 @@ pub async fn process_connection(
         let is_amplification = protocol == Protocol::Udp && is_amplification_port(event.dest_port);
         let is_udp_risky = protocol == Protocol::Udp && is_udp_flood_port(event.dest_port);
 
-        let remote_ip = if event.server_is_source {
+        let topology_inbound =
+            !is_private_or_local_ip(&event.src_ip) && is_private_or_local_ip(&event.dest_ip);
+        let topology_outbound =
+            is_private_or_local_ip(&event.src_ip) && !is_private_or_local_ip(&event.dest_ip);
+
+        let is_outbound = if topology_inbound {
+            false
+        } else if topology_outbound {
+            true
+        } else {
+            event.server_is_source
+        };
+        let is_inbound = !is_outbound;
+
+        let remote_ip = if is_outbound {
             event.dest_ip.clone()
         } else {
             event.src_ip.clone()
         };
-
-        let is_inbound = !event.server_is_source;
-        let is_outbound = event.server_is_source;
         let is_public_remote = !is_private_or_local_ip(&remote_ip);
         let ddos_eligible = is_outbound && is_public_remote;
 
@@ -472,7 +483,29 @@ pub async fn process_connection(
     let mut enforcement_note: Option<String> = None;
     let mut effective_action = action;
 
-    if action == EnforcementAction::Suspend {
+    let server_status = {
+        let statuses = shared.server_status.read().await;
+        statuses.get(&event.server_id).cloned()
+    };
+
+    fn is_offline_status(status: &str) -> bool {
+        matches!(
+            status,
+            "offline" | "stopped" | "hibernated" | "suspended" | "unknown"
+        )
+    }
+
+    let suspend_allowed = match server_status.as_deref() {
+        Some(status) if is_offline_status(status) => false,
+        _ => true,
+    };
+
+    if action == EnforcementAction::Suspend && !suspend_allowed {
+        enforcement_note = Some(format!("server status '{}' blocks suspend", server_status.unwrap_or_else(|| "unknown".to_string())));
+        effective_action = EnforcementAction::Alert;
+    }
+
+    if effective_action == EnforcementAction::Suspend {
         let allow_suspend = {
             let mut suspended = shared.last_suspended.write().await;
             if let Some(last) = suspended.get(&event.server_id) {
