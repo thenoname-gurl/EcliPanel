@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::env;
 use std::path::Path;
+use std::str::FromStr;
 use std::time::Duration;
 
 #[derive(Clone, Debug)]
@@ -54,60 +55,56 @@ pub struct Config {
     pub malware_skip_extensions: HashSet<String>,
 }
 
-fn parse_env_bool(name: &str, default: bool) -> bool {
-    match env::var(name) {
-        Ok(v) => {
-            let s = v.trim().to_ascii_lowercase();
-            matches!(s.as_str(), "1" | "true" | "yes" | "on")
-        }
-        Err(_) => default,
-    }
+fn env_req<T>(name: &str) -> Result<T>
+where
+    T: FromStr,
+    T::Err: std::error::Error + Send + Sync + 'static,
+{
+    let type_name = std::any::type_name::<T>();
+    env::var(name)
+        .with_context(|| format!("{name} is required"))?
+        .trim()
+        .parse::<T>()
+        .with_context(|| format!("{name} has an invalid value for type {type_name}"))
 }
 
-fn parse_env_u64(name: &str, default: u64) -> u64 {
+fn env_or<T>(name: &str, default: T) -> Result<T>
+where
+    T: FromStr,
+    T::Err: std::error::Error + Send + Sync + 'static,
+{
+    let type_name = std::any::type_name::<T>();
     env::var(name)
         .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(default)
+        // if we have a value, try parsing it
+        .map(|s| {
+            s.trim()
+                .parse::<T>()
+                .with_context(|| format!("{name} has an invalid value for type {type_name}"))
+        })
+        // if we do not have a value, fall back to `default`
+        .unwrap_or(Ok(default))
 }
 
-fn parse_env_f64_required(name: &str) -> Result<f64> {
-    let raw = env::var(name).with_context(|| format!("{} is required", name))?;
-    raw.parse::<f64>()
-        .with_context(|| format!("{} must be a valid float", name))
-}
-
-fn parse_env_u64_required(name: &str) -> Result<u64> {
-    let raw = env::var(name).with_context(|| format!("{} is required", name))?;
-    raw.parse::<u64>()
-        .with_context(|| format!("{} must be a valid integer", name))
-}
-
-fn parse_env_usize_required(name: &str) -> Result<usize> {
-    let raw = env::var(name).with_context(|| format!("{} is required", name))?;
-    raw.parse::<usize>()
-        .with_context(|| format!("{} must be a valid integer", name))
-}
-
-fn parse_env_u32_required(name: &str) -> Result<u32> {
-    let raw = env::var(name).with_context(|| format!("{} is required", name))?;
-    raw.parse::<u32>()
-        .with_context(|| format!("{} must be a valid integer", name))
-}
-
-fn parse_env_u16_required(name: &str) -> Result<u16> {
-    let raw = env::var(name).with_context(|| format!("{} is required", name))?;
-    raw.parse::<u16>()
-        .with_context(|| format!("{} must be a valid integer", name))
-}
-
-fn parse_env_bool_required(name: &str) -> Result<bool> {
+fn env_bool_req(name: &str) -> Result<bool> {
     let raw = env::var(name).with_context(|| format!("{} is required", name))?;
     let s = raw.trim().to_ascii_lowercase();
     Ok(matches!(s.as_str(), "1" | "true" | "yes" | "on"))
 }
 
-fn parse_env_string_required(name: &str) -> Result<String> {
+fn env_bool_or(name: &str, default: bool) -> bool {
+    env::var(name)
+        .ok()
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(default)
+}
+
+fn env_str_req(name: &str) -> Result<String> {
     let raw = env::var(name).with_context(|| format!("{} is required", name))?;
     let trimmed = raw.trim().to_string();
     if trimmed.is_empty() {
@@ -116,7 +113,7 @@ fn parse_env_string_required(name: &str) -> Result<String> {
     Ok(trimmed)
 }
 
-fn parse_env_csv_required(name: &str) -> Result<Vec<String>> {
+fn env_csv_req(name: &str) -> Result<Vec<String>> {
     let raw = env::var(name).with_context(|| format!("{} is required", name))?;
     Ok(raw
         .split(',')
@@ -125,11 +122,11 @@ fn parse_env_csv_required(name: &str) -> Result<Vec<String>> {
         .collect())
 }
 
-fn parse_env_csv_set_required(name: &str) -> Result<HashSet<String>> {
-    Ok(parse_env_csv_required(name)?.into_iter().collect())
+fn env_csv_set_req(name: &str) -> Result<HashSet<String>> {
+    Ok(env_csv_req(name)?.into_iter().collect())
 }
 
-fn parse_port_set(var_name: &str, default_raw: &str) -> HashSet<u16> {
+fn port_set(var_name: &str, default_raw: &str) -> HashSet<u16> {
     let raw = env::var(var_name).unwrap_or_else(|_| default_raw.to_string());
     raw.split(',')
         .filter_map(|p| p.trim().parse::<u16>().ok())
@@ -137,39 +134,24 @@ fn parse_port_set(var_name: &str, default_raw: &str) -> HashSet<u16> {
 }
 
 fn discover_default_yara_rules_path() -> Option<String> {
-    let candidates = [
-        "signatures",
-        "signatures/malware.sig",
-    ];
+    const LOCAL: &[&str] = &["signatures", "signatures/malware.sig"];
+    const SEARCH: &[&str] = &["signatures", "antiabuse/signatures"];
 
-    for candidate in candidates {
+    for candidate in LOCAL {
         if Path::new(candidate).exists() {
             return Some(candidate.to_string());
         }
     }
 
-    if let Ok(exe_path) = env::current_exe() {
-        if let Some(mut dir) = exe_path.parent() {
-            let mut depth = 0;
-            while depth < 5 {
-                for candidate in ["signatures", "antiabuse/signatures"] {
-                    let path = dir.join(candidate);
-                    if path.exists() {
-                        return Some(path.to_string_lossy().to_string());
-                    }
-                }
-
-                if let Some(parent) = dir.parent() {
-                    dir = parent;
-                    depth += 1;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-
-    None
+    let depth = 5;
+    let exe = env::current_exe().ok()?;
+    exe.parent()?
+        .ancestors()
+        .take(depth)
+        .flat_map(|dir| SEARCH.iter().map(move |rel| dir.join(rel)))
+        .find(|p| p.exists())
+        // to anyone that has non-utf8 paths... tf is wrong with you?
+        .map(|p| p.to_string_lossy().into_owned())
 }
 
 pub fn from_env() -> Result<Config> {
@@ -178,92 +160,69 @@ pub fn from_env() -> Result<Config> {
     let backend_url = env::var("BACKEND_URL").context("BACKEND_URL is required")?;
     let api_key = env::var("ANTIABUSE_API_KEY").context("ANTIABUSE_API_KEY is required")?;
 
-    let backend_url = backend_url.trim_end_matches('/').to_string();
-    let detector_name = env::var("DETECTOR_NAME").unwrap_or_else(|_| "antiabuse-rs".to_string());
-    let node_name = env::var("NODE_NAME")
-        .or_else(|_| env::var("HOSTNAME"))
-        .unwrap_or_else(|_| "unknown".to_string());
-    let tcpdump_cmd = env::var("TCPDUMP_CMD").ok().filter(|s| !s.trim().is_empty());
-
-    let alert_strikes = parse_env_u32_required("ALERT_STRIKES")?;
-    let throttle_strikes = parse_env_u32_required("THROTTLE_STRIKES")?;
-    let suspend_strikes = parse_env_u32_required("SUSPEND_STRIKES")?;
-    let mining_port_hit_threshold = parse_env_usize_required("MINING_PORT_HIT_THRESHOLD")?;
-    let mining_ip_threshold = parse_env_usize_required("MINING_IP_THRESHOLD")?;
-    let udp_flood_hit_threshold = parse_env_usize_required("UDP_FLOOD_HIT_THRESHOLD")?;
-    let udp_flood_ip_threshold = parse_env_usize_required("UDP_FLOOD_IP_THRESHOLD")?;
-    let amplification_hit_threshold = parse_env_usize_required("AMPLIFICATION_HIT_THRESHOLD")?;
-    let amplification_target_threshold = parse_env_usize_required("AMPLIFICATION_TARGET_THRESHOLD")?;
-    let strike_decay_ms = parse_env_u64_required("STRIKE_DECAY_MS")?;
-    let throttle_cpu_limit_percent = parse_env_u16_required("THROTTLE_CPU_LIMIT_PERCENT")?;
-    let throttle_duration_seconds = parse_env_u64_required("THROTTLE_DURATION_SECONDS")?;
-    let heartbeat_ms = parse_env_u64_required("HEARTBEAT_MS")?;
-    let file_scan_interval_seconds = parse_env_u64_required("FILE_SCAN_INTERVAL_SECONDS")?;
-    let signature_reload_interval_seconds = parse_env_u64_required("SIGNATURE_RELOAD_INTERVAL_SECONDS")?;
-    let wings_volume_path = parse_env_string_required("WINGS_VOLUME_PATH")?;
-    let detection_cooldown_ms = parse_env_u64_required("DETECTION_COOLDOWN_MS")?;
-    let use_docker_network_map = parse_env_bool_required("USE_DOCKER_NETWORK_MAP")?;
-    let port_scan_auto_suspend_unique_ports = parse_env_usize_required("PORT_SCAN_AUTO_SUSPEND_UNIQUE_PORTS")?;
-    let malware_suspend_signature_severity = parse_env_f64_required("MALWARE_SUSPEND_SIGNATURE_SEVERITY")?;
-    let malware_suspend_signature_matches = parse_env_bool("MALWARE_SUSPEND_SIGNATURES", false);
-    let malware_report_cap_per_server = parse_env_u32_required("MALWARE_REPORT_CAP_PER_SERVER")?;
-    let malware_skip_path_patterns = parse_env_csv_required("MALWARE_SKIP_PATH_PATTERNS")?;
-    let malware_skip_extensions = parse_env_csv_set_required("MALWARE_SKIP_EXTENSIONS")?;
-
     Ok(Config {
-        backend_url,
+        backend_url: backend_url.trim_end_matches('/').to_string(),
         api_key,
-        detector_name,
-        node_name,
-        tcpdump_cmd,
-        refresh_interval: Duration::from_millis(parse_env_u64_required("MAP_REFRESH_MS")?),
-        window: Duration::from_millis(parse_env_u64_required("WINDOW_MS")?),
-        suspend_cooldown: Duration::from_millis(parse_env_u64_required("SUSPEND_COOLDOWN_MS")?),
-        strike_decay_window: Duration::from_millis(strike_decay_ms),
-        slow_big_hit_threshold: parse_env_usize_required("SLOW_BIG_HIT_THRESHOLD")?,
-        slow_ip_threshold: parse_env_usize_required("SLOW_IP_THRESHOLD")?,
-        fast_big_hit_threshold: parse_env_usize_required("FAST_BIG_HIT_THRESHOLD")?,
-        fast_ip_threshold: parse_env_usize_required("FAST_IP_THRESHOLD")?,
-        sequential_port_trigger: parse_env_usize_required("SEQUENTIAL_PORT_TRIGGER")?,
-        unique_ports_threshold: parse_env_usize_required("UNIQUE_PORTS_THRESHOLD")?,
-        mining_port_hit_threshold,
-        mining_ip_threshold,
-        udp_flood_hit_threshold,
-        udp_flood_ip_threshold,
-        amplification_hit_threshold,
-        amplification_target_threshold,
-        alert_strikes,
-        throttle_strikes,
-        suspend_strikes,
-        safe_ports: parse_port_set("SAFE_PORTS", "80,443"),
-        mining_ports: parse_port_set("MINING_PORTS", "3333,4444,5555,6666,7777,14444"),
-        throttle_cpu_limit_percent,
-        throttle_duration_seconds,
-        heartbeat_interval: Duration::from_millis(heartbeat_ms),
-        use_server_network_map: parse_env_bool("USE_SERVER_NETWORK_MAP", true),
-        wings_volume_path,
-        file_scan_interval: file_scan_interval_seconds,
-        signature_reload_interval: Some(signature_reload_interval_seconds),
-        unmapped_log_every: parse_env_u64("UNMAPPED_LOG_EVERY", 100),
-        enable_node_fallback_detection: parse_env_bool("ENABLE_NODE_FALLBACK_DETECTION", true),
-        detection_cooldown: Duration::from_millis(detection_cooldown_ms),
-        use_docker_network_map,
-        port_scan_auto_suspend_unique_ports,
-        yara_enabled: parse_env_bool("YARA_ENABLED", false),
+        detector_name: env::var("DETECTOR_NAME").unwrap_or_else(|_| "antiabuse-rs".to_string()),
+        node_name: env::var("NODE_NAME")
+            .or_else(|_| env::var("HOSTNAME"))
+            .unwrap_or_else(|_| "unknown".to_string()),
+        tcpdump_cmd: env::var("TCPDUMP_CMD")
+            .ok()
+            .filter(|s| !s.trim().is_empty()),
+
+        refresh_interval: Duration::from_millis(env_req("MAP_REFRESH_MS")?),
+        window: Duration::from_millis(env_req("WINDOW_MS")?),
+        suspend_cooldown: Duration::from_millis(env_req("SUSPEND_COOLDOWN_MS")?),
+        strike_decay_window: Duration::from_millis(env_req("STRIKE_DECAY_MS")?),
+
+        slow_big_hit_threshold: env_req("SLOW_BIG_HIT_THRESHOLD")?,
+        slow_ip_threshold: env_req("SLOW_IP_THRESHOLD")?,
+        fast_big_hit_threshold: env_req("FAST_BIG_HIT_THRESHOLD")?,
+        fast_ip_threshold: env_req("FAST_IP_THRESHOLD")?,
+        sequential_port_trigger: env_req("SEQUENTIAL_PORT_TRIGGER")?,
+        unique_ports_threshold: env_req("UNIQUE_PORTS_THRESHOLD")?,
+        mining_port_hit_threshold: env_req("MINING_PORT_HIT_THRESHOLD")?,
+        mining_ip_threshold: env_req("MINING_IP_THRESHOLD")?,
+        udp_flood_hit_threshold: env_req("UDP_FLOOD_HIT_THRESHOLD")?,
+        udp_flood_ip_threshold: env_req("UDP_FLOOD_IP_THRESHOLD")?,
+        amplification_hit_threshold: env_req("AMPLIFICATION_HIT_THRESHOLD")?,
+        amplification_target_threshold: env_req("AMPLIFICATION_TARGET_THRESHOLD")?,
+        alert_strikes: env_req("ALERT_STRIKES")?,
+        throttle_strikes: env_req("THROTTLE_STRIKES")?,
+        suspend_strikes: env_req("SUSPEND_STRIKES")?,
+        safe_ports: port_set("SAFE_PORTS", "80,443"),
+        mining_ports: port_set("MINING_PORTS", "3333,4444,5555,6666,7777,14444"),
+        throttle_cpu_limit_percent: env_req("THROTTLE_CPU_LIMIT_PERCENT")?,
+        throttle_duration_seconds: env_req("THROTTLE_DURATION_SECONDS")?,
+        heartbeat_interval: Duration::from_millis(env_req("HEARTBEAT_MS")?),
+        use_server_network_map: env_bool_or("USE_SERVER_NETWORK_MAP", true),
+        wings_volume_path: env_str_req("WINGS_VOLUME_PATH")?,
+        file_scan_interval: env_req("FILE_SCAN_INTERVAL_SECONDS")?,
+        signature_reload_interval: Some(env_req("SIGNATURE_RELOAD_INTERVAL_SECONDS")?),
+        unmapped_log_every: env_or("UNMAPPED_LOG_EVERY", 100)?,
+        enable_node_fallback_detection: env_bool_or("ENABLE_NODE_FALLBACK_DETECTION", true),
+        detection_cooldown: Duration::from_millis(env_req("DETECTION_COOLDOWN_MS")?),
+        use_docker_network_map: env_bool_req("USE_DOCKER_NETWORK_MAP")?,
+        port_scan_auto_suspend_unique_ports: env_req("PORT_SCAN_AUTO_SUSPEND_UNIQUE_PORTS")?,
+        yara_enabled: env_bool_or("YARA_ENABLED", false),
+
+        malware_suspend_signature_severity: env_req("MALWARE_SUSPEND_SIGNATURE_SEVERITY")?,
+        malware_suspend_signature_matches: env_bool_or("MALWARE_SUSPEND_SIGNATURES", false),
+        malware_report_cap_per_server: env_req("MALWARE_REPORT_CAP_PER_SERVER")?,
+        malware_skip_path_patterns: env_csv_req("MALWARE_SKIP_PATH_PATTERNS")?,
+        malware_skip_extensions: env_csv_set_req("MALWARE_SKIP_EXTENSIONS")?,
+
         yara_rules_path: env::var("YARA_RULES_PATH")
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .or_else(discover_default_yara_rules_path),
+
         yara_binary: env::var("YARA_BINARY")
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "yara".to_string()),
-        malware_suspend_signature_severity,
-        malware_suspend_signature_matches,
-        malware_report_cap_per_server,
-        malware_skip_path_patterns,
-        malware_skip_extensions,
     })
 }
