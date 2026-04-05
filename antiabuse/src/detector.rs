@@ -171,7 +171,7 @@ pub async fn process_connection(
         let is_inbound = !event.server_is_source;
         let is_outbound = event.server_is_source;
         let is_public_remote = !is_private_or_local_ip(&remote_ip);
-        let ddos_eligible = is_inbound && is_public_remote;
+        let ddos_eligible = is_outbound && is_public_remote;
 
         match protocol {
             Protocol::Tcp => {
