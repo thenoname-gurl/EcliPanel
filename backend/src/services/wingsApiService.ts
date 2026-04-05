@@ -238,7 +238,64 @@ export class WingsApiService {
   }
 
   async syncServer(serverId: string, payload: any) {
-    return this.serverRequest(serverId, '/sync', 'post', payload);
+    if (!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) {
+      return this.serverRequest(serverId, '/sync', 'post', payload);
+    }
+
+    if (payload.server) {
+      return this.serverRequest(serverId, '/sync', 'post', payload);
+    }
+
+    const result = await this.getServer(serverId);
+    const server = result.data as any;
+    const settings = server.settings || {};
+    const processConfiguration = server.process_configuration || {};
+
+    for (const [key, value] of Object.entries(payload)) {
+      const valueObject = (typeof value === 'object' && value !== null) ? value : {};
+
+      if (key === 'process_configuration') {
+        server.process_configuration = { ...processConfiguration, ...valueObject };
+        continue;
+      }
+
+      if (key === 'kvm_passthrough_enabled') {
+        server.settings = {
+          ...settings,
+          container: {
+            ...settings.container,
+            kvm_passthrough_enabled: Boolean(value),
+          },
+        };
+        continue;
+      }
+
+      if (key === 'settings') {
+        server.settings = {
+          ...settings,
+          ...valueObject,
+        };
+        continue;
+      }
+
+      if (key === 'build' || key === 'container' || key === 'meta' || key === 'allocations' || key === 'schedules' || key === 'environment' || key === 'labels' || key === 'backups' || key === 'mounts' || key === 'egg') {
+        server.settings = {
+          ...settings,
+          [key]: {
+            ...settings[key],
+            ...valueObject,
+          },
+        };
+        continue;
+      }
+
+      server.settings = {
+        ...settings,
+        [key]: value,
+      };
+    }
+
+    return this.serverRequest(serverId, '/sync', 'post', { server });
   }
 
   async transferServer(serverId: string, payload: any) {

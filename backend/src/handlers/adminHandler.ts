@@ -2545,13 +2545,13 @@ export async function adminRoutes(app: any, prefix = '') {
         const base = (n as any).backendWingsUrl || n.url;
         const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
-        await svc.powerServer(serverId, 'kill').catch(() => { });
-        await svc.syncServer(serverId, { suspended: true });
         const alreadySuspended = !!existingCfg?.suspended;
         await cfgRepo.update(
           { uuid: serverId },
           { suspended: true, suspendedBy, suspendedReason: reason, suspendedAt: new Date() },
         );
+        await svc.powerServer(serverId, 'kill').catch(() => { });
+        await svc.syncServer(serverId, {});
 
         let notice: {
           sent: boolean;
@@ -2628,11 +2628,11 @@ export async function adminRoutes(app: any, prefix = '') {
         const base = (n as any).backendWingsUrl || n.url;
         const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
-        await svc.syncServer(serverId, { suspended: false });
         await cfgRepo.update(
           { uuid: serverId },
           { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
         );
+        await svc.syncServer(serverId, {});
         return { success: true };
       } catch { }
     }

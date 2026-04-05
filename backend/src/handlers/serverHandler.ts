@@ -1311,8 +1311,6 @@ export async function serverRoutes(app: any, prefix = '') {
       const reason = providedReason || 'Suspended by panel moderation action';
 
       const svc = await serviceFor(id);
-      await svc.powerServer(id, 'kill').catch(() => { });
-      await svc.syncServer(id, { suspended: true });
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
       const existingCfg = await cfgRepo.findOneBy({ uuid: id });
       const alreadySuspended = !!existingCfg?.suspended;
@@ -1320,6 +1318,8 @@ export async function serverRoutes(app: any, prefix = '') {
         { uuid: id },
         { suspended: true, suspendedBy: actor, suspendedReason: reason, suspendedAt: new Date() },
       );
+      await svc.powerServer(id, 'kill').catch(() => { });
+      await svc.syncServer(id, {});
 
       let notice: {
         sent: boolean;
@@ -1389,13 +1389,13 @@ export async function serverRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/unsuspend', async (ctx: any) => {
     const { id } = ctx.params as any;
     try {
-      const svc = await serviceFor(id);
-      await svc.syncServer(id, { suspended: false });
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
       await cfgRepo.update(
         { uuid: id },
         { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
       );
+      const svc = await serviceFor(id);
+      await svc.syncServer(id, {});
       const user = ctx.user;
       await createActivityLog({ userId: user.id, action: 'server:unsuspend', targetId: id, targetType: 'server', ipAddress: ctx.ip });
       return { success: true };
