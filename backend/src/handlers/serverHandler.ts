@@ -1567,24 +1567,18 @@ export async function serverRoutes(app: any, prefix = '') {
     const svc = await serviceFor(id);
 
     try {
-      // CRITICAL: downloadFile MUST return ArrayBuffer, not string
       const res = await svc.downloadFile(id, path);
       const filename = path.split('/').pop() || 'download';
       const contentType = res.headers?.['content-type'] || 'application/octet-stream';
 
-      // Ensure we have raw binary bytes
       let body: Uint8Array;
 
       if (res.data instanceof ArrayBuffer) {
         body = new Uint8Array(res.data);
       } else if (ArrayBuffer.isView(res.data)) {
-        // Already a typed array view (Uint8Array, Buffer, etc.)
         body = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
       } else if (typeof res.data === 'string') {
-        // THIS IS THE PROBLEM - if we get here, downloadFile is returning text
-        // This will corrupt binary files! Fix downloadFile to use responseType: 'arraybuffer'
         console.error('WARNING: downloadFile returned string instead of ArrayBuffer - binary corruption will occur!');
-        // Cannot reliably convert back - the damage is done
         body = new TextEncoder().encode(res.data);
       } else {
         ctx.set.status = 500;

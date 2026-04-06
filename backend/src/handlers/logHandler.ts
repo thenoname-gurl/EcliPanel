@@ -298,7 +298,6 @@ export async function logRoutes(app: any, prefix = '') {
     detail: { summary: 'Fetch activity for a specific organisation (alias)', tags: ['Logs'] }
   });
 
-  // Optional: alias for user activity
   app.get(prefix + '/users/:id/activity', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user as any;

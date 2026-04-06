@@ -3154,6 +3154,7 @@
     "sections": {
       "favorites": "Favorites",
       "codeInstances": "Code Instances",
+      "code": "Code",
       "yourServers": "Your Servers",
       "sharedWithYou": "Shared With You"
     },
@@ -3223,13 +3224,25 @@
           "title": "Environment Variables",
           "add": "Add variable",
           "empty": "No environment variables configured. Add one to override defaults or define new values.",
+          "keyPlaceholder": "Key",
           "valuePlaceholder": "value"
+        },
+        "searchTemplates": "Search templates...",
+        "searchNodes": "Search nodes...",
+        "nodeTypes": {
+          "freeAndPaid": "Public Node",
+          "enterprise": "Enterprise Node",
+          "paid": "Paid Node",
+          "free": "Free Node",
+          "unknown": "{value}"
         }
       },
       "states": {
         "loading": "Loading…",
         "noTemplates": "No templates available.",
-        "noNodes": "No nodes available."
+        "noNodes": "No nodes available.",
+        "noTemplatesMatch": "No templates match your search.",
+        "noNodesMatch": "No nodes match your search."
       },
       "resources": {
         "title": "Resources",

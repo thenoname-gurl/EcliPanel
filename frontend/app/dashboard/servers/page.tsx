@@ -30,6 +30,8 @@ import {
   ShieldCheck,
   KeyRound,
   Star,
+  Check,
+  ChevronDown,
 } from "lucide-react"
 
 const GAMBLING_THEME_NAMES = new Set(["gambling mode dark", "gambling mode white"])
@@ -123,6 +125,35 @@ function statusLabel(status: string, t?: (key: string) => string) {
   }
 }
 
+function getNodeTypeLabel(nodeType: string, t: (key: string, values?: any) => string, useFieldsPath: boolean = false) {
+  const normalized = String(nodeType).trim().toLowerCase()
+  const normalizedCompact = normalized.replace(/[_\-\s]+/g, "")
+
+  const resolve = (key: string) => {
+    const path = useFieldsPath ? `fields.${key}` : key
+    const translated = t(path)
+    return translated === path ? nodeType : translated
+  }
+
+  if (/free.*paid|paid.*free/.test(normalizedCompact)) {
+    return resolve("nodeTypes.freeAndPaid")
+  }
+
+  if (normalizedCompact.includes("enterprise")) {
+    return resolve("nodeTypes.enterprise")
+  }
+
+  if (normalizedCompact.includes("paid")) {
+    return resolve("nodeTypes.paid")
+  }
+
+  if (normalizedCompact.includes("free")) {
+    return resolve("nodeTypes.free")
+  }
+
+  return resolve("nodeTypes.unknown")
+}
+
 /* ------------------------------------------------------------------ */
 /*  Animated Usage Ring                                                 */
 /* ------------------------------------------------------------------ */
@@ -152,6 +183,262 @@ function UsageRing({ value, size = 40, stroke = 3.5, color }: { value: number; s
 }
 
 /* ------------------------------------------------------------------ */
+/*  Enhanced Template Selector                                         */
+/* ------------------------------------------------------------------ */
+
+function TemplateSelector({
+  eggs,
+  value,
+  onChange,
+  loading,
+}: {
+  eggs: { id: number; name: string; description?: string; icon?: string }[]
+  value: string
+  onChange: (id: string) => void
+  loading?: boolean
+}) {
+  const t = useTranslations("serversPage.newServerModal")
+  const [open, setOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const selected = eggs.find((e) => String(e.id) === String(value))
+  const filtered = eggs.filter(
+    (egg) =>
+      egg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      egg.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const handleSelect = (id: string) => {
+    onChange(id)
+    setOpen(false)
+    setSearchTerm("")
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 px-4 rounded-xl border border-border/50 bg-muted/30">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("states.loading")}
+      </div>
+    )
+  }
+
+  if (eggs.length === 0) {
+    return <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">{t("states.noTemplates")}</p>
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        data-guide-id="new-server-template"
+        className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all flex items-center justify-between gap-2 hover:bg-muted/40"
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {selected?.icon && <span className="text-lg flex-shrink-0">{selected.icon}</span>}
+          <div className="text-left min-w-0 flex-1">
+            <p className="font-medium truncate">{selected?.name || t("fields.template")}</p>
+            {selected?.description && <p className="text-xs text-muted-foreground truncate">{selected.description}</p>}
+          </div>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden" onClick={() => setOpen(false)} />
+
+          {/* Dropdown */}
+          <div className="fixed sm:absolute inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 z-50 w-full sm:w-full sm:max-w-md max-h-[70vh] sm:max-h-[400px] flex flex-col rounded-t-3xl sm:rounded-2xl border border-border/50 bg-card shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-top-2 duration-300">
+            {/* Mobile drag handle */}
+            <div className="flex justify-center pt-3 pb-2 sm:hidden">
+              <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
+            </div>
+
+            {/* Search */}
+            <div className="p-3 border-b border-border/50 flex-shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder={t("fields.searchTemplates")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-lg border border-border/50 bg-muted/30 pl-10 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  autoFocus
+                />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground p-0.5">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <Server className="h-8 w-8 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t("states.noTemplatesMatch")}</p>
+                </div>
+              ) : (
+                <div className="p-2 space-y-1">
+                  {filtered.map((egg) => {
+                    const isSelected = String(egg.id) === String(value)
+                    return (
+                      <button
+                        key={egg.id}
+                        type="button"
+                        onClick={() => handleSelect(String(egg.id))}
+                        className={`w-full rounded-xl px-3 py-3 text-left transition-all flex items-center gap-3 ${
+                          isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50 border border-transparent"
+                        }`}
+                      >
+                        {egg.icon && <span className="text-2xl flex-shrink-0">{egg.icon}</span>}
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-foreground"}`}>{egg.name}</p>
+                          {egg.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{egg.description}</p>}
+                        </div>
+                        {isSelected && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function NodeSelector({
+  nodes,
+  value,
+  onChange,
+  loading,
+}: {
+  nodes: { id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number }[]
+  value: string
+  onChange: (id: string) => void
+  loading?: boolean
+}) {
+  const t = useTranslations("serversPage.newServerModal")
+  const [open, setOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const selected = nodes.find((n) => String(n.id) === String(value))
+  const filtered = nodes.filter(
+    (node) =>
+      node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      node.nodeType?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const handleSelect = (id: string) => {
+    onChange(id)
+    setOpen(false)
+    setSearchTerm("")
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 px-4 rounded-xl border border-border/50 bg-muted/30">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("states.loading")}
+      </div>
+    )
+  }
+
+  if (nodes.length === 0) {
+    return <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">{t("states.noNodes")}</p>
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        data-guide-id="new-server-node"
+        className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all flex items-center justify-between gap-2 hover:bg-muted/40"
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="text-left min-w-0 flex-1">
+            <p className="font-medium truncate">{selected?.name || t("fields.node")}</p>
+            {selected?.nodeType && (
+              <p className="text-xs text-muted-foreground truncate">{getNodeTypeLabel(selected.nodeType, t, true)}</p>
+            )}
+          </div>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed sm:absolute inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 z-50 w-full sm:w-full sm:max-w-md max-h-[70vh] sm:max-h-[400px] flex flex-col rounded-t-3xl sm:rounded-2xl border border-border/50 bg-card shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-top-2 duration-300">
+            <div className="flex justify-center pt-3 pb-2 sm:hidden">
+              <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
+            </div>
+            <div className="p-3 border-b border-border/50 flex-shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder={t("fields.searchNodes")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-lg border border-border/50 bg-muted/30 pl-10 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  autoFocus
+                />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground p-0.5">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <Server className="h-8 w-8 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t("states.noNodesMatch")}</p>
+                </div>
+              ) : (
+                <div className="p-2 space-y-1">
+                  {filtered.map((node) => {
+                    const isSelected = String(node.id) === String(value)
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => handleSelect(String(node.id))}
+                        className={`w-full rounded-xl px-3 py-3 text-left transition-all flex items-center gap-3 ${
+                          isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50 border border-transparent"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-foreground"}`}>{node.name}</p>
+                          {node.nodeType && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{getNodeTypeLabel(node.nodeType, t, true)}</p>
+                          )}
+                        </div>
+                        {isSelected && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
 /*  NewServerModal                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -159,7 +446,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const t = useTranslations("serversPage.newServerModal")
   const [name, setName] = useState("")
   const [eggId, setEggId] = useState<string>("")
-  const [eggs, setEggs] = useState<{ id: number; name: string; description?: string }[]>([])
+  const [eggs, setEggs] = useState<{ id: number; name: string; description?: string; icon?: string }[]>([])
   const [eggsLoading, setEggsLoading] = useState(true)
   const [nodeId, setNodeId] = useState<number | null>(null)
   const [nodes, setNodes] = useState<{ id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number }[]>([])
@@ -365,31 +652,31 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="relative w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-card border border-border/50 shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 sm:zoom-in-95 duration-300 overflow-hidden">
+      <div className="relative w-full sm:max-w-2xl max-h-[95dvh] sm:max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-card border border-border/50 shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 sm:zoom-in-95 duration-300 overflow-hidden">
         {/* Mobile drag handle */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-border/50 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border/50 flex-shrink-0 bg-card/95 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
               <Plus className="h-4 w-4 text-primary" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-foreground">{t("header.title")}</h2>
-              <p className="text-xs text-muted-foreground">{t("header.subtitle")}</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">{t("header.subtitle")}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all active:scale-95">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Body */}
         <form onSubmit={handleCreate} className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-5 sm:p-6 space-y-5">
+          <div className="p-4 sm:p-6 space-y-5">
             {/* Alerts */}
             {error && (
               <div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
@@ -423,55 +710,16 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               />
             </div>
 
-            {/* Server Type & Node - 2-col on desktop */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.template")}</label>
-                {eggsLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 px-4 rounded-xl border border-border/50 bg-muted/30">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("states.loading")}
-                  </div>
-                ) : eggs.length === 0 ? (
-                  <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">{t("states.noTemplates")}</p>
-                ) : (
-                  <select
-                    value={eggId}
-                    onChange={(e) => setEggId(e.target.value)}
-                    data-guide-id="new-server-template"
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all appearance-none cursor-pointer"
-                  >
-                    {eggs.map((egg) => (
-                      <option key={egg.id} value={String(egg.id)}>
-                        {egg.name}{egg.description ? ` — ${egg.description}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+            {/* Template Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.template")}</label>
+              <TemplateSelector eggs={eggs} value={eggId} onChange={setEggId} loading={eggsLoading} />
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.node")}</label>
-                {nodesLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 px-4 rounded-xl border border-border/50 bg-muted/30">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("states.loading")}
-                  </div>
-                ) : nodes.length === 0 ? (
-                  <p className="text-xs text-destructive py-3 px-4 rounded-xl border border-destructive/20 bg-destructive/5">{t("states.noNodes")}</p>
-                ) : (
-                  <select
-                    value={nodeId ?? ""}
-                    onChange={(e) => setNodeId(Number(e.target.value))}
-                    data-guide-id="new-server-node"
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all appearance-none cursor-pointer"
-                  >
-                    {nodes.map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.name} {n.nodeType ? `(${n.nodeType})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+            {/* Node Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.node")}</label>
+              <NodeSelector nodes={nodes} value={nodeId ? String(nodeId) : ""} onChange={(id) => setNodeId(Number(id))} loading={nodesLoading} />
             </div>
 
             {/* Startup */}
@@ -481,7 +729,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 value={startup}
                 readOnly
                 rows={1}
-                className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all resize-none"
                 placeholder={t("fields.startup.placeholder")}
               />
               <p className="text-[10px] text-muted-foreground/80">{t("fields.startup.hint")}</p>
@@ -494,7 +742,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 <button
                   type="button"
                   onClick={() => setEnvVars((prev) => [...prev, { key: "", value: "" }])}
-                  className="px-2 py-1 text-xs rounded-lg border border-border/50 bg-muted/30 text-foreground hover:bg-muted/50"
+                  className="px-3 py-1.5 text-xs rounded-lg border border-border/50 bg-muted/30 text-foreground hover:bg-muted/50 active:scale-95 transition-all"
                 >
                   {t("fields.env.add")}
                 </button>
@@ -508,19 +756,19 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                       <input
                         value={row.key}
                         onChange={(e) => setEnvVars((prev) => prev.map((item, i) => i === idx ? { ...item, key: e.target.value } : item))}
-                        placeholder="KEY"
-                        className="col-span-5 rounded-xl border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                        placeholder={t("fields.env.keyPlaceholder")}
+                        className="col-span-5 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                       />
                       <input
                         value={row.value}
                         onChange={(e) => setEnvVars((prev) => prev.map((item, i) => i === idx ? { ...item, value: e.target.value } : item))}
                         placeholder={t("fields.env.valuePlaceholder")}
-                        className="col-span-6 rounded-xl border border-border/50 bg-muted/30 px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                        className="col-span-6 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                       />
                       <button
                         type="button"
                         onClick={() => setEnvVars((prev) => prev.filter((_, i) => i !== idx))}
-                        className="col-span-1 rounded-xl border border-border/50 text-xs text-destructive hover:bg-destructive/10"
+                        className="col-span-1 rounded-xl border border-border/50 text-xs text-destructive hover:bg-destructive/10 active:scale-95 transition-all"
                       >
                         ×
                       </button>
@@ -682,11 +930,11 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 border-t border-border/50 bg-card/95 backdrop-blur-sm px-5 sm:px-6 py-4">
+          <div className="sticky bottom-0 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 border-t border-border/50 bg-card/95 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 safe-area-inset-bottom">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-border/50 bg-muted/30 px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all text-center"
+              className="rounded-xl border border-border/50 bg-muted/30 px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95 transition-all text-center"
             >
               {t("actions.cancel")}
             </button>
@@ -694,7 +942,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               type="submit"
               data-guide-id="new-server-deploy"
               disabled={creating || !canCreate}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all"
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all min-h-[44px]"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
               {creating ? t("actions.deploying") : t("actions.deploy")}
@@ -816,7 +1064,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full rounded-xl bg-primary text-primary-foreground py-2 text-sm font-semibold hover:bg-primary/90 transition-all"
+                  className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all"
                 >
                   {t("actions.close")}
                 </button>
@@ -917,7 +1165,7 @@ function ServerCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5">
               <div className={`h-2 w-2 rounded-full flex-shrink-0 ${statusColor(server.status)}`} />
-              <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors text-[15px]">
+              <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors text-sm sm:text-[15px]">
                 {server.name}
               </h3>
             </div>
@@ -925,8 +1173,8 @@ function ServerCard({
               <span className="capitalize">{statusLabel(server.status, t)}</span>
               {server.resources?.uptime != null && server.resources.uptime > 0 && (
                 <>
-                  <span className="text-border">·</span>
-                  <span className="flex items-center gap-1 tabular-nums">
+                  <span className="text-border hidden sm:inline">·</span>
+                  <span className="hidden sm:flex items-center gap-1 tabular-nums">
                     <Clock className="h-3 w-3" />
                     {formatUptime(server.resources.uptime)}
                   </span>
@@ -943,18 +1191,10 @@ function ServerCard({
                 if (sid) onToggleFavorite(String(sid))
               }}
               aria-label={isFavorite ? t("serverCard.unfavorite") : t("serverCard.favorite")}
-              className={`rounded-lg p-1 transition-colors ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`rounded-lg p-2 transition-all active:scale-90 ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 stroke-yellow-400' : ''}`} />
             </button>
-            {/* Mobile console shortcut */}
-            <Link
-              href={`/dashboard/servers/${sid}`}
-              className="sm:hidden flex items-center justify-center rounded-xl bg-muted/50 p-2.5 text-muted-foreground active:bg-muted transition-colors"
-              aria-label={t("actions.console")}
-            >
-              <Terminal className="h-4 w-4" />
-            </Link>
             <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary/60 transition-colors hidden sm:block" />
           </div>
         </div>
@@ -964,37 +1204,37 @@ function ServerCard({
       <div className="px-4 sm:px-5 pb-1">
         <div className="flex items-center justify-between gap-2 py-3 border-t border-border/30">
           {/* CPU */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
-              <UsageRing value={cpuVal} size={38} color={cpuVal > 80 ? "#ef4444" : cpuVal > 50 ? "#f59e0b" : "#3b82f6"} />
+              <UsageRing value={cpuVal} size={36} stroke={3} color={cpuVal > 80 ? "#ef4444" : cpuVal > 50 ? "#f59e0b" : "#3b82f6"} />
               <Cpu className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">{t("resources.cpu")}</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">{t("resources.cpu")}</p>
               <p className="text-xs font-semibold text-foreground tabular-nums">{cpuVal}%</p>
             </div>
           </div>
 
           {/* RAM */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
-              <UsageRing value={ramPct} size={38} color={ramPct > 80 ? "#ef4444" : ramPct > 50 ? "#f59e0b" : "#10b981"} />
+              <UsageRing value={ramPct} size={36} stroke={3} color={ramPct > 80 ? "#ef4444" : ramPct > 50 ? "#f59e0b" : "#10b981"} />
               <MemoryStick className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">{t("resources.ram")}</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">{t("resources.ram")}</p>
               <p className="text-xs font-semibold text-foreground tabular-nums">{formatBytes(server.resources?.memory_bytes ?? 0)}</p>
             </div>
           </div>
 
           {/* Disk */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
-              <UsageRing value={diskPct} size={38} color={diskPct > 80 ? "#ef4444" : diskPct > 50 ? "#f59e0b" : "#8b5cf6"} />
+              <UsageRing value={diskPct} size={36} stroke={3} color={diskPct > 80 ? "#ef4444" : diskPct > 50 ? "#f59e0b" : "#8b5cf6"} />
               <HardDrive className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">{t("resources.disk")}</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">{t("resources.disk")}</p>
               <p className="text-xs font-semibold text-foreground tabular-nums">{formatBytes(server.resources?.disk_bytes ?? 0)}</p>
             </div>
           </div>
@@ -1015,7 +1255,7 @@ function ServerCard({
           <button
             onClick={() => onPower(sid, "stop")}
             disabled={powerLoading === sid}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-red-500/10 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-red-500 transition-all hover:bg-red-500/15 active:scale-[0.97] disabled:opacity-50 min-h-[36px] sm:min-h-0"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-red-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-red-500 transition-all hover:bg-red-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
           >
             <Square className="h-3 w-3" />
             <span>{t("actions.stop")}</span>
@@ -1024,7 +1264,7 @@ function ServerCard({
           <button
             onClick={() => onPower(sid, "start")}
             disabled={powerLoading === sid}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-emerald-500 transition-all hover:bg-emerald-500/15 active:scale-[0.97] disabled:opacity-50 min-h-[36px] sm:min-h-0"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-emerald-500 transition-all hover:bg-emerald-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
           >
             <Play className="h-3 w-3" />
             <span>{t("actions.start")}</span>
@@ -1033,14 +1273,14 @@ function ServerCard({
         <button
           onClick={() => onPower(sid, "restart")}
           disabled={powerLoading === sid}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-amber-500 transition-all hover:bg-amber-500/15 active:scale-[0.97] disabled:opacity-50 min-h-[36px] sm:min-h-0"
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-amber-500 transition-all hover:bg-amber-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
         >
           <RotateCcw className="h-3 w-3" />
           <span>{t("actions.restart")}</span>
         </button>
         <Link
           href={`/dashboard/servers/${sid}`}
-          className="ml-auto hidden sm:flex items-center gap-1.5 rounded-xl bg-primary/10 px-3.5 py-1.5 text-xs font-medium text-primary transition-all hover:bg-primary/15"
+          className="hidden sm:flex ml-auto items-center gap-1.5 rounded-xl bg-primary/10 px-3.5 py-1.5 text-xs font-medium text-primary transition-all hover:bg-primary/15 active:scale-95"
         >
           <Terminal className="h-3 w-3" />
           {t("actions.console")}
@@ -1104,7 +1344,7 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 flex-shrink-0">
           <h3 className="text-base font-semibold">{t("title")}</h3>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all active:scale-95">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -1128,11 +1368,11 @@ function CodeInstancesModal({ onClose }: { onClose: () => void }) {
                     <p className="text-[11px] text-muted-foreground mt-0.5">{minutesLeft(ci.lastActivityAt)}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Link href={`/dashboard/servers/${ci.uuid}`} className="rounded-xl px-4 py-2 bg-primary/10 text-xs font-medium text-primary flex-1 sm:flex-none text-center">
+                    <Link href={`/dashboard/servers/${ci.uuid}`} className="rounded-xl px-4 py-2 bg-primary/10 text-xs font-medium text-primary flex-1 sm:flex-none text-center active:scale-95 transition-all">
                       {t("open")}
                     </Link>
                     <button onClick={() => stopInstance(ci.uuid)} disabled={stopping === ci.uuid}
-                      className="rounded-xl px-4 py-2 bg-red-500/10 text-xs font-medium text-red-500 flex-1 sm:flex-none text-center disabled:opacity-50">
+                      className="rounded-xl px-4 py-2 bg-red-500/10 text-xs font-medium text-red-500 flex-1 sm:flex-none text-center disabled:opacity-50 active:scale-95 transition-all">
                       {stopping === ci.uuid ? t("stopping") : t("delete")}
                     </button>
                   </div>
@@ -1409,9 +1649,9 @@ export default function ServersPage() {
   return (
     <>
       {powerToast && (
-        <div className="fixed inset-x-0 bottom-4 z-[9999] px-3 sm:px-4 pointer-events-none">
+        <div className="fixed inset-x-0 bottom-0 sm:bottom-4 z-[9999] px-3 sm:px-4 pointer-events-none pb-safe">
           <div
-            className={`mx-auto w-full max-w-sm sm:max-w-md rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto ${
+            className={`mx-auto w-full max-w-sm sm:max-w-md rounded-t-2xl sm:rounded-2xl border p-4 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto ${
               powerToast.type === "success"
                 ? "border-emerald-500/30 bg-emerald-500/10"
                 : powerToast.type === "warning"
@@ -1419,7 +1659,7 @@ export default function ServersPage() {
                   : "border-destructive/30 bg-destructive/10"
             }`}
           >
-            <div className="flex items-start gap-2.5">
+            <div className="flex items-start gap-3">
               <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                 powerToast.type === "success"
                   ? "bg-emerald-500"
@@ -1434,7 +1674,7 @@ export default function ServersPage() {
               <button
                 type="button"
                 onClick={() => setPowerToast(null)}
-                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors active:scale-90"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -1449,22 +1689,22 @@ export default function ServersPage() {
       <PanelHeader title={t("header.title")} description={t("header.description")} />
 
       <ScrollArea className="flex-1 overflow-x-hidden">
-        <div className="flex flex-col gap-4 sm:gap-5 p-3 sm:p-5 md:p-6 max-w-[100vw] w-full min-w-0 box-border">
+        <div className="flex flex-col gap-4 sm:gap-5 p-3 sm:p-5 md:p-6 max-w-[100vw] w-full min-w-0 box-border pb-safe">
 
           {/* Quick stats */}
           {!loading && servers.length > 0 && (
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">{t("stats.total")}</p>
-                <p className="text-xl sm:text-2xl font-bold text-foreground tabular-nums mt-0.5">{servers.length}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.total")}</p>
+                <p className="text-lg sm:text-2xl font-bold text-foreground tabular-nums mt-0.5">{servers.length}</p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">{t("stats.online")}</p>
-                <p className="text-xl sm:text-2xl font-bold text-emerald-500 tabular-nums mt-0.5">{onlineCount}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.online")}</p>
+                <p className="text-lg sm:text-2xl font-bold text-emerald-500 tabular-nums mt-0.5">{onlineCount}</p>
               </div>
               <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">{t("stats.offline")}</p>
-                <p className="text-xl sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{servers.length - onlineCount}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.offline")}</p>
+                <p className="text-lg sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{servers.length - onlineCount}</p>
               </div>
             </div>
           )}
@@ -1505,7 +1745,7 @@ export default function ServersPage() {
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground p-0.5"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground p-0.5 active:scale-90 transition-all"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -1515,16 +1755,17 @@ export default function ServersPage() {
               {codeInstancesEnabled && (
                 <button
                   onClick={() => setShowCodeModal(true)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2 text-sm font-medium hover:bg-primary/10 transition-all"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2.5 text-sm font-medium hover:bg-primary/10 active:scale-95 transition-all flex-1 sm:flex-initial"
                 >
                   <Server className="h-4 w-4" />
-                  {t("sections.codeInstances")}
+                  <span className="hidden sm:inline">{t("sections.codeInstances")}</span>
+                  <span className="sm:hidden">{t("sections.code")}</span>
                 </button>
               )}
               <button
                 data-guide-id="servers-new"
                 onClick={() => setShowNewModal(true)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98] transition-all w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 transition-all flex-1 sm:flex-initial"
               >
                 <Plus className="h-4 w-4" />
                 {t("actions.newServer")}
@@ -1614,7 +1855,7 @@ export default function ServersPage() {
               {!search && (
                 <button
                   onClick={() => setShowNewModal(true)}
-                  className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all"
+                  className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
                 >
                   <Plus className="h-4 w-4" />
                   {t("actions.deployServer")}

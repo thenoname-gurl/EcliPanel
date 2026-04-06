@@ -32,7 +32,6 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       // skip
     }
   } catch (e) {}
-  // FALLBACK to in-process generation if worker fails for any reason
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });

@@ -3154,6 +3154,7 @@
     "sections": {
       "favorites": "Избранное",
       "codeInstances": "Экземпляры кода",
+      "code": "Код",
       "yourServers": "Ваши серверы",
       "sharedWithYou": "Доступные вам"
     },
@@ -3223,13 +3224,25 @@
           "title": "Переменные окружения",
           "add": "Добавить переменную",
           "empty": "Переменные окружения не настроены. Добавьте одну для переопределения значений по умолчанию или определения новых.",
+          "keyPlaceholder": "Ключ",
           "valuePlaceholder": "значение"
+        },
+        "searchTemplates": "Поиск шаблонов...",
+        "searchNodes": "Поиск нод...",
+        "nodeTypes": {
+          "freeAndPaid": "Публичная нода",
+          "enterprise": "Корпоративная нода",
+          "paid": "Платная нода",
+          "free": "Бесплатная нода",
+          "unknown": "{value}"
         }
       },
       "states": {
         "loading": "Загрузка…",
         "noTemplates": "Шаблоны недоступны.",
-        "noNodes": "Ноды недоступны."
+        "noNodes": "Ноды недоступны.",
+        "noTemplatesMatch": "Шаблоны не найдены.",
+        "noNodesMatch": "Ноды не найдены."
       },
       "resources": {
         "title": "Ресурсы",
