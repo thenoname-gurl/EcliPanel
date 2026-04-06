@@ -808,6 +808,87 @@ export async function organisationRoutes(app: any, prefix = '') {
     detail: { summary: 'Accept organisation invite', tags: ['Organisations'] }
   });
 
+  app.get(prefix + '/organisations/invites', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const invites = await inviteRepo.find({ where: { email: user.email, accepted: false }, relations: ['organisation'], order: { createdAt: 'ASC' } });
+    return invites.map((invite) => ({
+      id: invite.id,
+      organisationId: invite.organisation?.id || null,
+      organisationName: invite.organisation?.name || null,
+      organisationExists: !!invite.organisation,
+      email: invite.email,
+      createdAt: invite.createdAt,
+    }));
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List pending organisation invites for current user', tags: ['Organisations'] }
+  });
+
+  app.post(prefix + '/organisations/invites/:inviteId/accept', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const inviteId = Number(ctx.params['inviteId']);
+    const inv = await inviteRepo.findOne({ where: { id: inviteId, accepted: false }, relations: ['organisation'] });
+    if (!inv) {
+      ctx.set.status = 404;
+      return { error: 'Invite not found' };
+    }
+    if (user.email !== inv.email) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    if (!inv.organisation) {
+      ctx.set.status = 404;
+      return { error: 'Organisation not found' };
+    }
+    const existingMembership = await getMembership(user.id, inv.organisation.id);
+    if (!existingMembership) {
+      const membership = memberRepo.create({ userId: user.id, organisationId: inv.organisation.id, user, organisation: inv.organisation, orgRole: 'member', createdAt: new Date() });
+      await memberRepo.save(membership);
+    }
+    inv.accepted = true;
+    await inviteRepo.save(inv);
+    await createActivityLog({ userId: user.id, action: 'org:accept_invite', targetId: String(inv.organisation.id), targetType: 'organisation', ipAddress: ctx.ip });
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Accept a pending organisation invite', tags: ['Organisations'] }
+  });
+
+  app.post(prefix + '/organisations/invites/:inviteId/reject', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const inviteId = Number(ctx.params['inviteId']);
+    const inv = await inviteRepo.findOne({ where: { id: inviteId, accepted: false } });
+    if (!inv) {
+      ctx.set.status = 404;
+      return { error: 'Invite not found' };
+    }
+    if (user.email !== inv.email) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+    await inviteRepo.delete({ id: inv.id });
+    await createActivityLog({ userId: user.id, action: 'org:reject_invite', targetId: String(inv.organisation?.id || ''), targetType: 'organisation', metadata: { invitedEmail: inv.email }, ipAddress: ctx.ip });
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Reject a pending organisation invite', tags: ['Organisations'] }
+  });
+
   app.post(prefix + '/organisations/:id/leave', async (ctx: any) => {
     const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!org) {

@@ -39,11 +39,15 @@ export function authorize(required: string) {
       return;
     }
 
+    const isServerScoped = required.startsWith('servers:') || required.startsWith('files:');
+    let serverScopeResolved = false;
+
     if (required.startsWith('servers:')) {
       try {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
         const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
+        if (serverUuid) serverScopeResolved = true;
 
         const serverSubuserGrant = (sub: any, requiredPerm: string) => {
           if (!sub || !Array.isArray(sub.permissions)) return false;
@@ -78,7 +82,7 @@ export function authorize(required: string) {
           whereAny.push({ userId: user.id, serverUuid });
           if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
           const sub = await subuserRepo.findOne({ where: whereAny });
-          if (sub) {
+          if (sub && sub.accepted !== false) {
             const permNeeded = required.split(':')[1];
             if (!permNeeded || permNeeded === '*') return;
             if (serverSubuserGrant(sub, permNeeded)) return;
@@ -91,9 +95,6 @@ export function authorize(required: string) {
           } catch (e) {
             // skip
           }
-        } else {
-          const anySub = await subuserRepo.findOne({ where: user.email ? [{ userId: user.id }, { userEmail: user.email }] : { userId: user.id } });
-          if (anySub) return;
         }
       } catch (e) {
         // skip
@@ -105,13 +106,14 @@ export function authorize(required: string) {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
         const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
+        if (serverUuid) serverScopeResolved = true;
 
         if (serverUuid) {
           const whereAny: any[] = [];
           whereAny.push({ userId: user.id, serverUuid });
           if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
           const sub = await subuserRepo.findOne({ where: whereAny });
-          if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files'))) {
+          if (sub && sub.accepted !== false && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files'))) {
             return;
           }
 
@@ -126,6 +128,11 @@ export function authorize(required: string) {
       } catch (e) {
         // skip
       }
+    }
+
+    if (isServerScoped && serverScopeResolved) {
+      ctx.set.status = 403;
+      return { error: 'Insufficient server permissions' };
     }
 
     if (required.startsWith('org:') || required.startsWith('organisation:')) {

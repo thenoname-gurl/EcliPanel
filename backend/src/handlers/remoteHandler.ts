@@ -595,7 +595,7 @@ export async function remoteRoutes(app: any, prefix: string) {
       if (!isOwner) {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-        const sub = await subuserRepo.findOne({ where: { serverUuid: cfg.uuid, userId: user.id } });
+        const sub = await subuserRepo.findOne({ where: { serverUuid: cfg.uuid, userId: user.id, accepted: true } });
         if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files') || sub.permissions.includes('console'))) {
           isSubuser = true;
         }

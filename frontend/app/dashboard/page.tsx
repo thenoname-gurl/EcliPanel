@@ -1,7 +1,7 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { StatCard, SectionHeader, UsageBar } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -27,19 +27,40 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
-function formatSocActivity(item: any) {
+function formatSocActivity(item: any, servers: any[]) {
   const metric = item?.metrics || {}
+  const server = servers.find((s) => (s.uuid || s.id) === item?.serverId)
+  const serverName = server?.name || server?.label || item?.serverId
+  const serverHref = server ? `/dashboard/servers/${server.uuid || server.id}` : undefined
+
   const title =
     item?.action ||
     metric.alert ||
     metric.threat ||
     metric.warn ||
-    (item?.serverId ? `Server ${item.serverId} metrics` : "SOC event")
+    (item?.serverId ? `Server ${serverName} metrics` : "SOC event")
 
-  const details: string[] = []
+  const details: ReactNode[] = []
 
   if (item?.target) details.push(item.target)
-  if (item?.serverId) details.push(`Server ${item.serverId}`)
+  if (item?.serverId) {
+    const serverLabel = server ? `Server ${serverName}` : `Server ${item.serverId}`
+    if (serverHref) {
+      details.push(
+        <a
+          key="server-link"
+          href={serverHref}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-primary hover:underline"
+        >
+          {serverLabel}
+        </a>
+      )
+    } else {
+      details.push(serverLabel)
+    }
+  }
 
   if (metric.cpu_absolute != null) details.push(`CPU ${Math.round(Number(metric.cpu_absolute))}%`)
   if (metric.memory_bytes != null) details.push(`RAM ${formatBytes(Number(metric.memory_bytes))}`)
@@ -54,7 +75,7 @@ function formatSocActivity(item: any) {
 
   return {
     title,
-    details: details.join(" • "),
+    details,
     time: item?.timestamp ? new Date(item.timestamp).toLocaleTimeString() : "Unknown time",
   }
 }
@@ -299,7 +320,7 @@ export default function SOCDashboard() {
                     </div>
                   ) : (
                     recentActivity.map((item) => {
-                      const { title, details, time } = formatSocActivity(item)
+                      const { title, details, time } = formatSocActivity(item, servers)
                       return (
                         <div
                           key={item.id || item.timestamp}
@@ -309,7 +330,17 @@ export default function SOCDashboard() {
                           <div className="flex-1">
                             <p className="text-foreground leading-snug">{title}</p>
                             <p className="text-xs text-muted-foreground">
-                              {details ? `${details} • ` : ""}{time}
+                              {details.length > 0 && (
+                                <>
+                                  {details.map((detail, idx) => (
+                                    <span key={idx}>
+                                      {detail}
+                                      {idx < details.length - 1 ? " • " : ""}
+                                    </span>
+                                  ))}
+                                  {' • '}
+                                </>
+                              )}{time}
                             </p>
                           </div>
                         </div>

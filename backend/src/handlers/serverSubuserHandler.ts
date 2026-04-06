@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/typeorm';
 import { t } from 'elysia';
+import { In } from 'typeorm';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { User } from '../models/user.entity';
@@ -25,19 +26,30 @@ async function canManageSubusers(ctx: any, serverUuid: string): Promise<boolean>
 export async function serverSubuserRoutes(app: any, prefix = '') {
   const subuserRepo = () => AppDataSource.getRepository(ServerSubuser);
   const userRepo = () => AppDataSource.getRepository(User);
+  async function attachSubuserUserInfo(entries: any[]) {
+    const ids = [...new Set(entries.map((entry) => entry.userId).filter(Boolean))];
+    if (ids.length === 0) return entries;
+    const users = await userRepo().find({ where: { id: In(ids) } });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    return entries.map((entry) => ({
+      ...entry,
+      user: userMap.get(entry.userId) || null,
+    }));
+  }
+
   app.get(prefix + '/servers/:id/subusers', async (ctx) => {
     const { id } = ctx.params as any;
     if (await canManageSubusers(ctx, id)) {
       const subusers = await subuserRepo().find({ where: { serverUuid: id }, order: { createdAt: 'ASC' } });
-      return subusers;
+      return attachSubuserUserInfo(subusers);
     }
     const user = (ctx as any).user as User;
     if (!user) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const entry = await subuserRepo().findOne({ where: { serverUuid: id, userId: user.id } });
-    return entry ? [entry] : [];
+    const entry = await subuserRepo().findOne({ where: { serverUuid: id, userId: user.id, accepted: true } });
+    return entry ? await attachSubuserUserInfo([entry]) : [];
   }, {
     beforeHandle: authenticate,
     detail: { summary: 'List subusers for a server', tags: ['Servers'] },
@@ -51,8 +63,8 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     let actingAsSubuser: any = null;
     if (!(await canManageSubusers(ctx, id))) {
       const whereAny: any[] = [];
-      whereAny.push({ userId: (user as any).id, serverUuid: id });
-      if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id });
+      whereAny.push({ userId: (user as any).id, serverUuid: id, accepted: true });
+      if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id, accepted: true });
       actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
 
       if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
@@ -93,8 +105,26 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
       userId: target.id,
       userEmail: target.email,
       permissions: validPerms,
+      accepted: false,
     });
     await subuserRepo().save(entry);
+
+    try {
+      const { sendMail } = require('../services/mailService');
+      await sendMail({
+        to: target.email,
+        from: process.env.SMTP_USER || 'noreply@ecli.app',
+        subject: `Server access invitation for ${id}`,
+        template: 'invite',
+        vars: {
+          name: target.email.split('@')[0],
+          orgName: `Server access to ${id}`,
+          link: `${process.env.FRONTEND_URL || 'https://ecli.app'}/dashboard/subusers/invites`,
+        },
+      });
+    } catch (e) {
+      app.log.error({ err: e }, 'failed to send subuser invite email');
+    }
 
     await createActivityLog({
       userId: user.id,
@@ -118,8 +148,8 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     let actingAsSubuser: any = null;
     if (!(await canManageSubusers(ctx, id))) {
       const whereAny: any[] = [];
-      whereAny.push({ userId: (user as any).id, serverUuid: id });
-      if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id });
+      whereAny.push({ userId: (user as any).id, serverUuid: id, accepted: true });
+      if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id, accepted: true });
       actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
 
       if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
@@ -187,8 +217,8 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
         // skip
       } else {
         const whereAny: any[] = [];
-        whereAny.push({ userId: (user as any).id, serverUuid: id });
-        if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id });
+        whereAny.push({ userId: (user as any).id, serverUuid: id, accepted: true });
+        if (user && (user as any).email) whereAny.push({ userEmail: (user as any).email, serverUuid: id, accepted: true });
         const actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
         if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
           ctx.set.status = 403;
@@ -218,5 +248,85 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     beforeHandle: authenticate,
     detail: { summary: 'Remove a server subuser', tags: ['Servers'] },
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
+  });
+
+  app.get(prefix + '/subusers/invites', async (ctx) => {
+    const user = (ctx as any).user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const invites = await subuserRepo().find({ where: { userId: user.id, accepted: false }, order: { createdAt: 'ASC' } });
+    const serverUuids = [...new Set(invites.map((invite) => invite.serverUuid))];
+    const serverConfigs = serverUuids.length > 0
+      ? await AppDataSource.getRepository(ServerConfig).find({ where: { uuid: In(serverUuids) } })
+      : [];
+    const configMap = new Map(serverConfigs.map((cfg) => [cfg.uuid, cfg]));
+    return invites.map((invite) => ({
+      ...invite,
+      serverName: configMap.get(invite.serverUuid)?.name || null,
+      serverExists: configMap.has(invite.serverUuid),
+    }));
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List pending subuser invites for current user', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/subusers/invites/:inviteId/accept', async (ctx) => {
+    const user = (ctx as any).user as User;
+    const { inviteId } = ctx.params as any;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const entry = await subuserRepo().findOneBy({ id: Number(inviteId), userId: user.id, accepted: false });
+    if (!entry) {
+      ctx.set.status = 404;
+      return { error: 'Invite not found' };
+    }
+    entry.accepted = true;
+    await subuserRepo().save(entry);
+    await createActivityLog({
+      userId: user.id,
+      action: 'server:subuser:accept_invite',
+      targetId: entry.serverUuid,
+      targetType: 'server',
+      metadata: { subuserId: entry.userId },
+      ipAddress: ctx.request.ip,
+    });
+    return entry;
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Accept a pending server subuser invite', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/subusers/invites/:inviteId/reject', async (ctx) => {
+    const user = (ctx as any).user as User;
+    const { inviteId } = ctx.params as any;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const entry = await subuserRepo().findOneBy({ id: Number(inviteId), userId: user.id, accepted: false });
+    if (!entry) {
+      ctx.set.status = 404;
+      return { error: 'Invite not found' };
+    }
+    await subuserRepo().delete({ id: entry.id });
+    await createActivityLog({
+      userId: user.id,
+      action: 'server:subuser:reject_invite',
+      targetId: entry.serverUuid,
+      targetType: 'server',
+      metadata: { subuserId: entry.userId },
+      ipAddress: ctx.request.ip,
+    });
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Reject a pending server subuser invite', tags: ['Servers'] }
   });
 }

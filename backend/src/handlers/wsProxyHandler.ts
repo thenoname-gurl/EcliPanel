@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { AppDataSource } from '../config/typeorm';
 import { ServerConfig } from '../models/serverConfig.entity';
+import { ServerSubuser } from '../models/serverSubuser.entity';
 import { Node } from '../models/node.entity';
 import { User } from '../models/user.entity';
 import { signWingsJwt } from './remoteHandler';
@@ -103,6 +104,7 @@ class WingsProxySession {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
+  private accessCheckTimer: ReturnType<typeof setInterval> | null = null;
   private lastPong = 0;
   private closedByClient = false;
   private isAuthenticated = false;
@@ -161,6 +163,12 @@ class WingsProxySession {
       return;
     }
     this.server = cfg;
+
+    if (!(await this.hasConsoleAccess())) {
+      this.sendToClient({ event: 'error', args: ['Console access revoked'] });
+      this.destroy();
+      return;
+    }
 
     if (cfg.suspended) {
       const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
@@ -241,6 +249,77 @@ class WingsProxySession {
     }
   }
 
+  private async hasConsoleAccess(): Promise<boolean> {
+    if (!this.user || !this.serverId) return false;
+    if (this.user.role === '*' || this.user.role === 'rootAdmin') return true;
+
+    try {
+      const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: this.serverId });
+      if (cfg && cfg.userId === this.user.id) {
+        return true;
+      }
+    } catch (err) {
+      this.log('error', 'failed to verify owner console access', err);
+    }
+
+    try {
+      const subuserRepo = AppDataSource.getRepository(ServerSubuser);
+      const whereAny: any[] = [{ userId: this.user.id, serverUuid: this.serverId, accepted: true }];
+      if (this.user.email) {
+        whereAny.push({ userEmail: this.user.email, serverUuid: this.serverId, accepted: true });
+      }
+      const sub = await subuserRepo.findOne({ where: whereAny });
+      if (!sub || !Array.isArray(sub.permissions)) return false;
+      if (sub.permissions.includes('*') || sub.permissions.includes('console')) return true;
+    } catch (err) {
+      this.log('error', 'failed to verify subuser console access', err);
+    }
+
+    return false;
+  }
+
+  private async verifyConsoleAccess(): Promise<boolean> {
+    const allowed = await this.hasConsoleAccess();
+    if (!allowed) {
+      this.sendToClient({ event: 'error', args: ['Console access revoked'] });
+      await this.sendDeauthToWings();
+      this.destroy();
+    }
+    return allowed;
+  }
+
+  private async sendDeauthToWings(): Promise<void> {
+    if (!this.wingsWs || this.wingsWs.readyState !== WebSocket.OPEN || !this.node || !this.user || !this.serverId) {
+      return;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const userUuid = this.normalizeUuid(this.user.id);
+    const serverUuid = this.normalizeUuid(this.serverId);
+    const jti = this.normalizeUuid(uuidv4());
+
+    const payload = {
+      iss: process.env.APP_URL || 'eclipanel',
+      sub: userUuid,
+      aud: [this.node.url.replace(/\/+$/, '')],
+      iat: now,
+      nbf: now,
+      exp: now - 1,
+      jti,
+      user_uuid: userUuid,
+      server_uuid: serverUuid,
+      permissions: ['*'],
+      unique_id: jti,
+    };
+
+    try {
+      const invalidJwt = signWingsJwt(payload, String(this.node.token));
+      this.wingsWs.send(JSON.stringify({ event: 'auth', args: [invalidJwt] }));
+    } catch (err) {
+      this.log('error', 'failed to send wings deauth', err);
+    }
+  }
+
   private async connectToWings() {
     if (this.destroyed || !this.node || !this.serverId) return;
 
@@ -283,19 +362,19 @@ class WingsProxySession {
     this.setupWingsHandlers();
   }
 
+  private normalizeUuid(value: any): string {
+    if (!value) return uuidv4().replace(/-/g, '');
+    const s = String(value).toLowerCase().replace(/-/g, '');
+    if (/^[0-9a-f]{32}$/.test(s)) return s;
+    return uuidv4().replace(/-/g, '');
+  }
+
   private generateWingsJwt(): string {
     const now = Math.floor(Date.now() / 1000);
 
-    const normalizeUuid = (value: any): string => {
-      if (!value) return uuidv4().replace(/-/g, '');
-      const s = String(value).toLowerCase().replace(/-/g, '');
-      if (/^[0-9a-f]{32}$/.test(s)) return s;
-      return uuidv4().replace(/-/g, '');
-    };
-
-    const userUuid = normalizeUuid(this.user?.id);
-    const serverUuid = normalizeUuid(this.serverId);
-    const jti = normalizeUuid(uuidv4());
+    const userUuid = this.normalizeUuid(this.user?.id);
+    const serverUuid = this.normalizeUuid(this.serverId);
+    const jti = this.normalizeUuid(uuidv4());
 
     const payload = {
       iss: process.env.APP_URL || 'eclipanel',
@@ -322,6 +401,7 @@ class WingsProxySession {
       this.log('info', 'wings ws connected');
       this.sendToClient({ event: 'status', args: ['Connected'] });
       this.startPing();
+      this.startAccessChecks();
       try {
         this.refreshWingsAuth();
       } catch (e) {
@@ -497,8 +577,26 @@ class WingsProxySession {
     }
   }
 
-  public onClientMessage(msg: any) {
+  private startAccessChecks() {
+    this.stopAccessChecks();
+    this.accessCheckTimer = setInterval(() => {
+      this.verifyConsoleAccess().catch((err) => {
+        this.log('error', 'access check failed', err);
+      });
+    }, 10000);
+  }
+
+  private stopAccessChecks() {
+    if (this.accessCheckTimer) {
+      clearInterval(this.accessCheckTimer);
+      this.accessCheckTimer = null;
+    }
+  }
+
+  public async onClientMessage(msg: any) {
     if (this.destroyed) return;
+
+    if (!(await this.verifyConsoleAccess())) return;
 
     let text: string;
     try {
@@ -575,6 +673,7 @@ class WingsProxySession {
 
     this.clearReconnect();
     this.stopPing();
+    this.stopAccessChecks();
 
     if (this.wingsWs) {
       try {

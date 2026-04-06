@@ -1305,6 +1305,10 @@ export default function AdminPanel() {
   const [esSwap, setEsSwap] = useState("")
   const [esDockerImage, setEsDockerImage] = useState("")
   const [esStartup, setEsStartup] = useState("")
+  const [esEnvironment, setEsEnvironment] = useState<Record<string, string>>({})
+  const [esEnvVarDefs, setEsEnvVarDefs] = useState<any[]>([])
+  const [esExtraEnvRows, setEsExtraEnvRows] = useState<Array<{ id: string; key: string; value: string }>>([])
+  const [esEnvModified, setEsEnvModified] = useState(false)
   const [esLoading, setEsLoading] = useState(false)
   const [esError, setEsError] = useState("")
   const [esAllocations, setEsAllocations] = useState<{ ip: string; port: number; is_default: boolean; fqdn?: string }[]>([])
@@ -2266,7 +2270,22 @@ export default function AdminPanel() {
     )
     setEsAutoSyncOnEggChange(mergedAny?.configuration?.autoSyncOnEggChange !== false)
     setEditServerDialog(mergedServer)
-    // load existing allocations from panel DB
+    setEsEnvironment({})
+    setEsEnvVarDefs([])
+    setEsExtraEnvRows([])
+    setEsEnvModified(false)
+    try {
+      const startupData = await apiFetch(API_ENDPOINTS.serverStartup.replace(":id", srv.uuid))
+      if (startupData && typeof startupData === "object") {
+        setEsEnvironment(startupData.environment || {})
+        setEsEnvVarDefs(startupData.envVars || [])
+        setEsExtraEnvRows([])
+      }
+    } catch {
+      setEsEnvironment({})
+      setEsEnvVarDefs([])
+      setEsExtraEnvRows([])
+    }
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", srv.uuid))
       .then((data: any) => {
         if (Array.isArray(data)) setEsAllocations(data.map((a: any) => ({ ip: a.ip, port: a.port, is_default: !!a.is_default, fqdn: a.fqdn || "" })))
@@ -2300,6 +2319,16 @@ export default function AdminPanel() {
           autoSyncOnEggChange: esAutoSyncOnEggChange,
         }),
       })
+      if (esEnvModified) {
+        const nextEnvironment: Record<string, string> = { ...esEnvironment }
+        for (const row of esExtraEnvRows) {
+          if (row.key.trim()) nextEnvironment[row.key.trim()] = row.value
+        }
+        await apiFetch(API_ENDPOINTS.serverStartup.replace(":id", editServerDialog.uuid), {
+          method: "PUT",
+          body: JSON.stringify({ environment: nextEnvironment }),
+        })
+      }
       setServers((prev) => prev.map((s) =>
         s.uuid === editServerDialog.uuid ? { ...s, name: esName || s.name, description: esDesc || s.description } : s
       ))
@@ -2310,6 +2339,46 @@ export default function AdminPanel() {
       setEsLoading(false)
     }
   }
+
+  const esDefinedKeys = new Set(esEnvVarDefs.map((v: any) => v.env_variable || v.key || v.name))
+  const esEnvRows = [
+    ...esEnvVarDefs.map((def: any) => {
+      const key = def.env_variable || def.key || def.name
+      return {
+        id: key,
+        key,
+        name: def.name || key,
+        description: def.description || "",
+        isEditable: !!def.user_editable,
+        isDefined: true,
+        value: esEnvironment[key] ?? "",
+        placeholder: String(def.default_value ?? def.defaultValue ?? def.value ?? ""),
+      }
+    }),
+    ...Object.keys(esEnvironment)
+      .filter((key) => !esDefinedKeys.has(key))
+      .map((key) => ({
+        id: key,
+        key,
+        name: key,
+        description: "",
+        isEditable: true,
+        isCustom: true,
+        value: esEnvironment[key] ?? "",
+        placeholder: "",
+      })),
+    ...esExtraEnvRows.map((row) => ({
+      id: row.id,
+      key: row.key,
+      name: row.key,
+      description: "",
+      isEditable: true,
+      isCustom: true,
+      isNew: true,
+      value: row.value,
+      placeholder: "",
+    })),
+  ]
 
   async function reinstallServerFromDialog() {
     if (!editServerDialog) return
@@ -5706,6 +5775,98 @@ remote: ${panelUrl}`
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Startup Command</label>
                 <input value={esStartup} onChange={(e) => setEsStartup(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.environmentVariables")}</label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => {
+                      setEsEnvironment({})
+                      setEsExtraEnvRows([])
+                      setEsEnvModified(true)
+                    }}>
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" /> {t("editDialog.fields.resetEnvironment")}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => {
+                      setEsExtraEnvRows((prev) => [...prev, { id: `env-${Date.now()}-${Math.random()}`, key: "", value: "" }])
+                      setEsEnvModified(true)
+                    }}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> {t("editDialog.fields.addVariable")}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {esEnvRows.map((row: any) => (
+                    <div key={row.id} className="rounded-lg border border-border bg-secondary/10 p-3">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        {row.isDefined || !row.isNew ? (
+                          <>
+                            <span className="text-xs font-semibold text-foreground truncate">{row.name}</span>
+                            <Badge variant="outline" className="text-[10px] font-mono truncate max-w-[50vw] sm:max-w-none">{row.key}</Badge>
+                          </>
+                        ) : (
+                          <input
+                            type="text"
+                            value={row.key}
+                            onChange={(e) => {
+                              setEsExtraEnvRows((prev) =>
+                                prev.map((item) =>
+                                  item.id === row.id ? { ...item, key: e.target.value } : item
+                                )
+                              )
+                              setEsEnvModified(true)
+                            }}
+                            placeholder={t("editDialog.fields.variableName")}
+                            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
+                          />
+                        )}
+                        {!row.isEditable && (
+                          <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-500 whitespace-nowrap">{t("editDialog.fields.readOnly")}</Badge>
+                        )}
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8 p-0" onClick={() => {
+                          if (row.isDefined || row.isCustom) {
+                            setEsEnvironment((prev) => {
+                              const next = { ...prev }
+                              delete next[row.key]
+                              return next
+                            })
+                          }
+                          if (row.isNew) {
+                            setEsExtraEnvRows((prev) => prev.filter((item) => item.id !== row.id))
+                          }
+                          setEsEnvModified(true)
+                        }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {row.description && (
+                        <p className="text-xs text-muted-foreground mb-2">{row.description}</p>
+                      )}
+                      <input
+                        type="text"
+                        value={row.value}
+                        onChange={(e) => {
+                          if (row.isNew) {
+                            setEsExtraEnvRows((prev) =>
+                              prev.map((item) =>
+                                item.id === row.id ? { ...item, value: e.target.value } : item
+                              )
+                            )
+                          } else {
+                            setEsEnvironment((prev) => ({ ...prev, [row.key]: e.target.value }))
+                          }
+                          setEsEnvModified(true)
+                        }}
+                        placeholder={row.isDefined ? row.placeholder : t("editDialog.fields.variableValue")}
+                        disabled={!row.isEditable}
+                        className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
+                      />
+                    </div>
+                  ))}
+                  {esEnvRows.length === 0 && (
+                    <p className="text-xs text-muted-foreground">{t("editDialog.fields.noEnvironmentVariables")}</p>
+                  )}
+                </div>
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Egg / Template</label>

@@ -50,6 +50,44 @@ function isItemVisible(item: SearchPageItem | NavItem, user: any, featureToggles
   return true
 }
 
+function formatNotificationAction(action: string, tHeader: (key: string) => string): string {
+  if (!action) return ""
+
+  const actionLabels: Record<string, string> = {
+    "server:power:start": tHeader("actionLabels.startedServer"),
+    "server:power:stop": tHeader("actionLabels.stoppedServer"),
+    "server:power:restart": tHeader("actionLabels.restartedServer"),
+    "server:power:kill": tHeader("actionLabels.killedServer"),
+    "server:console:command": tHeader("actionLabels.ranConsoleCommand"),
+    "wings:server:console.command": tHeader("actionLabels.ranConsoleCommand"),
+    "server:file:write": tHeader("actionLabels.modifiedFile"),
+    "server:file:delete": tHeader("actionLabels.deletedFiles"),
+    "server:reinstall": tHeader("actionLabels.reinstalledServer"),
+    "server:subuser:add": tHeader("actionLabels.addedSubuser"),
+    "server:subuser:accept_invite": tHeader("actionLabels.acceptedSubuserInvite"),
+    "server:subuser:remove": tHeader("actionLabels.removedSubuser"),
+    "server:subuser:reject_invite": tHeader("actionLabels.rejectedSubuserInvite"),
+    "update-profile": tHeader("actionLabels.updatedProfile"),
+    "server:suspend": tHeader("actionLabels.serverSuspend"),
+    "server:unsuspend": tHeader("actionLabels.serverUnsuspend"),
+  }
+
+  const normalized = action.toLowerCase()
+  if (actionLabels[normalized]) return actionLabels[normalized]
+
+  const prefix = "activity.actions."
+  if (normalized.startsWith(prefix)) {
+    return tHeader("actionLabels." + action.slice(prefix.length))
+  }
+
+  return action
+    .replace(/[:_.-]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+}
+
 function NotificationDropdown({
   isOpen,
   onClose,
@@ -81,6 +119,7 @@ function NotificationDropdown({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ top: 0, right: 0 })
   const [mounted, setMounted] = useState(false)
+  const tHeader = useTranslations("panelHeader")
 
   useEffect(() => {
     setMounted(true)
@@ -183,7 +222,7 @@ function NotificationDropdown({
                 <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground truncate">
-                    {n.action || n.event || labels.accountEvent}
+                    {formatNotificationAction(n.action || n.event || "", tHeader) || labels.accountEvent}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {n.timestamp
@@ -234,6 +273,7 @@ export function PanelHeader({
   const router = useRouter()
   const tHeader = useTranslations("panelHeader")
   const tNav = useTranslations("panelNav")
+  const tActivity = useTranslations("activity")
   const portal = PORTALS[user?.tier as keyof typeof PORTALS] ?? PORTALS.free
 
   const translateNavSection = useCallback(

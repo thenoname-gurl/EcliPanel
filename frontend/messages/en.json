@@ -29,14 +29,80 @@
       "tickets": "Tickets",
       "applications": "Applications",
       "identity": "Identity",
+      "organisationInvites": "Organisation Invites",
       "billing": "Billing",
       "settings": "Settings",
+      "subuserInvites": "Subuser Invites",
+      "mailbox": "Mailbox",
       "adminPanel": "Admin Panel"
     },
     "badges": {
       "new": "New",
       "beta": "Beta",
       "staff": "Staff"
+    }
+  },
+  "organisationInvitesPage": {
+    "title": "Organisation Invites",
+    "description": "Review and accept or reject pending organisation invitations.",
+    "actions": {
+      "backToOrganisations": "Back to Organisations",
+      "accept": "Accept",
+      "reject": "Reject"
+    },
+    "loading": "Loading invites...",
+    "emptyTitle": "No pending organisation invites",
+    "emptyDescription": "You don’t have any organisation invites at the moment.",
+    "status": {
+      "pending": "Pending"
+    },
+    "errors": {
+      "failedToLoad": "Failed to load invites.",
+      "failedAction": "Failed to process invite action."
+    },
+    "unknownOrganisation": "Unknown organisation"
+  },
+  "mailboxPage": {
+    "title": "Mailbox",
+    "description": "Manage pending invites, notices, and inbox items.",
+    "summary": {
+      "title": "Inbox overview",
+      "description": "Accept or reject organisation and server subuser invitations from one place.",
+      "invites": "invites"
+    },
+    "sections": {
+      "inbox": "Inbox",
+      "inboxDescription": "A place where you can find all EcliPanel-related important stuff.",
+      "organisations": "Organisation invitations",
+      "organisationsDescription": "Accept or reject invites to join organisations.",
+      "organisationInviteFallback": "Organisation invite",
+      "noOrganisationInvites": "No pending organisation invites.",
+      "serverSubusers": "Server subuser invitations",
+      "serverSubusersDescription": "Accept or reject invites to become a server subuser.",
+      "noSubuserInvites": "No pending server subuser invites.",
+      "notifications": "Notifications",
+      "notificationsDescription": "System notices and alerts will appear here.",
+      "notificationsEmpty": "No notifications yet."
+    },
+    "list": {
+      "empty": "Your inbox is empty."
+    },
+    "actions": {
+      "accept": "Accept",
+      "reject": "Reject"
+    },
+    "details": {
+      "sender": "From",
+      "received": "Received",
+      "body": "Message",
+      "selectItem": "Select a message to view details.",
+      "selectItemDescription": "Choose an inbox item on the left to read and respond."
+    },
+    "detail": {
+      "organisationBody": "You have been invited to join {organisation}. The invitation was sent to {email}. Review the invite and accept or reject it.",
+      "subuserBody": "You have been invited to become a server subuser for {server}. The invitation was sent to {email}. Review the access request and accept or reject it.",
+      "unknownServer": "Unknown server",
+      "unknownSender": "Unknown sender"
     }
   },
   "panelHeader": {
@@ -48,7 +114,24 @@
     "noRecentActivity": "No recent activity",
     "accountEvent": "Account event",
     "markRead": "Mark read",
-    "viewAllActivity": "View all activity →"
+    "viewAllActivity": "View all activity →",
+    "actionLabels": {
+      "startedServer": "Started server",
+      "stoppedServer": "Stopped server",
+      "restartedServer": "Restarted server",
+      "killedServer": "Force-stopped server",
+      "ranConsoleCommand": "Ran server console command",
+      "modifiedFile": "Modified file",
+      "deletedFiles": "Deleted file(s)",
+      "reinstalledServer": "Reinstalled server",
+      "addedSubuser": "Added server subuser",
+      "acceptedSubuserInvite": "Accepted server subuser invite",
+      "removedSubuser": "Removed server subuser access",
+      "rejectedSubuserInvite": "Rejected server subuser invite",
+      "serverSuspend": "Suspended server",
+      "serverUnsuspend": "Unsuspended server",
+      "updatedProfile": "Updated profile settings"
+    }
   },
   "panelSidebar": {
     "close": "Close",
@@ -1009,6 +1092,17 @@
       "plans": "Plans",
       "orders": "Orders",
       "settings": "Settings"
+    },
+    "editDialog": {
+      "fields": {
+        "environmentVariables": "Environment Variables",
+        "resetEnvironment": "Reset",
+        "addVariable": "Add Variable",
+        "variableName": "Variable name",
+        "variableValue": "Variable value",
+        "readOnly": "Read only",
+        "noEnvironmentVariables": "No environment variables defined."
+      }
     }
   },
   "adminAntiAbuseTab": {
@@ -3119,6 +3213,23 @@
     "actions": {
       "prev": "Prev",
       "next": "Next"
+    },
+    "actionLabels": {
+      "startedServer": "Started server",
+      "stoppedServer": "Stopped server",
+      "restartedServer": "Restarted server",
+      "killedServer": "Force-stopped server",
+      "ranConsoleCommand": "Ran server console command",
+      "modifiedFile": "Modified file",
+      "deletedFiles": "Deleted file(s)",
+      "reinstalledServer": "Reinstalled server",
+      "addedSubuser": "Added server subuser",
+      "acceptedSubuserInvite": "Accepted server subuser invite",
+      "removedSubuser": "Removed server subuser access",
+      "rejectedSubuserInvite": "Rejected server subuser invite",
+      "serverSuspend": "Suspended server",
+      "serverUnsuspend": "Unsuspended server",
+      "updatedProfile": "Updated profile settings"
     }
   },
   "serversPage": {
@@ -3578,7 +3689,9 @@
       "loadingFiles": "Loading files…",
       "enabled": "enabled",
       "disabled": "disabled",
-      "unknown": "unknown"
+      "unknown": "unknown",
+      "accessRevokedTitle": "Access revoked",
+      "accessRevokedDescription": "Your access to this server has been removed. Reloading will update your permissions."
     },
     "actions": {
       "start": "Start",
@@ -3669,6 +3782,11 @@
       "removePattern": "Remove pattern",
       "addPattern": "Add Pattern",
       "environmentVariables": "Environment Variables",
+      "resetDefaults": "Reset to Defaults",
+      "addVariable": "Add Variable",
+      "variableName": "Variable name",
+      "variableValue": "Variable value",
+      "removeVariable": "Remove variable",
       "save": "Save",
       "readOnly": "Read Only",
       "noEnvironmentVariables": "No environment variables defined."
@@ -3748,11 +3866,19 @@
         "startedServer": "Started server",
         "stoppedServer": "Stopped server",
         "restartedServer": "Restarted server",
-        "killedServer": "Killed server",
+        "killedServer": "Force-stopped server",
         "ranCommand": "Ran command",
+        "ranConsoleCommand": "Ran server console command",
         "modifiedFile": "Modified file",
         "deletedFiles": "Deleted file(s)",
-        "reinstalledServer": "Reinstalled server"
+        "reinstalledServer": "Reinstalled server",
+        "addedSubuser": "Added server subuser",
+        "acceptedSubuserInvite": "Accepted server subuser invite",
+        "removedSubuser": "Removed server subuser access",
+        "rejectedSubuserInvite": "Rejected server subuser invite",
+        "serverSuspend": "Suspended server",
+        "serverUnsuspend": "Unsuspended server",
+        "updatedProfile": "Updated profile settings"
       }
     },
     "subusers": {
@@ -3763,6 +3889,22 @@
       "permissions": "Permissions",
       "empty": "No subusers added yet.",
       "userFallback": "User #{id}",
+      "pending": "Pending",
+      "pendingInvites": "Pending Invites",
+      "pendingInvitesTitle": "Pending Subuser Invites",
+      "pendingInvitesDescription": "Review pending server access invitations and accept or reject them.",
+      "invitesPendingTitle": "Pending Invites",
+      "invitesPendingDescription": "These invitations are waiting for your approval.",
+      "invitesLoading": "Loading pending invites...",
+      "noInvitesTitle": "No pending invites",
+      "invite": "invite",
+      "invites": "invites",
+      "serverUnavailable": "Server unavailable",
+      "acceptInvite": "Accept",
+      "rejectInvite": "Reject",
+      "inviteServerName": "Server: {name}",
+      "inviteServerMissing": "Server no longer exists",
+      "invitesEmpty": "You have no pending subuser invites.",
       "locked": "Locked",
       "unlockSubuser": "Unlock subuser",
       "lockSubuser": "Lock subuser",

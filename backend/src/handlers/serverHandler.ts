@@ -558,6 +558,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({
         serverUuid: id,
         userId: user?.id,
+        accepted: true,
       });
       if (!owned && !subuser) {
         ctx.set.status = 403;
@@ -2421,7 +2422,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
     if (!isAdmin) {
       const owned = cfg.userId === user?.id;
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id });
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
       if (!owned && !subuser) {
         ctx.set.status = 403;
         return { error: 'Insufficient permissions' };
@@ -2523,7 +2524,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
     if (!isAdmin) {
       const owned = cfg.userId === user?.id;
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id });
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
       if (!owned && !subuser) {
         ctx.set.status = 403;
         return { error: 'Insufficient permissions' };
@@ -3050,9 +3051,13 @@ export async function serverRoutes(app: any, prefix = '') {
 
     const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
     const editableKeys = new Set<string>();
+    const definedKeys = new Set<string>();
     if (egg?.envVars) {
       for (const v of egg.envVars as any[]) {
-        if (v.user_editable) editableKeys.add(v.env_variable || v.key || v.name);
+        const key = v.env_variable || v.key || v.name
+        if (!key) continue;
+        definedKeys.add(key)
+        if (v.user_editable) editableKeys.add(key)
       }
     }
 
@@ -3073,13 +3078,14 @@ export async function serverRoutes(app: any, prefix = '') {
       cfg.dockerImage = String(dockerImage);
     }
 
-    const merged = { ...(cfg.environment || {}) };
     if (environment && typeof environment === 'object') {
+      const nextEnvironment: Record<string, string> = {};
       for (const [key, val] of Object.entries(environment)) {
-        if (editableKeys.size === 0 || editableKeys.has(key)) {
-          merged[key] = String(val);
-        }
+        if (!key) continue;
+        if (definedKeys.has(key) && editableKeys.size > 0 && !editableKeys.has(key)) continue;
+        nextEnvironment[key] = String(val);
       }
+      cfg.environment = nextEnvironment;
     }
 
     if (incomingProcCfg && typeof incomingProcCfg === 'object') {
@@ -3105,9 +3111,8 @@ export async function serverRoutes(app: any, prefix = '') {
       // continue
     }
 
-    cfg.environment = merged;
     await cfgRepo().save(cfg);
-    return { success: true, environment: merged, processConfig: (cfg as any).processConfig };
+    return { success: true, environment: cfg.environment, processConfig: (cfg as any).processConfig };
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },

@@ -29,14 +29,80 @@
       "tickets": "Тикеты",
       "applications": "Заявки",
       "identity": "Идентификация",
+      "organisationInvites": "Приглашения организации",
       "billing": "Биллинг",
       "settings": "Настройки",
+      "subuserInvites": "Приглашения субпользователя",
+      "mailbox": "Почтовый ящик",
       "adminPanel": "Панель администратора"
     },
     "badges": {
       "new": "Новое",
       "beta": "Бета",
       "staff": "Персонал"
+    }
+  },
+  "organisationInvitesPage": {
+    "title": "Приглашения организации",
+    "description": "Просмотрите и примите или отклоните ожидающие приглашения в организации.",
+    "actions": {
+      "backToOrganisations": "Назад к организациям",
+      "accept": "Принять",
+      "reject": "Отклонить"
+    },
+    "loading": "Загрузка приглашений...",
+    "emptyTitle": "Нет ожидающих приглашений организации",
+    "emptyDescription": "У вас нет приглашений в организации.",
+    "status": {
+      "pending": "Ожидает"
+    },
+    "errors": {
+      "failedToLoad": "Не удалось загрузить приглашения.",
+      "failedAction": "Не удалось обработать приглашение."
+    },
+    "unknownOrganisation": "Неизвестная организация"
+  },
+  "mailboxPage": {
+    "title": "Почтовый ящик",
+    "description": "Управляйте ожидающими приглашениями, уведомлениями и другими сообщениями.",
+    "summary": {
+      "title": "Обзор входящих",
+      "description": "Примите или отклоните приглашения организации и субпользователя в одном месте.",
+      "invites": "приглашений"
+    },
+    "sections": {
+      "inbox": "Входящие",
+      "inboxDescription": "Место, где вы можете найти всё важное, связанное с EcliPanel.",
+      "organisations": "Приглашения в организации",
+      "organisationsDescription": "Примите или отклоните приглашения присоединиться к организации.",
+      "organisationInviteFallback": "Приглашение в организацию",
+      "noOrganisationInvites": "Нет ожидающих приглашений в организации.",
+      "serverSubusers": "Приглашения субпользователя сервера",
+      "serverSubusersDescription": "Примите или отклоните приглашения стать субпользователем сервера.",
+      "noSubuserInvites": "Нет ожидающих приглашений субпользователя сервера.",
+      "notifications": "Уведомления",
+      "notificationsDescription": "Системные уведомления и оповещения появятся здесь.",
+      "notificationsEmpty": "Пока нет уведомлений."
+    },
+    "list": {
+      "empty": "В вашей почте нет сообщений."
+    },
+    "actions": {
+      "accept": "Принять",
+      "reject": "Отклонить"
+    },
+    "details": {
+      "sender": "От",
+      "received": "Получено",
+      "body": "Сообщение",
+      "selectItem": "Выберите сообщение, чтобы просмотреть детали.",
+      "selectItemDescription": "Выберите элемент в левой колонке, чтобы прочитать и ответить."
+    },
+    "detail": {
+      "organisationBody": "Вас пригласили присоединиться к {organisation} на адрес {email}. Просмотрите приглашение и примите или отклоните его.",
+      "subuserBody": "Вас пригласили стать субпользователем сервера {server} на адрес {email}. Просмотрите запрос доступа и примите или отклоните его.",
+      "unknownServer": "Неизвестный сервер",
+      "unknownSender": "Неизвестный отправитель"
     }
   },
   "panelHeader": {
@@ -48,7 +114,24 @@
     "noRecentActivity": "Недавней активности нет",
     "accountEvent": "Событие аккаунта",
     "markRead": "Отметить прочитанным",
-    "viewAllActivity": "Смотреть всю активность →"
+    "viewAllActivity": "Смотреть всю активность →",
+    "actionLabels": {
+      "startedServer": "Сервер запущен",
+      "stoppedServer": "Сервер остановлен",
+      "restartedServer": "Сервер перезапущен",
+      "killedServer": "Сервер принудительно остановлен",
+      "ranConsoleCommand": "Выполнена консольная команда",
+      "modifiedFile": "Файл изменён",
+      "deletedFiles": "Файл(ы) удалён(ы)",
+      "reinstalledServer": "Сервер переустановлен",
+      "addedSubuser": "Добавлен субпользователь сервера",
+      "acceptedSubuserInvite": "Принято приглашение стать субпользователем сервера",
+      "removedSubuser": "Удалён доступ субпользователя к серверу",
+      "rejectedSubuserInvite": "Отклонено приглашение субпользователя сервера",
+      "serverSuspend": "Сервер приостановлен",
+      "serverUnsuspend": "Сервер восстановлен",
+      "updatedProfile": "Обновлены данные профиля"
+    }
   },
   "panelSidebar": {
     "close": "Закрыть",
@@ -1009,6 +1092,17 @@
       "plans": "Планы",
       "orders": "Заказы",
       "settings": "Настройки"
+    },
+    "editDialog": {
+      "fields": {
+        "environmentVariables": "Переменные окружения",
+        "resetEnvironment": "Сброс",
+        "addVariable": "Добавить переменную",
+        "variableName": "Имя переменной",
+        "variableValue": "Значение переменной",
+        "readOnly": "Только чтение",
+        "noEnvironmentVariables": "Переменные окружения не определены."
+      }
     }
   },
   "adminAntiAbuseTab": {
@@ -3119,6 +3213,23 @@
     "actions": {
       "prev": "Назад",
       "next": "Далее"
+    },
+    "actionLabels": {
+      "startedServer": "Сервер запущен",
+      "stoppedServer": "Сервер остановлен",
+      "restartedServer": "Сервер перезапущен",
+      "killedServer": "Сервер принудительно остановлен",
+      "ranConsoleCommand": "Выполнена консольная команда",
+      "modifiedFile": "Файл изменён",
+      "deletedFiles": "Файл(ы) удалён(ы)",
+      "reinstalledServer": "Сервер переустановлен",
+      "addedSubuser": "Добавлен субпользователь сервера",
+      "acceptedSubuserInvite": "Принято приглашение стать субпользователем сервера",
+      "removedSubuser": "Удалён доступ субпользователя к серверу",
+      "rejectedSubuserInvite": "Отклонено приглашение субпользователя сервера",
+      "serverSuspend": "Сервер приостановлен",
+      "serverUnsuspend": "Сервер восстановлен",
+      "updatedProfile": "Обновлены данные профиля"
     }
   },
   "serversPage": {
@@ -3578,7 +3689,9 @@
       "loadingFiles": "Загрузка файлов…",
       "enabled": "включено",
       "disabled": "отключено",
-      "unknown": "неизвестно"
+      "unknown": "неизвестно",
+      "accessRevokedTitle": "Доступ отозван",
+      "accessRevokedDescription": "Ваш доступ к этому серверу был удалён. Обновите страницу, чтобы проверить текущие права."
     },
     "actions": {
       "start": "Запустить",
@@ -3669,6 +3782,11 @@
       "removePattern": "Удалить шаблон",
       "addPattern": "Добавить шаблон",
       "environmentVariables": "Переменные окружения",
+      "resetDefaults": "Сбросить по умолчанию",
+      "addVariable": "Добавить переменную",
+      "variableName": "Имя переменной",
+      "variableValue": "Значение переменной",
+      "removeVariable": "Удалить переменную",
       "save": "Сохранить",
       "readOnly": "Только чтение",
       "noEnvironmentVariables": "Переменные окружения не определены."
@@ -3748,11 +3866,19 @@
         "startedServer": "Сервер запущен",
         "stoppedServer": "Сервер остановлен",
         "restartedServer": "Сервер перезапущен",
-        "killedServer": "Сервер принудительно остановлен",
+        "killedServer": "Сервер принудительно остановен",
         "ranCommand": "Выполнена команда",
+        "ranConsoleCommand": "Выполнена консольная команда",
         "modifiedFile": "Файл изменён",
         "deletedFiles": "Файл(ы) удалён(ы)",
-        "reinstalledServer": "Сервер переустановлен"
+        "reinstalledServer": "Сервер переустановлен",
+        "addedSubuser": "Добавлен субпользователь сервера",
+        "acceptedSubuserInvite": "Принято приглашение стать субпользователем сервера",
+        "removedSubuser": "Удалён доступ субпользователя к серверу",
+        "rejectedSubuserInvite": "Отклонено приглашение субпользователя сервера",
+        "serverSuspend": "Сервер приостановлен",
+        "serverUnsuspend": "Сервер восстановлен",
+        "updatedProfile": "Обновлены данные профиля"
       }
     },
     "subusers": {
@@ -3763,6 +3889,22 @@
       "permissions": "Права",
       "empty": "Субпользователи пока не добавлены.",
       "userFallback": "Пользователь #{id}",
+      "pending": "Ожидает",
+      "pendingInvites": "Ожидающие приглашения",
+      "pendingInvitesTitle": "Ожидающие приглашения субпользователя",
+      "pendingInvitesDescription": "Просмотрите ожидающие приглашения на доступ к серверу и примите или отклоните их.",
+      "invitesPendingTitle": "Ожидающие приглашения",
+      "invitesPendingDescription": "Эти приглашения ожидают вашего подтверждения.",
+      "invitesLoading": "Загрузка ожидающих приглашений...",
+      "noInvitesTitle": "Нет ожидающих приглашений",
+      "invite": "приглашение",
+      "invites": "приглашения",
+      "serverUnavailable": "Сервер недоступен",
+      "acceptInvite": "Принять",
+      "rejectInvite": "Отклонить",
+      "inviteServerName": "Сервер: {name}",
+      "inviteServerMissing": "Сервер больше не существует",
+      "invitesEmpty": "У вас нет ожидающих приглашений субпользователя.",
       "locked": "Заблокирован",
       "unlockSubuser": "Разблокировать субпользователя",
       "lockSubuser": "Заблокировать субпользователя",

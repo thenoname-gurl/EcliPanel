@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
@@ -10,6 +11,7 @@ import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -191,6 +193,16 @@ function SectionHeader({
       {action && <div className="flex-shrink-0">{action}</div>}
     </div>
   )
+}
+
+function getUserAvatarInitials(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
 }
 
 function KvmBanner({ compact = false }: { compact?: boolean }) {
@@ -724,7 +736,20 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       loadServer()
       loadSubuserEntry()
     }, 15000)
-    return () => clearInterval(interval)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadServer()
+        loadSubuserEntry()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
   }, [loadServer, loadSubuserEntry])
 
   const sendPower = useCallback(
@@ -884,7 +909,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   )
 
   const isViewerSubuser =
-    !!subuserEntry && !isOwnerOrAdmin
+    !!subuserEntry && !isOwnerOrAdmin && subuserEntry.accepted !== false
+
+  const hasServerAccess = isOwnerOrAdmin || isViewerSubuser
 
   const subuserPerms = useMemo(
     () => (Array.isArray(subuserEntry?.permissions) ? subuserEntry.permissions : []),
@@ -927,6 +954,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   )
 
   const visibleTabs = useMemo(() => {
+    if (!hasServerAccess) return []
     return tabs.filter((t) => {
       if (!isViewerSubuser) return true
       if (t.id === "subusers") return true
@@ -935,7 +963,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       if (subuserPerms.includes("*")) return true
       return subuserPerms.includes(required)
     })
-  }, [tabs, isViewerSubuser, tabPermissionMap, subuserPerms])
+  }, [tabs, hasServerAccess, isViewerSubuser, tabPermissionMap, subuserPerms])
 
   // Fix: this useEffect must run unconditionally (not after conditional returns)
   // We place it here before any early returns to comply with Rules of Hooks
@@ -987,6 +1015,31 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         : server.status === "stopped" || server.status === "offline"
           ? "text-red-400 bg-red-400"
           : "text-yellow-400 bg-yellow-400"
+
+  if (!hasServerAccess) {
+    return (
+      <div className="flex min-h-full items-center justify-center p-6">
+        <div className="max-w-xl rounded-3xl border border-border bg-card p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <h2 className="mt-4 text-xl font-semibold text-foreground">
+            {t("states.accessRevokedTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("states.accessRevokedDescription")}
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/servers")}
+            className="mt-6"
+          >
+            {t("actions.backToServers")}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
@@ -2113,6 +2166,7 @@ function StartupTab({ serverId }: { serverId: string }) {
   const [saving, setSaving] = useState(false)
   const [startup, setStartup] = useState<any>(null)
   const [editedEnv, setEditedEnv] = useState<Record<string, string>>({})
+  const [extraEnvRows, setExtraEnvRows] = useState<Array<{ id: string; key: string; value: string }>>([])
   const [donePatterns, setDonePatterns] = useState<string[]>([])
   const [selectedDockerImage, setSelectedDockerImage] = useState<string>("")
   const [dockerImageOptions, setDockerImageOptions] = useState<
@@ -2124,6 +2178,7 @@ function StartupTab({ serverId }: { serverId: string }) {
       .then((data) => {
         setStartup(data)
         setEditedEnv(data?.environment || {})
+        setExtraEnvRows([])
         setSelectedDockerImage(data?.dockerImage || "")
         setDockerImageOptions(
           Array.isArray(data?.dockerImageOptions) ? data.dockerImageOptions : []
@@ -2137,10 +2192,35 @@ function StartupTab({ serverId }: { serverId: string }) {
       .finally(() => setLoading(false))
   }, [serverId])
 
+  const addEnvRow = () => {
+    setExtraEnvRows((prev) => [
+      ...prev,
+      { id: `env-${Date.now()}-${Math.random()}`, key: "", value: "" },
+    ])
+  }
+
+  const resetEnvOverrides = () => {
+    setEditedEnv({})
+    setExtraEnvRows([])
+  }
+
   const saveEnv = async () => {
     if (dockerImageOptions.length > 0 && !selectedDockerImage) {
       alert(t("startup.selectDockerBeforeSave"))
       return
+    }
+
+    const nextEnvironment: Record<string, string> = {}
+
+    for (const key of Object.keys(editedEnv)) {
+      if (!key) continue
+      nextEnvironment[key] = editedEnv[key]
+    }
+
+    for (const row of extraEnvRows) {
+      if (row.key.trim()) {
+        nextEnvironment[row.key.trim()] = row.value
+      }
     }
 
     setSaving(true)
@@ -2148,13 +2228,15 @@ function StartupTab({ serverId }: { serverId: string }) {
       await apiFetch(API_ENDPOINTS.serverStartup.replace(":id", serverId), {
         method: "PUT",
         body: JSON.stringify({
-          environment: editedEnv,
+          environment: nextEnvironment,
           processConfig: {
             startup: { done: donePatterns.filter((p) => p.length > 0) },
           },
           dockerImage: selectedDockerImage || undefined,
         }),
       })
+      setEditedEnv(nextEnvironment)
+      setExtraEnvRows([])
       alert(t("startup.saved"))
     } catch (e: any) {
       alert(t("startup.saveFailed", { reason: e.message }))
@@ -2170,10 +2252,45 @@ function StartupTab({ serverId }: { serverId: string }) {
     )
 
   const envVarDefs: any[] = startup.envVars || []
-  const allKeys = new Set([
-    ...envVarDefs.map((v: any) => v.env_variable || v.key || v.name),
-    ...Object.keys(editedEnv),
-  ])
+  const definedKeys = new Set(envVarDefs.map((v: any) => v.env_variable || v.key || v.name))
+  const customKeys = Object.keys(editedEnv).filter((key) => !definedKeys.has(key))
+
+  const envRows = [
+    ...envVarDefs.map((def: any) => {
+      const key = def.env_variable || def.key || def.name
+      return {
+        id: key,
+        key,
+        name: def.name || key,
+        description: def.description || "",
+        isEditable: !!def.user_editable,
+        isDefined: true,
+        value: editedEnv[key] ?? "",
+        placeholder: String(def.default_value ?? def.defaultValue ?? def.value ?? ""),
+      }
+    }),
+    ...customKeys.map((key) => ({
+      id: key,
+      key,
+      name: key,
+      description: "",
+      isEditable: true,
+      isCustom: true,
+      value: editedEnv[key] ?? "",
+      placeholder: "",
+    })),
+    ...extraEnvRows.map((row) => ({
+      id: row.id,
+      key: row.key,
+      name: row.key,
+      description: "",
+      isEditable: true,
+      isCustom: true,
+      isNew: true,
+      value: row.value,
+      placeholder: "",
+    })),
+  ]
 
   return (
     <div
@@ -2274,46 +2391,75 @@ function StartupTab({ serverId }: { serverId: string }) {
           title={t("startup.environmentVariables")}
           icon={Variable}
           action={
-            <Button
-              size="sm"
-              onClick={saveEnv}
-              disabled={saving || (dockerImageOptions.length > 0 && !selectedDockerImage)}
-              className="h-9"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-              ) : (
-                <Save className="h-4 w-4 mr-1.5" />
-              )}
-              {t("startup.save")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={resetEnvOverrides} className="h-9">
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+                {t("startup.resetDefaults")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={addEnvRow} className="h-9">
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                {t("startup.addVariable")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveEnv}
+                disabled={saving || (dockerImageOptions.length > 0 && !selectedDockerImage)}
+                className="h-9"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1.5" />
+                )}
+                {t("startup.save")}
+              </Button>
+            </div>
           }
         />
 
         <div className="space-y-3 min-w-0">
-          {[...allKeys].map((key) => {
-            const def = envVarDefs.find(
-              (v: any) => (v.env_variable || v.key || v.name) === key
-            )
-            const isEditable = def ? !!def.user_editable : true
-            const description = def?.description || ""
-            const name = def?.name || key
+          {envRows.map((row) => {
+            const rowItem = row as any
+            const isDefined = !!rowItem.isDefined
+            const isNew = !!rowItem.isNew
+            const isEditable = row.isEditable
+            const defaultPlaceholder = row.placeholder || ""
 
             return (
               <div
-                key={key}
+                key={row.id}
                 className="rounded-lg border border-border bg-secondary/10 p-3 min-w-0 overflow-hidden"
               >
                 <div className="flex items-center gap-1.5 mb-2 flex-wrap min-w-0">
-                  <span className="text-xs font-semibold text-foreground truncate min-w-0">
-                    {name}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] font-mono truncate max-w-[50vw] sm:max-w-none"
-                  >
-                    {key}
-                  </Badge>
+                  {isDefined || !isNew ? (
+                    <>
+                      <span className="text-xs font-semibold text-foreground truncate min-w-0">
+                        {row.name}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-mono truncate max-w-[50vw] sm:max-w-none"
+                      >
+                        {row.key}
+                      </Badge>
+                    </>
+                  ) : (
+                    <input
+                      type="text"
+                      value={row.key}
+                      onChange={(e) =>
+                        setExtraEnvRows((prev) =>
+                          prev.map((item) =>
+                            item.id === row.id
+                              ? { ...item, key: e.target.value }
+                              : item
+                          )
+                        )
+                      }
+                      placeholder={t("startup.variableName")}
+                      className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground font-mono outline-none min-w-0 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  )}
                   {!isEditable && (
                     <Badge
                       variant="outline"
@@ -2322,18 +2468,59 @@ function StartupTab({ serverId }: { serverId: string }) {
                       {t("startup.readOnly")}
                     </Badge>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (isDefined) {
+                        setEditedEnv((prev) => {
+                          const next = { ...prev }
+                          delete next[row.key]
+                          return next
+                        })
+                      } else if (isNew) {
+                        setExtraEnvRows((prev) => prev.filter((item) => item.id !== row.id))
+                        setEditedEnv((prev) => {
+                          const next = { ...prev }
+                          delete next[row.key]
+                          return next
+                        })
+                      } else {
+                        setEditedEnv((prev) => {
+                          const next = { ...prev }
+                          delete next[row.key]
+                          return next
+                        })
+                      }
+                    }}
+                    className="text-destructive hover:text-destructive h-9 w-9 p-0 flex-shrink-0"
+                    aria-label={t("startup.removeVariable")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                {description && (
+                {row.description && (
                   <p className="text-xs text-muted-foreground mb-2 break-words leading-relaxed">
-                    {description}
+                    {row.description}
                   </p>
                 )}
                 <input
                   type="text"
-                  value={editedEnv[key] ?? ""}
-                  onChange={(e) =>
-                    setEditedEnv((prev) => ({ ...prev, [key]: e.target.value }))
-                  }
+                  value={row.value}
+                  onChange={(e) => {
+                    if (isNew) {
+                      setExtraEnvRows((prev) =>
+                        prev.map((item) =>
+                          item.id === row.id
+                            ? { ...item, value: e.target.value }
+                            : item
+                        )
+                      )
+                    } else {
+                      setEditedEnv((prev) => ({ ...prev, [row.key]: e.target.value }))
+                    }
+                  }}
+                  placeholder={!isDefined ? t("startup.variableValue") : defaultPlaceholder}
                   disabled={!isEditable}
                   className={cn(
                     "w-full rounded-lg border border-border px-3 py-2.5 text-sm font-mono outline-none min-w-0",
@@ -2345,7 +2532,7 @@ function StartupTab({ serverId }: { serverId: string }) {
               </div>
             )
           })}
-          {allKeys.size === 0 && (
+          {envRows.length === 0 && (
             <EmptyState icon={Variable} message={t("startup.noEnvironmentVariables")} />
           )}
         </div>
@@ -2460,6 +2647,10 @@ function ActivityTab({ serverId }: { serverId: string }) {
     "server:file:write": t("activity.actions.modifiedFile"),
     "server:file:delete": t("activity.actions.deletedFiles"),
     "server:reinstall": t("activity.actions.reinstalledServer"),
+    "server:subuser:add": t("activity.actions.addedSubuser"),
+    "server:subuser:accept_invite": t("activity.actions.acceptedSubuserInvite"),
+    "server:subuser:remove": t("activity.actions.removedSubuser"),
+    "server:subuser:reject_invite": t("activity.actions.rejectedSubuserInvite"),
   }
 
   return (
@@ -2485,8 +2676,23 @@ function ActivityTab({ serverId }: { serverId: string }) {
                     $ {log.metadata.command}
                   </p>
                 )}
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px] text-muted-foreground">
-                  <span>{t("activity.user", { id: log.userId })}</span>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar className="h-4 w-4 flex-shrink-0">
+                      {log.user?.avatarUrl ? (
+                        <AvatarImage src={log.user.avatarUrl} alt={log.user?.displayName || log.user?.email || "User"} />
+                      ) : (
+                        <AvatarFallback>
+                          {getUserAvatarInitials(
+                            log.user?.displayName || log.user?.email || t("activity.user", { id: log.userId })
+                          )}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span className="truncate">
+                      {log.user?.displayName || log.user?.email || t("activity.user", { id: log.userId })}
+                    </span>
+                  </div>
                   {log.ipAddress && <span className="hidden sm:inline">• {log.ipAddress}</span>}
                   <span>• {new Date(log.timestamp).toLocaleString()}</span>
                 </div>
@@ -2618,13 +2824,21 @@ function SubusersTab({
         title={t("subusers.title")}
         icon={Users}
         action={
-          canAdd ? (
-            <Button size="sm" onClick={() => setShowAdd(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              <span className="hidden sm:inline">{t("subusers.addSubuser")}</span>
-              <span className="sm:hidden">{t("subusers.add")}</span>
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/mailbox"
+              className="inline-flex items-center rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary/30"
+            >
+              {t("subusers.pendingInvites")}
+            </Link>
+            {canAdd ? (
+              <Button size="sm" onClick={() => setShowAdd(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                <span className="hidden sm:inline">{t("subusers.addSubuser")}</span>
+                <span className="sm:hidden">{t("subusers.add")}</span>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -2711,9 +2925,29 @@ function SubusersTab({
                 className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
               >
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {su.userEmail || su.email || t("subusers.userFallback", { id: su.userId })}
-                  </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      {su.user?.avatarUrl ? (
+                        <AvatarImage src={su.user.avatarUrl} alt={su.user?.displayName || su.user?.email || "User"} />
+                      ) : (
+                        <AvatarFallback>
+                          {getUserAvatarInitials(
+                            su.user?.displayName || su.user?.email || su.userEmail || t("subusers.userFallback", { id: su.userId })
+                          )}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="min-w-0 overflow-hidden">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {su.user?.displayName || su.user?.email || su.userEmail || t("subusers.userFallback", { id: su.userId })}
+                      </p>
+                      {su.accepted === false && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {t("subusers.pending")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-1 mt-1.5 items-center">
                     {(su.permissions || []).map((p: string) => (
                       <Badge key={p} variant="outline" className="text-[10px]">

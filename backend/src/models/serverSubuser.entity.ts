@@ -23,6 +23,9 @@ export class ServerSubuser {
   @Column({ default: false })
   locked: boolean;
 
+  @Column({ default: false })
+  accepted: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }

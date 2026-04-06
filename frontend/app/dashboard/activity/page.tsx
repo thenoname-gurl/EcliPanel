@@ -75,15 +75,18 @@ const typeBadgeColors: Record<string, string> = {
 
 function guessType(action: string): string {
   const a = action.toLowerCase()
-  if (a.includes("logout") || a.includes("log_out") || a.includes("signout")) return "logout"
-  if (a.includes("login") || a.includes("log_in") || a.includes("signin")) return "login"
-  if (a.includes("register") || a.includes("signup") || a.includes("sign_up")) return "register"
-  if (/passkey|2fa|mfa|otp/.test(a)) return "security"
-  if (/server|start|stop|restart|power|console/.test(a)) return "server"
-  if (/billing|payment|invoice|order|subscription|credit/.test(a)) return "billing"
-  if (/key|security|password|token/.test(a)) return "security"
-  if (/ticket|support/.test(a)) return "support"
-  if (/compute|instance|vm|container/.test(a)) return "compute"
+  const prefix = "activity.actions."
+  const key = a.startsWith(prefix) ? a.slice(prefix.length) : a
+
+  if (key.includes("logout") || key.includes("log_out") || key.includes("signout")) return "logout"
+  if (key.includes("login") || key.includes("log_in") || key.includes("signin")) return "login"
+  if (key.includes("register") || key.includes("signup") || key.includes("sign_up")) return "register"
+  if (/passkey|2fa|mfa|otp/.test(key)) return "security"
+  if (/server|start|stop|restart|power|console|file|reinstall|subuser|suspend|unsuspend/.test(key)) return "server"
+  if (/billing|payment|invoice|order|subscription|credit/.test(key)) return "billing"
+  if (/key|security|password|token/.test(key)) return "security"
+  if (/ticket|support/.test(key)) return "support"
+  if (/compute|instance|vm|container/.test(key)) return "compute"
   return "auth"
 }
 
@@ -104,11 +107,20 @@ function formatTimeAgo(timestamp: string, t: (key: string, values?: Record<strin
 
 function formatAction(action: string): string {
   return action
-    .replace(/[_-]/g, " ")
+    .replace(/[:_.-]/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .split(" ")
+    .split(/\s+/)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ")
+}
+
+function translateActivityAction(action: string, t: (key: string) => string): string {
+  const prefix = "activity.actions."
+  const normalized = action.toLowerCase()
+  if (normalized.startsWith(prefix)) {
+    return t("actionLabels." + action.slice(prefix.length))
+  }
+  return formatAction(action)
 }
 
 function InfoItem({ icon: Icon, label, value, mono, copyable }: {
@@ -190,6 +202,29 @@ export default function AccountActivity() {
   const [hasMore, setHasMore] = useState(false)
   const [selectedLog, setSelectedLog] = useState<any | null>(null)
   const [expandedLogs, setExpandedLogs] = useState<Set<string | number>>(new Set())
+  const actionLabels: Record<string, string> = {
+    "server:power:start": t("actionLabels.startedServer"),
+    "server:power:stop": t("actionLabels.stoppedServer"),
+    "server:power:restart": t("actionLabels.restartedServer"),
+    "server:power:kill": t("actionLabels.killedServer"),
+    "server:console:command": t("actionLabels.ranConsoleCommand"),
+    "wings:server:console.command": t("actionLabels.ranConsoleCommand"),
+    "server:file:write": t("actionLabels.modifiedFile"),
+    "server:file:delete": t("actionLabels.deletedFiles"),
+    "server:reinstall": t("actionLabels.reinstalledServer"),
+    "server:subuser:add": t("actionLabels.addedSubuser"),
+    "server:subuser:accept_invite": t("actionLabels.acceptedSubuserInvite"),
+    "server:subuser:remove": t("actionLabels.removedSubuser"),
+    "server:subuser:reject_invite": t("actionLabels.rejectedSubuserInvite"),
+    "update-profile": t("actionLabels.updatedProfile"),
+    "server:suspend": t("actionLabels.serverSuspend"),
+    "server:unsuspend": t("actionLabels.serverUnsuspend"),
+  }
+
+  const getActionLabel = (action: string): string => {
+    const key = action.toLowerCase()
+    return actionLabels[key] ?? translateActivityAction(action, t)
+  }
   const LOGS_PER = 50
 
   const loadLogs = async (pageNumber = 1) => {
@@ -435,7 +470,7 @@ export default function AccountActivity() {
                               <div className="min-w-0 flex-1 overflow-hidden">
                                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
                                   <p className="text-sm font-medium text-foreground truncate min-w-0">
-                                    {formatAction(item.action ?? t("log.unknownAction"))}
+                                    {getActionLabel(item.action ?? t("log.unknownAction"))}
                                   </p>
                                   <Badge variant="outline" className={cn("text-[10px] flex-shrink-0", badgeColor)}>
                                     {type}
@@ -618,7 +653,7 @@ export default function AccountActivity() {
               <div className="p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
                 {/* Quick Info Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
-                  <InfoItem icon={Activity} label={t("details.action")} value={selectedLog.action || t("log.unknown")} />
+                  <InfoItem icon={Activity} label={t("details.action")} value={selectedLog.action ? getActionLabel(selectedLog.action) : t("log.unknown")} />
                   <InfoItem icon={Box} label={t("details.targetType")} value={selectedLog.targetType || "-"} />
                   <InfoItem icon={Hash} label={t("details.targetId")} value={selectedLog.targetId?.toString() || "-"} mono copyable />
                   <InfoItem icon={Clock} label={t("details.timestamp")} value={selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : "-"} />

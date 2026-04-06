@@ -112,6 +112,8 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
   const { user, logout } = useAuth()
   const [lockedItem, setLockedItem] = useState<NavItem | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [pendingSubuserInvites, setPendingSubuserInvites] = useState<number>(0)
+  const [pendingOrganisationInvites, setPendingOrganisationInvites] = useState<number>(0)
   const tSidebar = useTranslations("panelSidebar")
   const tNav = useTranslations("panelNav")
 
@@ -188,6 +190,45 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
       .catch(() => {})
 
     return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    apiFetch(API_ENDPOINTS.serverSubuserInvites)
+      .then((data) => {
+        if (!mounted) return
+        setPendingSubuserInvites(Array.isArray(data) ? data.length : 0)
+      })
+      .catch(() => {})
+
+    apiFetch(API_ENDPOINTS.organisationInvites)
+      .then((data) => {
+        if (!mounted) return
+        setPendingOrganisationInvites(Array.isArray(data) ? data.length : 0)
+      })
+      .catch(() => {})
+
+    const intervalId = setInterval(() => {
+      apiFetch(API_ENDPOINTS.serverSubuserInvites)
+        .then((data) => {
+          if (!mounted) return
+          setPendingSubuserInvites(Array.isArray(data) ? data.length : 0)
+        })
+        .catch(() => {})
+
+      apiFetch(API_ENDPOINTS.organisationInvites)
+        .then((data) => {
+          if (!mounted) return
+          setPendingOrganisationInvites(Array.isArray(data) ? data.length : 0)
+        })
+        .catch(() => {})
+    }, 60000)
+
+    return () => {
+      mounted = false
+      clearInterval(intervalId)
+    }
   }, [])
 
   useEffect(() => {
@@ -328,7 +369,10 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
       items: section.items.filter(isItemVisible).map((item) => ({
         ...item,
         label: translateNavLabel(item.label),
-        badge: translateBadge(item.badge),
+        badge:
+          item.href === "/dashboard/mailbox" && pendingSubuserInvites + pendingOrganisationInvites > 0
+            ? String(pendingSubuserInvites + pendingOrganisationInvites)
+            : translateBadge(item.badge),
       }))
     })).filter((section) => section.items.length > 0)
   }, [isItemVisible, translateNavSection, translateNavLabel, translateBadge])

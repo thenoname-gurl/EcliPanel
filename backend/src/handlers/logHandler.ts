@@ -249,6 +249,7 @@ export async function logRoutes(app: any, prefix = '') {
     const { limit = '50', offset = '0' } = ctx.query as any;
     const logRepo = AppDataSource.getRepository(UserLog);
     const logs = await logRepo.createQueryBuilder('log')
+      .leftJoinAndMapOne('log.user', User, 'user', 'user.id = log.userId')
       .where('log.targetId = :serverId', { serverId })
       .andWhere('log.targetType = :type', { type: 'server' })
       .orderBy('log.timestamp', 'DESC')
