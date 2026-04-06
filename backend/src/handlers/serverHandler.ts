@@ -598,10 +598,11 @@ export async function serverRoutes(app: any, prefix = '') {
         ...norm,
         node: nodeName,
         sftp: sftpInfo,
+        isOwner: cfg.userId === user?.id,
+        userId: cfg.userId,
         ...(isAdmin
           ? {
               owner: cfg.userId,
-              userId: cfg.userId,
               eggId: cfg.eggId ?? null,
               nodeId: cfg.nodeId,
               memory: cfg.memory,
