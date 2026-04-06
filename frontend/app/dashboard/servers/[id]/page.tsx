@@ -905,7 +905,10 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     (user.role === "*" ||
       user.role === "rootAdmin" ||
       user.role === "admin" ||
-      server?.userId === user.id)
+      server?.isOwner === true ||
+      server?.userId === user.id ||
+      server?.owner === user.id ||
+      server?.ownerId === user.id)
   )
 
   const isViewerSubuser =
