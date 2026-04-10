@@ -15,6 +15,7 @@ import { scheduleCodeInstanceIdleJob } from './jobs/codeInstanceIdleJob';
 import { scheduleMetricsCollectionJob } from './jobs/metricsCollectionJob';
 import { scheduleExportJobRunner } from './jobs/exportJobRunner';
 import { scheduleDeletionExecutionJob } from './jobs/deletionExecutionJob';
+import { scheduleMailboxSyncJob } from './jobs/mailboxSyncJob';
 import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
@@ -510,6 +511,8 @@ export async function initApp() {
   try { scheduleMetricsCollectionJob(); } catch (e) { console.error('Failed to schedule metrics collection job:', e); }
   try { scheduleExportJobRunner(); } catch (e) { console.error('Failed to schedule export job runner:', e); }
   try { scheduleDeletionExecutionJob(); } catch (e) { console.error('Failed to schedule deletion execution job:', e); }
+  try { scheduleMailboxSyncJob(); } catch (e) { console.error('Failed to schedule mailbox sync job:', e); }
+  try { const { scheduleMailboxPasswordRotation } = require('./services/mailcowService'); scheduleMailboxPasswordRotation(); } catch (e) { console.error('Failed to schedule mailbox password rotation job:', e); }
   try { scheduleHourlyElysiaRestart(); } catch (e) { console.error('Failed to schedule hourly Elysia restart job:', e); }
 }
 

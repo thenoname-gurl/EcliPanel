@@ -40,7 +40,7 @@ import { normalizeProcessConfig } from '../utils/startupDetection';
 import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
-import { notifyServerOwnerSuspended } from '../utils/suspensionNotice';
+import { notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
@@ -2633,6 +2633,13 @@ export async function adminRoutes(app: any, prefix = '') {
           { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
         );
         await svc.syncServer(serverId, {});
+        if (existingCfg) {
+          await notifyServerOwnerUnsuspended({
+            cfg: existingCfg,
+            actor: ctx.user?.email || 'system',
+            unsuspendedAt: new Date(),
+          });
+        }
         return { success: true };
       } catch { }
     }

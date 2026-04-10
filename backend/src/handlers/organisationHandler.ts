@@ -7,6 +7,8 @@ import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { User } from '../models/user.entity';
+import { createMailboxMessageForUser } from '../utils/mailboxMessage';
+import { getMailboxAccountForUser } from '../services/mailcowService';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -669,10 +671,14 @@ export async function organisationRoutes(app: any, prefix = '') {
     await inviteRepo.save(inv);
     const inviter = ctx.user as User;
     await createActivityLog({ userId: inviter.id, action: 'org:invite', targetId: String(org.id), targetType: 'organisation', metadata: { invitedEmail: email }, ipAddress: ctx.ip });
+
+    const targetUser = await userRepo().findOneBy({ email }).catch(() => null);
+    const panelEmail = targetUser ? (await getMailboxAccountForUser(targetUser.id).catch(() => null))?.email : null;
+    const recipients = Array.from(new Set([email, panelEmail].filter(Boolean) as string[]));
     try {
       const { sendMail } = require('../services/mailService');
       await sendMail({
-        to: email,
+        to: recipients,
         from: process.env.SMTP_USER || 'noreply@ecli.app',
         subject: `Invitation to join ${org.name}`,
         template: 'invite',
@@ -682,6 +688,14 @@ export async function organisationRoutes(app: any, prefix = '') {
           link: `${process.env.FRONTEND_URL || 'https://ecli.app'}/accept?token=${token}`,
         },
       });
+
+      if (targetUser && panelEmail) {
+        await createMailboxMessageForUser(targetUser, {
+          subject: `Invitation to join ${org.name}`,
+          body: `You have been invited to join the organisation ${org.name}. Review the invitation at ${process.env.FRONTEND_URL || 'https://ecli.app'}/accept?token=${token}`,
+          toAddress: panelEmail,
+        });
+      }
     } catch (e) {
       app.log.error({ err: e }, 'failed to send invite email');
     }
