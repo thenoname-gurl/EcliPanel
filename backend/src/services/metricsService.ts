@@ -1,4 +1,5 @@
 import { AppDataSource } from '../config/typeorm';
+import { Between, FindOperator } from 'typeorm';
 import { SocData } from '../models/socData.entity';
 
 function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {}) {
@@ -62,19 +63,81 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
   const until = windowKey === 'live' ? new Date(now) : new Date(truncNow);
 
   const repo = AppDataSource.getRepository(SocData);
-  const rows = await repo
-    .createQueryBuilder('soc')
-    .select(['soc.timestamp', 'soc.metrics'])
-    .where('soc.serverId = :serverId', { serverId })
-    .andWhere('soc.timestamp >= :since', { since })
-    .andWhere('soc.timestamp < :until', { until })
-    .orderBy('soc.timestamp', 'ASC')
-    .getMany();
+  const count = await repo.count({
+    where: {
+      serverId,
+      timestamp: Between(since, until) as FindOperator<Date>,
+    } as any,
+  });
 
-  if (!rows || rows.length === 0) return [];
+  if (count === 0) return [];
 
   const start = since.getTime();
   const bucketSize = Math.max(1000, Math.ceil(windowMs / points));
+  const maxExactRows = Math.max(points * 8, 5000);
+
+  const parseMetrics = (metrics: any) => {
+    if (metrics == null) return {};
+    if (typeof metrics === 'string') {
+      try {
+        return JSON.parse(metrics);
+      } catch {
+        return {};
+      }
+    }
+    return metrics;
+  };
+
+  let rows: Array<{ timestamp: string | Date; metrics: any }> = [];
+
+  if (count > maxExactRows) {
+    const dbType = String(AppDataSource.options.type || '').toLowerCase();
+    const bucketExpr =
+      dbType === 'postgres'
+        ? `FLOOR((EXTRACT(EPOCH FROM soc.timestamp) * 1000 - :startMs) / :bucketSize)`
+        : `FLOOR((UNIX_TIMESTAMP(soc.timestamp) * 1000 - :startMs) / :bucketSize)`;
+
+    try {
+      const bucketed = repo.createQueryBuilder('soc')
+        .select('MAX(soc.id)', 'id')
+        .addSelect(bucketExpr, 'bucket')
+        .where('soc.serverId = :serverId', { serverId })
+        .andWhere('soc.timestamp >= :since', { since })
+        .andWhere('soc.timestamp < :until', { until })
+        .groupBy('bucket');
+
+      rows = await repo.createQueryBuilder('soc')
+        .select('soc.timestamp', 'timestamp')
+        .addSelect('soc.metrics', 'metrics')
+        .innerJoin(`(${bucketed.getQuery()})`, 'bucketed', 'soc.id = bucketed.id')
+        .orderBy('soc.timestamp', 'ASC')
+        .setParameters(bucketed.getParameters())
+        .setParameter('startMs', start)
+        .setParameter('bucketSize', bucketSize)
+        .getRawMany();
+    } catch {
+      rows = await repo
+        .createQueryBuilder('soc')
+        .select(['soc.timestamp', 'soc.metrics'])
+        .where('soc.serverId = :serverId', { serverId })
+        .andWhere('soc.timestamp >= :since', { since })
+        .andWhere('soc.timestamp < :until', { until })
+        .orderBy('soc.timestamp', 'ASC')
+        .getMany();
+    }
+  } else {
+    rows = await repo
+      .createQueryBuilder('soc')
+      .select(['soc.timestamp', 'soc.metrics'])
+      .where('soc.serverId = :serverId', { serverId })
+      .andWhere('soc.timestamp >= :since', { since })
+      .andWhere('soc.timestamp < :until', { until })
+      .orderBy('soc.timestamp', 'ASC')
+      .getMany();
+  }
+
+  if (!rows || rows.length === 0) return [];
+
   const buckets: Array<Record<string, { sum: number; count: number }>> = [];
   const bucketTimes: number[] = [];
   const bucketCount = Math.ceil(windowMs / bucketSize);
@@ -87,7 +150,7 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
     const t = new Date(r.timestamp).getTime();
     const idx = Math.floor((t - start) / bucketSize);
     if (idx < 0 || idx >= buckets.length) continue;
-    const flat = flattenMetrics(r.metrics ?? {});
+    const flat = flattenMetrics(parseMetrics(r.metrics) ?? {});
     const bucket = buckets[idx];
     for (const [k, v] of Object.entries(flat)) {
       const cur = bucket[k] ?? { sum: 0, count: 0 };

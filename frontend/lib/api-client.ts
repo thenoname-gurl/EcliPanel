@@ -9,7 +9,7 @@ function sleep(ms: number) {
 
 export async function apiFetch(
   path: string,
-  options: RequestInit & { timeout?: number; retries?: number } = {}
+  options: Omit<RequestInit, 'body'> & { body?: any; timeout?: number; retries?: number } = {}
 ): Promise<any> {
   const timeout = Number(options.timeout ?? DEFAULT_API_TIMEOUT)
   const retries = Number(options.retries ?? DEFAULT_API_RETRIES)
@@ -48,6 +48,15 @@ export async function apiFetch(
     headers["Content-Type"] = "application/json";
   }
 
+  let fetchBody: any = options.body;
+  if (headers["Content-Type"] === 'application/json' && fetchBody !== undefined && fetchBody !== null && !(fetchBody instanceof FormData) && typeof fetchBody === 'object') {
+    try {
+      fetchBody = JSON.stringify(fetchBody);
+    } catch {
+      // skippyyyyy!!!!
+    }
+  }
+
   if (typeof window !== 'undefined') {
     try {
       const token = localStorage.getItem('token');
@@ -74,6 +83,7 @@ export async function apiFetch(
       const res = await fetch(url, {
         ...options,
         headers,
+        body: fetchBody,
         credentials: 'include',
         signal: controller.signal,
       })

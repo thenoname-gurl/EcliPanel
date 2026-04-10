@@ -36,6 +36,8 @@
     "mariadb": "latest",
     "mysql": "latest",
     "node-cron": "^4.2.1",
+    "imap": "^0.8.19",
+    "mailparser": "^3.6.0",
     "node-fetch": "latest",
     "nodemailer": "latest",
     "pdfkit": "^0.17.2",

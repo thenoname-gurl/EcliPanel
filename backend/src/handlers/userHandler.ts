@@ -1,10 +1,15 @@
 import { AppDataSource } from '../config/typeorm';
+import { MailMessage } from '../models/mailMessage.entity';
+import { MailboxAccount } from '../models/mailboxAccount.entity';
+import { Notification } from '../models/notification.entity';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword } from '../utils/password';
 import { canRegister, getGeoBlockLevel } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
+import { ensureMailboxAccountForUser, getMailboxAccountForUser, getMailboxConnectionInfo, isMailcowConfigured, isPanelAssignedMailboxEmail } from '../services/mailcowService';
+import { deleteMessageFromMailbox, fetchMailboxNow } from '../services/imapFetcher';
 import { sendMail } from '../services/mailService';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { v4 as uuidv4 } from 'uuid';
@@ -133,6 +138,11 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const body = ctx.body as Partial<User>;
+    const normalizedEmail = String(body.email || '').trim().toLowerCase();
+    if (normalizedEmail && await isPanelAssignedMailboxEmail(normalizedEmail)) {
+      ctx.set.status = 400;
+      return { error: 'registration_email_reserved', message: 'That email is reserved by the panel and cannot be used for registration.' };
+    }
     const userRepo = AppDataSource.getRepository(User);
     const user = userRepo.create(body);
     user.passwordHash = await hashPassword((body as any).password!);
@@ -146,6 +156,13 @@ export async function userRoutes(app: any, prefix = '') {
       }
       throw err;
     }
+
+    try {
+      await ensureMailboxAccountForUser(user);
+    } catch (err: any) {
+      console.warn('Failed to provision Mailcow mailbox for user:', err?.message || err);
+    }
+
     const logRepo = AppDataSource.getRepository(UserLog);
     await logRepo.save(logRepo.create({ userId: user.id, action: 'register', timestamp: new Date() }));
 
@@ -272,6 +289,508 @@ export async function userRoutes(app: any, prefix = '') {
    beforeHandle: authenticate,
     response: { 200: userSchema, 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get current user', tags: ['Users'] }
+  });
+
+  const mailboxDomain = String(process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app').trim();
+
+  async function resolveMailboxRecipient(addresses: string[]) {
+    const normalizedAddresses = addresses
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!normalizedAddresses.length) return null;
+
+    const mailboxRepo = AppDataSource.getRepository(MailboxAccount);
+    const accounts = await mailboxRepo.find();
+
+    for (const address of normalizedAddresses) {
+      for (const account of accounts) {
+        const primary = String(account.email || '').trim().toLowerCase();
+        if (primary && primary === address) {
+          return { userId: account.userId, address };
+        }
+
+        const aliases = Array.isArray(account.aliases) ? account.aliases : [];
+        if (aliases.some((item: any) => String(item?.address || '').trim().toLowerCase() === address)) {
+          return { userId: account.userId, address };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  app.get(prefix + '/mailbox/address', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const isAdmin = requester.role === 'admin' || requester.role === 'rootAdmin' || requester.role === '*';
+    const targetUserId = Number(ctx.query?.userId || ctx.query?.user_id || 0) || requester.id;
+    if (targetUserId !== requester.id && !isAdmin) {
+      ctx.set.status = 403;
+      return { error: 'Admin access required' };
+    }
+
+    const targetUserRepo = AppDataSource.getRepository(User);
+    const targetUser = await targetUserRepo.findOneBy({ id: targetUserId });
+    if (!targetUser) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    let account;
+    try {
+      account = await getMailboxAccountForUser(targetUser.id);
+    } catch (err: any) {
+      console.warn('Failed to fetch mailbox account for user:', targetUser.id, err?.message || err);
+    }
+
+    if (!account && targetUserId === requester.id && isMailcowConfigured()) {
+      try {
+        account = await ensureMailboxAccountForUser(requester);
+      } catch (err: any) {
+        console.warn('Mailbox provisioning failed for user:', requester.id, err?.message || err);
+      }
+    }
+
+    const address = account?.email || '';
+    const domain = account?.domain || mailboxDomain;
+    const connection = getMailboxConnectionInfo(domain);
+
+    return {
+      address,
+      mailboxReady: Boolean(account?.email),
+      uuid: account?.uuid,
+      aliases: account?.aliases || [],
+      domain,
+      imapHost: connection.imapHost,
+      imapPort: connection.imapPort,
+      imapSecure: connection.imapSecure,
+      smtpHost: connection.smtpHost,
+      smtpPort: connection.smtpPort,
+      smtpSecure: connection.smtpSecure,
+    };
+  }, {
+   beforeHandle: authenticate,
+    response: {
+      200: t.Object({
+        address: t.String(),
+        mailboxReady: t.Boolean(),
+        uuid: t.Optional(t.String()),
+        aliases: t.Optional(t.Array(t.Object({
+          address: t.String(),
+          canSendFrom: t.Optional(t.Boolean()),
+          createdAt: t.Optional(t.String()),
+        }))),
+        domain: t.String(),
+        imapHost: t.String(),
+        imapPort: t.Number(),
+        imapSecure: t.Boolean(),
+        smtpHost: t.String(),
+        smtpPort: t.Number(),
+        smtpSecure: t.Boolean(),
+      }),
+      401: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Fetch mailbox address', tags: ['Users'] }
+  });
+
+  app.get(prefix + '/mailbox/notifications', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const notificationRepo = AppDataSource.getRepository(Notification);
+    const notifications = await notificationRepo.find({
+      where: { userId: requester.id },
+      order: { createdAt: 'DESC' },
+    });
+
+    return notifications.map((notification) => ({
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      body: notification.body,
+      url: notification.url || null,
+      read: !!notification.read,
+      createdAt: notification.createdAt instanceof Date ? notification.createdAt.toISOString() : String(notification.createdAt),
+    }));
+  }, {
+   beforeHandle: authenticate,
+    response: {
+      200: t.Array(t.Object({
+        id: t.Number(),
+        type: t.String(),
+        title: t.String(),
+        body: t.String(),
+        url: t.Optional(t.String()),
+        read: t.Boolean(),
+        createdAt: t.String(),
+      })),
+      401: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Fetch mailbox notifications', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/notifications/:id/read', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const body = ctx.body as any;
+    const setRead = body?.read === undefined ? true : Boolean(body.read);
+
+    const notificationRepo = AppDataSource.getRepository(Notification);
+    const notification = await notificationRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!notification) {
+      ctx.set.status = 404;
+      return { error: 'Notification not found' };
+    }
+
+    notification.read = setRead;
+    await notificationRepo.save(notification);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Mark mailbox notification read/unread', tags: ['Users'] }
+  });
+
+  app.delete(prefix + '/mailbox/notifications/:id', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const notificationRepo = AppDataSource.getRepository(Notification);
+    const notification = await notificationRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!notification) {
+      ctx.set.status = 404;
+      return { error: 'Notification not found' };
+    }
+
+    await notificationRepo.remove(notification);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Delete mailbox notification', tags: ['Users'] }
+  });
+
+  app.get(prefix + '/mailbox/messages', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    if (isMailcowConfigured()) {
+      try {
+        const account = await getMailboxAccountForUser(requester.id);
+        if (account) {
+          await fetchMailboxNow(account);
+        }
+      } catch (err: any) {
+        console.warn('[userHandler] on-demand mailbox fetch failed for', requester.id, err?.message || err);
+      }
+    }
+
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const messages = await messageRepo.find({
+      where: { userId: requester.id },
+      order: { receivedAt: 'DESC' },
+    });
+
+    return messages.map((message) => {
+      const item: any = {
+        id: message.id,
+        read: !!message.read,
+        subject: message.subject || 'No subject',
+        body: message.body || '',
+        receivedAt: message.receivedAt instanceof Date ? message.receivedAt.toISOString() : String(message.receivedAt),
+      };
+
+      if (message.fromAddress) item.fromAddress = message.fromAddress;
+      if (message.toAddress) item.toAddress = message.toAddress;
+      if (message.html) item.html = message.html;
+      if (message.category) item.category = message.category;
+      if (message.attachments) item.attachments = message.attachments;
+
+      return item;
+    });
+  }, {
+   beforeHandle: authenticate,
+    response: {
+      200: t.Array(t.Object({
+        id: t.Number(),
+        fromAddress: t.Optional(t.String()),
+        toAddress: t.Optional(t.String()),
+        subject: t.Optional(t.String()),
+        body: t.String(),
+        html: t.Optional(t.String()),
+        category: t.Optional(t.String()),
+        attachments: t.Optional(t.Array(t.Object({
+          filename: t.String(),
+          url: t.String(),
+          contentType: t.Optional(t.String()),
+          size: t.Optional(t.Number()),
+          cid: t.Optional(t.String()),
+        }))),
+        read: t.Boolean(),
+        receivedAt: t.String(),
+      })),
+      401: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Fetch mailbox messages', tags: ['Users'] }
+  });
+
+  app.get(prefix + '/mailbox/messages/categories', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const rows = await messageRepo
+      .createQueryBuilder('message')
+      .select('DISTINCT message.category', 'category')
+      .where('message.userId = :userId', { userId: requester.id })
+      .andWhere('message.category IS NOT NULL')
+      .orderBy('message.category', 'ASC')
+      .getRawMany();
+
+    return rows
+      .map((row: any) => String(row.category || '').trim())
+      .filter(Boolean);
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Array(t.String()),
+      401: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Fetch mailbox message categories', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/messages/:id/category', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const body = ctx.body as any;
+    const category = String(body?.category || '').trim() || null;
+
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!message) {
+      ctx.set.status = 404;
+      return { error: 'Message not found' };
+    }
+
+    message.category = category;
+    await messageRepo.save(message);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    body: t.Object({ category: t.Optional(t.String()) }),
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Assign category to mailbox message', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/messages/:id/read', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const body = ctx.body as any;
+    const setRead = body?.read === undefined ? true : Boolean(body.read);
+
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!message) {
+      ctx.set.status = 404;
+      return { error: 'Message not found' };
+    }
+
+    message.read = setRead;
+    await messageRepo.save(message);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Mark mailbox message read/unread', tags: ['Users'] }
+  });
+
+  app.delete(prefix + '/mailbox/messages/:id', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!message) {
+      ctx.set.status = 404;
+      return { error: 'Message not found' };
+    }
+
+    let remoteDeleteError: any = null;
+    if (isMailcowConfigured()) {
+      const account = await getMailboxAccountForUser(requester.id);
+      if (account) {
+          try {
+            const deleted = await deleteMessageFromMailbox(account, message);
+            if (!deleted) {
+              remoteDeleteError = new Error('Remote deletion failed or message not found');
+            }
+          } catch (err: any) {
+            remoteDeleteError = err;
+          }
+      }
+    }
+
+    if (remoteDeleteError) {
+      ctx.set.status = 500;
+      return { error: 'Failed to delete mailbox message remotely' };
+    }
+
+    await messageRepo.remove(message);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Delete mailbox message', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/inbound', async (ctx: any) => {
+    const secret = String(process.env.MAILBOX_INBOUND_SECRET || '');
+    if (!secret) {
+      ctx.set.status = 503;
+      return { error: 'Mailbox inbound endpoint is not configured' };
+    }
+
+    const incomingSecret = String(ctx.request.headers.get('x-mailbox-inbound-secret') || '');
+    if (!incomingSecret || incomingSecret !== secret) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const body = ctx.body as any;
+    const rawTo = String(body.to || body.toAddress || body.recipient || '').trim();
+    if (!rawTo) {
+      ctx.set.status = 400;
+      return { error: 'Missing to address' };
+    }
+
+    const toAddresses = rawTo.split(',').map((value: string) => value.trim().toLowerCase()).filter(Boolean);
+    const parsed = await resolveMailboxRecipient(toAddresses);
+    if (!parsed) {
+      ctx.set.status = 404;
+      return { error: 'Mailbox not found' };
+    }
+
+    const user = await AppDataSource.getRepository(User).findOneBy({ id: parsed.userId });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'Mailbox owner not found' };
+    }
+
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const saved = messageRepo.create({
+      userId: user.id,
+      fromAddress: String(body.from || body.fromAddress || 'unknown').trim(),
+      toAddress: parsed.address,
+      subject: String(body.subject || 'No subject').trim(),
+      body: String(body.text || body.body || '').trim() || '',
+      html: body.html ? String(body.html) : null,
+      headers: body.headers ? JSON.stringify(body.headers) : null,
+      read: false,
+      receivedAt: body.receivedAt ? new Date(body.receivedAt) : new Date(),
+    });
+    await messageRepo.save(saved);
+
+    return { success: true, id: saved.id };
+  }, {
+    response: {
+      200: t.Object({ success: t.Boolean(), id: t.Number() }),
+      400: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+      503: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Inbound mailbox webhook for incoming mail', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/refresh', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    if (!isMailcowConfigured()) {
+      ctx.set.status = 503;
+      return { error: 'Mailbox system not configured' };
+    }
+
+    const account = await getMailboxAccountForUser(requester.id);
+    if (!account) {
+      ctx.set.status = 404;
+      return { error: 'Mailbox account not found' };
+    }
+
+    try {
+      await fetchMailboxNow(account);
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Failed on-demand mailbox fetch for', requester.id, err?.message || err);
+      ctx.set.status = 500;
+      return { error: 'Failed to refresh mailbox' };
+    }
+  }, {
+    beforeHandle: authenticate,
+    config: { rateLimit: { max: 6, timeWindow: '1 minute' } },
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 503: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Refresh mailbox now (on-demand)', tags: ['Users'] }
   });
 
   app.get(prefix + '/users/:id', async (ctx: any) => {

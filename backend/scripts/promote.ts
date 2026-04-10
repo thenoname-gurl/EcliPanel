@@ -2,12 +2,12 @@
  * Promote a user to rootAdmin (or any other role.
  *
  * Usage:
- *   npm run promote -- <email> [role]
+ *   bun run promote -- <email> [role]
  *
  * Examples:
- *   npm run promote -- admin@example.com
- *   npm run promote -- admin@example.com rootAdmin
- *   npm run promote -- admin@example.com admin
+ *   bun run promote -- admin@example.com
+ *   bun run promote -- admin@example.com rootAdmin
+ *   bun run promote -- admin@example.com admin
  *
  * Default role: rootAdmin
  */
@@ -25,7 +25,7 @@ async function run() {
   const role  = process.argv[3] || 'rootAdmin';
 
   if (!email) {
-    console.error('Usage: npm run promote -- <email> [role]');
+    console.error('Usage: bun run promote -- <email> [role]');
     process.exit(1);
   }
 

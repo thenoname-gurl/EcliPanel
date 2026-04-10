@@ -20,7 +20,7 @@ import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { getGeoBlockLevel } from '../utils/eu';
-import { notifyServerOwnerSuspended } from '../utils/suspensionNotice';
+import { notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
 import { t } from 'elysia';
 import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
@@ -1392,6 +1392,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     try {
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+      const existingCfg = await cfgRepo.findOneBy({ uuid: id });
       await cfgRepo.update(
         { uuid: id },
         { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
@@ -1399,6 +1400,20 @@ export async function serverRoutes(app: any, prefix = '') {
       const svc = await serviceFor(id);
       await svc.syncServer(id, {});
       const user = ctx.user;
+      const alreadySuspended = !!existingCfg?.suspended;
+      if (!alreadySuspended && existingCfg) {
+        await notifyServerOwnerUnsuspended({
+          cfg: existingCfg,
+          actor: user?.email || 'system',
+          unsuspendedAt: new Date(),
+        });
+      } else if (alreadySuspended && existingCfg) {
+        await notifyServerOwnerUnsuspended({
+          cfg: existingCfg,
+          actor: user?.email || 'system',
+          unsuspendedAt: new Date(),
+        });
+      }
       await createActivityLog({ userId: user.id, action: 'server:unsuspend', targetId: id, targetType: 'server', ipAddress: ctx.ip });
       return { success: true };
     } catch (e: any) {

@@ -2922,7 +2922,8 @@ remote: ${panelUrl}`
     setEggFileDenylist((egg.fileDenylist || []).join("\n"))
     setEggAllowedPortals(egg.allowedPortals || [])
     setEggProcessStop(egg.processConfig?.stop?.value || "stop")
-    setEggProcessDone((egg.processConfig?.startup?.done || []).join("\n"))
+    const rawDone = egg.processConfig?.startup?.done
+    setEggProcessDone(Array.isArray(rawDone) ? rawDone.join("\n") : typeof rawDone === "string" ? rawDone : "")
     setEggInstallContainer(egg.installScript?.container || "")
     setEggInstallEntrypoint(egg.installScript?.entrypoint || "bash")
     setEggInstallScript(egg.installScript?.script || "")
@@ -2932,7 +2933,7 @@ remote: ${panelUrl}`
 
   async function saveEgg() {
     setEggLoading(true)
-    const envVarNames = eggEnvVars.split("\n").map((s) => s.trim()).filter(Boolean)
+    const envVarNames = String(eggEnvVars || "").split("\n").map((s) => s.trim()).filter(Boolean)
     const existingEnvVars: Record<string, any>[] = (eggDialog !== "new" && eggDialog)
       ? ((eggDialog as AdminEgg).envVars || []) as any[]
       : []
@@ -2943,30 +2944,30 @@ remote: ${panelUrl}`
 
     // Build docker images object if raw text provided
     let dockerImages: Record<string, string> | undefined
-    if (eggDockerImagesRaw.trim()) {
-      try { dockerImages = JSON.parse(eggDockerImagesRaw) } catch { /* ignore parse error */ }
+    if (String(eggDockerImagesRaw || "").trim()) {
+      try { dockerImages = JSON.parse(String(eggDockerImagesRaw || "")) } catch { /* ignore parse error */ }
     }
 
     // Build process config
-    const donePatterns = eggProcessDone.split("\n").map(s => s.trim()).filter(Boolean)
-    const processConfig = (donePatterns.length || eggProcessStop) ? {
+    const donePatterns = String(eggProcessDone || "").split("\n").map(s => s.trim()).filter(Boolean)
+    const processConfig = (donePatterns.length || String(eggProcessStop || "").trim()) ? {
       startup: { done: donePatterns, user_interaction: [], strip_ansi: false },
       stop: {
-        type: eggProcessStop === "SIGKILL" ? "kill" : eggProcessStop === "SIGTERM" ? "stop" : "command",
-        value: eggProcessStop,
+        type: String(eggProcessStop || "") === "SIGKILL" ? "kill" : String(eggProcessStop || "") === "SIGTERM" ? "stop" : "command",
+        value: String(eggProcessStop || ""),
       },
       configs: [],
     } : undefined
 
     // Build install script
-    const installScript = (eggInstallContainer.trim() || eggInstallScript.trim()) ? {
-      container: eggInstallContainer.trim() || undefined,
-      entrypoint: eggInstallEntrypoint.trim() || "bash",
-      script: eggInstallScript,
+    const installScript = (String(eggInstallContainer || "").trim() || String(eggInstallScript || "").trim()) ? {
+      container: String(eggInstallContainer || "").trim() || undefined,
+      entrypoint: String(eggInstallEntrypoint || "").trim() || "bash",
+      script: String(eggInstallScript || ""),
     } : undefined
 
-    const features = eggFeatures.split(",").map(s => s.trim()).filter(Boolean)
-    const fileDenylist = eggFileDenylist.split("\n").map(s => s.trim()).filter(Boolean)
+    const features = String(eggFeatures || "").split(",").map(s => s.trim()).filter(Boolean)
+    const fileDenylist = String(eggFileDenylist || "").split("\n").map(s => s.trim()).filter(Boolean)
 
     const body = {
       name: eggName,
@@ -3045,12 +3046,12 @@ remote: ${panelUrl}`
     try {
       let body: Record<string, any>
       if (importEggMode === "url") {
-        if (!importEggUrl.trim()) { setImportEggError("Please enter a URL."); return }
-        body = { url: importEggUrl.trim() }
+        if (!String(importEggUrl || "").trim()) { setImportEggError("Please enter a URL."); return }
+        body = { url: String(importEggUrl || "").trim() }
       } else {
-        if (!importEggJson.trim()) { setImportEggError("Please paste egg JSON."); return }
+        if (!String(importEggJson || "").trim()) { setImportEggError("Please paste egg JSON."); return }
         let parsed: any
-        try { parsed = JSON.parse(importEggJson) }
+        try { parsed = JSON.parse(String(importEggJson || "")) }
         catch { setImportEggError("Invalid JSON — could not parse."); return }
         body = { json: parsed }
       }

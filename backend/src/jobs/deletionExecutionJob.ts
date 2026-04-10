@@ -5,6 +5,7 @@ import { DeletionRequest } from '../models/deletionRequest.entity';
 import { User } from '../models/user.entity';
 import { DeletedUserRetention } from '../models/deletedUserRetention.entity';
 import { Order } from '../models/order.entity';
+import { getMailboxAccountForUser, removeMailboxAccount } from '../services/mailcowService';
 
 export async function executeDeletionRequest(req: DeletionRequest, now = new Date()) {
   const reqRepo = AppDataSource.getRepository(DeletionRequest);
@@ -38,6 +39,15 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
       deletedAt: now,
       retainUntil,
     }));
+  }
+
+  try {
+    const mailboxAccount = await getMailboxAccountForUser(user.id);
+    if (mailboxAccount) {
+      await removeMailboxAccount(mailboxAccount);
+    }
+  } catch (err: any) {
+    console.warn('[deletionExecutionJob] failed to remove Mailcow mailbox account for user', user.id, err?.message || err);
   }
 
   user.firstName = 'Deleted';

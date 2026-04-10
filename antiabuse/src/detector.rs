@@ -18,6 +18,14 @@ use std::time::{Duration, Instant};
 
 const PORT_SCAN_REPORT_WINDOW: Duration = Duration::from_secs(5 * 60);
 
+fn is_ephemeral_port(port: u16) -> bool {
+    port >= 32768
+}
+
+fn is_scannable_port(port: u16) -> bool {
+    port < 32768
+}
+
 // EcliPolice when???????
 // I won't lie, this is A HELL OF A MESS THAT BARELY WORKS-
 fn is_sequential(ports: &VecDeque<u16>, trigger: usize) -> bool {
@@ -263,7 +271,17 @@ pub async fn process_connection(
             Protocol::Udp => format!("udp:{}", event.dest_ip),
         };
 
-        if is_big_hit {
+        // =====================================================================
+        // PORT SCAN DETECTION FIX:
+        // Only track non-ephemeral destination ports for port scan detection.
+        // Ephemeral ports (32768+) are OS-assigned source ports used for
+        // return traffic in normal bidirectional connections (e.g., a player
+        // connecting to a Minecraft server). These should NOT count as a
+        // "port scan" since no attacker would scan ephemeral ports.
+        // =====================================================================
+        let is_port_scan_relevant = is_big_hit && is_scannable_port(event.dest_port);
+
+        if is_port_scan_relevant {
             state
                 .ports_per_dest
                 .entry(port_scan_key.clone())
@@ -277,14 +295,17 @@ pub async fn process_connection(
                 .insert(event.dest_port);
         }
 
-        let seq_ports = state
-            .recent_ports_per_dest
-            .entry(port_scan_key.clone())
-            .or_insert_with(VecDeque::new);
-        seq_ports.push_back(event.dest_port);
-        let max_recent = config.sequential_port_trigger + 1;
-        while seq_ports.len() > max_recent {
-            seq_ports.pop_front();
+        // Also filter sequential port tracking to exclude ephemeral ports
+        if is_scannable_port(event.dest_port) {
+            let seq_ports = state
+                .recent_ports_per_dest
+                .entry(port_scan_key.clone())
+                .or_insert_with(VecDeque::new);
+            seq_ports.push_back(event.dest_port);
+            let max_recent = config.sequential_port_trigger + 1;
+            while seq_ports.len() > max_recent {
+                seq_ports.pop_front();
+            }
         }
 
         state.recent_events.push_back(json!({
@@ -310,6 +331,10 @@ pub async fn process_connection(
             .get(&event.dest_ip)
             .map(|s| s.len())
             .unwrap_or(0);
+
+        let seq_ports = state
+            .recent_ports_per_dest
+            .get(&port_scan_key);
 
         let (fast_window_hits, fast_window_unique_ips, slow_window_hits, slow_window_unique_ips) =
             match protocol {
@@ -366,6 +391,7 @@ pub async fn process_connection(
             "isAmplificationPort": is_amplification,
             "isUdpRisky": is_udp_risky,
             "windowMs": config.window.as_millis(),
+            "destPortIsEphemeral": is_ephemeral_port(event.dest_port),
         });
 
         let recent_events: Vec<_> = state.recent_events.iter().cloned().collect();
@@ -402,7 +428,7 @@ pub async fn process_connection(
             Some(DetectionTrigger {
                 detection_type: format!("port_scan_unique_ports_{}", protocol.as_str()),
                 reason: format!(
-                    "{} port scan on {}: {} unique ports",
+                    "{} port scan on {}: {} unique ports (excluding ephemeral)",
                     protocol.as_str().to_uppercase(),
                     event.dest_ip,
                     unique_ports_on_dest
@@ -414,13 +440,13 @@ pub async fn process_connection(
             Some(DetectionTrigger {
                 detection_type: "port_scan_unique_ports".to_string(),
                 reason: format!(
-                    "port scan on {}: {} unique ports (combined protocols)",
+                    "port scan on {}: {} unique ports (combined protocols, excluding ephemeral)",
                     event.dest_ip, unique_ports_combined
                 ),
                 metrics: metrics.clone(),
                 recent_events: recent_events.clone(),
             })
-        } else if is_sequential(seq_ports, config.sequential_port_trigger) {
+        } else if seq_ports.map_or(false, |ports| is_sequential(ports, config.sequential_port_trigger)) {
             Some(DetectionTrigger {
                 detection_type: format!("port_scan_sequential_{}", protocol.as_str()),
                 reason: format!(

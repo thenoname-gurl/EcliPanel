@@ -68,7 +68,12 @@
     "summary": {
       "title": "Inbox overview",
       "description": "Accept or reject organisation and server subuser invitations from one place.",
-      "invites": "invites"
+      "invites": "invites",
+      "items": "items",
+      "filteredItems": "filtered",
+      "address": "Your Mailcow mailbox address: {address}",
+      "mailboxLabel": "Mailcow mailbox",
+      "addressUnavailable": "Mailbox address is not available yet. Please ensure Mailcow is configured."
     },
     "sections": {
       "inbox": "Inbox",
@@ -82,19 +87,36 @@
       "noSubuserInvites": "No pending server subuser invites.",
       "notifications": "Notifications",
       "notificationsDescription": "System notices and alerts will appear here.",
-      "notificationsEmpty": "No notifications yet."
+      "notificationsEmpty": "No notifications yet.",
+      "email": "Email",
+      "emailDescription": "Incoming email delivered to your receive-only EcliPanel mailbox.",
+      "emailEmpty": "No email messages yet."
     },
     "list": {
-      "empty": "Your inbox is empty."
+      "empty": "Your inbox is empty.",
+      "emptyDescription": "No messages match your filters."
     },
     "actions": {
       "accept": "Accept",
-      "reject": "Reject"
+      "reject": "Reject",
+      "markRead": "Mark read",
+      "markUnread": "Mark unread",
+      "assignCategory": "Assign category",
+      "delete": "Delete"
+    },
+    "filters": {
+      "search": "Search",
+      "showUnread": "Unread only",
+      "showAll": "Show all",
+      "category": "Category",
+      "allCategories": "All categories",
+      "uncategorized": "Uncategorized"
     },
     "details": {
       "sender": "From",
       "received": "Received",
       "body": "Message",
+      "actions": "Actions",
       "selectItem": "Select a message to view details.",
       "selectItemDescription": "Choose an inbox item on the left to read and respond."
     },
@@ -102,7 +124,15 @@
       "organisationBody": "You have been invited to join {organisation}. The invitation was sent to {email}. Review the invite and accept or reject it.",
       "subuserBody": "You have been invited to become a server subuser for {server}. The invitation was sent to {email}. Review the access request and accept or reject it.",
       "unknownServer": "Unknown server",
-      "unknownSender": "Unknown sender"
+      "unknownSender": "Unknown sender",
+      "emailFallback": "Email message"
+    }
+    ,
+    "confirm": {
+      "deleteEmail": "Delete this email? This action cannot be undone."
+    },
+    "errors": {
+      "failedAction": "Failed to perform action."
     }
   },
   "panelHeader": {
