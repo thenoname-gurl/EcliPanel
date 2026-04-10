@@ -8,7 +8,7 @@
 		"elysia": "^1.4.27",
 		"elysia-helmet": "^3.0.0",
 		"jsonwebtoken": "^9.0.3",
-		"nodemailer": "^8.0.4",
+		"nodemailer": "^8.0.5",
 		"redis": "^5.11.0",
 		"reflect-metadata": "^0.2.2",
 		"sharp": "^0.34.5",
