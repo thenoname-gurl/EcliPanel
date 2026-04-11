@@ -362,7 +362,7 @@ export function scheduleMailboxPasswordRotation(cronExpr?: string) {
       console.info('[mailcowService] starting scheduled mailbox password rotation');
       await rotateAllMailboxPasswords().catch((e) => console.error('[mailcowService] scheduled rotation failed', e));
     });
-    console.info('[mailcowService] scheduled mailbox password rotation:', expr);
+    console.info('[mailcowService] scheduled mailbox password rotation');
   } catch (e) {
     console.error('[mailcowService] failed to schedule password rotation', e);
   }
