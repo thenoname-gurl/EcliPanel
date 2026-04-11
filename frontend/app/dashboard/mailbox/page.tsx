@@ -152,7 +152,8 @@ function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
   }
 
   // Strip <script> entirely (belt + braces on top of sandbox)
-  sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, "")
+  // Match tolerant end tags too (e.g. </script >, </script foo="bar">)
+  sanitized = sanitized.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "")
 
   // Strip on* event handlers
   sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "")
