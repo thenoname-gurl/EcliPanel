@@ -74,6 +74,7 @@ import {
 const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default: m.ConsoleTab })))
 const StatsTabLazy = lazy(() => import("./StatsTab").then((m) => ({ default: m.StatsTab })))
 const FilesTabLazy = lazy(() => import("./FilesTab").then((m) => ({ default: m.FilesTab })))
+const FirewallTabLazy = lazy(() => import("./FirewallTab").then((m) => ({ default: m.FirewallTab })))
 
 // ─── Shared UI Primitives ────────────────────────────────────────────────────
 
@@ -930,13 +931,14 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       { id: "databases", label: t("tabs.databases"), icon: Database, shortLabel: t("tabs.dbShort") },
       { id: "schedules", label: t("tabs.schedules"), icon: Clock },
       { id: "network", label: t("tabs.network"), icon: Network, shortLabel: t("tabs.netShort") },
+      ...(isKvm ? [{ id: "firewall", label: t("tabs.firewall"), icon: Shield }] : []),
       { id: "backups", label: t("tabs.backups"), icon: HardDrive },
       { id: "activity", label: t("tabs.activity"), icon: Activity },
       { id: "subusers", label: t("tabs.subusers"), icon: Users },
       { id: "mounts", label: t("tabs.mounts"), icon: Box },
       { id: "settings", label: t("tabs.settings"), icon: Settings },
     ],
-    [t]
+    [t, isKvm]
   )
 
   const tabPermissionMap: Record<string, string | null> = useMemo(
@@ -1211,6 +1213,11 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             {activeTab === "databases" && <DatabasesTab serverId={id} />}
             {activeTab === "schedules" && <SchedulesTab serverId={id} />}
             {activeTab === "network" && <NetworkTab serverId={id} />}
+            {activeTab === "firewall" && (
+              <Suspense fallback={<LoadingState message={t("states.loadingFirewall")} />}>
+                <FirewallTabLazy serverId={id} server={server} />
+              </Suspense>
+            )}
             {activeTab === "mounts" && <MountsTab serverId={id} isKvm={isKvm} />}
             {activeTab === "backups" && <BackupsTab serverId={id} />}
             {activeTab === "activity" && <ActivityTab serverId={id} />}

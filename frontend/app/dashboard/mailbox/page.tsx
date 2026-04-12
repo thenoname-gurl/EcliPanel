@@ -888,10 +888,12 @@ function ComposePane({
   onClose,
   onSent,
   mailboxAddress,
+  sentMessages,
 }: {
   onClose: () => void
   onSent: () => void
   mailboxAddress: string | null
+  sentMessages: any[]
 }) {
   const [to, setTo] = useState<string[]>([])
   const [cc, setCc] = useState<string[]>([])
@@ -1842,6 +1844,7 @@ export default function MailboxPage() {
           onClose={() => setComposeOpen(false)}
           onSent={() => loadSentMessages(true)}
           mailboxAddress={mailboxAddress}
+          sentMessages={sentMessages}
         />
       ) : selectedItem ? (
         <>
