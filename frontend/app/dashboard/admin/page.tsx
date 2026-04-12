@@ -836,7 +836,26 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
 
 export default function AdminPanel() {
   const t = useTranslations("adminPage")
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, isLoading } = useAuth()
+
+  const isAdmin = !!user && (user.role === "*" || user.role === "rootAdmin" || user.role === "admin")
+
+  useEffect(() => {
+    if (isLoading) return
+    if (!user) {
+      router.replace("/login")
+      return
+    }
+    if (!isAdmin) {
+      router.replace("/dashboard")
+    }
+  }, [user, isAdmin, isLoading, router])
+
+  if (isLoading || !user || !isAdmin) {
+    return null
+  }
+
   // ── Stats state ──
   const [stats, setStats] = useState<AdminStats | null>(null)
 
@@ -1819,7 +1838,6 @@ export default function AdminPanel() {
   }
 
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   useEffect(() => {
     const tabFromQuery = searchParams.get("tab")
