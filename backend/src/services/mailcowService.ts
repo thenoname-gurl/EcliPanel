@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 const MAILCOW_API_URL = String(process.env.MAILCOW_API_URL || '').replace(/\/+$/, '');
 const MAILCOW_API_KEY = String(process.env.MAILCOW_API_KEY || '');
-const MAILCOW_API_SECRET = String(process.env.MAILCOW_API_SECRET || '');
 const MAILCOW_TIMEOUT_MS = Number(process.env.MAILCOW_TIMEOUT_MS || 30000);
 const MAILCOW_RETRIES = Math.max(1, Number(process.env.MAILCOW_RETRIES || 2));
 
@@ -65,10 +64,6 @@ async function mailcowFetch(path: string, data?: any, method: 'POST' | 'GET' = '
     'Content-Type': 'application/json',
     'X-API-Key': MAILCOW_API_KEY,
   };
-
-  if (MAILCOW_API_SECRET) {
-    headers['X-API-Secret'] = MAILCOW_API_SECRET;
-  }
 
   const url = `${MAILCOW_API_URL}/api/v1/${path}`;
   let lastError: any;

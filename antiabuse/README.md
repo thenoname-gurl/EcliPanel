@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./antiabuse.png" alt="EcliPanel" width="640" />
+</p>
+
 # EcliPanel Anti-Abuse (Rust)
 
 This service runs alongside wings, watches outbound TCP SYN traffic, detects suspicious behavior (port scanning / DDoS-like bursts), and then:

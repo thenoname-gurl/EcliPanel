@@ -4,6 +4,7 @@ import { Passkey } from '../models/passkey.entity';
 import { Ticket } from '../models/ticket.entity';
 import { IDVerification } from '../models/idVerification.entity';
 import { DeletionRequest } from '../models/deletionRequest.entity';
+import { OutboundEmail } from '../models/outboundEmail.entity';
 import { Node } from '../models/node.entity';
 import { Organisation } from '../models/organisation.entity';
 import { WingsApiService } from '../services/wingsApiService';
@@ -41,6 +42,7 @@ import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
 import { notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import { createActivityLog } from './logHandler';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
 const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
@@ -2442,76 +2444,110 @@ export async function adminRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/admin/sync-wings', async (ctx: any) => {
     if (!requireAdminCtx(ctx)) return;
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const adminUser = ctx.user as any;
+    const adminId = adminUser?.id;
 
-    const nodes = await nodeRepo.find();
-    const configs = await cfgRepo.find();
-    const results: any[] = [];
+    await createActivityLog({
+      userId: adminId,
+      action: 'admin:sync-to-wings:started',
+      metadata: { startedAt: new Date().toISOString() },
+      notify: false,
+    });
 
-    for (const cfg of configs) {
-      const node = nodes.find(n => n.id === cfg.nodeId);
-      if (!node) {
-        results.push({ uuid: cfg.uuid, status: 'node_not_found' });
-        continue;
-      }
-      try {
-        const base = (node as any).backendWingsUrl || node.url;
-        const svc = new WingsApiService(base, node.token);
-        try {
-          await svc.getServer(cfg.uuid);
-          results.push({ uuid: cfg.uuid, status: 'exists', nodeId: node.id });
+    void (async () => {
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const nodes = await nodeRepo.find();
+      const configs = await cfgRepo.find();
+      const results: any[] = [];
+
+      for (const cfg of configs) {
+        const node = nodes.find(n => n.id === cfg.nodeId);
+        if (!node) {
+          results.push({ uuid: cfg.uuid, status: 'node_not_found' });
           continue;
-        } catch (e: any) {
-          const status = e?.response?.status;
-          if (status === 401 || status === 403) {
-            results.push({ uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id });
+        }
+        try {
+          const base = (node as any).backendWingsUrl || node.url;
+          const svc = new WingsApiService(base, node.token);
+          try {
+            await svc.getServer(cfg.uuid);
+            results.push({ uuid: cfg.uuid, status: 'exists', nodeId: node.id });
             continue;
+          } catch (e: any) {
+            const status = e?.response?.status;
+            if (status === 401 || status === 403) {
+              results.push({ uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id });
+              continue;
+            }
           }
-          // skip
-        }
 
-        const egg = cfg.eggId ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId }) : null;
-        const mounts = await AppDataSource.getRepository(ServerMount).findBy({ serverUuid: cfg.uuid });
-        const mountEntities: any[] = [];
-        if (mounts && mounts.length) {
-          const mountIds = mounts.map((m: any) => m.mountId);
-          const allMounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
-          for (const m of mounts) {
-            const found = allMounts.find((am: any) => am.id === m.mountId);
-            if (found) mountEntities.push(found);
+          const egg = cfg.eggId ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId }) : null;
+          const mounts = await AppDataSource.getRepository(ServerMount).findBy({ serverUuid: cfg.uuid });
+          const mountEntities: any[] = [];
+          if (mounts && mounts.length) {
+            const mountIds = mounts.map((m: any) => m.mountId);
+            const allMounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
+            for (const m of mounts) {
+              const found = allMounts.find((am: any) => am.id === m.mountId);
+              if (found) mountEntities.push(found);
+            }
           }
+
+          const payload: any = {
+            uuid: cfg.uuid,
+            start_on_completion: false,
+            skip_scripts: !!cfg.skipEggScripts,
+            environment: cfg.environment || {},
+            build: {
+              memory_limit: cfg.memory || 0,
+              swap: cfg.swap || 0,
+              disk_space: cfg.disk || 0,
+              io_weight: cfg.ioWeight || 0,
+              cpu_limit: cfg.cpu || 0,
+              threads: null,
+            },
+            container: {
+              image: cfg.dockerImage || (egg ? egg.dockerImage : undefined) || 'ghcr.io/pterodactyl/yolks:nodejs_18',
+              startup: cfg.startup || (egg ? egg.startup : undefined) || 'node index.js',
+            },
+          };
+          if (cfg.name) payload.name = cfg.name;
+          if (cfg.description) payload.meta = { description: cfg.description };
+
+          const res = await svc.createServer(payload);
+          results.push({ uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status });
+        } catch (err: any) {
+          results.push({ uuid: cfg.uuid, status: 'error', message: err?.message || String(err) });
         }
-
-        const payload: any = {
-          uuid: cfg.uuid,
-          start_on_completion: false,
-          skip_scripts: !!cfg.skipEggScripts,
-          environment: cfg.environment || {},
-          build: {
-            memory_limit: cfg.memory || 0,
-            swap: cfg.swap || 0,
-            disk_space: cfg.disk || 0,
-            io_weight: cfg.ioWeight || 0,
-            cpu_limit: cfg.cpu || 0,
-            threads: null,
-          },
-          container: {
-            image: cfg.dockerImage || (egg ? egg.dockerImage : undefined) || 'ghcr.io/pterodactyl/yolks:nodejs_18',
-            startup: cfg.startup || (egg ? egg.startup : undefined) || 'node index.js',
-          },
-        };
-        if (cfg.name) payload.name = cfg.name;
-        if (cfg.description) payload.meta = { description: cfg.description };
-
-        const res = await svc.createServer(payload);
-        results.push({ uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status });
-      } catch (err: any) {
-        results.push({ uuid: cfg.uuid, status: 'error', message: err?.message || String(err) });
       }
-    }
 
-    return { results };
+      const createdCount = results.filter((r) => r.status === 'created').length;
+      const existsCount = results.filter((r) => r.status === 'exists').length;
+      const authFailedCount = results.filter((r) => r.status === 'auth_failed').length;
+      const errorCount = results.filter((r) => r.status === 'error').length;
+      const nodeNotFoundCount = results.filter((r) => r.status === 'node_not_found').length;
+
+      await createActivityLog({
+        userId: adminId,
+        action: `admin:sync-to-wings:completed - created ${createdCount}, exists ${existsCount}, auth_failed ${authFailedCount}, errors ${errorCount}, node_not_found ${nodeNotFoundCount}`,
+        metadata: { createdCount, existsCount, authFailedCount, errorCount, nodeNotFoundCount },
+        notify: false,
+      });
+    })().catch(async (err: any) => {
+      const message = err?.message || String(err);
+      await createActivityLog({
+        userId: adminId,
+        action: `admin:sync-to-wings:error — ${message}`,
+        metadata: { error: message },
+        notify: false,
+      });
+    });
+
+    return {
+      status: 'queued',
+      message: 'Sync to Wings has been queued and will complete in the background. Check your activity notifications for updates.',
+    };
   }, {
     beforeHandle: authenticate,
     detail: { summary: 'Synchronize all server configs to Wings (admin)', tags: ['Admin'] },
@@ -4020,6 +4056,60 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Fetch audit or request logs', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/outbound-emails', async (ctx) => {
+    if (!requireAdminCtx(ctx)) return;
+    const { userId, page = '1', per = '50', status, q } = ctx.query as any;
+    const perNum = Math.min(Math.max(Number(per) || 50, 1), 200);
+    const p = Math.max(1, Number(page) || 1);
+    const repo = AppDataSource.getRepository(OutboundEmail);
+
+    let qb = repo.createQueryBuilder('e').leftJoinAndSelect('e.user', 'u').orderBy('e.createdAt', 'DESC');
+    if (userId !== undefined && userId !== null && String(userId).trim() !== '') {
+      qb = qb.where('e.userId = :uid', { uid: Number(userId) });
+    }
+    if (status) {
+      qb = qb.andWhere('e.status = :status', { status: String(status) });
+    }
+    if (q) {
+      const term = `%${String(q).trim()}%`;
+      qb = qb.andWhere(
+        '(e.toAddress LIKE :term OR e.subject LIKE :term OR e.body LIKE :term OR e.fromAddress LIKE :term)',
+        { term }
+      );
+    }
+
+    const total = await qb.getCount();
+    const rows = await qb.skip((p - 1) * perNum).take(perNum).getMany();
+    const items = rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      user: r.user ? { id: r.user.id, email: r.user.email, displayName: r.user.displayName, firstName: r.user.firstName, lastName: r.user.lastName } : null,
+      fromAddress: r.fromAddress,
+      toAddress: r.toAddress,
+      subject: r.subject,
+      body: r.body,
+      html: r.html,
+      failureReason: r.failureReason,
+      status: r.status,
+      sentAt: r.sentAt,
+      createdAt: r.createdAt,
+      messageId: r.messageId,
+    }));
+
+    return { items, total, page: p, per: perNum };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      query: t.Object({ userId: t.Optional(t.Any()), page: t.Optional(t.String()), per: t.Optional(t.String()), status: t.Optional(t.String()), q: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ items: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'List outbound emails for admin review', tags: ['Admin'] },
   });
 
   app.delete(prefix + '/admin/logs/:id', async (ctx) => {

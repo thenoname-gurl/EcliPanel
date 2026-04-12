@@ -48,6 +48,10 @@ export default function PlansTab({ ctx }: { ctx: any }) {
     setPlanDatabases,
     planBackups,
     setPlanBackups,
+    planEmailSendDailyLimit,
+    setPlanEmailSendDailyLimit,
+    planEmailSendQueueLimit,
+    setPlanEmailSendQueueLimit,
     planPortCount,
     setPlanPortCount,
     planIsDefault,
@@ -303,6 +307,16 @@ export default function PlansTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.backups")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.backupsPlaceholder")} value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email send per day</label>
+              <input type="number" min="0" placeholder="e.g. 50" value={planEmailSendDailyLimit} onChange={(e) => setPlanEmailSendDailyLimit(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email queue limit</label>
+              <input type="number" min="0" placeholder="e.g. 10" value={planEmailSendQueueLimit} onChange={(e) => setPlanEmailSendQueueLimit(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">

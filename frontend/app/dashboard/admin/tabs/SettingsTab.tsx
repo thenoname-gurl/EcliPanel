@@ -411,6 +411,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               { key: "applications", label: t("featureFlags.applications.label"), note: t("featureFlags.applications.note") },
               { key: "oauth", label: t("featureFlags.oauth.label"), note: t("featureFlags.oauth.note") },
               { key: "codeInstances", label: t("featureFlags.codeInstances.label"), note: t("featureFlags.codeInstances.note") },
+              { key: "tunnels", label: t("featureFlags.tunnels.label"), note: t("featureFlags.tunnels.note") },
               { key: "captcha", label: t("featureFlags.captcha.label"), note: t("featureFlags.captcha.note") },
               { key: "captchaInvisible", label: t("featureFlags.captchaInvisible.label"), note: t("featureFlags.captchaInvisible.note") },
             ].map((feature) => (

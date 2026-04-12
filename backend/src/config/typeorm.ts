@@ -137,10 +137,13 @@ export const AppDataSource = new DataSource({
     require('../models/mailboxAccount.entity').MailboxAccount,
     require('../models/notification.entity').Notification,
     require('../models/mailMessage.entity').MailMessage,
+    require('../models/outboundEmail.entity').OutboundEmail,
     require('../models/sshKey.entity').SshKey,
     require('../models/organisationDnsZone.entity').OrganisationDnsZone,
     require('../models/applicationForm.entity').ApplicationForm,
     require('../models/applicationFormInvite.entity').ApplicationFormInvite,
     require('../models/applicationSubmission.entity').ApplicationSubmission,
+    require('../models/tunnelDevice.entity').TunnelDevice,
+    require('../models/tunnelAllocation.entity').TunnelAllocation,
   ],
 });

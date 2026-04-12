@@ -16,6 +16,7 @@ import { scheduleMetricsCollectionJob } from './jobs/metricsCollectionJob';
 import { scheduleExportJobRunner } from './jobs/exportJobRunner';
 import { scheduleDeletionExecutionJob } from './jobs/deletionExecutionJob';
 import { scheduleMailboxSyncJob } from './jobs/mailboxSyncJob';
+import { scheduleOutboundEmailRunner } from './jobs/outboundEmailRunner';
 import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
@@ -469,38 +470,6 @@ app.onRequest((ctx: any) => {
   }
 });
 
-let __isElysiaRestarting = false;
-
-async function scheduleHourlyElysiaRestart() {
-  if (process.env.ELYSIA_HOURLY_RESTART === 'false') {
-    console.info('[Elysia Restart] Hourly Elysia restart disabled via ELYSIA_HOURLY_RESTART=false');
-    return;
-  }
-
-  const host = process.env.HOST || '0.0.0.0';
-  const port = Number(process.env.PORT || 3000);
-
-  console.info('[Elysia Restart] Scheduling hourly Elysia restart job (0 * * * *)');
-  cron.schedule('0 * * * *', async () => {
-    if (__isElysiaRestarting) {
-      console.warn('[Elysia Restart] Skip hour restart because already in progress');
-      return;
-    }
-
-    __isElysiaRestarting = true;
-    console.warn('[Elysia Restart] Hourly restart triggered');
-    try {
-      await app.stop();
-      console.info('[Elysia Restart] Elysia stopped. Starting again');
-      await app.listen({ host, port });
-      console.info(`[Elysia Restart] Elysia started  again and is listening at ${host}:${port}`);
-    } catch (err) {
-      console.error('[Elysia Restart] Self-restart failed', err);
-    } finally {
-      __isElysiaRestarting = false;
-    }
-  });
-}
 
 export async function initApp() {
   await setupConfig(app);
@@ -512,8 +481,8 @@ export async function initApp() {
   try { scheduleExportJobRunner(); } catch (e) { console.error('Failed to schedule export job runner:', e); }
   try { scheduleDeletionExecutionJob(); } catch (e) { console.error('Failed to schedule deletion execution job:', e); }
   try { scheduleMailboxSyncJob(); } catch (e) { console.error('Failed to schedule mailbox sync job:', e); }
+  try { scheduleOutboundEmailRunner(); } catch (e) { console.error('Failed to schedule outbound email runner:', e); }
   try { const { scheduleMailboxPasswordRotation } = require('./services/mailcowService'); scheduleMailboxPasswordRotation(); } catch (e) { console.error('Failed to schedule mailbox password rotation job:', e); }
-  try { scheduleHourlyElysiaRestart(); } catch (e) { console.error('Failed to schedule hourly Elysia restart job:', e); }
 }
 
 app.get('/health', async (ctx: any) => {
@@ -575,6 +544,64 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
       headers: {
         'Content-Type': mimeTypes[ext] || 'application/octet-stream',
         'Content-Length': String(buf.length),
+      },
+    });
+  } catch {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
+}, {
+  beforeHandle: authenticate,
+  detail: { hide: true }
+});
+
+app.get('/uploads/mailbox/*', async (ctx: any) => {
+  const relPath = (ctx.params as any)['*'];
+  const normalised = path.normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
+  const parts = normalised.split(path.sep);
+  if (parts.length < 3 || parts[0] !== 'mailbox') {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const requester = ctx.user;
+  const apiKey = ctx.apiKey;
+  const adminRoles = ['admin', 'rootAdmin', '*'];
+  const ownerId = String(parts[1]);
+
+  if (!requester && !apiKey) {
+    return new Response(JSON.stringify({ error: 'Missing Authorization token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  if (apiKey) {
+    if (apiKey.type !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
+  } else {
+    if (String(requester.id) !== ownerId && !adminRoles.includes(requester.role ?? '')) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
+  const filepath = path.join(process.cwd(), 'uploads', normalised);
+  const ext = path.extname(filepath).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+    '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+    '.pdf': 'application/pdf', '.txt': 'text/plain',
+  };
+
+  try {
+    let buf: any = await fsp.readFile(filepath);
+    try {
+      buf = decryptBuffer(buf);
+    } catch {
+      // meow
+    }
+    return new Response((new Uint8Array(buf as any)) as any, {
+      status: 200,
+      headers: {
+        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+        'Content-Length': String(buf.length),
+        'Cache-Control': 'private, max-age=300',
       },
     });
   } catch {

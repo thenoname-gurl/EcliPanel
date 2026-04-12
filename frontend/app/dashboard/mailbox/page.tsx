@@ -7,15 +7,22 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 import {
   Bell, Check, X, Loader2, Mail, Building2, Server,
   ChevronLeft, Trash2, Tag, Eye, EyeOff, RefreshCw,
   Search, Inbox, AlertCircle, ExternalLink, Paperclip,
   FileText, Image as ImageIcon, Download, Filter,
-  AlertTriangle, ShieldCheck, ToggleLeft, ToggleRight,
+  AlertTriangle, ToggleLeft, ToggleRight, ChevronDown,
+  ChevronRight, Shield, ShieldAlert, AtSign, Clock,
+  Hash, Copy, Check as CheckIcon, Send,
+  Star, StarOff, Bold, Italic, Strikethrough, List,
+  ListOrdered, Link, Quote, Code, Heading1, Heading2,
+  Minus, Keyboard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -50,16 +57,126 @@ function formatDate(value?: string | number) {
 
 function formatDateLong(value?: string | number) {
   return new Date(value || Date.now()).toLocaleString([], {
-    weekday: "short", month: "short", day: "numeric",
+    weekday: "short", month: "long", day: "numeric",
     year: "numeric", hour: "2-digit", minute: "2-digit",
   })
 }
 
+function formatDateRelative(value?: string | number) {
+  const d = new Date(value || Date.now())
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (mins < 1) return "Just now"
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  return formatDate(value)
+}
+
 function formatBytes(bytes?: number) {
-  if (!bytes) return "Unknown size"
+  if (!bytes) return ""
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatHeaderSource(value: any): string {
+  if (value === undefined || value === null) return ""
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return value
+    }
+  }
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function parsePriorityHeader(headers: any): string | null {
+  if (!headers) return null
+  const raw = headers.priority || headers['x-priority'] || headers.importance
+  if (!raw) return null
+  const normalized = String(raw).trim().toLowerCase()
+  if (/urgent/i.test(normalized)) return 'Urgent'
+  if (/^1(?:\s*\(|\s*$)/.test(normalized) || /^2(?:\s*\(|\s*$)/.test(normalized) || /high|highest/i.test(normalized)) return 'High'
+  if (/^3(?:\s*\(|\s*$)/.test(normalized) || /normal|medium/i.test(normalized)) return 'Normal'
+  if (/^4(?:\s*\(|\s*$)/.test(normalized) || /^5(?:\s*\(|\s*$)/.test(normalized) || /low|lowest/i.test(normalized)) return 'Low'
+  if (normalized.includes('high')) return 'High'
+  if (normalized.includes('normal') || normalized.includes('medium')) return 'Normal'
+  if (normalized.includes('low')) return 'Low'
+  return String(raw).trim()
+}
+
+// Simple markdown → HTML (no external deps)
+function markdownToHtml(md: string): string {
+  if (!md.trim()) return ""
+  const escaped = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+
+  const lines = escaped.split("\n")
+  const out: string[] = []
+  let inUl = false
+  let inOl = false
+
+  const closeList = () => {
+    if (inUl) { out.push("</ul>"); inUl = false }
+    if (inOl) { out.push("</ol>"); inOl = false }
+  }
+
+  const inlineFormat = (line: string) =>
+    line
+      .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/~~(.+?)~~/g, "<s>$1</s>")
+      .replace(/`([^`]+)`/g, "<code style=\"background:hsl(var(--card));padding:1px 5px;border-radius:4px;font-size:0.875em\">$1</code>")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary))">$1</a>')
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const raw = line.trimStart()
+
+    if (/^#{3}\s/.test(raw)) {
+      closeList()
+      out.push(`<h3 style="font-size:1em;font-weight:700;margin:12px 0 4px">${inlineFormat(raw.slice(4))}</h3>`)
+    } else if (/^#{2}\s/.test(raw)) {
+      closeList()
+      out.push(`<h2 style="font-size:1.15em;font-weight:700;margin:14px 0 4px">${inlineFormat(raw.slice(3))}</h2>`)
+    } else if (/^#\s/.test(raw)) {
+      closeList()
+      out.push(`<h1 style="font-size:1.3em;font-weight:700;margin:16px 0 6px">${inlineFormat(raw.slice(2))}</h1>`)
+    } else if (/^>\s/.test(raw)) {
+      closeList()
+      out.push(`<blockquote style="border-left:3px solid hsl(var(--border));margin:4px 0;padding:2px 12px;color:hsl(var(--foreground))">${inlineFormat(raw.slice(2))}</blockquote>`)
+    } else if (/^---$/.test(raw)) {
+      closeList()
+      out.push(`<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0">`)
+    } else if (/^[-*]\s/.test(raw)) {
+      if (!inUl) { if (inOl) { out.push("</ol>"); inOl = false } out.push("<ul style=\"margin:4px 0;padding-left:1.5rem\">"); inUl = true }
+      out.push(`<li>${inlineFormat(raw.slice(2))}</li>`)
+    } else if (/^\d+\.\s/.test(raw)) {
+      if (!inOl) { if (inUl) { out.push("</ul>"); inUl = false } out.push("<ol style=\"margin:4px 0;padding-left:1.5rem\">"); inOl = true }
+      out.push(`<li>${inlineFormat(raw.replace(/^\d+\.\s/, ""))}</li>`)
+    } else if (raw === "") {
+      closeList()
+      out.push("<br>")
+    } else {
+      closeList()
+      out.push(`<p style="margin:4px 0">${inlineFormat(raw)}</p>`)
+    }
+  }
+  closeList()
+  return out.join("\n")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,7 +205,29 @@ type MailboxItem = {
   html?: string | null
   attachments?: Attachment[]
   category?: string | null
+  isSpam?: boolean
+  spamScore?: number | null
+  isVirus?: boolean
+  virusName?: string | null
+  rawHeaders?: string | null
+  headers?: Record<string, any> | null
+  senderIp?: string | null
+  senderRdns?: string | null
+  spfResult?: string | null
+  dkimResult?: string | null
+  dmarcResult?: string | null
+  priority?: string | null
+  authResults?: string | null
+  receivedChain?: Array<{ from?: string; by?: string; with?: string; id?: string; for?: string; ip?: string; raw?: string }>
+  toAddress?: string
+  messageId?: string | null
+  encryptionType?: string | null
   read?: boolean
+  favorite?: boolean
+  status?: string | null
+  sentAt?: string | null
+  scheduledAt?: string | null
+  isSent?: boolean
   badge: string
   date: string
   rawDate: string | number | undefined
@@ -96,77 +235,89 @@ type MailboxItem = {
 }
 
 type BodyView = "plain" | "html"
+type EditorMode = "write" | "preview"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AVATAR_COLORS = [
-  "bg-blue-500", "bg-violet-500", "bg-rose-500", "bg-amber-500",
-  "bg-emerald-500", "bg-cyan-500", "bg-pink-500", "bg-indigo-500",
-]
+const PAGE_SIZE = 20
 
-function avatarColor(label: string) {
-  let hash = 0
-  for (let i = 0; i < label.length; i++) hash = label.charCodeAt(i) + ((hash << 5) - hash)
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+const TYPE_CONFIG: Record<ItemType, { pill: string; icon: React.ReactNode; label: string; color: string }> = {
+  email: {
+    pill: "bg-primary/10 text-primary",
+    icon: <Mail className="h-3 w-3" />,
+    label: "Email",
+    color: "text-primary",
+  },
+  organisation: {
+    pill: "bg-accent/30 text-accent-foreground",
+    icon: <Building2 className="h-3 w-3" />,
+    label: "Organisation",
+    color: "text-accent-foreground",
+  },
+  subuser: {
+    pill: "bg-secondary text-secondary-foreground",
+    icon: <Server className="h-3 w-3" />,
+    label: "Server",
+    color: "text-secondary-foreground",
+  },
+  notification: {
+    pill: "bg-muted text-muted-foreground",
+    icon: <Bell className="h-3 w-3" />,
+    label: "Notification",
+    color: "text-muted-foreground",
+  },
 }
 
-const TYPE_PILL: Record<ItemType, string> = {
-  email: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
-  organisation: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400",
-  subuser: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
-  notification: "bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400",
+function avatarColorHex(label: string) {
+  let hash = 0
+  for (let i = 0; i < label.length; i++) hash = label.charCodeAt(i) + ((hash << 5) - hash)
+  const hue = Math.abs(hash) % 360
+  return `hsl(${hue}, 58%, 45%)`
+}
+
+async function md5Hex(value: string) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(value)
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32)
+}
+
+function getCssVar(name: string): string {
+  if (typeof document === "undefined") return ""
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+function createAvatarDataUrl(label: string, size = 96) {
+  const initials = getInitials(label)
+  const bg = avatarColorHex(label)
+  const fs = Math.floor(size * 0.4)
+  const fg = getCssVar("--foreground") ? `hsl(${getCssVar("--foreground")})` : "#e8e4f0"
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="100%" height="100%" rx="${Math.floor(size * 0.3)}" fill="${bg}"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="${fs}" font-weight="700" fill="${fg}">${initials}</text></svg>`
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Build the srcdoc that goes inside the sandboxed iframe
-// Mirrors what Gmail does:
-//   • all external fetches blocked via sandbox (no allow-same-origin)
-//   • cid: images rewritten to blob: or data: URLs (if content supplied)
-//   • <base target="_blank"> so any link that survives opens a new tab
-//   • CSP meta tag inside the document as second layer
-//   • auto-resize via postMessage so no scrollbar appears inside the frame
+// iframe srcdoc builder
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
-  // Rewrite http(s) src/srcset/url() to empty so they don't load
   let sanitized = html
-
   if (blockRemoteImages) {
-    // blank out src="http…" / src='http…'
-    sanitized = sanitized.replace(
-      /(<[^>]+\s(?:src|background)=["'])https?:\/\/[^"']+/gi,
-      "$1",
-    )
-    // blank out srcset
-    sanitized = sanitized.replace(
-      /(<[^>]+\s(?:srcset)=["'])[^"']*/gi,
-      "$1",
-    )
-    // blank out CSS url(http…)
-    sanitized = sanitized.replace(
-      /url\(\s*["']?https?:\/\/[^)"']+["']?\s*\)/gi,
-      "url()",
-    )
+    sanitized = sanitized.replace(/(<[^>]+\s(?:src|background)=["'])https?:\/\/[^"']+/gi, "$1")
+    sanitized = sanitized.replace(/(<[^>]+\s(?:srcset)=["'])[^"']*/gi, "$1")
+    sanitized = sanitized.replace(/url\s*\(\s*["']?https?:\/\/[^)"']+["']?\s*\)/gi, "url()")
   }
-
-  // Strip <script> entirely (belt + braces on top of sandbox)
   sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, "")
-
-  // Strip on* event handlers
   sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "")
-
-  // Ensure every <a> opens in _blank (sandbox blocks navigation anyway,
-  // but this makes intent clear and works if allow-popups is later added)
   sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
 
   const csp = [
     "default-src 'none'",
-    "style-src 'unsafe-inline'",         // inline styles only — no external sheets
-    blockRemoteImages
-      ? "img-src data: cid:"             // only data: / cid: images
-      : "img-src data: cid: https: http:",
+    "style-src 'unsafe-inline'",
+    blockRemoteImages ? "img-src data: cid:" : "img-src data: cid: https: http:",
     "font-src data:",
     "frame-src 'none'",
     "object-src 'none'",
@@ -174,215 +325,173 @@ function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
     "connect-src 'none'",
   ].join("; ")
 
-  // The resize script runs in the same sandboxed origin (no allow-same-origin
-  // means it cannot reach the parent DOM — postMessage is the only bridge).
-  const resizeScript = `
-    <script>
-      function resize() {
-        var h = document.documentElement.scrollHeight;
-        window.parent.postMessage({ type: 'iframe-height', height: h }, '*');
-      }
-      document.addEventListener('DOMContentLoaded', resize);
-      new MutationObserver(resize).observe(document.documentElement, {
-        childList: true, subtree: true, attributes: true
-      });
-      window.addEventListener('load', resize);
-    </script>
-  `
+  // Read CSS variables at build time so the iframe inherits theme colors
+  const fgColor = getCssVar("--foreground") ? `hsl(${getCssVar("--foreground")})` : "#e8e4f0"
+  const bgColor = getCssVar("--background") ? `hsl(${getCssVar("--background")})` : "#0a0a12"
+  const primaryColor = getCssVar("--primary") ? `hsl(${getCssVar("--primary")})` : "#8b5cf6"
+  const borderColor = getCssVar("--border") ? `hsl(${getCssVar("--border")})` : "#2a2545"
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${csp}">
-<base target="_blank">
-<style>
-  /* Gmail-like reset inside the frame */
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    color: #202124;
-    background: #fff;
-    word-break: break-word;
-    overflow-x: hidden;
-  }
-  img { max-width: 100%; height: auto; }
-  a { color: #1a73e8; }
-  table { max-width: 100% !important; }
-  /* hide anything that tries to overflow horizontally */
-  body > * { max-width: 100% !important; overflow-x: hidden !important; }
-</style>
-${resizeScript}
-</head>
-<body>
-${sanitized}
-</body>
-</html>`
+  const resizeScript = `<script>function resize(){var h=document.documentElement.scrollHeight;window.parent.postMessage({type:'iframe-height',height:h},'*')}document.addEventListener('DOMContentLoaded',resize);new MutationObserver(resize).observe(document.documentElement,{childList:true,subtree:true,attributes:true});window.addEventListener('load',resize);</script>`
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank"><style>html,body{margin:0;padding:16px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.65;color:${fgColor};background:${bgColor};word-break:break-word;overflow-x:hidden}img{max-width:100%;height:auto}a{color:${primaryColor}}table{max-width:100%!important}*{max-width:100%!important}blockquote{border-left:3px solid ${borderColor};padding-left:12px;margin:8px 0}hr{border:none;border-top:1px solid ${borderColor}}</style>${resizeScript}</head><body>${sanitized}</body></html>`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SandboxedEmailFrame
-// Renders HTML email the Gmail way:
-//   sandbox="allow-popups allow-popups-to-escape-sandbox"
-//     • allow-popups  → links CAN open new tabs
-//     • no allow-scripts → JS inside the frame is dead
-//     • no allow-same-origin → frame cannot reach parent cookies / DOM
-//   Auto-resizes via postMessage so no inner scrollbar.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SandboxedEmailFrame({
-  html,
-  blockRemoteImages,
-}: {
-  html: string
-  blockRemoteImages: boolean
-}) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [height, setHeight] = useState(400)
-  const srcdoc = useMemo(
-    () => buildIframeSrcdoc(html, blockRemoteImages),
-    [html, blockRemoteImages],
-  )
+function SandboxedEmailFrame({ html, blockRemoteImages }: { html: string; blockRemoteImages: boolean }) {
+  const [height, setHeight] = useState(300)
+  const srcdoc = useMemo(() => buildIframeSrcdoc(html, blockRemoteImages), [html, blockRemoteImages])
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (
-        e.data &&
-        typeof e.data === "object" &&
-        e.data.type === "iframe-height" &&
-        typeof e.data.height === "number"
-      ) {
-        // clamp between 120 px and 6000 px
-        setHeight(Math.min(Math.max(e.data.height + 24, 120), 6000))
+      if (e.data?.type === "iframe-height" && typeof e.data.height === "number") {
+        setHeight(Math.min(Math.max(e.data.height + 32, 120), 8000))
       }
     }
     window.addEventListener("message", handler)
     return () => window.removeEventListener("message", handler)
   }, [])
 
-  // When srcdoc changes (e.g. blockRemoteImages toggled) reset height
-  useEffect(() => { setHeight(400) }, [srcdoc])
+  useEffect(() => { setHeight(300) }, [srcdoc])
 
   return (
     <iframe
-      ref={iframeRef}
       srcDoc={srcdoc}
       title="Email content"
-      // Gmail's actual sandbox value:
       sandbox="allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="no-referrer"
       style={{ height }}
-      className="w-full border-0 block bg-white"
-      // prevent the frame itself from being a tab stop
+      className="w-full border-0 block"
       tabIndex={-1}
     />
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Small atoms
+// Atoms
 // ─────────────────────────────────────────────────────────────────────────────
-
-function TypeIcon({ type, className }: { type: ItemType; className?: string }) {
-  const cls = cn("h-3.5 w-3.5", className)
-  if (type === "organisation") return <Building2 className={cls} />
-  if (type === "subuser") return <Server className={cls} />
-  if (type === "notification") return <Bell className={cls} />
-  return <Mail className={cls} />
-}
-
-function AttachmentIcon({ contentType }: { contentType?: string }) {
-  if (contentType?.startsWith("image/")) return <ImageIcon className="h-4 w-4 text-blue-500" />
-  return <FileText className="h-4 w-4 text-muted-foreground" />
-}
 
 function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn("animate-spin", className)} />
+}
+
+// Simple address input supporting multiple recipients (chips)
+function AddressInput({
+  values,
+  onChange,
+  placeholder,
+}: {
+  values: string[]
+  onChange: (v: string[]) => void
+  placeholder?: string
+}) {
+  const [input, setInput] = useState("")
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const addFromInput = (val?: string) => {
+    const raw = (val ?? input).trim()
+    if (!raw) return
+    const parts = raw.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
+    if (parts.length === 0) return
+    const next = Array.from(new Set([...values, ...parts]))
+    onChange(next)
+    setInput("")
+  }
+
+  return (
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="flex flex-wrap gap-1 flex-1">
+        {values.map((v, i) => (
+          <span key={i} className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-sm">
+            <span className="truncate max-w-xs">{v}</span>
+            <button type="button" onClick={() => onChange(values.filter((_, idx) => idx !== i))} className="p-0.5 rounded text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={el => inputRef.current = el}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addFromInput() }
+            if (e.key === 'Backspace' && input === '' && values.length > 0) {
+              onChange(values.slice(0, -1))
+            }
+          }}
+          onBlur={() => addFromInput()}
+          placeholder={placeholder}
+          className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+        />
+      </div>
+    </div>
+  )
+}
+
+function TypeBadge({ type }: { type: ItemType }) {
+  const cfg = TYPE_CONFIG[type]
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide border border-border/20",
+      cfg.pill,
+    )}>
+      {cfg.icon}
+      {cfg.label}
+    </span>
+  )
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(value)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+      className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+      title="Copy"
+    >
+      {copied ? <CheckIcon className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+    </button>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SenderAvatar
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SenderAvatar({
-  item,
-  size = "md",
-}: {
-  item: MailboxItem
-  size?: "sm" | "md" | "lg"
-}) {
-  const dim =
-    size === "sm" ? "h-8 w-8 text-xs"
-    : size === "lg" ? "h-12 w-12 text-base"
-    : "h-10 w-10 text-sm"
-  const color = avatarColor(item.avatarLabel)
-  const [imgFailed, setImgFailed] = useState(false)
+function SenderAvatar({ item, size = "md" }: { item: MailboxItem; size?: "sm" | "md" | "lg" }) {
+  const dim = size === "sm" ? 36 : size === "lg" ? 56 : 44
+  const cls = size === "sm" ? "h-9 w-9 text-xs" : size === "lg" ? "h-14 w-14 text-lg" : "h-11 w-11 text-sm"
+  const emailForHash = (item.senderEmail || "").trim().toLowerCase()
+  const fallback = createAvatarDataUrl(item.senderEmail?.split("@")[0] || item.avatarLabel, dim * 2)
+  const [src, setSrc] = useState(fallback)
+  const [failed, setFailed] = useState(false)
 
-  const avatarSrc = item.senderEmail
-    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        item.senderEmail.split("@")[0],
-      )}&rounded=true&size=80&background=random`
-    : null
+  useEffect(() => {
+    let active = true
+    setFailed(false)
+    setSrc(fallback)
+    if (!emailForHash) return
+    md5Hex(emailForHash).then(hash => {
+      if (active) setSrc(`https://www.gravatar.com/avatar/${hash}?d=404&s=${dim * 2}`)
+    }).catch(() => { if (active) setSrc(fallback) })
+    return () => { active = false }
+  }, [emailForHash, fallback, dim])
 
   return (
-    <div
-      className={cn(
-        "rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-white overflow-hidden",
-        dim,
-        color,
-      )}
-    >
-      {avatarSrc && !imgFailed ? (
-        <img
-          src={avatarSrc}
-          alt={item.avatarLabel}
-          className="w-full h-full object-cover"
-          onError={() => setImgFailed(true)}
-        />
-      ) : (
-        getInitials(item.avatarLabel)
-      )}
+    <div className={cn("rounded-full flex-shrink-0 overflow-hidden ring-2 ring-border/50", cls)}>
+      <img
+        src={failed ? fallback : src}
+        alt={item.avatarLabel}
+        className="w-full h-full object-cover"
+        onError={() => { if (!failed) setFailed(true) }}
+      />
     </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ToolbarBtn
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ToolbarBtn({
-  icon, label, onClick, loading, destructive, active,
-}: {
-  icon: React.ReactNode
-  label: string
-  onClick: () => void
-  loading?: boolean
-  destructive?: boolean
-  active?: boolean
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      title={label}
-      className={cn(
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all select-none",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        destructive
-          ? "text-destructive hover:bg-destructive/10 active:bg-destructive/20"
-          : active
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted/80",
-        loading && "opacity-50 cursor-not-allowed pointer-events-none",
-      )}
-    >
-      {loading ? <Spinner className="h-3.5 w-3.5" /> : icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
   )
 }
 
@@ -392,59 +501,51 @@ function ToolbarBtn({
 
 function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const isImage = attachment.contentType?.startsWith("image/")
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const isPdf = attachment.contentType === "application/pdf"
+  const [preview, setPreview] = useState(false)
 
   return (
-    <div className="rounded-lg border border-border/70 bg-background overflow-hidden transition-shadow hover:shadow-sm">
-      {isImage && (
-        <button
-          className="w-full block"
-          onClick={() => setPreviewOpen((s) => !s)}
-          title={previewOpen ? "Collapse preview" : "Preview image"}
+    <div className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all duration-150">
+      {isImage && preview && (
+        <div
+          className="relative border-b border-border cursor-zoom-out overflow-hidden rounded-t-xl bg-muted/30"
+          onClick={() => setPreview(false)}
         >
-          <div
-            className={cn(
-              "overflow-hidden bg-muted transition-all duration-300",
-              previewOpen ? "h-[200px]" : "h-[72px]",
-            )}
-          >
-            <img
-              src={attachment.url}
-              alt={attachment.filename}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </button>
+          <img src={attachment.url} alt={attachment.filename} className="w-full max-h-64 object-contain" />
+        </div>
       )}
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <AttachmentIcon contentType={attachment.contentType} />
+      <div className="flex items-center gap-3 px-3.5 py-2.5">
+        <div className={cn(
+          "rounded-lg p-2 flex-shrink-0 transition-colors",
+          isImage ? "bg-primary/10 text-primary" :
+            isPdf ? "bg-destructive/10 text-destructive" :
+              "bg-muted text-muted-foreground",
+        )}>
+          {isImage ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+        </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground truncate">
-            {attachment.filename}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {attachment.contentType ?? "application/octet-stream"}
-            {attachment.size ? <> · {formatBytes(attachment.size)}</> : null}
+          <p className="text-sm font-medium text-foreground truncate leading-tight">{attachment.filename}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+            {formatBytes(attachment.size)}
+            {attachment.contentType && (
+              <>
+                <span className="inline-block w-0.5 h-0.5 rounded-full bg-muted-foreground/40" />
+                <span className="uppercase">{attachment.contentType.split("/")[1]}</span>
+              </>
+            )}
           </p>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {isImage && (
             <button
-              onClick={() => setPreviewOpen((s) => !s)}
-              title={previewOpen ? "Hide preview" : "Show preview"}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              onClick={() => setPreview(s => !s)}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
             >
-              {previewOpen ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {preview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
           )}
-          <a
-            href={attachment.url}
-            download={attachment.filename}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title="Download"
-          >
+          <a href={attachment.url} download={attachment.filename} target="_blank" rel="noreferrer"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
             <Download className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -454,81 +555,87 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BodyViewToggle
+// MetadataRow
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BodyViewToggle({
-  hasHtml,
-  view,
-  onPlain,
-  onHtml,
-}: {
-  hasHtml: boolean
-  view: BodyView
-  onPlain: () => void
-  onHtml: () => void
+function MetadataRow({ label, value, mono = false, copyable = false }: {
+  label: string
+  value: string | number | boolean | null | undefined
+  mono?: boolean
+  copyable?: boolean
 }) {
-  if (!hasHtml) return null
+  if (value === null || value === undefined || value === "") return null
+  const display = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5 w-fit">
-      <button
-        onClick={onPlain}
-        className={cn(
-          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
-          view === "plain"
-            ? "bg-background text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <FileText className="h-3.5 w-3.5" />
-        Plain text
-      </button>
-      <button
-        onClick={onHtml}
-        className={cn(
-          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
-          view === "html"
-            ? "bg-background text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <AlertCircle className="h-3 w-3" />
-        HTML
-      </button>
+    <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+      <span className="text-xs text-muted-foreground w-28 flex-shrink-0 pt-0.5 font-medium">{label}</span>
+      <div className="flex items-start gap-1 flex-1 min-w-0">
+        <span className={cn(
+          "text-xs text-foreground/90 break-all leading-relaxed flex-1",
+          mono && "font-mono bg-muted/40 px-1.5 py-0.5 rounded text-[11px]",
+        )}>
+          {display}
+        </span>
+        {copyable && <CopyButton value={display} />}
+      </div>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RemoteImagesBar  – thin banner shown when remote images are blocked
-// (identical UX to Gmail's "Images are not displayed" bar)
+// SecurityBadge
 // ─────────────────────────────────────────────────────────────────────────────
 
-function RemoteImagesBar({
-  onAllow,
-  onAlwaysAllow,
-}: {
-  onAllow: () => void
-  onAlwaysAllow: () => void
-}) {
+function SecurityBadge({ item }: { item: MailboxItem }) {
+  if (item.isVirus) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+        <ShieldAlert className="h-4 w-4 text-destructive flex-shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-destructive">Virus detected</p>
+          {item.virusName && <p className="text-[11px] text-destructive/80 mt-0.5">{item.virusName}</p>}
+        </div>
+      </div>
+    )
+  }
+  if (item.isSpam) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-accent/30 border border-accent/40 px-3 py-2">
+        <AlertTriangle className="h-4 w-4 text-accent-foreground flex-shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-accent-foreground">Likely spam</p>
+          {item.spamScore != null && (
+            <p className="text-[11px] text-accent-foreground/80 mt-0.5">Score: {item.spamScore}</p>
+          )}
+        </div>
+      </div>
+    )
+  }
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 bg-[#f6f8fc] dark:bg-zinc-800 border-b border-border/50 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1.5">
-        <AlertCircle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-        Images are not displayed.
-      </span>
+    <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
+      <Shield className="h-4 w-4 text-primary flex-shrink-0" />
+      <p className="text-xs font-semibold text-primary">No threats detected</p>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RemoteImagesBar
+// ─────────────────────────────────────────────────────────────────────────────
+
+function RemoteImagesBar({ onAllow, onAlwaysAllow }: { onAllow: () => void; onAlwaysAllow: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-accent/20 border-b border-accent/30">
+      <div className="flex items-center gap-1.5 text-xs text-accent-foreground">
+        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+        Remote images are blocked for privacy
+      </div>
       <div className="flex items-center gap-3 ml-auto">
-        <button
-          onClick={onAllow}
-          className="font-medium text-primary hover:underline"
-        >
-          Display images
+        <button onClick={onAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2">
+          Show once
         </button>
-        <button
-          onClick={onAlwaysAllow}
-          className="font-medium text-primary hover:underline"
-        >
-          Always display from this sender
+        <button onClick={onAlwaysAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2">
+          Always allow from sender
         </button>
       </div>
     </div>
@@ -536,13 +643,477 @@ function RemoteImagesBar({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main page
+// Markdown Toolbar Action types
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ToolbarAction = {
+  icon: React.ReactNode
+  label: string
+  action: "wrap" | "line-prefix" | "insert" | "link"
+  prefix?: string
+  suffix?: string
+}
+
+const TOOLBAR_GROUPS: ToolbarAction[][] = [
+  [
+    { icon: <Bold className="h-3.5 w-3.5" />, label: "Bold", action: "wrap", prefix: "**", suffix: "**" },
+    { icon: <Italic className="h-3.5 w-3.5" />, label: "Italic", action: "wrap", prefix: "*", suffix: "*" },
+    { icon: <Strikethrough className="h-3.5 w-3.5" />, label: "Strikethrough", action: "wrap", prefix: "~~", suffix: "~~" },
+  ],
+  [
+    { icon: <Heading1 className="h-3.5 w-3.5" />, label: "Heading 1", action: "line-prefix", prefix: "# " },
+    { icon: <Heading2 className="h-3.5 w-3.5" />, label: "Heading 2", action: "line-prefix", prefix: "## " },
+    { icon: <Quote className="h-3.5 w-3.5" />, label: "Blockquote", action: "line-prefix", prefix: "> " },
+  ],
+  [
+    { icon: <List className="h-3.5 w-3.5" />, label: "Bullet list", action: "line-prefix", prefix: "- " },
+    { icon: <ListOrdered className="h-3.5 w-3.5" />, label: "Numbered list", action: "line-prefix", prefix: "1. " },
+  ],
+  [
+    { icon: <Code className="h-3.5 w-3.5" />, label: "Inline code", action: "wrap", prefix: "`", suffix: "`" },
+    { icon: <Link className="h-3.5 w-3.5" />, label: "Link", action: "link" },
+    { icon: <Minus className="h-3.5 w-3.5" />, label: "Divider", action: "insert", prefix: "\n---\n" },
+  ],
+]
+
+function applyMarkdownAction(
+  textarea: HTMLTextAreaElement,
+  toolbarAction: ToolbarAction,
+  setValue: (v: string) => void,
+) {
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const value = textarea.value
+  const selected = value.substring(start, end)
+  let newValue = value
+  let newStart = start
+  let newEnd = end
+
+  if (toolbarAction.action === "wrap" && toolbarAction.prefix && toolbarAction.suffix) {
+    const pre = toolbarAction.prefix
+    const suf = toolbarAction.suffix
+    newValue = value.substring(0, start) + pre + selected + suf + value.substring(end)
+    newStart = start + pre.length
+    newEnd = end + pre.length
+  } else if (toolbarAction.action === "line-prefix" && toolbarAction.prefix) {
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1
+    const pre = toolbarAction.prefix
+    const alreadyHas = value.substring(lineStart).startsWith(pre)
+    if (alreadyHas) {
+      newValue = value.substring(0, lineStart) + value.substring(lineStart + pre.length)
+      newStart = Math.max(lineStart, start - pre.length)
+      newEnd = Math.max(lineStart, end - pre.length)
+    } else {
+      newValue = value.substring(0, lineStart) + pre + value.substring(lineStart)
+      newStart = start + pre.length
+      newEnd = end + pre.length
+    }
+  } else if (toolbarAction.action === "insert" && toolbarAction.prefix) {
+    newValue = value.substring(0, start) + toolbarAction.prefix + value.substring(end)
+    newStart = newEnd = start + toolbarAction.prefix.length
+  } else if (toolbarAction.action === "link") {
+    const linkText = selected || "Link text"
+    const insertion = `[${linkText}](url)`
+    newValue = value.substring(0, start) + insertion + value.substring(end)
+    newStart = start + linkText.length + 3
+    newEnd = newStart + 3
+  }
+
+  setValue(newValue)
+  requestAnimationFrame(() => {
+    textarea.focus()
+    textarea.setSelectionRange(newStart, newEnd)
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RichComposer
+// ─────────────────────────────────────────────────────────────────────────────
+
+function RichComposer({
+  value,
+  onChange,
+  placeholder = "Write your message…",
+  minRows = 12,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  minRows?: number
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [editorMode, setEditorMode] = useState<EditorMode>("write")
+  const wordCount = value.trim() ? value.trim().split(/\s+/).filter(Boolean).length : 0
+  const charCount = value.length
+  const previewHtml = useMemo(() => markdownToHtml(value), [value])
+
+  const handleTabKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault()
+      const ta = e.currentTarget
+      const start = ta.selectionStart
+      const end = ta.selectionEnd
+      const newValue = ta.value.substring(0, start) + "  " + ta.value.substring(end)
+      onChange(newValue)
+      requestAnimationFrame(() => ta.setSelectionRange(start + 2, start + 2))
+    }
+  }
+
+  const applyAction = (action: ToolbarAction) => {
+    if (!textareaRef.current) return
+    applyMarkdownAction(textareaRef.current, action, onChange)
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all">
+      {/* Toolbar */}
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-muted/10 flex-wrap">
+        {TOOLBAR_GROUPS.map((group, gi) => (
+          <div key={gi} className="flex items-center gap-0.5">
+            {gi > 0 && <div className="w-px h-3.5 bg-border/60 mx-1 flex-shrink-0" />}
+            {group.map(action => (
+              <button
+                key={action.label}
+                type="button"
+                title={action.label}
+                onClick={() => applyAction(action)}
+                disabled={editorMode === "preview"}
+                className={cn(
+                  "p-1.5 rounded text-muted-foreground transition-colors",
+                  editorMode === "preview"
+                    ? "opacity-30 cursor-not-allowed"
+                    : "hover:text-foreground hover:bg-muted/20",
+                )}
+              >
+                {action.icon}
+              </button>
+            ))}
+          </div>
+        ))}
+
+        <div className="flex-1" />
+
+        <div className="flex items-center rounded-lg bg-muted/10 p-0.5 gap-0.5">
+          <button
+            type="button"
+            onClick={() => setEditorMode("write")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              editorMode === "write"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Keyboard className="h-3 w-3" />
+            Write
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditorMode("preview")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              editorMode === "preview"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Eye className="h-3 w-3" />
+            Preview
+          </button>
+        </div>
+      </div>
+
+      {/* Editor area */}
+      {editorMode === "write" ? (
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={handleTabKey}
+          placeholder={placeholder}
+          rows={minRows}
+          spellCheck
+          className="w-full px-3 py-2 text-sm text-foreground bg-transparent resize-none outline-none placeholder:text-muted-foreground leading-relaxed"
+        />
+      ) : (
+        <div
+          className="px-3 py-2 text-sm text-foreground leading-relaxed overflow-auto"
+          style={{ minHeight: `${minRows * 1.625}rem` }}
+        >
+          {value.trim() ? (
+            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+            </div>
+          ) : (
+            <span className="text-muted-foreground" style={{ fontStyle: "italic" }}>Nothing to preview yet…</span>
+          )}
+        </div>
+      )}
+
+      {/* Status bar */}
+      <div className="flex items-center gap-3 px-3 py-1.5 border-t border-border/50 bg-muted/20">
+        <span className="text-[11px] text-muted-foreground/60">
+          Markdown supported ·{" "}
+          <kbd className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded border border-border">Tab</kbd>
+          {" "}to indent
+        </span>
+        <div className="flex-1" />
+        <span className="text-[11px] tabular-nums text-muted-foreground/50">
+          {wordCount}w · {charCount}c
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ComposePane
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ComposePane({
+  onClose,
+  onSent,
+  mailboxAddress,
+}: {
+  onClose: () => void
+  onSent: () => void
+  mailboxAddress: string | null
+}) {
+  const [to, setTo] = useState<string[]>([])
+  const [cc, setCc] = useState<string[]>([])
+  const [bcc, setBcc] = useState<string[]>([])
+  const [subject, setSubject] = useState("")
+  const [body, setBody] = useState("")
+  const [showCc, setShowCc] = useState(false)
+  const [showBcc, setShowBcc] = useState(false)
+  const [sending, setSending] = useState(false)
+  const { toast } = useToast()
+
+  const canSend = to.length > 0 && body.trim().length > 0
+
+  const queuedCount = sentMessages.filter(msg => msg.status === "queued").length
+  const sentTodayCount = sentMessages.filter(msg => {
+    const sentAt = msg.sentAt ? new Date(msg.sentAt) : null
+    return msg.status === "sent" && sentAt?.toDateString() === new Date().toDateString()
+  }).length
+
+  const handleSend = async () => {
+    if (!canSend) return
+    setSending(true)
+    try {
+      const result = await apiFetch(API_ENDPOINTS.mailboxSend, {
+        method: "POST",
+        body: {
+          to: to.join(", "),
+          cc: cc.join(", ") || undefined,
+          bcc: bcc.join(", ") || undefined,
+          subject: subject.trim(),
+          body: body.trim(),
+          html: markdownToHtml(body),
+        },
+      })
+      toast({
+        title: result?.status === "sent" ? "Email sent" : "Email queued",
+        description: result?.status === "sent"
+          ? "Your message was sent successfully."
+          : "Your message was queued and will be delivered shortly.",
+      })
+      onClose()
+      onSent()
+    } catch (err: any) {
+      toast({
+        title: "Failed to send",
+        description: err?.message || "Something went wrong.",
+        variant: "destructive",
+      })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-background" onKeyDown={handleKeyDown}>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 bg-card/60">
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-foreground">New Message</h2>
+          {mailboxAddress && (
+            <p className="text-[11px] text-muted-foreground truncate">
+              From: <span className="font-mono">{mailboxAddress}</span>
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-[11px] text-muted-foreground/60 font-mono">
+            ⌘ Enter
+          </span>
+          <Button
+            size="sm"
+            className="h-9 px-3 text-xs"
+            onClick={handleSend}
+            disabled={sending || !canSend}
+          >
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">Send</span>
+          </Button>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 space-y-5">
+
+          {/* Recipients block */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            {/* To */}
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
+              <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">To</span>
+              <AddressInput values={to} onChange={setTo} placeholder="recipient@example.com" />
+              <div className="flex items-center gap-1">
+                {!showCc && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCc(true)}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted/20 transition-colors"
+                  >
+                    CC
+                  </button>
+                )}
+                {!showBcc && (
+                  <button
+                    type="button"
+                    onClick={() => setShowBcc(true)}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted/20 transition-colors"
+                  >
+                    BCC
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* CC */}
+            {showCc && (
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
+                <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">CC</span>
+                <AddressInput values={cc} onChange={setCc} placeholder="cc@example.com" />
+                <button
+                  type="button"
+                  onClick={() => { setShowCc(false); setCc([]) }}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
+            {/* BCC */}
+            {showBcc && (
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
+                <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">BCC</span>
+                <AddressInput values={bcc} onChange={setBcc} placeholder="bcc@example.com" />
+                <button
+                  type="button"
+                  onClick={() => { setShowBcc(false); setBcc([]) }}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
+            {/* Subject */}
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">Sub</span>
+              <input
+                type="text"
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
+                placeholder="Subject"
+                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground font-medium"
+              />
+            </div>
+          </div>
+
+          {/* Rich markdown body */}
+          <div className="rounded-xl border border-border bg-muted/10 px-4 py-3 text-[12px] text-muted-foreground space-y-1">
+            <p>
+              {queuedCount > 0
+                ? `${queuedCount} message${queuedCount !== 1 ? "s" : ""} currently queued`
+                : "No messages currently queued."}
+            </p>
+            <p>
+              {sentTodayCount > 0
+                ? `${sentTodayCount} sent today`
+                : "No messages sent today yet."}
+            </p>
+          </div>
+
+          <RichComposer
+            value={body}
+            onChange={setBody}
+            placeholder="Write your message… Markdown is supported."
+            minRows={16}
+          />
+
+          {/* Markdown cheat sheet */}
+          <div className="rounded-xl border border-border bg-muted/10 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Markdown reference
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
+              {[
+                ["**bold**", "Bold"],
+                ["*italic*", "Italic"],
+                ["~~strike~~", "Strikethrough"],
+                ["# Heading", "Heading 1"],
+                ["## Heading", "Heading 2"],
+                ["> text", "Blockquote"],
+                ["`code`", "Inline code"],
+                ["[text](url)", "Link"],
+                ["---", "Divider"],
+                ["- item", "Bullet list"],
+                ["1. item", "Ordered list"],
+              ].map(([syntax, desc]) => (
+                <div key={syntax} className="flex items-center gap-2 text-[11px]">
+                  <span className="font-mono text-foreground/70 bg-muted/10 px-1.5 py-0.5 rounded text-[10px] flex-shrink-0">
+                    {syntax}
+                  </span>
+                  <span className="text-muted-foreground truncate">{desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function MailboxPage() {
   const t = useTranslations("mailboxPage")
 
-  // ── raw data ────────────────────────────────────────────────────────────────
+  // raw data
   const [orgInvites, setOrgInvites] = useState<any[]>([])
   const [subuserInvites, setSubuserInvites] = useState<any[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
@@ -552,7 +1123,7 @@ export default function MailboxPage() {
   const [mailboxUUID, setMailboxUUID] = useState<string | null>(null)
   const [mailboxAliases, setMailboxAliases] = useState<any[]>([])
 
-  // ── UI state ─────────────────────────────────────────────────────────────────
+  // UI state
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
@@ -561,277 +1132,376 @@ export default function MailboxPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [unreadOnly, setUnreadOnly] = useState(false)
+  const [page, setPage] = useState(1)
+  const [messageMeta, setMessageMeta] = useState({ page: 1, limit: PAGE_SIZE, total: 0 })
   const [showFilters, setShowFilters] = useState(false)
 
-  // ── per-message HTML state ────────────────────────────────────────────────────
-  // null  = user hasn't chosen yet for this message
+  // per-message state
   const [bodyView, setBodyView] = useState<BodyView | null>(null)
   const [htmlConfirmed, setHtmlConfirmed] = useState(false)
-  // block remote images by default (like Gmail)
   const [blockRemoteImages, setBlockRemoteImages] = useState(true)
-  // set of sender emails the user said "always allow images"
   const [alwaysAllowImages, setAlwaysAllowImages] = useState<Set<string>>(new Set())
-
   const [currentMessageCategory, setCurrentMessageCategory] = useState<string | null>(null)
+  const [showMetadata, setShowMetadata] = useState(false)
+  const [metadataSection, setMetadataSection] = useState<"headers" | "security" | "raw">("headers")
 
-  const searchRef = useRef<HTMLInputElement>(null)
+  const [activeSection, setActiveSection] = useState<"inbox" | "sent">("inbox")
+  const [sentMessages, setSentMessages] = useState<any[]>([])
+  const [sentLoading, setSentLoading] = useState(false)
+  const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [composeOpen, setComposeOpen] = useState(false)
 
-  // ── data fetching ───────────────────────────────────────────────────────────
+  const { toast } = useToast()
 
-  const loadInvites = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true)
-    else setLoading(true)
+  // ── data fetching ──────────────────────────────────────────────────────────
+
+  const loadSentMessages = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setSentLoading(true)
     try {
-      const [orgData, subData, notifData, msgData, mbData, catData] =
-        await Promise.all([
-          apiFetch(API_ENDPOINTS.organisationInvites),
-          apiFetch(API_ENDPOINTS.serverSubuserInvites),
-          apiFetch(API_ENDPOINTS.mailboxNotifications),
-          apiFetch(API_ENDPOINTS.mailboxMessages),
-          apiFetch(API_ENDPOINTS.mailboxAddress),
-          apiFetch(API_ENDPOINTS.mailboxMessageCategories).catch(() => []),
-        ])
+      const query = new URLSearchParams()
+      if (searchQuery.trim()) query.set("q", searchQuery.trim())
+      if (favoriteOnly) query.set("favorite", "true")
+      const result = await apiFetch(`${API_ENDPOINTS.mailboxSent}?${query.toString()}`)
+      setSentMessages(Array.isArray(result?.messages) ? result.messages : [])
+    } catch {
+      setSentMessages([])
+    } finally {
+      setSentLoading(false)
+    }
+  }, [favoriteOnly, searchQuery])
+
+  const handleRefresh = async () => {
+    if (activeSection === "sent") { await loadSentMessages(true); return }
+    await loadInbox(true)
+  }
+
+  const loadStaticData = useCallback(async () => {
+    try {
+      const [orgData, subData, notifData, mbData, catData] = await Promise.all([
+        apiFetch(API_ENDPOINTS.organisationInvites),
+        apiFetch(API_ENDPOINTS.serverSubuserInvites),
+        apiFetch(API_ENDPOINTS.mailboxNotifications),
+        apiFetch(API_ENDPOINTS.mailboxAddress),
+        apiFetch(API_ENDPOINTS.mailboxMessageCategories).catch(() => []),
+      ])
       setOrgInvites(Array.isArray(orgData) ? orgData : [])
       setSubuserInvites(Array.isArray(subData) ? subData : [])
       setNotifications(Array.isArray(notifData) ? notifData : [])
-      setMessages(Array.isArray(msgData) ? msgData : [])
       setCategories(Array.isArray(catData) ? catData : [])
       setMailboxAddress(mbData?.address ?? null)
       setMailboxUUID(mbData?.uuid ?? null)
       setMailboxAliases(Array.isArray(mbData?.aliases) ? mbData.aliases : [])
     } catch {
       setOrgInvites([]); setSubuserInvites([]); setNotifications([])
-      setMessages([]); setCategories([]); setMailboxAddress(null)
-      setMailboxUUID(null); setMailboxAliases([])
-    } finally {
-      setLoading(false); setRefreshing(false)
+      setCategories([]); setMailboxAddress(null); setMailboxUUID(null); setMailboxAliases([])
     }
   }, [])
 
-  useEffect(() => { loadInvites() }, [loadInvites])
+  const loadMessages = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    try {
+      const query = new URLSearchParams()
+      query.set("page", String(page))
+      query.set("limit", String(PAGE_SIZE))
+      if (searchQuery.trim()) query.set("q", searchQuery.trim())
+      if (selectedCategory) query.set("category", selectedCategory)
+      if (unreadOnly) query.set("unread", "true")
+      if (favoriteOnly) query.set("favorite", "true")
+      const result = await apiFetch(`${API_ENDPOINTS.mailboxMessages}?${query.toString()}`)
+      setMessages(Array.isArray(result?.messages) ? result.messages : [])
+      setMessageMeta({
+        page: Number(result?.meta?.page || page),
+        limit: Number(result?.meta?.limit || PAGE_SIZE),
+        total: Number(result?.meta?.total || 0),
+      })
+    } catch {
+      setMessages([]); setMessageMeta({ page, limit: PAGE_SIZE, total: 0 })
+    } finally {
+      setRefreshing(false)
+    }
+  }, [page, searchQuery, selectedCategory, unreadOnly, favoriteOnly])
 
-  // ── derived data ─────────────────────────────────────────────────────────────
+  const loadInbox = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true)
+    await Promise.all([loadStaticData(), loadMessages(isRefresh)])
+    setLoading(false)
+  }, [loadStaticData, loadMessages])
 
-  const items = useMemo<MailboxItem[]>(() => {
-    const orgItems: MailboxItem[] = orgInvites.map((inv) => ({
-      id: `organisation-${inv.id}`,
-      inviteId: inv.id,
-      type: "organisation",
+  useEffect(() => { loadInbox() }, [])
+
+  useEffect(() => {
+    if (activeSection === "inbox" && !loading) loadMessages()
+  }, [activeSection, page, searchQuery, selectedCategory, unreadOnly, favoriteOnly, loading, loadMessages])
+
+  useEffect(() => {
+    if (composeOpen) {
+      loadSentMessages()
+    }
+  }, [composeOpen, loadSentMessages])
+
+  useEffect(() => {
+    if (activeSection === "sent") loadSentMessages()
+  }, [activeSection, searchQuery, favoriteOnly, loadSentMessages])
+
+  // ── derived data ───────────────────────────────────────────────────────────
+
+  const inboxItems = useMemo<MailboxItem[]>(() => {
+    const orgItems: MailboxItem[] = orgInvites.map(inv => ({
+      id: `organisation-${inv.id}`, inviteId: inv.id, type: "organisation",
       title: inv.organisationName || t("sections.organisationInviteFallback"),
       description: t("sections.organisationsDescription"),
-      details: t("detail.organisationBody", {
-        organisation: inv.organisationName || t("unknownOrganisation"),
-        email: inv.email,
-      }),
+      details: t("detail.organisationBody", { organisation: inv.organisationName || t("unknownOrganisation"), email: inv.email }),
       sender: inv.organisationName || t("sections.organisations"),
-      badge: t("sections.organisations"),
-      date: formatDate(inv.createdAt),
-      rawDate: inv.createdAt,
-      avatarLabel: inv.organisationName || inv.email || "Org",
+      badge: t("sections.organisations"), date: formatDate(inv.createdAt),
+      rawDate: inv.createdAt, avatarLabel: inv.organisationName || inv.email || "Org",
     }))
 
-    const subItems: MailboxItem[] = subuserInvites.map((inv) => ({
-      id: `subuser-${inv.id}`,
-      inviteId: inv.id,
-      type: "subuser",
+    const subItems: MailboxItem[] = subuserInvites.map(inv => ({
+      id: `subuser-${inv.id}`, inviteId: inv.id, type: "subuser",
       title: inv.serverName || inv.serverUuid || t("sections.serverSubusers"),
       description: t("sections.serverSubusersDescription"),
-      details: t("detail.subuserBody", {
-        server: inv.serverName || inv.serverUuid || t("detail.unknownServer"),
-        email: inv.email || inv.userEmail,
-      }),
+      details: t("detail.subuserBody", { server: inv.serverName || inv.serverUuid || t("detail.unknownServer"), email: inv.email || inv.userEmail }),
       sender: inv.serverName || inv.serverUuid || t("sections.serverSubusers"),
-      badge: t("sections.serverSubusers"),
-      date: formatDate(inv.createdAt),
-      rawDate: inv.createdAt,
-      avatarLabel: inv.serverName || inv.serverUuid || "S",
+      badge: t("sections.serverSubusers"), date: formatDate(inv.createdAt),
+      rawDate: inv.createdAt, avatarLabel: inv.serverName || inv.serverUuid || "S",
     }))
 
-    const notifItems: MailboxItem[] = notifications.map((n) => ({
-      id: `notification-${n.id}`,
-      inviteId: n.id,
-      type: "notification",
-      title: n.title,
-      description: t("sections.notificationsDescription"),
-      details: n.body,
-      sender: t("sections.notifications"),
-      badge: t("sections.notifications"),
-      date: formatDate(n.createdAt),
-      rawDate: n.createdAt,
-      avatarLabel: n.title || t("sections.notifications"),
-      read: !!n.read,
+    const notifItems: MailboxItem[] = notifications.map(n => ({
+      id: `notification-${n.id}`, inviteId: n.id, type: "notification",
+      title: n.title, description: t("sections.notificationsDescription"), details: n.body,
+      sender: t("sections.notifications"), badge: t("sections.notifications"),
+      date: formatDate(n.createdAt), rawDate: n.createdAt,
+      avatarLabel: n.title || t("sections.notifications"), read: !!n.read,
     }))
 
-    const emailItems: MailboxItem[] = messages.map((msg) => {
+    const emailItems: MailboxItem[] = messages.map(msg => {
       const parsed = parseSender(msg.fromAddress || "")
+      let headersObj: any = null
+      try {
+        if (msg.headers) {
+          headersObj = typeof msg.headers === 'string' ? JSON.parse(msg.headers) : msg.headers
+        } else if (msg.rawHeaders) {
+          headersObj = typeof msg.rawHeaders === 'string' && msg.rawHeaders.trim().startsWith('{')
+            ? JSON.parse(msg.rawHeaders) : null
+        }
+      } catch { headersObj = null }
+
+      const receivedRaw = headersObj?.received ?? headersObj?.['x-received'] ?? undefined
+      const receivedList: string[] = Array.isArray(receivedRaw) ? receivedRaw : typeof receivedRaw === 'string' ? [receivedRaw] : []
+
+      const extractIpFromText = (text?: string): string | null => {
+        if (!text) return null
+        const m4 = text.match(/\b([0-9]{1,3}(?:\.[0-9]{1,3}){3})\b/)
+        if (m4 && m4[1]) return m4[1]
+        const m6 = text.match(/\b([A-Fa-f0-9:]{3,}:[A-Fa-f0-9:]{1,})\b/)
+        if (m6 && m6[1]) return m6[1]
+        return null
+      }
+      const isPrivateIp = (ip?: string) => {
+        if (!ip) return false
+        return /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1]))/.test(ip)
+      }
+
+      let senderIp = msg.senderIp || null
+      if (!senderIp) {
+        const ips: string[] = []
+        for (const r of receivedList) { const ip = extractIpFromText(r); if (ip) ips.push(ip) }
+        senderIp = ips.find(p => !isPrivateIp(p)) ?? ips[0] ?? null
+      }
+
+      const authVal = headersObj?.['authentication-results'] || headersObj?.['auth-results'] || headersObj?.['arc-authentication-results'] || null
+      const authString = typeof authVal === 'string' ? authVal : Array.isArray(authVal) ? authVal.join('; ') : null
+      const parseToken = (src?: string | null, re?: RegExp) => { if (!src || !re) return null; const m = String(src).match(re); return m?.[1] ?? null }
+
+      const spfResult = msg.spfResult || parseToken(authString, /spf=(pass|fail|softfail|neutral|none|temperror|permerror)/i)
+      const dkimResult = msg.dkimResult || parseToken(authString, /dkim=(pass|fail|neutral|none|policy|temperror|permerror)/i)
+      const dmarcResult = msg.dmarcResult || parseToken(authString, /dmarc=(pass|fail|bestguess|none|policy|temperror|permerror)/i)
+
+      const contentType = headersObj?.['content-type'] ?? headersObj?.['Content-Type']
+      const contentValue = typeof contentType === 'object' ? (contentType.value || '').toLowerCase() : (String(contentType || '').toLowerCase())
+      let encryptionType = msg.encryptionType || null
+      if (!encryptionType && contentValue) {
+        if (contentValue.includes('application/pgp-encrypted') || (contentValue.includes('multipart/encrypted') && contentValue.includes('pgp'))) encryptionType = 'PGP/MIME'
+        else if (contentValue.includes('application/pkcs7-mime') || contentValue.includes('x-pkcs7-mime') || contentValue.includes('pkcs7')) encryptionType = 'S/MIME'
+      }
+
+      const toAddr = msg.toAddress || headersObj?.to?.text || undefined
+      const priority = msg.priority || parsePriorityHeader(headersObj)
+
       return {
-        id: `email-${msg.id}`,
-        inviteId: msg.id,
-        type: "email",
+        id: `email-${msg.id}`, inviteId: msg.id, type: "email",
         title: msg.subject || t("detail.emailFallback"),
-        description: t("sections.emailDescription"),
-        details: msg.body || "",
-        sender: parsed.name || msg.fromAddress,
-        senderEmail: parsed.email || "",
-        html: msg.html || null,
-        category: msg.category || null,
-        attachments: msg.attachments || [],
-        read: !!msg.read,
-        badge: t("sections.email"),
-        date: formatDate(msg.receivedAt),
-        rawDate: msg.receivedAt,
-        avatarLabel: parsed.name || parsed.email || t("detail.emailFallback"),
+        description: t("sections.emailDescription"), details: msg.body || "",
+        sender: parsed.name || msg.fromAddress, senderEmail: parsed.email || "",
+        html: msg.html || null, category: msg.category || null,
+        isSpam: !!msg.isSpam, spamScore: typeof msg.spamScore === "number" ? msg.spamScore : null,
+        isVirus: !!msg.isVirus, favorite: !!msg.favorite, virusName: msg.virusName || null,
+        attachments: msg.attachments || [], read: !!msg.read,
+        badge: t("sections.email"), date: formatDate(msg.receivedAt),
+        rawDate: msg.receivedAt, avatarLabel: parsed.name || parsed.email || t("detail.emailFallback"),
+        rawHeaders: msg.rawHeaders || null, headers: headersObj || null,
+        senderIp: senderIp || undefined, senderRdns: msg.senderRdns || undefined,
+        priority: priority || undefined, spfResult: spfResult || undefined,
+        dkimResult: dkimResult || undefined, dmarcResult: dmarcResult || undefined,
+        authResults: authString || undefined, encryptionType: encryptionType || undefined,
+        messageId: msg.messageId || headersObj?.['message-id'] || undefined,
+        toAddress: toAddr || undefined,
       }
     })
 
     return [...emailItems, ...notifItems, ...orgItems, ...subItems].sort(
-      (a, b) =>
-        new Date(b.rawDate || 0).getTime() - new Date(a.rawDate || 0).getTime(),
+      (a, b) => new Date(b.rawDate || 0).getTime() - new Date(a.rawDate || 0).getTime(),
     )
   }, [orgInvites, subuserInvites, notifications, messages, t])
 
+  const sentItems = useMemo<MailboxItem[]>(() => sentMessages.map(msg => ({
+    id: `sent-${msg.id}`, inviteId: msg.id, type: "email",
+    title: msg.subject || t("detail.emailFallback"),
+    description: msg.status === "queued" ? "Queued outbound email" : "Sent outbound email",
+    details: msg.body || "", sender: msg.fromAddress || mailboxAddress || "You",
+    senderEmail: msg.fromAddress || undefined, html: msg.html || null,
+    category: null, isSpam: false, spamScore: null, isVirus: false, virusName: null,
+    attachments: [], read: true, favorite: !!msg.favorite,
+    badge: msg.status === "sent" ? "Sent" : "Queued",
+    status: msg.status || null, isSent: true,
+    sentAt: msg.sentAt || null, scheduledAt: msg.scheduledAt || null,
+    date: formatDate(msg.sentAt || msg.scheduledAt || undefined),
+    rawDate: msg.sentAt || msg.scheduledAt || undefined,
+    avatarLabel: msg.fromAddress || mailboxAddress || "You",
+    toAddress: msg.toAddress, messageId: msg.messageId || undefined,
+  })), [sentMessages, t, mailboxAddress])
+
   const unreadCount = useMemo(
-    () =>
-      items.filter(
-        (i) => (i.type === "email" || i.type === "notification") && i.read === false,
-      ).length,
-    [items],
+    () => inboxItems.filter(i => (i.type === "email" || i.type === "notification") && i.read === false).length,
+    [inboxItems],
   )
 
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (
-        unreadOnly &&
-        (item.type === "email" || item.type === "notification") &&
-        item.read
-      )
-        return false
-      if (selectedCategory) {
-        if (item.type !== "email") return false
-        if (selectedCategory === "__uncategorized__") return !item.category
-        return item.category === selectedCategory
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase()
-        return (
-          item.title.toLowerCase().includes(q) ||
-          item.sender.toLowerCase().includes(q) ||
-          item.details.toLowerCase().includes(q)
-        )
-      }
-      return true
-    })
-  }, [items, selectedCategory, unreadOnly, searchQuery])
+  const inboxFilteredItems = useMemo(() => inboxItems.filter(item => {
+    if (unreadOnly && (item.type === "email" || item.type === "notification") && item.read) return false
+    if (selectedCategory) {
+      if (item.type !== "email") return false
+      if (selectedCategory === "uncategorized") return !item.category
+      return item.category === selectedCategory
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      return item.title.toLowerCase().includes(q) || item.sender.toLowerCase().includes(q) || item.details.toLowerCase().includes(q)
+    }
+    return true
+  }), [inboxItems, selectedCategory, unreadOnly, searchQuery])
+
+  const currentItems = useMemo(
+    () => activeSection === "sent" ? sentItems : inboxFilteredItems,
+    [activeSection, sentItems, inboxFilteredItems],
+  )
 
   const selectedItem = useMemo(
-    () => filteredItems.find((i) => i.id === selectedItemId) ?? null,
-    [filteredItems, selectedItemId],
+    () => currentItems.find(i => i.id === selectedItemId) ?? null,
+    [currentItems, selectedItemId],
   )
 
-  // auto-select first on desktop
   useEffect(() => {
-    if (!selectedItemId && filteredItems.length > 0) {
-      setSelectedItemId(filteredItems[0].id)
-    }
-  }, [filteredItems, selectedItemId])
+    if (!selectedItemId && currentItems.length > 0) setSelectedItemId(currentItems[0].id)
+  }, [currentItems, selectedItemId])
 
-  // reset per-message state on selection change
+  const listLoading = activeSection === "sent" ? sentLoading : loading
+
   useEffect(() => {
-    setBodyView(null)
-    setHtmlConfirmed(false)
-    setCurrentMessageCategory(
-      selectedItem?.type === "email" ? selectedItem.category ?? null : null,
-    )
-    // auto-unblock images if sender is in always-allow list
+    setBodyView(null); setHtmlConfirmed(false)
+    setCurrentMessageCategory(selectedItem?.type === "email" ? selectedItem.category ?? null : null)
+    setShowMetadata(false); setMetadataSection("headers")
     if (selectedItem?.senderEmail && alwaysAllowImages.has(selectedItem.senderEmail)) {
       setBlockRemoteImages(false)
     } else {
       setBlockRemoteImages(true)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItem?.id])
 
-  // ── actions ──────────────────────────────────────────────────────────────────
-
-  const setLoading_ = (key: string, val: boolean) =>
-    setActionLoading((p) => ({ ...p, [key]: val }))
-
-  const handleInviteAction = async (
-    type: "organisation" | "subuser",
-    inviteId: number,
-    action: "accept" | "reject",
-  ) => {
-    const key = `${type}-${inviteId}`
-    setLoading_(key, true)
-    try {
-      const ep =
-        type === "organisation"
-          ? action === "accept"
-            ? API_ENDPOINTS.organisationInviteAccept
-            : API_ENDPOINTS.organisationInviteReject
-          : action === "accept"
-          ? API_ENDPOINTS.serverSubuserInviteAccept
-          : API_ENDPOINTS.serverSubuserInviteReject
-      await apiFetch(ep.replace(":inviteId", String(inviteId)), { method: "POST" })
-      await loadInvites()
-    } catch (e: any) {
-      alert(e?.message || t("errors.failedAction"))
-    } finally {
-      setLoading_(key, false)
+  useEffect(() => {
+    if (!selectedItem || selectedItem.type !== "email" || selectedItem.read) return
+    const markRead = async () => {
+      try {
+        await apiFetch(API_ENDPOINTS.mailboxMessageMark.replace(":id", String(selectedItem.inviteId)), {
+          method: "POST", body: { read: true },
+        })
+        setMessages(prev => prev.map(msg => msg.id === selectedItem.inviteId ? { ...msg, read: true } : msg))
+      } catch { }
     }
+    markRead()
+  }, [selectedItem?.id])
+
+  // ── actions ────────────────────────────────────────────────────────────────
+
+  const setActionLoad = (key: string, val: boolean) =>
+    setActionLoading(p => ({ ...p, [key]: val }))
+
+  const handleInviteAction = async (type: "organisation" | "subuser", inviteId: number, action: "accept" | "reject") => {
+    const key = `${type}-${inviteId}`
+    setActionLoad(key, true)
+    try {
+      const ep = type === "organisation"
+        ? action === "accept" ? API_ENDPOINTS.organisationInviteAccept : API_ENDPOINTS.organisationInviteReject
+        : action === "accept" ? API_ENDPOINTS.serverSubuserInviteAccept : API_ENDPOINTS.serverSubuserInviteReject
+      await apiFetch(ep.replace(":inviteId", String(inviteId)), { method: "POST" })
+      await loadStaticData()
+    } catch (e: any) { alert(e?.message || t("errors.failedAction")) }
+    finally { setActionLoad(key, false) }
   }
 
   const handleMarkRead = async (item: MailboxItem) => {
-    const key = `item-mark-${item.type}-${item.inviteId}`
-    setLoading_(key, true)
+    const key = `mark-${item.type}-${item.inviteId}`
+    setActionLoad(key, true)
     try {
-      const target =
-        item.type === "notification"
-          ? API_ENDPOINTS.mailboxNotificationMark.replace(":id", String(item.inviteId))
-          : API_ENDPOINTS.mailboxMessageMark.replace(":id", String(item.inviteId))
+      const target = item.type === "notification"
+        ? API_ENDPOINTS.mailboxNotificationMark.replace(":id", String(item.inviteId))
+        : API_ENDPOINTS.mailboxMessageMark.replace(":id", String(item.inviteId))
       await apiFetch(target, { method: "POST", body: { read: !item.read } })
-      await loadInvites()
-    } catch {
-      alert(t("errors.failedAction"))
-    } finally {
-      setLoading_(key, false)
-    }
+      if (item.type === "email") setMessages(prev => prev.map(msg => msg.id === item.inviteId ? { ...msg, read: !item.read } : msg))
+      else await loadStaticData()
+    } catch { alert(t("errors.failedAction")) }
+    finally { setActionLoad(key, false) }
   }
 
   const handleDelete = async (item: MailboxItem) => {
     if (!confirm(t("confirm.deleteEmail"))) return
-    const key = `item-delete-${item.type}-${item.inviteId}`
-    setLoading_(key, true)
+    const key = `delete-${item.type}-${item.inviteId}`
+    setActionLoad(key, true)
     try {
-      const target =
-        item.type === "notification"
-          ? API_ENDPOINTS.mailboxNotificationDelete.replace(":id", String(item.inviteId))
-          : API_ENDPOINTS.mailboxMessageDelete.replace(":id", String(item.inviteId))
+      const target = item.type === "notification"
+        ? API_ENDPOINTS.mailboxNotificationDelete.replace(":id", String(item.inviteId))
+        : API_ENDPOINTS.mailboxMessageDelete.replace(":id", String(item.inviteId))
       await apiFetch(target, { method: "DELETE" })
-      setSelectedItemId(null)
-      setMobileView("list")
-      await loadInvites()
-    } catch {
-      alert(t("errors.failedAction"))
-    } finally {
-      setLoading_(key, false)
-    }
+      setSelectedItemId(null); setMobileView("list")
+      if (item.type === "email") await loadMessages(true)
+      else await loadStaticData()
+    } catch { alert(t("errors.failedAction")) }
+    finally { setActionLoad(key, false) }
   }
 
   const handleAssignCategory = async (item: MailboxItem) => {
-    const key = `email-category-${item.inviteId}`
-    setLoading_(key, true)
+    const key = `category-${item.inviteId}`
+    setActionLoad(key, true)
     try {
-      await apiFetch(
-        API_ENDPOINTS.mailboxMessageCategory.replace(":id", String(item.inviteId)),
-        { method: "POST", body: { category: currentMessageCategory || null } },
-      )
-      await loadInvites()
-    } catch {
-      alert(t("errors.failedAction"))
-    } finally {
-      setLoading_(key, false)
-    }
+      await apiFetch(API_ENDPOINTS.mailboxMessageCategory.replace(":id", String(item.inviteId)), {
+        method: "POST", body: { category: currentMessageCategory || null },
+      })
+      await loadMessages(true)
+    } catch { alert(t("errors.failedAction")) }
+    finally { setActionLoad(key, false) }
+  }
+
+  const handleFavoriteToggle = async (item: MailboxItem, favorite: boolean) => {
+    const key = `favorite-${item.id}`
+    setActionLoad(key, true)
+    try {
+      const endpoint = item.isSent
+        ? API_ENDPOINTS.mailboxSentFavorite.replace(":id", String(item.inviteId))
+        : API_ENDPOINTS.mailboxMessageFavorite.replace(":id", String(item.inviteId))
+      await apiFetch(endpoint, { method: "POST", body: { favorite } })
+      if (item.isSent) setSentMessages(prev => prev.map(msg => msg.id === item.inviteId ? { ...msg, favorite } : msg))
+      else setMessages(prev => prev.map(msg => msg.id === item.inviteId ? { ...msg, favorite } : msg))
+    } catch { alert(t("errors.failedAction")) }
+    finally { setActionLoad(key, false) }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -840,225 +1510,270 @@ export default function MailboxPage() {
 
   const ListPane = (
     <div className="flex h-full flex-col">
-      <div className="px-3 pt-3 pb-2">
-        <div className="relative flex items-center">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      {/* Header */}
+      <div className="px-3 pt-3 pb-2 space-y-2.5 border-b border-border/60">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-full border border-border bg-card p-1">
+              <button
+                type="button"
+                onClick={() => { setActiveSection("inbox"); setComposeOpen(false); setSelectedItemId(null); setMobileView("list") }}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  activeSection === "inbox"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
+                )}
+              >
+                Inbox
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveSection("sent"); setComposeOpen(false); setSelectedItemId(null); setMobileView("list") }}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  activeSection === "sent"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
+                )}
+              >
+                Sent
+              </button>
+            </div>
+            {activeSection === "inbox" && unreadCount > 0 && (
+              <span className="rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 leading-none min-w-[18px] text-center">
+                {unreadCount}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              className="h-9 px-3 text-xs"
+              onClick={() => {
+                setComposeOpen(true)
+                setActiveSection("inbox")
+                setSelectedItemId(null)
+                setMobileView("detail")
+              }}
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Compose</span>
+            </Button>
+            <button
+              onClick={() => setShowFilters(s => !s)}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors text-xs",
+                showFilters || selectedCategory || unreadOnly || favoriteOnly
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
+              )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing || sentLoading}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", (refreshing || sentLoading) && "animate-spin")} />
+            </button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
-            ref={searchRef}
             type="search"
             placeholder="Search messages…"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              "w-full rounded-xl border border-border bg-muted/50 py-2 pl-9 pr-10",
-              "text-sm placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-background",
-              "transition-all duration-200",
-            )}
+            onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+            className="w-full rounded-lg border border-border bg-muted/10 hover:bg-muted/20 py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-card transition-all"
           />
-          <button
-            onClick={() => setShowFilters((s) => !s)}
-            title="Filters"
-            className={cn(
-              "absolute right-2 p-1.5 rounded-lg transition-colors",
-              showFilters || selectedCategory || unreadOnly
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted",
-            )}
-          >
-            <Filter className="h-3.5 w-3.5" />
-          </button>
         </div>
-      </div>
 
-      <div
-        className={cn(
-          "overflow-hidden transition-all duration-200",
-          showFilters ? "max-h-40" : "max-h-0",
-        )}
-      >
-        <div className="px-3 pb-2 space-y-2">
-          <button
-            onClick={() => setUnreadOnly((s) => !s)}
-            className={cn(
-              "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
-              unreadOnly
-                ? "border-primary/30 bg-primary/5 text-primary"
-                : "border-border bg-muted/30 text-foreground hover:bg-muted/60",
-            )}
-          >
-            <span className="flex items-center gap-2 font-medium">
-              {unreadOnly ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-              Unread only
-            </span>
-            {unreadCount > 0 && (
-              <Badge className="h-5 px-1.5 text-[10px] bg-primary text-primary-foreground">
-                {unreadCount}
-              </Badge>
-            )}
-          </button>
+        {/* Filters */}
+        {showFilters && (
+          <div className="space-y-2 pb-0.5">
+            <button
+              onClick={() => setFavoriteOnly(s => !s)}
+              className={cn(
+                "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors",
+                favoriteOnly ? "bg-primary/15 text-primary font-medium" : "bg-muted/10 text-foreground hover:bg-muted/20",
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                {favoriteOnly ? <Star className="h-3.5 w-3.5" /> : <StarOff className="h-3.5 w-3.5" />}
+                Favorites only
+              </span>
+            </button>
 
-          {categories.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  !selectedCategory
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
-                )}
-              >
-                All
-              </button>
-              {categories.map((cat) => (
+            {activeSection === "inbox" && (
+              <>
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => setUnreadOnly(s => !s)}
                   className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors",
-                    selectedCategory === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors",
+                    unreadOnly ? "bg-primary/15 text-primary font-medium" : "bg-muted/10 text-foreground hover:bg-muted/20",
                   )}
                 >
-                  {cat}
+                  <span className="flex items-center gap-1.5">
+                    {unreadOnly ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
+                    Unread only
+                  </span>
+                  {unreadCount > 0 && <span className="text-[10px] text-muted-foreground">{unreadCount}</span>}
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/40">
-        <span className="text-[11px] text-muted-foreground font-medium tracking-wide uppercase">
-          {filteredItems.length} {t("summary.filteredItems")}
-        </span>
-        <button
-          onClick={() => loadInvites(true)}
-          disabled={refreshing}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="Refresh"
-        >
-          <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
-        </button>
-      </div>
-
-      <ScrollArea className="flex-1">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <Spinner className="h-6 w-6 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading messages…</p>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 px-6 text-center">
-            <div className="rounded-full bg-muted p-5">
-              <Inbox className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">{t("list.empty")}</p>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                {t("list.emptyDescription")}
-              </p>
-            </div>
-            {(searchQuery || selectedCategory || unreadOnly) && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs"
-                onClick={() => {
-                  setSearchQuery("")
-                  setSelectedCategory(null)
-                  setUnreadOnly(false)
-                }}
-              >
-                Clear filters
-              </Button>
+                {categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {[null, ...categories].map(cat => (
+                      <button
+                        key={cat ?? "all"}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
+                          selectedCategory === cat
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground",
+                        )}
+                      >
+                        {cat ?? "All"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Filter status bar */}
+      {(searchQuery || selectedCategory || unreadOnly || favoriteOnly) && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-primary/5 border-b border-primary/10">
+          <span className="text-[11px] text-primary/80 font-medium">
+            {currentItems.length} result{currentItems.length !== 1 ? "s" : ""}
+          </span>
+          <button
+            onClick={() => { setSearchQuery(""); setSelectedCategory(null); setUnreadOnly(false); setFavoriteOnly(false) }}
+            className="text-[11px] font-medium text-primary hover:underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* List */}
+      <ScrollArea className="flex-1 min-h-0">
+        {listLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Spinner className="h-5 w-5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Loading messages…</p>
+          </div>
+        ) : currentItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 px-6 text-center">
+            <div className="rounded-full bg-muted p-4">
+              <Inbox className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {activeSection === "sent" ? "No sent emails yet." : t("list.empty")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                {activeSection === "sent"
+                  ? "Compose a message to send your first email."
+                  : t("list.emptyDescription")}
+              </p>
+            </div>
+          </div>
         ) : (
-          <div className="py-1">
-            {filteredItems.map((item) => {
+          <div>
+            {currentItems.map(item => {
               const isSelected = selectedItemId === item.id
-              const isUnread =
-                (item.type === "email" || item.type === "notification") &&
-                item.read === false
+              const isUnread = (item.type === "email" || item.type === "notification") && item.read === false
               const hasAttachments = (item.attachments?.length ?? 0) > 0
 
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedItemId(item.id)
-                    setMobileView("detail")
-                  }}
+                  onClick={() => { setSelectedItemId(item.id); setMobileView("detail") }}
                   className={cn(
-                    "w-full text-left px-3 py-3 transition-colors relative group",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40",
-                    isSelected
-                      ? "bg-primary/8 dark:bg-primary/12"
-                      : "hover:bg-muted/50 active:bg-muted/80",
+                    "w-full text-left px-3 py-3 transition-colors relative border-b border-border/30",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40",
+                      isSelected
+                        ? "bg-primary/8 border-l-2 border-l-primary"
+                        : "hover:bg-muted/15 border-l-2 border-l-transparent",
                   )}
                 >
-                  {isSelected && (
-                    <span className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-primary" />
-                  )}
-                  <div className="flex items-start gap-3 pl-1">
-                    <SenderAvatar item={item} size="sm" />
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-1.5 flex-shrink-0 w-1.5">
+                      {isUnread && <span className="block h-1.5 w-1.5 rounded-full bg-primary" />}
+                    </div>
+
+                    <div className="flex-shrink-0">
+                      <SenderAvatar item={item} size="sm" />
+                    </div>
+
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span
-                          className={cn(
-                            "truncate text-[13px]",
-                            isUnread
-                              ? "font-semibold text-foreground"
-                              : "font-medium text-foreground/75",
-                          )}
-                        >
+                      <div className="flex items-baseline justify-between gap-1.5 mb-0.5">
+                        <span className={cn(
+                          "truncate text-[13px]",
+                          isUnread ? "font-semibold text-foreground" : "font-medium text-foreground/75",
+                        )}>
                           {item.sender}
                         </span>
-                        <span
-                          className={cn(
-                            "flex-shrink-0 text-[11px] tabular-nums",
-                            isUnread ? "font-semibold text-primary" : "text-muted-foreground",
-                          )}
-                        >
+                        <span className={cn(
+                          "flex-shrink-0 text-[11px] tabular-nums leading-none",
+                          isUnread ? "text-primary font-medium" : "text-muted-foreground",
+                        )}>
                           {item.date}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {isUnread && (
-                          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
-                        )}
-                        <p
-                          className={cn(
-                            "truncate text-[13px] leading-snug",
-                            isUnread
-                              ? "font-medium text-foreground"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {item.title}
-                        </p>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <p className="truncate text-[12px] text-muted-foreground/70 leading-snug flex-1">
-                          {item.details.slice(0, 100)}
+
+                      <p className={cn(
+                        "truncate text-xs mb-1.5",
+                        isUnread ? "font-medium text-foreground/90" : "text-muted-foreground/80",
+                      )}>
+                        {item.title}
+                      </p>
+
+                      <div className="flex items-center justify-between gap-1.5">
+                        <p className="truncate text-[11px] text-muted-foreground/60 flex-1 leading-tight">
+                          {item.details.slice(0, 70)}
                         </p>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {hasAttachments && (
-                            <Paperclip className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          <span
-                            className={cn(
-                              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                              TYPE_PILL[item.type],
-                            )}
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); handleFavoriteToggle(item, !item.favorite) }}
+                            className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
                           >
-                            <TypeIcon type={item.type} />
-                            <span className="hidden sm:inline">{item.badge}</span>
-                          </span>
+                            {item.favorite
+                              ? <Star className="h-3.5 w-3.5 text-primary fill-primary" />
+                              : <StarOff className="h-3.5 w-3.5" />}
+                          </button>
+
+                          {item.isVirus && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-destructive">VIRUS</span>
+                          )}
+                          {!item.isVirus && item.isSpam && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-accent-foreground">SPAM</span>
+                          )}
+                          {item.priority && (
+                            <span className={cn(
+                              'rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+                              item.priority === 'Urgent' ? 'bg-destructive/10 text-destructive' :
+                                item.priority === 'High' ? 'bg-accent/30 text-accent-foreground' :
+                                item.priority === 'Low' ? 'bg-primary/10 text-primary' :
+                                'bg-muted text-muted-foreground',
+                            )}>
+                              {item.priority}
+                            </span>
+                          )}
+                          {hasAttachments && <Paperclip className="h-2.5 w-2.5 text-muted-foreground/50" />}
+                          <TypeBadge type={item.type} />
                         </div>
                       </div>
                     </div>
@@ -1069,6 +1784,26 @@ export default function MailboxPage() {
           </div>
         )}
       </ScrollArea>
+
+      {/* Pagination */}
+      {activeSection === "inbox" && messageMeta.total > messageMeta.limit && (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-border/50">
+          <span className="text-[11px] text-muted-foreground">
+            {messageMeta.page} / {Math.ceil(messageMeta.total / messageMeta.limit)}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs"
+              disabled={messageMeta.page <= 1} onClick={() => setPage(prev => Math.max(1, prev - 1))}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs"
+              disabled={messageMeta.page >= Math.ceil(messageMeta.total / messageMeta.limit)}
+              onClick={() => setPage(prev => prev + 1)}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -1078,402 +1813,410 @@ export default function MailboxPage() {
 
   const hasHtml = Boolean(selectedItem?.html)
   const resolvedView: BodyView = bodyView ?? "plain"
+  const isInvite = selectedItem?.type === "organisation" || selectedItem?.type === "subuser"
+  const isInboxMessage = (selectedItem?.type === "email" && !selectedItem?.isSent) || selectedItem?.type === "notification"
 
-  const handleChooseHtml = () => {
-    setHtmlConfirmed(true)
-    setBodyView("html")
-  }
-
-  const handleChoosePlain = () => {
-    setBodyView("plain")
-  }
+  const markReadKey = `mark-${selectedItem?.type}-${selectedItem?.inviteId}`
+  const deleteKey = `delete-${selectedItem?.type}-${selectedItem?.inviteId}`
+  const inviteKey = `${selectedItem?.type}-${selectedItem?.inviteId}`
+  const categoryKey = `category-${selectedItem?.inviteId}`
 
   const DetailPane = (
-    <div className="flex h-full flex-col">
-      {selectedItem ? (
+    <div className="flex h-full flex-col bg-background">
+      {composeOpen ? (
+        <ComposePane
+          onClose={() => setComposeOpen(false)}
+          onSent={() => loadSentMessages(true)}
+          mailboxAddress={mailboxAddress}
+        />
+      ) : selectedItem ? (
         <>
-          {/* toolbar */}
-          <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/60 bg-background/80 backdrop-blur-sm">
+          {/* Toolbar */}
+          <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/60 bg-card/60">
             <button
               onClick={() => setMobileView("list")}
-              className="lg:hidden p-2 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Back to list"
+              className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
 
-            <div className="flex items-center gap-1 flex-1">
-              {(selectedItem.type === "email" || selectedItem.type === "notification") && (
-                <>
-                  <ToolbarBtn
-                    icon={
-                      selectedItem.read ? (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      ) : (
-                        <Eye className="h-3.5 w-3.5" />
-                      )
-                    }
-                    label={selectedItem.read ? t("actions.markUnread") : t("actions.markRead")}
-                    loading={actionLoading[`item-mark-${selectedItem.type}-${selectedItem.inviteId}`]}
-                    onClick={() => handleMarkRead(selectedItem)}
-                  />
-                  <ToolbarBtn
-                    icon={<Trash2 className="h-3.5 w-3.5" />}
-                    label={t("actions.delete")}
-                    loading={actionLoading[`item-delete-${selectedItem.type}-${selectedItem.inviteId}`]}
-                    onClick={() => handleDelete(selectedItem)}
-                    destructive
-                  />
-                </>
-              )}
-            </div>
+            <TypeBadge type={selectedItem.type} />
+            {selectedItem.category && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <Tag className="h-2.5 w-2.5" />
+                {selectedItem.category}
+              </span>
+            )}
 
-            <span
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium flex-shrink-0",
-                TYPE_PILL[selectedItem.type],
-              )}
+            <div className="flex-1" />
+
+            <button
+              onClick={() => handleFavoriteToggle(selectedItem, !selectedItem.favorite)}
+              disabled={actionLoading[`favorite-${selectedItem.id}`]}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
+              title={selectedItem.favorite ? "Remove from favourites" : "Add to favourites"}
             >
-              <TypeIcon type={selectedItem.type} />
-              <span className="hidden sm:inline">{selectedItem.badge}</span>
-            </span>
+              {selectedItem.favorite
+                ? <Star className="h-3.5 w-3.5 text-primary fill-primary" />
+                : <StarOff className="h-3.5 w-3.5" />}
+            </button>
+
+            {isInboxMessage && (
+              <>
+                <button
+                  onClick={() => handleMarkRead(selectedItem)}
+                  disabled={actionLoading[markReadKey]}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading[markReadKey]
+                    ? <Spinner className="h-3.5 w-3.5" />
+                    : selectedItem.read ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline text-[11px]">
+                    {selectedItem.read ? "Mark unread" : "Mark read"}
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedItem)}
+                  disabled={actionLoading[deleteKey]}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading[deleteKey] ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline text-[11px]">{t("actions.delete")}</span>
+                </button>
+              </>
+            )}
+
+            {isInvite && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleInviteAction(selectedItem.type as any, selectedItem.inviteId, "reject")}
+                  disabled={actionLoading[inviteKey]}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading[inviteKey] ? <Spinner className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                  {t("actions.reject")}
+                </button>
+                <button
+                  onClick={() => handleInviteAction(selectedItem.type as any, selectedItem.inviteId, "accept")}
+                  disabled={actionLoading[inviteKey]}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading[inviteKey] ? <Spinner className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+                  {t("actions.accept")}
+                </button>
+              </div>
+            )}
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className="px-4 sm:px-6 py-6 space-y-5 max-w-3xl mx-auto">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 space-y-5">
 
-              {/* subject */}
-              <h1 className="text-xl font-bold text-foreground leading-tight tracking-tight">
-                {selectedItem.title}
-              </h1>
+              {/* Subject */}
+              <div>
+                <h1 className="text-xl font-bold text-foreground leading-snug tracking-tight">
+                  {selectedItem.title}
+                </h1>
+              </div>
 
-              {/* sender card */}
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border/50">
-                <SenderAvatar item={selectedItem} size="md" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground truncate">
-                    {selectedItem.sender}
-                  </p>
-                  {selectedItem.senderEmail && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {selectedItem.senderEmail}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    {formatDateLong(selectedItem.rawDate)}
-                  </p>
-                  {(selectedItem.attachments?.length ?? 0) > 0 && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center justify-end gap-1">
-                      <Paperclip className="h-3 w-3" />
-                      {selectedItem.attachments!.length} attachment
-                      {selectedItem.attachments!.length !== 1 ? "s" : ""}
-                    </p>
-                  )}
+              {/* Sender card */}
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-start gap-3">
+                  <SenderAvatar item={selectedItem} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{selectedItem.sender}</p>
+                        {selectedItem.senderEmail && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <AtSign className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <p className="text-xs text-muted-foreground font-mono">{selectedItem.senderEmail}</p>
+                            <CopyButton value={selectedItem.senderEmail} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDateRelative(selectedItem.rawDate)}</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                          {formatDateLong(selectedItem.rawDate)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {(selectedItem.isVirus || selectedItem.isSpam || (selectedItem.attachments?.length ?? 0) > 0) && (
+                      <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                        <SecurityBadge item={selectedItem} />
+                        {(selectedItem.attachments?.length ?? 0) > 0 && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted rounded-lg px-2.5 py-1.5">
+                            <Paperclip className="h-3 w-3" />
+                            <span>{selectedItem.attachments!.length} attachment{selectedItem.attachments!.length !== 1 ? "s" : ""}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <hr className="border-border/50" />
-
-              {/* ── BODY ── */}
+              {/* Body */}
               {selectedItem.type === "email" && hasHtml && bodyView === null ? (
-                // ── choice screen ──
-                <div className="rounded-xl border border-border bg-muted/30 overflow-hidden">
-                  <div className="p-4 space-y-3">
-                    <p className="text-sm font-semibold text-foreground">
-                      How would you like to view this email?
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      This message has both plain text and HTML versions.
-                      HTML may contain tracking pixels and external resources.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                      <button
-                        onClick={handleChoosePlain}
-                        className={cn(
-                          "flex-1 flex items-center gap-3 rounded-xl border-2 border-border px-4 py-3.5",
-                          "hover:border-primary/40 hover:bg-primary/5 transition-all text-left",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                        )}
-                      >
-                        <div className="rounded-lg bg-muted p-2 flex-shrink-0">
-                          <FileText className="h-5 w-5 text-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">Plain text</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Safe · No remote content
-                          </p>
-                        </div>
-                      </button>
-                      <button
-                        onClick={handleChooseHtml}
-                        className={cn(
-                          "flex-1 flex items-center gap-3 rounded-xl border-2 border-amber-200 dark:border-amber-800/60 px-4 py-3.5",
-                          "hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all text-left",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40",
-                        )}
-                      >
-                        <div className="rounded-lg bg-amber-100 dark:bg-amber-900/40 p-2 flex-shrink-0">
-                          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">HTML version</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Richer view · Remote images blocked by default
-                          </p>
-                        </div>
-                      </button>
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Choose view format</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setBodyView("plain")}
+                      className="flex items-start gap-3 rounded-xl border-2 border-border bg-card px-4 py-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-all group"
+                    >
+                      <div className="rounded-lg bg-muted p-2.5 flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                        <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Plain text</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Safe · No external content · Recommended</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { setHtmlConfirmed(true); setBodyView("html") }}
+                      className="flex items-start gap-3 rounded-xl border-2 border-border bg-card px-4 py-4 text-left hover:border-accent/50 hover:bg-accent/10 transition-all group"
+                    >
+                      <div className="rounded-lg bg-accent/20 p-2.5 flex-shrink-0">
+                        <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">HTML view</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Rich layout · Images blocked by default</p>
+                      </div>
+                    </button>
+                  </div>
+                  {selectedItem.details && (
+                    <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-semibold">Preview</p>
+                      <p className="text-sm leading-relaxed text-foreground/70 whitespace-pre-wrap line-clamp-4">
+                        {selectedItem.details}
+                      </p>
                     </div>
-                  </div>
-                  {/* plain-text preview */}
-                  <div className="border-t border-border/50 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
-                      Preview
-                    </p>
-                    <p className="text-sm leading-7 text-foreground/80 whitespace-pre-wrap line-clamp-6">
-                      {selectedItem.details || (
-                        <span className="italic text-muted-foreground">(empty)</span>
-                      )}
-                    </p>
-                  </div>
+                  )}
                 </div>
               ) : (
-                // ── chosen view ──
                 <div className="space-y-4">
-                  {/* view toggle tabs */}
                   {hasHtml && bodyView !== null && (
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <BodyViewToggle
-                        hasHtml={hasHtml}
-                        view={resolvedView}
-                        onPlain={() => setBodyView("plain")}
-                        onHtml={() => {
-                          if (!htmlConfirmed) handleChooseHtml()
-                          else setBodyView("html")
-                        }}
-                      />
-                      {resolvedView === "html" && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-                          onClick={() =>
-                            window.open(
-                              "data:text/html," +
-                                encodeURIComponent(selectedItem.html || ""),
-                              "_blank",
-                            )
-                          }
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center rounded-lg bg-muted p-0.5 gap-0.5">
+                        <button
+                          onClick={() => setBodyView("plain")}
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                            resolvedView === "plain" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                          )}
                         >
-                          <ExternalLink className="h-3 w-3" />
-                          Open raw
-                        </Button>
+                          <FileText className="h-3 w-3" />Plain
+                        </button>
+                        <button
+                          onClick={() => { if (!htmlConfirmed) setHtmlConfirmed(true); setBodyView("html") }}
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                            resolvedView === "html" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          <AlertCircle className="h-3 w-3" />HTML
+                        </button>
+                      </div>
+                      {resolvedView === "html" && (
+                        <button
+                          onClick={() => window.open("data:text/html," + encodeURIComponent(selectedItem.html || ""), "_blank")}
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" />Open raw
+                        </button>
                       )}
                     </div>
                   )}
 
-                  {/* plain */}
                   {resolvedView === "plain" && (
-                    <div className="text-sm leading-7 text-foreground/90 whitespace-pre-wrap">
-                      {selectedItem.details || (
-                        <span className="text-muted-foreground italic">
-                          (no plain text content)
-                        </span>
+                    <div className="rounded-xl border border-border bg-card">
+                      {selectedItem.details ? (
+                        <div className="px-5 py-5">
+                          <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedItem.details}</ReactMarkdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-5 py-8 text-center">
+                          <FileText className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground italic">{t("detail.noPlainTextContent")}</p>
+                        </div>
                       )}
                     </div>
                   )}
 
-                  {/* HTML — sandboxed iframe (Gmail approach) */}
                   {resolvedView === "html" && htmlConfirmed && selectedItem.html && (
                     <div className="rounded-xl border border-border overflow-hidden">
-                      {/* remote-images bar (exact Gmail UX) */}
                       {blockRemoteImages && (
                         <RemoteImagesBar
                           onAllow={() => setBlockRemoteImages(false)}
                           onAlwaysAllow={() => {
                             setBlockRemoteImages(false)
-                            if (selectedItem.senderEmail) {
-                              setAlwaysAllowImages((s) => {
-                                const next = new Set(s)
-                                next.add(selectedItem.senderEmail!)
-                                return next
-                              })
-                            }
+                            if (selectedItem.senderEmail)
+                              setAlwaysAllowImages(s => { const n = new Set(s); n.add(selectedItem.senderEmail!); return n })
                           }}
                         />
                       )}
-                      {/* the actual sandboxed frame */}
-                      <SandboxedEmailFrame
-                        html={selectedItem.html}
-                        blockRemoteImages={blockRemoteImages}
-                      />
+                      <div className="bg-card">
+                        <SandboxedEmailFrame html={selectedItem.html} blockRemoteImages={blockRemoteImages} />
+                      </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* attachments */}
+              {/* Attachments */}
               {(selectedItem.attachments?.length ?? 0) > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Attachments ({selectedItem.attachments!.length})
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Attachments · {selectedItem.attachments!.length}
                     </p>
                   </div>
-                  <div className="space-y-2">
-                    {selectedItem.attachments!.map((att) => (
-                      <AttachmentCard key={att.url} attachment={att} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedItem.attachments!.map((att, i) => (
+                      <AttachmentCard key={`${att.url}-${i}`} attachment={att} />
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* actions panel */}
-              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {selectedItem.type === "organisation" || selectedItem.type === "subuser"
-                    ? "Respond to invite"
-                    : t("details.actions")}
-                </p>
+              {/* Category */}
+              {selectedItem.type === "email" && categories.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+                      value={currentMessageCategory ?? ""}
+                      onChange={e => setCurrentMessageCategory(e.target.value || null)}
+                    >
+                      <option value="">Uncategorized</option>
+                      {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                    <Button size="sm" className="h-9 px-4 text-xs"
+                      onClick={() => handleAssignCategory(selectedItem)} disabled={actionLoading[categoryKey]}>
+                      {actionLoading[categoryKey] ? <Spinner className="h-3.5 w-3.5" /> : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
-                {selectedItem.type === "email" || selectedItem.type === "notification" ? (
-                  <>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant={selectedItem.read ? "outline" : "default"}
-                        className="gap-2 h-8 text-xs"
-                        onClick={() => handleMarkRead(selectedItem)}
-                        disabled={
-                          actionLoading[
-                            `item-mark-${selectedItem.type}-${selectedItem.inviteId}`
-                          ]
-                        }
-                      >
-                        {actionLoading[
-                          `item-mark-${selectedItem.type}-${selectedItem.inviteId}`
-                        ] ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5" />
-                        )}
-                        {selectedItem.read ? t("actions.markUnread") : t("actions.markRead")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-2 h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => handleDelete(selectedItem)}
-                        disabled={
-                          actionLoading[
-                            `item-delete-${selectedItem.type}-${selectedItem.inviteId}`
-                          ]
-                        }
-                      >
-                        {actionLoading[
-                          `item-delete-${selectedItem.type}-${selectedItem.inviteId}`
-                        ] ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                        {t("actions.delete")}
-                      </Button>
+              {/* Metadata accordion */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setShowMetadata(s => !s)}
+                  className="flex items-center justify-between w-full px-4 py-3 bg-muted/10 hover:bg-muted/20 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message details</span>
+                  </div>
+                  {showMetadata
+                    ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+
+                {showMetadata && (
+                  <div className="bg-card">
+                    <div className="flex border-b border-border">
+                      {(["headers", "security", "raw"] as const).map(tab => (
+                        <button
+                          key={tab}
+                          onClick={() => setMetadataSection(tab)}
+                          className={cn(
+                            "px-4 py-2.5 text-xs font-medium capitalize transition-colors border-b-2 -mb-px",
+                            metadataSection === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {tab}
+                        </button>
+                      ))}
                     </div>
 
-                    {selectedItem.type === "email" && (
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-                          <Tag className="h-3 w-3" />
-                          Category
-                        </label>
-                        <div className="flex gap-2">
-                          <select
-                            className={cn(
-                              "flex-1 rounded-lg border border-border bg-background",
-                              "px-3 py-1.5 text-sm text-foreground",
-                              "focus:outline-none focus:ring-2 focus:ring-primary/30",
-                            )}
-                            value={currentMessageCategory ?? ""}
-                            onChange={(e) => setCurrentMessageCategory(e.target.value || null)}
-                          >
-                            <option value="">{t("filters.uncategorized")}</option>
-                            {categories.map((cat) => (
-                              <option key={cat} value={cat}>
-                                {cat}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            size="sm"
-                            className="h-9 text-xs px-3 flex-shrink-0"
-                            onClick={() => handleAssignCategory(selectedItem)}
-                            disabled={actionLoading[`email-category-${selectedItem.inviteId}`]}
-                          >
-                            {actionLoading[`email-category-${selectedItem.inviteId}`] ? (
-                              <Spinner className="h-3.5 w-3.5" />
-                            ) : (
-                              t("actions.assignCategory")
-                            )}
-                          </Button>
+                    <div className="px-4 py-1">
+                      {metadataSection === "headers" && (
+                        <div>
+                          <MetadataRow label="From" value={selectedItem.sender} copyable />
+                          <MetadataRow label="Email" value={selectedItem.senderEmail} mono copyable />
+                          <MetadataRow label="To" value={selectedItem.toAddress || "Unknown"} mono copyable />
+                          <MetadataRow label="Message ID" value={selectedItem.messageId || "Unknown"} mono copyable />
+                          <MetadataRow label="Subject" value={selectedItem.title} />
+                          <MetadataRow label="Date" value={formatDateLong(selectedItem.rawDate)} />
+                          <MetadataRow label="Type" value={selectedItem.type} />
+                          <MetadataRow label="Category" value={selectedItem.category ?? "Uncategorized"} />
+                          {(selectedItem.attachments?.length ?? 0) > 0 && (
+                            <MetadataRow label="Attachments" value={selectedItem.attachments!.length} />
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      className="gap-2 h-8 text-xs"
-                      onClick={() =>
-                        handleInviteAction(
-                          selectedItem.type as any,
-                          selectedItem.inviteId,
-                          "accept",
-                        )
-                      }
-                      disabled={actionLoading[`${selectedItem.type}-${selectedItem.inviteId}`]}
-                    >
-                      {actionLoading[`${selectedItem.type}-${selectedItem.inviteId}`] ? (
-                        <Spinner className="h-3.5 w-3.5" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5" />
                       )}
-                      {t("actions.accept")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2 h-8 text-xs"
-                      onClick={() =>
-                        handleInviteAction(
-                          selectedItem.type as any,
-                          selectedItem.inviteId,
-                          "reject",
-                        )
-                      }
-                      disabled={actionLoading[`${selectedItem.type}-${selectedItem.inviteId}`]}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      {t("actions.reject")}
-                    </Button>
+
+                      {metadataSection === "security" && (
+                        <div className="py-2 space-y-3">
+                          <SecurityBadge item={selectedItem} />
+                          <div>
+                            <MetadataRow label="Spam" value={selectedItem.isSpam ?? false} />
+                            <MetadataRow label="Spam score" value={selectedItem.spamScore} />
+                            <MetadataRow label="Virus" value={selectedItem.isVirus ?? false} />
+                            <MetadataRow label="Virus name" value={selectedItem.virusName} />
+                            <MetadataRow label="Sender IP" value={selectedItem.senderIp || "Unknown"} mono copyable />
+                            <MetadataRow label="Reverse DNS" value={selectedItem.senderRdns || "Unknown"} mono />
+                            <MetadataRow label="SPF" value={selectedItem.spfResult || "Unknown"} />
+                            <MetadataRow label="Priority" value={selectedItem.priority || "Unknown"} />
+                            <MetadataRow label="DKIM" value={selectedItem.dkimResult || "Unknown"} />
+                            <MetadataRow label="DMARC" value={selectedItem.dmarcResult || "Unknown"} />
+                            <MetadataRow label="Encryption" value={selectedItem.encryptionType || "None"} />
+                            {selectedItem.authResults && (
+                              <MetadataRow label="Auth results" value={selectedItem.authResults} mono />
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {metadataSection === "raw" && (
+                        <div className="py-2">
+                          <div className="rounded-lg bg-muted/50 border border-border overflow-auto max-h-80">
+                            <pre className="p-3 text-[11px] leading-5 text-foreground/80 whitespace-pre font-mono">
+                              {selectedItem.rawHeaders
+                                ? formatHeaderSource(selectedItem.rawHeaders)
+                                : selectedItem.headers
+                                  ? formatHeaderSource(selectedItem.headers)
+                                  : JSON.stringify({
+                                    ...selectedItem,
+                                    html: selectedItem.html ? `[HTML: ${selectedItem.html.length} chars]` : null,
+                                    details: selectedItem.details ? `[${selectedItem.details.length} chars]` : null,
+                                  }, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
+
+              <div className="h-4" />
             </div>
           </ScrollArea>
         </>
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center">
-          <div className="rounded-full bg-muted p-6 ring-8 ring-muted/40">
-            <Mail className="h-9 w-9 text-muted-foreground" />
+        <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+          <div className="rounded-full bg-muted p-5">
+            <Mail className="h-8 w-8 text-muted-foreground/50" />
           </div>
           <div>
-            <p className="font-semibold text-foreground">{t("details.selectItem")}</p>
-            <p className="mt-1.5 text-sm text-muted-foreground max-w-xs leading-relaxed">
+            <p className="font-semibold text-foreground text-sm">{t("details.selectItem")}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground max-w-xs leading-relaxed">
               {t("details.selectItemDescription")}
             </p>
           </div>
@@ -1491,77 +2234,47 @@ export default function MailboxPage() {
       <PanelHeader title={t("title")} description={t("description")} />
 
       {(mailboxAddress || mailboxUUID) && (
-        <div className="border-b border-border/60 bg-muted/30 px-4 py-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 max-w-7xl mx-auto">
-            <div className="flex items-center gap-2">
-              <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs font-mono text-muted-foreground truncate max-w-[220px] sm:max-w-sm">
-                {mailboxUUID || mailboxAddress}
+        <div className="border-b border-border/50 bg-muted/20 px-4 py-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 max-w-7xl mx-auto">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs font-mono text-muted-foreground truncate">
+                {mailboxAddress || mailboxUUID}
               </span>
+              <CopyButton value={mailboxAddress || mailboxUUID || ""} />
             </div>
             {mailboxAliases.map((alias, i) => (
-              <div key={i} className="flex items-center gap-1.5">
-                <span className="text-xs font-mono text-muted-foreground">
-                  {alias.address}
-                </span>
+              <div key={i} className="flex items-center gap-1">
+                <span className="text-xs font-mono text-muted-foreground/70">{alias.address}</span>
                 {alias.canSendFrom && (
-                  <Badge
-                    variant="outline"
-                    className="h-4 px-1.5 text-[10px] text-emerald-600 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700"
-                  >
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-primary bg-primary/10 rounded px-1 py-0.5">
                     Send
-                  </Badge>
+                  </span>
                 )}
               </div>
             ))}
             {unreadCount > 0 && (
-              <Badge className="ml-auto h-5 px-2 text-[11px] bg-primary text-primary-foreground">
+              <span className="ml-auto text-xs font-semibold text-primary flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary inline-block" />
                 {unreadCount} unread
-              </Badge>
+              </span>
             )}
           </div>
         </div>
       )}
 
-      <div
-        className="flex flex-1 overflow-hidden"
-        style={{ height: "calc(100vh - 120px)" }}
-      >
-        {/* LIST */}
-        <div
-          className={cn(
-            "flex-shrink-0 border-r border-border/60 bg-background",
-            "w-full lg:w-[340px] xl:w-[380px]",
-            mobileView === "detail"
-              ? "hidden lg:flex lg:flex-col"
-              : "flex flex-col",
-          )}
-        >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-            <div className="flex items-center gap-2">
-              <Inbox className="h-4 w-4 text-foreground" />
-              <h2 className="text-sm font-semibold text-foreground">
-                {t("sections.inbox")}
-              </h2>
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-primary px-1.5 py-0 text-[11px] font-semibold text-primary-foreground">
-                  {unreadCount}
-                </span>
-              )}
-            </div>
-          </div>
+      <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 120px)" }}>
+        <div className={cn(
+          "border-r border-border/60 flex-shrink-0 flex flex-col",
+          "w-full lg:w-[300px] xl:w-[340px]",
+          mobileView === "detail" ? "hidden lg:flex" : "flex",
+        )}>
           {ListPane}
         </div>
-
-        {/* DETAIL */}
-        <div
-          className={cn(
-            "flex-1 bg-background min-w-0",
-            mobileView === "list"
-              ? "hidden lg:flex lg:flex-col"
-              : "flex flex-col",
-          )}
-        >
+        <div className={cn(
+          "flex-1 min-w-0 flex flex-col",
+          mobileView === "list" ? "hidden lg:flex" : "flex",
+        )}>
           {DetailPane}
         </div>
       </div>

@@ -41,6 +41,48 @@ export class MailMessage {
   category?: string;
 
   @Column({ default: false })
+  isSpam: boolean;
+
+  @Column({ nullable: true, type: 'float' })
+  spamScore?: number;
+
+  @Column({ default: false })
+  isVirus: boolean;
+
+  @Column({ nullable: true })
+  virusName?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  rawHeaders?: string;
+
+  @Column({ nullable: true })
+  senderIp?: string;
+
+  @Column({ nullable: true })
+  senderRdns?: string;
+
+  @Column({ default: false })
+  favorite: boolean;
+
+  @Column({ nullable: true })
+  spfResult?: string;
+
+  @Column({ nullable: true })
+  dkimResult?: string;
+
+  @Column({ nullable: true })
+  dmarcResult?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  authResults?: string;
+
+  @Column({ nullable: true })
+  encryptionType?: string;
+
+  @Column({ nullable: true, type: 'simple-json' })
+  receivedChain?: { from?: string; by?: string; with?: string; id?: string; for?: string; ip?: string; raw?: string }[];
+
+  @Column({ default: false })
   read: boolean;
 
   @Column({ type: 'datetime' })

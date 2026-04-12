@@ -34,7 +34,8 @@
       "settings": "Settings",
       "subuserInvites": "Subuser Invites",
       "mailbox": "Mailbox",
-      "adminPanel": "Admin Panel"
+      "adminPanel": "Admin Panel",
+      "tunnels": "Tunnels"
     },
     "badges": {
       "new": "New",
@@ -65,16 +66,6 @@
   "mailboxPage": {
     "title": "Mailbox",
     "description": "Manage pending invites, notices, and inbox items.",
-    "summary": {
-      "title": "Inbox overview",
-      "description": "Accept or reject organisation and server subuser invitations from one place.",
-      "invites": "invites",
-      "items": "items",
-      "filteredItems": "filtered",
-      "address": "Your Mailcow mailbox address: {address}",
-      "mailboxLabel": "Mailcow mailbox",
-      "addressUnavailable": "Mailbox address is not available yet. Please ensure Mailcow is configured."
-    },
     "sections": {
       "inbox": "Inbox",
       "inboxDescription": "A place where you can find all EcliPanel-related important stuff.",
@@ -104,14 +95,7 @@
       "assignCategory": "Assign category",
       "delete": "Delete"
     },
-    "filters": {
-      "search": "Search",
-      "showUnread": "Unread only",
-      "showAll": "Show all",
-      "category": "Category",
-      "allCategories": "All categories",
-      "uncategorized": "Uncategorized"
-    },
+
     "details": {
       "sender": "From",
       "received": "Received",
@@ -125,6 +109,17 @@
       "subuserBody": "You have been invited to become a server subuser for {server}. The invitation was sent to {email}. Review the access request and accept or reject it.",
       "unknownServer": "Unknown server",
       "unknownSender": "Unknown sender",
+      "displayMetadata": "Display metadata",
+      "hideMetadata": "Hide metadata",
+      "chooseView": "Choose how to view this email:",
+      "plainText": "Plain text",
+      "htmlView": "HTML view",
+      "raw": "Raw",
+      "noPlainTextContent": "No plain text content",
+      "metadataTitle": "Message metadata",
+      "metadataHint": "Showing all message metadata fields. Body HTML and plain-text preview are hidden for readability.",
+      "virusDetected": "Virus detected",
+      "spamDetected": "Spam detected",
       "emailFallback": "Email message"
     }
     ,
@@ -1113,6 +1108,7 @@
       "eggs": "Eggs",
       "aiModels": "AI Models",
       "announcements": "Announcements",
+      "outboundEmails": "Outbound Emails",
       "antiabuse": "Anti-Abuse",
       "fraud": "Fraud",
       "roles": "Roles",
@@ -1121,7 +1117,86 @@
       "databases": "Databases",
       "plans": "Plans",
       "orders": "Orders",
-      "settings": "Settings"
+      "settings": "Settings",
+      "tunnels": "Tunnels"
+    },
+    "tunnelsTab": {
+      "header": {
+        "title": "Tunnels",
+        "description": "Manage tunnel devices and public allocations"
+      },
+      "sections": {
+        "devices": "Devices",
+        "devicesDescription": "View and approve pending tunnel agents.",
+        "allocations": "Allocations",
+        "allocationsDescription": "Monitor active tunnel endpoints and close allocations."
+      },
+      "labels": {
+        "deviceCode": "Device code",
+        "userCode": "User code",
+        "name": "Name",
+        "kind": "Type",
+        "approved": "Approved",
+        "lastSeen": "Last seen",
+        "created": "Created",
+        "actions": "Actions",
+        "id": "ID",
+        "publicEndpoint": "Public endpoint",
+        "localTarget": "Local target",
+        "status": "Status",
+        "clientDevice": "Client device",
+        "serverDevice": "Server device",
+        "updated": "Updated"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "approve": "Approve",
+        "close": "Close"
+      },
+      "states": {
+        "yes": "Yes",
+        "no": "No",
+        "approved": "Approved",
+        "closed": "Closed",
+        "loading": "Loading…",
+        "noDevices": "No tunnel devices found.",
+        "noAllocations": "No allocations found.",
+        "devices": "devices",
+        "allocations": "allocations",
+        "failedToLoad": "Failed to load tunnels data.",
+        "failedToApprove": "Unable to approve device.",
+        "failedToClose": "Unable to close allocation."
+      }
+    },
+    "adminOutboundEmails": {
+      "searchPlaceholder": "Search by recipient, subject or body...",
+      "userFilterPlaceholder": "Filter by user...",
+      "statusAll": "All statuses",
+      "statusQueued": "Queued",
+      "statusSent": "Sent",
+      "statusFailed": "Failed",
+      "searchButton": "Search",
+      "columnId": "ID",
+      "columnUser": "User",
+      "columnFrom": "From",
+      "columnTo": "To",
+      "columnSubject": "Subject",
+      "columnStatus": "Status",
+      "columnSentAt": "Sent At",
+      "columnActions": "Actions",
+      "viewButton": "View",
+      "viewTitle": "Outbound Email #{id}",
+      "viewFrom": "From:",
+      "viewTo": "To:",
+      "viewSubject": "Subject:",
+      "viewFailure": "Failure reason:",
+      "messageId": "Message ID:",
+      "createdAt": "Created at:",
+      "close": "Close",
+      "loading": "Loading...",
+      "noResults": "No outbound emails found.",
+      "prev": "Prev",
+      "next": "Next"
     },
     "editDialog": {
       "fields": {
@@ -2070,6 +2145,7 @@
       "applications": { "label": "Applications", "note": "Staff applications and abuse report forms" },
       "oauth": { "label": "OAuth Server", "note": "OAuth client and token services" },
       "codeInstances": { "label": "Code Instances", "note": "Temporary development environments" },
+      "tunnels": { "label": "Tunnels", "note": "Public tunnel dashboard and forwarding controls" },
       "captcha": { "label": "Classic Captcha", "note": "Image-based bot protection" },
       "captchaInvisible": { "label": "Invisible Captcha", "note": "Behavioral challenge system" }
     },
@@ -3987,6 +4063,43 @@
         "filesystemManaged": "Filesystem managed by cloud-init",
         "panelFilesGuest": "Panel files may not reflect guest state"
       }
+    }
+  },
+  "tunnelsPage": {
+    "header": {
+      "title": "Tunnels",
+      "description": "Create public tunnel allocations and approve remote agents."
+    },
+    "sections": {
+      "devices": "Devices",
+      "allocations": "Allocations"
+    },
+    "labels": {
+      "localHost": "Local host",
+      "localPort": "Local port",
+      "protocol": "Protocol",
+      "clientDevice": "Client device",
+      "name": "Name",
+      "type": "Type",
+      "userCode": "User code",
+      "approved": "Approved",
+      "lastSeen": "Last seen",
+      "publicEndpoint": "Public endpoint",
+      "localTarget": "Local target",
+      "status": "Status",
+      "created": "Created"
+    },
+    "placeholders": {
+      "selectClientDevice": "Select a client device"
+    },
+    "actions": {
+      "createAllocation": "Create allocation",
+      "approve": "Approve",
+      "close": "Close"
+    },
+    "states": {
+      "yes": "Yes",
+      "no": "No"
     }
   },
   "infrastructureCodeInstancesPage": {

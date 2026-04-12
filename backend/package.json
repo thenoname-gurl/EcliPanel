@@ -7,6 +7,7 @@
     "dev": "bun src/index.ts",
     "promote": "bun scripts/promote.ts",
     "seed": "bun scripts/seed.ts",
+    "fill-sender-rdns": "bun scripts/fill-sender-rdns.ts",
     "gen:jwt-secret": "bun scripts/generate-jwt-secret.ts",
     "gen:default-role": "bun scripts/create-default-role.ts",
     "build": "bun install && bun tsc || true"
@@ -20,37 +21,37 @@
     "@elysiajs/node": "latest",
     "@elysiajs/openapi": "latest",
     "@simplewebauthn/server": "latest",
-    "axios": "1.14.0",
+    "axios": "^1.4.0",
     "base64url": "latest",
     "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
-    "brace-expansion": "latest",
-    "dompurify": "latest",
+    "brace-expansion": "^1.1.14",
+    "dompurify": "^3.3.3",
     "dotenv": "^17.3.1",
     "elysia": "^1.4.28",
     "elysia-helmet": "^3.1.0",
     "file-type": "^21.3.4",
     "html-to-text": "^9.0.5",
-    "jsonwebtoken": "latest",
+    "imap": "^0.8.19",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.18.1",
+    "mailparser": "^3.6.0",
     "mariadb": "latest",
     "mysql": "latest",
     "node-cron": "^4.2.1",
-    "imap": "^0.8.19",
-    "mailparser": "^3.6.0",
-    "node-fetch": "latest",
-    "nodemailer": "latest",
+    "node-fetch": "^3.2.10",
+    "nodemailer": "^6.9.3",
     "pdfkit": "^0.17.2",
-    "pg": "latest",
+    "pg": "^8.8.0",
     "redis": "latest",
     "reflect-metadata": "latest",
-    "sharp": "latest",
+    "sharp": "^0.31.2",
     "speakeasy": "latest",
     "srvx": "latest",
     "tar": "^7.5.13",
-    "typeorm": "latest",
+    "typeorm": "^0.3.17",
     "uuid": "latest",
-    "ws": "latest"
+    "ws": "^8.12.0"
   },
   "dependenciesMeta": {
     "speakeasy": {
@@ -68,9 +69,7 @@
     "typescript": "latest"
   },
   "overrides": {
-    "tar": "latest",
-    "@mapbox/node-pre-gyp": {
-      "tar": "latest"
-    }
+    "tar": "^7.5.13",
+    "brace-expansion": "^1.1.14"
   }
 }
