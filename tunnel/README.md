@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="./tunnel.png" alt="EcliPanel" width="640" />
+</p>
 # EcliTunnel
 
 This folder includes two Rust tunnel agents for EcliPanel:
