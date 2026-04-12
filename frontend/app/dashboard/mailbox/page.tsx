@@ -310,7 +310,7 @@ function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
     sanitized = sanitized.replace(/(<[^>]+\s(?:srcset)=["'])[^"']*/gi, "$1")
     sanitized = sanitized.replace(/url\s*\(\s*["']?https?:\/\/[^)"']+["']?\s*\)/gi, "url()")
   }
-  sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, "")
+  sanitized = sanitized.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "")
   sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "")
   sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
 
