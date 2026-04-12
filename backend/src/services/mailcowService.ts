@@ -324,10 +324,10 @@ export async function rotateMailboxPasswordForAccount(account: MailboxAccount) {
 
     account.password = newPass;
     await repo.save(account);
-    console.info('[mailcowService] rotated password for', account.email);
+    console.info('[mailcowService] rotated password for mailbox id=%d', account.id);
     return { success: true, password: newPass };
   } catch (err: any) {
-    console.warn('[mailcowService] failed to rotate password for', account.email, err?.message || err);
+    console.warn('[mailcowService] failed to rotate password for mailbox id=%d', account?.id, err?.message || err);
     return { success: false, error: String(err?.message || err) };
   }
 }

@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import DOMPurify from "dompurify"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -304,15 +305,28 @@ function createAvatarDataUrl(label: string, size = 96) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
-  let sanitized = html
-  if (blockRemoteImages) {
-    sanitized = sanitized.replace(/(<[^>]+\s(?:src|background)=["'])https?:\/\/[^"']+/gi, "$1")
-    sanitized = sanitized.replace(/(<[^>]+\s(?:srcset)=["'])[^"']*/gi, "$1")
-    sanitized = sanitized.replace(/url\s*\(\s*["']?https?:\/\/[^)"']+["']?\s*\)/gi, "url()")
+  let sanitized = html || ""
+  try {
+    const purifyConfig: any = {
+      FORBID_TAGS: ["script", "style", "iframe", "object", "embed"],
+      FORBID_ATTR: [
+        "onerror", "onload", "onmouseover", "onmouseenter", "onmouseleave",
+        "onclick", "onfocus", "onblur", "onchange"
+      ],
+      ALLOWED_URI_REGEXP: /^(?:https?:|cid:|data:|mailto:|tel:)/i,
+    }
+    sanitized = DOMPurify.sanitize(html, purifyConfig)
+    if (blockRemoteImages) {
+      sanitized = sanitized.replace(/(<img[^>]+src=["'])(https?:\/\/)/gi, "$1")
+      sanitized = sanitized.replace(/(<[^>]+\s(?:src|background)=["'])https?:\/\/[^"']+/gi, "$1")
+      sanitized = sanitized.replace(/url\s*\(\s*["']?https?:\/\/[^)"']+["']?\s*\)/gi, "url()")
+    }
+    sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
+  } catch (e) {
+    sanitized = (html || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "")
+    if (blockRemoteImages) sanitized = sanitized.replace(/(<img[^>]+src=["'])(https?:\/\/)/gi, "$1")
+    sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
   }
-  sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, "")
-  sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "")
-  sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
 
   const csp = [
     "default-src 'none'",
