@@ -321,6 +321,7 @@ export function PanelHeader({
     ticketing: true,
     applications: true,
     oauth: true,
+    tunnels: true,
   })
 
   const [searchOpen, setSearchOpen] = useState(false)

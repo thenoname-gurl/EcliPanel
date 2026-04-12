@@ -35,6 +35,12 @@ export class Plan {
   @Column({ default: 0 })
   backups?: number;
 
+  @Column({ nullable: true })
+  emailSendDailyLimit?: number;
+
+  @Column({ nullable: true })
+  emailSendQueueLimit?: number;
+
   @Column({ default: 1 })
   portCount: number;
 

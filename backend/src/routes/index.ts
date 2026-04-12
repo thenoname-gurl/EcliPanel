@@ -23,6 +23,7 @@ import { databaseRoutes } from '../handlers/databaseHandler';
 import { planRoutes } from '../handlers/planHandler';
 import { serverSubuserRoutes } from '../handlers/serverSubuserHandler';
 import { wsProxyRoutes } from '../handlers/wsProxyHandler';
+import { tunnelRoutes } from '../handlers/tunnelHandler';
 import { sshKeyRoutes } from '../handlers/sshKeyHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
@@ -105,6 +106,7 @@ export function registerRoutes(app: any) {
     databaseRoutes(app, '/api');
     planRoutes(app, '/api');
     wsProxyRoutes(app, '/api');
+    tunnelRoutes(app, '/api');
     sshKeyRoutes(app, '/api');
     serverSubuserRoutes(app, '/api');
     publicRoutes(app, '');

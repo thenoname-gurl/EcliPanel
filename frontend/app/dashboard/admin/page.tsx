@@ -129,6 +129,11 @@ const VerificationsTab = dynamic(() => import("./tabs/VerificationsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading verifications tab...</div>,
 })
 
+const OutboundEmailsTab = dynamic(() => import("./tabs/OutboundEmailsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading outbound emails...</div>,
+})
+
 const DeletionsTab = dynamic(() => import("./tabs/DeletionsTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading deletions tab...</div>,
@@ -137,6 +142,11 @@ const DeletionsTab = dynamic(() => import("./tabs/DeletionsTab"), {
 const NodesTab = dynamic(() => import("./tabs/NodesTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading nodes tab...</div>,
+})
+
+const TunnelsTab = dynamic(() => import("./tabs/TunnelsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading tunnels tab...</div>,
 })
 
 const EggsTab = dynamic(() => import("./tabs/EggsTab"), {
@@ -215,17 +225,17 @@ const MetricsTab = dynamic(() => import("./tabs/MetricsTab"), {
 })
 
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
-  const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: #e0e0e0; margin: 0; padding: 0; }
-    .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: #12111f; border-radius: 12px; border: 1px solid #2a2545; }
+  const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: var(--foreground); margin: 0; padding: 0; }
+    .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
     .email-preview-root .header { text-align: center; margin-bottom: 24px; }
-    .email-preview-root .header h1 { color: #c4b5fd; font-size: 20px; margin: 0; }
-    .email-preview-root .details { font-family: monospace; font-size: 13px; color: #cbd5e1; background: #0f1724; border-radius: 8px; padding: 12px; border: 1px solid #2a2545; margin-top: 12px; white-space: pre-wrap; }
-    .email-preview-root .footer { font-size: 12px; color: #777; margin-top: 24px; text-align: center; }
+    .email-preview-root .header h1 { color: var(--accent-foreground); font-size: 20px; margin: 0; }
+    .email-preview-root .details { font-family: monospace; font-size: 13px; color: var(--card-foreground); background: var(--popover); border-radius: 8px; padding: 12px; border: 1px solid var(--border); margin-top: 12px; white-space: pre-wrap; }
+    .email-preview-root .footer { font-size: 12px; color: var(--muted-foreground); margin-top: 24px; text-align: center; }
     .email-preview-root .message { word-wrap: break-word; }
-    .email-preview-root p { line-height: 1.6; color: #e0e0e0; margin: 0 0 1em 0; }
-    .email-preview-root code { background: #1f1b31; padding: .2em .3em; border-radius: .25rem; }
-    .email-preview-root pre { background: #1f1b31; border-radius: .5rem; overflow-x: auto; padding: .8rem; }
-    .email-preview-root a { color: #8b5cf6; text-decoration: underline; }`;
+    .email-preview-root p { line-height: 1.6; color: var(--foreground); margin: 0 0 1em 0; }
+    .email-preview-root code { background: var(--input); padding: .2em .3em; border-radius: .25rem; }
+    .email-preview-root pre { background: var(--input); border-radius: .5rem; overflow-x: auto; padding: .8rem; }
+    .email-preview-root a { color: var(--primary); text-decoration: underline; }`;
 
   return (
     <div className="email-preview-root">
@@ -426,6 +436,8 @@ interface AdminPlan {
   serverLimit?: number
   databases?: number
   backups?: number
+  emailSendDailyLimit?: number
+  emailSendQueueLimit?: number
   portCount?: number
   isDefault?: boolean
   hiddenFromBilling?: boolean
@@ -1059,6 +1071,8 @@ export default function AdminPanel() {
   const [planServerLimit, setPlanServerLimit] = useState("")
   const [planDatabases, setPlanDatabases] = useState("")
   const [planBackups, setPlanBackups] = useState("")
+  const [planEmailSendDailyLimit, setPlanEmailSendDailyLimit] = useState("")
+  const [planEmailSendQueueLimit, setPlanEmailSendQueueLimit] = useState("")
   const [planPortCount, setPlanPortCount] = useState("1")
   const [planIsDefault, setPlanIsDefault] = useState(false)
   const [planHiddenFromBilling, setPlanHiddenFromBilling] = useState(false)
@@ -1271,6 +1285,7 @@ export default function AdminPanel() {
   const [eggDockerImagesRaw, setEggDockerImagesRaw] = useState("") // JSON object text
   const [eggStartup, setEggStartup] = useState("")
   const [eggEnvVars, setEggEnvVars] = useState("")
+  const [eggEnvVarDefs, setEggEnvVarDefs] = useState<Record<string, any>[]>([])
   const [eggVisible, setEggVisible] = useState(true)
   const [eggFeatures, setEggFeatures] = useState("") // comma-separated
   const [eggFileDenylist, setEggFileDenylist] = useState("") // one per line
@@ -1386,6 +1401,7 @@ export default function AdminPanel() {
       ticketing: true,
       applications: true,
       oauth: true,
+      tunnels: true,
     },
   })
   const [settingsSaving, setSettingsSaving] = useState(false)
@@ -1527,6 +1543,7 @@ export default function AdminPanel() {
                 dns: true,
                 ticketing: true,
                 applications: true,
+                tunnels: true,
                 ...(data.featureToggles || {}),
               },
             })
@@ -2434,7 +2451,7 @@ export default function AdminPanel() {
     try {
       const result = await apiFetch(API_ENDPOINTS.adminSyncToWings, { method: "POST" })
       forceRefreshTab("nodes")
-      alert(`Sync to Wings complete — processed ${Array.isArray(result) ? result.length : JSON.stringify(result)}`)
+      alert(result?.message || 'Sync to Wings started in the background. Check your activity notifications for completion updates.')
     } catch (e: any) {
       alert(`Sync to Wings failed: ${e.message}`)
     } finally {
@@ -2524,7 +2541,7 @@ export default function AdminPanel() {
     setPlanEditTarget(null)
     setPlanName(""); setPlanType("free"); setPlanPrice("0"); setPlanDesc("")
     setPlanMemory(""); setPlanDisk(""); setPlanCpu(""); setPlanServerLimit("")
-    setPlanDatabases(""); setPlanBackups("")
+    setPlanDatabases(""); setPlanBackups(""); setPlanEmailSendDailyLimit(""); setPlanEmailSendQueueLimit("")
     setPlanPortCount("1"); setPlanIsDefault(false); setPlanHiddenFromBilling(false); setPlanFeatures(""); setPlanError("")
     setPlanDialogOpen(true)
   }
@@ -2535,6 +2552,8 @@ export default function AdminPanel() {
     setPlanMemory(plan.memory != null ? String(plan.memory) : ""); setPlanDisk(plan.disk != null ? String(plan.disk) : "")
     setPlanCpu(plan.cpu != null ? String(plan.cpu) : ""); setPlanServerLimit(plan.serverLimit != null ? String(plan.serverLimit) : "")
     setPlanDatabases((plan as any).databases != null ? String((plan as any).databases) : ""); setPlanBackups((plan as any).backups != null ? String((plan as any).backups) : "")
+    setPlanEmailSendDailyLimit((plan as any).emailSendDailyLimit != null ? String((plan as any).emailSendDailyLimit) : "")
+    setPlanEmailSendQueueLimit((plan as any).emailSendQueueLimit != null ? String((plan as any).emailSendQueueLimit) : "")
     setPlanPortCount(plan.portCount != null ? String(plan.portCount) : "1"); setPlanIsDefault(plan.isDefault ?? false)
     setPlanHiddenFromBilling(Boolean((plan as any).hiddenFromBilling))
     const featList = (plan as any).features?.list
@@ -2556,6 +2575,8 @@ export default function AdminPanel() {
       serverLimit: planServerLimit ? Number(planServerLimit) : null,
       databases: planDatabases ? Number(planDatabases) : null,
       backups: planBackups ? Number(planBackups) : null,
+      emailSendDailyLimit: planEmailSendDailyLimit !== "" ? Number(planEmailSendDailyLimit) : null,
+      emailSendQueueLimit: planEmailSendQueueLimit !== "" ? Number(planEmailSendQueueLimit) : null,
       portCount: planPortCount ? Number(planPortCount) : 1,
       isDefault: planIsDefault,
       hiddenFromBilling: planHiddenFromBilling,
@@ -2894,7 +2915,7 @@ remote: ${panelUrl}`
     setEggDialog("new")
     setEggName(""); setEggDesc(""); setEggAuthor(""); setEggUpdateUrl("")
     setEggImage(""); setEggDockerImagesRaw(""); setEggStartup("")
-    setEggEnvVars(""); setEggVisible(true)
+    setEggEnvVars(""); setEggEnvVarDefs([]); setEggVisible(true)
     setEggFeatures(""); setEggFileDenylist("")
     setEggAllowedPortals([])
     setEggProcessStop("stop"); setEggProcessDone("")
@@ -2917,6 +2938,7 @@ remote: ${panelUrl}`
       typeof v === "string" ? v : v.env_variable ?? ""
     ).filter(Boolean)
     setEggEnvVars(envLines.join("\n"))
+    setEggEnvVarDefs(Array.isArray(egg.envVars) ? egg.envVars : [])
     setEggVisible(egg.visible)
     setEggFeatures((egg.features || []).join(", "))
     setEggFileDenylist((egg.fileDenylist || []).join("\n"))
@@ -2937,10 +2959,20 @@ remote: ${panelUrl}`
     const existingEnvVars: Record<string, any>[] = (eggDialog !== "new" && eggDialog)
       ? ((eggDialog as AdminEgg).envVars || []) as any[]
       : []
-    const envVarsOut = envVarNames.map((key) => {
-      const existing = existingEnvVars.find((v: any) => (v.env_variable ?? v.name) === key)
-      return existing ?? { name: key, env_variable: key, default_value: "", user_viewable: true, user_editable: true, rules: "", field_type: "text" }
-    })
+    let envVarsOut: any[] = []
+    if (eggEnvVarDefs && eggEnvVarDefs.length) {
+      const defs = eggEnvVarDefs.map((v: any) => ({ ...v, env_variable: v.env_variable ?? v.name }))
+      const defsMap = new Map(defs.map((d: any) => [d.env_variable || d.name, d]))
+      for (const key of envVarNames) {
+        if (!defsMap.has(key)) defsMap.set(key, { name: key, env_variable: key, default_value: "", user_viewable: true, user_editable: true, rules: "", field_type: "text" })
+      }
+      envVarsOut = Array.from(defsMap.values())
+    } else {
+      envVarsOut = envVarNames.map((key) => {
+        const existing = existingEnvVars.find((v: any) => (v.env_variable ?? v.name) === key)
+        return existing ?? { name: key, env_variable: key, default_value: "", user_viewable: true, user_editable: true, rules: "", field_type: "text" }
+      })
+    }
 
     // Build docker images object if raw text provided
     let dockerImages: Record<string, string> | undefined
@@ -3518,9 +3550,11 @@ remote: ${panelUrl}`
                 { value: "verifications", label: t("tabs.kyc") },
                 { value: "deletions", label: t("tabs.deletions") },
                 { value: "nodes", label: t("tabs.nodes") },
+                { value: "tunnels", label: t("tabs.tunnels"), feature: "tunnels" },
                 { value: "eggs", label: t("tabs.eggs") },
                 { value: "ai", label: t("tabs.aiModels"), feature: "ai" },
                 { value: "announcements", label: t("tabs.announcements") },
+                { value: "outbound-emails", label: t("tabs.outboundEmails") },
                 { value: "antiabuse", label: t("tabs.antiabuse") },
                 { value: "fraud", label: t("tabs.fraud") },
                 { value: "roles", label: t("tabs.roles") },
@@ -5069,6 +5103,9 @@ remote: ${panelUrl}`
                 />
               ) : null}
             </TabsContent>
+            <TabsContent value="tunnels" className="mt-4">
+              {activeTab === "tunnels" ? <TunnelsTab /> : null}
+            </TabsContent>
             {/* ═══════════════ EGGS ═══════════════════════════════════════════ */}
             <TabsContent value="eggs" className="mt-4">
               {activeTab === "eggs" ? (
@@ -5120,6 +5157,8 @@ remote: ${panelUrl}`
                     setEggRequiresKvm,
                     eggEnvVars,
                     setEggEnvVars,
+                    eggEnvVarDefs,
+                    setEggEnvVarDefs,
                     eggProcessStop,
                     setEggProcessStop,
                     eggProcessDone,
@@ -5216,6 +5255,9 @@ remote: ${panelUrl}`
                   }}
                 />
               ) : null}
+            </TabsContent>
+            <TabsContent value="outbound-emails" className="mt-4">
+              {activeTab === "outbound-emails" ? <OutboundEmailsTab /> : null}
             </TabsContent>
             {/* ═══════════════ FRAUD DETECTION ════════════════════════════ */}
             <TabsContent value="fraud" className="mt-4">
@@ -5370,6 +5412,10 @@ remote: ${panelUrl}`
                     setPlanDatabases,
                     planBackups,
                     setPlanBackups,
+                    planEmailSendDailyLimit,
+                    setPlanEmailSendDailyLimit,
+                    planEmailSendQueueLimit,
+                    setPlanEmailSendQueueLimit,
                     planPortCount,
                     setPlanPortCount,
                     planIsDefault,
@@ -6138,6 +6184,16 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backups</label>
                 <input type="number" min="0" placeholder="e.g. 20" value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email send per day</label>
+                <input type="number" min="0" placeholder="e.g. 50" value={planEmailSendDailyLimit} onChange={(e) => setPlanEmailSendDailyLimit(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email queue limit</label>
+                <input type="number" min="0" placeholder="e.g. 10" value={planEmailSendQueueLimit} onChange={(e) => setPlanEmailSendQueueLimit(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">

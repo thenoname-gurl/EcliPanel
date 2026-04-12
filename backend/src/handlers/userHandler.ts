@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { MailMessage } from '../models/mailMessage.entity';
 import { MailboxAccount } from '../models/mailboxAccount.entity';
 import { Notification } from '../models/notification.entity';
+import { OutboundEmail } from '../models/outboundEmail.entity';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword } from '../utils/password';
@@ -10,6 +11,8 @@ import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { ensureMailboxAccountForUser, getMailboxAccountForUser, getMailboxConnectionInfo, isMailcowConfigured, isPanelAssignedMailboxEmail } from '../services/mailcowService';
 import { deleteMessageFromMailbox, fetchMailboxNow } from '../services/imapFetcher';
+import { detectMailboxSecurityFlags, extractMailboxAuthMetadata, extractMailboxPriority, resolveReverseDns } from '../utils/mailboxMessage';
+import { createOutboundEmailRecord, getOutboundEmailUsage, getSendLimitsForUser, sendOutboundEmailImmediately } from '../services/outboundEmailService';
 import { sendMail } from '../services/mailService';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { v4 as uuidv4 } from 'uuid';
@@ -513,20 +516,98 @@ export async function userRoutes(app: any, prefix = '') {
       }
     }
 
-    const messageRepo = AppDataSource.getRepository(MailMessage);
-    const messages = await messageRepo.find({
-      where: { userId: requester.id },
-      order: { receivedAt: 'DESC' },
-    });
+    const query = (ctx.query as any) || {};
+    const page = Math.max(1, Number(query.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(query.limit || 20)));
+    const searchQuery = String(query.q || '').trim();
+    const unreadOnly = String(query.unread || '').toLowerCase() === 'true';
+    const categoryFilter = String(query.category || '').trim();
+    const favoriteOnly = String(query.favorite || '').toLowerCase() === 'true';
 
-    return messages.map((message) => {
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const qb = messageRepo.createQueryBuilder('message')
+      .where('message.userId = :userId', { userId: requester.id });
+
+    if (searchQuery) {
+      qb.andWhere(
+        '(message.subject LIKE :q OR message.fromAddress LIKE :q OR message.toAddress LIKE :q OR message.body LIKE :q)',
+        { q: `%${searchQuery}%` },
+      );
+    }
+
+    if (unreadOnly) {
+      qb.andWhere('message.read = false');
+    }
+
+    if (categoryFilter) {
+      if (categoryFilter === '__uncategorized__') {
+        qb.andWhere('message.category IS NULL');
+      } else {
+        qb.andWhere('message.category = :category', { category: categoryFilter });
+      }
+    }
+
+    if (favoriteOnly) {
+      qb.andWhere('message.favorite = true');
+    }
+
+    const total = await qb.getCount();
+    const messages = await qb
+      .orderBy('message.receivedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const messageItems = await Promise.all(messages.map(async (message) => {
+      let senderIp = message.senderIp || undefined;
+      let parsedHeaders: any = null;
+      if (!senderIp && (message.rawHeaders || message.headers)) {
+        try {
+          parsedHeaders = message.headers ? JSON.parse(message.headers as string) : null;
+          const authMetadata = await extractMailboxAuthMetadata(parsedHeaders, message.rawHeaders || message.headers || undefined);
+          senderIp = authMetadata.senderIp || senderIp;
+        } catch {
+          parsedHeaders = null;
+        }
+      }
+
+      const senderRdns = senderIp ? await resolveReverseDns(senderIp) : message.senderRdns || undefined;
+      const priority = extractMailboxPriority(parsedHeaders || message.rawHeaders || message.headers || undefined) || undefined;
       const item: any = {
         id: message.id,
-        read: !!message.read,
-        subject: message.subject || 'No subject',
-        body: message.body || '',
-        receivedAt: message.receivedAt instanceof Date ? message.receivedAt.toISOString() : String(message.receivedAt),
-      };
+          read: !!message.read,
+          subject: message.subject || 'No subject',
+          body: message.body || '',
+          receivedAt: message.receivedAt instanceof Date ? message.receivedAt.toISOString() : String(message.receivedAt),
+          isSpam: !!message.isSpam,
+          isVirus: !!message.isVirus,
+          rawHeaders: message.rawHeaders || message.headers || undefined,
+          headers: message.headers ? (() => {
+            try {
+              return JSON.parse(message.headers as string);
+            } catch {
+              return message.headers;
+            }
+          })() : undefined,
+          senderIp: senderIp || undefined,
+          senderRdns: senderRdns || undefined,
+          favorite: !!message.favorite,
+          priority: priority || undefined,
+          spfResult: message.spfResult || undefined,
+          dkimResult: message.dkimResult || undefined,
+          dmarcResult: message.dmarcResult || undefined,
+          authResults: message.authResults || undefined,
+          receivedChain: message.receivedChain || undefined,
+          messageId: message.messageId || undefined,
+        };
+
+        if (typeof message.spamScore === 'number') {
+          item.spamScore = message.spamScore;
+        }
+
+        if (message.virusName) {
+          item.virusName = message.virusName;
+        }
 
       if (message.fromAddress) item.fromAddress = message.fromAddress;
       if (message.toAddress) item.toAddress = message.toAddress;
@@ -534,35 +615,210 @@ export async function userRoutes(app: any, prefix = '') {
       if (message.category) item.category = message.category;
       if (message.attachments) item.attachments = message.attachments;
 
-      return item;
-    });
+        return item;
+      }));
+
+    return {
+      meta: {
+        page,
+        limit,
+        total,
+      },
+      messages: messageItems,
+    };
   }, {
    beforeHandle: authenticate,
     response: {
-      200: t.Array(t.Object({
-        id: t.Number(),
-        fromAddress: t.Optional(t.String()),
-        toAddress: t.Optional(t.String()),
-        subject: t.Optional(t.String()),
-        body: t.String(),
-        html: t.Optional(t.String()),
-        category: t.Optional(t.String()),
-        attachments: t.Optional(t.Array(t.Object({
-          filename: t.String(),
-          url: t.String(),
-          contentType: t.Optional(t.String()),
-          size: t.Optional(t.Number()),
-          cid: t.Optional(t.String()),
-        }))),
-        read: t.Boolean(),
-        receivedAt: t.String(),
-      })),
+      200: t.Object({
+        meta: t.Object({
+          page: t.Number(),
+          limit: t.Number(),
+          total: t.Number(),
+        }),
+        messages: t.Array(t.Object({
+          id: t.Number(),
+          messageId: t.Optional(t.String()),
+          fromAddress: t.Optional(t.String()),
+          toAddress: t.Optional(t.String()),
+          subject: t.Optional(t.String()),
+          body: t.String(),
+          rawHeaders: t.Optional(t.String()),
+          headers: t.Optional(t.Any()),
+          senderIp: t.Optional(t.String()),
+          senderRdns: t.Optional(t.String()),
+          spfResult: t.Optional(t.String()),
+          dkimResult: t.Optional(t.String()),
+          dmarcResult: t.Optional(t.String()),
+          favorite: t.Optional(t.Boolean()),
+          priority: t.Optional(t.String()),
+          authResults: t.Optional(t.String()),
+          encryptionType: t.Optional(t.String()),
+          receivedChain: t.Optional(t.Array(t.Object({
+            raw: t.String(),
+            from: t.Optional(t.String()),
+            by: t.Optional(t.String()),
+            with: t.Optional(t.String()),
+            id: t.Optional(t.String()),
+            for: t.Optional(t.String()),
+            ip: t.Optional(t.String()),
+          }))),
+          html: t.Optional(t.String()),
+          category: t.Optional(t.String()),
+          isSpam: t.Boolean(),
+          spamScore: t.Optional(t.Number()),
+          isVirus: t.Boolean(),
+          virusName: t.Optional(t.String()),
+          attachments: t.Optional(t.Array(t.Object({
+            filename: t.String(),
+            url: t.String(),
+            contentType: t.Optional(t.String()),
+            size: t.Optional(t.Number()),
+            cid: t.Optional(t.String()),
+          }))),
+          read: t.Boolean(),
+          receivedAt: t.String(),
+        })),
+      }),
       401: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Fetch mailbox messages', tags: ['Users'] }
   });
 
-  app.get(prefix + '/mailbox/messages/categories', async (ctx: any) => {
+  app.get(prefix + '/mailbox/sent', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const query = ctx.query as any;
+    const statusFilter = String(query.status || '').trim();
+    const searchQuery = String(query.q || '').trim();
+    const favoriteOnly = String(query.favorite || '').toLowerCase() === 'true';
+
+    const outboundRepo = AppDataSource.getRepository(OutboundEmail);
+    const qb = outboundRepo.createQueryBuilder('out')
+      .where('out.userId = :userId', { userId: requester.id });
+
+    if (searchQuery) {
+      qb.andWhere(
+        '(out.subject LIKE :q OR out.body LIKE :q OR out.toAddress LIKE :q OR out.fromAddress LIKE :q)',
+        { q: `%${searchQuery}%` },
+      );
+    }
+
+    if (statusFilter) {
+      qb.andWhere('out.status = :status', { status: statusFilter });
+    }
+    if (favoriteOnly) {
+      qb.andWhere('out.favorite = true');
+    }
+
+    const sentEmails = await qb.orderBy('out.scheduledAt', 'DESC').addOrderBy('out.createdAt', 'DESC').getMany();
+
+    return {
+      messages: sentEmails.map((sent) => ({
+        id: sent.id,
+        status: sent.status,
+        favorite: !!sent.favorite,
+        fromAddress: sent.fromAddress || undefined,
+        toAddress: sent.toAddress,
+        subject: sent.subject || 'No subject',
+        body: sent.body,
+        html: sent.html || undefined,
+        sentAt: sent.sentAt ? sent.sentAt.toISOString() : undefined,
+        scheduledAt: sent.scheduledAt ? sent.scheduledAt.toISOString() : undefined,
+        messageId: sent.messageId || undefined,
+      })),
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({
+        messages: t.Array(t.Object({
+          id: t.Number(),
+          status: t.String(),
+          favorite: t.Boolean(),
+          fromAddress: t.Optional(t.String()),
+          toAddress: t.String(),
+          subject: t.String(),
+          body: t.String(),
+          html: t.Optional(t.String()),
+          sentAt: t.Optional(t.String()),
+          scheduledAt: t.Optional(t.String()),
+          messageId: t.Optional(t.String()),
+        })),
+      }),
+      401: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Fetch sent mailbox emails', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/messages/:id/favorite', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const body = ctx.body as any;
+    const favorite = body.favorite === undefined ? true : Boolean(body.favorite);
+    const messageRepo = AppDataSource.getRepository(MailMessage);
+    const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!message) {
+      ctx.set.status = 404;
+      return { error: 'Message not found' };
+    }
+
+    message.favorite = favorite;
+    await messageRepo.save(message);
+    return { success: true, favorite: message.favorite };
+  }, {
+    beforeHandle: authenticate,
+    body: t.Object({ favorite: t.Optional(t.Boolean()) }),
+    response: {
+      200: t.Object({ success: t.Boolean(), favorite: t.Boolean() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Mark mailbox message as favorite', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/sent/:id/favorite', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const id = Number(ctx.params['id']);
+    const body = ctx.body as any;
+    const favorite = body.favorite === undefined ? true : Boolean(body.favorite);
+    const outboundRepo = AppDataSource.getRepository(OutboundEmail);
+    const sent = await outboundRepo.findOneBy({ id, userId: requester.id } as any);
+    if (!sent) {
+      ctx.set.status = 404;
+      return { error: 'Sent email not found' };
+    }
+
+    sent.favorite = favorite;
+    await outboundRepo.save(sent);
+    return { success: true, favorite: sent.favorite };
+  }, {
+    beforeHandle: authenticate,
+    body: t.Object({ favorite: t.Optional(t.Boolean()) }),
+    response: {
+      200: t.Object({ success: t.Boolean(), favorite: t.Boolean() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Mark sent email as favorite', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/mailbox/messages/:id/category', async (ctx: any) => {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
@@ -588,6 +844,126 @@ export async function userRoutes(app: any, prefix = '') {
       401: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Fetch mailbox message categories', tags: ['Users'] }
+  });
+
+  async function resolveOutboundFromAddress(user: User) {
+    if (isMailcowConfigured()) {
+      const account = await getMailboxAccountForUser(user.id).catch(() => null);
+      if (account) {
+        if (Array.isArray(account.aliases) && account.aliases.length > 0) {
+          const alias = account.aliases.find(a => a.canSendFrom) || account.aliases[0];
+          if (alias?.address) return String(alias.address).trim();
+        }
+        if (account.email) return String(account.email).trim();
+      }
+    }
+    if (user.email) return String(user.email).trim();
+    return null;
+  }
+
+  app.post(prefix + '/mailbox/send', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const { to, cc, bcc, subject, body, html } = ctx.body as any;
+    const toAddress = String(to || '').trim();
+    const ccValue = cc ? String(cc).trim() : '';
+    const bccValue = bcc ? String(bcc).trim() : '';
+    const messageBody = String(body || '').trim();
+    const messageHtml = html ? String(html) : undefined;
+
+    const fromAddress = await resolveOutboundFromAddress(requester);
+    if (!fromAddress) {
+      ctx.set.status = 400;
+      return { error: 'Unable to determine outgoing sender address for your mailbox' };
+    }
+
+    if (!toAddress) {
+      ctx.set.status = 400;
+      return { error: 'Recipient email address is required' };
+    }
+    if (!messageBody && !messageHtml) {
+      ctx.set.status = 400;
+      return { error: 'Message body or HTML content is required' };
+    }
+
+    const limits = await getSendLimitsForUser(requester);
+    if (limits.dailyLimit <= 0) {
+      ctx.set.status = 403;
+      return { error: 'Email sending is not enabled for your plan' };
+    }
+
+    const usage = await getOutboundEmailUsage(requester.id);
+    if (usage.queued >= limits.queueLimit) {
+      ctx.set.status = 429;
+      return { error: 'Email send queue is full. Try again later.' };
+    }
+
+    const sendNow = usage.sentToday < limits.dailyLimit;
+    const scheduledAt = sendNow ? new Date() : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const record = await createOutboundEmailRecord({
+      user: requester,
+      fromAddress,
+      toAddress,
+      cc: ccValue || undefined,
+      bcc: bccValue || undefined,
+      subject: String(subject || 'No subject').trim(),
+      body: messageBody || (messageHtml ? 'See HTML content' : ''),
+      html: messageHtml,
+      status: sendNow ? 'sent' : 'queued',
+      scheduledAt: sendNow ? new Date() : scheduledAt,
+      messageId: undefined,
+    });
+
+    if (sendNow) {
+      try {
+        const account = await getMailboxAccountForUser(requester.id).catch(() => null);
+        const result = await sendOutboundEmailImmediately(record, account || undefined, requester);
+        record.status = 'sent';
+        record.sentAt = new Date();
+        record.attempts = (record.attempts || 0) + 1;
+        record.messageId = result.messageId || record.messageId;
+        await AppDataSource.getRepository(OutboundEmail).save(record);
+      } catch (err: any) {
+        record.status = 'failed';
+        record.sentAt = undefined;
+        record.failureReason = String(err?.message || err);
+        record.attempts = (record.attempts || 0) + 1;
+        await AppDataSource.getRepository(OutboundEmail).save(record);
+        ctx.set.status = 500;
+        return { error: 'Failed to send email', details: record.failureReason };
+      }
+    }
+
+    return {
+      success: true,
+      status: record.status,
+      sentToday: usage.sentToday + (sendNow ? 1 : 0),
+      queued: sendNow ? usage.queued : usage.queued + 1,
+      scheduledAt: record.scheduledAt?.toISOString(),
+    };
+  }, {
+    beforeHandle: authenticate,
+    body: t.Object({
+      to: t.String({ format: 'email' }),
+      cc: t.Optional(t.String()),
+      bcc: t.Optional(t.String()),
+      subject: t.Optional(t.String()),
+      body: t.Optional(t.String()),
+      html: t.Optional(t.String()),
+    }),
+    response: {
+      200: t.Object({ success: t.Boolean(), status: t.String(), sentToday: t.Number(), queued: t.Number(), scheduledAt: t.Optional(t.String()) }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      429: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String(), details: t.Optional(t.String()) }),
+    },
+    detail: { summary: 'Send an outbound email or queue it if daily quota is exhausted', tags: ['Users'] }
   });
 
   app.post(prefix + '/mailbox/messages/:id/category', async (ctx: any) => {
@@ -735,6 +1111,16 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const messageRepo = AppDataSource.getRepository(MailMessage);
+    const security = detectMailboxSecurityFlags(body.headers || null, String(body.subject || 'No subject').trim());
+    const rawHeadersValue = typeof body.rawHeaders === 'string'
+      ? body.rawHeaders
+      : body.headers && typeof body.headers === 'string'
+        ? body.headers
+        : body.headers && typeof body.headers === 'object'
+          ? JSON.stringify(body.headers)
+          : null;
+    const authMetadata = await extractMailboxAuthMetadata(body.headers || null, rawHeadersValue || undefined);
+
     const saved = messageRepo.create({
       userId: user.id,
       fromAddress: String(body.from || body.fromAddress || 'unknown').trim(),
@@ -743,6 +1129,19 @@ export async function userRoutes(app: any, prefix = '') {
       body: String(body.text || body.body || '').trim() || '',
       html: body.html ? String(body.html) : null,
       headers: body.headers ? JSON.stringify(body.headers) : null,
+      rawHeaders: rawHeadersValue || undefined,
+      senderIp: authMetadata.senderIp || undefined,
+      senderRdns: authMetadata.senderRdns || undefined,
+      spfResult: authMetadata.spfResult || undefined,
+      dkimResult: authMetadata.dkimResult || undefined,
+      dmarcResult: authMetadata.dmarcResult || undefined,
+      authResults: authMetadata.authResults || undefined,
+      encryptionType: authMetadata.encryptionType || undefined,
+      receivedChain: authMetadata.receivedChain.length > 0 ? authMetadata.receivedChain : undefined,
+      isSpam: security.isSpam,
+      spamScore: security.spamScore,
+      isVirus: security.isVirus,
+      virusName: security.virusName,
       read: false,
       receivedAt: body.receivedAt ? new Date(body.receivedAt) : new Date(),
     });

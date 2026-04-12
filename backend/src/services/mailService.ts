@@ -83,6 +83,9 @@ export async function initMail() {
     pool: poolEnabled,
     maxConnections: Number(process.env.SMTP_MAX_CONNECTIONS || process.env.MAIL_MAX_CONNECTIONS) || 5,
     maxMessages: Number(process.env.SMTP_MAX_MESSAGES || process.env.MAIL_MAX_MESSAGES) || 100,
+    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || process.env.MAIL_CONNECTION_TIMEOUT) || 10000,
+    greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || process.env.MAIL_GREETING_TIMEOUT) || 10000,
+    socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || process.env.MAIL_SOCKET_TIMEOUT) || 10000,
     auth: user || pass ? { user, pass } : undefined,
     tls: allowInvalidTls
       ? {
@@ -167,7 +170,7 @@ async function renderTemplateAsync(name: string, vars: Record<string, any>) {
   return out;
 }
 
-export async function sendMail(options: nodemailer.SendMailOptions & { template?: string; vars?: Record<string, any> }) {
+export async function sendMail(options: nodemailer.SendMailOptions & { template?: string; vars?: Record<string, any>; smtp?: { host: string; port: number; secure: boolean; user?: string; pass?: string } }) {
   if (options.template) {
     options.html = await renderTemplateAsync(options.template, options.vars || {});
   }
@@ -198,6 +201,36 @@ export async function sendMail(options: nodemailer.SendMailOptions & { template?
       from: fromAddress,
       to: options.to as any,
     };
+  }
+
+  const smtpOptions = options.smtp;
+  let transport: nodemailer.Transporter | null = null;
+
+  if (smtpOptions && smtpOptions.host) {
+    const allowInvalidTls = (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
+    transport = nodemailer.createTransport({
+      host: smtpOptions.host,
+      port: smtpOptions.port,
+      secure: smtpOptions.secure,
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || process.env.MAIL_CONNECTION_TIMEOUT) || 10000,
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || process.env.MAIL_GREETING_TIMEOUT) || 10000,
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || process.env.MAIL_SOCKET_TIMEOUT) || 10000,
+      auth: smtpOptions.user || smtpOptions.pass ? { user: smtpOptions.user, pass: smtpOptions.pass } : undefined,
+      tls: allowInvalidTls
+        ? {
+            rejectUnauthorized: false,
+            checkServerIdentity: () => undefined,
+          }
+        : undefined,
+    } as any);
+  }
+
+  if (transport) {
+    try {
+      return await transport.sendMail(options);
+    } finally {
+      transport.close?.();
+    }
   }
 
   if (!transporter) await initMail();

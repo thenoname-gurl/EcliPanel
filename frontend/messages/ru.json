@@ -34,7 +34,8 @@
       "settings": "Настройки",
       "subuserInvites": "Приглашения субпользователя",
       "mailbox": "Почтовый ящик",
-      "adminPanel": "Панель администратора"
+      "adminPanel": "Панель администратора",
+      "tunnels": "Туннели"
     },
     "badges": {
       "new": "Новое",
@@ -65,16 +66,6 @@
   "mailboxPage": {
     "title": "Почтовый ящик",
     "description": "Управляйте ожидающими приглашениями, уведомлениями и другими сообщениями.",
-    "summary": {
-      "title": "Обзор входящих",
-      "description": "Примите или отклоните приглашения организации и субпользователя в одном месте.",
-      "invites": "приглашений",
-      "items": "элементов",
-      "filteredItems": "отфильтровано",
-      "address": "Ваш адрес почтового ящика Mailcow: {address}",
-      "mailboxLabel": "Почтовый ящик Mailcow",
-      "addressUnavailable": "Адрес почтового ящика пока недоступен. Убедитесь, что Mailcow настроен."
-    },
     "sections": {
       "inbox": "Входящие",
       "inboxDescription": "Место, где вы можете найти всё важное, связанное с EcliPanel.",
@@ -103,14 +94,6 @@
       "markUnread": "Отметить как непрочитанное",
       "assignCategory": "Назначить категорию"
     },
-    "filters": {
-      "search": "Поиск",
-      "showUnread": "Только непрочитанные",
-      "showAll": "Показать все",
-      "category": "Категория",
-      "allCategories": "Все категории",
-      "uncategorized": "Без категории"
-    },
     "details": {
       "sender": "От",
       "received": "Получено",
@@ -124,7 +107,18 @@
       "subuserBody": "Вас пригласили стать субпользователем сервера {server} на адрес {email}. Просмотрите запрос доступа и примите или отклоните его.",
       "unknownServer": "Неизвестный сервер",
       "unknownSender": "Неизвестный отправитель",
-      "emailFallback": "Письмо"
+      "emailFallback": "Письмо",
+      "displayMetadata": "Показать метаданные",
+      "hideMetadata": "Скрыть метаданные",
+      "chooseView": "Выберите способ просмотра письма:",
+      "plainText": "Простой текст",
+      "htmlView": "HTML вид",
+      "raw": "Сырые данные",
+      "noPlainTextContent": "Нет простого текста",
+      "metadataTitle": "Метаданные сообщения",
+      "metadataHint": "Показаны все поля метаданных сообщения. HTML-тело и предварительный просмотр простого текста скрыты для удобства чтения.",
+      "virusDetected": "Обнаружен вирус",
+      "spamDetected": "Обнаружен спам"
     }
   },
   "panelHeader": {
@@ -1105,6 +1099,7 @@
       "eggs": "Eggs",
       "aiModels": "ИИ-модели",
       "announcements": "Объявления",
+      "outboundEmails": "Исходящие письма",
       "antiabuse": "Анти-абуз",
       "fraud": "Мошенничество",
       "roles": "Роли",
@@ -1113,7 +1108,86 @@
       "databases": "Базы данных",
       "plans": "Планы",
       "orders": "Заказы",
-      "settings": "Настройки"
+      "settings": "Настройки",
+      "tunnels": "Туннели"
+    },
+    "tunnelsTab": {
+      "header": {
+        "title": "Туннели",
+        "description": "Управление устройствами туннелей и публичными выделениями"
+      },
+      "sections": {
+        "devices": "Устройства",
+        "devicesDescription": "Просмотрите и одобрите ожидающие агенты туннелей.",
+        "allocations": "Выделения",
+        "allocationsDescription": "Контролируйте активные публичные туннели и закрывайте выделения."
+      },
+      "labels": {
+        "deviceCode": "Код устройства",
+        "userCode": "Пользовательский код",
+        "name": "Имя",
+        "kind": "Тип",
+        "approved": "Одобрено",
+        "lastSeen": "Последнее посещение",
+        "created": "Создано",
+        "actions": "Действия",
+        "id": "ID",
+        "publicEndpoint": "Публичный адрес",
+        "localTarget": "Локальная цель",
+        "status": "Статус",
+        "clientDevice": "Клиентское устройство",
+        "serverDevice": "Серверное устройство",
+        "updated": "Обновлено"
+      },
+      "actions": {
+        "refresh": "Обновить",
+        "approve": "Одобрить",
+        "close": "Закрыть"
+      },
+      "states": {
+        "yes": "Да",
+        "no": "Нет",
+        "approved": "Одобрено",
+        "closed": "Закрыто",
+        "loading": "Загрузка…",
+        "noDevices": "Устройства туннелей не найдены.",
+        "noAllocations": "Выделения не найдены.",
+        "devices": "устройств",
+        "allocations": "выделений",
+        "failedToLoad": "Не удалось загрузить данные туннелей.",
+        "failedToApprove": "Не удалось одобрить устройство.",
+        "failedToClose": "Не удалось закрыть выделение."
+      }
+    },
+    "adminOutboundEmails": {
+      "searchPlaceholder": "Поиск по получателю, теме или тексту...",
+      "userFilterPlaceholder": "Фильтр по пользователю...",
+      "statusAll": "Все статусы",
+      "statusQueued": "В очереди",
+      "statusSent": "Отправлено",
+      "statusFailed": "Не отправлено",
+      "searchButton": "Поиск",
+      "columnId": "ID",
+      "columnUser": "Пользователь",
+      "columnFrom": "От",
+      "columnTo": "Кому",
+      "columnSubject": "Тема",
+      "columnStatus": "Статус",
+      "columnSentAt": "Отправлено",
+      "columnActions": "Действия",
+      "viewButton": "Просмотр",
+      "viewTitle": "Исходящее письмо #{id}",
+      "viewFrom": "От:",
+      "viewTo": "Кому:",
+      "viewSubject": "Тема:",
+      "viewFailure": "Причина ошибки:",
+      "messageId": "ID сообщения:",
+      "createdAt": "Создано:",
+      "close": "Закрыть",
+      "loading": "Загрузка...",
+      "noResults": "Исходящих писем не найдено.",
+      "prev": "Назад",
+      "next": "Вперед"
     },
     "editDialog": {
       "fields": {
@@ -2062,6 +2136,7 @@
       "applications": { "label": "Заявки", "note": "Заявки в команду и формы жалоб" },
       "oauth": { "label": "OAuth-сервер", "note": "Клиентские и токен-сервисы OAuth" },
       "codeInstances": { "label": "Экземпляры кода", "note": "Временные среды разработки" },
+      "tunnels": { "label": "Туннели", "note": "Панель туннелей и управление публичной переадресацией" },
       "captcha": { "label": "Классическая капча", "note": "Защита от ботов на основе изображений" },
       "captchaInvisible": { "label": "Невидимая капча", "note": "Система поведенческих проверок" }
     },
@@ -3979,6 +4054,43 @@
         "filesystemManaged": "Файловая система управляется cloud-init",
         "panelFilesGuest": "Файлы панели могут не отражать состояние гостевой системы"
       }
+    }
+  },
+  "tunnelsPage": {
+    "header": {
+      "title": "Туннели",
+      "description": "Создавайте публичные туннели и утверждайте удалённых агентов."
+    },
+    "sections": {
+      "devices": "Устройства",
+      "allocations": "Перенаправления"
+    },
+    "labels": {
+      "localHost": "Локальный хост",
+      "localPort": "Локальный порт",
+      "protocol": "Протокол",
+      "clientDevice": "Клиентское устройство",
+      "name": "Название",
+      "type": "Тип",
+      "userCode": "Код пользователя",
+      "approved": "Утверждено",
+      "lastSeen": "Последний визит",
+      "publicEndpoint": "Публичный endpoint",
+      "localTarget": "Локальная цель",
+      "status": "Статус",
+      "created": "Создано"
+    },
+    "placeholders": {
+      "selectClientDevice": "Выберите клиентское устройство"
+    },
+    "actions": {
+      "createAllocation": "Создать перенаправление",
+      "approve": "Утвердить",
+      "close": "Закрыть"
+    },
+    "states": {
+      "yes": "Да",
+      "no": "Нет"
     }
   },
   "infrastructureCodeInstancesPage": {

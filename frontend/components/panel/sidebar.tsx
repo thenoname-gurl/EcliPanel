@@ -155,6 +155,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     ticketing: true,
     applications: true,
     oauth: true,
+    tunnels: true,
   })
 
   useEffect(() => {
@@ -173,6 +174,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
           ticketing: true,
           applications: true,
           oauth: true,
+          tunnels: true,
         }
 
         if (data?.featureToggles && typeof data.featureToggles === 'object') {

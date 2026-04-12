@@ -68,3 +68,10 @@ antiabuse/READMEnew.md
 
 # Wings reff
 /wings/
+
+# Legal reff
+/legal/
+
+# Tunnel artifacts
+tunnel/server/target/*
+tunnel/client/target/*

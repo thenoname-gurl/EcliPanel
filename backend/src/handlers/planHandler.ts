@@ -59,6 +59,7 @@ export async function planRoutes(app: any, prefix = '') {
     const {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
+      emailSendDailyLimit, emailSendQueueLimit,
       portCount, isDefault, hiddenFromBilling, features,
     } = ctx.body as any;
     if (!name || !type) {
@@ -77,6 +78,8 @@ export async function planRoutes(app: any, prefix = '') {
       serverLimit: serverLimit != null ? Number(serverLimit) : undefined,
       databases: databases != null ? Number(databases) : undefined,
       backups: backups != null ? Number(backups) : undefined,
+      emailSendDailyLimit: emailSendDailyLimit != null ? Number(emailSendDailyLimit) : undefined,
+      emailSendQueueLimit: emailSendQueueLimit != null ? Number(emailSendQueueLimit) : undefined,
       portCount: portCount != null ? Number(portCount) : 1,
       isDefault: isDefault ?? false,
       hiddenFromBilling: hiddenFromBilling ?? false,
@@ -104,6 +107,7 @@ export async function planRoutes(app: any, prefix = '') {
     const {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
+      emailSendDailyLimit, emailSendQueueLimit,
       portCount, isDefault, hiddenFromBilling, features,
     } = ctx.body as any;
 
@@ -117,6 +121,8 @@ export async function planRoutes(app: any, prefix = '') {
     if (serverLimit !== undefined) plan.serverLimit = serverLimit != null ? Number(serverLimit) : undefined;
     if (databases !== undefined) plan.databases = databases != null ? Number(databases) : undefined;
     if (backups !== undefined) plan.backups = backups != null ? Number(backups) : undefined;
+    if (emailSendDailyLimit !== undefined) plan.emailSendDailyLimit = emailSendDailyLimit != null ? Number(emailSendDailyLimit) : undefined;
+    if (emailSendQueueLimit !== undefined) plan.emailSendQueueLimit = emailSendQueueLimit != null ? Number(emailSendQueueLimit) : undefined;
     if (portCount !== undefined) plan.portCount = Number(portCount);
     if (isDefault !== undefined) plan.isDefault = Boolean(isDefault);
     if (hiddenFromBilling !== undefined) plan.hiddenFromBilling = Boolean(hiddenFromBilling);

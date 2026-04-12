@@ -87,6 +87,26 @@
             "user_editable": true,
             "rules": "required|url",
             "field_type": "text"
+        },
+        {
+            "name": "Extra Forwarded Ports (comma-separated)",
+            "description": "Comma-separated list of additional host->guest port forwards. Examples: 25038,8080:80,9999/udp,3000:3000/tcp",
+            "env_variable": "VM_PORTS",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "VM Host Bind Address",
+            "description": "Optional host address to bind forwards to (e.g. 0.0.0.0). Leave empty to use QEMU default.",
+            "env_variable": "VM_HOSTADDR",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|ip",
+            "field_type": "text"
         }
     ]
 }

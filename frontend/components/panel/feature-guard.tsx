@@ -13,6 +13,7 @@ type FeatureGuardProps = {
 
 function toBool(value: any): boolean {
   if (value === false || value === 'false' || value === 0 || value === '0') return false
+  if (value === undefined || value === null) return true
   return value === true || value === 'true' || value === 1 || value === '1' || Boolean(value)
 }
 

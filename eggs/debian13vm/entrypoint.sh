@@ -27,7 +27,7 @@ echo "════════════════════════�
 KVM_FLAG=""
 if [ -e /dev/kvm ]; then
     echo "[*] /dev/kvm exists, checking permissions..."
-    
+
     if dd if=/dev/kvm count=0 2>/dev/null; then
         echo "[✓] KVM acceleration available and accessible"
         KVM_FLAG="-enable-kvm -cpu host"
@@ -135,16 +135,94 @@ USERDATA
     echo "[*] First boot takes 2-3 minutes for cloud-init"
     echo ""
 
-    exec qemu-system-x86_64 \
-        ${KVM_FLAG} \
-        -m "${VM_MEMORY}" \
-        -smp "${VM_CORES}" \
-        -drive file="${DISK_IMAGE}",format=qcow2,if=virtio,cache=writeback \
-        ${CLOUD_INIT_ARGS} \
-        -netdev user,id=net0,hostfwd=tcp::${VM_SSH_PORT}-:22 \
-        -device virtio-net-pci,netdev=net0 \
-        -nographic \
-        -serial mon:stdio
+    NET_HOSTFWD="hostfwd=tcp::${VM_SSH_PORT}-:22"
+
+    is_valid_ip() {
+        local ip=$1
+        if [[ -z "$ip" ]]; then
+            return 1
+        fi
+        if [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            IFS='.' read -r a b c d <<< "$ip"
+            for oct in $a $b $c $d; do
+                if ((oct < 0 || oct > 255)); then
+                    return 1
+                fi
+            done
+            return 0
+        fi
+        return 1
+    }
+
+    is_valid_portnum() {
+        local p=$1
+        if [[ $p =~ ^[0-9]+$ ]]; then
+            if ((p >= 1 && p <= 65535)); then
+                return 0
+            fi
+        fi
+        return 1
+    }
+
+    if [ -n "${VM_HOSTADDR}" ]; then
+        if ! is_valid_ip "${VM_HOSTADDR}" && [ "${VM_HOSTADDR}" != "0.0.0.0" ]; then
+            echo "[!] VM_HOSTADDR '${VM_HOSTADDR}' is invalid; ignoring."
+            VM_HOSTADDR=""
+        fi
+    fi
+
+    if [ -n "${VM_PORTS}" ]; then
+        IFS=','
+        for raw in ${VM_PORTS}; do
+            p=$(echo "${raw}" | tr -d '[:space:]')
+            proto="tcp"
+            if [[ "${p}" == */udp ]]; then
+                proto="udp"
+                p="${p%/udp}"
+            elif [[ "${p}" == */tcp ]]; then
+                p="${p%/tcp}"
+            fi
+            if [[ "${p}" == *:* ]]; then
+                hostport="${p%%:*}"
+                guestport="${p##*:}"
+            else
+                hostport="${p}"
+                guestport="${p}"
+            fi
+
+            if ! is_valid_portnum "${hostport}" || ! is_valid_portnum "${guestport}"; then
+                echo "[!] Ignoring invalid port entry: ${raw}"
+                continue
+            fi
+
+            if [ -n "${VM_HOSTADDR}" ]; then
+                NET_ENTRY="hostfwd=${proto}:${VM_HOSTADDR}:${hostport}-:${guestport}"
+            else
+                NET_ENTRY="hostfwd=${proto}::${hostport}-:${guestport}"
+            fi
+
+            NET_HOSTFWD="${NET_HOSTFWD},${NET_ENTRY}"
+        done
+        unset IFS
+        echo "[*] Forwarding additional ports: ${VM_PORTS}"
+    fi
+
+    KVM_ARR=()
+    if [ -n "${KVM_FLAG}" ]; then
+        read -r -a KVM_ARR <<< "${KVM_FLAG}"
+    fi
+
+    QEMU_CMD=(qemu-system-x86_64)
+    QEMU_CMD+=("${KVM_ARR[@]}")
+    QEMU_CMD+=(-m "${VM_MEMORY}" -smp "${VM_CORES}")
+    QEMU_CMD+=(-drive "file=${DISK_IMAGE},format=qcow2,if=virtio,cache=writeback")
+    if [ -n "${CLOUD_INIT_ARGS}" ]; then
+        read -r -a CLOUD_ARR <<< "${CLOUD_INIT_ARGS}"
+        QEMU_CMD+=("${CLOUD_ARR[@]}")
+    fi
+    QEMU_CMD+=(-netdev "user,id=net0,${NET_HOSTFWD}" -device "virtio-net-pci,netdev=net0" -nographic -serial mon:stdio)
+
+    exec "${QEMU_CMD[@]}"
 
 else
     echo "[!] Cloud image mode enabled but no image available"

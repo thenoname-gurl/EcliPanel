@@ -67,6 +67,8 @@ export default function EggsTab({ ctx }: { ctx: any }) {
     setEggRequiresKvm,
     eggEnvVars,
     setEggEnvVars,
+    eggEnvVarDefs,
+    setEggEnvVarDefs,
     eggProcessStop,
     setEggProcessStop,
     eggProcessDone,
@@ -502,17 +504,35 @@ export default function EggsTab({ ctx }: { ctx: any }) {
           {eggTab === "variables" && (
             <div className="flex flex-col gap-2">
               <p className="text-xs text-muted-foreground">Enter one <code className="font-mono bg-secondary/50 px-1 rounded">ENV_VARIABLE</code> name per line. Default values and metadata are preserved from imported eggs.</p>
-              <textarea value={eggEnvVars} onChange={(e) => setEggEnvVars(e.target.value)} rows={12} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 resize-none" placeholder={"SERVER_MEMORY\nSERVER_JARFILE\nMC_VERSION"} />
+              <textarea value={eggEnvVars} onChange={(e) => setEggEnvVars(e.target.value)} rows={6} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 resize-none" placeholder={"SERVER_MEMORY\nSERVER_JARFILE\nMC_VERSION"} />
               {(eggDialog !== "new" && eggDialog) && (
-                <div className="rounded-lg border border-border bg-secondary/20 p-3 flex flex-col gap-1.5 text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">Current variable definitions</p>
-                  {((eggDialog.envVars ?? []) as any[]).map((v: any, i: number) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="font-mono text-foreground w-40 shrink-0">{v.env_variable ?? v.name ?? "?"}</span>
-                      <span className="truncate">{v.description || "—"}</span>
-                      <span className="ml-auto shrink-0 text-foreground/60">default: {String(v.default_value ?? v.defaultValue ?? "")}</span>
+                <div className="rounded-lg border border-border bg-secondary/20 p-3 flex flex-col gap-2 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">Edit variable definitions</p>
+                  <div className="flex flex-col gap-2">
+                    {(eggEnvVarDefs || []).map((v: any, i: number) => (
+                      <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                        <input value={v.env_variable ?? v.name ?? ""} onChange={(e) => {
+                          const next = [...(eggEnvVarDefs || [])]
+                          next[i] = { ...next[i], env_variable: e.target.value, name: e.target.value }
+                          setEggEnvVarDefs(next)
+                        }} className="col-span-3 rounded border border-border bg-secondary/50 px-2 py-1 text-sm font-mono" />
+                        <input value={v.default_value ?? v.defaultValue ?? ""} onChange={(e) => {
+                          const next = [...(eggEnvVarDefs || [])]
+                          next[i] = { ...next[i], default_value: e.target.value }
+                          setEggEnvVarDefs(next)
+                        }} className="col-span-4 rounded border border-border bg-secondary/50 px-2 py-1 text-sm font-mono" placeholder="default value" />
+                        <input value={v.description ?? ""} onChange={(e) => {
+                          const next = [...(eggEnvVarDefs || [])]
+                          next[i] = { ...next[i], description: e.target.value }
+                          setEggEnvVarDefs(next)
+                        }} className="col-span-4 rounded border border-border bg-secondary/50 px-2 py-1 text-sm" placeholder="description" />
+                        <button onClick={() => { const next = [...(eggEnvVarDefs || [])]; next.splice(i, 1); setEggEnvVarDefs(next) }} className="col-span-1 text-sm text-destructive">Remove</button>
+                      </div>
+                    ))}
+                    <div>
+                      <button onClick={() => setEggEnvVarDefs([...(eggEnvVarDefs || []), { name: "", env_variable: "", default_value: "", description: "", user_viewable: true, user_editable: true, rules: "", field_type: "text" }])} className="text-sm text-primary">+ Add variable definition</button>
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
             </div>

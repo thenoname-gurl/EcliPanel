@@ -165,6 +165,10 @@ export const API_ENDPOINTS = {
   serverSubuserInviteReject: "/api/subusers/invites/:inviteId/reject",
   mailboxAddress: "/api/mailbox/address",
   mailboxMessages: "/api/mailbox/messages",
+  mailboxSent: "/api/mailbox/sent",
+  mailboxSend: "/api/mailbox/send",
+  mailboxMessageFavorite: "/api/mailbox/messages/:id/favorite",
+  mailboxSentFavorite: "/api/mailbox/sent/:id/favorite",
   mailboxNotifications: "/api/mailbox/notifications",
   mailboxNotificationMark: "/api/mailbox/notifications/:id/read",
   mailboxNotificationDelete: "/api/mailbox/notifications/:id",
@@ -179,6 +183,15 @@ export const API_ENDPOINTS = {
   serverKvm: "/api/servers/:id/kvm",
   serverVersion: "/api/servers/:id/version",
   serverInstallLogs: "/api/servers/:id/logs/install",
+
+  // Tunnel
+  tunnels: "/api/tunnel/allocations",
+  tunnelDevices: "/api/tunnel/devices",
+  tunnelDeviceApprove: "/api/tunnel/device/approve",
+  tunnelDeviceDelete: "/api/tunnel/devices/:id/delete",
+  tunnelDeviceRegenerateToken: "/api/tunnel/devices/:id/regenerate-token",
+  tunnelDeviceStart: "/api/tunnel/device/start",
+  tunnelDevicePoll: "/api/tunnel/device/poll",
 
   // Compute
   instances: "/api/compute/instances",
@@ -234,6 +247,7 @@ export const API_ENDPOINTS = {
   adminAiModels: "/api/admin/ai/models",
   adminUserProfile: "/api/admin/users/:id/profile",
   adminUserAiLink: "/api/admin/users/:id/ai/:linkId",
+  adminOutboundEmails: "/api/admin/outbound-emails",
   adminLogs: "/api/admin/logs",
   adminSlowQueries: "/api/admin/slow-queries",
   adminGlobalSearch: "/api/admin/search",
@@ -299,6 +313,7 @@ export const API_ENDPOINTS = {
   me: "/api/users/me",
   userUpdate: "/api/users/:id",
   userFavorites: "/api/users/me/favorites",
+  mailboxFavorites: "/api/users/me/mailbox/favorites",
 
   // Admin
   adminStats: "/api/admin/stats",
@@ -421,7 +436,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'codeInstances' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth'
+export type FeatureFlag = 'registration' | 'codeInstances' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels'
 
 export interface NavItem {
   label: string
@@ -463,6 +478,7 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   "Subuser Invites": "subuserInvites",
   Billing: "billing",
   Settings: "settings",
+  Tunnels: "tunnels",
   "Admin Panel": "adminPanel",
 }
 
@@ -500,6 +516,12 @@ export const NAVIGATION: NavSection[] = [
         label: "Servers",
         href: "/dashboard/servers",
         icon: Server,
+      },
+      {
+        label: "Tunnels",
+        href: "/dashboard/tunnels",
+        icon: Globe,
+        feature: "tunnels",
       },
       {
         label: "Code Instances",
