@@ -9,6 +9,9 @@ export interface AgentMessage {
   [key: string]: unknown;
 }
 
+export type TunnelServerType = 'free' | 'paid' | 'free_and_paid' | 'enterprise';
+export const TUNNEL_SERVER_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
+
 export interface AllocationResponse {
   id: number;
   host: string;

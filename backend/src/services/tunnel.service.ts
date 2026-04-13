@@ -1,7 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { TunnelDevice } from '../models/tunnelDevice.entity';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
-import { AgentMessage, AllocationStatus, DeviceKind } from '../types/tunnels';
+import type { AgentMessage, AllocationStatus, DeviceKind, TunnelServerType } from '../types/tunnels';
 import { sendAgentMessage } from './agent.service';
 
 const PORT_RANGE_DEFAULT = '20000-29999';
@@ -18,6 +18,7 @@ export async function verifyDeviceToken(
     const repo = AppDataSource.getRepository(TunnelDevice);
     const device = await repo.findOne({
       where: { deviceCode: payload.agent },
+      relations: ['ownerUser', 'ownerUser.org', 'ownerUser.organisationMemberships', 'organisation'],
     });
 
     if (!device?.approved || device.token !== token) return null;
@@ -60,15 +61,111 @@ export async function allocatePort(): Promise<number> {
   throw new Error('No free tunnel port available');
 }
 
-export async function getOnlineServerAgent(): Promise<TunnelDevice | null> {
+function normalizePortalType(portalType?: string): string {
+  if (!portalType) return 'free';
+  if (portalType === 'educational') return 'paid';
+  return portalType;
+}
+
+function serverTypeMatchesClient(
+  serverType: TunnelServerType,
+  clientPortalType: string
+): boolean {
+  if (clientPortalType === 'enterprise') {
+    return true;
+  }
+  if (clientPortalType === 'paid') {
+    return ['paid', 'free_and_paid'].includes(serverType);
+  }
+  return ['free', 'free_and_paid'].includes(serverType);
+}
+
+function getClientOrganisationIds(clientDevice: TunnelDevice): number[] {
+  const orgIds = new Set<number>();
+  if (clientDevice.organisation?.id) {
+    orgIds.add(clientDevice.organisation.id);
+  }
+  if (clientDevice.ownerUser?.org?.id) {
+    orgIds.add(clientDevice.ownerUser.org.id);
+  }
+  if (clientDevice.ownerUser?.organisationMemberships) {
+    clientDevice.ownerUser.organisationMemberships.forEach((membership: any) => {
+      if (membership.organisationId) {
+        orgIds.add(membership.organisationId);
+      }
+    });
+  }
+  return Array.from(orgIds);
+}
+
+function getClientPortalType(clientDevice: TunnelDevice): string {
+  if (clientDevice.organisation?.id) {
+    return 'enterprise';
+  }
+  return normalizePortalType(clientDevice.ownerUser?.portalType);
+}
+
+function isServerEligibleForClient(
+  serverDevice: TunnelDevice,
+  clientDevice: TunnelDevice
+): boolean {
+  const clientPortalType = getClientPortalType(clientDevice);
+
+  if (serverDevice.organisation?.id) {
+    const clientOrgIds = getClientOrganisationIds(clientDevice);
+    return clientOrgIds.includes(serverDevice.organisation.id);
+  }
+
+  if (clientPortalType === 'enterprise') {
+    return false;
+  }
+
+  return serverTypeMatchesClient(serverDevice.serverType, clientPortalType);
+}
+
+function getServerTypeRank(type: TunnelServerType) {
+  switch (type) {
+    case 'enterprise':
+      return 0;
+    case 'paid':
+      return 1;
+    case 'free_and_paid':
+      return 2;
+    case 'free':
+      return 3;
+  }
+}
+
+function compareServers(a: TunnelDevice, b: TunnelDevice, clientDevice: TunnelDevice) {
+  const aOrgMatch = a.organisation?.id && getClientOrganisationIds(clientDevice).includes(a.organisation.id) ? 0 : 1;
+  const bOrgMatch = b.organisation?.id && getClientOrganisationIds(clientDevice).includes(b.organisation.id) ? 0 : 1;
+  if (aOrgMatch !== bOrgMatch) return aOrgMatch - bOrgMatch;
+
+  const aRank = getServerTypeRank(a.serverType as TunnelServerType);
+  const bRank = getServerTypeRank(b.serverType as TunnelServerType);
+  if (aRank !== bRank) return aRank - bRank;
+
+  return a.id - b.id;
+}
+
+export async function getOnlineServerAgent(
+  clientDevice: TunnelDevice
+): Promise<TunnelDevice | null> {
   const { agentConnections } = await import('./agent.service');
   const repo = AppDataSource.getRepository(TunnelDevice);
 
   const servers = await repo.find({
     where: { kind: 'server' as DeviceKind, approved: true },
+    relations: ['ownerUser', 'organisation'],
   });
 
-  return servers.find((s) => agentConnections.has(s.deviceCode)) ?? null;
+  const onlineServers = servers.filter((s) => agentConnections.has(s.deviceCode));
+  const eligibleServers = onlineServers.filter((server) => isServerEligibleForClient(server, clientDevice));
+
+  if (eligibleServers.length === 0) return null;
+
+  eligibleServers.sort((a, b) => compareServers(a, b, clientDevice));
+  return eligibleServers[0];
 }
 
 export async function assignPendingAllocations(
@@ -78,14 +175,16 @@ export async function assignPendingAllocations(
 
   const pending = await repo.find({
     where: { status: 'pending' as AllocationStatus },
-    relations: ['clientDevice', 'serverDevice'],
+    relations: ['clientDevice', 'clientDevice.ownerUser', 'clientDevice.ownerUser.org', 'clientDevice.ownerUser.organisationMemberships', 'clientDevice.organisation', 'serverDevice'],
   });
 
-  // Filter allocations with no server device assigned
   const unassigned = pending.filter((a) => !a.serverDevice);
+  const assignable = unassigned.filter((alloc) =>
+    isServerEligibleForClient(serverDevice, alloc.clientDevice)
+  );
 
   await Promise.all(
-    unassigned.map(async (alloc) => {
+    assignable.map(async (alloc) => {
       alloc.serverDevice = serverDevice;
       alloc.status = 'active';
       await repo.save(alloc);

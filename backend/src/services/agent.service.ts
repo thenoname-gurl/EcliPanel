@@ -1,4 +1,4 @@
-import { AgentMessage } from '../types/tunnels';
+import type { AgentMessage } from '../types/tunnels';
 
 export const agentConnections = new Map<string, WebSocket>();
 

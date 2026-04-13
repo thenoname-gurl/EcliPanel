@@ -588,6 +588,9 @@
     "enterEmailBeforePasskey": "Enter your email address first, then click Sign in with Passkey.",
     "passkeyCancelled": "Passkey authentication cancelled.",
     "passkeyFailed": "Passkey authentication failed.",
+    "retry": "Retry",
+    "backendUnavailableTitle": "Backend unavailable",
+    "backendUnavailableMessage": "The panel backend cannot be reached right now. Please try again later.",
     "loginFailed": "Login failed",
     "missingTemporarySession": "Missing temporary session",
     "failedToSendEmailCode": "Failed to send email code"
@@ -603,6 +606,9 @@
     "verifyDomain": "Verify this domain",
     "domainWarning": "This panel should be served from <domain>ecli.app</domain>. Navigate to <link>https://ecli.app</link> if your URL differs.",
     "registrationUnavailable": "Registration unavailable",
+    "backendUnavailableTitle": "Backend unavailable",
+    "backendUnavailableMessage": "The panel backend cannot be reached right now. Please try again later.",
+    "retry": "Retry",
     "somethingWentWrong": "Something went wrong",
     "registrationNotAvailable": "Registration is not available at this time.",
     "signInInstead": "Sign in instead",
@@ -1136,6 +1142,8 @@
         "userCode": "User code",
         "name": "Name",
         "kind": "Type",
+        "serverType": "Server type",
+        "organisation": "Organisation",
         "approved": "Approved",
         "lastSeen": "Last seen",
         "created": "Created",
@@ -1147,6 +1155,15 @@
         "clientDevice": "Client device",
         "serverDevice": "Server device",
         "updated": "Updated"
+      },
+      "serverTypes": {
+        "free": "Free",
+        "paid": "Paid",
+        "freeAndPaid": "Free and Paid",
+        "enterprise": "Enterprise"
+      },
+      "serverOrg": {
+        "noOrg": "No org"
       },
       "actions": {
         "refresh": "Refresh",

@@ -75,3 +75,6 @@ antiabuse/READMEnew.md
 # Tunnel artifacts
 tunnel/server/target/*
 tunnel/client/target/*
+
+# UI Agents skills
+.agents/*

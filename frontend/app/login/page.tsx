@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, type ReactNode } from "react"
+import { useState, useEffect, useCallback, type ReactNode } from "react"
 import {
   AlertTriangle,
   Info,
@@ -272,6 +272,9 @@ export default function LoginPage() {
       return false
     }
   })
+  const [backendReady, setBackendReady] = useState<boolean | null>(null)
+  const [backendStatusMessage, setBackendStatusMessage] = useState<string | null>(null)
+  const [backendChecking, setBackendChecking] = useState(false)
 
   useEffect(() => {
     try {
@@ -282,6 +285,54 @@ export default function LoginPage() {
       setDomainOk(null)
     }
   }, [])
+
+  const checkBackend = useCallback(async (): Promise<void> => {
+    if (typeof window === "undefined") return
+    setBackendChecking(true)
+
+    const controller = new AbortController()
+    let timeoutId: number | null = null
+    try {
+      timeoutId = window.setTimeout(() => controller.abort(), 3000)
+      const res = await fetch(API_ENDPOINTS.health, { method: "GET", cache: "no-store", signal: controller.signal })
+
+      if (!res.ok) {
+        let message = t("backendUnavailableMessage")
+        try {
+          const json = await res.json()
+          if (json?.status) {
+            message = `${message} (${json.status})`
+          }
+        } catch {}
+        setBackendReady(false)
+        setBackendStatusMessage(message)
+        return
+      }
+
+      const data = await res.json()
+      if (data?.status !== "ok") {
+        setBackendReady(false)
+        setBackendStatusMessage(t("backendUnavailableMessage"))
+        return
+      }
+
+      setBackendReady(true)
+      setBackendStatusMessage(null)
+    } catch {
+      setBackendReady(false)
+      setBackendStatusMessage(t("backendUnavailableMessage"))
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+      setBackendChecking(false)
+    }
+  }, [t])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    checkBackend()
+  }, [checkBackend])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -466,6 +517,33 @@ export default function LoginPage() {
                   </AlertBanner>
                 )}
 
+                {backendReady === false && (
+                  <AlertBanner variant="error" title={t("backendUnavailableTitle")}> 
+                    <div className="space-y-3">
+                      <p>{t("backendUnavailableMessage")}</p>
+                      {backendStatusMessage && (
+                        <p className="text-xs text-muted-foreground">{backendStatusMessage}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={checkBackend}
+                        disabled={backendChecking}
+                        className={cn(
+                          "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
+                          "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
+                          "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        )}
+                      >
+                        {backendChecking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          t("retry")
+                        )}
+                      </button>
+                    </div>
+                  </AlertBanner>
+                )}
+
                 {error && (
                   <AlertBanner variant="error" title={t("somethingWentWrong")}>
                     {error}
@@ -553,7 +631,7 @@ export default function LoginPage() {
                               <button
                                 type="button"
                                 onClick={sendEmailCode}
-                                disabled={sendingEmail}
+                                disabled={sendingEmail || backendReady === false}
                                 className={cn(
                                   "h-[46px] px-4 rounded-xl border text-sm font-medium transition-all",
                                   "border-border/60 bg-secondary/30 text-foreground",
@@ -577,7 +655,7 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={verify2fa}
-                          disabled={loading}
+                          disabled={loading || backendReady === false}
                           className={cn(
                             "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                             "bg-primary text-primary-foreground",
@@ -668,7 +746,7 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    disabled={loading || passkeyLoading}
+                    disabled={loading || passkeyLoading || backendReady === false}
                     className={cn(
                       "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                       "bg-primary text-primary-foreground",
@@ -695,7 +773,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={handlePasskey}
-                    disabled={loading || passkeyLoading}
+                    disabled={loading || passkeyLoading || backendReady === false}
                     className={cn(
                       "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-medium transition-all",
                       "border border-border/60 bg-secondary/30",

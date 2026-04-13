@@ -35,7 +35,7 @@ enum Command {
         local_host: Option<String>,
         #[arg(long)]
         local_port: Option<u16>,
-        #[arg(long, default_value = String::from("tcp"))]
+        #[arg(long, default_value_t = String::from("tcp"))]
         protocol: String,
     },
     Open {
@@ -159,9 +159,10 @@ async fn enroll(name: String, backend: String) {
                     println!("Approved! Token stored in {}", config_path().display());
                     return;
                 }
-                if r.status().as_u16() != 428 {
+                let status = r.status();
+                if status.as_u16() != 428 {
                     let body = r.text().await.unwrap_or_default();
-                    error!(status = %r.status(), body = %body, "enroll failed");
+                    error!(status = %status, body = %body, "enroll failed");
                     return;
                 }
             }

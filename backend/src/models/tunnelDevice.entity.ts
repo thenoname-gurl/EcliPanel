@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Index } from 'typeorm';
 import { Organisation } from './organisation.entity';
 import { User } from './user.entity';
+import type { TunnelServerType } from '../types/tunnels';
 
 @Entity()
 export class TunnelDevice {
@@ -19,6 +20,9 @@ export class TunnelDevice {
 
   @Column({ length: 16, default: 'client' })
   kind: string;
+
+  @Column({ type: 'varchar', length: 16, default: 'free_and_paid' })
+  serverType: TunnelServerType;
 
   @Column({ default: false })
   approved: boolean;

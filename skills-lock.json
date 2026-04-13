@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "skills": {
+    "adapt": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "9a93e5fb45e0e194550e0bfdfe362193eeda18ef31a2b5960b74e95bde267cf3"
+    },
+    "add-ui": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "d38c75f3fd73d2c1bf67a5fe7328d92a9d375d6d0fed6d151fe2a5d0dd8dae89"
+    },
+    "animate": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "7e15367c2b1d64e1897ad3de5467912230d2a3846ebbe1d0b414f95f6ffabddd"
+    },
+    "arrange": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "2b664432b54b26fc0e7fc716eb8cff65bbfb74922e62c57246ce6ce8bb622928"
+    },
+    "audit": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "e89dcce21bcd66afc4b9166a76e9120833cf41cbcd06a10dffacbe828f385913"
+    },
+    "bolder": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "2139f85899926da92817b09b8d6be1867d37a08e4afc6bb92e4093ec8e5b27eb"
+    },
+    "clarify": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "0b5b2cb15c8990c21e5f73278fc16ebea181503796c7353b9f4215d7e9e0e297"
+    },
+    "colorize": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "d00eb7d774fc12441ca2930b945fc3b034e13774e827375a825b068e548fc6b9"
+    },
+    "critique": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "4d152ccce33f30370dd74719f342e69942762d3e6499416cf6b74917e4db36db"
+    },
+    "delight": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "ac396255e62e9e77e5976c91271deddc3cff521e75ba303edb1420a10b078ec2"
+    },
+    "depth": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "b9f0c36caec1fcb34d2761b60a430ea3916acd534eab18914fba83d350db50b0"
+    },
+    "distill": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "65baa7d4ce86630f543fdf441924447ce18ea04ee86738abcf10a983e33ff42e"
+    },
+    "empty-state": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "4aab850f2731654a066ad1d5ad02ee9e7da679ac3cb7247fefeae117350a8a17"
+    },
+    "extract": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "a327bc48c780d1bd929b14def8854a3f5f327b112dca41489bfbff65374f9dbe"
+    },
+    "frontend-design": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "3090e75cdf2ad798fa984d8f06e6783d1746915f8057cb7a84e96df22d6f3450"
+    },
+    "harden": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "55f968b8ca346f747d24828ffbb36a31f1bcc1be5e2971a5694b0cd0c30f0767"
+    },
+    "hierarchy": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "e87d57c71fced107fca8dfa322f888b1c6b798b303c31977c012844ac5027238"
+    },
+    "imagery": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "216d972fe0e80cb33019c02a946caa05b7d5dbbb1b10bb9f75e2ff1116f9f34c"
+    },
+    "normalize": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "546f2927bf5dcc5cafd791cebdc8cc661665267abef37d1385b65dfa3dd86dfa"
+    },
+    "onboard": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "341887c3be5ab7010982a5f80c5e8e1c561a51666b42b06735f758dacbeaf1b2"
+    },
+    "optimize": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "19d0202d80f196d9b1c09fef4cbc4ae50b9e3674aff45d1e0df1eefc8aa393c0"
+    },
+    "polish": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "723d8c53484481a3f496c31145b6258f096c5feabfae59de4b9d07aa93b1e8c9"
+    },
+    "quieter": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "7bacce2b964fb79d896df6aa807bf17bcfe8914d30707bb608adf8b06ff3d327"
+    },
+    "setup": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "581953ff9cbf95ae39b50b43f15134f4c4c63a85f4929a2a2e3d19aa5b24d4f1"
+    },
+    "showcase": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "05299330724d4ff4cee94fb59f931ba76a855c1f2193ad5404bb13563a69a4e5"
+    },
+    "typeset": {
+      "source": "aladicf/better-web-ui",
+      "sourceType": "github",
+      "computedHash": "f912e8fafc0e68bd5b8838dccd0c03033ce10f2003435a480647b98adb53f30c"
+    }
+  }
+}

@@ -579,6 +579,9 @@
     "enterEmailBeforePasskey": "Сначала введите email, затем нажмите «Войти с ключом доступа».",
     "passkeyCancelled": "Аутентификация с ключом доступа отменена.",
     "passkeyFailed": "Аутентификация с ключом доступа не удалась.",
+    "retry": "Повторить",
+    "backendUnavailableTitle": "Сервер недоступен",
+    "backendUnavailableMessage": "Бэкенд панели недоступен. Попробуйте позже.",
     "loginFailed": "Ошибка входа",
     "missingTemporarySession": "Отсутствует временная сессия",
     "failedToSendEmailCode": "Не удалось отправить код на email"
@@ -594,6 +597,9 @@
     "verifyDomain": "Проверьте этот домен",
     "domainWarning": "Эта панель должна работать на домене <domain>ecli.app</domain>. Перейдите на <link>https://ecli.app</link>, если ваш URL отличается.",
     "registrationUnavailable": "Регистрация недоступна",
+    "backendUnavailableTitle": "Сервер недоступен",
+    "backendUnavailableMessage": "Бэкенд панели недоступен. Попробуйте позже.",
+    "retry": "Повторить",
     "somethingWentWrong": "Что-то пошло не так",
     "registrationNotAvailable": "Регистрация в данный момент недоступна.",
     "signInInstead": "Войти вместо этого",
@@ -1127,6 +1133,8 @@
         "userCode": "Пользовательский код",
         "name": "Имя",
         "kind": "Тип",
+        "serverType": "Тип сервера",
+        "organisation": "Организация",
         "approved": "Одобрено",
         "lastSeen": "Последнее посещение",
         "created": "Создано",
@@ -1138,6 +1146,15 @@
         "clientDevice": "Клиентское устройство",
         "serverDevice": "Серверное устройство",
         "updated": "Обновлено"
+      },
+      "serverTypes": {
+        "free": "Бесплатный",
+        "paid": "Платный",
+        "freeAndPaid": "Бесплатный и платный",
+        "enterprise": "Корпоративный"
+      },
+      "serverOrg": {
+        "noOrg": "Без организации"
       },
       "actions": {
         "refresh": "Обновить",

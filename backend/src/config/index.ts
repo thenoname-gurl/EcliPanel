@@ -105,6 +105,9 @@ export async function setupConfig(app: any) {
   if (['mysql', 'mariadb'].includes(String(AppDataSource.options.type))) {
     try {
       await AppDataSource.query('ALTER TABLE `ticket` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+      await AppDataSource.query('ALTER TABLE `ticket` MODIFY `adminReply` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL');
+      await AppDataSource.query('ALTER TABLE `ticket` MODIFY `message` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
+      await AppDataSource.query('ALTER TABLE `ticket` MODIFY `messages` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL');
     } catch (err: any) {
       app.log?.warn({ err }, 'Failed to convert ticket table charset; existing charset may still be non-utf8mb4');
     }

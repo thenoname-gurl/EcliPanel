@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
   login: "/api/auth/login",
   logout: "/api/auth/logout",
   session: "/api/auth/session",
+  health: "/health",
   passkeyAuthChallenge: "/api/auth/passkey/authenticate-challenge",
   passkeyAuthenticate: "/api/auth/passkey/authenticate",
   passkeyRegisterChallenge: "/api/auth/passkey/register-challenge",

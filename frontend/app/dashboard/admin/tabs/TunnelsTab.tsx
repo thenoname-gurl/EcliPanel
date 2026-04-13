@@ -13,6 +13,8 @@ type TunnelDevice = {
   user_code: string
   name: string
   kind: string
+  serverType?: string
+  organisation?: string | null
   approved: boolean
   lastSeenAt: string | null
   createdAt: string
@@ -39,6 +41,9 @@ export default function TunnelsTab() {
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState("")
+  const [organisations, setOrganisations] = useState<{ id: number; name: string }[]>([])
+  const [serverTypeByDevice, setServerTypeByDevice] = useState<Record<string, string>>({})
+  const [serverOrgByDevice, setServerOrgByDevice] = useState<Record<string, string>>({})
 
   const fetchData = async () => {
     setLoading(true)
@@ -61,21 +66,51 @@ export default function TunnelsTab() {
 
   useEffect(() => {
     fetchData()
+    apiFetch(API_ENDPOINTS.adminOrganisations)
+      .then((d: any) => {
+        const orgList = Array.isArray(d?.organisations) ? d.organisations : Array.isArray(d) ? d : []
+        setOrganisations(orgList)
+      })
+      .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const defaultTypes: Record<string, string> = {}
+    devices.forEach((device) => {
+      if (device.device_code) {
+        defaultTypes[device.device_code] = device.serverType || 'free_and_paid'
+      }
+    })
+    setServerTypeByDevice((prev) => ({ ...defaultTypes, ...prev }))
+  }, [devices])
 
   const approveDevice = async (device: TunnelDevice) => {
     setActionLoading(`approve-${device.user_code}`)
     setError("")
 
     try {
+      const body: any = {
+        device_code: device.device_code,
+        user_code: device.user_code,
+        name: device.name,
+        kind: device.kind,
+      }
+
+      if (device.kind === 'server') {
+        const selectedServerType = serverTypeByDevice[device.device_code] || device.serverType
+        if (selectedServerType) {
+          body.server_type = selectedServerType
+        }
+
+        const orgId = serverOrgByDevice[device.device_code]
+        if (orgId) {
+          body.organisation_id = Number(orgId)
+        }
+      }
+
       await apiFetch(API_ENDPOINTS.tunnelDeviceApprove, {
         method: "POST",
-        body: {
-          device_code: device.device_code,
-          user_code: device.user_code,
-          name: device.name,
-          kind: device.kind,
-        },
+        body,
       })
       await fetchData()
     } catch (err: any) {
@@ -151,6 +186,8 @@ export default function TunnelsTab() {
                 <th className="px-3 py-2">{t("tunnelsTab.labels.userCode")}</th>
                 <th className="px-3 py-2">{t("tunnelsTab.labels.name")}</th>
                 <th className="px-3 py-2">{t("tunnelsTab.labels.kind")}</th>
+                <th className="px-3 py-2">{t("tunnelsTab.labels.serverType")}</th>
+                <th className="px-3 py-2">{t("tunnelsTab.labels.organisation")}</th>
                 <th className="px-3 py-2">{t("tunnelsTab.labels.approved")}</th>
                 <th className="px-3 py-2">{t("tunnelsTab.labels.lastSeen")}</th>
                 <th className="px-3 py-2">{t("tunnelsTab.labels.created")}</th>
@@ -160,7 +197,7 @@ export default function TunnelsTab() {
             <tbody>
               {devices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={10} className="px-3 py-8 text-center text-sm text-muted-foreground">
                     {loading ? t("tunnelsTab.states.loading") : t("tunnelsTab.states.noDevices")}
                   </td>
                 </tr>
@@ -171,6 +208,50 @@ export default function TunnelsTab() {
                     <td className="px-3 py-3 font-mono text-xs text-muted-foreground">{device.user_code}</td>
                     <td className="px-3 py-3 text-foreground">{device.name}</td>
                     <td className="px-3 py-3 text-muted-foreground">{device.kind}</td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {device.kind === 'server' && !device.approved ? (
+                        <select
+                          value={serverTypeByDevice[device.device_code] || device.serverType || 'free_and_paid'}
+                          onChange={(event) =>
+                            setServerTypeByDevice((prev) => ({
+                              ...prev,
+                              [device.device_code]: event.target.value,
+                            }))
+                          }
+                          className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none"
+                        >
+                          <option value="free">{t("tunnelsTab.serverTypes.free")}</option>
+                          <option value="paid">{t("tunnelsTab.serverTypes.paid")}</option>
+                          <option value="free_and_paid">{t("tunnelsTab.serverTypes.freeAndPaid")}</option>
+                          <option value="enterprise">{t("tunnelsTab.serverTypes.enterprise")}</option>
+                        </select>
+                      ) : (
+                        device.serverType || t("tunnelsTab.serverTypes.freeAndPaid")
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {device.kind === 'server' && !device.approved ? (
+                        <select
+                          value={serverOrgByDevice[device.device_code] || ''}
+                          onChange={(event) =>
+                            setServerOrgByDevice((prev) => ({
+                              ...prev,
+                              [device.device_code]: event.target.value,
+                            }))
+                          }
+                          className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none"
+                        >
+                          <option value="">{t("tunnelsTab.serverOrg.noOrg")}</option>
+                          {organisations.map((org) => (
+                            <option key={org.id} value={String(org.id)}>
+                              {org.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        device.organisation || '—'
+                      )}
+                    </td>
                     <td className="px-3 py-3">
                       <Badge variant={device.approved ? "secondary" : "outline"} className="text-[11px]">
                         {device.approved ? t("tunnelsTab.states.yes") : t("tunnelsTab.states.no")}

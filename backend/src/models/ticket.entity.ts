@@ -8,13 +8,13 @@ export class Ticket {
   @Column()
   userId: number;
 
-  @Column()
+  @Column({ length: 255, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   subject: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   message: string;
 
-  @Column({ default: 'opened' })
+  @Column({ default: 'opened', charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   status: string;
 
   @Column({ default: 'medium' })

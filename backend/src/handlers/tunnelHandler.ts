@@ -20,6 +20,8 @@ import {
   getOnlineServerAgent,
   assignPendingAllocations,
 } from '../services/tunnel.service';
+import { TUNNEL_SERVER_TYPES } from '../types/tunnels';
+import type { TunnelServerType } from '../types/tunnels';
 import {
   agentConnections,
   registerAgent,
@@ -305,12 +307,18 @@ export function tunnelRoutes(app: any, prefix: string): void {
         getStringField(ctx.query, ['device_code', 'deviceCode']);
       const name = getStringField(body, ['name', 'deviceName'], 'agent');
       const requestedKind = getStringField(body, ['kind', 'deviceKind']);
+      const requestedServerType = getStringField(body, ['server_type', 'serverType']);
 
       let kind: 'client' | 'server' = 'client';
       if (requestedKind === 'server') {
         kind = 'server';
       } else if (requestedKind === 'client') {
         kind = 'client';
+      }
+
+      let serverType: TunnelServerType | undefined = undefined;
+      if (requestedServerType && TUNNEL_SERVER_TYPES.includes(requestedServerType as any)) {
+        serverType = requestedServerType as TunnelServerType;
       }
 
       if (!userCode && !deviceCode) {
@@ -402,6 +410,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       device.kind = kind;
+      if (kind === 'server' && serverType) {
+        device.serverType = serverType;
+      }
       device.name = name;
       device.approved = true;
       device.approvedBy = currentUser;
@@ -454,7 +465,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       let devices: TunnelDevice[] = [];
 
       if (isAdminUser(ctx.user)) {
-        devices = await repo.find({ order: { createdAt: 'DESC' } });
+        devices = await repo.find({ relations: ['organisation'], order: { createdAt: 'DESC' } });
       } else if (ctx.user) {
         const orgIds = await getAccessibleOrganisationIds(ctx.user);
         const qb = repo.createQueryBuilder('device');
@@ -478,6 +489,8 @@ export function tunnelRoutes(app: any, prefix: string): void {
           user_code: d.userCode,
           name: d.name,
           kind: d.kind,
+          serverType: d.serverType,
+          organisation: d.organisation?.name ?? null,
           approved: d.approved,
           online: agentConnections.has(d.deviceCode),
           lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
@@ -638,7 +651,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         const deviceRepo = AppDataSource.getRepository(TunnelDevice);
         clientDevice = await deviceRepo.findOne({
           where: { id: clientDeviceId, kind: 'client', approved: true },
-          relations: ['ownerUser', 'organisation'],
+          relations: ['ownerUser', 'ownerUser.org', 'ownerUser.organisationMemberships', 'organisation'],
         });
         if (!clientDevice) {
           return errorResponse('invalid_client_device', 400);
@@ -699,7 +712,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       });
       await repo.save(allocation);
 
-      const serverAgent = await getOnlineServerAgent();
+      const serverAgent = await getOnlineServerAgent(clientDevice);
       if (serverAgent) {
         allocation.serverDevice = serverAgent;
         allocation.status = 'active';

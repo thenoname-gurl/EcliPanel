@@ -23,6 +23,10 @@ const nextConfig = {
         destination: `${backendUrl}/public/:path*`,
       },
       {
+        source: '/health',
+        destination: `${backendUrl}/health`,
+      },
+      {
         source: '/wings/:path+',
         destination: `${wingsBase}/:path*`,
       },

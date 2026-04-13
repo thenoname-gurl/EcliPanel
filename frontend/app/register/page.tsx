@@ -421,6 +421,9 @@ export default function RegisterPage() {
   const router = useRouter()
 
   const [domainOk, setDomainOk] = useState<boolean | null>(null)
+  const [backendReady, setBackendReady] = useState<boolean | null>(null)
+  const [backendStatusMessage, setBackendStatusMessage] = useState<string | null>(null)
+  const [backendChecking, setBackendChecking] = useState(false)
   const [invisibleTokenRequestedAt, setInvisibleTokenRequestedAt] = useState<number | null>(null)
   const [behaviorData, setBehaviorData] = useState<BehaviorMetrics>({
     mouseMoves: 0,
@@ -457,6 +460,54 @@ export default function RegisterPage() {
       setDomainOk(null)
     }
   }, [])
+
+  const checkBackend: () => Promise<void> = useCallback(async () => {
+    if (typeof window === "undefined") return
+    setBackendChecking(true)
+
+    const controller = new AbortController()
+    let timeoutId: number | null = null
+    try {
+      timeoutId = window.setTimeout(() => controller.abort(), 3000)
+      const res = await fetch(API_ENDPOINTS.health, { method: "GET", cache: "no-store", signal: controller.signal })
+
+      if (!res.ok) {
+        let message = t("backendUnavailableMessage")
+        try {
+          const json = await res.json()
+          if (json?.status) {
+            message = `${message} (${json.status})`
+          }
+        } catch {}
+        setBackendReady(false)
+        setBackendStatusMessage(message)
+        return
+      }
+
+      const data = await res.json()
+      if (data?.status !== "ok") {
+        setBackendReady(false)
+        setBackendStatusMessage(t("backendUnavailableMessage"))
+        return
+      }
+
+      setBackendReady(true)
+      setBackendStatusMessage(null)
+    } catch {
+      setBackendReady(false)
+      setBackendStatusMessage(t("backendUnavailableMessage"))
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+      setBackendChecking(false)
+    }
+  }, [t])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    checkBackend()
+  }, [checkBackend])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -670,6 +721,32 @@ export default function RegisterPage() {
                         ),
                       })}
                     </p>
+                  </AlertBanner>
+                )}
+                {backendReady === false && (
+                  <AlertBanner variant="error" title={t("backendUnavailableTitle")}> 
+                    <div className="space-y-3">
+                      <p>{t("backendUnavailableMessage")}</p>
+                      {backendStatusMessage && (
+                        <p className="text-xs text-muted-foreground">{backendStatusMessage}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={checkBackend}
+                        disabled={backendChecking}
+                        className={cn(
+                          "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
+                          "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
+                          "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        )}
+                      >
+                        {backendChecking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          t("retry")
+                        )}
+                      </button>
+                    </div>
                   </AlertBanner>
                 )}
                 {registrationDisabled && (
@@ -1047,6 +1124,7 @@ export default function RegisterPage() {
                       <button
                         type="button"
                         onClick={nextStep}
+                        disabled={backendReady === false}
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                           "bg-primary text-primary-foreground",
@@ -1060,7 +1138,7 @@ export default function RegisterPage() {
                     ) : (
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || backendReady === false}
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                           "bg-primary text-primary-foreground",
