@@ -35,6 +35,25 @@ function getBackendUrl(ctx: any): string {
   return `${proto}://${host}`;
 }
 
+function getFrontendHost(ctx: any): string {
+  const origin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+  if (origin) {
+    try {
+      return new URL(origin).hostname;
+    } catch {
+      // opsieeee
+    }
+  }
+  if (typeof ctx.hostname === 'string' && ctx.hostname) {
+    return ctx.hostname;
+  }
+  const hostHeader = ctx.headers?.host || ctx.headers?.Host;
+  if (typeof hostHeader === 'string' && hostHeader) {
+    return hostHeader.split(':')[0];
+  }
+  return 'localhost';
+}
+
 function randomToken(bytes = 32) {
   return require('crypto').randomBytes(bytes).toString('hex');
 }
@@ -749,13 +768,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/auth/passkey/register-challenge', async (ctx: any) => {
     const user = ctx.user;
-    const origin = ctx.headers.origin || ctx.headers.referer;
-    let frontendHost = ctx.hostname;
-    if (origin) {
-      try {
-        frontendHost = new URL(origin).hostname;
-      } catch { }
-    }
+    const frontendHost = getFrontendHost(ctx);
     const opts = await PasskeyService.generateRegistration({ id: user.id, email: user.email }, frontendHost);
     await redisSet(`passkey:reg:${user.id}`, opts.challenge, 300);
     return opts;
@@ -811,13 +824,7 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'No passkeys available for this account' };
     }
-    const origin = ctx.headers.origin || ctx.headers.referer;
-    let frontendHost = ctx.hostname;
-    if (origin) {
-      try {
-        frontendHost = new URL(origin).hostname;
-      } catch { }
-    }
+    const frontendHost = getFrontendHost(ctx);
     const opts = await PasskeyService.generateAuthentication(user.id, frontendHost);
     await redisSet(`passkey:auth:${user.id}`, opts.challenge, 300);
     return opts;
