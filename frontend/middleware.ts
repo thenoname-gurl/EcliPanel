@@ -12,6 +12,8 @@ const POW_DIFFICULTY = 4;
 const RATE_LIMIT = 10;
 const RATE_WINDOW = 60_000;
 
+const IP_REFRESH_INTERVAL = 24 * 60 * 60 * 1000;
+
 const BYPASS_PATHS = [
   '/api/browser-verify',
   '/api',
@@ -29,8 +31,384 @@ const STATIC_EXT =
 
 const HEADLESS_RENDERERS = ['swiftshader', 'llvmpipe', 'mesa'];
 
+interface CrawlerConfig {
+  name: string;
+  uaPatterns: string[];
+  ipSources: string[];
+  reverseDnsHosts?: string[];
+}
+
+const CRAWLER_CONFIGS: CrawlerConfig[] = [
+  {
+    name: 'Google',
+    uaPatterns: [
+      'googlebot',
+      'adsbot-google',
+      'mediapartners-google',
+      'apis-google',
+      'google-inspectiontool',
+      'googleother',
+      'google-extended',
+      'feedfetcher-google',
+      'google-site-verification',
+      'google-read-aloud',
+    ],
+    ipSources: [
+      'https://developers.google.com/static/search/apis/ipranges/common-crawlers.json',
+      'https://developers.google.com/static/search/apis/ipranges/special-crawlers.json',
+      'https://developers.google.com/static/search/apis/ipranges/user-triggered-fetchers.json',
+      'https://developers.google.com/static/search/apis/ipranges/user-triggered-fetchers-google.json',
+    ],
+  },
+  {
+    name: 'Bing',
+    uaPatterns: [
+      'bingbot',
+      'msnbot',
+      'adidxbot',
+      'bingpreview',
+    ],
+    ipSources: [
+      'https://www.bing.com/toolbox/bingbot.json',
+    ],
+  },
+  {
+    name: 'DuckDuckGo',
+    uaPatterns: [
+      'duckduckbot',
+      'duckduckgo-favicons-bot',
+      'duckassistbot',
+    ],
+    ipSources: [],
+    reverseDnsHosts: ['duckduckgo.com'],
+  },
+  {
+    name: 'Yandex',
+    uaPatterns: [
+      'yandexbot',
+      'yandexaccessibilitybot',
+      'yandexmobilebot',
+      'yandexdirectdyn',
+      'yandexscreenshotbot',
+      'yandeximages',
+      'yandexvideo',
+      'yandexmedia',
+      'yandexpagechecker',
+      'yandexnews',
+      'yandexblogs',
+      'yandexfavicons',
+      'yandexwebmaster',
+      'yandexmetrika',
+    ],
+    ipSources: [],
+    reverseDnsHosts: ['yandex.ru', 'yandex.net', 'yandex.com'],
+  },
+  {
+    name: 'Baidu',
+    uaPatterns: [
+      'baiduspider',
+      'baiduspider-render',
+      'baiduspider-image',
+      'baiduspider-video',
+      'baiduspider-news',
+    ],
+    ipSources: [],
+    reverseDnsHosts: ['baidu.com', 'baidu.jp'],
+  },
+  {
+    name: 'Apple',
+    uaPatterns: [
+      'applebot',
+    ],
+    ipSources: [],
+    reverseDnsHosts: ['applebot.apple.com'],
+  },
+];
+
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const usedChallenges = new Set<string>();
+
+interface IPRangeCache {
+  ipv4Ranges: { network: string; prefix: number }[];
+  ipv6Ranges: { network: string; prefix: number }[];
+  ipv4Exact: Set<string>;
+  ipv6Exact: Set<string>;
+  lastFetched: number;
+  fetching: boolean;
+}
+
+const crawlerIPCaches = new Map<string, IPRangeCache>();
+
+function getOrCreateCache(name: string): IPRangeCache {
+  let cache = crawlerIPCaches.get(name);
+  if (!cache) {
+    cache = {
+      ipv4Ranges: [],
+      ipv6Ranges: [],
+      ipv4Exact: new Set(),
+      ipv6Exact: new Set(),
+      lastFetched: 0,
+      fetching: false,
+    };
+    crawlerIPCaches.set(name, cache);
+  }
+  return cache;
+}
+
+function ipv4ToNumber(ip: string): number {
+  const parts = ip.split('.').map(Number);
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function expandIPv6(ip: string): string {
+  ip = ip.split('%')[0];
+  const halves = ip.split('::');
+  let groups: string[];
+
+  if (halves.length === 2) {
+    const left = halves[0] ? halves[0].split(':') : [];
+    const right = halves[1] ? halves[1].split(':') : [];
+    const missing = 8 - left.length - right.length;
+    groups = [...left, ...Array(missing).fill('0000'), ...right];
+  } else {
+    groups = ip.split(':');
+  }
+
+  return groups.map((g) => g.padStart(4, '0').toLowerCase()).join(':');
+}
+
+function ipv6ToBigInt(ip: string): bigint {
+  const expanded = expandIPv6(ip);
+  const hex = expanded.replace(/:/g, '');
+  return BigInt('0x' + hex);
+}
+
+function parseCIDR(cidr: string): {
+  network: string;
+  prefix: number;
+  isV6: boolean;
+} {
+  const [network, prefixStr] = cidr.split('/');
+  const prefix = parseInt(prefixStr, 10);
+  const isV6 = network.includes(':');
+  return { network, prefix, isV6 };
+}
+
+function isIPv4InCIDR(ip: string, network: string, prefix: number): boolean {
+  const ipNum = ipv4ToNumber(ip);
+  const netNum = ipv4ToNumber(network);
+  const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+  return (ipNum & mask) === (netNum & mask);
+}
+
+function isIPv6InCIDR(ip: string, network: string, prefix: number): boolean {
+  const ipBig = ipv6ToBigInt(ip);
+  const netBig = ipv6ToBigInt(network);
+  if (prefix === 0) return true;
+  const shift = BigInt(128 - prefix);
+  return (ipBig >> shift) === (netBig >> shift);
+}
+
+function parseIPData(
+  data: unknown,
+  cache: IPRangeCache
+): void {
+  if (!data) return;
+
+  if (Array.isArray(data)) {
+    for (const entry of data) {
+      if (typeof entry === 'string') {
+        addIPOrCIDR(entry, cache);
+      } else if (typeof entry === 'object' && entry !== null) {
+        extractPrefixEntry(entry as Record<string, string>, cache);
+      }
+    }
+    return;
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    const obj = data as Record<string, unknown>;
+
+    if (Array.isArray(obj.prefixes)) {
+      for (const entry of obj.prefixes) {
+        if (typeof entry === 'object' && entry !== null) {
+          extractPrefixEntry(entry as Record<string, string>, cache);
+        }
+      }
+    }
+
+    if (Array.isArray(obj.ips)) {
+      for (const ip of obj.ips) {
+        if (typeof ip === 'string') {
+          addIPOrCIDR(ip, cache);
+        }
+      }
+    }
+
+    if (Array.isArray(obj.ranges)) {
+      for (const range of obj.ranges) {
+        if (typeof range === 'string') {
+          addIPOrCIDR(range, cache);
+        }
+      }
+    }
+  }
+}
+
+function extractPrefixEntry(
+  entry: Record<string, string>,
+  cache: IPRangeCache
+): void {
+  const v4 = entry.ipv4Prefix || entry.ipv4 || entry.ip4 || entry.cidr;
+  const v6 = entry.ipv6Prefix || entry.ipv6 || entry.ip6;
+
+  if (v4) addIPOrCIDR(v4, cache);
+  if (v6) addIPOrCIDR(v6, cache);
+}
+
+function addIPOrCIDR(value: string, cache: IPRangeCache): void {
+  const trimmed = value.trim();
+  if (!trimmed) return;
+
+  if (trimmed.includes('/')) {
+    const parsed = parseCIDR(trimmed);
+    if (parsed.isV6) {
+      cache.ipv6Ranges.push({ network: parsed.network, prefix: parsed.prefix });
+    } else {
+      cache.ipv4Ranges.push({ network: parsed.network, prefix: parsed.prefix });
+    }
+  } else {
+    if (trimmed.includes(':')) {
+      cache.ipv6Exact.add(trimmed.toLowerCase());
+    } else {
+      cache.ipv4Exact.add(trimmed);
+    }
+  }
+}
+
+async function fetchCrawlerIPs(config: CrawlerConfig): Promise<void> {
+  const cache = getOrCreateCache(config.name);
+  if (cache.fetching) return;
+  if (config.ipSources.length === 0) return;
+
+  cache.fetching = true;
+
+  try {
+    const newCache: IPRangeCache = {
+      ipv4Ranges: [],
+      ipv6Ranges: [],
+      ipv4Exact: new Set(),
+      ipv6Exact: new Set(),
+      lastFetched: Date.now(),
+      fetching: false,
+    };
+
+    const results = await Promise.allSettled(
+      config.ipSources.map((url) =>
+        fetch(url, { signal: AbortSignal.timeout(8000) })
+          .then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          })
+      )
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        parseIPData(result.value, newCache);
+      }
+    }
+
+    const totalRanges =
+      newCache.ipv4Ranges.length +
+      newCache.ipv6Ranges.length +
+      newCache.ipv4Exact.size +
+      newCache.ipv6Exact.size;
+
+    if (totalRanges > 0) {
+      const existing = getOrCreateCache(config.name);
+      existing.ipv4Ranges = newCache.ipv4Ranges;
+      existing.ipv6Ranges = newCache.ipv6Ranges;
+      existing.ipv4Exact = newCache.ipv4Exact;
+      existing.ipv6Exact = newCache.ipv6Exact;
+      existing.lastFetched = newCache.lastFetched;
+    }
+  } catch {
+    // BUH
+  } finally {
+    const c = getOrCreateCache(config.name);
+    c.fetching = false;
+  }
+}
+
+async function refreshAllCrawlerIPs(): Promise<void> {
+  const promises = CRAWLER_CONFIGS
+    .filter((c) => c.ipSources.length > 0)
+    .filter((c) => {
+      const cache = getOrCreateCache(c.name);
+      return Date.now() - cache.lastFetched > IP_REFRESH_INTERVAL;
+    })
+    .map((c) => fetchCrawlerIPs(c));
+
+  if (promises.length > 0) {
+    Promise.allSettled(promises);
+  }
+}
+
+function isIPInCache(ip: string, cache: IPRangeCache): boolean {
+  if (!ip || ip === 'unknown') return false;
+  const isV6 = ip.includes(':');
+
+  if (isV6) {
+    const normalized = expandIPv6(ip);
+    if (cache.ipv6Exact.has(ip.toLowerCase()) || cache.ipv6Exact.has(normalized)) {
+      return true;
+    }
+    return cache.ipv6Ranges.some((r) => isIPv6InCIDR(ip, r.network, r.prefix));
+  } else {
+    if (cache.ipv4Exact.has(ip)) return true;
+    return cache.ipv4Ranges.some((r) => isIPv4InCIDR(ip, r.network, r.prefix));
+  }
+}
+
+function matchesCrawlerUA(req: NextRequest): CrawlerConfig | null {
+  const ua = (req.headers.get('user-agent') ?? '').toLowerCase();
+
+  for (const config of CRAWLER_CONFIGS) {
+    if (config.uaPatterns.some((pattern) => ua.includes(pattern))) {
+      return config;
+    }
+  }
+
+  return null;
+}
+
+function isVerifiedCrawler(req: NextRequest): boolean {
+  const config = matchesCrawlerUA(req);
+  if (!config) return false;
+
+  const ip = getIP(req);
+
+  if (config.ipSources.length > 0) {
+    const cache = getOrCreateCache(config.name);
+    const hasData =
+      cache.ipv4Ranges.length > 0 ||
+      cache.ipv6Ranges.length > 0 ||
+      cache.ipv4Exact.size > 0 ||
+      cache.ipv6Exact.size > 0;
+
+    if (hasData) {
+      return isIPInCache(ip, cache);
+    }
+    return true;
+  }
+
+  if (config.reverseDnsHosts && config.reverseDnsHosts.length > 0) {
+    return true;
+  }
+
+  return false;
+}
 
 function shouldBypass(pathname: string): boolean {
   if (BYPASS_PATHS.some((p) => pathname.startsWith(p))) return true;
@@ -41,37 +419,14 @@ function isHtmlRequest(req: NextRequest): boolean {
   return (req.headers.get('accept') ?? '').includes('text/html');
 }
 
-function isGoogleBot(req: NextRequest): boolean {
-  const ua = (req.headers.get('user-agent') ?? '').toLowerCase();
-  return ua.includes('googlebot') || ua.includes('adsbot-google') || ua.includes('mediapartners-google');
-}
-
 function getIP(req: NextRequest): string {
-  const cfConnectingIp = req.headers.get('cf-connecting-ip');
-  const cfConnectingIpv6 = req.headers.get('cf-connecting-ipv6');
-  const xForwardedFor = req.headers
-    .get('x-forwarded-for')
-    ?.split(',')[0]
-    ?.trim();
-  const xRealIp = req.headers.get('x-real-ip');
-
-  if (cfConnectingIpv6) {
-    return cfConnectingIpv6;
-  }
-
-  if (cfConnectingIp) {
-    return cfConnectingIp;
-  }
-
-  if (xForwardedFor) {
-    return xForwardedFor;
-  }
-
-  if (xRealIp) {
-    return xRealIp;
-  }
-
-  return 'unknown';
+  return (
+    req.headers.get('cf-connecting-ipv6') ??
+    req.headers.get('cf-connecting-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  );
 }
 
 function randomHex(bytes = 32): string {
@@ -180,10 +535,8 @@ function analyzeSignals(signals: BrowserSignals | undefined): {
     reasons.push('no_webgl');
   if (!signals.cores || signals.cores === 0)
     reasons.push('no_hardware_concurrency');
-  if (!signals.tz || signals.tz === 'undefined')
-    reasons.push('no_timezone');
-  if (!signals.lang)
-    reasons.push('no_language');
+  if (!signals.tz || signals.tz === 'undefined') reasons.push('no_timezone');
+  if (!signals.lang) reasons.push('no_language');
   if (
     signals.webgl &&
     HEADLESS_RENDERERS.some((r) => signals.webgl!.toLowerCase().includes(r))
@@ -340,7 +693,7 @@ noscript div{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);b
 
     elSV.textContent=' FAILED';
     elSV.className='val-err';
-    elST.textContent='Challenge failed — please reload.';
+    elST.textContent='Challenge failed - please reload.';
     elSp.style.display='none';
   }
 
@@ -481,14 +834,15 @@ async function handleVerify(req: NextRequest): Promise<NextResponse> {
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
+  refreshAllCrawlerIPs();
 
-  if (pathname === '/api/browser-verify' && req.method === 'POST') { //was lazy to make new file
+  if (pathname === '/api/browser-verify' && req.method === 'POST') {
     return handleVerify(req);
   }
 
   if (shouldBypass(pathname)) return NextResponse.next();
 
-  if (isGoogleBot(req)) return NextResponse.next();
+  if (isVerifiedCrawler(req)) return NextResponse.next();
 
   if (!isHtmlRequest(req)) return NextResponse.next();
 
@@ -501,17 +855,14 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
   const { challengeId, token } = await createChallengeToken(ip);
 
-  const res = new NextResponse(
-    buildChallengePage(challengeId, token),
-    {
-      status: 200,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'cache-control': 'no-store, no-cache, must-revalidate',
-        'x-robots-tag': 'noindex, nofollow',
-      },
-    }
-  );
+  const res = new NextResponse(buildChallengePage(challengeId, token), {
+    status: 200,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store, no-cache, must-revalidate',
+      'x-robots-tag': 'noindex, nofollow',
+    },
+  });
 
   res.cookies.set(CHALLENGE_COOKIE, token, {
     httpOnly: true,
