@@ -114,7 +114,7 @@ export default function TunnelVerifyPage() {
             Open Tunnel Dashboard
           </Link>
           <Link
-            href="/docs"
+            href="/legal"
             className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-border"
           >
             Read tunnel setup docs

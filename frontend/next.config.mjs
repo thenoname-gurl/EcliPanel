@@ -12,6 +12,15 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  async redirects() {
+    return [
+      {
+        source: '/docs',
+        destination: '/legal',
+        permanent: true,
+      },
+    ]
+  },
   async rewrites() {
     return [
       {

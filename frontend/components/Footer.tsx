@@ -30,12 +30,8 @@ export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterPro
 
   const commonLinks = (
     <div className="flex flex-wrap justify-center gap-3">
-      <Link href="/docs" className="hover:text-foreground">
+      <Link href="/legal" className="hover:text-foreground">
         {t("legalDocuments")}
-      </Link>
-      <span className="hidden sm:inline">·</span>
-      <Link href="/documents/Impressum.pdf" className="hover:text-foreground">
-        {t("imprint")}
       </Link>
     </div>
   )
