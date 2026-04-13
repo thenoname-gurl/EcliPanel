@@ -6,7 +6,7 @@ export default function ImprintPage() {
           <div className="space-y-4">
             <p className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary">Imprint / Legal Notice</p>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Imprint / Legal Notice</h1>
-            <p className="text-sm leading-7 text-muted-foreground sm:text-base">Last updated: March 14th, 2026, 6:00 PM CET (Berlin Time).</p>
+            <p className="text-sm leading-7 text-muted-foreground sm:text-base">Last updated: April 13th, 2026, 10:30 PM CEST (Berlin Time).</p>
           </div>
         </section>
 
@@ -14,7 +14,7 @@ export default function ImprintPage() {
           <h2 className="text-xl font-semibold text-foreground">Operator</h2>
           <p className="text-sm leading-7 text-muted-foreground">EclipseSystems is a project under Misiu LLC, operated independently.</p>
           <p className="text-sm leading-7 text-muted-foreground">CEO & Founder: Maksym Huzun</p>
-          <p className="text-sm leading-7 text-muted-foreground">Email: <a className="font-medium text-primary hover:text-primary/80" href="mailto:noname@eclipsesystems.org">noname@eclipsesystems.org</a></p>
+          <p className="text-sm leading-7 text-muted-foreground">Email: <a className="font-medium text-primary hover:text-primary/80" href="mailto:noname@ecli.app">noname@ecli.app</a></p>
           <p className="text-sm leading-7 text-muted-foreground">Phone: +1 (916) 739-9010</p>
         </section>
 
@@ -31,11 +31,11 @@ export default function ImprintPage() {
 
         <section className="rounded-3xl border border-border bg-card p-6 space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Operational contact</h2>
-          <p className="text-sm leading-7 text-muted-foreground">General support: <a className="font-medium text-primary hover:text-primary/80" href="mailto:support@eclipsesystems.org">support@eclipsesystems.org</a></p>
-          <p className="text-sm leading-7 text-muted-foreground">General contact: <a className="font-medium text-primary hover:text-primary/80" href="mailto:contact@eclipsesystems.org">contact@eclipsesystems.org</a></p>
+          <p className="text-sm leading-7 text-muted-foreground">General support: <a className="font-medium text-primary hover:text-primary/80" href="mailto:support@ecli.app">support@ecli.app</a></p>
+          <p className="text-sm leading-7 text-muted-foreground">General contact: <a className="font-medium text-primary hover:text-primary/80" href="mailto:contact@ecli.app">contact@ecli.app</a></p>
           <p className="text-sm leading-7 text-muted-foreground">WhatsApp: <a className="font-medium text-primary hover:text-primary/80" href="https://wa.me/19167399010">https://wa.me/19167399010</a></p>
-          <p className="text-sm leading-7 text-muted-foreground">Legal & privacy inquiries: <a className="font-medium text-primary hover:text-primary/80" href="mailto:legal@eclipsesystems.org">legal@eclipsesystems.org</a> (SLA applies)</p>
-          <p className="text-sm leading-7 text-muted-foreground">Abuse reporting: <a className="font-medium text-primary hover:text-primary/80" href="mailto:abuse@eclipsesystems.org">abuse@eclipsesystems.org</a> (SLA applies)</p>
+          <p className="text-sm leading-7 text-muted-foreground">Legal & privacy inquiries: <a className="font-medium text-primary hover:text-primary/80" href="mailto:legal@ecli.app">legal@ecli.app</a> (SLA applies)</p>
+          <p className="text-sm leading-7 text-muted-foreground">Abuse reporting: <a className="font-medium text-primary hover:text-primary/80" href="mailto:abuse@ecli.app">abuse@ecli.app</a> (SLA applies)</p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 space-y-4">

@@ -799,21 +799,9 @@ export default function LoginPage() {
                   <div className="rounded-xl bg-secondary/10 border border-border/40 p-4">
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {t.rich("termsNotice", {
-                        terms: (chunks: ReactNode) => (
+                        legal: (chunks: ReactNode) => (
                           <a
-                            href="https://ecli.app/documents/Terms%20of%20Service.pdf"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {chunks}
-                          </a>
-                        ),
-                        privacy: (chunks: ReactNode) => (
-                          <a
-                            href="https://ecli.app/documents/Privacy%20Policy.pdf"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="/legal"
                             className="text-primary hover:underline font-medium"
                           >
                             {chunks}
