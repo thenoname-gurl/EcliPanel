@@ -3,6 +3,7 @@ export NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-https://backend.ecli.app}
 export NEXT_PUBLIC_WINGS_BASE=${NEXT_PUBLIC_WINGS_BASE:-}
 export BACKEND_URL=${BACKEND_URL:-https://backend.ecli.app}
 export NEXT_PUBLIC_COMMIT_SHA=$(git rev-parse --short HEAD)
+export BROWSER_CHECK_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
 PORT_OVERRIDE=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
