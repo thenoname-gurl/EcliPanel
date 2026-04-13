@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/typeorm';
 import { MoreThanOrEqual } from 'typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
+import { getGeoBlockRulesWithDefaults } from '../utils/eu';
 
 export async function publicRoutes(app: any, prefix = '') {
   const nodeRepo = () => AppDataSource.getRepository(Node);
@@ -125,6 +126,60 @@ export async function publicRoutes(app: any, prefix = '') {
       tags: ['Health'],
       summary: 'Public wings uptime history',
       description: 'Returns last 7 days of node uptime metrics and heartbeat points publicly.',
+    },
+  });
+
+  app.get(prefix + '/public/geoblock', async () => {
+    const rules = await getGeoBlockRulesWithDefaults();
+    const notes = [] as string[];
+    if ((process.env.EU_ID_DISABLED || '').toLowerCase() === 'true') {
+      notes.push('EU member states are subject to default identity verification restrictions (Level 1).');
+    }
+    const countries = Object.entries(rules)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([country, level]) => ({
+        country,
+        level,
+        services: [
+          ...(level >= 1 ? ["Identity verification"] : []),
+          ...(level >= 2 ? ["Free services"] : []),
+          ...(level >= 3 ? ["Educational services"] : []),
+          ...(level >= 4 ? ["Paid services"] : []),
+          ...(level >= 5 ? ["Registration"] : []),
+        ],
+        explanation: {
+          1: "Identity verification is unavailable for this jurisdiction.",
+          2: "Free plans and trial products are blocked for this jurisdiction.",
+          3: "Educational services and student-specific offerings are blocked.",
+          4: "Paid subscriptions and premium services are blocked; this location may still retain limited subuser access.",
+          5: "New registrations are blocked for this jurisdiction.",
+        }[level] ?? "Geoblock restrictions apply.",
+      }));
+
+    return {
+      source: 'database',
+      generatedAt: new Date().toISOString(),
+      notes,
+      rules: countries,
+    };
+  }, {
+    response: {
+      200: t.Object({
+        source: t.String(),
+        generatedAt: t.String(),
+        notes: t.Array(t.String()),
+        rules: t.Array(t.Object({
+          country: t.String(),
+          level: t.Number(),
+          services: t.Array(t.String()),
+          explanation: t.String(),
+        })),
+      }),
+    },
+    detail: {
+      tags: ['Public'],
+      summary: 'Public geoblock rules',
+      description: 'Returns the current geoblocked countries and the services restricted for each jurisdiction.',
     },
   });
 }

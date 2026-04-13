@@ -669,19 +669,6 @@
     "invisibleCaptchaMissing": "Invisible captcha token is missing. Try refreshing the page.",
     "registrationFailed": "Registration failed"
   },
-  "docs": {
-    "title": "Legal documents",
-    "subtitle": "Things that lawyers love.",
-    "empty": {
-      "title": "No documents found",
-      "prefix": "Add files into",
-      "suffix": "and refresh this page."
-    },
-    "card": {
-      "openInNewTab": "Open in a new tab",
-      "view": "View"
-    }
-  },
   "license": {
     "translationNote": "This is original legally binding version of the license.",
     "brand": "Eclipse Systems",

@@ -28,6 +28,26 @@ const EU_COUNTRIES = new Set([
   'sweden', 'se',
 ]);
 
+export const EU_COUNTRY_CODES = [
+  'at','be','bg','hr','cy','cz','dk','ee','fi','fr','de','gr','hu','ie','it','lv','lt','lu','mt','nl','pl','pt','ro','sk','si','es','se',
+];
+
+export async function getGeoBlockRulesWithDefaults(): Promise<Record<string, number>> {
+  const result = { ...(await getGeoBlockRules()) };
+  if ((process.env.EU_ID_DISABLED || '').toLowerCase() !== 'true') {
+    return result;
+  }
+
+  for (const code of EU_COUNTRY_CODES) {
+    const key = code.toLowerCase();
+    if (result[key] === undefined || result[key] < 1) {
+      result[key] = 1;
+    }
+  }
+
+  return result;
+}
+
 import { AppDataSource } from '../config/typeorm';
 import { PanelSetting } from '../models/panelSetting.entity';
 
