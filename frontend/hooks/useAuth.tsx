@@ -272,7 +272,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     guideCheckPerformed.current = false
     setAuthState("unauthenticated")
 
-    router.push("/login")
+    if (typeof window !== "undefined") {
+      window.location.assign("/login")
+    } else {
+      router.push("/login")
+    }
   }, [router])
 
   const selectOrganisation = useCallback(async (orgId: number | string): Promise<void> => {
