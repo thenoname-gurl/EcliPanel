@@ -39,6 +39,7 @@ interface FilesTabProps {
   serverId: string
   sftpInfo?: SftpInfo | null
   editorSettings?: any
+  isKvm?: boolean
 }
 
 const getFileName = (f: FileItem): string => f.name || f.attributes?.name || ""
@@ -487,7 +488,7 @@ function DropZoneOverlay({ isDragActive, t }: { isDragActive: boolean; t: any })
   )
 }
 
-export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) {
+export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTabProps) {
   const t = useTranslations("serverFilesTab")
   const [path, setPath] = useState("/")
   const [files, setFiles] = useState<FileItem[]>([])
@@ -504,6 +505,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
   const [imagePreviewName, setImagePreviewName] = useState("")
   const [chmodRecursive, setChmodRecursive] = useState(false)
   const [isDragActive, setIsDragActive] = useState(false)
+  const [viewMode, setViewMode] = useState<"qemu" | "sftp">("qemu")
+  const [launchNotice, setLaunchNotice] = useState<string | null>(null)
+  const [sftpPassword, setSftpPassword] = useState("")
+  const [sftpAuthorized, setSftpAuthorized] = useState(false)
+  const [sftpChecking, setSftpChecking] = useState(false)
+  const [sftpError, setSftpError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
@@ -530,19 +537,33 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     })
   }, [files])
 
+  const isSftpMode = isKvm && viewMode === 'sftp'
+  const sftpHeaders = useMemo<Record<string, string> | undefined>(
+    () => (sftpPassword ? { 'x-sftp-password': sftpPassword } : undefined),
+    [sftpPassword]
+  )
+
   const loadFiles = useCallback(async (p: string) => {
     setLoading(true)
     try {
-      const data = await apiFetch(
-        API_ENDPOINTS.serverFiles.replace(":id", serverId) + `?path=${encodeURIComponent(p)}`
-      )
+      if (isSftpMode && !sftpAuthorized) {
+        setFiles([])
+        return
+      }
+
+      const baseUrl = isSftpMode
+        ? API_ENDPOINTS.serverSftpFiles.replace(":id", serverId)
+        : API_ENDPOINTS.serverFiles.replace(":id", serverId)
+      const data = await apiFetch(`${baseUrl}?path=${encodeURIComponent(p)}`, {
+        headers: isSftpMode ? sftpHeaders : undefined,
+      })
       setFiles(Array.isArray(data) ? data : [])
     } catch {
       setFiles([])
     } finally {
       setLoading(false)
     }
-  }, [serverId])
+  }, [serverId, isSftpMode, sftpAuthorized, sftpHeaders])
 
   useEffect(() => {
     loadFiles(path)
@@ -553,10 +574,64 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
   }, [path])
 
   useEffect(() => {
+    if (sftpAuthorized) {
+      setSftpAuthorized(false)
+    }
+  }, [sftpPassword])
+
+  useEffect(() => {
     return () => {
       if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
     }
   }, [imagePreviewUrl])
+
+  const sftpCommand = sftpInfo && sftpInfo.username
+    ? `sftp ${sftpInfo.username}@${sftpInfo.host} -P ${sftpInfo.port}`
+    : ""
+
+  const openSftp = () => {
+    if (
+      !sftpInfo?.host ||
+      sftpInfo.host === "—" ||
+      !sftpInfo?.port ||
+      !sftpInfo?.username
+    ) {
+      setLaunchNotice(t("errors.sftpDetailsUnavailable"))
+      window.setTimeout(() => setLaunchNotice(null), 4000)
+      return
+    }
+
+    const sftpUri = `sftp://${encodeURIComponent(sftpInfo.username)}@${sftpInfo.host}:${sftpInfo.port}`
+    window.open(sftpUri, "_blank")
+    setLaunchNotice(t("states.openingSftp"))
+    window.setTimeout(() => setLaunchNotice(null), 5000)
+  }
+
+  const openQemuFolder = () => {
+    setPath("/")
+    setViewMode("qemu")
+  }
+
+  const connectSftp = async () => {
+    if (!sftpPassword) {
+      setSftpError(t("errors.sftpAuthRequired"))
+      return
+    }
+    setSftpChecking(true)
+    setSftpError(null)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverSftpFiles.replace(":id", serverId) + `?path=${encodeURIComponent(path)}`,
+        { headers: sftpHeaders }
+      )
+      setSftpAuthorized(true)
+    } catch (err: any) {
+      setSftpAuthorized(false)
+      setSftpError(err?.message || t("errors.sftpAuthFailed"))
+    } finally {
+      setSftpChecking(false)
+    }
+  }
 
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
@@ -619,11 +694,18 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     if (fileList.length === 0) return
     setUploading(true)
     try {
+      if (isSftpMode && !sftpAuthorized) {
+        setSftpError(t("errors.sftpAuthRequired"))
+        return
+      }
+
       for (let i = 0; i < fileList.length; i++) {
         const f = fileList[i]
         const arrayBuffer = await f.arrayBuffer()
         const filePath = path.endsWith("/") ? `${path}${f.name}` : `${path}/${f.name}`
-        const uploadUrl = API_ENDPOINTS.serverFileUpload.replace(":id", serverId) +
+        const uploadUrl = (isSftpMode
+          ? API_ENDPOINTS.serverSftpFileUpload.replace(":id", serverId)
+          : API_ENDPOINTS.serverFileUpload.replace(":id", serverId)) +
           `?path=${encodeURIComponent(filePath)}`
 
         const response = await fetch(uploadUrl, {
@@ -632,6 +714,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
             "Content-Type": "application/octet-stream",
+            ...(isSftpMode ? sftpHeaders : {}),
           },
           body: new Uint8Array(arrayBuffer),
         })
@@ -694,9 +777,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     }
 
     try {
+      const contentsEndpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileContents.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileContents.replace(":id", serverId)
       const data = await apiFetch(
-        API_ENDPOINTS.serverFileContents.replace(":id", serverId) +
-          `?path=${encodeURIComponent(filePath)}`
+        contentsEndpoint + `?path=${encodeURIComponent(filePath)}`,
+        { headers: isSftpMode ? sftpHeaders : undefined }
       )
       setFileContent(typeof data === "string" ? data : JSON.stringify(data, null, 2))
       setEditingFile(filePath)
@@ -709,8 +795,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     if (!editingFile) return
     setSaving(true)
     try {
-      await apiFetch(API_ENDPOINTS.serverFileWrite.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileWrite.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileWrite.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "POST",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({ path: editingFile, content: fileContent }),
       })
       setEditingFile(null)
@@ -725,8 +815,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     const name = filePath.split("/").pop() || filePath
     if (!confirm(t("confirm.deleteFile", { name }))) return
     try {
-      await apiFetch(API_ENDPOINTS.serverFileDelete.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileDelete.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileDelete.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "POST",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({ path: filePath }),
       })
       loadFiles(path)
@@ -760,15 +854,23 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
     try {
       if (createMode === "folder") {
-        await apiFetch(API_ENDPOINTS.serverFileCreateDir.replace(":id", serverId), {
-          method: "POST",
-          body: JSON.stringify({ path: path + trimmed }),
-        })
+        await apiFetch(
+          (isSftpMode ? API_ENDPOINTS.serverSftpFileCreateDir : API_ENDPOINTS.serverFileCreateDir).replace(":id", serverId),
+          {
+            method: "POST",
+            headers: isSftpMode ? sftpHeaders : undefined,
+            body: JSON.stringify({ path: path + trimmed }),
+          }
+        )
       } else {
-        await apiFetch(API_ENDPOINTS.serverFileWrite.replace(":id", serverId), {
-          method: "POST",
-          body: JSON.stringify({ path: path + trimmed, content: "" }),
-        })
+        await apiFetch(
+          (isSftpMode ? API_ENDPOINTS.serverSftpFileWrite : API_ENDPOINTS.serverFileWrite).replace(":id", serverId),
+          {
+            method: "POST",
+            headers: isSftpMode ? sftpHeaders : undefined,
+            body: JSON.stringify({ path: path + trimmed, content: "" }),
+          }
+        )
       }
       setNewName("")
       setCreateMode(null)
@@ -782,8 +884,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     const newFileName = prompt(t("prompts.renameTo"), oldName)
     if (!newFileName || newFileName === oldName) return
     try {
-      await apiFetch(API_ENDPOINTS.serverFileRename.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileRename.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileRename.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "PUT",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({
           root: path,
           files: [{ from: oldName, to: newFileName }],
@@ -797,13 +903,16 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
   const downloadFile = async (fileName: string) => {
     try {
+      const downloadEndpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileDownload.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileDownload.replace(":id", serverId)
       const res = await fetch(
-        API_ENDPOINTS.serverFileDownload.replace(":id", serverId) +
-          `?path=${encodeURIComponent(path + fileName)}`,
+        downloadEndpoint + `?path=${encodeURIComponent(path + fileName)}`,
         {
           credentials: "include",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+            ...(isSftpMode ? sftpHeaders : {}),
           },
         }
       )
@@ -832,8 +941,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     const recursive = confirm(t("confirm.applyRecursive"))
 
     try {
-      await apiFetch(API_ENDPOINTS.serverFileChmod.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileChmod.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileChmod.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "POST",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({
           root: path,
           files: [{ file: filePath, mode, recursive }],
@@ -849,12 +962,16 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     if (selectedNames.length === 0) return
     setBulkBusy(true)
     try {
-      await apiFetch(API_ENDPOINTS.serverFileArchive.replace(":id", serverId), {
-        method: "POST",
-        body: JSON.stringify({ root: path, files: selectedNames }),
-      })
-      setSelectedNames([])
-      await loadFiles(path)
+      if (isSftpMode) {
+        alert("Archive is not supported in SFTP mode")
+      } else {
+        await apiFetch(API_ENDPOINTS.serverFileArchive.replace(":id", serverId), {
+          method: "POST",
+          body: JSON.stringify({ root: path, files: selectedNames }),
+        })
+        setSelectedNames([])
+        await loadFiles(path)
+      }
     } catch (e: any) {
       alert(t("errors.archiveFailed", { reason: e.message }))
     } finally {
@@ -869,8 +986,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     const cleanDest = destination.trim().replace(/^\/+|\/+$/g, "")
     setBulkBusy(true)
     try {
-      await apiFetch(API_ENDPOINTS.serverFileMove.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileMove.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileMove.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "POST",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({ root: path, files: selectedNames, destination: cleanDest }),
       })
       setSelectedNames([])
@@ -891,8 +1012,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     }
     setBulkBusy(true)
     try {
-      await apiFetch(API_ENDPOINTS.serverFileChmod.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileChmod.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileChmod.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "POST",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({
           root: path,
           files: selectedNames.map((fileName) => ({
@@ -916,8 +1041,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
     if (!confirm(t("confirm.deleteSelected", { count: selectedNames.length }))) return
     setBulkBusy(true)
     try {
-      await apiFetch(API_ENDPOINTS.serverFileDelete.replace(":id", serverId), {
+      const endpoint = isSftpMode
+        ? API_ENDPOINTS.serverSftpFileDelete.replace(":id", serverId)
+        : API_ENDPOINTS.serverFileDelete.replace(":id", serverId)
+      await apiFetch(endpoint, {
         method: "POST",
+        headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({ path, files: selectedNames, bulk: true }),
       })
       setSelectedNames([])
@@ -984,30 +1113,120 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
       <DropZoneOverlay isDragActive={isDragActive} t={t} />
 
-      {sftpInfo?.username && (
-        <div className="flex items-center gap-3 border-b border-border bg-secondary/10 px-4 py-2.5">
-          <Folder className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <code className="text-xs font-mono text-muted-foreground flex-1 truncate">
-            sftp {sftpInfo.username}@{sftpInfo.host} -P {sftpInfo.port}
-          </code>
+      {isKvm && sftpInfo?.username && (
+        <div className="flex flex-col sm:flex-row gap-2 border-b border-border bg-secondary/10 px-4 py-3">
           <button
-            onClick={() =>
-              navigator.clipboard.writeText(
-                `sftp ${sftpInfo.username}@${sftpInfo.host} -P ${sftpInfo.port}`
-              )
-            }
-            className="text-xs text-primary hover:underline shrink-0 flex items-center gap-1"
+            onClick={openQemuFolder}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              viewMode === "qemu"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+            )}
           >
-            <Copy className="h-3 w-3" /> {t("actions.copy")}
+            {t("actions.openQemuFolder")}
           </button>
-          {sftpInfo.proxied && (
-            <span className="text-[10px] text-yellow-400/80 shrink-0">{t("labels.proxied")}</span>
-          )}
+          <button
+            onClick={() => setViewMode("sftp")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              viewMode === "sftp"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+            )}
+          >
+            {t("actions.openSftp")}
+          </button>
         </div>
       )}
 
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-1.5 text-sm overflow-x-auto min-w-0">
+      {isKvm && viewMode === "sftp" ? (
+        <div className="space-y-4 border-b border-border bg-secondary/10 px-4 py-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Folder className="h-4 w-4 text-primary" />
+              <span>{t("labels.sftpModeDescription")}</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("labels.host")}</p>
+                <p className="text-sm font-mono text-foreground break-all">{sftpInfo?.host || "—"}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("labels.port")}</p>
+                <p className="text-sm font-mono text-foreground">{sftpInfo?.port || "—"}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("labels.username")}</p>
+                <p className="text-sm font-mono text-foreground">{sftpInfo?.username || "—"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={openSftp}
+              className="flex-1 rounded-md bg-blue-500 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 transition-colors"
+            >
+              {t("actions.openSftp")}
+            </button>
+            <button
+              onClick={() => navigator.clipboard.writeText(sftpCommand)}
+              className="flex-1 rounded-md border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary/80 transition-colors"
+            >
+              {t("actions.copy")}
+            </button>
+          </div>
+
+          <div className="rounded-lg border border-border bg-secondary/50 p-3 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground mb-2">{t("labels.sftpCommand")}</p>
+            <code className="block overflow-x-auto whitespace-nowrap font-mono">{sftpCommand}</code>
+          </div>
+
+          {sftpAuthorized ? (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-sm text-emerald-600">
+              {t("states.sftpConnected")}
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {t("labels.sftpPassword")}
+                  </label>
+                  <input
+                    type="password"
+                    value={sftpPassword}
+                    onChange={(e) => setSftpPassword(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary"
+                    placeholder={t("placeholders.sftpPassword")}
+                  />
+                </div>
+                {sftpError && (
+                  <p className="text-xs text-destructive">{sftpError}</p>
+                )}
+              </div>
+              <button
+                onClick={connectSftp}
+                disabled={sftpChecking || !sftpPassword}
+                className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-white disabled:opacity-50 transition-colors"
+              >
+                {sftpChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : t("actions.connect")}
+              </button>
+            </div>
+          )}
+
+          {launchNotice && (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-300">
+              {launchNotice}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      <>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-1.5 text-sm overflow-x-auto min-w-0">
           <button
             onClick={() => setPath("/")}
             className="text-primary hover:underline font-mono flex-shrink-0"
@@ -1038,7 +1257,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || (isSftpMode && !sftpAuthorized)}
             className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
@@ -1050,7 +1269,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
               setCreateMode("file")
               setNewName("")
             }}
-            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+            disabled={isSftpMode && !sftpAuthorized}
+            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             <FilePlus className="h-3 w-3" />
             <span className="hidden sm:inline">{t("actions.newFile")}</span>
@@ -1061,7 +1281,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
               setCreateMode("folder")
               setNewName("")
             }}
-            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+            disabled={isSftpMode && !sftpAuthorized}
+            className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           >
             <FolderPlus className="h-3 w-3" />
             <span className="hidden sm:inline">{t("actions.newFolder")}</span>
@@ -1234,6 +1455,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings }: FilesTabProps) 
         onRecursiveChange={setChmodRecursive}
         t={t}
       />
+      </>
     </div>
   )
 }

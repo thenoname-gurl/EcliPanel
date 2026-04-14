@@ -1,6 +1,7 @@
 import { WingsApiService } from '../services/wingsApiService';
 import { extractStats } from '../services/metricsCollector';
 import { nodeService } from '../services/nodeService';
+import { listSftpFiles, readSftpFile, writeSftpFile, deleteSftpFiles, mkdirSftp, renameSftp, moveSftpFiles, chmodSftp, validateSftpCredentials } from '../services/sftpClientService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
@@ -74,6 +75,61 @@ export async function serverRoutes(app: any, prefix = '') {
   function mergeBadges(existing: any, earned: string[]): string[] {
     const merged = new Set<string>([...normalizeBadgeList(existing), ...normalizeBadgeList(earned)]);
     return Array.from(merged);
+  }
+
+  async function resolveSftpAccess(serverUuid: string, ctx: any) {
+    const user = (ctx as any).user;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: { error: 'Unauthorized' } };
+    }
+
+    const cfg = await cfgRepo().findOneBy({ uuid: serverUuid });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: { error: 'Server not found' } };
+    }
+
+    if (!cfg.kvmPassthroughEnabled) {
+      ctx.set.status = 400;
+      return { error: { error: 'SFTP access is only available for KVM servers' } };
+    }
+
+    const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+    if (!node) {
+      ctx.set.status = 503;
+      return { error: { error: 'Server node not found' } };
+    }
+
+    const isOwner = cfg.userId === user.id;
+    let isSubuser = false;
+    if (!isOwner) {
+      const sub = await AppDataSource.getRepository(ServerSubuser).findOne({
+        where: { serverUuid: cfg.uuid, userId: user.id, accepted: true },
+      });
+      if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files') || sub.permissions.includes('console'))) {
+        isSubuser = true;
+      }
+    }
+
+    if (!isOwner && !isSubuser) {
+      ctx.set.status = 403;
+      return { error: { error: 'Forbidden' } };
+    }
+
+    if (cfg.suspended) {
+      ctx.set.status = 403;
+      return { error: { error: 'Server suspended' } };
+    }
+
+    const username = `${user.email}.${cfg.uuid.replace(/-/g, '').substring(0, 8)}`;
+    const password = String(ctx.request?.headers?.get('x-sftp-password') || (ctx.body?.password ?? '') || '').trim();
+    if (!password) {
+      ctx.set.status = 401;
+      return { error: { error: 'SFTP password required' } };
+    }
+
+    return { cfg, node, username, password };
   }
 
   async function getGamblingConfig() {
@@ -1954,6 +2010,321 @@ export async function serverRoutes(app: any, prefix = '') {
     beforeHandle: [authenticate, authorize('files:write')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Change file permissions', tags: ['Servers'] }
+  });
+
+  app.get(prefix + '/servers/:id/sftp/files', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      return await listSftpFiles(auth.node, { username: auth.username, password: auth.password }, ctx.query?.path ?? '/');
+    } catch (e: any) {
+      const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'Failed to list SFTP directory' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
+    response: { 200: t.Array(t.Any()), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'List KVM SFTP directory contents', tags: ['Servers'] }
+  });
+
+  app.get(prefix + '/servers/:id/sftp/contents', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    const filePath = String(ctx.query?.path || '/');
+    try {
+      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath);
+      return data.toString('utf-8');
+    } catch (e: any) {
+      const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'Failed to read SFTP file' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Read KVM SFTP file contents', tags: ['Servers'] }
+  });
+
+  app.get(prefix + '/servers/:id/sftp/download', async (ctx: any) => {
+    const { id } = ctx.params;
+    const filePath = String(ctx.query?.path || '');
+    if (!filePath) {
+      ctx.set.status = 400;
+      return { error: 'path query param required' };
+    }
+
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath);
+      const filename = filePath.split('/').pop() || 'download';
+      return new Response(Buffer.from(data), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+          'Content-Length': String(data.length),
+        },
+      });
+    } catch (e: any) {
+      const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'Failed to download SFTP file' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
+    query: t.Object({ path: t.String() }),
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Download KVM SFTP file', tags: ['Servers'] },
+  });
+
+  app.post(prefix + '/servers/:id/sftp/upload', async (ctx: any) => {
+    const { id } = ctx.params;
+    const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
+    if (!pathParam) {
+      ctx.set.status = 400;
+      return { error: 'path query param required' };
+    }
+
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      const rawBody = await ctx.request.arrayBuffer();
+      const binaryData = new Uint8Array(rawBody);
+      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, pathParam, Buffer.from(binaryData));
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP upload failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Upload a file to KVM SFTP path', tags: ['Servers'] },
+  });
+
+  app.post(prefix + '/servers/:id/sftp/write', async (ctx: any) => {
+    const { id } = ctx.params;
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      const body = ctx.body as any;
+      const filePath = String(body.path || '');
+      if (!filePath) {
+        ctx.set.status = 400;
+        return { error: 'path is required' };
+      }
+
+      let content = body.content ?? '';
+      if (typeof content !== 'string') {
+        content = String(content);
+      }
+
+      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, Buffer.from(content, 'utf-8'));
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP write failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Write a KVM SFTP file', tags: ['Servers'] },
+  });
+
+  app.post(prefix + '/servers/:id/sftp/delete', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { path: root = '/', files, bulk } = ctx.body as any;
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    let targetFiles: string[] = [];
+    if (bulk && Array.isArray(files)) {
+      targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
+    } else {
+      const filePath = String(root || '');
+      if (!filePath) {
+        ctx.set.status = 400;
+        return { error: 'path required' };
+      }
+      const lastSlash = filePath.lastIndexOf('/');
+      const filename = filePath.substring(lastSlash + 1);
+      targetFiles = filename ? [filename] : [];
+    }
+
+    if (targetFiles.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'No files specified' };
+    }
+
+    try {
+      await deleteSftpFiles(auth.node, { username: auth.username, password: auth.password }, String(root || '/'), targetFiles);
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP delete failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Delete file(s) over KVM SFTP', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/servers/:id/sftp/create-directory', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { path: dirPath } = ctx.body as any;
+    if (!dirPath || typeof dirPath !== 'string') {
+      ctx.set.status = 400;
+      return { error: 'path required' };
+    }
+
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      await mkdirSftp(auth.node, { username: auth.username, password: auth.password }, dirPath);
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP create directory failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Create directory over KVM SFTP', tags: ['Servers'] }
+  });
+
+  app.put(prefix + '/servers/:id/sftp/rename', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { root = '/', files } = ctx.body as any;
+    if (!Array.isArray(files) || files.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'files must be a non-empty array' };
+    }
+
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      for (const entry of files) {
+        if (!entry || typeof entry.from !== 'string' || typeof entry.to !== 'string') {
+          throw new Error('Invalid file mapping entry');
+        }
+        const fromPath = `${root.replace(/\/+$/, '')}/${entry.from}`.replace(/\/+/g, '/');
+        const toPath = `${root.replace(/\/+$/, '')}/${entry.to}`.replace(/\/+/g, '/');
+        await renameSftp(auth.node, { username: auth.username, password: auth.password }, fromPath, toPath);
+      }
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP rename failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Rename files over KVM SFTP', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/servers/:id/sftp/move', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { root = '/', files, destination } = ctx.body as any;
+    if (!Array.isArray(files) || files.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'files must be a non-empty array' };
+    }
+    if (!destination || typeof destination !== 'string') {
+      ctx.set.status = 400;
+      return { error: 'destination is required' };
+    }
+
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    const dest = destination.replace(/^\/+|\/+$/g, '');
+    const mappings = files.map((name: string) => ({
+      from: name,
+      to: dest ? `${dest}/${name}` : name,
+    }));
+
+    try {
+      await moveSftpFiles(auth.node, { username: auth.username, password: auth.password }, String(root || '/'), mappings);
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP move failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Move files over KVM SFTP', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/servers/:id/sftp/chmod', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { root = '/', files } = ctx.body as any;
+    if (!Array.isArray(files) || files.length === 0) {
+      ctx.set.status = 400;
+      return { error: 'files must be a non-empty array' };
+    }
+
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) return auth.error;
+
+    try {
+      for (const entry of files) {
+        if (!entry || typeof entry.file !== 'string' || typeof entry.mode !== 'string') {
+          throw new Error('Invalid chmod entry');
+        }
+        const mode = parseInt(entry.mode, 8);
+        if (Number.isNaN(mode)) {
+          throw new Error('Invalid mode');
+        }
+        const target = `${root.replace(/\/+$/, '')}/${entry.file}`.replace(/\/+/g, '/');
+        await chmodSftp(auth.node, { username: auth.username, password: auth.password }, target, mode);
+      }
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'EACCES' ? 403 : 500;
+      ctx.set.status = status;
+      return { error: e?.message || 'SFTP chmod failed' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:write')],
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    detail: { summary: 'Change permissions over KVM SFTP', tags: ['Servers'] }
   });
 
   // yeah so basically wings-rs only cuz wings-go compatibility

@@ -695,6 +695,23 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   const isKvm = !!server?.configuration?.container?.kvm_passthrough_enabled
 
+  const primaryAlloc =
+    server?.allocations?.find((a: any) => a.is_default) ||
+    server?.allocations?.[0] ||
+    null
+
+  const sftpHost = isKvm
+    ? primaryAlloc?.fqdn || primaryAlloc?.ip || server?.sftp?.host || ""
+    : server?.sftp?.host || ""
+
+  const sftpPort = isKvm
+    ? String(primaryAlloc?.port || server?.sftp?.port || "")
+    : String(server?.sftp?.port || "")
+
+  const sftpUser = isKvm
+    ? "root"
+    : server?.sftp?.username || ""
+
   const loadServer = useCallback(async () => {
     try {
       const data = await apiFetch(API_ENDPOINTS.serverDetail.replace(":id", id))
@@ -1204,7 +1221,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 )}
                 <FilesTabLazy
                   serverId={id}
-                  sftpInfo={server?.sftp}
+                  sftpInfo={isKvm ? {
+                    host: sftpHost,
+                    port: Number(sftpPort) || 0,
+                    username: sftpUser,
+                    proxied: server.sftp?.proxied,
+                  } : server?.sftp}
+                  isKvm={isKvm}
                   editorSettings={editorSettings}
                 />
               </Suspense>
