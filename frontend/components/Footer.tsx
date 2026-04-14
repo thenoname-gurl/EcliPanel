@@ -16,6 +16,10 @@ export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterPro
   const t = useTranslations("footer")
   const isDashboard = dashboard ?? pathname.startsWith("/dashboard")
 
+  if (pathname === "/") {
+    return null
+  }
+
   if (hideOnDashboard && isDashboard) {
     return null
   }

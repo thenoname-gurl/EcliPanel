@@ -237,6 +237,99 @@
       "ctaStart": "./start --journey",
       "ctaSignIn": "sign_in()"
     },
+    "sections": {
+      "legal": "Legal",
+      "modules": "Modules",
+      "about": "About",
+      "plans": "Plans",
+      "network": "Network",
+      "help": "Help",
+      "deploy": "Deploy"
+    },
+    "controls": {
+      "navigate": "navigate",
+      "confirm": "confirm",
+      "open": "open",
+      "quickOpen": "quick open",
+      "back": "back",
+      "select": "select",
+      "quickJump": "quick jump",
+      "altJump": "alt jump",
+      "toggle": "toggle",
+      "cycle": "cycle",
+      "switchPlan": "switch plan",
+      "quickSwitch": "quick switch",
+      "backToMenu": "back to menu"
+    },
+    "lang": {
+      "line1": "Language selection active.",
+      "line2": "Choose your preferred UI language.",
+      "line3": "Your choice will be saved for this browser.",
+      "title": "LANGUAGE",
+      "current": "current",
+      "footer": "Use arrow keys to navigate, ENTER to confirm.",
+      "mobileHint": "Tap to select on mobile."
+    },
+    "legal": {
+      "line1": "Choose a document to review.",
+      "line2": "Press ENTER to open it in a new tab.",
+      "title": "DOCUMENTS",
+      "footer": "Use arrows to move and ENTER to open.",
+      "docs": {
+        "terms": { "label": "Terms of Service", "desc": "Rules and terms for using EclipseSystems." },
+        "privacy": { "label": "Privacy Policy", "desc": "How we handle personal data." },
+        "cookies": { "label": "Cookies Policy", "desc": "Details about cookies and tracking." },
+        "acceptableUse": { "label": "Acceptable Use Policy", "desc": "Allowed and prohibited platform behavior." },
+        "ai": { "label": "AI Policy", "desc": "Guidelines for using AI features safely." },
+        "email": { "label": "Email Policy", "desc": "Email rules and whitelist requirements." },
+        "dmca": { "label": "DMCA Copyright Policy", "desc": "How copyright claims are handled." },
+        "imprint": { "label": "Imprint", "desc": "Company and legal contact information." }
+      }
+    },
+    "menu": {
+      "status": {
+        "operator": "OPERATOR: ECLI ADMIN",
+        "session": "SESSION: {session}",
+        "net": "NETWORK: {status}"
+      },
+      "title": "MAIN MENU",
+      "version": "v1.0.0",
+      "systemInfo": "SYSTEM INFO",
+      "statusLabel": "Status",
+      "nodesLabel": "Nodes",
+      "networkLabel": "Network",
+      "items": {
+        "features": { "label": "Features", "desc": "Explore the platform capabilities." },
+        "about": { "label": "About", "desc": "Learn who we are." },
+        "pricing": { "label": "Pricing", "desc": "Find the right plan." },
+        "community": { "label": "Community", "desc": "See network and status." },
+        "faq": { "label": "FAQ", "desc": "Common questions answered." },
+        "deploy": { "label": "Deploy", "desc": "Start your environment." },
+        "legal": { "label": "Legal", "desc": "Browse official documents." }
+      }
+    },
+    "status": {
+      "unknown": "unknown",
+      "connecting": "connecting...",
+      "online": "ONLINE",
+      "degraded": "DEGRADED",
+      "offline": "OFFLINE"
+    },
+    "boot": {
+      "line1": "INITIALIZING...",
+      "line2": "LOADING SECURE SHELL...",
+      "line3": "ESTABLISHING CONTROLS...",
+      "line4": "MOUNTING CONFIGURATION...",
+      "line5": "CHECKING NETWORK STACK...",
+      "line6": "AUTHENTICATING...",
+      "line7": "SYSTEM READY.",
+      "line8": "SELECT LANGUAGE TO CONTINUE.",
+      "line9": "PRESS ANY KEY OR TAP TO PROCEED.",
+      "line10": "OK",
+      "line11": "Copyright 2026 EclipseSystems.",
+      "waitPrompt": "press any key to continue",
+      "mobileHint": "tap to continue on mobile"
+    },
     "terminal": {
       "objective": "OBJECTIVE:",
       "objectiveValue": "CREATE. BUILD. DEPLOY.",
@@ -260,8 +353,8 @@
       },
       "card2": {
         "title": "# That Knows You",
-        "line1": "We know what our costumers want and we provide that.",
-        "line2": "At one place, with ease.",
+        "line1": "We know what our customers want and we provide that.",
+        "line2": "In one place, with ease.",
         "item1": "Scoped API Keys",
         "item2": "Audit Logs & Metrics",
         "item3": "Team Permissions",
@@ -270,6 +363,7 @@
     },
     "features": {
       "title": "# Features",
+      "activeTag": "MODULE ACTIVE",
       "item1Title": "simple_panel()",
       "item1Text": "A minimal, fast panel built for smooth workflows and instant actions.",
       "item2Title": "scoped_access()",
@@ -291,10 +385,12 @@
       "init": "INIT",
       "handshake": "handshake...",
       "resolving": "RESOLVING:",
-      "nodes": "NODES:",
-      "online": "ONLINE",
-      "degraded": "DEGRADED",
-      "offline": "OFFLINE",
+      "statusLine": "STATUS: {status}",
+      "nodesLine": "NODES: {nodes}",
+      "nodeBreakdown": "ONLINE: {online} | DEGRADED: {degraded} | OFFLINE: {offline}",
+      "totalNodes": "TOTAL NODES",
+      "consoleTitle": "eclipse — network-console",
+      "connecting": "CONNECTING...",
       "group1": "DevOps Teams",
       "group2": "Startups",
       "group3": "Enterprise",
@@ -365,7 +461,9 @@
         "item7": "→ KVM Template Access",
         "item8": "→ AI Access",
         "item9": "→ Custom SLA"
-      }
+      },
+      "ctaStart": "get started",
+      "contactUs": "contact us"
     },
     "faq": {
       "title": "# FAQs",
@@ -377,13 +475,24 @@
       "a3": "Basic support includes email & community. Premium support includes priority response, dedicated channels, and direct engineering access.",
       "q4": "Is Eclipse open source?",
       "a4Prefix": "The core panel is open-source for non-commercial purposes. Check our",
-      "a4Suffix": "for more details!"
+      "a4Suffix": "for more details!",
+      "github": "GitHub"
     },
     "cta": {
       "title": "# Ready to deploy?",
       "subtitle": "Join thousands of teams using EclipseSystems to power their infrastructure.",
       "register": "./register --now",
       "dashboard": "go_to_dashboard()"
+    },
+    "deploy": {
+      "allocating": "Allocating resources..............OK",
+      "configuring": "Configuring network stack.........OK",
+      "settingUp": "Setting up DNS records............OK",
+      "applying": "Applying security policies........OK",
+      "starting": "Starting services.................OK",
+      "ready": "Your server is ready.",
+      "access": "Access the dashboard to continue.",
+      "consoleTitle": "eclipse — deploy-console"
     },
     "footer": {
       "customSetup": "Want a custom setup? Email",
@@ -3681,6 +3790,7 @@
   },
   "serverFilesTab": {
     "actions": {
+      "connect": "Connect",
       "create": "Create",
       "cancel": "Cancel",
       "save": "Save",
@@ -3696,7 +3806,9 @@
       "rename": "Rename",
       "changePermissions": "Change permissions",
       "viewImage": "View image",
-      "edit": "Edit"
+      "edit": "Edit",
+      "openSftp": "Open via SFTP",
+      "openQemuFolder": "Open QEMU folder"
     },
     "table": {
       "name": "Name",
@@ -3710,7 +3822,8 @@
     },
     "inputs": {
       "fileNamePlaceholder": "filename.txt",
-      "folderNamePlaceholder": "folder-name"
+      "folderNamePlaceholder": "folder-name",
+      "sftpPassword": "SFTP password"
     },
     "preview": {
       "zoomOut": "Zoom out",
@@ -3721,12 +3834,19 @@
     "states": {
       "dropToUpload": "Drop files to upload",
       "loadingFiles": "Loading files...",
-      "emptyDirectory": "Empty directory"
+      "emptyDirectory": "Empty directory",
+      "openingSftp": "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app."
     },
     "labels": {
       "na": "—",
       "proxied": "proxied",
-      "yesterday": "Yesterday"
+      "yesterday": "Yesterday",
+      "host": "Host",
+      "port": "Port",
+      "username": "Username",
+      "sftpModeDescription": "Use direct SFTP access to the guest filesystem.",
+      "sftpCommand": "SFTP command",
+      "sftpPassword": "SFTP password"
     },
     "confirm": {
       "openUnknownType": "This file type may not display correctly. Open anyway?",
@@ -3759,7 +3879,8 @@
       "archiveFailed": "Archive failed: {reason}",
       "moveFailed": "Move failed: {reason}",
       "bulkChmodFailed": "Bulk chmod failed: {reason}",
-      "bulkDeleteFailed": "Bulk delete failed: {reason}"
+      "bulkDeleteFailed": "Bulk delete failed: {reason}",
+      "sftpDetailsUnavailable": "SFTP connection details are not available."
     }
   },
   "serverDetailPage": {
