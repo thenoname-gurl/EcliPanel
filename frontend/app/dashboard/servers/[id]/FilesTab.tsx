@@ -537,7 +537,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
     })
   }, [files])
 
-  const isSftpMode = isKvm && viewMode === 'sftp'
+  const isSftpMode = false
   const sftpHeaders = useMemo<Record<string, string> | undefined>(
     () => (sftpPassword ? { 'x-sftp-password': sftpPassword } : undefined),
     [sftpPassword]
@@ -1113,7 +1113,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
       <DropZoneOverlay isDragActive={isDragActive} t={t} />
 
-      {isKvm && sftpInfo?.username && (
+      {isKvm && (
         <div className="flex flex-col sm:flex-row gap-2 border-b border-border bg-secondary/10 px-4 py-3">
           <button
             onClick={openQemuFolder}
@@ -1126,21 +1126,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
           >
             {t("actions.openQemuFolder")}
           </button>
-          <button
-            onClick={() => setViewMode("sftp")}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-              viewMode === "sftp"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-            )}
-          >
-            {t("actions.openSftp")}
-          </button>
         </div>
       )}
 
-      {isKvm && viewMode === "sftp" ? (
+      {/* SFTP is temporarily hidden for KVM file manager */}
+      {false ? (
         <div className="space-y-4 border-b border-border bg-secondary/10 px-4 py-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
