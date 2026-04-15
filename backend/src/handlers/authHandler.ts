@@ -228,7 +228,7 @@ export async function authRoutes(app: any, prefix = '') {
       await redisSet(`tfa:session:${tfaSession}`, String(user.id), 300);
       const tempToken = ctx.app?.jwt?.sign
         ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
-        : require('jsonwebtoken').sign({ userId: user.id, tfaSession, tfa: true }, process.env.JWT_SECRET || 'changeme', { expiresIn: '5m' });
+        : require('jsonwebtoken').sign({ userId: user.id, tfaSession, tfa: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
       ctx.log?.info?.({ userId: user.id, tfaSession }, 'issued 2FA tempToken');
       return { twoFactorRequired: true, tempToken };
     }
@@ -241,7 +241,7 @@ export async function authRoutes(app: any, prefix = '') {
 
     const token = ctx.app?.jwt?.sign
       ? ctx.app.jwt.sign({ userId: user.id, sessionId })
-      : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET || 'changeme');
+      : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET);
 
     try {
       const logRepo = AppDataSource.getRepository(UserLog);

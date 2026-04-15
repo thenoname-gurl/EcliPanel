@@ -68,12 +68,20 @@ function useTypewriter(lines: string[], speed = 32, startDelay = 0) {
   const key     = useMemo(() => lines.join("|||"), [lines])
   const prevKey = useRef<string>("")
   const linesRef = useRef<string[]>(lines)
+  const intervalRef = useRef<number | null>(null)
+  const timeoutRef = useRef<number | null>(null)
 
   useEffect(() => { linesRef.current = lines }, [lines])
 
   useEffect(() => {
-    const t = setTimeout(() => setStarted(true), startDelay)
-    return () => clearTimeout(t)
+    const t = window.setTimeout(() => setStarted(true), startDelay)
+    timeoutRef.current = t
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
   }, [startDelay])
 
   useEffect(() => {
@@ -84,13 +92,15 @@ function useTypewriter(lines: string[], speed = 32, startDelay = 0) {
     setOutput([])
     setDone(false)
 
-    let li = 0, ci = 0, cancelled = false
-
-    const tick = setInterval(() => {
-      if (cancelled) return
+    let li = 0, ci = 0
+    intervalRef.current = window.setInterval(() => {
       const cur = linesRef.current
       if (li >= cur.length) {
-        if (!cancelled) { setDone(true); clearInterval(tick) }
+        setDone(true)
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
         return
       }
       const line = cur[li]
@@ -98,14 +108,37 @@ function useTypewriter(lines: string[], speed = 32, startDelay = 0) {
         const slice = line.slice(0, ci)
         setOutput(prev => { const n = [...prev]; n[li] = slice; return n })
         ci++
-      } else { li++; ci = 0 }
+      } else {
+        li++
+        ci = 0
+      }
     }, speed)
 
-    return () => { cancelled = true; clearInterval(tick) }
+    return () => {
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, key])
+  }, [started, key, speed])
 
-  return { output, done }
+  const skip = useCallback(() => {
+    if (done) return
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+    if (intervalRef.current) {
+      window.clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    setStarted(true)
+    setOutput(linesRef.current)
+    setDone(true)
+  }, [done])
+
+  return { output, done, skip }
 }
 
 function useGlitch(minDelay = 4000, maxDelay = 9000) {
@@ -341,7 +374,7 @@ function BootScreen({ onDone }: { onDone: () => void }) {
     t("boot.line11"),
   ], [t])
 
-  const { output, done } = useTypewriter(bootLines, 22)
+  const { output, done, skip } = useTypewriter(bootLines, 22)
   const [waitingKey, setWaitingKey] = useState(false)
 
   useEffect(() => {
@@ -352,8 +385,18 @@ function BootScreen({ onDone }: { onDone: () => void }) {
   }, [done])
 
   useEffect(() => {
-    if (!waitingKey) return
-    const handler = () => onDone()
+    const handler = () => {
+      if (!done) {
+        skip()
+        return
+      }
+      if (!waitingKey) {
+        setWaitingKey(true)
+        return
+      }
+      onDone()
+    }
+
     window.addEventListener("keydown",    handler)
     window.addEventListener("click",      handler)
     window.addEventListener("touchstart", handler)
@@ -362,7 +405,7 @@ function BootScreen({ onDone }: { onDone: () => void }) {
       window.removeEventListener("click",      handler)
       window.removeEventListener("touchstart", handler)
     }
-  }, [waitingKey, onDone])
+  }, [done, waitingKey, onDone, skip])
 
   return (
     <div className="fixed inset-0 z-[300] bg-[#060010] flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
@@ -385,6 +428,12 @@ function BootScreen({ onDone }: { onDone: () => void }) {
           ))}
           {!done && <Cursor color="text-purple-400" />}
         </div>
+
+        {!done && (
+          <div className="mt-4 text-xs text-purple-500/40">
+            {t("boot.skipHint")}
+          </div>
+        )}
 
         {waitingKey && (
           <div className="space-y-4">
@@ -442,7 +491,41 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
     t("lang.line2"),
     t("lang.line3"),
   ], [t])
-  const { output, done: introDone } = useTypewriter(introLines, 24)
+  const { output, done: introDone, skip } = useTypewriter(introLines, 24)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!introDone) {
+        e.preventDefault()
+        skip()
+        return
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault(); setSelected(s => (s - 1 + SUPPORTED_LOCALES.length) % SUPPORTED_LOCALES.length)
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault(); setSelected(s => (s + 1) % SUPPORTED_LOCALES.length)
+      }
+      if (e.key === "Enter") {
+        e.preventDefault(); confirm(selected)
+      }
+    }
+
+    const clickHandler = () => {
+      if (!introDone) {
+        skip()
+      }
+    }
+
+    window.addEventListener("keydown", handler)
+    window.addEventListener("click", clickHandler)
+    window.addEventListener("touchstart", clickHandler)
+    return () => {
+      window.removeEventListener("keydown", handler)
+      window.removeEventListener("click", clickHandler)
+      window.removeEventListener("touchstart", clickHandler)
+    }
+  }, [introDone, selected, confirm, skip])
 
   return (
     <div className="fixed inset-0 z-[290] bg-[#060010] flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
@@ -460,6 +543,12 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
             </div>
           ))}
         </div>
+
+        {!introDone && (
+          <div className="mb-6 text-xs text-purple-500/40">
+            {t("lang.skipHint")}
+          </div>
+        )}
 
         {introDone && (
           <PixelBox className="p-0 overflow-hidden" glow>
@@ -587,7 +676,28 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
     t("legal.line1"),
     t("legal.line2"),
   ], [t])
-  const { output, done: introDone } = useTypewriter(introLines, 28)
+  const { output, done: introDone, skip } = useTypewriter(introLines, 28)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!introDone) {
+        e.preventDefault()
+        skip()
+        return
+      }
+      if (e.key === "Escape") { onBack(); return }
+    }
+    const clickHandler = () => { if (!introDone) skip() }
+
+    window.addEventListener("keydown", handler)
+    window.addEventListener("click", clickHandler)
+    window.addEventListener("touchstart", clickHandler)
+    return () => {
+      window.removeEventListener("keydown", handler)
+      window.removeEventListener("click", clickHandler)
+      window.removeEventListener("touchstart", clickHandler)
+    }
+  }, [introDone, onBack, skip])
 
   return (
     <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
@@ -605,6 +715,10 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
             </div>
           ))}
         </div>
+
+        {!introDone && (
+          <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+        )}
 
         {introDone && (
           <PixelBox className="p-0 overflow-hidden" glow>
@@ -726,10 +840,15 @@ function MainMenu({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [infra?.status ?? "pending", t])
 
-  const { output: headerOut, done: headerDone } = useTypewriter(headerLines, 26)
+  const { output: headerOut, done: headerDone, skip } = useTypewriter(headerLines, 26)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (!headerDone) {
+        e.preventDefault()
+        skip()
+        return
+      }
       if (e.key === "ArrowUp")   { e.preventDefault(); setSelected(s => (s - 1 + MENU_ITEMS.length) % MENU_ITEMS.length) }
       if (e.key === "ArrowDown") { e.preventDefault(); setSelected(s => (s + 1) % MENU_ITEMS.length) }
       if (e.key === "Enter")     { e.preventDefault(); onSelect(MENU_ITEMS[selected].id) }
@@ -737,9 +856,17 @@ function MainMenu({
         if (e.key === m.key || e.key === m.fKey) { e.preventDefault(); setSelected(i); onSelect(m.id) }
       })
     }
+    const clickHandler = () => { if (!headerDone) skip() }
+
     window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [selected, onSelect])
+    window.addEventListener("click", clickHandler)
+    window.addEventListener("touchstart", clickHandler)
+    return () => {
+      window.removeEventListener("keydown", handler)
+      window.removeEventListener("click", clickHandler)
+      window.removeEventListener("touchstart", clickHandler)
+    }
+  }, [headerDone, selected, onSelect, skip])
 
   const handleItemClick = (i: number) => {
     setPressed(i); setSelected(i)
@@ -771,6 +898,9 @@ function MainMenu({
               </div>
             ))}
           </div>
+          {!headerDone && (
+            <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row gap-5">
@@ -996,12 +1126,27 @@ function FeaturesScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeo
 
 function AboutScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof useTranslations> }) {
   const lines = useMemo(() => [`> ${t("about.line1")}`, `> ${t("about.line2")}`], [t])
-  const { output, done } = useTypewriter(lines, 16)
+  const { output, done, skip } = useTypewriter(lines, 16)
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onBack() }
+    const h = (e: KeyboardEvent) => {
+      if (!done) {
+        e.preventDefault()
+        skip()
+        return
+      }
+      if (e.key === "Escape") onBack()
+    }
+    const clickHandler = () => { if (!done) skip() }
+
     window.addEventListener("keydown", h)
-    return () => window.removeEventListener("keydown", h)
-  }, [onBack])
+    window.addEventListener("click", clickHandler)
+    window.addEventListener("touchstart", clickHandler)
+    return () => {
+      window.removeEventListener("keydown", h)
+      window.removeEventListener("click", clickHandler)
+      window.removeEventListener("touchstart", clickHandler)
+    }
+  }, [done, onBack, skip])
   return (
     <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
@@ -1137,12 +1282,27 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
     }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [infra?.status ?? "pending", infra?.online, infra?.degraded, infra?.offline, t])
-  const { output, done } = useTypewriter(termLines, 22)
+  const { output, done, skip } = useTypewriter(termLines, 22)
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onBack() }
+    const h = (e: KeyboardEvent) => {
+      if (!done) {
+        e.preventDefault()
+        skip()
+        return
+      }
+      if (e.key === "Escape") onBack()
+    }
+    const clickHandler = () => { if (!done) skip() }
+
     window.addEventListener("keydown", h)
-    return () => window.removeEventListener("keydown", h)
-  }, [onBack])
+    window.addEventListener("click", clickHandler)
+    window.addEventListener("touchstart", clickHandler)
+    return () => {
+      window.removeEventListener("keydown", h)
+      window.removeEventListener("click", clickHandler)
+      window.removeEventListener("touchstart", clickHandler)
+    }
+  }, [done, onBack, skip])
   return (
     <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
@@ -1167,6 +1327,11 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
                   {line}{i === output.length - 1 && !done && <Cursor color="text-purple-400" />}
                 </div>
               ))}
+            </div>
+            {!done && (
+              <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+            )}
+            <div className="flex-1 space-y-3">
             </div>
           </TerminalWindowFrame>
           <div className="space-y-3">
@@ -1275,12 +1440,27 @@ function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof 
     t("deploy.ready"),
     t("deploy.access"),
   ], [t])
-  const { output, done } = useTypewriter(deployLines, 28, 200)
+  const { output, done, skip } = useTypewriter(deployLines, 28, 200)
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onBack() }
+    const h = (e: KeyboardEvent) => {
+      if (!done) {
+        e.preventDefault()
+        skip()
+        return
+      }
+      if (e.key === "Escape") onBack()
+    }
+    const clickHandler = () => { if (!done) skip() }
+
     window.addEventListener("keydown", h)
-    return () => window.removeEventListener("keydown", h)
-  }, [onBack])
+    window.addEventListener("click", clickHandler)
+    window.addEventListener("touchstart", clickHandler)
+    return () => {
+      window.removeEventListener("keydown", h)
+      window.removeEventListener("click", clickHandler)
+      window.removeEventListener("touchstart", clickHandler)
+    }
+  }, [done, onBack, skip])
   return (
     <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
@@ -1305,6 +1485,9 @@ function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof 
             ))}
           </div>
         </TerminalWindowFrame>
+        {!done && (
+          <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+        )}
         {done && (
           <div className="flex flex-col sm:flex-row gap-3">
             <Link href="/register"

@@ -276,9 +276,9 @@ const app = new Elysia()
     exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())
-  .use(jwt({ secret: process.env.JWT_SECRET || 'changeme' }));
+  .use(jwt({ secret: process.env.JWT_SECRET}));
 
-const _jwtSecret = process.env.JWT_SECRET || 'changeme';
+const _jwtSecret = process.env.JWT_SECRET;
 (app as any).jwt = {
   sign: (payload: object, opts?: any) => jsonwebtoken.sign(payload, _jwtSecret, opts),
   verify: <T = any>(token: string) => jsonwebtoken.verify(token, _jwtSecret) as T,
