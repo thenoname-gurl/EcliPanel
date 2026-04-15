@@ -237,6 +237,7 @@
       "ctaStart": "./start --journey",
       "ctaSignIn": "sign_in()"
     },
+    "skipHint": "Press any key or click/tap to skip the typing animation.",
     "sections": {
       "legal": "Legal",
       "modules": "Modules",
@@ -288,7 +289,7 @@
     },
     "menu": {
       "status": {
-        "operator": "OPERATOR: ECLI ADMIN",
+        "operator": "OPERATOR: ECLI USER",
         "session": "SESSION: {session}",
         "net": "NETWORK: {status}"
       },
@@ -328,6 +329,7 @@
       "line10": "OK",
       "line11": "Copyright 2026 EclipseSystems.",
       "waitPrompt": "press any key to continue",
+      "skipHint": "Press any key or click/tap to skip typing animation.",
       "mobileHint": "tap to continue on mobile"
     },
     "terminal": {
