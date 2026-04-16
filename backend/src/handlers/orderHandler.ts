@@ -1,5 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { Order } from '../models/order.entity';
+import { User } from '../models/user.entity';
+import { Plan } from '../models/plan.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
@@ -9,7 +11,6 @@ import stream from 'stream';
 import fs from 'fs';
 import path from 'path';
 import { generateInvoicePdf } from '../workers/pdfWorker';
-import { User } from '../models/user.entity';
 
 async function renderInvoicePdf(order: Order): Promise<Buffer> {
   try {
@@ -186,6 +187,30 @@ export async function orderRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const user = ctx.user as any;
     const body = ctx.body as Partial<Order>;
+
+    if (user.parentId) {
+      if (body.orgId) {
+        ctx.set.status = 403;
+        return { error: 'child_accounts_cannot_create_org_orders', message: 'Child accounts may not create organisation orders.' };
+      }
+      if (body.amount != null && Number(body.amount) > 0) {
+        ctx.set.status = 403;
+        return { error: 'child_accounts_cannot_create_paid_orders', message: 'Child accounts can only create free or education orders.' };
+      }
+      if (body.planId != null) {
+        const planRepo = AppDataSource.getRepository(Plan);
+        const plan = await planRepo.findOneBy({ id: Number(body.planId) });
+        if (!plan) {
+          ctx.set.status = 400;
+          return { error: 'invalid_plan_id', message: 'Plan not found' };
+        }
+        const allowedTypes = ['free', 'edu'];
+        if (!allowedTypes.includes(String(plan.type).toLowerCase())) {
+          ctx.set.status = 403;
+          return { error: 'child_accounts_can_only_order_free_or_edu_plans', message: 'Child accounts may only order free or education plans.' };
+        }
+      }
+    }
 
     if (body.orgId) {
       const role = await getOrgMembershipRole(user.id, Number(body.orgId));

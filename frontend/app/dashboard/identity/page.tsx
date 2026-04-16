@@ -28,6 +28,7 @@ import {
   Camera,
   User,
   KeyRound,
+  Loader2,
 } from "lucide-react"
 
 // Feature flags
@@ -241,6 +242,12 @@ export default function IdentityPage() {
                 >
                   {submitting ? t('actions.uploading') : t('actions.submitForVerification')}
                 </button>
+                {submitting && (
+                  <p className="mt-2 flex items-center gap-2 text-sm text-primary" aria-live="polite">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('actions.uploading')}
+                  </p>
+                )}
               </div>
             </div>
           )}

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad, JoinColumn } from 'typeorm';
 import { Organisation } from './organisation.entity';
 import { UserRole } from './userRole.entity';
 import { Passkey } from './passkey.entity';
@@ -30,6 +30,19 @@ export class User {
 
   @Column({ nullable: true })
   phone?: string;
+
+  @Column({ type: 'date', nullable: true })
+  dateOfBirth?: Date;
+
+  @ManyToOne(() => User, (user) => user.children, { nullable: true })
+  @JoinColumn({ name: 'parentId' })
+  parent?: User;
+
+  @Column({ nullable: true })
+  parentId?: number;
+
+  @OneToMany(() => User, (user) => user.parent)
+  children?: User[];
 
   @AfterLoad()
   afterLoadDecrypt() {

@@ -736,6 +736,8 @@
     "showPassword": "Show password",
     "phoneNumber": "Phone Number",
     "phonePlaceholder": "+1 (555) 000-0000",
+    "dateOfBirth": "Date of Birth",
+    "dateOfBirthPlaceholder": "YYYY-MM-DD",
     "billingAddress": "Billing Address",
     "companyOptional": "Company (optional)",
     "companyPlaceholder": "Company name",
@@ -1797,6 +1799,7 @@
       "testFailedWithReason": "Test send failed: {reason}",
       "confirmBroadcast": "Send this announcement to ALL users? This will respect or override preferences based on the Force option.",
       "broadcastSent": "Broadcast sent — {recipients} recipient(s)",
+      "broadcastQueued": "Broadcast queued — sending in the background.",
       "broadcastFailed": "Broadcast failed",
       "broadcastFailedWithReason": "Broadcast failed: {reason}"
     },
@@ -3033,7 +3036,8 @@
       "cancel": "Cancel",
       "saving": "Saving...",
       "saveChanges": "Save Changes",
-      "updating": "Updating..."
+      "updating": "Updating...",
+      "uploading": "Uploading..."
     },
     "portal": {
       "free": "Free Portal",

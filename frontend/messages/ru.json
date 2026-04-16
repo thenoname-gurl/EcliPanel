@@ -733,6 +733,8 @@
     "showPassword": "Показать пароль",
     "phoneNumber": "Номер телефона",
     "phonePlaceholder": "+7 (999) 000-00-00",
+    "dateOfBirth": "Дата рождения",
+    "dateOfBirthPlaceholder": "ГГГГ-ММ-ДД",
     "billingAddress": "Платёжный адрес",
     "companyOptional": "Компания (необязательно)",
     "companyPlaceholder": "Название компании",
@@ -1794,6 +1796,7 @@
       "testFailedWithReason": "Тестовая отправка не удалась: {reason}",
       "confirmBroadcast": "Отправить это объявление ВСЕМ пользователям? Будут учтены или переопределены настройки в зависимости от опции принудительной отправки.",
       "broadcastSent": "Рассылка отправлена — {recipients} получатель(ей)",
+      "broadcastQueued": "Рассылка поставлена в очередь — отправляется в фоновом режиме.",
       "broadcastFailed": "Рассылка не удалась",
       "broadcastFailedWithReason": "Рассылка не удалась: {reason}"
     },
@@ -3030,7 +3033,8 @@
       "cancel": "Отмена",
       "saving": "Сохранение...",
       "saveChanges": "Сохранить изменения",
-      "updating": "Обновление..."
+      "updating": "Обновление...",
+      "uploading": "Загрузка..."
     },
     "portal": {
       "free": "Бесплатный портал",

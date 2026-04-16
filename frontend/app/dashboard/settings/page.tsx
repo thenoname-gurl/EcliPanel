@@ -40,6 +40,7 @@ import {
   Phone,
   Building,
   Camera,
+  Calendar,
   Check,
   X,
   Sparkles,
@@ -988,6 +989,7 @@ export default function SettingsPage() {
   const [newKeyType, setNewKeyType] = useState("client")
   const [newKeyPerms, setNewKeyPerms] = useState<string[]>([])
   const [showApiForm, setShowApiForm] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
 
   const isAdmin = user?.role === "admin" || user?.role === "rootAdmin" || user?.role === "*"
 
@@ -1114,6 +1116,7 @@ export default function SettingsPage() {
     billingState: user?.billingState || "",
     billingZip: user?.billingZip || "",
     billingCountry: user?.billingCountry || "",
+    dateOfBirth: user?.dateOfBirth || "",
   })
 
   useEffect(() => {
@@ -1132,6 +1135,7 @@ export default function SettingsPage() {
         billingState: user.billingState || "",
         billingZip: user.billingZip || "",
         billingCountry: user.billingCountry || "",
+        dateOfBirth: user.dateOfBirth || "",
       })
   }, [user])
 
@@ -1315,6 +1319,7 @@ export default function SettingsPage() {
             billingState: form.billingState || undefined,
             billingZip: form.billingZip || undefined,
             billingCountry: form.billingCountry || undefined,
+            dateOfBirth: form.dateOfBirth || undefined,
           }),
         }
       )
@@ -1365,6 +1370,16 @@ export default function SettingsPage() {
           {/* Profile Tab */}
           {activeTab === "profile" && (
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
+              {user?.ageVerificationRequired && (
+                <div className="rounded-xl border border-yellow-300 bg-yellow-100/80 p-4 text-sm text-yellow-900">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4" />
+                    <div>
+                      Please enter your date of birth below to complete age verification and continue using server management.
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Avatar & Info */}
               <SettingsCard>
                 <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start min-w-0">
@@ -1385,9 +1400,11 @@ export default function SettingsPage() {
                           type="file"
                           accept="image/png,image/jpeg,image/webp,image/gif"
                           className="hidden"
+                          disabled={avatarUploading}
                           onChange={async (e) => {
                             const file = e.target.files?.[0]
                             if (!file || !user?.id) return
+                            setAvatarUploading(true)
                             try {
                               const fd = new FormData()
                               fd.append("file", file)
@@ -1395,10 +1412,18 @@ export default function SettingsPage() {
                               await refreshUser()
                             } catch (err: any) {
                               alert(t("profile.uploadFailed") + ": " + err.message)
+                            } finally {
+                              setAvatarUploading(false)
                             }
                           }}
                         />
                       </label>
+                      {avatarUploading && (
+                        <p className="mt-2 flex items-center justify-center gap-2 text-sm text-primary">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {t("actions.uploading")}
+                        </p>
+                      )}
                     </div>
 
                     {userBadges.length > 0 && (
@@ -1467,6 +1492,14 @@ export default function SettingsPage() {
                   <FormInput label={t("profile.firstName")} value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
                   <FormInput label={t("profile.middleName")} value={form.middleName} onChange={(v) => setForm({ ...form, middleName: v })} placeholder={t("profile.optional")} />
                   <FormInput label={t("profile.lastName")} value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
+                  <FormInput
+                    label="Date of Birth"
+                    type="date"
+                    icon={Calendar}
+                    value={form.dateOfBirth}
+                    onChange={(v) => setForm({ ...form, dateOfBirth: v })}
+                    hint="Enter your birth date to verify eligibility before managing servers."
+                  />
                 </div>
               </SettingsCard>
 

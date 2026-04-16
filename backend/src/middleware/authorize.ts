@@ -35,6 +35,27 @@ export function authorize(required: string) {
       return;
     }
 
+    const serverRelatedPrefixes = [
+      'servers:',
+      'server:',
+      'files:',
+      'backups:',
+      'commands:',
+      'logs:',
+      'reinstall:',
+      'schedules:',
+      'sync:',
+      'transfer:',
+      'version:',
+      'configuration:',
+      'databases:',
+    ];
+    const isServerRelated = serverRelatedPrefixes.some((prefix) => required.startsWith(prefix));
+    if (isServerRelated && user.role !== 'admin' && !user.dateOfBirth) {
+      ctx.set.status = 403;
+      return { error: 'Age verification is required before using server management features.' };
+    }
+
     if (required === 'transfer:execute' && user.role === 'admin') {
       return;
     }

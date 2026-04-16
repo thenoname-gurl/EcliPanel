@@ -138,6 +138,7 @@ export const AppDataSource = new DataSource({
     require('../models/notification.entity').Notification,
     require('../models/mailMessage.entity').MailMessage,
     require('../models/outboundEmail.entity').OutboundEmail,
+    require('../models/adminBroadcastJob.entity').AdminBroadcastJob,
     require('../models/sshKey.entity').SshKey,
     require('../models/organisationDnsZone.entity').OrganisationDnsZone,
     require('../models/applicationForm.entity').ApplicationForm,
