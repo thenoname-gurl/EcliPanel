@@ -28,6 +28,12 @@ function getPanelUrl(ctx: any): string {
   }
 }
 
+function formatDateOfBirth(value: any): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().split('T')[0];
+  return String(value);
+}
+
 function getBackendUrl(ctx: any): string {
   if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/+$/, '');
   const proto = ctx.headers['x-forwarded-proto'] || 'http';
@@ -285,6 +291,8 @@ export async function authRoutes(app: any, prefix = '') {
         avatarUrl: user.avatarUrl || null,
         supportBanned: !!user.supportBanned,
         supportBanReason: user.supportBanReason || null,
+        dateOfBirth: formatDateOfBirth(user.dateOfBirth),
+        parentId: user.parentId != null ? Number(user.parentId) : null,
         org: legacyOrg ? { id: legacyOrg.id, name: legacyOrg.name, handle: legacyOrg.handle } : null,
         orgs,
         orgRole: legacyOrg?.orgRole || 'member',
@@ -1515,6 +1523,8 @@ export async function authRoutes(app: any, prefix = '') {
         avatarUrl: user.avatarUrl || null,
         supportBanned: !!user.supportBanned,
         supportBanReason: user.supportBanReason || null,
+        dateOfBirth: formatDateOfBirth(user.dateOfBirth),
+        parentId: user.parentId != null ? Number(user.parentId) : null,
         org: legacyOrg
           ? {
             id: legacyOrg.id,
