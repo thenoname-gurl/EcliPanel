@@ -38,6 +38,14 @@ import os from 'os';
 import * as tar from 'tar';
 import { promises as fsp } from 'fs';
 import { normalizeProcessConfig } from '../utils/startupDetection';
+
+function getSafeRelativeFilePath(base: string, relPath: string): string | null {
+  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
+  const fullPath = path.join(base, normalised);
+  const relative = path.relative(base, fullPath);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
+  return fullPath;
+}
 import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
@@ -1518,8 +1526,10 @@ export async function adminRoutes(app: any, prefix = '') {
     for (const field of ['idDocumentUrl', 'selfieUrl'] as const) {
       const url = rec[field];
       if (url) {
-        const filepath = path.join(uploadDir, url.replace(/^\//, ''));
-        try { fs.unlinkSync(filepath); } catch { }
+        const filepath = getSafeRelativeFilePath(uploadDir, url);
+        if (filepath) {
+          try { fs.unlinkSync(filepath); } catch { }
+        }
         rec[field] = null;
       }
     }
@@ -3825,7 +3835,12 @@ export async function adminRoutes(app: any, prefix = '') {
       await fsp.mkdir(base, { recursive: true });
       const trimmedFiles = serverFilesMap[serverUuid].slice(0, 300);
       for (const file of trimmedFiles) {
-        const target = path.join(base, file.path.replace(/^\//, '').replace(/\//g, path.sep));
+        const normalizedPath = path.normalize(file.path.replace(/^\//, '')).replace(/^([/\\])+/, '');
+        const target = path.join(base, normalizedPath);
+        const relativeTarget = path.relative(base, target);
+        if (!relativeTarget || relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
+          continue;
+        }
         try {
           const res = await svc.downloadFile(serverUuid, file.path);
           const rawData = res.data;

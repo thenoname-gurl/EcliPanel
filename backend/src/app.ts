@@ -23,6 +23,16 @@ import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysiajs/openapi';
 
+function getSafeUploadPath(base: string, relPath: string) {
+  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
+  const fullPath = path.join(base, normalised);
+  const relative = path.relative(base, fullPath);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid path');
+  }
+  return fullPath;
+}
+
 // Migrated from Fastify hence why code for Elysia could be a mess, 
 // sorry about that. 
 // I tried to clean it up but yes..
@@ -524,9 +534,13 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
     }
   }
 
-  const relPath = (ctx.params as any)['*'];
-  const normalised = path.normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
-  const filepath = path.join(process.cwd(), 'uploads', 'id-docs', normalised);
+  const relPath = String((ctx.params as any)['*'] || '');
+  let filepath: string;
+  try {
+    filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'id-docs'), relPath);
+  } catch {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
   const ext = path.extname(filepath).toLowerCase();
   const mimeTypes: Record<string, string> = {
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
@@ -555,8 +569,14 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
 });
 
 app.get('/uploads/mailbox/*', async (ctx: any) => {
-  const relPath = (ctx.params as any)['*'];
-  const normalised = path.normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
+  const relPath = String((ctx.params as any)['*'] || '');
+  let filepath: string;
+  try {
+    filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
+  } catch {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
+  const normalised = path.relative(path.join(process.cwd(), 'uploads'), filepath);
   const parts = normalised.split(path.sep);
   if (parts.length < 3 || parts[0] !== 'mailbox') {
     return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
@@ -581,7 +601,6 @@ app.get('/uploads/mailbox/*', async (ctx: any) => {
     }
   }
 
-  const filepath = path.join(process.cwd(), 'uploads', normalised);
   const ext = path.extname(filepath).toLowerCase();
   const mimeTypes: Record<string, string> = {
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
@@ -613,9 +632,13 @@ app.get('/uploads/mailbox/*', async (ctx: any) => {
 });
 
 app.get('/uploads/*', async (ctx: any) => {
-  const relPath = (ctx.params as any)['*'];
-  const normalised = path.normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
-  const filepath = path.join(process.cwd(), 'uploads', normalised);
+  const relPath = String((ctx.params as any)['*'] || '');
+  let filepath: string;
+  try {
+    filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
+  } catch {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
   const ext = path.extname(filepath).toLowerCase();
   const mimeTypes: Record<string, string> = {
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',

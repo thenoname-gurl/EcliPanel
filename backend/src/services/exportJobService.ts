@@ -148,13 +148,18 @@ export async function processExportJob(jobRow: ExportJob) {
         const serverFilesDir = path.join(outDir, 'servers', String(serverUuid), 'files');
         await fsp.mkdir(serverFilesDir, { recursive: true });
 
+        const serverFilesBase = path.join(outDir, 'servers', String(serverUuid), 'files');
         for (let fIdx = 0; fIdx < fileEntries.length; fIdx++) {
           const fileItem = fileEntries[fIdx];
           try {
             const res = await svc.downloadFile(serverUuid, fileItem.path);
             const fileData = res.data instanceof ArrayBuffer ? Buffer.from(res.data) : Buffer.from(res.data || '');
-            const normalized = fileItem.path.replace(/^\//, '');
-            const destPath = path.join(outDir, 'servers', String(serverUuid), 'files', normalized);
+            const normalized = path.normalize(fileItem.path.replace(/^\//, '')).replace(/^([/\\])+/, '');
+            const destPath = path.join(serverFilesBase, normalized);
+            const relativeDest = path.relative(serverFilesBase, destPath);
+            if (!relativeDest || relativeDest.startsWith('..') || path.isAbsolute(relativeDest)) {
+              continue;
+            }
             await fsp.mkdir(path.dirname(destPath), { recursive: true });
             await fsp.writeFile(destPath, fileData);
           } catch (e: any) {

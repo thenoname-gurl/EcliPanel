@@ -28,7 +28,7 @@ function randStr(len: number) {
 }
 
 function uuidSlug(uuid: string) {
-  return uuid.replace(/-/g, '').slice(0, 8);
+  return uuid.replace(/[^a-fA-F0-9]/g, '').slice(0, 8);
 }
 
 export async function databaseRoutes(app: any, prefix = '') {

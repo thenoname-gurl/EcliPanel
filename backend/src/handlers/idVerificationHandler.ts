@@ -10,6 +10,14 @@ import fs from 'fs';
 import { pipeline } from 'stream/promises';
 import { t } from 'elysia';
 
+function getSafeRelativeFilePath(base: string, relPath: string): string | null {
+  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
+  const fullPath = path.join(base, normalised);
+  const relative = path.relative(base, fullPath);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
+  return fullPath;
+}
+
 export async function idVerificationRoutes(app: any, prefix = '') {
   app.post(prefix + '/id-verification', async (ctx: any) => {
     const user = ctx.user as User;
@@ -150,7 +158,8 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     const uploadDir = process.cwd();
     for (const url of [rec.idDocumentUrl, rec.selfieUrl]) {
       if (url) {
-        const filepath = path.join(uploadDir, url.replace(/^\//, ''));
+        const filepath = getSafeRelativeFilePath(uploadDir, url);
+        if (!filepath) continue;
         try { fs.unlinkSync(filepath); } catch {}
       }
     }
