@@ -40,6 +40,10 @@ interface User {
   euIdVerificationDisabled?: boolean
   settings?: Record<string, any>
   guideShown?: boolean
+  dateOfBirth?: string
+  age?: number
+  isChildAccount?: boolean
+  ageVerificationRequired?: boolean
 }
 
 interface AuthContextType {
@@ -59,6 +63,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 function hasCompletedGuide(user: User | null | undefined): boolean {
   if (!user) return true
   return user.guideShown === true || user.settings?.guideShown === true
+}
+
+function needsAgeVerification(user: User | null | undefined): boolean {
+  if (!user) return false
+  if (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*') return false
+  if (user.dateOfBirth) return false
+  return user.ageVerificationRequired === true || user.age == null
 }
 
 function applyUserTheme(user: User | null | undefined): void {
@@ -333,6 +344,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (isAuthPage) {
       router.replace("/dashboard")
+    }
+  }, [authState, user, pathname, router])
+
+  useEffect(() => {
+    if (authState !== "authenticated" || !user || !pathname) return
+    const ageRequired = needsAgeVerification(user)
+    const onSettingsPage = pathname.startsWith("/dashboard/settings")
+
+    if (ageRequired && !onSettingsPage) {
+      router.replace("/dashboard/settings?tab=profile&ageVerification=1")
     }
   }, [authState, user, pathname, router])
 

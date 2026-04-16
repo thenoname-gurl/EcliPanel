@@ -53,6 +53,7 @@ interface FormData {
   billingCountry: string
   middleName: string
   phone: string
+  dateOfBirth: string
   captchaAnswer: string
   captchaToken: string
   invisibleCaptchaToken?: string
@@ -399,6 +400,7 @@ export default function RegisterPage() {
     billingCountry: "",
     middleName: "",
     phone: "",
+    dateOfBirth: "",
     captchaAnswer: "",
     captchaToken: "",
     invisibleCaptchaToken: "",
@@ -595,7 +597,7 @@ export default function RegisterPage() {
   }
 
   /* ─── Step validation ─── */
-  const canProceedStep0 = form.firstName && form.lastName && form.email && form.password && form.phone && passwordStrength >= 0.55
+  const canProceedStep0 = form.firstName && form.lastName && form.email && form.password && form.phone && form.dateOfBirth && passwordStrength >= 0.55
   const canProceedStep1 = form.address && form.billingCity && form.billingState && form.billingZip && form.billingCountry
 
   const nextStep = () => {
@@ -882,6 +884,18 @@ export default function RegisterPage() {
                       onChange={handleChange}
                       required
                       autoComplete="tel"
+                    />
+
+                    <InputField
+                      icon={User}
+                      name="dateOfBirth"
+                      type="date"
+                      placeholder={t("dateOfBirthPlaceholder")}
+                      label={t("dateOfBirth")}
+                      value={form.dateOfBirth}
+                      onChange={handleChange}
+                      required
+                      autoComplete="bday"
                     />
                   </div>
 

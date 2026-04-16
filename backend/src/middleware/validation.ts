@@ -18,7 +18,7 @@ function validationErrors(errors: Record<string, string>): ValidationErrorBody {
 }
 
 export async function validateUserRegistration(ctx: any, _reply?: any): Promise<boolean> {
-  const { firstName, lastName, email, password, address, billingCity, billingZip, billingCountry, captchaAnswer, captchaToken } = ctx.body as any;
+  const { firstName, lastName, email, password, address, billingCity, billingZip, billingCountry, dateOfBirth, captchaAnswer, captchaToken } = ctx.body as any;
 
   const missingFields = [
     { key: 'firstName', value: firstName },
@@ -29,6 +29,7 @@ export async function validateUserRegistration(ctx: any, _reply?: any): Promise<
     { key: 'billingCity', value: billingCity },
     { key: 'billingZip', value: billingZip },
     { key: 'billingCountry', value: billingCountry },
+    { key: 'dateOfBirth', value: dateOfBirth },
   ].filter((item) => !item.value);
 
   if (missingFields.length) {
@@ -88,6 +89,27 @@ export async function validateUserRegistration(ctx: any, _reply?: any): Promise<
   if (!EMAIL_RE.test(String(email))) {
     ctx.set.status = 400;
     (ctx as any).body = validationError('email', 'Please provide a valid email address (e.g. user@example.com).');
+    return false;
+  }
+
+  const dob = new Date(String(dateOfBirth));
+  if (!dateOfBirth || isNaN(dob.getTime())) {
+    ctx.set.status = 400;
+    (ctx as any).body = validationError('dateOfBirth', 'Please provide a valid date of birth in YYYY-MM-DD format.');
+    return false;
+  }
+
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const monthDiff = now.getUTCMonth() - dob.getUTCMonth();
+  const dayDiff = now.getUTCDate() - dob.getUTCDate();
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+
+  if (age < 14 || age > 122) {
+    ctx.set.status = 400;
+    (ctx as any).body = validationError('dateOfBirth', 'The provided age is suspicious or not allowed by our policies. Please enter your real date of birth or contact support. Accounts may be suspended for fake data.');
     return false;
   }
 

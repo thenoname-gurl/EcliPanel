@@ -274,8 +274,6 @@ function formatDurationMs(ms: number | null | undefined) {
   return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface AdminStats {
@@ -311,6 +309,8 @@ interface AdminUser {
   studentVerified?: boolean
   demoUsed?: boolean
   settings?: Record<string, any>
+  dateOfBirth?: string | null
+  parentId?: number | null
 }
 
 interface AdminVerification {
@@ -1035,6 +1035,8 @@ export default function AdminPanel() {
   const [editDiskLimit, setEditDiskLimit] = useState("")
   const [editDatabaseLimit, setEditDatabaseLimit] = useState("")
   const [editBackupLimit, setEditBackupLimit] = useState("")
+  const [editDateOfBirth, setEditDateOfBirth] = useState("")
+  const [editParentId, setEditParentId] = useState("")
   const [editBadgesText, setEditBadgesText] = useState("")
 
   const parseBadgeText = (value: string): string[] =>
@@ -2032,6 +2034,8 @@ export default function AdminPanel() {
     setEditDiskLimit(lim.disk !== undefined ? String(lim.disk) : "")
     setEditDatabaseLimit(lim.databases !== undefined ? String(lim.databases) : "")
     setEditBackupLimit(lim.backups !== undefined ? String(lim.backups) : "")
+    setEditDateOfBirth(user.dateOfBirth || "")
+    setEditParentId(user.parentId != null ? String(user.parentId) : "")
     const badges = Array.isArray((user as any)?.settings?.badges)
       ? (user as any).settings.badges
       : Array.isArray((user as any)?.settings?.gambling?.badges)
@@ -2077,7 +2081,14 @@ export default function AdminPanel() {
       const badges = parseBadgeText(editBadgesText)
       await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}`, {
         method: "PUT",
-        body: JSON.stringify({ role: editRole, portalType: editTier, limits: Object.keys(limits).length ? limits : null, badges }),
+        body: JSON.stringify({
+          role: editRole,
+          portalType: editTier,
+          limits: Object.keys(limits).length ? limits : null,
+          badges,
+          dateOfBirth: editDateOfBirth || undefined,
+          parentId: editParentId ? Number(editParentId) : null,
+        }),
       })
       setUsers((prev) =>
         prev.map((u) =>
@@ -2086,6 +2097,8 @@ export default function AdminPanel() {
                 ...u,
                 role: editRole,
                 portalType: editTier,
+                dateOfBirth: editDateOfBirth !== "" ? editDateOfBirth : null,
+                parentId: editParentId !== "" ? Number(editParentId) : null,
                 settings: {
                   ...(u.settings || {}),
                   badges,
@@ -5698,6 +5711,28 @@ remote: ${panelUrl}`
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date of Birth</label>
+              <input
+                type="date"
+                value={editDateOfBirth}
+                onChange={(e) => setEditDateOfBirth(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+              <p className="text-xs text-muted-foreground">Enter a birth date for age verification and child account handling.</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Parent Account ID</label>
+              <input
+                type="number"
+                min="1"
+                value={editParentId}
+                onChange={(e) => setEditParentId(e.target.value)}
+                placeholder="Parent user id"
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+              <p className="text-xs text-muted-foreground">Assign a parent account for underage users. Leave blank to clear.</p>
             </div>
             <div className="border-t border-border pt-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Resource Limits (leave blank = unlimited)</p>

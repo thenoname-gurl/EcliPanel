@@ -10,6 +10,7 @@ import { Organisation } from '../models/organisation.entity';
 import { WingsApiService } from '../services/wingsApiService';
 import { authenticate } from '../middleware/auth';
 import { sendMail } from '../services/mailService';
+import { createAdminBroadcastJob } from '../services/adminBroadcastService';
 import { UserLog } from '../models/userLog.entity';
 import { ApiRequestLog } from '../models/apiRequestLog.entity';
 import { AIModel } from '../models/aiModel.entity';
@@ -704,9 +705,6 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'subject and message are required' };
     }
 
-    const userRepo = AppDataSource.getRepository(User);
-    const logRepo = AppDataSource.getRepository(UserLog);
-
     if (test) {
       const adminUser = ctx.user as User | undefined;
       const toEmail = adminUser?.email;
@@ -729,6 +727,7 @@ export async function adminRoutes(app: any, prefix = '') {
           template: 'notification',
           vars: { title: subject, message: htmlMessage, details: escapeHtml(detailsStr) }
         });
+        const logRepo = AppDataSource.getRepository(UserLog);
         await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update-test', targetType: 'test', metadata: { subject, recipients: 1 }, timestamp: new Date() } as any));
         return { success: true, recipients: 1 };
       } catch (e) {
@@ -737,44 +736,20 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
-    const users = await userRepo.find();
+    const adminUser = ctx.user as User | undefined;
+    await createAdminBroadcastJob(adminUser?.id ?? 0, subject, message, force);
 
-    let sent = 0;
-    for (const u of users) {
-      if (!u.email) continue;
-      const wants = u.settings?.notifications?.productUpdates;
-      const enabled = force || (typeof wants === 'boolean' ? wants : false);
-      if (!enabled) continue;
-      try {
-        const htmlMessage = markdownToHtml(message);
-        const adminUser = ctx.user as User | undefined;
-        const detailNameParts: string[] = [];
-        if (adminUser?.firstName) detailNameParts.push(adminUser.firstName);
-        if (adminUser?.middleName) detailNameParts.push(adminUser.middleName[0] + '.');
-        if (adminUser?.lastName) detailNameParts.push(adminUser.lastName[0] + '.');
-        const detailsStr = `${detailNameParts.join(' ')} — ${adminUser?.email || ''}`.trim();
-
-        await sendMail({
-          to: u.email,
-          from: process.env.MAIL_FROM,
-          subject: `${subject} — Eclipse Systems`,
-          template: 'notification',
-          vars: { title: subject, message: htmlMessage, details: escapeHtml(detailsStr) }
-        });
-        sent++;
-      } catch (e) {
-        // skip
-      }
-    }
-
-    await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update', targetType: 'broadcast', metadata: { subject, recipients: sent, force }, timestamp: new Date() } as any));
-
-    return { success: true, recipients: sent };
+    return {
+      success: true,
+      status: 'queued',
+      message: 'Broadcast has been queued and will be sent in the background. Check activity logs for progress.',
+      recipients: 0,
+    };
   }, {
     beforeHandle: authenticate,
     schema: {
       body: t.Object({ subject: t.String(), message: t.String(), force: t.Optional(t.Boolean()), test: t.Optional(t.Boolean()) }),
-      response: { 200: t.Object({ success: t.Boolean(), recipients: t.Number() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      response: { 200: t.Object({ success: t.Boolean(), recipients: t.Optional(t.Number()), status: t.Optional(t.String()), message: t.Optional(t.String()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     },
     detail: { summary: 'Send product updates to users (admin only).', tags: ['Admin'] },
   });
@@ -1035,7 +1010,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'User not found' };
     }
 
-    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits, supportBanned, supportBanReason, badges } = ctx.body as any;
+    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits, supportBanned, supportBanReason, badges, dateOfBirth, parentId } = ctx.body as any;
     const nodeRepo = AppDataSource.getRepository(Node);
     if (role !== undefined) user.role = role;
     if (portalType !== undefined) user.portalType = portalType;
@@ -1096,6 +1071,17 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
+    if (dateOfBirth !== undefined) {
+      const dob = new Date(String(dateOfBirth));
+      if (isNaN(dob.getTime())) {
+        ctx.set.status = 400;
+        return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      }
+      user.dateOfBirth = dob;
+    }
+    if (parentId !== undefined) {
+      user.parentId = parentId != null ? Number(parentId) : null;
+    }
     if (supportBanned !== undefined) user.supportBanned = !!supportBanned;
     if (supportBanReason !== undefined) user.supportBanReason = supportBanReason;
 
@@ -1137,6 +1123,8 @@ export async function adminRoutes(app: any, prefix = '') {
         demoOriginalPortalType: t.Optional(t.String()),
         demoLimits: t.Optional(t.Any()),
         badges: t.Optional(t.Array(t.String())),
+        dateOfBirth: t.Optional(t.String()),
+        parentId: t.Optional(t.Any()),
       }),
       response: {
         200: t.Object({ success: t.Boolean() }),
@@ -1147,6 +1135,31 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Modify a user record (admin)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/users/:id/children', async (ctx) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const userRepo = AppDataSource.getRepository(User);
+    const parentId = Number(ctx.params.id);
+    if (!Number.isInteger(parentId) || parentId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_parent_id', message: 'Invalid parent user id.' };
+    }
+    const children = await userRepo.find({ where: { parentId }, order: { id: 'ASC' } });
+    return { success: true, children };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean(), children: t.Array(t.Any()) }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'List child accounts for a given parent (admin only)', tags: ['Admin'] },
   });
 
   app.post(prefix + '/admin/users/:id/deassign-student', async (ctx) => {

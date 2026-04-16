@@ -54,6 +54,11 @@ const userSchema = t.Object({
   nodeId: t.Optional(t.Number()),
   limits: t.Optional(t.Any()),
   settings: t.Optional(t.Any()),
+  dateOfBirth: t.Optional(t.String()),
+  parentId: t.Optional(t.Number()),
+  age: t.Optional(t.Number()),
+  isChildAccount: t.Optional(t.Boolean()),
+  ageVerificationRequired: t.Boolean(),
   emailVerified: t.Boolean(),
   studentVerified: t.Boolean(),
   studentVerifiedAt: t.Optional(t.String()),
@@ -78,6 +83,14 @@ async function safeUser(user: User): Promise<any> {
   if (safe.studentVerifiedAt instanceof Date) {
     safe.studentVerifiedAt = safe.studentVerifiedAt.toISOString();
   }
+  if (safe.dateOfBirth instanceof Date) {
+    safe.dateOfBirth = safe.dateOfBirth.toISOString().split('T')[0];
+  }
+  
+  const computedAge = getAgeFromDate(safe.dateOfBirth);
+  safe.age = computedAge === null ? undefined : computedAge;
+  safe.isChildAccount = safe.parentId != null || (computedAge != null && computedAge < 18);
+  safe.ageVerificationRequired = !safe.dateOfBirth;
 
   if (safe.fraudDetectedAt === null) {
     delete safe.fraudDetectedAt;
@@ -94,6 +107,27 @@ async function safeUser(user: User): Promise<any> {
   }
 
   return safe;
+}
+
+function parseDateOfBirth(value: any): Date | null {
+  if (!value) return null;
+  const date = new Date(String(value));
+  if (isNaN(date.getTime())) return null;
+  return date;
+}
+
+function getAgeFromDate(date?: Date | string | null): number | null {
+  if (!date) return null;
+  const dob = date instanceof Date ? date : new Date(String(date));
+  if (isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const monthDiff = now.getUTCMonth() - dob.getUTCMonth();
+  const dayDiff = now.getUTCDate() - dob.getUTCDate();
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+  return age;
 }
 
 async function sendVerificationEmailToUser(user: User) {
@@ -141,12 +175,48 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const body = ctx.body as Partial<User>;
+    const dateOfBirth = parseDateOfBirth((body as any).dateOfBirth);
+    if (!dateOfBirth) {
+      ctx.set.status = 400;
+      return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+    }
+    body.dateOfBirth = dateOfBirth;
+
     const normalizedEmail = String(body.email || '').trim().toLowerCase();
     if (normalizedEmail && await isPanelAssignedMailboxEmail(normalizedEmail)) {
       ctx.set.status = 400;
       return { error: 'registration_email_reserved', message: 'That email is reserved by the panel and cannot be used for registration.' };
     }
     const userRepo = AppDataSource.getRepository(User);
+
+    if (body.parentId != null) {
+      const parentId = Number(body.parentId);
+      if (!Number.isInteger(parentId) || parentId <= 0) {
+        ctx.set.status = 400;
+        return { error: 'invalid_parent_id', message: 'parentId must be a valid user id.' };
+      }
+      const parent = await userRepo.findOneBy({ id: parentId });
+      if (!parent) {
+        ctx.set.status = 404;
+        return { error: 'parent_not_found', message: 'Parent account not found.' };
+      }
+      const parentAge = getAgeFromDate(parent.dateOfBirth);
+      if (parentAge === null || parentAge < 18) {
+        ctx.set.status = 403;
+        return { error: 'parent_must_be_adult', message: 'Only an adult user may be assigned as a parent.' };
+      }
+      if (!dateOfBirth) {
+        ctx.set.status = 400;
+        return { error: 'date_of_birth_required', message: 'Child dateOfBirth is required when assigning a parent.' };
+      }
+      const childAge = getAgeFromDate(dateOfBirth);
+      if (childAge === null || childAge >= 18) {
+        ctx.set.status = 400;
+        return { error: 'child_must_be_under_18', message: 'Child accounts must be under age 18.' };
+      }
+      body.parentId = parentId;
+    }
+
     const user = userRepo.create(body);
     user.passwordHash = await hashPassword((body as any).password!);
     if (!user.portalType) user.portalType = 'free';
@@ -250,6 +320,8 @@ export async function userRoutes(app: any, prefix = '') {
       billingZip: t.String(),
       billingCountry: t.String(),
       phone: t.Optional(t.String()),
+      dateOfBirth: t.String(),
+      parentId: t.Optional(t.Number()),
       captchaAnswer: t.Optional(t.String()),
       captchaToken: t.Optional(t.String()),
       invisibleCaptchaToken: t.Optional(t.String()),
@@ -292,6 +364,105 @@ export async function userRoutes(app: any, prefix = '') {
    beforeHandle: authenticate,
     response: { 200: userSchema, 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get current user', tags: ['Users'] }
+  });
+
+  app.get(prefix + '/users/me/children', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    const parentAge = getAgeFromDate(requester.dateOfBirth);
+    if (parentAge === null || parentAge < 18) {
+      ctx.set.status = 403;
+      return { error: 'parent_access_required', message: 'Only adult users can view child accounts.' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const children = await userRepo.find({ where: { parentId: requester.id }, order: { id: 'ASC' } });
+    return { success: true, children: await Promise.all(children.map((child) => safeUser(child))) };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean(), children: t.Array(userSchema) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    detail: { summary: 'List child accounts for the current parent', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/users/me/children', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    const parentAge = getAgeFromDate(requester.dateOfBirth);
+    if (parentAge === null || parentAge < 18) {
+      ctx.set.status = 403;
+      return { error: 'parent_access_required', message: 'Only adult users may assign child accounts.' };
+    }
+
+    const payload = ctx.body as any;
+    const childUserId = Number(payload?.childUserId);
+    if (!Number.isInteger(childUserId) || childUserId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_child_user_id', message: 'childUserId is required and must be a valid number.' };
+    }
+    if (childUserId === requester.id) {
+      ctx.set.status = 400;
+      return { error: 'invalid_child_user_id', message: 'You cannot assign yourself as a child.' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const child = await userRepo.findOneBy({ id: childUserId });
+    if (!child) {
+      ctx.set.status = 404;
+      return { error: 'child_not_found', message: 'Child account not found.' };
+    }
+    if (child.parentId) {
+      ctx.set.status = 409;
+      return { error: 'child_already_assigned', message: 'This account already has a parent.' };
+    }
+    const childAge = getAgeFromDate(child.dateOfBirth);
+    if (childAge === null || childAge >= 18) {
+      ctx.set.status = 400;
+      return { error: 'child_must_be_under_18', message: 'Only users under 18 may be assigned as children.' };
+    }
+    child.parentId = requester.id;
+    await userRepo.save(child);
+    return { success: true, child: await safeUser(child) };
+  }, {
+    beforeHandle: authenticate,
+    body: t.Object({ childUserId: t.Number() }),
+    response: { 200: t.Object({ success: t.Boolean(), child: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
+    detail: { summary: 'Assign an existing child account to the current parent', tags: ['Users'] }
+  });
+
+  app.delete(prefix + '/users/me/children/:childId', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    const childId = Number(ctx.params['childId']);
+    if (!Number.isInteger(childId) || childId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+    }
+    const userRepo = AppDataSource.getRepository(User);
+    const child = await userRepo.findOneBy({ id: childId });
+    if (!child) {
+      ctx.set.status = 404;
+      return { error: 'child_not_found', message: 'Child account not found.' };
+    }
+    if (child.parentId !== requester.id) {
+      ctx.set.status = 403;
+      return { error: 'forbidden', message: 'You do not manage this child account.' };
+    }
+    child.parentId = null;
+    await userRepo.save(child);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Remove a child assignment from the current parent', tags: ['Users'] }
   });
 
   const mailboxDomain = String(process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app').trim();
@@ -1318,8 +1489,8 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const USER_FIELDS = ['email','firstName', 'middleName', 'lastName', 'displayName', 'phone',
-      'address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'settings'];
-    const ADMIN_ONLY_FIELDS = ['role', 'portalType', 'nodeId', 'limits', 'settings', 'emailVerified', 'idVerified', 'suspended', 'fraudFlag', 'fraudReason'];
+      'address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'settings', 'dateOfBirth'];
+    const ADMIN_ONLY_FIELDS = ['role', 'portalType', 'nodeId', 'limits', 'settings', 'emailVerified', 'idVerified', 'suspended', 'fraudFlag', 'fraudReason', 'parentId'];
     const allowed = isAdmin ? [...USER_FIELDS, ...ADMIN_ONLY_FIELDS] : USER_FIELDS;
     for (const key of allowed) {
       if (key === 'email') continue;

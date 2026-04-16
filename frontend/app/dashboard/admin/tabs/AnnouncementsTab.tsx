@@ -163,8 +163,13 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                         method: "POST",
                         body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce }),
                       })
-                      if (res && res.success) alert(t("alerts.broadcastSent", { recipients: res.recipients }))
-                      else alert(t("alerts.broadcastFailed"))
+                      if (res?.status === 'queued') {
+                        alert(t("alerts.broadcastQueued"))
+                      } else if (res && res.success) {
+                        alert(t("alerts.broadcastSent", { recipients: res.recipients ?? 0 }))
+                      } else {
+                        alert(t("alerts.broadcastFailed"))
+                      }
                     } catch (e: any) {
                       alert(t("alerts.broadcastFailedWithReason", { reason: e.message || e }))
                     } finally {
