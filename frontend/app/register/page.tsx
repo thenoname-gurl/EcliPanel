@@ -718,7 +718,7 @@ export default function RegisterPage() {
                 )}
                 {form.parentRegistrationToken && (
                   <AlertBanner variant="info">
-                    Registering with a parent invite token. Complete the form to finish child account setup.
+                    {t("parentInviteBanner")}
                   </AlertBanner>
                 )}
                 {domainOk === false && !dismissedDomainWarning && (
