@@ -103,6 +103,8 @@ function statusColor(status: string) {
     case "offline":
     case "stopped":
       return "bg-zinc-500"
+    case "dmca":
+      return "bg-destructive"
     default:
       return "bg-zinc-500"
   }
@@ -120,6 +122,8 @@ function statusLabel(status: string, t?: (key: string) => string) {
     case "offline":
     case "stopped":
       return t ? t("status.offline") : "Offline"
+    case "dmca":
+      return t ? t("status.dmca") : "DMCA"
     default:
       return status || (t ? t("status.unknown") : "Unknown")
   }
@@ -459,6 +463,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const [disk, setDisk] = useState<number>(10240)
   const [cpu, setCpu] = useState<number>(100)
   const [kvmPassthroughEnabled, setKvmPassthroughEnabled] = useState<boolean>(false)
+  const [requestIpv6, setRequestIpv6] = useState<boolean>(false)
   const [startup, setStartup] = useState<string>("")
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([])
   const [blackjackStandAt, setBlackjackStandAt] = useState<number>(17)
@@ -592,6 +597,9 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
         createPayload.cpu = cpu
       } else {
         createPayload.playerStandAt = blackjackStandAt
+      }
+      if (requestIpv6) {
+        createPayload.requestIpv6 = true
       }
 
       const createRes = await apiFetch(API_ENDPOINTS.servers, {
@@ -924,6 +932,16 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 <label htmlFor="new-server-kvm">{t("kvm.enable")}</label>
               </div>
             ) : null}
+            <div className="flex items-center justify-center gap-2 text-sm text-foreground">
+              <input
+                id="new-server-request-ipv6"
+                type="checkbox"
+                checked={requestIpv6}
+                onChange={(e) => setRequestIpv6(e.target.checked)}
+                className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
+              />
+              <label htmlFor="new-server-request-ipv6">Request IPv6</label>
+            </div>
             <p className="text-[11px] text-muted-foreground/70 text-center">
               {t("kvm.portHint")}
             </p>

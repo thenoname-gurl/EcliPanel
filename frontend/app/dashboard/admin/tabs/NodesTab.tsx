@@ -222,6 +222,26 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
             </div>
 
+            <div className="grid grid-cols-1 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Subnet</label>
+                <input value={addNodeIpv6Subnet} onChange={(e) => setAddNodeIpv6Subnet(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  placeholder="e.g. 2001:db8:100::/64" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Excluded Ports</label>
+                <input value={addNodeIpv6ExcludedPorts} onChange={(e) => setAddNodeIpv6ExcludedPorts(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  placeholder="e.g. 25,465,587" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
+                <input type="number" min="0" value={addNodeIpv6ReservedCount} onChange={(e) => setAddNodeIpv6ReservedCount(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.authToken")}</label>
               <div className="flex gap-2">
@@ -328,6 +348,25 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               onChange={(e) => setEditNodeDefaultIp(e.target.value)}
               className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             <p className="text-xs text-muted-foreground">{t("editDialog.fields.defaultBindIpHint")}</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Subnet</label>
+              <input type="text" value={editNodeIpv6Subnet} onChange={(e) => setEditNodeIpv6Subnet(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                placeholder="e.g. 2001:db8:100::/64" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Excluded Ports</label>
+              <input type="text" value={editNodeIpv6ExcludedPorts} onChange={(e) => setEditNodeIpv6ExcludedPorts(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                placeholder="e.g. 25,465,587" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
+              <input type="number" min="0" value={editNodeIpv6ReservedCount} onChange={(e) => setEditNodeIpv6ReservedCount(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
           </div>
         </div>
         <DialogFooter>

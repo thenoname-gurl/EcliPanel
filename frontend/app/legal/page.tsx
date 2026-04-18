@@ -7,6 +7,7 @@ const documents = [
   { title: "Acceptable Use Policy", href: "/legal/acceptable-use-policy", icon: Lock },
   { title: "AI Policy", href: "/legal/ai-policy", icon: Cpu },
   { title: "Email Policy", href: "/legal/email-policy", icon: Mail },
+  { title: "Minimum Age Policy", href: "/legal/minimum-age", icon: Globe2 },
   { title: "Cookies Policy", href: "/legal/cookies-policy", icon: Globe2 },
   { title: "DMCA Copyright Policy", href: "/legal/dmca-copyright-policy", icon: BookOpen },
   { title: "Imprint / Legal Notice", href: "/legal/imprint", icon: FileText },

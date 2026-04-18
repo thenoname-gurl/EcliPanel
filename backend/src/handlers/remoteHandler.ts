@@ -138,7 +138,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
         name: cfg.name || cfg.uuid,
         description: cfg.description || '',
       },
-      suspended: cfg.suspended,
+      suspended: cfg.suspended || cfg.dmca,
       invocation: cfg.startup || egg?.startup || '',
       skip_egg_scripts: cfg.skipEggScripts || false,
       environment: env,
@@ -606,14 +606,16 @@ export async function remoteRoutes(app: any, prefix: string) {
         return { errors: [{ code: 'Forbidden', detail: 'Server not found or not authorized for user' }] };
       }
 
-      if (cfg.suspended) {
-        const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
-        const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+      if (cfg.suspended || cfg.dmca) {
+        const actor = String(cfg.dmca ? cfg.dmcaBy : cfg.suspendedBy || 'system').trim() || 'system';
+        const reason = String(cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
         ctx.set.status = 403;
         return {
           errors: [{
             code: 'Forbidden',
-            detail: `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`,
+            detail: cfg.dmca
+              ? `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Please contact support.`
+              : `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`,
           }],
         };
       }

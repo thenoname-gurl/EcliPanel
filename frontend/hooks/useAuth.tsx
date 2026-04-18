@@ -42,8 +42,10 @@ interface User {
   guideShown?: boolean
   dateOfBirth?: string
   age?: number
+  parentId?: number | null
   isChildAccount?: boolean
   ageVerificationRequired?: boolean
+  limits?: Record<string, number> | null
 }
 
 interface AuthContextType {
@@ -122,6 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
   
   const guideCheckPerformed = useRef(false)
+  const ageVerificationPrompted = useRef(false)
   const isCheckingGuide = useRef(false)
 
   const checkAndPromptGuide = useCallback(async (currentUser: User): Promise<void> => {
@@ -352,8 +355,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const ageRequired = needsAgeVerification(user)
     const onSettingsPage = pathname.startsWith("/dashboard/settings")
 
-    if (ageRequired && !onSettingsPage) {
-      router.replace("/dashboard/settings?tab=profile&ageVerification=1")
+    if (ageRequired && !onSettingsPage && !ageVerificationPrompted.current) {
+      ageVerificationPrompted.current = true
+
+      if (typeof window !== "undefined") {
+        const shouldGoToSettings = window.confirm(
+          "Your account needs a date of birth for age verification. Go to Settings now to update it?"
+        )
+
+        if (shouldGoToSettings) {
+          router.push("/dashboard/settings?tab=profile&ageVerification=1")
+        }
+      }
     }
   }, [authState, user, pathname, router])
 

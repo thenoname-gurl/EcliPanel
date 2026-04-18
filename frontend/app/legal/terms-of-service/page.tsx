@@ -41,9 +41,11 @@ export default function TermsOfServicePage() {
           <h2 className="text-xl font-semibold text-foreground">3. Registration & Eligibility</h2>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
             <li>Registration is required for certain services, and you must provide accurate information.</li>
-            <li>Minimum age: 14 years. Parental consent may be required for minors.</li>
+            <li>Minimum age: 13 years, or 14 years in the European Union and United Kingdom. Country-specific age requirements may be higher.</li>
+            <li>Children may register with a valid parent-issued registration invite. Parental consent, verification, and account linkage are required.</li>
             <li>We may request identity verification for security, fraud prevention, or compliance.</li>
             <li>We do not provide services to users in restricted jurisdictions. See <Link className="font-medium text-primary hover:text-primary/80" href="/geoblock">geoblocked countries and restrictions</Link> for details.</li>
+            <li>For a full list of country-by-country minimum age requirements, see our <Link className="font-medium text-primary hover:text-primary/80" href="/legal/minimum-age">Minimum Age Policy</Link>.</li>
             <li>We may suspend or terminate accounts for suspected abuse, fraud, or legal non-compliance.</li>
           </ul>
         </section>

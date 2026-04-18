@@ -41,6 +41,41 @@ export async function ticketRoutes(app: any, prefix = '') {
     } catch (e) { return String(s); }
   }
 
+  function normalizeTicketMessages(ticket: any) {
+    if (!ticket) return;
+    if (Array.isArray(ticket.messages)) return;
+
+    try {
+      if (typeof ticket.messages === 'string') {
+        const parsed = JSON.parse(ticket.messages);
+        if (Array.isArray(parsed)) {
+          ticket.messages = parsed;
+          return;
+        }
+      }
+
+      if (ticket.messages && typeof ticket.messages === 'object') {
+        if (Array.isArray((ticket.messages as any).messages)) {
+          ticket.messages = (ticket.messages as any).messages;
+          return;
+        }
+
+        const keys = Object.keys(ticket.messages);
+        const numericKeys = keys.filter((k) => /^\\d+$/.test(k));
+        if (numericKeys.length === keys.length && numericKeys.length > 0) {
+          ticket.messages = numericKeys
+            .sort((a, b) => Number(a) - Number(b))
+            .map((k) => (ticket.messages as any)[k]);
+          return;
+        }
+      }
+    } catch {
+      // skippy
+    }
+
+    ticket.messages = [];
+  }
+
   function getTicketResponseDurations(ticket: any): number[] {
     const records = Array.isArray(ticket.messages) ? ticket.messages : [];
     const sorted = records
@@ -314,6 +349,7 @@ export async function ticketRoutes(app: any, prefix = '') {
     };
 
     const apply = async (reply: string, dir: Directive) => {
+      normalizeTicketMessages(ticket);
       if (!Array.isArray(ticket.messages)) ticket.messages = [];
       const ts = now();
 
@@ -926,14 +962,16 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     }
 
     const now = new Date();
+    const safeSubject = sanitizeForDb(subject);
+    const safeMessage = sanitizeForDb(message);
     const ticket = repo.create({
       userId: user.id,
-      subject,
-      message,
+      subject: safeSubject,
+      message: safeMessage,
       priority: priority || 'medium',
       status: 'opened',
       department: typeof department === 'string' ? department : null,
-      messages: [{ sender: 'user', message, created: now }],
+      messages: [{ sender: 'user', message: safeMessage, created: now }],
     });
     const saved = await repo.save(ticket);
     try {
@@ -1056,6 +1094,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
     if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
 
+    normalizeTicketMessages(ticket);
     if (!Array.isArray(ticket.messages)) ticket.messages = [];
 
     let pushedSender: 'staff' | 'user' | null = null;
@@ -1063,7 +1102,8 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     if (typeof reply === 'string' && reply.trim()) {
       const isAdmin = adminRoles.includes(user.role);
       const sender: 'staff' | 'user' = replyAs === 'user' ? 'user' : replyAs === 'staff' ? 'staff' : (isAdmin ? 'staff' : 'user');
-      const txt = reply.trim();
+      const rawText = reply.trim();
+      const txt = sanitizeForDb(rawText);
       if (sender === 'staff') {
         const staffDisplayName = typeof user.displayName === 'string' ? user.displayName.trim() : '';
         const staffLegalName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
@@ -1082,22 +1122,23 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
         ticket.messages.push({ sender, message: txt, created: now });
       }
       pushedSender = sender;
-      lastMessageText = txt;
+      lastMessageText = rawText;
 
       if (sender === 'staff') {
-        ticket.adminReply = reply.trim();
+        ticket.adminReply = txt;
       }
 
       if (!status) {
         ticket.status = sender === 'staff' ? 'replied' : 'awaiting_staff_reply';
       }
     } else if (typeof message === 'string' && message.trim()) {
-      const txt = message.trim();
-      const safeTxt = sanitizeForDb(txt);
-      ticket.message = `${ticket.message}\n\n---\n${safeTxt}`;
+      const rawMessage = message.trim();
+      const safeTxt = sanitizeForDb(rawMessage);
+      const existingMessage = String(ticket.message || '').trim();
+      ticket.message = existingMessage ? `${existingMessage}\n\n---\n${safeTxt}` : safeTxt;
       ticket.messages.push({ sender: 'user', message: safeTxt, created: now });
       pushedSender = 'user';
-      lastMessageText = txt;
+      lastMessageText = rawMessage;
       if (!status) ticket.status = 'awaiting_staff_reply';
     }
 

@@ -2289,7 +2289,9 @@
       "currencyLabel": "Currency (ISO Code)",
       "currencyExamples": "Examples: USD, EUR, GBP, JPY",
       "quickExamples": "Quick Examples",
-      "taxRulesLabel": "Tax Rules (country/group:percent)"
+      "taxRulesLabel": "Tax Rules (country/group:percent)",
+      "ageRulesLabel": "Minimum Age Rules",
+      "ageRulesHint": "Use country codes, country names, EU, UK, or default. One rule per line."
     },
     "geoRules": {
       "title": "Geo-Block Rules",
@@ -3467,6 +3469,7 @@
       "starting": "Starting",
       "stopping": "Stopping",
       "offline": "Offline",
+      "dmca": "DMCA",
       "unknown": "Unknown"
     },
     "resources": {

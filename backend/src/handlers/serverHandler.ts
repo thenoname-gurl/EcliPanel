@@ -21,7 +21,8 @@ import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { getGeoBlockLevel } from '../utils/eu';
-import { notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import { isValidIpv6, isIpv6InSubnet, getNextFreeIpv6Address, parseIpv6, formatIpv6, parseIpv6Cidr } from '../utils/ipv6';
 import { t } from 'elysia';
 import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
@@ -72,6 +73,28 @@ export async function serverRoutes(app: any, prefix = '') {
       .slice(0, 128);
   }
 
+  function parsePortList(raw: any): Set<number> {
+    const ports = new Set<number>();
+    if (raw == null) return ports;
+    const values = Array.isArray(raw) ? raw : String(raw).split(/[\s,]+/);
+    for (const value of values) {
+      const port = Number(String(value).trim());
+      if (Number.isInteger(port) && port > 0 && port <= 65535) {
+        ports.add(port);
+      }
+    }
+    return ports;
+  }
+
+  function isReservedIpv6(address: string, subnet: string, reservedCount?: number): boolean {
+    if (!reservedCount || reservedCount <= 0) return false;
+    const addr = parseIpv6(address);
+    const { network, prefix } = parseIpv6Cidr(subnet);
+    const first = prefix === 128 ? network : network + 1n;
+    const reservedEnd = first + BigInt(reservedCount) - 1n;
+    return addr >= first && addr <= reservedEnd;
+  }
+
   function mergeBadges(existing: any, earned: string[]): string[] {
     const merged = new Set<string>([...normalizeBadgeList(existing), ...normalizeBadgeList(earned)]);
     return Array.from(merged);
@@ -117,9 +140,15 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: { error: 'Forbidden' } };
     }
 
-    if (cfg.suspended) {
+    if (cfg.suspended || cfg.dmca) {
       ctx.set.status = 403;
-      return { error: { error: 'Server suspended' } };
+      return {
+        error: {
+          error: cfg.dmca
+            ? 'Server placed under DMCA takedown'
+            : 'Server suspended',
+        },
+      };
     }
 
     const username = `${user.email}.${cfg.uuid.replace(/-/g, '').substring(0, 8)}`;
@@ -160,6 +189,12 @@ export async function serverRoutes(app: any, prefix = '') {
   }
 
   function buildSuspendedServerMessage(cfg: ServerConfig): string {
+    if (cfg.dmca) {
+      const actor = String(cfg.dmcaBy || cfg.suspendedBy || 'system').trim() || 'system';
+      const reason = String(cfg.dmcaReason || cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+      const deletionAt = cfg.dmcaDeletionAt ? ` It is scheduled for deletion on ${cfg.dmcaDeletionAt.toISOString()}.` : ' It is scheduled for deletion in 30 days.';
+      return `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}.${deletionAt} You may submit a counter-notice with support.`;
+    }
     const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
     const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
     return `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`;
@@ -415,7 +450,7 @@ export async function serverRoutes(app: any, prefix = '') {
           const uuid: string = s.configuration?.uuid || s.uuid;
           const cfg = cfgMap.get(uuid);
           const norm = applyStartupStatusOverride(
-            normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined),
+            normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg),
             cfg,
           );
           all.push({
@@ -433,9 +468,10 @@ export async function serverRoutes(app: any, prefix = '') {
           all.push({
             uuid: c.uuid,
             name: c.name || c.uuid,
-            status: c.hibernated ? 'hibernated' : 'unknown',
+            status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
             hibernated: !!c.hibernated,
-            is_suspended: c.suspended,
+            is_suspended: c.suspended || c.dmca,
+            is_dmca: !!c.dmca,
             resources: null,
             build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
             container: { image: c.dockerImage },
@@ -457,9 +493,10 @@ export async function serverRoutes(app: any, prefix = '') {
           all.push({
             uuid: c.uuid,
             name: c.name || c.uuid,
-            status: c.hibernated ? 'hibernated' : 'unknown',
+            status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
             hibernated: !!c.hibernated,
-            is_suspended: c.suspended,
+            is_suspended: c.suspended || c.dmca,
+            is_dmca: !!c.dmca,
             resources: null,
             build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
             container: { image: c.dockerImage },
@@ -485,7 +522,7 @@ export async function serverRoutes(app: any, prefix = '') {
               const res = await svc.getServer(c.uuid);
               const s = res.data;
               const norm = applyStartupStatusOverride(
-                normalizeServer(s, c.hibernated ? 'hibernated' : undefined),
+                normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c),
                 c,
               );
               all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
@@ -499,7 +536,7 @@ export async function serverRoutes(app: any, prefix = '') {
               const retry = await svc.getServer(c.uuid);
               const s2 = retry.data;
               const norm2 = applyStartupStatusOverride(
-                normalizeServer(s2, c.hibernated ? 'hibernated' : undefined),
+                normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c),
                 c,
               );
               all.push({ ...norm2, name: c.name || norm2.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
@@ -544,22 +581,31 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'List all servers', tags: ['Servers'] }
   });
 
-  function normalizeServer(raw: any, overrideStatus?: string): any {
+  function normalizeServer(raw: any, overrideStatus?: string, persistedCfg?: any): any {
     if (!raw) return raw;
     const cfg = raw.configuration || {};
     const meta = cfg.meta || {};
     const build = cfg.build || {};
     const ctr = cfg.container || cfg.docker || {};
-    const isSuspended = Boolean(raw.is_suspended ?? raw.suspended ?? cfg.suspended ?? false);
+    const isSuspended = Boolean(raw.is_suspended ?? raw.suspended ?? cfg.suspended ?? persistedCfg?.suspended ?? false);
+    const isDmca = Boolean(raw.is_dmca ?? raw.dmca ?? cfg.dmca ?? persistedCfg?.dmca ?? false);
     const baseStatus = overrideStatus ?? raw.state ?? raw.status ?? 'unknown';
-    const status = isSuspended ? 'suspended' : baseStatus;
+    const status = isDmca ? 'dmca' : isSuspended ? 'suspended' : baseStatus;
     return {
       uuid: cfg.uuid || raw.uuid,
       name: meta.name || raw.name || cfg.uuid || raw.uuid,
       description: meta.description || raw.description,
       status,
       hibernated: status === 'hibernated',
-      is_suspended: isSuspended,
+      is_suspended: isSuspended || isDmca,
+      is_dmca: isDmca,
+      dmcaAt: cfg.dmcaAt ?? persistedCfg?.dmcaAt ?? null,
+      dmcaDeletionAt: cfg.dmcaDeletionAt ?? persistedCfg?.dmcaDeletionAt ?? null,
+      dmcaReason: cfg.dmcaReason ?? persistedCfg?.dmcaReason ?? null,
+      dmcaBy: cfg.dmcaBy ?? persistedCfg?.dmcaBy ?? null,
+      suspendedAt: cfg.suspendedAt ?? persistedCfg?.suspendedAt ?? null,
+      suspendedReason: cfg.suspendedReason ?? persistedCfg?.suspendedReason ?? null,
+      suspendedBy: cfg.suspendedBy ?? persistedCfg?.suspendedBy ?? null,
       resources: raw.utilization || raw.resources || null,
       build: {
         memory_limit: build.memory_limit ?? 0,
@@ -644,7 +690,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const svc = await serviceFor(id);
       const res = await svc.getServer(id);
       const norm = applyStartupStatusOverride(
-        normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined),
+        normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
         cfg,
       );
       if (cfg && norm && norm.configuration) {
@@ -679,7 +725,7 @@ export async function serverRoutes(app: any, prefix = '') {
             await svc.syncServer(id, {});
             const retry = await svc.getServer(id);
             const norm = applyStartupStatusOverride(
-              normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined),
+              normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
               cfg,
             );
             return {
@@ -712,6 +758,8 @@ export async function serverRoutes(app: any, prefix = '') {
           uuid: cfg.uuid,
           state: cfg.hibernated ? 'hibernated' : 'unknown',
           is_suspended: cfg.suspended,
+          is_dmca: cfg.dmca,
+          dmca: cfg.dmca,
           configuration: {
             uuid: cfg.uuid,
             meta: { name: cfg.name, description: cfg.description },
@@ -758,6 +806,12 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
     const force = (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) || (ctx.body && ctx.body.force === true);
+    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: id });
+    if (cfg?.dmca && !isAdmin) {
+      ctx.set.status = 403;
+      return { error: 'DMCA-protected servers cannot be deleted by server owners' };
+    }
 
     if (force && !isAdmin) {
       ctx.set.status = 403;
@@ -851,9 +905,10 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const body = ctx.body as any;
-    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled } = body;
+    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled, requestIpv6 } = body;
 
     const ownerId: number = (userId && isAdmin) ? userId : user.id;
+    const wantsIpv6 = requestIpv6 === true || String(requestIpv6) === 'true';
 
     kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
 
@@ -1154,8 +1209,62 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     let autoAllocation: Record<string, any> | null = null;
-    if (node.portRangeStart && node.portRangeEnd) {
+    let assignedIpv6: string | null = null;
+    if (wantsIpv6) {
+      if (!node.ipv6Subnet) {
+        ctx.set.status = 400;
+        return { error: 'IPv6 is not configured on this node.' };
+      }
+      if (!kvmPassthroughEnabled) {
+        ctx.set.status = 400;
+        return { error: 'IPv6 assignment requires a KVM server.' };
+      }
+      if (!node.portRangeStart || !node.portRangeEnd) {
+        ctx.set.status = 400;
+        return { error: 'IPv6 allocation requires a node with a port allocation pool.' };
+      }
+
+      const nodeConfigs = await cfgRepo().find({
+        where: { nodeId: node.id },
+        select: ['allocations'],
+      });
+      const usedIpv6 = new Set<string>();
+      for (const c of nodeConfigs) {
+        const alloc = c.allocations as any;
+        if (!alloc) continue;
+        if (alloc.default?.ip && isValidIpv6(String(alloc.default.ip))) {
+          usedIpv6.add(formatIpv6(parseIpv6(String(alloc.default.ip))));
+        }
+        for (const ip of Object.keys(alloc.mappings || {})) {
+          if (isValidIpv6(ip)) {
+            usedIpv6.add(formatIpv6(parseIpv6(ip)));
+          }
+        }
+      }
+      assignedIpv6 = getNextFreeIpv6Address(node.ipv6Subnet, usedIpv6, BigInt(node.ipv6ReservedCount ?? 0));
+      if (!assignedIpv6) {
+        ctx.set.status = 503;
+        return { error: 'No free IPv6 addresses available in node subnet. Contact an administrator.' };
+      }
+
+      const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
+      const ports: number[] = [];
+      for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
+        if (!excludedIpv6Ports.has(p)) ports.push(p);
+      }
+      if (ports.length === 0) {
+        ctx.set.status = 503;
+        return { error: 'No usable ports remain for IPv6 allocation on this node.' };
+      }
+
+      autoAllocation = {
+        default: { ip: assignedIpv6, port: ports[0] },
+        mappings: { [assignedIpv6]: ports },
+        owners: ports.reduce((acc, port) => ({ ...acc, [`${assignedIpv6}:${port}`]: ownerId }), {} as Record<string, number>),
+      };
+    } else if (node.portRangeStart && node.portRangeEnd) {
       const bindIp = node.defaultIp || '0.0.0.0';
+      const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
       const nodeConfigs = await cfgRepo().find({
         where: { nodeId: node.id },
         select: ['allocations'],
@@ -1172,7 +1281,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
-        if (!takenPorts.has(p)) {
+        if (!takenPorts.has(p) && !excludedIpv6Ports.has(p)) {
           autoAllocation = {
             default: { ip: bindIp, port: p },
             mappings: { [bindIp]: [p] },
@@ -1357,25 +1466,216 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'Update server settings', tags: ['Servers'] }
   });
 
+  app.post(prefix + '/servers/:id/ipv6', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { action, ipv6Address } = ctx.body as any || {};
+    const user = ctx.user;
+    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+
+    if (!isAdmin) {
+      ctx.set.status = 403;
+      return { error: 'Only administrators may manage IPv6 addresses for servers.' };
+    }
+
+    if (action !== 'assign' && action !== 'deassign') {
+      ctx.set.status = 400;
+      return { error: 'Invalid action. Use assign or deassign.' };
+    }
+
+    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    if (!cfg.kvmPassthroughEnabled) {
+      ctx.set.status = 400;
+      return { error: 'IPv6 assignment is only supported for KVM servers.' };
+    }
+
+    const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+    if (!node || !node.ipv6Subnet) {
+      ctx.set.status = 400;
+      return { error: 'Server node does not have an IPv6 subnet configured.' };
+    }
+
+    const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
+    alloc.mappings = alloc.mappings || {};
+    alloc.owners = alloc.owners || {};
+
+    const existingIpv6Addresses = Object.keys(alloc.mappings).filter(isValidIpv6);
+    const defaultPort = alloc.default?.port;
+    const fallbackPort = defaultPort || Number(Object.values(alloc.mappings || {})[0]?.[0] ?? 0);
+    if (!Number.isFinite(fallbackPort) || fallbackPort <= 0) {
+      ctx.set.status = 400;
+      return { error: 'Server must have an existing port allocation before IPv6 can be assigned.' };
+    }
+
+    const port = Number(defaultPort || fallbackPort);
+
+    if (action === 'assign') {
+      if (existingIpv6Addresses.length > 0) {
+        return { success: true, ipv6: existingIpv6Addresses[0], message: 'IPv6 is already assigned.' };
+      }
+
+      let candidateIpv6: string | null = null;
+      if (ipv6Address) {
+        const normalized = String(ipv6Address).trim();
+        if (!isValidIpv6(normalized) || !isIpv6InSubnet(normalized, node.ipv6Subnet)) {
+          ctx.set.status = 400;
+          return { error: 'Invalid IPv6 address for this node subnet.' };
+        }
+        if (isReservedIpv6(normalized, node.ipv6Subnet, node.ipv6ReservedCount)) {
+          ctx.set.status = 400;
+          return { error: 'This IPv6 address is reserved and cannot be assigned.' };
+        }
+        const usedAddresses = new Set<string>();
+        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+        for (const c of nodeConfigs) {
+          const entry = c.allocations as any;
+          if (!entry) continue;
+          if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
+            usedAddresses.add(formatIpv6(parseIpv6(String(entry.default.ip))));
+          }
+          for (const ip of Object.keys(entry.mappings || {})) {
+            if (isValidIpv6(ip)) usedAddresses.add(formatIpv6(parseIpv6(ip)));
+          }
+        }
+        if (usedAddresses.has(formatIpv6(parseIpv6(normalized)))) {
+          ctx.set.status = 400;
+          return { error: 'IPv6 address is already in use on this node.' };
+        }
+        candidateIpv6 = normalized;
+      } else {
+        const used = new Set<string>();
+        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+        for (const c of nodeConfigs) {
+          const entry = c.allocations as any;
+          if (!entry) continue;
+          if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
+            used.add(formatIpv6(parseIpv6(String(entry.default.ip))));
+          }
+          for (const ip of Object.keys(entry.mappings || {})) {
+            if (isValidIpv6(ip)) used.add(formatIpv6(parseIpv6(ip)));
+          }
+        }
+        candidateIpv6 = getNextFreeIpv6Address(node.ipv6Subnet, used, BigInt(node.ipv6ReservedCount ?? 0));
+      }
+
+      if (!candidateIpv6) {
+        ctx.set.status = 503;
+        return { error: 'No free IPv6 address available in node subnet.' };
+      }
+
+      if (!alloc.mappings[candidateIpv6]) alloc.mappings[candidateIpv6] = [];
+      if (!alloc.mappings[candidateIpv6].includes(port)) alloc.mappings[candidateIpv6].push(port);
+      alloc.owners[`${candidateIpv6}:${port}`] = cfg.userId;
+      cfg.allocations = alloc;
+      await cfgRepo.save(cfg);
+
+      const svc = await serviceFor(id);
+      await svc.syncServer(id, { allocations: alloc });
+
+      await createActivityLog({
+        userId: user.id,
+        action: 'server:ipv6:assign',
+        targetId: id,
+        targetType: 'server',
+        metadata: { ipv6: candidateIpv6 },
+        ipAddress: ctx.ip,
+      });
+
+      return { success: true, ipv6: candidateIpv6 };
+    }
+
+    const ipv6Keys = Object.keys(alloc.mappings).filter(isValidIpv6);
+    if (ipv6Keys.length === 0) {
+      return { success: true, message: 'No IPv6 address is currently assigned.' };
+    }
+
+    for (const ipv6 of ipv6Keys) delete alloc.mappings[ipv6];
+
+    if (alloc.owners) {
+      for (const ownerKey of Object.keys(alloc.owners)) {
+        const idx = ownerKey.lastIndexOf(':');
+        const ipPart = idx >= 0 ? ownerKey.slice(0, idx) : ownerKey;
+        if (isValidIpv6(ipPart)) delete alloc.owners[ownerKey];
+      }
+    }
+
+    if (alloc.default && isValidIpv6(String(alloc.default.ip))) {
+      const fallbackIp = Object.keys(alloc.mappings).find((ip) => !isValidIpv6(ip));
+      const fallbackPort = fallbackIp ? alloc.mappings[fallbackIp]?.[0] : undefined;
+      if (fallbackIp && fallbackPort != null) {
+        alloc.default = { ip: fallbackIp, port: Number(fallbackPort) };
+      } else {
+        alloc.default = null as any;
+      }
+    }
+
+    cfg.allocations = alloc;
+    await cfgRepo.save(cfg);
+
+    const svc = await serviceFor(id);
+    await svc.syncServer(id, { allocations: alloc });
+
+    await createActivityLog({
+      userId: user.id,
+      action: 'server:ipv6:deassign',
+      targetId: id,
+      targetType: 'server',
+      metadata: { removed: ipv6Keys },
+      ipAddress: ctx.ip,
+    });
+
+    return { success: true, removed: ipv6Keys };
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
+    body: t.Object({ action: t.String(), ipv6Address: t.Optional(t.String()) }),
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+      503: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Assign or remove an IPv6 address from a server', tags: ['Servers'] },
+  });
+
   app.post(prefix + '/servers/:id/suspend', async (ctx: any) => {
     const { id } = ctx.params as any;
     try {
       const body = (ctx.body || {}) as any;
       const providedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
       const providedSource = typeof body.source === 'string' ? body.source.trim() : '';
+      const dmcaMark = Boolean(body.dmca);
       const user = ctx.user;
       const userName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
       const actor = providedSource || userName || user?.email || 'system';
-      const reason = providedReason || 'Suspended by panel moderation action';
+      const reason = providedReason || (dmcaMark ? 'DMCA takedown' : 'Suspended by panel moderation action');
+      const dmcaAt = dmcaMark ? new Date() : undefined;
+      const dmcaDeletionAt = dmcaMark ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined;
 
       const svc = await serviceFor(id);
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
       const existingCfg = await cfgRepo.findOneBy({ uuid: id });
       const alreadySuspended = !!existingCfg?.suspended;
-      await cfgRepo.update(
-        { uuid: id },
-        { suspended: true, suspendedBy: actor, suspendedReason: reason, suspendedAt: new Date() },
-      );
+      const updateData: any = {
+        suspended: true,
+        suspendedBy: actor,
+        suspendedReason: reason,
+        suspendedAt: new Date(),
+      };
+      if (dmcaMark) {
+        updateData.dmca = true;
+        updateData.dmcaBy = actor;
+        updateData.dmcaReason = reason;
+        updateData.dmcaAt = dmcaAt;
+        updateData.dmcaDeletionAt = dmcaDeletionAt;
+      }
+      await cfgRepo.update({ uuid: id }, updateData);
       await svc.powerServer(id, 'kill').catch(() => { });
       await svc.syncServer(id, {});
 
@@ -1391,18 +1691,30 @@ export async function serverRoutes(app: any, prefix = '') {
         recipient: undefined,
       };
 
-      if (!alreadySuspended && existingCfg) {
-        notice = await notifyServerOwnerSuspended({
-          cfg: existingCfg,
-          actor,
-          reason,
-          suspendedAt: new Date(),
-        });
+      if (existingCfg) {
+        const shouldSendDmcaNotice = dmcaMark && !existingCfg.dmca;
+        if (shouldSendDmcaNotice) {
+          notice = await notifyServerOwnerDmca({
+            cfg: existingCfg,
+            actor,
+            reason,
+            dmcaAt,
+            deletionAt: dmcaDeletionAt,
+          });
+        } else if (!alreadySuspended) {
+          notice = await notifyServerOwnerSuspended({
+            cfg: existingCfg,
+            actor,
+            reason,
+            suspendedAt: new Date(),
+          });
+        } else {
+          notice.reason = dmcaMark ? 'server already marked DMCA' : 'server already suspended';
+        }
+
         if (!notice.sent && !notice.skipped) {
           console.warn('[server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
         }
-      } else if (alreadySuspended) {
-        notice.reason = 'server already suspended';
       }
 
       if (user?.id) {
@@ -1411,7 +1723,7 @@ export async function serverRoutes(app: any, prefix = '') {
           action: 'server:suspend',
           targetId: id,
           targetType: 'server',
-          metadata: { reason, suspendedBy: actor },
+          metadata: { reason, suspendedBy: actor, dmca: dmcaMark },
           ipAddress: ctx.ip,
         });
       }
@@ -1428,7 +1740,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
-    body: t.Optional(t.Object({ reason: t.Optional(t.String()), source: t.Optional(t.String()) })),
+    body: t.Optional(t.Object({ reason: t.Optional(t.String()), source: t.Optional(t.String()), dmca: t.Optional(t.Boolean()) })),
     response: {
       200: t.Object({
         success: t.Boolean(),
@@ -1451,12 +1763,22 @@ export async function serverRoutes(app: any, prefix = '') {
       const existingCfg = await cfgRepo.findOneBy({ uuid: id });
       await cfgRepo.update(
         { uuid: id },
-        { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
+        {
+          suspended: false,
+          suspendedBy: null,
+          suspendedReason: null,
+          suspendedAt: null,
+          dmca: false,
+          dmcaBy: null,
+          dmcaReason: null,
+          dmcaAt: null,
+          dmcaDeletionAt: null,
+        },
       );
       const svc = await serviceFor(id);
       await svc.syncServer(id, {});
       const user = ctx.user;
-      const alreadySuspended = !!existingCfg?.suspended;
+      const alreadySuspended = !!existingCfg?.suspended || !!existingCfg?.dmca;
       if (!alreadySuspended && existingCfg) {
         await notifyServerOwnerUnsuspended({
           cfg: existingCfg,
@@ -1492,6 +1814,11 @@ export async function serverRoutes(app: any, prefix = '') {
     if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
       ctx.set.status = 403;
       return { error: 'Server is hibernated and cannot be started or restarted' };
+    }
+
+    if (cfg?.suspended || cfg?.dmca) {
+      ctx.set.status = 403;
+      return { error: buildSuspendedServerMessage(cfg) };
     }
 
     if (gamblingPowerEnabled && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase())) {
@@ -2742,7 +3069,7 @@ export async function serverRoutes(app: any, prefix = '') {
   app.get(prefix + '/servers/:id/console', async (ctx: any) => {
     const { id } = ctx.params as any;
     const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (cfg?.suspended) {
+    if (cfg?.suspended || cfg?.dmca) {
       ctx.set.status = 403;
       return { error: buildSuspendedServerMessage(cfg) };
     }
@@ -2794,9 +3121,14 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     const body = ctx.body as any || {};
     const count = Number(body.count || 1);
+    const requestIpv6 = body.requestIpv6 === true || String(body.requestIpv6) === 'true';
     if (count <= 0) {
       ctx.set.status = 400;
       return { error: 'Invalid allocation count' };
+    }
+    if (requestIpv6 && count !== 1) {
+      ctx.set.status = 400;
+      return { error: 'IPv6 allocation requests may only request one port at a time.' };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -2841,8 +3173,7 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Node does not support additional allocations' };
     }
 
-    const bindIp = node.defaultIp || '0.0.0.0';
-
+    const excludedPorts = parsePortList(node.ipv6ExcludedPorts);
     const nodeConfigs = await cfgRepo().find({ where: { nodeId: node.id } });
     const takenPorts = new Set<number>();
     for (const c of nodeConfigs) {
@@ -2854,16 +3185,75 @@ export async function serverRoutes(app: any, prefix = '') {
       }
       if (a.owners) {
         for (const k of Object.keys(a.owners || {})) {
-          const [, pstr] = k.split(':');
+          const idx = k.lastIndexOf(':');
+          const pstr = idx >= 0 ? k.slice(idx + 1) : '';
           const pnum = Number(pstr);
           if (!Number.isNaN(pnum)) takenPorts.add(pnum);
         }
       }
     }
 
+    if (requestIpv6) {
+      if (!cfg.kvmPassthroughEnabled) {
+        ctx.set.status = 400;
+        return { error: 'IPv6 allocation requires a KVM server.' };
+      }
+      if (!node.ipv6Subnet) {
+        ctx.set.status = 400;
+        return { error: 'IPv6 is not configured on this node.' };
+      }
+
+      const usedIpv6 = new Set<string>();
+      for (const c of nodeConfigs) {
+        const a = c.allocations as any;
+        if (!a) continue;
+        if (a.default?.ip && isValidIpv6(String(a.default.ip))) {
+          usedIpv6.add(formatIpv6(parseIpv6(String(a.default.ip))));
+        }
+        for (const ip of Object.keys(a.mappings || {})) {
+          if (isValidIpv6(ip)) {
+            usedIpv6.add(formatIpv6(parseIpv6(ip)));
+          }
+        }
+      }
+
+      const candidateIpv6 = getNextFreeIpv6Address(node.ipv6Subnet, usedIpv6, BigInt(node.ipv6ReservedCount ?? 0));
+      if (!candidateIpv6) {
+        ctx.set.status = 503;
+        return { error: 'No free IPv6 address available in node subnet.' };
+      }
+
+      const ports: number[] = [];
+      for (let p = node.portRangeStart!; p <= node.portRangeEnd!; p++) {
+        if (!takenPorts.has(p) && !excludedPorts.has(p)) {
+          ports.push(p);
+        }
+      }
+      if (ports.length === 0) {
+        ctx.set.status = 503;
+        return { error: 'No free ports available on this node for IPv6 allocation.' };
+      }
+
+      alloc.mappings = alloc.mappings || {};
+      alloc.mappings[candidateIpv6] = alloc.mappings[candidateIpv6] || [];
+      alloc.owners = alloc.owners || {};
+      for (const port of ports) {
+        if (!alloc.mappings[candidateIpv6].includes(port)) {
+          alloc.mappings[candidateIpv6].push(port);
+        }
+        alloc.owners[`${candidateIpv6}:${port}`] = user.id;
+      }
+      cfg.allocations = alloc;
+      await cfgRepo().save(cfg);
+
+      return ports.map((port) => ({ ip: candidateIpv6, port, is_default: false }));
+    }
+
+    const bindIp = node.defaultIp || '0.0.0.0';
+
     const newPorts: { ip: string; port: number }[] = [];
     for (let p = node.portRangeStart; p <= node.portRangeEnd && newPorts.length < count; p++) {
-      if (!takenPorts.has(p)) {
+      if (!takenPorts.has(p) && !excludedPorts.has(p)) {
         newPorts.push({ ip: bindIp, port: p });
         takenPorts.add(p);
       }
@@ -3532,7 +3922,7 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Server not found' };
     }
 
-    if (cfg.suspended) {
+    if (cfg.suspended || cfg.dmca) {
       ctx.set.status = 403;
       return { error: buildSuspendedServerMessage(cfg) };
     }
@@ -3638,7 +4028,7 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Server not found' };
     }
 
-    if (cfg.suspended) {
+    if (cfg.suspended || cfg.dmca) {
       ctx.set.status = 403;
       return { error: buildSuspendedServerMessage(cfg) };
     }

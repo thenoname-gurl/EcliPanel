@@ -51,6 +51,15 @@ export class Node {
   @Column({ nullable: true, type: 'text' })
   fqdn?: string;
 
+  @Column({ nullable: true, type: 'text' })
+  ipv6Subnet?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  ipv6ExcludedPorts?: string;
+
+  @Column({ nullable: true, type: 'int' })
+  ipv6ReservedCount?: number;
+
   @Column('float', { nullable: true, default: 0 })
   cost?: number;
 

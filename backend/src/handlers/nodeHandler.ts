@@ -7,6 +7,7 @@ import { User } from '../models/user.entity';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
+import { isValidIpv6Cidr } from '../utils/ipv6';
 import { t } from 'elysia';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
@@ -111,7 +112,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.post(prefix + '/nodes', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, backendWingsUrl } = ctx.body as any;
+    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
       return { error: 'name, url and token are required' };
@@ -135,6 +136,28 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
     if (allowedOrigin) node.allowedOrigin = allowedOrigin;
     if (fqdn !== undefined) node.fqdn = fqdn || undefined as any;
+    if (ipv6Subnet !== undefined) {
+      if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {
+        ctx.set.status = 400;
+        return { error: 'Invalid IPv6 subnet CIDR' };
+      }
+      node.ipv6Subnet = ipv6Subnet || undefined as any;
+    }
+    if (ipv6ExcludedPorts !== undefined) {
+      node.ipv6ExcludedPorts = typeof ipv6ExcludedPorts === 'string'
+        ? ipv6ExcludedPorts
+        : Array.isArray(ipv6ExcludedPorts)
+          ? ipv6ExcludedPorts.map((p: any) => String(p).trim()).filter((p: string) => p.length > 0).join(',')
+          : String(ipv6ExcludedPorts);
+    }
+    if (ipv6ReservedCount !== undefined) {
+      const parsedReservedCount = Number(ipv6ReservedCount);
+      if (!Number.isInteger(parsedReservedCount) || parsedReservedCount < 0 || parsedReservedCount > 10000) {
+        ctx.set.status = 400;
+        return { error: 'Invalid ipv6ReservedCount' };
+      }
+      node.ipv6ReservedCount = parsedReservedCount;
+    }
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
     await nodeRepo().save(node);
@@ -149,7 +172,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
     const { id } = ctx.params as any;
-    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl } = ctx.body as any;
+    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl } = ctx.body as any;
 
     const node = await resolveNode(id);
     if (!node) {
@@ -183,6 +206,28 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (portRangeStart !== undefined) node.portRangeStart = portRangeStart !== null ? Number(portRangeStart) : undefined as any;
     if (portRangeEnd !== undefined) node.portRangeEnd = portRangeEnd !== null ? Number(portRangeEnd) : undefined as any;
     if (defaultIp !== undefined) node.defaultIp = defaultIp || undefined as any;
+    if (ipv6Subnet !== undefined) {
+      if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {
+        ctx.set.status = 400;
+        return { error: 'Invalid IPv6 subnet CIDR' };
+      }
+      node.ipv6Subnet = ipv6Subnet || undefined as any;
+    }
+    if (ipv6ExcludedPorts !== undefined) {
+      node.ipv6ExcludedPorts = typeof ipv6ExcludedPorts === 'string'
+        ? ipv6ExcludedPorts
+        : Array.isArray(ipv6ExcludedPorts)
+          ? ipv6ExcludedPorts.map((p: any) => String(p).trim()).filter((p: string) => p.length > 0).join(',')
+          : String(ipv6ExcludedPorts);
+    }
+    if (ipv6ReservedCount !== undefined) {
+      const parsedReservedCount = Number(ipv6ReservedCount);
+      if (!Number.isInteger(parsedReservedCount) || parsedReservedCount < 0 || parsedReservedCount > 10000) {
+        ctx.set.status = 400;
+        return { error: 'Invalid ipv6ReservedCount' };
+      }
+      node.ipv6ReservedCount = parsedReservedCount;
+    }
     if (fqdn !== undefined) node.fqdn = fqdn || undefined as any;
     if (cost !== undefined) node.cost = cost !== null ? Number(cost) : undefined as any;
     if (memory !== undefined) node.memory = memory !== null ? Number(memory) : undefined as any;

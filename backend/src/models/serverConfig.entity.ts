@@ -35,6 +35,22 @@ export class ServerConfig {
 
   @Index()
   @Column({ default: false })
+  dmca: boolean;
+
+  @Column({ nullable: true, type: 'text' })
+  dmcaBy?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  dmcaReason?: string;
+
+  @Column({ nullable: true, type: 'datetime' })
+  dmcaAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  dmcaDeletionAt?: Date;
+
+  @Index()
+  @Column({ default: false })
   hibernated: boolean;
 
   @Column('json', { nullable: true })

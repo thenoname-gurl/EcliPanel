@@ -69,9 +69,9 @@ export async function getGeoBlockRules(): Promise<Record<string, number>> {
     if (!setting || !setting.value) return {};
     const raw = setting.value;
     const result: Record<string, number> = {};
-    const entries = raw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
+    const entries = raw.split(/[,\n\r]+/).map((x) => x.trim()).filter(Boolean);
     for (const e of entries) {
-      const parts = e.split(/[:=]/).map((y) => y.trim());
+      const parts = e.split(/[:=;]/).map((y) => y.trim());
       if (parts.length !== 2) continue;
       const country = parts[0].toLowerCase();
       const level = Number(parts[1]);
@@ -84,6 +84,75 @@ export async function getGeoBlockRules(): Promise<Record<string, number>> {
   } catch {
     return {};
   }
+}
+
+export async function getCountryAgeRules(): Promise<Record<string, number>> {
+  try {
+    const repo = AppDataSource.getRepository(PanelSetting);
+    const setting = await repo.findOneBy({ key: 'countryAgeRules' });
+    if (!setting || !setting.value) return {};
+    const raw = setting.value;
+    const result: Record<string, number> = {};
+    const entries = raw.split(/[,\n\r]+/).map((x) => x.trim()).filter(Boolean);
+    for (const e of entries) {
+      const parts = e.split(/[:=;]/).map((y) => y.trim());
+      if (parts.length !== 2) continue;
+      const country = parts[0].toLowerCase();
+      const age = Number(parts[1]);
+      if (!country) continue;
+      if (!Number.isNaN(age) && age >= 0 && age <= 25) {
+        result[country] = age;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function isUKCountry(country?: string | null): boolean {
+  if (!country) return false;
+  const value = country.toString().trim().toLowerCase();
+  return value === 'uk' || value === 'gb' || value === 'united kingdom' || value === 'great britain';
+}
+
+function getDefaultMinimumAgeForCountry(country?: string | null): number {
+  if (isEUCountry(country) || isUKCountry(country)) {
+    return 14;
+  }
+  return 13;
+}
+
+export function getCountryMinimumAgeFromRules(country?: string | null, rules?: Record<string, number>): number {
+  const normalized = country?.toString().trim().toLowerCase() || '';
+  if (rules && normalized) {
+    if (rules[normalized] != null) {
+      return rules[normalized];
+    }
+    const short = normalized.slice(0, 2);
+    if (rules[short] != null) {
+      return rules[short];
+    }
+    if (rules['eu'] != null && isEUCountry(country)) {
+      return rules['eu'];
+    }
+    if (rules['uk'] != null && isUKCountry(country)) {
+      return rules['uk'];
+    }
+  }
+  return getDefaultMinimumAgeForCountry(country);
+}
+
+export async function getMinimumAgeForCountry(country?: string | null, rules?: Record<string, number>): Promise<number> {
+  if (rules) {
+    return getCountryMinimumAgeFromRules(country, rules);
+  }
+  const loaded = await getCountryAgeRules();
+  return getCountryMinimumAgeFromRules(country, loaded);
+}
+
+export function isAgeAllowedForCountry(age: number, country?: string | null, rules?: Record<string, number>): boolean {
+  return age >= getCountryMinimumAgeFromRules(country, rules);
 }
 
 export function getGeoBlockLevelFromRules(country: string | null | undefined, rules: Record<string, number>): number {

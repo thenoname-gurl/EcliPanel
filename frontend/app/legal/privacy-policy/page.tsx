@@ -13,6 +13,8 @@ export default function PrivacyPolicyPage() {
         <section className="rounded-3xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold text-foreground">1. Overview</h2>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">This Privacy Policy explains how we collect, use, disclose, and protect your personal data when you use ecli.app and related services.</p>
+          <p className="mt-4 text-sm leading-7 text-muted-foreground">We do not knowingly collect personal information from children below the applicable minimum age unless a valid parental registration invite is provided. If you are a parent or guardian registering a child, you may be asked to confirm parental consent.</p>
+          <p className="mt-4 text-sm leading-7 text-muted-foreground">Learn more about our age requirements on the <a className="font-medium text-primary hover:text-primary/80" href="/legal/minimum-age">Minimum Age Policy</a> page.</p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6">

@@ -50,7 +50,7 @@ function getSafeRelativeFilePath(base: string, relPath: string): string | null {
 import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
-import { notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
 import { createActivityLog } from './logHandler';
 
 const adminRoles = ['admin', 'rootAdmin', '*'];
@@ -330,6 +330,41 @@ function sanitizeForDb(s: string | null | undefined) {
   } catch (e) {
     return String(s);
   }
+}
+
+function normalizeTicketMessages(ticket: Ticket) {
+  if (!ticket) return;
+  if (Array.isArray(ticket.messages)) return;
+
+  try {
+    if (typeof ticket.messages === 'string') {
+      const parsed = JSON.parse(ticket.messages);
+      if (Array.isArray(parsed)) {
+        ticket.messages = parsed;
+        return;
+      }
+    }
+
+    if (ticket.messages && typeof ticket.messages === 'object') {
+      if (Array.isArray((ticket.messages as any).messages)) {
+        ticket.messages = (ticket.messages as any).messages;
+        return;
+      }
+
+      const keys = Object.keys(ticket.messages);
+      const numericKeys = keys.filter((k) => /^\d+$/.test(k));
+      if (numericKeys.length === keys.length && numericKeys.length > 0) {
+        ticket.messages = numericKeys
+          .sort((a, b) => Number(a) - Number(b))
+          .map((k) => (ticket.messages as any)[k]);
+        return;
+      }
+    }
+  } catch {
+    // skippy
+  }
+
+  ticket.messages = [];
 }
 
 function getTicketResponseDurations(ticket: Ticket): number[] {
@@ -1077,6 +1112,12 @@ export async function adminRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
       }
+      const updatedAge = getAgeFromDate(dob);
+      if (updatedAge !== null && updatedAge < 14) {
+        user.suspended = true;
+        user.fraudFlag = true;
+        user.fraudReason = 'Underage account (<14 years)';
+      }
       user.dateOfBirth = dob;
     }
     if (parentId !== undefined) {
@@ -1390,6 +1431,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const nextStatus = normalizeTicketStatus(status);
       if (nextStatus !== ticket.status) {
         ticket.status = nextStatus;
+        normalizeTicketMessages(ticket);
         if (!Array.isArray(ticket.messages)) ticket.messages = [];
         ticket.messages.push({
           sender: 'staff',
@@ -1399,6 +1441,7 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
+    normalizeTicketMessages(ticket);
     if (!Array.isArray(ticket.messages)) ticket.messages = [];
 
     if (typeof reply === 'string' && reply.trim()) {
@@ -2583,12 +2626,17 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const serverId = ctx.params.id as string;
     const body = (ctx.body || {}) as any;
+    const dmcaMark = Boolean(body.dmca);
     const reason = typeof body.reason === 'string' && body.reason.trim()
       ? body.reason.trim()
-      : 'Suspended by administrator';
+      : dmcaMark
+        ? 'DMCA takedown'
+        : 'Suspended by administrator';
     const adminUser = ctx.user as any;
     const adminName = [adminUser?.firstName, adminUser?.lastName].filter(Boolean).join(' ').trim();
     const suspendedBy = adminName || adminUser?.email || 'admin panel';
+    const dmcaAt = dmcaMark ? new Date() : undefined;
+    const dmcaDeletionAt = dmcaMark ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined;
 
     const nodeRepo = AppDataSource.getRepository(Node);
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -2605,9 +2653,23 @@ export async function adminRoutes(app: any, prefix = '') {
         const svc = new WingsApiService(base, n.token);
         await svc.getServer(serverId);
         const alreadySuspended = !!existingCfg?.suspended;
+        const alreadyDmca = !!existingCfg?.dmca;
+        const updateData: any = {
+          suspended: true,
+          suspendedBy,
+          suspendedReason: reason,
+          suspendedAt: new Date(),
+        };
+        if (dmcaMark) {
+          updateData.dmca = true;
+          updateData.dmcaBy = suspendedBy;
+          updateData.dmcaReason = reason;
+          updateData.dmcaAt = dmcaAt;
+          updateData.dmcaDeletionAt = dmcaDeletionAt;
+        }
         await cfgRepo.update(
           { uuid: serverId },
-          { suspended: true, suspendedBy, suspendedReason: reason, suspendedAt: new Date() },
+          updateData,
         );
         await svc.powerServer(serverId, 'kill').catch(() => { });
         await svc.syncServer(serverId, {});
@@ -2624,7 +2686,19 @@ export async function adminRoutes(app: any, prefix = '') {
           recipient: undefined,
         };
 
-        if (!alreadySuspended && existingCfg) {
+        const shouldSendDmcaNotice = dmcaMark && !alreadyDmca;
+        if (shouldSendDmcaNotice && existingCfg) {
+          notice = await notifyServerOwnerDmca({
+            cfg: existingCfg,
+            actor: suspendedBy,
+            reason,
+            dmcaAt,
+            deletionAt: dmcaDeletionAt,
+          });
+          if (!notice.sent && !notice.skipped) {
+            console.warn('[admin:server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
+          }
+        } else if (!alreadySuspended && !dmcaMark && existingCfg) {
           notice = await notifyServerOwnerSuspended({
             cfg: existingCfg,
             actor: suspendedBy,
@@ -2634,8 +2708,10 @@ export async function adminRoutes(app: any, prefix = '') {
           if (!notice.sent && !notice.skipped) {
             console.warn('[admin:server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
           }
-        } else if (alreadySuspended) {
+        } else if (alreadySuspended && !dmcaMark) {
           notice.reason = 'server already suspended';
+        } else if (alreadyDmca && dmcaMark) {
+          notice.reason = 'server already marked DMCA';
         }
 
         return {
@@ -2653,7 +2729,7 @@ export async function adminRoutes(app: any, prefix = '') {
     beforeHandle: authenticate,
     schema: {
       params: t.Object({ id: t.String() }),
-      body: t.Optional(t.Object({ reason: t.Optional(t.String()) })),
+      body: t.Optional(t.Object({ reason: t.Optional(t.String()), dmca: t.Optional(t.Boolean()) })),
       response: {
         200: t.Object({
           success: t.Boolean(),
@@ -3649,7 +3725,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const apiKeys = await apiKeyRepo.find({ where: { user: { id: userId } } });
     const idVerifications = await idVerificationRepo.find({ where: { userId } });
     const tickets = await ticketRepo.find({ where: { userId } });
-    const userLogs = await userLogRepo.find({ where: { userId } });
+    const userLogs = await userLogRepo.find({ where: { userId }, order: { timestamp: 'DESC' }, take: 10 });
     const organisationsOwned = await organisationRepo.find({ where: { ownerId: userId }, relations: ['invites'] });
     const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
     const organisations = membershipRows
@@ -3923,6 +3999,28 @@ export async function adminRoutes(app: any, prefix = '') {
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     },
     detail: { summary: 'Export all user and owned object data (admin)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/users/:id/address-change-logs', async (ctx: any) => {
+    if (!requireAdminCtx(ctx)) return;
+    const userId = Number(ctx.params.id);
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: userId });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    const userLogRepo = AppDataSource.getRepository(UserLog);
+    const logs = await userLogRepo.find({ where: { userId, action: 'update-address' }, order: { timestamp: 'DESC' }, take: 10 });
+    return { success: true, logs };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: { 200: t.Object({ success: t.Boolean(), logs: t.Array(t.Any()) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    },
+    detail: { summary: 'Get last address change logs for a user', tags: ['Admin'] },
   });
 
   app.delete('/admin/users/:id/ai/:linkId', async (ctx) => {
@@ -4481,6 +4579,7 @@ isSuspicious: true if fraudScore >= 50`;
       portalDescriptions: portalDescriptions || null,
       codeInstancesEnabled,
       geoBlockCountries: map['geoBlockCountries'] || '',
+      countryAgeRules: map['countryAgeRules'] || '',
       billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
       billingTaxRules: map['billingTaxRules'] || '',
       gamblingEnabled: gamblingConfig.gamblingEnabled,
@@ -4497,6 +4596,7 @@ isSuspicious: true if fraudScore >= 50`;
         codeInstancesEnabled: t.Boolean(),
         featureToggles: t.Record(t.String(), t.Boolean()),
         geoBlockCountries: t.String(),
+        countryAgeRules: t.Optional(t.String()),
         billingCurrency: t.String(),
         billingTaxRules: t.String(),
         gamblingEnabled: t.Boolean(),
@@ -4535,6 +4635,7 @@ isSuspicious: true if fraudScore >= 50`;
       codeInstancesEnabled,
       portalDescriptions: portalDescriptions || null,
       geoBlockCountries: map['geoBlockCountries'] || '',
+      countryAgeRules: map['countryAgeRules'] || '',
       billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
       billingTaxRules: map['billingTaxRules'] || '',
       gamblingEnabled: gamblingConfig.gamblingEnabled,
@@ -4551,6 +4652,7 @@ isSuspicious: true if fraudScore >= 50`;
         codeInstancesEnabled: t.Boolean(),
         portalDescriptions: t.Optional(t.Any()),
         geoBlockCountries: t.String(),
+        countryAgeRules: t.Optional(t.String()),
         billingCurrency: t.String(),
         billingTaxRules: t.String(),
         gamblingEnabled: t.Boolean(),
@@ -4649,7 +4751,7 @@ isSuspicious: true if fraudScore >= 50`;
     if (!requireAdminCtx(ctx)) return;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
+    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'countryAgeRules', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
     for (const key of allowed) {
       if (body[key] !== undefined) {
         let value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
@@ -4689,6 +4791,7 @@ isSuspicious: true if fraudScore >= 50`;
         portalDescriptions: portalDescriptions || null,
         codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
         geoBlockCountries: map['geoBlockCountries'] || '',
+        countryAgeRules: map['countryAgeRules'] || '',
         billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
         billingTaxRules: map['billingTaxRules'] || '',
         gamblingEnabled: gamblingConfig.gamblingEnabled,
@@ -4708,6 +4811,7 @@ isSuspicious: true if fraudScore >= 50`;
         geoBlockCountries: t.Optional(t.String()),
         billingCurrency: t.Optional(t.String()),
         billingTaxRules: t.Optional(t.String()),
+        countryAgeRules: t.Optional(t.String()),
         gamblingEnabled: t.Optional(t.Boolean()),
         gamblingResourceLuckyChance: t.Optional(t.Number()),
         gamblingPowerDenyChance: t.Optional(t.Number()),

@@ -2286,7 +2286,9 @@
       "currencyLabel": "Валюта (код ISO)",
       "currencyExamples": "Примеры: USD, EUR, GBP, JPY",
       "quickExamples": "Быстрые примеры",
-      "taxRulesLabel": "Налоговые правила (страна/группа:процент)"
+      "taxRulesLabel": "Налоговые правила (страна/группа:процент)",
+      "ageRulesLabel": "Правила минимального возраста",
+      "ageRulesHint": "Используйте коды стран, названия стран, EU, UK или default. По одному правилу на строку."
     },
     "geoRules": {
       "title": "Правила геоблокировки",
@@ -3464,6 +3466,7 @@
       "starting": "Запускается",
       "stopping": "Останавливается",
       "offline": "Офлайн",
+      "dmca": "DMCA",
       "unknown": "Неизвестно"
     },
     "resources": {

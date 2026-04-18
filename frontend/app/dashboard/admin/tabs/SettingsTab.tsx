@@ -646,6 +646,22 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               <code className="text-foreground">default</code>. One rule per line.
             </p>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {t("billing.ageRulesLabel")}
+            </label>
+            <textarea
+              rows={5}
+              value={panelSettings.countryAgeRules || ""}
+              onChange={(e) => setPanelSettings((s: any) => ({ ...s, countryAgeRules: e.target.value }))}
+              placeholder={"us:13\ngb:14\neu:14\ndefault:13"}
+              className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-y transition-all"
+            />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {t("billing.ageRulesHint")}
+            </p>
+          </div>
         </div>
       </div>
 

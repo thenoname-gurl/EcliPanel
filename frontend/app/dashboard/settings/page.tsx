@@ -193,6 +193,26 @@ function SettingRow({
   )
 }
 
+function bufferToBase64url(buffer: ArrayBuffer | ArrayBufferView): string {
+  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  let str = ""
+  for (const byte of bytes) {
+    str += String.fromCharCode(byte)
+  }
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "")
+}
+
+function base64urlToBuffer(base64url: string): Uint8Array {
+  const padded = base64url.replace(/-/g, "+").replace(/_/g, "/")
+    .padEnd(base64url.length + ((4 - (base64url.length % 4)) % 4), "=")
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
 function TabButton({
   active,
   icon: Icon,
@@ -279,23 +299,14 @@ function PasskeyManager() {
       })
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
         ...opts,
-        challenge: Uint8Array.from(
-          atob(opts.challenge.replace(/-/g, "+").replace(/_/g, "/")),
-          (c) => c.charCodeAt(0)
-        ),
+        challenge: base64urlToBuffer(opts.challenge),
         user: {
           ...opts.user,
-          id: Uint8Array.from(
-            atob(opts.user.id.replace(/-/g, "+").replace(/_/g, "/")),
-            (c) => c.charCodeAt(0)
-          ),
+          id: base64urlToBuffer(opts.user.id),
         },
         excludeCredentials: (opts.excludeCredentials || []).map((c: any) => ({
           ...c,
-          id: Uint8Array.from(
-            atob(c.id.replace(/-/g, "+").replace(/_/g, "/")),
-            (x) => x.charCodeAt(0)
-          ),
+          id: base64urlToBuffer(c.id),
         })),
       }
       const credential = (await navigator.credentials.create({
@@ -303,17 +314,12 @@ function PasskeyManager() {
       })) as PublicKeyCredential | null
       if (!credential) throw new Error(t("passkeys.errors.registrationCancelled"))
       const attestation = credential.response as AuthenticatorAttestationResponse
-      const toB64url = (buf: ArrayBuffer) =>
-        btoa(String.fromCharCode(...new Uint8Array(buf)))
-          .replace(/\+/g, "-")
-          .replace(/\//g, "_")
-          .replace(/=/g, "")
       const attestationResponse = {
         id: credential.id,
-        rawId: toB64url(credential.rawId),
+        rawId: bufferToBase64url(credential.rawId),
         response: {
-          clientDataJSON: toB64url(attestation.clientDataJSON),
-          attestationObject: toB64url(attestation.attestationObject),
+          clientDataJSON: bufferToBase64url(attestation.clientDataJSON),
+          attestationObject: bufferToBase64url(attestation.attestationObject),
           transports: attestation.getTransports?.() || ["internal"],
         },
         type: credential.type,
@@ -1498,7 +1504,11 @@ export default function SettingsPage() {
                     icon={Calendar}
                     value={form.dateOfBirth}
                     onChange={(v) => setForm({ ...form, dateOfBirth: v })}
-                    hint="Enter your birth date to verify eligibility before managing servers."
+                    hint={user?.idVerified
+                      ? "Your date of birth is locked after identity verification and can only be changed by support."
+                      : "Enter your birth date to verify eligibility before managing servers."
+                    }
+                    disabled={user?.idVerified}
                   />
                 </div>
               </SettingsCard>

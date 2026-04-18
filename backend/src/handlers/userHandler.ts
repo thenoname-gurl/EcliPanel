@@ -9,6 +9,8 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { canRegister, getGeoBlockLevel } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
+import { ParentLinkRequest } from '../models/parentLinkRequest.entity';
+import { ParentRegistrationInvite } from '../models/parentRegistrationInvite.entity';
 import { ensureMailboxAccountForUser, getMailboxAccountForUser, getMailboxConnectionInfo, isMailcowConfigured, isPanelAssignedMailboxEmail } from '../services/mailcowService';
 import { deleteMessageFromMailbox, fetchMailboxNow } from '../services/imapFetcher';
 import { detectMailboxSecurityFlags, extractMailboxAuthMetadata, extractMailboxPriority, resolveReverseDns } from '../utils/mailboxMessage';
@@ -86,11 +88,18 @@ async function safeUser(user: User): Promise<any> {
   if (safe.dateOfBirth instanceof Date) {
     safe.dateOfBirth = safe.dateOfBirth.toISOString().split('T')[0];
   }
-  
+
   const computedAge = getAgeFromDate(safe.dateOfBirth);
   safe.age = computedAge === null ? undefined : computedAge;
-  safe.isChildAccount = safe.parentId != null || (computedAge != null && computedAge < 18);
+  safe.isChildAccount = computedAge != null ? isMinorByCountry(computedAge, safe.billingCountry) : undefined;
   safe.ageVerificationRequired = !safe.dateOfBirth;
+
+  if (computedAge !== null && computedAge < 14 && !safe.suspended && !safe.parentId) {
+    safe.suspended = true;
+    safe.fraudFlag = true;
+    safe.fraudReason = safe.fraudReason || 'Underage account (<14 years)';
+    await AppDataSource.getRepository(User).save({ id: user.id, suspended: true, fraudFlag: true, fraudReason: safe.fraudReason });
+  }
 
   if (safe.fraudDetectedAt === null) {
     delete safe.fraudDetectedAt;
@@ -116,6 +125,29 @@ function parseDateOfBirth(value: any): Date | null {
   return date;
 }
 
+const COUNTRY_ADULT_AGE: Record<string, number> = {
+  CA: 19,
+  TH: 20,
+  TW: 20,
+  AE: 21,
+  BH: 21,
+  OM: 21,
+};
+
+function getAdultAgeForCountry(country?: string | null): number {
+  if (!country) return 18;
+  const code = String(country).trim().toUpperCase();
+  return COUNTRY_ADULT_AGE[code] ?? 18;
+}
+
+function isAdultByCountry(age: number, country?: string | null): boolean {
+  return age >= getAdultAgeForCountry(country);
+}
+
+function isMinorByCountry(age: number, country?: string | null): boolean {
+  return age < getAdultAgeForCountry(country);
+}
+
 function getAgeFromDate(date?: Date | string | null): number | null {
   if (!date) return null;
   const dob = date instanceof Date ? date : new Date(String(date));
@@ -128,6 +160,10 @@ function getAgeFromDate(date?: Date | string | null): number | null {
     age -= 1;
   }
   return age;
+}
+
+function generateParentLinkCode(): string {
+  return crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
 async function sendVerificationEmailToUser(user: User) {
@@ -166,7 +202,28 @@ export async function userRoutes(app: any, prefix = '') {
       }
     } catch { }
 
-    const valid = await validateUserRegistration(ctx, ctx);
+    const body = ctx.body as Partial<User>;
+    const parentRegistrationToken = typeof (ctx.body as any).parentRegistrationToken === 'string'
+      ? (ctx.body as any).parentRegistrationToken.trim()
+      : undefined;
+
+    const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
+    let parentRegistrationInvite: ParentRegistrationInvite | null = null;
+    if (parentRegistrationToken) {
+      parentRegistrationInvite = await inviteRepo.findOneBy({ token: parentRegistrationToken, used: false });
+      if (!parentRegistrationInvite) {
+        ctx.set.status = 400;
+        return { error: 'invalid_parent_registration_token', message: 'Parent registration token is invalid or has already been used.' };
+      }
+      const normalizedEmail = String(body.email || '').trim().toLowerCase();
+      if (parentRegistrationInvite.childEmail && parentRegistrationInvite.childEmail !== normalizedEmail) {
+        ctx.set.status = 400;
+        return { error: 'email_mismatch', message: 'The child email does not match the parent registration invite.' };
+      }
+      body.parentId = parentRegistrationInvite.parentId;
+    }
+
+    const valid = await validateUserRegistration(ctx, ctx, { skipMinimumAge: !!parentRegistrationInvite });
     if (!valid) return (ctx as any).body;
 
     if (!(await canRegister((ctx.body as any).billingCountry))) {
@@ -174,7 +231,6 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Registration is not allowed from your country under geo-block policy' };
     }
 
-    const body = ctx.body as Partial<User>;
     const dateOfBirth = parseDateOfBirth((body as any).dateOfBirth);
     if (!dateOfBirth) {
       ctx.set.status = 400;
@@ -201,7 +257,7 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: 'parent_not_found', message: 'Parent account not found.' };
       }
       const parentAge = getAgeFromDate(parent.dateOfBirth);
-      if (parentAge === null || parentAge < 18) {
+      if (parentAge === null || !isAdultByCountry(parentAge, parent.billingCountry)) {
         ctx.set.status = 403;
         return { error: 'parent_must_be_adult', message: 'Only an adult user may be assigned as a parent.' };
       }
@@ -210,9 +266,9 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: 'date_of_birth_required', message: 'Child dateOfBirth is required when assigning a parent.' };
       }
       const childAge = getAgeFromDate(dateOfBirth);
-      if (childAge === null || childAge >= 18) {
+      if (childAge === null || !isMinorByCountry(childAge, body.billingCountry)) {
         ctx.set.status = 400;
-        return { error: 'child_must_be_under_18', message: 'Child accounts must be under age 18.' };
+        return { error: 'child_must_be_under_18', message: `Child accounts must be under age ${getAdultAgeForCountry(body.billingCountry)}.` };
       }
       body.parentId = parentId;
     }
@@ -222,6 +278,12 @@ export async function userRoutes(app: any, prefix = '') {
     if (!user.portalType) user.portalType = 'free';
     try {
       await userRepo.save(user);
+      if (parentRegistrationInvite) {
+        parentRegistrationInvite.used = true;
+        parentRegistrationInvite.usedAt = new Date();
+        parentRegistrationInvite.updatedAt = new Date();
+        await inviteRepo.save(parentRegistrationInvite);
+      }
     } catch (err: any) {
       if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
         ctx.set.status = 409;
@@ -366,6 +428,308 @@ export async function userRoutes(app: any, prefix = '') {
     detail: { summary: 'Get current user', tags: ['Users'] }
   });
 
+  async function serializeParentLinkRequest(request: ParentLinkRequest, requester: User) {
+    return {
+      id: request.id,
+      childId: request.childId,
+      parentId: request.parentId,
+      parentEmail: request.parentEmail,
+      code: request.parentId === requester.id ? undefined : request.code,
+      status: request.status,
+      createdAt: request.createdAt.toISOString(),
+      updatedAt: request.updatedAt.toISOString(),
+      acceptedAt: request.acceptedAt?.toISOString() || null,
+      child: request.child ? {
+        id: request.child.id,
+        email: request.child.email,
+        firstName: request.child.firstName,
+        lastName: request.child.lastName,
+        dateOfBirth: request.child.dateOfBirth instanceof Date ? request.child.dateOfBirth.toISOString().split('T')[0] : request.child.dateOfBirth,
+        age: getAgeFromDate(request.child.dateOfBirth),
+      } : null,
+      parent: request.parent ? {
+        id: request.parent.id,
+        email: request.parent.email,
+        firstName: request.parent.firstName,
+        lastName: request.parent.lastName,
+      } : null,
+    };
+  }
+
+  app.post(prefix + '/users/me/parent-link-requests', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const childAge = getAgeFromDate(requester.dateOfBirth);
+    if (childAge === null || !isMinorByCountry(childAge, requester.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'child_access_required', message: 'Only underage users may request a parent link.' };
+    }
+    if (requester.parentId) {
+      ctx.set.status = 409;
+      return { error: 'already_linked', message: 'This account is already linked to a parent.' };
+    }
+
+    const body = ctx.body as any;
+    const parentEmail = typeof body.parentEmail === 'string' ? body.parentEmail.trim().toLowerCase() : '';
+    const parentId = body.parentId != null ? Number(body.parentId) : undefined;
+    if (!parentEmail && (parentId === undefined || parentId === null)) {
+      ctx.set.status = 400;
+      return { error: 'parent_required', message: 'parentEmail or parentId is required.' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const parent = parentId != null
+      ? await userRepo.findOneBy({ id: parentId })
+      : await userRepo.findOneBy({ email: parentEmail });
+
+    if (!parent) {
+      ctx.set.status = 404;
+      return { error: 'parent_not_found', message: 'Parent account not found.' };
+    }
+    if (parent.id === requester.id) {
+      ctx.set.status = 400;
+      return { error: 'invalid_parent', message: 'You cannot assign yourself as a parent.' };
+    }
+    const parentAge = getAgeFromDate(parent.dateOfBirth);
+    if (parentAge === null || !isAdultByCountry(parentAge, parent.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'parent_must_be_adult', message: 'Only adult users may be assigned as parents.' };
+    }
+
+    const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
+    const existing = await requestRepo.findOne({ where: { childId: requester.id, parentId: parent.id, status: 'pending' }, relations: ['child', 'parent'] });
+    if (existing) {
+      return { success: true, request: await serializeParentLinkRequest(existing, requester) };
+    }
+
+    const request = requestRepo.create({
+      childId: requester.id,
+      parentId: parent.id,
+      parentEmail: parent.email,
+      code: generateParentLinkCode(),
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await requestRepo.save(request);
+
+    return { success: true, request: await serializeParentLinkRequest(request, requester) };
+  }, {
+   beforeHandle: authenticate,
+    body: t.Object({ parentEmail: t.Optional(t.String()), parentId: t.Optional(t.Number()) }),
+    response: { 200: t.Object({ success: t.Boolean(), request: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
+    detail: { summary: 'Request a parent link for the current child account', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/users/me/parent-registration-invites', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const parentAge = getAgeFromDate(requester.dateOfBirth);
+    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'parent_access_required', message: 'Only adult users may create parent registration invites.' };
+    }
+
+    const body = ctx.body as any;
+    const childEmail = typeof body.childEmail === 'string' ? body.childEmail.trim().toLowerCase() : undefined;
+    const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
+    const invite = inviteRepo.create({
+      parentId: requester.id,
+      childEmail: childEmail || null,
+      token: crypto.randomBytes(10).toString('hex').toUpperCase(),
+      used: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await inviteRepo.save(invite);
+
+    return {
+      success: true,
+      invite: {
+        id: invite.id,
+        token: invite.token,
+        childEmail: invite.childEmail || null,
+        createdAt: invite.createdAt.toISOString(),
+        used: invite.used,
+      },
+    };
+  }, {
+   beforeHandle: authenticate,
+    body: t.Object({ childEmail: t.Optional(t.String()) }),
+    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Optional(t.String()), createdAt: t.String(), used: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    detail: { summary: 'Create a parent registration invite for a child account', tags: ['Users'] }
+  });
+
+  app.get(prefix + '/users/me/parent-link-requests', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
+    const requesterAge = getAgeFromDate(requester.dateOfBirth);
+    const requesterIsMinor = requesterAge === null
+      ? requester.parentId != null
+      : isMinorByCountry(requesterAge, requester.billingCountry);
+    const where = requesterIsMinor ? { childId: requester.id } : { parentId: requester.id };
+
+    const requests = await requestRepo.find({ where, relations: ['child', 'parent'], order: { createdAt: 'DESC' } });
+    return { success: true, requests: await Promise.all(requests.map((request) => serializeParentLinkRequest(request, requester))) };
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean(), requests: t.Array(t.Any()) }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List parent link requests for the current user', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/users/me/parent-link-requests/:id/accept', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const parentAge = getAgeFromDate(requester.dateOfBirth);
+    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'parent_access_required', message: 'Only adult users may accept child link requests.' };
+    }
+
+    const requestId = Number(ctx.params['id']);
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_request_id', message: 'Invalid request id' };
+    }
+
+    const body = ctx.body as any;
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    if (!code) {
+      ctx.set.status = 400;
+      return { error: 'code_required', message: 'A parent link code is required.' };
+    }
+
+    const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
+    const userRepo = AppDataSource.getRepository(User);
+    const request = await requestRepo.findOne({ where: { id: requestId }, relations: ['child', 'parent'] });
+    if (!request) {
+      ctx.set.status = 404;
+      return { error: 'request_not_found', message: 'Parent link request not found.' };
+    }
+    if (request.parentId !== requester.id) {
+      ctx.set.status = 403;
+      return { error: 'forbidden', message: 'You are not the parent for this request.' };
+    }
+    if (request.status !== 'pending') {
+      ctx.set.status = 409;
+      return { error: 'request_not_pending', message: 'This request is no longer pending.' };
+    }
+    if (request.code !== code) {
+      ctx.set.status = 403;
+      return { error: 'invalid_code', message: 'The provided linking code is incorrect.' };
+    }
+
+    const child = await userRepo.findOneBy({ id: request.childId });
+    if (!child) {
+      ctx.set.status = 404;
+      return { error: 'child_not_found', message: 'Child account not found.' };
+    }
+    if (child.parentId && child.parentId !== requester.id) {
+      ctx.set.status = 409;
+      return { error: 'child_already_assigned', message: 'This child already has a parent.' };
+    }
+
+    child.parentId = requester.id;
+    await userRepo.save(child);
+
+    request.status = 'accepted';
+    request.acceptedAt = new Date();
+    request.updatedAt = new Date();
+    await requestRepo.save(request);
+
+    const logRepo = AppDataSource.getRepository(UserLog);
+    await logRepo.save(logRepo.create({ userId: requester.id, action: 'accept-parent-link', targetId: String(child.id), targetType: 'user', timestamp: new Date(), metadata: { requestId: request.id } } as any));
+
+    return { success: true, request: await serializeParentLinkRequest(request, requester), child: await safeUser(child) };
+  }, {
+   beforeHandle: authenticate,
+    body: t.Object({ code: t.String() }),
+    response: { 200: t.Object({ success: t.Boolean(), request: t.Any(), child: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
+    detail: { summary: 'Accept a parent link request with linking code', tags: ['Users'] }
+  });
+
+  app.put(prefix + '/users/me/children/:childId/limits', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    const parentAge = getAgeFromDate(requester.dateOfBirth);
+    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'parent_access_required', message: 'Only adult users may manage child limits.' };
+    }
+
+    const childId = Number(ctx.params['childId']);
+    if (!Number.isInteger(childId) || childId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+    }
+
+    const payload = ctx.body as any;
+    const limits = payload?.limits;
+    if (limits !== null && limits !== undefined && typeof limits !== 'object') {
+      ctx.set.status = 400;
+      return { error: 'invalid_limits', message: 'Limits must be an object or null.' };
+    }
+
+    const allowedFields = ['memory', 'disk', 'cpu', 'serverLimit', 'databases', 'backups'];
+    const newLimits: Record<string, number> = {};
+    if (limits && typeof limits === 'object') {
+      for (const key of allowedFields) {
+        if (key in limits) {
+          const value = Number(limits[key]);
+          if (!Number.isFinite(value) || value < 0) {
+            ctx.set.status = 400;
+            return { error: 'invalid_limit_value', message: `Invalid value for ${key}` };
+          }
+          newLimits[key] = Math.round(value);
+        }
+      }
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const child = await userRepo.findOneBy({ id: childId });
+    if (!child) {
+      ctx.set.status = 404;
+      return { error: 'child_not_found', message: 'Child account not found.' };
+    }
+    if (child.parentId !== requester.id) {
+      ctx.set.status = 403;
+      return { error: 'forbidden', message: 'You do not manage this child account.' };
+    }
+
+    child.limits = Object.keys(newLimits).length ? newLimits : null;
+    await userRepo.save(child);
+
+    const logRepo = AppDataSource.getRepository(UserLog);
+    await logRepo.save(logRepo.create({ userId: requester.id, action: 'update-child-limits', targetId: String(child.id), targetType: 'user', timestamp: new Date(), metadata: { limits: child.limits } } as any));
+
+    return { success: true, child: await safeUser(child) };
+  }, {
+   beforeHandle: authenticate,
+    body: t.Object({ limits: t.Optional(t.Any()) }),
+    response: { 200: t.Object({ success: t.Boolean(), child: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Update limits for a managed child account', tags: ['Users'] }
+  });
+
   app.get(prefix + '/users/me/children', async (ctx: any) => {
     const requester = ctx.user as User;
     if (!requester) {
@@ -373,7 +737,7 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
     const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || parentAge < 18) {
+    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
       ctx.set.status = 403;
       return { error: 'parent_access_required', message: 'Only adult users can view child accounts.' };
     }
@@ -394,7 +758,7 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
     const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || parentAge < 18) {
+    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
       ctx.set.status = 403;
       return { error: 'parent_access_required', message: 'Only adult users may assign child accounts.' };
     }
@@ -421,9 +785,9 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'child_already_assigned', message: 'This account already has a parent.' };
     }
     const childAge = getAgeFromDate(child.dateOfBirth);
-    if (childAge === null || childAge >= 18) {
+    if (childAge === null || !isMinorByCountry(childAge, child.billingCountry)) {
       ctx.set.status = 400;
-      return { error: 'child_must_be_under_18', message: 'Only users under 18 may be assigned as children.' };
+      return { error: 'child_must_be_under_18', message: `Only users under age ${getAdultAgeForCountry(child.billingCountry)} may be assigned as children.` };
     }
     child.parentId = requester.id;
     await userRepo.save(child);
@@ -1488,8 +1852,65 @@ export async function userRoutes(app: any, prefix = '') {
       emailChanged = true;
     }
 
+    if ('dateOfBirth' in payload) {
+      if (user.idVerified && !isAdmin && requester.id === user.id) {
+        ctx.set.status = 403;
+        return { error: 'date_of_birth_locked', message: 'Date of birth is locked after identity verification and can only be updated by an administrator.' };
+      }
+      const dateOfBirth = parseDateOfBirth(payload.dateOfBirth);
+      if (!dateOfBirth) {
+        ctx.set.status = 400;
+        return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      }
+      const updatedAge = getAgeFromDate(dateOfBirth);
+      if (updatedAge !== null && updatedAge < 14) {
+        if (!isAdmin) {
+          ctx.set.status = 400;
+          return { error: 'minimum_age', message: 'Users must be at least 14 years old.' };
+        }
+        user.suspended = true;
+        user.fraudFlag = true;
+        user.fraudReason = 'Underage account (<14 years)';
+      }
+      user.dateOfBirth = dateOfBirth;
+      delete payload.dateOfBirth;
+    }
+
+    const requiredProfileFields = ['address', 'billingCity', 'billingZip', 'billingCountry'];
+    for (const field of requiredProfileFields) {
+      if (field in payload) {
+        const value = payload[field];
+        if (value === null || value === undefined || String(value).trim() === '') {
+          ctx.set.status = 400;
+          return { error: `${field}_required`, message: `${field} cannot be empty.` };
+        }
+      }
+    }
+
+    if ('phone' in payload) {
+      const phone = payload.phone;
+      if (phone === null || phone === undefined || String(phone).trim() === '') {
+        ctx.set.status = 400;
+        return { error: 'phone_required', message: 'Phone cannot be cleared or set to an empty value.' };
+      }
+    }
+
+    const addressChangeFields = ['address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'phone'];
+    const addressChanges: Record<string, any> = {};
+    for (const key of addressChangeFields) {
+      if (key in payload) {
+        const oldValue = (user as any)[key];
+        const newValue = payload[key];
+        const oldNormalized = oldValue === undefined || oldValue === null ? '' : String(oldValue).trim();
+        const newNormalized = newValue === undefined || newValue === null ? '' : String(newValue).trim();
+        if (oldNormalized !== newNormalized) {
+          addressChanges[key] = { before: oldValue ?? null, after: newValue ?? null };
+        }
+      }
+    }
+
     const USER_FIELDS = ['email','firstName', 'middleName', 'lastName', 'displayName', 'phone',
-      'address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'settings', 'dateOfBirth'];
+      'address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'settings'];
     const ADMIN_ONLY_FIELDS = ['role', 'portalType', 'nodeId', 'limits', 'settings', 'emailVerified', 'idVerified', 'suspended', 'fraudFlag', 'fraudReason', 'parentId'];
     const allowed = isAdmin ? [...USER_FIELDS, ...ADMIN_ONLY_FIELDS] : USER_FIELDS;
     for (const key of allowed) {
@@ -1529,7 +1950,11 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const logRepo = AppDataSource.getRepository(UserLog);
-    await logRepo.save(logRepo.create({ userId: user.id, action: 'update-profile', timestamp: new Date() }));
+    if (Object.keys(addressChanges).length > 0) {
+      await logRepo.save(logRepo.create({ userId: user.id, action: 'update-address', metadata: addressChanges, timestamp: new Date() }));
+    } else {
+      await logRepo.save(logRepo.create({ userId: user.id, action: 'update-profile', timestamp: new Date() }));
+    }
     return { success: true, user: await safeUser(user) };
   }, {
    beforeHandle: authenticate,

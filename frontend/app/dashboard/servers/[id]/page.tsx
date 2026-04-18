@@ -668,6 +668,10 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params)
   const router = useRouter()
   const { user } = useAuth()
+  const isAdminUser = !!(
+    user &&
+    (user.role === "*" || user.role === "rootAdmin" || user.role === "admin" || user.role === "staff")
+  )
 
   const [editorSettings, setEditorSettings] = useState<EditorSettings | undefined>(undefined)
   const [server, setServer] = useState<any>(null)
@@ -933,6 +937,10 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     !!subuserEntry && !isOwnerOrAdmin && subuserEntry.accepted !== false
 
   const hasServerAccess = isOwnerOrAdmin || isViewerSubuser
+  const isDmcaProtected = server?.status === 'dmca' || !!server?.is_dmca
+  const dmcaDeletionAt = server?.dmcaDeletionAt ? new Date(server.dmcaDeletionAt) : server?.configuration?.dmcaDeletionAt ? new Date(server.configuration.dmcaDeletionAt) : null
+  const dmcaDaysLeft = dmcaDeletionAt ? Math.max(0, Math.ceil((dmcaDeletionAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))) : null
+  const dmcaReason = server?.dmcaReason || server?.configuration?.dmcaReason || 'No reason provided'
 
   const subuserPerms = useMemo(
     () => (Array.isArray(subuserEntry?.permissions) ? subuserEntry.permissions : []),
@@ -1027,16 +1035,62 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     )
   }
 
-  // ── Derived state ──────────────────────────────────────────────────────────
+    if (isDmcaProtected && !isAdminUser) {
+      return (
+        <div className="flex min-h-full items-center justify-center p-6">
+          <div className="max-w-2xl rounded-3xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-4">
+              <AlertTriangle className="h-8 w-8" />
+            </div>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">Server under DMCA takedown</h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              This server has been placed under a DMCA takedown and panel access is locked.
+            </p>
+            <p className="text-sm text-muted-foreground mb-2">
+              Deletion is scheduled for{' '}
+              {dmcaDeletionAt ? (
+                <time dateTime={dmcaDeletionAt.toISOString()}>{dmcaDeletionAt.toLocaleString()}</time>
+              ) : (
+                'the next 30 days'
+              )}
+              {dmcaDaysLeft !== null ? ` (${dmcaDaysLeft} day${dmcaDaysLeft === 1 ? '' : 's'} remaining)` : ''}.
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">Reason: {dmcaReason}</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+              <Button variant="outline" onClick={() => router.push('/dashboard/tickets/new')}>
+                Contact support
+              </Button>
+              <Button variant="secondary" onClick={() => router.push('/legal/dmca-copyright-policy')}>
+                DMCA policy
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+  const dmcaAlert = isDmcaProtected ? (
+    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive mb-3">
+      <div className="font-semibold">DMCA takedown active</div>
+      <div className="mt-2">
+        {dmcaReason}
+      </div>
+      <div className="mt-2 text-xs text-destructive/80">
+        Deletion scheduled for {dmcaDeletionAt ? dmcaDeletionAt.toLocaleString() : 'within 30 days'}{dmcaDaysLeft !== null ? ` (${dmcaDaysLeft} day${dmcaDaysLeft === 1 ? '' : 's'} remaining)` : ''}.
+      </div>
+    </div>
+  ) : null
 
   const statusColor =
-    server.status === "running" || server.status === "online"
-      ? "text-green-400 bg-green-400"
-      : server.status === "hibernated"
-        ? "text-purple-400 bg-purple-400"
-        : server.status === "stopped" || server.status === "offline"
-          ? "text-red-400 bg-red-400"
-          : "text-yellow-400 bg-yellow-400"
+    server.status === 'running' || server.status === 'online'
+      ? 'text-green-400 bg-green-400'
+      : server.status === 'hibernated'
+        ? 'text-purple-400 bg-purple-400'
+        : server.status === 'dmca'
+          ? 'text-destructive bg-destructive'
+          : server.status === 'stopped' || server.status === 'offline'
+            ? 'text-red-400 bg-red-400'
+            : 'text-yellow-400 bg-yellow-400'
 
   if (!hasServerAccess) {
     return (
@@ -1107,6 +1161,18 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           description={`${server.uuid || id}`}
         />
       </div>
+
+      {isDmcaProtected && (
+        <div className="rounded-3xl border border-destructive/30 bg-destructive/5 p-4 text-destructive mb-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <p className="text-sm font-semibold">DMCA takedown active</p>
+          </div>
+          <p className="text-xs text-destructive/80 mt-2">
+            {dmcaReason}. Deletion scheduled for {dmcaDeletionAt ? dmcaDeletionAt.toLocaleString() : 'within 30 days'}{dmcaDaysLeft !== null ? ` (${dmcaDaysLeft} day${dmcaDaysLeft === 1 ? '' : 's'} remaining)` : ''}.
+          </p>
+        </div>
+      )}
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
@@ -1877,13 +1943,13 @@ function NetworkTab({ serverId }: { serverId: string }) {
       .finally(() => setLoading(false))
   }, [serverId])
 
-  const requestPorts = async () => {
+  const requestPorts = async (requestIpv6 = false) => {
     setRequesting(true)
     setRequestError(null)
     try {
       await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
         method: "POST",
-        body: JSON.stringify({ count: 1 }),
+        body: JSON.stringify({ count: 1, requestIpv6 }),
       })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
@@ -1920,15 +1986,26 @@ function NetworkTab({ serverId }: { serverId: string }) {
         title={t("network.title")}
         icon={Network}
         action={
-          <Button size="sm" onClick={requestPorts} disabled={requesting}>
-            {requesting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-            ) : (
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            <span className="hidden sm:inline">{t("network.requestPort")}</span>
-            <span className="sm:hidden">{t("network.add")}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => requestPorts(true)} disabled={requesting}>
+              {requesting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              <span className="hidden sm:inline">Request IPv6</span>
+              <span className="sm:hidden">IPv6</span>
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => requestPorts(false)} disabled={requesting}>
+              {requesting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              <span className="hidden sm:inline">Request Port</span>
+              <span className="sm:hidden">Port</span>
+            </Button>
+          </div>
         }
       />
 

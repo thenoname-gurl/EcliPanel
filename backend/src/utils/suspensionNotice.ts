@@ -117,6 +117,85 @@ export async function notifyServerOwnerSuspended(params: {
   }
 }
 
+export async function notifyServerOwnerDmca(params: {
+  cfg: SuspendedServerRef | null;
+  actor: string;
+  reason: string;
+  dmcaAt?: Date;
+  deletionAt?: Date;
+}): Promise<SuspensionNoticeResult> {
+  const { cfg, actor, reason } = params;
+  if (!cfg?.userId || !cfg?.uuid) {
+    return { sent: false, skipped: true, reason: 'missing server owner mapping', recipient: null };
+  }
+
+  const user = await AppDataSource.getRepository(User).findOneBy({ id: cfg.userId });
+  if (!user) {
+    return { sent: false, skipped: true, reason: 'owner not found', recipient: null };
+  }
+
+  const supportUrl = resolveSupportUrl();
+  const supportEmail = String(process.env.SUPPORT_EMAIL || 'contact@ecli.app').trim();
+  const dmcaAt = params.dmcaAt || new Date();
+  const deletionAt = params.deletionAt || new Date(dmcaAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const serverName = cfg.name || cfg.uuid;
+
+  const supportLine = supportUrl
+    ? `Contact support and file a counter-notice: ${supportUrl}`
+    : `Contact support via email: ${supportEmail}`;
+
+  const message = `Your server "${serverName}" has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Access is suspended, and the server is scheduled for deletion on ${deletionAt.toISOString()}. You may submit a counter-notice with support.`;
+  const details = [
+    `Server: ${serverName}`,
+    `Server UUID: ${cfg.uuid}`,
+    `DMCA by: ${actor}`,
+    `Reason: ${reason}`,
+    `Marked DMCA at: ${dmcaAt.toISOString()}`,
+    `Scheduled deletion: ${deletionAt.toISOString()}`,
+    supportLine,
+  ].join('\n');
+
+  const mailboxAccount = await getMailboxAccountForUser(user.id).catch(() => null);
+  const mailboxAddress = mailboxAccount?.email || null;
+  const recipientAddresses = new Set<string>();
+  if (mailboxAddress) recipientAddresses.add(mailboxAddress);
+  if (user.email) recipientAddresses.add(user.email);
+
+  await createMailboxMessageForUser(user, {
+    subject: `Server DMCA notice: ${serverName}`,
+    body: `${message}\n\n${details}`,
+    toAddress: mailboxAddress || user.email || '',
+    fromAddress: process.env.MAIL_FROM || process.env.SMTP_USER || `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
+  });
+
+  if (recipientAddresses.size === 0) {
+    return { sent: false, skipped: true, reason: 'owner email not found', recipient: null };
+  }
+
+  try {
+    await sendMail({
+      to: Array.from(recipientAddresses),
+      from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
+      subject: `Server DMCA notice: ${serverName} - EclipseSystems`,
+      template: 'notification',
+      vars: {
+        title: 'Server DMCA Notice',
+        message,
+        details,
+      },
+    });
+
+    return { sent: true, skipped: false, recipient: Array.from(recipientAddresses).join(', ') };
+  } catch (err: any) {
+    return {
+      sent: false,
+      skipped: false,
+      reason: err?.message || 'failed to send DMCA notice',
+      recipient: Array.from(recipientAddresses).join(', '),
+    };
+  }
+}
+
 export async function notifyServerOwnerUnsuspended(params: {
   cfg: SuspendedServerRef | null;
   actor: string;

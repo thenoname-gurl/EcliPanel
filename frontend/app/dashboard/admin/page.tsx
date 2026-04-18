@@ -1076,6 +1076,9 @@ export default function AdminPanel() {
   const [editNodePortStart, setEditNodePortStart] = useState("")
   const [editNodePortEnd, setEditNodePortEnd] = useState("")
   const [editNodeDefaultIp, setEditNodeDefaultIp] = useState("")
+  const [editNodeIpv6Subnet, setEditNodeIpv6Subnet] = useState("")
+  const [editNodeIpv6ExcludedPorts, setEditNodeIpv6ExcludedPorts] = useState("")
+  const [editNodeIpv6ReservedCount, setEditNodeIpv6ReservedCount] = useState("0")
   const [editNodeLoading, setEditNodeLoading] = useState(false)
 
   // ── Plans state ──
@@ -1167,6 +1170,9 @@ export default function AdminPanel() {
   const [addNodePort, setAddNodePort] = useState("8080")
   const [addNodeSsl, setAddNodeSsl] = useState(true)
   const [addNodeDataPath, setAddNodeDataPath] = useState("/var/lib/eclipanel/volumes")
+  const [addNodeIpv6Subnet, setAddNodeIpv6Subnet] = useState("")
+  const [addNodeIpv6ExcludedPorts, setAddNodeIpv6ExcludedPorts] = useState("")
+  const [addNodeIpv6ReservedCount, setAddNodeIpv6ReservedCount] = useState("0")
   const [addNodeSftpPort, setAddNodeSftpPort] = useState("2022")
   const [addNodeType, setAddNodeType] = useState("free")
   const [addNodeToken, setAddNodeToken] = useState("")
@@ -1369,6 +1375,7 @@ export default function AdminPanel() {
   const [csKvmPassthroughEnabled, setCsKvmPassthroughEnabled] = useState(false)
   const [csLoading, setCsLoading] = useState(false)
   const [csError, setCsError] = useState("")
+  const [csRequestIpv6, setCsRequestIpv6] = useState(false)
 
   // ── Sync from Wings ──
   const [syncingFromWings, setSyncingFromWings] = useState(false)
@@ -1396,6 +1403,7 @@ export default function AdminPanel() {
     registrationNotice: string
     codeInstancesEnabled: boolean
     geoBlockCountries: string
+    countryAgeRules: string
     billingCurrency: string
     billingTaxRules: string
     gamblingEnabled: boolean
@@ -1407,6 +1415,7 @@ export default function AdminPanel() {
     registrationNotice: "",
     codeInstancesEnabled: true,
     geoBlockCountries: "",
+    countryAgeRules: "",
     billingCurrency: "USD",
     billingTaxRules: "",
     gamblingEnabled: true,
@@ -1546,6 +1555,7 @@ export default function AdminPanel() {
               codeInstancesEnabled:
                 data.codeInstancesEnabled === "false" ? false : Boolean(data.codeInstancesEnabled),
               geoBlockCountries: data.geoBlockCountries ?? "",
+              countryAgeRules: data.countryAgeRules ?? "",
               billingCurrency: (data.billingCurrency ?? "USD").toUpperCase(),
               billingTaxRules: data.billingTaxRules ?? "",
               gamblingEnabled: data.gamblingEnabled !== false,
@@ -2444,10 +2454,11 @@ export default function AdminPanel() {
 
   async function suspendServer(uuid: string) {
     const reason = window.prompt("Reason for suspension (shown to users in console/SFTP):", "")?.trim()
-    if (!reason) return
+    if (reason === null) return
+    const dmca = confirm("Mark this server as a DMCA takedown? OK for DMCA, Cancel for normal suspension.")
     const result = await apiFetch(`${API_ENDPOINTS.adminServers}/${uuid}/suspend`, {
       method: "POST",
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, dmca }),
     })
 
     if (!result?.emailSent) {
@@ -2455,7 +2466,7 @@ export default function AdminPanel() {
       alert(`Server suspended, but owner email was not sent${extra}.`)
     }
 
-    setServers((prev) => prev.map((s) => s.uuid === uuid ? { ...s, status: "suspended" } : s))
+    setServers((prev) => prev.map((s) => s.uuid === uuid ? { ...s, status: dmca ? "dmca" : "suspended" } : s))
   }
 
   async function unsuspendServer(uuid: string) {
@@ -2499,6 +2510,7 @@ export default function AdminPanel() {
     setCsDisk("10240")
     setCsCpu("100")
     setCsKvmPassthroughEnabled(false)
+    setCsRequestIpv6(false)
     setCsError("")
     setCreateServerOpen(true)
   }
@@ -2518,6 +2530,7 @@ export default function AdminPanel() {
           disk: Number(csDisk),
           cpu: Number(csCpu),
           kvmPassthroughEnabled: !!csKvmPassthroughEnabled,
+          requestIpv6: !!csRequestIpv6,
         }),
       })
       setCreateServerOpen(false)
@@ -2538,6 +2551,9 @@ export default function AdminPanel() {
     setEditNodePortStart((node as any).portRangeStart != null ? String((node as any).portRangeStart) : "")
     setEditNodePortEnd((node as any).portRangeEnd != null ? String((node as any).portRangeEnd) : "")
     setEditNodeDefaultIp((node as any).defaultIp || "")
+    setEditNodeIpv6Subnet((node as any).ipv6Subnet || "")
+    setEditNodeIpv6ExcludedPorts((node as any).ipv6ExcludedPorts || "")
+    setEditNodeIpv6ReservedCount((node as any).ipv6ReservedCount != null ? String((node as any).ipv6ReservedCount) : "0")
   }
 
   async function saveEditNode() {
@@ -2551,6 +2567,9 @@ export default function AdminPanel() {
           portRangeStart: editNodePortStart ? Number(editNodePortStart) : null,
           portRangeEnd: editNodePortEnd ? Number(editNodePortEnd) : null,
           defaultIp: editNodeDefaultIp || null,
+          ipv6Subnet: editNodeIpv6Subnet || null,
+          ipv6ExcludedPorts: editNodeIpv6ExcludedPorts || null,
+          ipv6ReservedCount: editNodeIpv6ReservedCount ? Number(editNodeIpv6ReservedCount) : null,
         }),
       })
       setNodes((prev) => prev.map((n) => n.id === editNodeDialog.id ? {
@@ -2559,6 +2578,9 @@ export default function AdminPanel() {
         portRangeStart: editNodePortStart ? Number(editNodePortStart) : undefined,
         portRangeEnd: editNodePortEnd ? Number(editNodePortEnd) : undefined,
         defaultIp: editNodeDefaultIp || undefined,
+        ipv6Subnet: editNodeIpv6Subnet || undefined,
+        ipv6ExcludedPorts: editNodeIpv6ExcludedPorts || undefined,
+        ipv6ReservedCount: editNodeIpv6ReservedCount ? Number(editNodeIpv6ReservedCount) : undefined,
       } as any : n))
       setEditNodeDialog(null)
     } finally {
@@ -2879,6 +2901,7 @@ remote: ${backendUrl}`
     setAddNodePort("8080"); setAddNodeSsl(true)
     setAddNodeDataPath("/var/lib/eclipanel/volumes"); setAddNodeSftpPort("2022")
     setAddNodeType("free"); setAddNodeToken(""); setAddNodeCreated(null)
+    setAddNodeIpv6Subnet(""); setAddNodeIpv6ExcludedPorts(""); setAddNodeIpv6ReservedCount("0");
   }
 
   async function generateAddNodeToken() {
@@ -2899,7 +2922,15 @@ remote: ${backendUrl}`
       const url = `${scheme}://${addNodeFqdn}:${addNodePort}`
       const created = await apiFetch(API_ENDPOINTS.nodes, {
         method: "POST",
-        body: JSON.stringify({ name: addNodeName, url, token: addNodeToken, nodeType: addNodeType }),
+        body: JSON.stringify({
+          name: addNodeName,
+          url,
+          token: addNodeToken,
+          nodeType: addNodeType,
+          ipv6Subnet: addNodeIpv6Subnet || undefined,
+          ipv6ExcludedPorts: addNodeIpv6ExcludedPorts || undefined,
+          ipv6ReservedCount: addNodeIpv6ReservedCount ? Number(addNodeIpv6ReservedCount) : undefined,
+        }),
       })
       setNodes((prev) => [...prev, created])
       setAddNodeCreated(created)
@@ -6156,10 +6187,17 @@ remote: ${panelUrl}`
                     className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-3">
-                <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
-                <label htmlFor="cs-kvm-passthrough" className="text-sm text-foreground">Enable KVM passthrough</label>
+              <div className="flex flex-col gap-2 mt-3">
+                <div className="flex items-center gap-2">
+                  <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
+                  <label htmlFor="cs-kvm-passthrough" className="text-sm text-foreground">Enable KVM passthrough</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input id="cs-request-ipv6" type="checkbox" checked={csRequestIpv6} onChange={(e) => setCsRequestIpv6(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
+                  <label htmlFor="cs-request-ipv6" className="text-sm text-foreground">Request IPv6</label>
+                </div>
               </div>
             </div>
             {csError && <p className="text-xs text-destructive">{csError}</p>}

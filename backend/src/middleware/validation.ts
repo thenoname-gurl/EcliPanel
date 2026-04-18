@@ -1,5 +1,6 @@
 import { validateCaptcha, validateInvisibleCaptcha, scoreBehavior } from '../utils/captcha';
 import { isFeatureEnabled } from '../utils/featureToggles';
+import { getMinimumAgeForCountry } from '../utils/eu';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,7 +18,7 @@ function validationErrors(errors: Record<string, string>): ValidationErrorBody {
   return { type: 'validation', on: 'body', found: errors };
 }
 
-export async function validateUserRegistration(ctx: any, _reply?: any): Promise<boolean> {
+export async function validateUserRegistration(ctx: any, _reply?: any, options?: { skipMinimumAge?: boolean }): Promise<boolean> {
   const { firstName, lastName, email, password, address, billingCity, billingZip, billingCountry, dateOfBirth, captchaAnswer, captchaToken } = ctx.body as any;
 
   const missingFields = [
@@ -107,9 +108,15 @@ export async function validateUserRegistration(ctx: any, _reply?: any): Promise<
     age -= 1;
   }
 
-  if (age < 14 || age > 122) {
+  const minimumAge = options?.skipMinimumAge ? 0 : await getMinimumAgeForCountry(billingCountry);
+  if (age < minimumAge || age > 122) {
     ctx.set.status = 400;
-    (ctx as any).body = validationError('dateOfBirth', 'The provided age is suspicious or not allowed by our policies. Please enter your real date of birth or contact support. Accounts may be suspended for fake data.');
+    (ctx as any).body = validationError(
+      'dateOfBirth',
+      age < minimumAge
+        ? `The provided age is below the minimum allowed age of ${minimumAge} for your country.`
+        : 'The provided age is suspicious or not allowed by our policies. Please enter your real date of birth or contact support. Accounts may be suspended for fake data.'
+    );
     return false;
   }
 

@@ -3,7 +3,7 @@ import { AppDataSource } from '../config/typeorm';
 import { MoreThanOrEqual } from 'typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
-import { getGeoBlockRulesWithDefaults } from '../utils/eu';
+import { getCountryAgeRules, getGeoBlockRulesWithDefaults } from '../utils/eu';
 
 export async function publicRoutes(app: any, prefix = '') {
   const nodeRepo = () => AppDataSource.getRepository(Node);
@@ -180,6 +180,39 @@ export async function publicRoutes(app: any, prefix = '') {
       tags: ['Public'],
       summary: 'Public geoblock rules',
       description: 'Returns the current geoblocked countries and the services restricted for each jurisdiction.',
+    },
+  });
+
+  app.get(prefix + '/public/minimum-age', async () => {
+    const rules = await getCountryAgeRules();
+    const entries = Object.entries(rules)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([country, minimumAge]) => ({ country, minimumAge }));
+
+    return {
+      source: 'database',
+      generatedAt: new Date().toISOString(),
+      defaultMinimumAge: 13,
+      euUkMinimumAge: 14,
+      rules: entries,
+    };
+  }, {
+    response: {
+      200: t.Object({
+        source: t.String(),
+        generatedAt: t.String(),
+        defaultMinimumAge: t.Number(),
+        euUkMinimumAge: t.Number(),
+        rules: t.Array(t.Object({
+          country: t.String(),
+          minimumAge: t.Number(),
+        })),
+      }),
+    },
+    detail: {
+      tags: ['Public'],
+      summary: 'Public minimum age rules',
+      description: 'Returns country-specific minimum age overrides and default policy values.',
     },
   });
 }

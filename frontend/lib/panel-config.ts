@@ -84,6 +84,10 @@ export const API_ENDPOINTS = {
   userRegister: "/api/users/register",
   userDetail: "/api/users/:id",
   userGuide: "/api/users/:id/guide",
+  parentLinkRequests: "/api/users/me/parent-link-requests",
+  parentLinkRequestAccept: "/api/users/me/parent-link-requests/:id/accept",
+  usersMeChildren: "/api/users/me/children",
+  childLimits: "/api/users/me/children/:childId/limits",
 
   // Organisations
   organisations: "/api/organisations",
@@ -606,6 +610,11 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/billing",
         icon: CreditCard,
         feature: "billing",
+      },
+      {
+        label: "Family",
+        href: "/dashboard/family",
+        icon: User,
       },
       {
         label: "Settings",

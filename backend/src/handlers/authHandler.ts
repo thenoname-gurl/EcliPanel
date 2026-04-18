@@ -800,10 +800,14 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'No challenge' };
     }
+    const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+    const requestHost = getFrontendHost(ctx);
     const ver = await PasskeyService.verifyRegistrationResponse({
       userId: user.id,
       attestationResponse,
       expectedChallenge: String(expected),
+      requestHost,
+      requestOrigin,
     });
     await redisDel(`passkey:reg:${user.id}`);
     return ver;
@@ -861,10 +865,14 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'No challenge' };
     }
+    const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+    const requestHost = getFrontendHost(ctx);
     const ver = await PasskeyService.verifyAuthenticationResponse({
       userId: user.id,
       authenticationResponse,
       expectedChallenge: String(expected),
+      requestHost,
+      requestOrigin,
     });
     if (ver.verified) {
       const sessionId = uuidv4();

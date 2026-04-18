@@ -170,12 +170,15 @@ class WingsProxySession {
       return;
     }
 
-    if (cfg.suspended) {
-      const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
-      const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+    if (cfg.suspended || cfg.dmca) {
+      const actor = String(cfg.dmca ? cfg.dmcaBy : cfg.suspendedBy || 'system').trim() || 'system';
+      const reason = String(cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+      const message = cfg.dmca
+        ? `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Please contact support.`
+        : `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`;
       this.sendToClient({
         event: 'error',
-        args: [`This server was suspended by ${actor} for reason: ${reason}. Please contact support.`],
+        args: [message],
       });
       this.destroy();
       return;
