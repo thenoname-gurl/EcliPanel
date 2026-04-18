@@ -31,8 +31,8 @@ export class User {
   @Column({ nullable: true })
   phone?: string;
 
-  @Column({ type: 'date', nullable: true })
-  dateOfBirth?: Date;
+  @Column('text', { nullable: true })
+  dateOfBirth?: Date | string;
 
   @ManyToOne(() => User, (user) => user.children, { nullable: true })
   @JoinColumn({ name: 'parentId' })
@@ -58,6 +58,31 @@ export class User {
       if (this.phone && isEnc(this.phone)) {
         this.phone = decrypt(this.phone);
       }
+      if (this.firstName && isEnc(this.firstName)) {
+        this.firstName = decrypt(this.firstName);
+      }
+      if (this.lastName && isEnc(this.lastName)) {
+        this.lastName = decrypt(this.lastName);
+      }
+      if (this.billingCompany && isEnc(this.billingCompany)) {
+        this.billingCompany = decrypt(this.billingCompany);
+      }
+      if (this.billingCity && isEnc(this.billingCity)) {
+        this.billingCity = decrypt(this.billingCity);
+      }
+      if (this.billingState && isEnc(this.billingState)) {
+        this.billingState = decrypt(this.billingState);
+      }
+      if (this.billingZip && isEnc(this.billingZip)) {
+        this.billingZip = decrypt(this.billingZip);
+      }
+      if (this.billingCountry && isEnc(this.billingCountry)) {
+        this.billingCountry = decrypt(this.billingCountry);
+      }
+      if (this.dateOfBirth && isEnc(this.dateOfBirth)) {
+        const decrypted = decrypt(this.dateOfBirth);
+        this.dateOfBirth = new Date(decrypted);
+      }
     } catch (e) {
       //skip
     }
@@ -77,6 +102,34 @@ export class User {
       }
       if (this.phone && !isEnc(this.phone)) {
         this.phone = encrypt(this.phone);
+      }
+      if (this.firstName && !isEnc(this.firstName)) {
+        this.firstName = encrypt(this.firstName);
+      }
+      if (this.lastName && !isEnc(this.lastName)) {
+        this.lastName = encrypt(this.lastName);
+      }
+      if (this.billingCompany && !isEnc(this.billingCompany)) {
+        this.billingCompany = encrypt(this.billingCompany);
+      }
+      if (this.billingCity && !isEnc(this.billingCity)) {
+        this.billingCity = encrypt(this.billingCity);
+      }
+      if (this.billingState && !isEnc(this.billingState)) {
+        this.billingState = encrypt(this.billingState);
+      }
+      if (this.billingZip && !isEnc(this.billingZip)) {
+        this.billingZip = encrypt(this.billingZip);
+      }
+      if (this.billingCountry && !isEnc(this.billingCountry)) {
+        this.billingCountry = encrypt(this.billingCountry);
+      }
+      if (this.dateOfBirth && !isEnc(this.dateOfBirth)) {
+        let dobValue = this.dateOfBirth;
+        if (dobValue instanceof Date) {
+          dobValue = dobValue.toISOString().split('T')[0];
+        }
+        this.dateOfBirth = encrypt(String(dobValue));
       }
     } catch (e) {
       // skip
