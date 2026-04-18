@@ -32,6 +32,7 @@
       "organisationInvites": "Organisation Invites",
       "billing": "Billing",
       "settings": "Settings",
+      "family": "Family",
       "subuserInvites": "Subuser Invites",
       "mailbox": "Mailbox",
       "adminPanel": "Admin Panel",
@@ -95,7 +96,6 @@
       "assignCategory": "Assign category",
       "delete": "Delete"
     },
-
     "details": {
       "sender": "From",
       "received": "Received",
@@ -121,8 +121,7 @@
       "virusDetected": "Virus detected",
       "spamDetected": "Spam detected",
       "emailFallback": "Email message"
-    }
-    ,
+    },
     "confirm": {
       "deleteEmail": "Delete this email? This action cannot be undone."
     },
@@ -278,14 +277,38 @@
       "title": "DOCUMENTS",
       "footer": "Use arrows to move and ENTER to open.",
       "docs": {
-        "terms": { "label": "Terms of Service", "desc": "Rules and terms for using EclipseSystems." },
-        "privacy": { "label": "Privacy Policy", "desc": "How we handle personal data." },
-        "cookies": { "label": "Cookies Policy", "desc": "Details about cookies and tracking." },
-        "acceptableUse": { "label": "Acceptable Use Policy", "desc": "Allowed and prohibited platform behavior." },
-        "ai": { "label": "AI Policy", "desc": "Guidelines for using AI features safely." },
-        "email": { "label": "Email Policy", "desc": "Email rules and whitelist requirements." },
-        "dmca": { "label": "DMCA Copyright Policy", "desc": "How copyright claims are handled." },
-        "imprint": { "label": "Imprint", "desc": "Company and legal contact information." }
+        "terms": {
+          "label": "Terms of Service",
+          "desc": "Rules and terms for using EclipseSystems."
+        },
+        "privacy": {
+          "label": "Privacy Policy",
+          "desc": "How we handle personal data."
+        },
+        "cookies": {
+          "label": "Cookies Policy",
+          "desc": "Details about cookies and tracking."
+        },
+        "acceptableUse": {
+          "label": "Acceptable Use Policy",
+          "desc": "Allowed and prohibited platform behavior."
+        },
+        "ai": {
+          "label": "AI Policy",
+          "desc": "Guidelines for using AI features safely."
+        },
+        "email": {
+          "label": "Email Policy",
+          "desc": "Email rules and whitelist requirements."
+        },
+        "dmca": {
+          "label": "DMCA Copyright Policy",
+          "desc": "How copyright claims are handled."
+        },
+        "imprint": {
+          "label": "Imprint",
+          "desc": "Company and legal contact information."
+        }
       }
     },
     "menu": {
@@ -301,13 +324,34 @@
       "nodesLabel": "Nodes",
       "networkLabel": "Network",
       "items": {
-        "features": { "label": "Features", "desc": "Explore the platform capabilities." },
-        "about": { "label": "About", "desc": "Learn who we are." },
-        "pricing": { "label": "Pricing", "desc": "Find the right plan." },
-        "community": { "label": "Community", "desc": "See network and status." },
-        "faq": { "label": "FAQ", "desc": "Common questions answered." },
-        "deploy": { "label": "Deploy", "desc": "Start your environment." },
-        "legal": { "label": "Legal", "desc": "Browse official documents." }
+        "features": {
+          "label": "Features",
+          "desc": "Explore the platform capabilities."
+        },
+        "about": {
+          "label": "About",
+          "desc": "Learn who we are."
+        },
+        "pricing": {
+          "label": "Pricing",
+          "desc": "Find the right plan."
+        },
+        "community": {
+          "label": "Community",
+          "desc": "See network and status."
+        },
+        "faq": {
+          "label": "FAQ",
+          "desc": "Common questions answered."
+        },
+        "deploy": {
+          "label": "Deploy",
+          "desc": "Start your environment."
+        },
+        "legal": {
+          "label": "Legal",
+          "desc": "Browse official documents."
+        }
       }
     },
     "status": {
@@ -2259,16 +2303,46 @@
       }
     },
     "featureFlags": {
-      "ai": { "label": "AI Services", "note": "AI control plane and LLM models" },
-      "billing": { "label": "Billing System", "note": "Order and subscription management" },
-      "dns": { "label": "DNS Management", "note": "Organization DNS zone control" },
-      "ticketing": { "label": "Support Tickets", "note": "Help desk and chat logs" },
-      "applications": { "label": "Applications", "note": "Staff applications and abuse report forms" },
-      "oauth": { "label": "OAuth Server", "note": "OAuth client and token services" },
-      "codeInstances": { "label": "Code Instances", "note": "Temporary development environments" },
-      "tunnels": { "label": "Tunnels", "note": "Public tunnel dashboard and forwarding controls" },
-      "captcha": { "label": "Classic Captcha", "note": "Image-based bot protection" },
-      "captchaInvisible": { "label": "Invisible Captcha", "note": "Behavioral challenge system" }
+      "ai": {
+        "label": "AI Services",
+        "note": "AI control plane and LLM models"
+      },
+      "billing": {
+        "label": "Billing System",
+        "note": "Order and subscription management"
+      },
+      "dns": {
+        "label": "DNS Management",
+        "note": "Organization DNS zone control"
+      },
+      "ticketing": {
+        "label": "Support Tickets",
+        "note": "Help desk and chat logs"
+      },
+      "applications": {
+        "label": "Applications",
+        "note": "Staff applications and abuse report forms"
+      },
+      "oauth": {
+        "label": "OAuth Server",
+        "note": "OAuth client and token services"
+      },
+      "codeInstances": {
+        "label": "Code Instances",
+        "note": "Temporary development environments"
+      },
+      "tunnels": {
+        "label": "Tunnels",
+        "note": "Public tunnel dashboard and forwarding controls"
+      },
+      "captcha": {
+        "label": "Classic Captcha",
+        "note": "Image-based bot protection"
+      },
+      "captchaInvisible": {
+        "label": "Invisible Captcha",
+        "note": "Behavioral challenge system"
+      }
     },
     "gambling": {
       "title": "Gambling Probabilities",
@@ -5114,6 +5188,154 @@
       "failedStudentVerification": "Failed to start student verification flow",
       "failedFetchInvoice": "Failed to fetch invoice",
       "unableDownloadInvoice": "Unable to download invoice"
+    }
+  },
+  "familyPage": {
+    "page": {
+      "title": "Family Management",
+      "description": "Manage parent-child account links and configure resource limits."
+    },
+    "beta": {
+      "title": "Development Preview",
+      "description": "This feature is in beta and not fully rolled out publicly. Use with caution.",
+      "badge": "Beta"
+    },
+    "accountStatus": {
+      "managingChildren": "Managing {count, plural, one {# linked child} other {# linked children}}",
+      "linkedChild": "Age: {age} · Linked to a parent account",
+      "childAgeLabel": "Age: {age} · DOB: {dob}",
+      "unlockFamilyFeatures": "Set your date of birth in Settings to unlock family features",
+      "adultAgeNotice": "Your account has reached adult age. Please review and update your details in Settings.",
+      "setDobHint": "Set your DOB in Settings to enable linking"
+    },
+    "parentInfo": {
+      "title": "Your Parent Account",
+      "subtitle": "Details about the parent account linked to yours.",
+      "fields": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "country": "Country",
+        "roleParent": "Parent"
+      },
+      "notSet": "Not set"
+    },
+    "requestParent": {
+      "title": "Request Parent Link",
+      "subtitle": "Enter your parent's email. A linking code will be generated for them to confirm.",
+      "fields": {
+        "parentEmail": "Parent email address",
+        "parentEmailPlaceholder": "parent@example.com"
+      },
+      "actions": {
+        "sendRequest": "Send Request",
+        "sending": "Sending…"
+      }
+    },
+    "linkRequests": {
+      "title": "Link Requests",
+      "subtitle": "Pending and completed parent-child link requests.",
+      "requestNumber": "Request #{id}",
+      "linkingCode": "Linking Code",
+      "enterCodeLabel": "Enter code from child",
+      "enterCodePlaceholder": "e.g. ABCDE1",
+      "actions": {
+        "accept": "Accept",
+        "accepting": "Accepting…"
+      }
+    },
+    "inviteChild": {
+      "title": "Invite Child Account",
+      "subtitle": "Create an invite link your child can use during registration. Optionally prefill their email.",
+      "fields": {
+        "childEmail": "Child email (optional)",
+        "childEmailPlaceholder": "child@example.com"
+      },
+      "actions": {
+        "createInvite": "Create Invite",
+        "creating": "Creating…"
+      }
+    },
+    "activeInvites": {
+      "title": "Active Invites",
+      "subtitle": "Manage pending child invite links.",
+      "emptyTitle": "No active invites",
+      "emptyDescription": "Create an invite above to get started.",
+      "openInvite": "Open Invite"
+    },
+    "linkedChildren": {
+      "title": "Linked Children",
+      "subtitle": "Overview of child accounts linked to yours. Tap to expand details.",
+      "emptyTitle": "No linked children",
+      "emptyDescription": "Create an invite above to add a child account."
+    },
+    "childCard": {
+      "servers": "Servers",
+      "orders": "Orders",
+      "orgs": "Orgs",
+      "age": "Age",
+      "plan": "Plan",
+      "status": "Status",
+      "resources": "Resources",
+      "dateOfBirth": "Date of Birth",
+      "save": "Save",
+      "noServers": "No servers found.",
+      "organisations": "Organisations",
+      "noOrganisations": "No organisations.",
+      "billing": "Billing",
+      "noBillingRecords": "No billing records.",
+      "invoice": "Invoice",
+      "default": "Default",
+      "freePlan": "Free",
+      "statuses": {
+        "suspended": "Suspended",
+        "active": "Active"
+      },
+      "ageValue": "{age} yrs"
+    },
+    "summary": {
+      "title": "Account Summary",
+      "email": "Email",
+      "accountRole": "Account Role",
+      "age": "Age",
+      "ageValue": "{age} years old",
+      "ageNotSet": "Not set — update in Settings",
+      "linkedChildren": "Linked Children",
+      "linkedCount": "{count} linked",
+      "na": "N/A"
+    },
+    "messages": {
+      "unableToLoadFamilyData": "Unable to load family data.",
+      "enterParentEmail": "Please enter your parent's email address.",
+      "requestCreated": "Request created! Share this code with your parent: {code}",
+      "failedSendLinkRequest": "Failed to send link request.",
+      "childInviteCreated": "Child invite created",
+      "openLink": "Open link",
+      "failedCreateInvite": "Failed to create child invite.",
+      "inviteRevoked": "Invite revoked.",
+      "failedRevokeInvite": "Failed to revoke invite.",
+      "enterLinkingCode": "Please enter the linking code.",
+      "requestAccepted": "Request accepted!",
+      "failedAcceptRequest": "Failed to accept request.",
+      "enterDateOfBirth": "Please enter a date of birth.",
+      "dateOfBirthUpdated": "Date of birth updated!",
+      "failedUpdateDateOfBirth": "Failed to update date of birth.",
+      "codeCopied": "Link copied!"
+    },
+    "roles": {
+      "parent": "Parent",
+      "linkedChild": "Linked Child",
+      "child": "Child",
+      "unknown": "Unknown"
+    },
+    "requestStatuses": {
+      "accepted": "Accepted",
+      "pending": "Pending",
+      "rejected": "Rejected"
+    },
+    "common": {
+      "unknown": "Unknown",
+      "na": "N/A"
     }
   }
 }

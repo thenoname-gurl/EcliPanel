@@ -2,6 +2,7 @@
 
 import { PanelHeader } from "@/components/panel/header"
 import { useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api-client"
@@ -224,13 +225,6 @@ function EmptyState({
   )
 }
 
-function parseAlertType(msg: string): "success" | "error" {
-  const l = msg.toLowerCase()
-  return l.includes("fail") || l.includes("error") || l.includes("please")
-    ? "error"
-    : "success"
-}
-
 // ─── Child card ───────────────────────────────────────────────────────────────
 
 function ChildCard({
@@ -254,6 +248,7 @@ function ChildCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const { toast } = useToast()
+  const t = useTranslations("familyPage")
   const childAge = getAgeFromDob(child.dateOfBirth)
 
   return (
@@ -277,9 +272,9 @@ function ChildCard({
         {/* Quick-stat pills – hidden on very small screens */}
         <div className="hidden sm:flex items-center gap-3 shrink-0">
           {[
-            { label: "Servers", value: servers.length },
-            { label: "Orders",  value: orders.length  },
-            { label: "Orgs",    value: orgs.length    },
+            { label: t("childCard.servers"), value: servers.length },
+            { label: t("childCard.orders"),  value: orders.length  },
+            { label: t("childCard.orgs"),    value: orgs.length    },
           ].map(({ label, value }) => (
             <div key={label} className="text-center">
               <p className="text-xs font-bold text-foreground">{value}</p>
@@ -326,14 +321,14 @@ function ChildCard({
           {/* Info grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Age",    value: childAge != null ? `${childAge} yrs` : "Unknown" },
-              { label: "Plan",   value: child.portalType || "Free" },
-              { label: "Status", value: child.suspended ? "Suspended" : "Active" },
+              { label: t("childCard.age"),    value: childAge != null ? t("childCard.ageValue", { age: childAge }) : t("common.unknown") },
+              { label: t("childCard.plan"),   value: child.portalType || t("childCard.freePlan") },
+              { label: t("childCard.status"), value: child.suspended ? t("childCard.statuses.suspended") : t("childCard.statuses.active") },
               {
-                label: "Resources",
+                label: t("childCard.resources"),
                 value: child.limits
                   ? `${child.limits.memory ?? "–"} MB / ${child.limits.cpu ?? "–"}%`
-                  : "Default",
+                  : t("childCard.default")
               },
             ].map(({ label, value }) => (
               <div
@@ -352,7 +347,7 @@ function ChildCard({
 
           {/* Date of birth */}
           <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground">Date of Birth</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("childCard.dateOfBirth")}</p>
             <div className="flex gap-2">
               <input
                 type="date"
@@ -368,7 +363,7 @@ function ChildCard({
                 {savingDob
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <Check className="h-4 w-4" />}
-                <span className="hidden sm:inline">Save</span>
+                <span className="hidden sm:inline">{t("childCard.save")}</span>
               </button>
             </div>
           </div>
@@ -379,11 +374,11 @@ function ChildCard({
               <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Server className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm font-medium text-foreground flex-1">Servers</p>
+              <p className="text-sm font-medium text-foreground flex-1">{t("childCard.servers")}</p>
               <Badge variant="outline" className="text-[10px]">{servers.length}</Badge>
             </div>
             {servers.length === 0 ? (
-              <p className="text-xs text-muted-foreground pl-12">No servers found.</p>
+              <p className="text-xs text-muted-foreground pl-12">{t("childCard.noServers")}</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {servers.slice(0, 5).map((s: any) => (
@@ -415,11 +410,11 @@ function ChildCard({
               <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Building2 className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm font-medium text-foreground flex-1">Organisations</p>
+              <p className="text-sm font-medium text-foreground flex-1">{t("childCard.organisations")}</p>
               <Badge variant="outline" className="text-[10px]">{orgs.length}</Badge>
             </div>
             {orgs.length === 0 ? (
-              <p className="text-xs text-muted-foreground pl-12">No organisations.</p>
+              <p className="text-xs text-muted-foreground pl-12">{t("childCard.noOrganisations")}</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {orgs.map((org: any) => (
@@ -428,7 +423,7 @@ function ChildCard({
                     className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
                   >
                     <p className="text-xs font-medium text-foreground truncate">
-                      {org.name || "Unknown"}
+                      {org.name || t("common.unknown")}
                     </p>
                     <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
                       {org.role}
@@ -445,11 +440,11 @@ function ChildCard({
               <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Receipt className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm font-medium text-foreground flex-1">Billing</p>
+              <p className="text-sm font-medium text-foreground flex-1">{t("childCard.billing")}</p>
               <Badge variant="outline" className="text-[10px]">{orders.length}</Badge>
             </div>
             {orders.length === 0 ? (
-              <p className="text-xs text-muted-foreground pl-12">No billing records.</p>
+              <p className="text-xs text-muted-foreground pl-12">{t("childCard.noBillingRecords")}</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {orders.slice(0, 5).map((order: any) => (
@@ -473,7 +468,7 @@ function ChildCard({
                       className="shrink-0 ml-2 flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-[10px] font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      Invoice
+                      {t("childCard.invoice")}
                     </a>
                   </div>
                 ))}
@@ -494,6 +489,7 @@ function ChildCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FamilyPage() {
+  const t = useTranslations("familyPage")
   const { user, refreshUser } = useAuth()
   const { toast } = useToast()
 
@@ -509,6 +505,7 @@ export default function FamilyPage() {
   const [formMessage,    setFormMessage]     = useState<string | null>(null)
   const [inviteMessage,  setInviteMessage]   = useState<string | null>(null)
   const [childMessage,   setChildMessage]    = useState<string | null>(null)
+  const [childMessageType, setChildMessageType] = useState<'success' | 'error'>('success')
   const [formError,      setFormError]       = useState<string | null>(null)
 
   const [acceptCodes,    setAcceptCodes]     = useState<Record<number, string>>({})
@@ -561,12 +558,18 @@ export default function FamilyPage() {
   const age = typeof user?.age === "number" ? user.age : getAgeFromDob(user?.dateOfBirth)
 
   const accountRole = isParent
-    ? "Parent"
+    ? t("roles.parent")
     : isLinkedChild
-    ? "Linked Child"
+    ? t("roles.linkedChild")
     : isChild
-    ? "Child"
-    : "Unknown"
+    ? t("roles.child")
+    : t("roles.unknown")
+
+  const requestStatusLabels = {
+    accepted: t("requestStatuses.accepted"),
+    pending: t("requestStatuses.pending"),
+    rejected: t("requestStatuses.rejected"),
+  } as const
 
   // ── data ───────────────────────────────────────────────────────────────────
 
@@ -624,7 +627,7 @@ export default function FamilyPage() {
         setChildServers(ns); setChildOrders(no); setChildOrgs(ng)
       }
     } catch (e: any) {
-      setFormError(e?.message || "Unable to load family data.")
+      setFormError(e?.message || t("messages.unableToLoadFamilyData"))
     } finally {
       setLoading(false)
     }
@@ -634,17 +637,17 @@ export default function FamilyPage() {
 
   async function sendParentRequest() {
     setFormError(null); setFormMessage(null)
-    if (!parentEmail.trim()) { setFormError("Please enter your parent's email address."); return }
+    if (!parentEmail.trim()) { setFormError(t("messages.enterParentEmail")); return }
     setSendingRequest(true)
     try {
       const data = await apiFetch(API_ENDPOINTS.parentLinkRequests, {
         method: "POST", body: { parentEmail: parentEmail.trim() },
       })
       setParentEmail("")
-      setFormMessage(`Request created! Share this code with your parent: ${data.request.code}`)
+      setFormMessage(t("messages.requestCreated", { code: data.request.code }))
       setRequests((p) => [data.request, ...p])
     } catch (e: any) {
-      setFormError(e?.message || "Failed to send link request.")
+      setFormError(e?.message || t("messages.failedSendLinkRequest"))
     } finally { setSendingRequest(false) }
   }
 
@@ -656,20 +659,20 @@ export default function FamilyPage() {
       })
       setChildEmail("")
       const link = data?.invite?.link
-      setInviteMessage(`Invite created! Share this link: ${link}`)
+      setInviteMessage(t("messages.inviteCreated", { link }))
       setInvites((p) => [data.invite, ...p])
       toast({
-        title: "Child invite created",
+        title: t("messages.childInviteCreated"),
         description: (
           <span>
             <a href={link} target="_blank" rel="noreferrer" className="underline font-medium">
-              Open link
+              {t("messages.openLink")}
             </a>
           </span>
         ),
       })
     } catch (e: any) {
-      setFormError(e?.message || "Failed to create child invite.")
+      setFormError(e?.message || t("messages.failedCreateInvite"))
     } finally { setCreatingInvite(false) }
   }
 
@@ -677,31 +680,45 @@ export default function FamilyPage() {
     try {
       await apiFetch(API_ENDPOINTS.parentRegistrationInviteRevoke.replace(":inviteId", String(id)), { method: "DELETE" })
       setInvites((p) => p.filter((i) => i.id !== id))
-      setChildMessage("Invite revoked.")
-    } catch (e: any) { setChildMessage(e?.message || "Failed to revoke invite.") }
+      setChildMessageType('success')
+      setChildMessage(t("messages.inviteRevoked"))
+    } catch (e: any) {
+      setChildMessageType('error')
+      setChildMessage(e?.message || t("messages.failedRevokeInvite"))
+    }
   }
 
   async function acceptRequest(requestId: number) {
     setChildMessage(null)
     const code = acceptCodes[requestId] || ""
-    if (!code.trim()) { setChildMessage("Please enter the linking code."); return }
+    if (!code.trim()) {
+      setChildMessageType('error')
+      setChildMessage(t("messages.enterLinkingCode"))
+      return
+    }
     setAcceptingRequest((p) => ({ ...p, [requestId]: true }))
     try {
       await apiFetch(API_ENDPOINTS.parentLinkRequestAccept.replace(":id", String(requestId)), {
         method: "POST", body: { code: code.trim() },
       })
-      setChildMessage("Request accepted!")
+      setChildMessageType('success')
+      setChildMessage(t("messages.requestAccepted"))
       setAcceptCodes((p) => ({ ...p, [requestId]: "" }))
       fetchData()
     } catch (e: any) {
-      setChildMessage(e?.message || "Failed to accept request.")
+      setChildMessageType('error')
+      setChildMessage(e?.message || t("messages.failedAcceptRequest"))
     } finally { setAcceptingRequest((p) => ({ ...p, [requestId]: false })) }
   }
 
   async function updateChildDob(childId: number) {
     setChildMessage(null)
     const dob = (childDobEdits[childId] || "").trim()
-    if (!dob) { setChildMessage("Please enter a date of birth."); return }
+    if (!dob) {
+      setChildMessageType('error')
+      setChildMessage(t("messages.enterDateOfBirth"))
+      return
+    }
     setSavingChildDob((p) => ({ ...p, [childId]: true }))
     try {
       const data = await apiFetch(API_ENDPOINTS.childUpdate.replace(":childId", String(childId)), {
@@ -709,9 +726,11 @@ export default function FamilyPage() {
       })
       setChildren((p) => p.map((c) => (c.id === childId ? data.child : c)))
       setChildDobEdits((p) => ({ ...p, [childId]: data.child.dateOfBirth || "" }))
-      setChildMessage("Date of birth updated!")
+      setChildMessageType('success')
+      setChildMessage(t("messages.dateOfBirthUpdated"))
     } catch (e: any) {
-      setChildMessage(e?.message || "Failed to update date of birth.")
+      setChildMessageType('error')
+      setChildMessage(e?.message || t("messages.failedUpdateDateOfBirth"))
     } finally { setSavingChildDob((p) => ({ ...p, [childId]: false })) }
   }
 
@@ -721,8 +740,8 @@ export default function FamilyPage() {
     <div className="flex flex-col h-full w-full overflow-hidden">
       <div className="flex-shrink-0">
         <PanelHeader
-          title="Family Management"
-          description="Manage parent-child account links and configure resource limits."
+          title={t("page.title")}
+          description={t("page.description")}
         />
       </div>
 
@@ -733,16 +752,16 @@ export default function FamilyPage() {
           <div className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3.5 min-w-0">
             <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground">Development Preview</p>
+              <p className="text-xs font-medium text-foreground">{t("beta.title")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                This feature is in beta and not fully rolled out publicly. Use with caution.
+                {t("beta.description")}
               </p>
             </div>
             <Badge
               variant="outline"
               className="shrink-0 border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-[10px]"
             >
-              Beta
+              {t("beta.badge")}
             </Badge>
           </div>
 
@@ -795,12 +814,12 @@ export default function FamilyPage() {
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {isParent
-                      ? `Managing ${children.length} linked child${children.length !== 1 ? "ren" : ""}`
+                      ? t("accountStatus.managingChildren", { count: children.length })
                       : isLinkedChild
-                      ? `Age: ${age ?? "unknown"} · Linked to a parent account`
+                      ? t("accountStatus.linkedChild", { age: age ?? t("common.unknown") })
                       : isChild
-                      ? `Age: ${age ?? "unknown"} · ${user.dateOfBirth ? `DOB: ${user.dateOfBirth}` : "Set your DOB in Settings to enable linking"}`
-                      : "Set your date of birth in Settings to unlock family features"}
+                      ? t("accountStatus.childAgeLabel", { age: age ?? t("common.unknown"), dob: user.dateOfBirth ?? t("accountStatus.setDobHint") })
+                      : t("accountStatus.unlockFamilyFeatures")}
                   </p>
                 </div>
 
@@ -820,8 +839,7 @@ export default function FamilyPage() {
             <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 min-w-0">
               <AlertCircle className="h-4 w-4 shrink-0 text-primary mt-0.5" />
               <p className="text-xs text-primary">
-                Your account has reached adult age. Please review and update your details in
-                Settings.
+                {t("accountStatus.adultAgeNotice")}
               </p>
             </div>
           )}
@@ -842,17 +860,17 @@ export default function FamilyPage() {
           {!loading && showParentInfo && parentInfo && (
             <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
               <h3 className="text-sm font-semibold text-foreground mb-1">
-                Your Parent Account
+                {t("parentInfo.title")}
               </h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Details about the parent account linked to yours.
+                {t("parentInfo.subtitle")}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {[
-                  { label: "Name",    value: parentInfo.firstName || parentInfo.displayName || parentInfo.email, Icon: Users     },
-                  { label: "Email",   value: parentInfo.email,                                                    Icon: Mail      },
-                  { label: "Role",    value: parentInfo.role || "Parent",                                         Icon: ShieldCheck },
-                  { label: "Country", value: parentInfo.billingCountry || "Not set",                              Icon: Globe     },
+                  { label: t("parentInfo.fields.name"),    value: parentInfo.firstName || parentInfo.displayName || parentInfo.email, Icon: Users     },
+                  { label: t("parentInfo.fields.email"),   value: parentInfo.email,                                                    Icon: Mail      },
+                  { label: t("parentInfo.fields.role"),    value: parentInfo.role || t("parentInfo.fields.roleParent"),                 Icon: ShieldCheck },
+                  { label: t("parentInfo.fields.country"), value: parentInfo.billingCountry || t("parentInfo.notSet"),                 Icon: Globe     },
                 ].map(({ label, value, Icon }) => (
                   <div
                     key={label}
@@ -877,17 +895,16 @@ export default function FamilyPage() {
           {!loading && canRequestParent && (
             <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
               <h3 className="text-sm font-semibold text-foreground mb-1">
-                Request Parent Link
+                {t("requestParent.title")}
               </h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Enter your parent's email. A linking code will be generated for them to
-                confirm.
+                {t("requestParent.subtitle")}
               </p>
               <div className="flex flex-col gap-3">
                 <FormInput
-                  label="Parent email address"
+                  label={t("requestParent.fields.parentEmail")}
                   type="email"
-                  placeholder="parent@example.com"
+                  placeholder={t("requestParent.fields.parentEmailPlaceholder")}
                   value={parentEmail}
                   onChange={setParentEmail}
                   icon={Mail}
@@ -899,8 +916,8 @@ export default function FamilyPage() {
                     className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
                     {sendingRequest
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-                      : <><UserPlus className="h-4 w-4" /> Send Request</>}
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("requestParent.actions.sending")}</>
+                      : <><UserPlus className="h-4 w-4" /> {t("requestParent.actions.sendRequest")}</>}
                   </button>
                 </div>
                 {formMessage && <InlineAlert type="success" message={formMessage} />}
@@ -911,14 +928,14 @@ export default function FamilyPage() {
           {/* ── Link requests ────────────────────────────────────────────── */}
           {!loading && requests.length > 0 && (
             <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
-              <h3 className="text-sm font-semibold text-foreground mb-1">Link Requests</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-1">{t("linkRequests.title")}</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Pending and completed parent-child link requests.
+                {t("linkRequests.subtitle")}
               </p>
 
               {childMessage && (
                 <div className="mb-4">
-                  <InlineAlert type={parseAlertType(childMessage)} message={childMessage} />
+                  <InlineAlert type={childMessageType} message={childMessage} />
                 </div>
               )}
 
@@ -943,10 +960,10 @@ export default function FamilyPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground">
-                            Request #{req.id}
+                            {t("linkRequests.requestNumber", { id: req.id })}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {req.child?.email || "Unknown"}
+                            {req.child?.email || t("common.unknown")}
                             {req.parentEmail && ` · ${req.parentEmail}`}
                           </p>
                         </div>
@@ -982,7 +999,7 @@ export default function FamilyPage() {
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(req.code)
-                            toast({ title: "Code copied!" })
+                            toast({ title: t("messages.codeCopied") })
                           }}
                           className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
                         >
@@ -996,14 +1013,14 @@ export default function FamilyPage() {
                       <div className="px-3 md:px-4 pb-3 flex flex-col sm:flex-row gap-2 sm:items-end min-w-0">
                         <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                           <label className="text-xs font-medium text-muted-foreground">
-                            Enter code from child
+                            {t("linkRequests.enterCodeLabel")}
                           </label>
                           <input
                             value={acceptCodes[req.id] || ""}
                             onChange={(e) =>
                               setAcceptCodes((p) => ({ ...p, [req.id]: e.target.value }))
                             }
-                            placeholder="e.g. ABCDE1"
+                            placeholder={t("linkRequests.enterCodePlaceholder")}
                             className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all min-w-0"
                           />
                         </div>
@@ -1013,8 +1030,8 @@ export default function FamilyPage() {
                           className="shrink-0 flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                         >
                           {acceptingRequest[req.id]
-                            ? <><Loader2 className="h-4 w-4 animate-spin" /> Accepting…</>
-                            : <><CheckCircle className="h-4 w-4" /> Accept</>}
+                            ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("linkRequests.actions.accepting")}</>
+                            : <><CheckCircle className="h-4 w-4" /> {t("linkRequests.actions.accept")}</>}
                         </button>
                       </div>
                     )}
@@ -1030,17 +1047,16 @@ export default function FamilyPage() {
               {/* Create invite */}
               <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
                 <h3 className="text-sm font-semibold text-foreground mb-1">
-                  Invite Child Account
+                  {t("inviteChild.title")}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Create an invite link your child can use during registration. Optionally
-                  prefill their email.
+                  {t("inviteChild.subtitle")}
                 </p>
                 <div className="flex flex-col gap-3">
                   <FormInput
-                    label="Child email (optional)"
+                    label={t("inviteChild.fields.childEmail")}
                     type="email"
-                    placeholder="child@example.com"
+                    placeholder={t("inviteChild.fields.childEmailPlaceholder")}
                     value={childEmail}
                     onChange={setChildEmail}
                     icon={Mail}
@@ -1052,8 +1068,8 @@ export default function FamilyPage() {
                       className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                     >
                       {creatingInvite
-                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating…</>
-                        : <><UserPlus className="h-4 w-4" /> Create Invite</>}
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("inviteChild.actions.creating")}</>
+                        : <><UserPlus className="h-4 w-4" /> {t("inviteChild.actions.createInvite")}</>}
                     </button>
                   </div>
                   {inviteMessage && <InlineAlert type="success" message={inviteMessage} />}
@@ -1064,9 +1080,9 @@ export default function FamilyPage() {
               <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
                 <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">Active Invites</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t("activeInvites.title")}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Manage pending child invite links.
+                      {t("activeInvites.subtitle")}
                     </p>
                   </div>
                   {invites.length > 0 && (
@@ -1078,15 +1094,15 @@ export default function FamilyPage() {
 
                 {childMessage && (
                   <div className="mb-4">
-                    <InlineAlert type={parseAlertType(childMessage)} message={childMessage} />
+                    <InlineAlert type={childMessageType} message={childMessage} />
                   </div>
                 )}
 
                 {invites.length === 0 ? (
                   <EmptyState
                     icon={UserPlus}
-                    title="No active invites"
-                    description="Create an invite above to get started."
+                    title={t("activeInvites.emptyTitle")}
+                    description={t("activeInvites.emptyDescription")}
                   />
                 ) : (
                   <div className="flex flex-col gap-2.5 min-w-0">
@@ -1098,7 +1114,7 @@ export default function FamilyPage() {
                         <div className="flex items-start justify-between gap-3 min-w-0">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-foreground truncate">
-                              {invite.childEmail || "Open Invite"}
+                              {invite.childEmail || t("activeInvites.openInvite")}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               #{invite.id}
@@ -1108,7 +1124,7 @@ export default function FamilyPage() {
                             <button
                               onClick={() => {
                                 navigator.clipboard.writeText(invite.link)
-                                toast({ title: "Link copied!" })
+                                toast({ title: t("messages.codeCopied") })
                               }}
                               className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
                             >
@@ -1145,9 +1161,9 @@ export default function FamilyPage() {
               <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
                 <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">Linked Children</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t("linkedChildren.title")}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Overview of child accounts linked to yours. Tap to expand details.
+                      {t("linkedChildren.subtitle")}
                     </p>
                   </div>
                   {children.length > 0 && (
@@ -1159,15 +1175,15 @@ export default function FamilyPage() {
 
                 {childMessage && (
                   <div className="mb-4">
-                    <InlineAlert type={parseAlertType(childMessage)} message={childMessage} />
+                    <InlineAlert type={childMessageType} message={childMessage} />
                   </div>
                 )}
 
                 {children.length === 0 ? (
                   <EmptyState
                     icon={Baby}
-                    title="No linked children"
-                    description="Create an invite above to add a child account."
+                    title={t("linkedChildren.emptyTitle")}
+                    description={t("linkedChildren.emptyDescription")}
                   />
                 ) : (
                   <div className="flex flex-col gap-2.5 min-w-0">
@@ -1196,13 +1212,13 @@ export default function FamilyPage() {
           {user && !loading && (
             <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
               <h3 className="text-sm font-semibold text-foreground mb-4">
-                Account Summary
+                {t("summary.title")}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0">
-                <SettingRow icon={Mail} title="Email" description={user.email} />
+                <SettingRow icon={Mail} title={t("summary.email")} description={user.email} />
                 <SettingRow
                   icon={Users}
-                  title="Account Role"
+                  title={t("summary.accountRole")}
                   description={accountRole}
                   action={
                     isParent
@@ -1214,13 +1230,13 @@ export default function FamilyPage() {
                 />
                 <SettingRow
                   icon={ShieldCheck}
-                  title="Age"
-                  description={age != null ? `${age} years old` : "Not set — update in Settings"}
+                  title={t("summary.age")}
+                  description={age != null ? t("summary.ageValue", { age }) : t("summary.ageNotSet")}
                 />
                 <SettingRow
                   icon={Link2}
-                  title="Linked Children"
-                  description={isParent ? `${children.length} linked` : "N/A"}
+                  title={t("summary.linkedChildren")}
+                  description={isParent ? t("summary.linkedCount", { count: children.length }) : t("summary.na")}
                   action={
                     isParent && children.length > 0
                       ? <CheckCircle className="h-4 w-4 text-green-500" />

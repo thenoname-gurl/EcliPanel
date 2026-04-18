@@ -501,7 +501,8 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   Identity: "identity",
   "Subuser Invites": "subuserInvites",
   Billing: "billing",
-  Settings: "settings",
+  Settings: "settings",  
+  "Family": "family",  
   Tunnels: "tunnels",
   "Admin Panel": "adminPanel",
 }
