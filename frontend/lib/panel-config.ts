@@ -89,8 +89,12 @@ export const API_ENDPOINTS = {
   parentRegistrationInvites: "/api/users/me/parent-registration-invites",
   parentRegistrationInviteRevoke: "/api/users/me/parent-registration-invites/:inviteId",
   usersMeChildren: "/api/users/me/children",
-  childLimits: "/api/users/me/children/:childId/limits",
+  usersMeParent: "/api/users/me/parent",
   childUpdate: "/api/users/me/children/:childId",
+  childServers: "/api/users/me/children/:childId/servers",
+  childOrders: "/api/users/me/children/:childId/orders",
+  childOrganisations: "/api/users/me/children/:childId/organisations",
+  orderInvoice: "/api/orders/:id/invoice",
 
   // Organisations
   organisations: "/api/organisations",

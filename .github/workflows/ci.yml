@@ -1,4 +1,4 @@
-name: CI - Build Backend & Frontend
+name: CI - Build
 
 permissions:
   contents: read
