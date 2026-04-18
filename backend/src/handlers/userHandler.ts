@@ -6,7 +6,7 @@ import { OutboundEmail } from '../models/outboundEmail.entity';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword } from '../utils/password';
-import { canRegister, getGeoBlockLevel } from '../utils/eu';
+import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { ParentLinkRequest } from '../models/parentLinkRequest.entity';
@@ -208,6 +208,7 @@ export async function userRoutes(app: any, prefix = '') {
       : undefined;
 
     const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
+    const userRepo = AppDataSource.getRepository(User);
     let parentRegistrationInvite: ParentRegistrationInvite | null = null;
     if (parentRegistrationToken) {
       parentRegistrationInvite = await inviteRepo.findOneBy({ token: parentRegistrationToken, used: false });
@@ -221,6 +222,18 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: 'email_mismatch', message: 'The child email does not match the parent registration invite.' };
       }
       body.parentId = parentRegistrationInvite.parentId;
+
+      const parentUser = await userRepo.findOneBy({ id: parentRegistrationInvite.parentId });
+      if (parentUser) {
+        if (!body.phone && parentUser.phone) body.phone = parentUser.phone;
+        if (!body.address && parentUser.address) body.address = parentUser.address;
+        if (!body.address2 && parentUser.address2) body.address2 = parentUser.address2;
+        if (!body.billingCompany && parentUser.billingCompany) body.billingCompany = parentUser.billingCompany;
+        if (!body.billingCity && parentUser.billingCity) body.billingCity = parentUser.billingCity;
+        if (!body.billingState && parentUser.billingState) body.billingState = parentUser.billingState;
+        if (!body.billingZip && parentUser.billingZip) body.billingZip = parentUser.billingZip;
+        if (!body.billingCountry && parentUser.billingCountry) body.billingCountry = parentUser.billingCountry;
+      }
     }
 
     const valid = await validateUserRegistration(ctx, ctx, { skipMinimumAge: !!parentRegistrationInvite });
@@ -243,7 +256,6 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'registration_email_reserved', message: 'That email is reserved by the panel and cannot be used for registration.' };
     }
-    const userRepo = AppDataSource.getRepository(User);
 
     if (body.parentId != null) {
       const parentId = Number(body.parentId);
@@ -568,7 +580,7 @@ export async function userRoutes(app: any, prefix = '') {
   }, {
    beforeHandle: authenticate,
     body: t.Object({ childEmail: t.Optional(t.String()) }),
-    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Optional(t.String()), link: t.String(), createdAt: t.String(), used: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Union([t.String(), t.Null()]), link: t.String(), createdAt: t.String(), used: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Create a parent registration invite for a child account', tags: ['Users'] }
   });
 
@@ -599,7 +611,7 @@ export async function userRoutes(app: any, prefix = '') {
     };
   }, {
    beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean(), invites: t.Array(t.Object({ id: t.Number(), token: t.String(), childEmail: t.Optional(t.String()), link: t.String(), createdAt: t.String(), used: t.Boolean(), usedAt: t.Optional(t.Union([t.String(), t.Null()])), expiresAt: t.Optional(t.Union([t.String(), t.Null()])) })) }), 401: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean(), invites: t.Array(t.Object({ id: t.Number(), token: t.String(), childEmail: t.Union([t.String(), t.Null()]), link: t.String(), createdAt: t.String(), used: t.Boolean(), usedAt: t.Optional(t.Union([t.String(), t.Null()])), expiresAt: t.Optional(t.Union([t.String(), t.Null()])) })) }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'List parent registration invites for the current parent', tags: ['Users'] }
   });
 
@@ -1991,14 +2003,16 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
       }
       const updatedAge = getAgeFromDate(dateOfBirth);
-      if (updatedAge !== null && updatedAge < 14) {
+      const effectiveCountry = typeof payload.billingCountry === 'string' ? payload.billingCountry : user.billingCountry;
+      const minimumAge = await getMinimumAgeForCountry(effectiveCountry);
+      if (updatedAge !== null && updatedAge < minimumAge) {
         if (!isAdmin) {
           ctx.set.status = 400;
-          return { error: 'minimum_age', message: 'Users must be at least 14 years old.' };
+          return { error: 'minimum_age', message: `Users must be at least ${minimumAge} years old.` };
         }
         user.suspended = true;
         user.fraudFlag = true;
-        user.fraudReason = 'Underage account (<14 years)';
+        user.fraudReason = `Underage account (<${minimumAge} years)`;
       }
       user.dateOfBirth = dateOfBirth;
       delete payload.dateOfBirth;

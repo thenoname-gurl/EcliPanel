@@ -269,7 +269,8 @@
       "title": "LANGUAGE",
       "current": "current",
       "footer": "Use arrow keys to navigate, ENTER to confirm.",
-      "mobileHint": "Tap to select on mobile."
+      "mobileHint": "Tap to select on mobile.",
+      "skipHint": "Press any key or click/tap to skip the typing animation."
     },
     "legal": {
       "line1": "Choose a document to review.",

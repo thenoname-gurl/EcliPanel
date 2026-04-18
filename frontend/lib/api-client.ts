@@ -98,7 +98,17 @@ export async function apiFetch(
         let msg = text;
         try {
           const json = JSON.parse(text);
-          msg = json.error || JSON.stringify(json);
+          if (json?.error) {
+            msg = json.error;
+          } else if (json?.message) {
+            msg = json.message;
+          } else if (json?.type === 'validation' && json?.found) {
+            msg = Object.entries(json.found)
+              .map(([field, value]) => `${field}: ${value}`)
+              .join('; ');
+          } else {
+            msg = JSON.stringify(json);
+          }
         } catch {}
         throw new Error(msg || `HTTP error ${res.status}`);
       }

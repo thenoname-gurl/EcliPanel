@@ -606,9 +606,11 @@ export default function RegisterPage() {
     if (name === "password") setPasswordStrength(getPasswordStrength(value))
   }
 
+  const isParentInvite = Boolean(form.parentRegistrationToken)
+
   /* ─── Step validation ─── */
-  const canProceedStep0 = form.firstName && form.lastName && form.email && form.password && form.phone && form.dateOfBirth && passwordStrength >= 0.55
-  const canProceedStep1 = form.address && form.billingCity && form.billingState && form.billingZip && form.billingCountry
+  const canProceedStep0 = Boolean(form.firstName && form.lastName && form.email && form.password && form.dateOfBirth && passwordStrength >= 0.55 && (isParentInvite || form.phone))
+  const canProceedStep1 = Boolean(isParentInvite || (form.address && form.billingCity && form.billingState && form.billingZip && form.billingCountry))
 
   const nextStep = () => {
     if (step === 0 && !canProceedStep0) {
@@ -897,7 +899,7 @@ export default function RegisterPage() {
                       label={t("phoneNumber")}
                       value={form.phone}
                       onChange={handleChange}
-                      required
+                      required={!isParentInvite}
                       autoComplete="tel"
                     />
 
@@ -934,7 +936,7 @@ export default function RegisterPage() {
                       label={t("streetAddress")}
                       value={form.address}
                       onChange={handleChange}
-                      required
+                      required={!isParentInvite}
                       autoComplete="address-line1"
                     />
 
@@ -947,6 +949,12 @@ export default function RegisterPage() {
                       autoComplete="address-line2"
                     />
 
+                    {isParentInvite && (
+                      <p className="text-sm text-muted-foreground">
+                        {t("parentInviteHint")}
+                      </p>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <InputField
                         name="billingCity"
@@ -954,7 +962,7 @@ export default function RegisterPage() {
                         label={t("city")}
                         value={form.billingCity}
                         onChange={handleChange}
-                        required
+                        required={!isParentInvite}
                         autoComplete="address-level2"
                       />
                       <InputField
@@ -963,7 +971,7 @@ export default function RegisterPage() {
                         label={t("stateProvince")}
                         value={form.billingState}
                         onChange={handleChange}
-                        required
+                        required={!isParentInvite}
                         autoComplete="address-level1"
                       />
                     </div>
@@ -975,7 +983,7 @@ export default function RegisterPage() {
                         label={t("zipPostal")}
                         value={form.billingZip}
                         onChange={handleChange}
-                        required
+                        required={!isParentInvite}
                         autoComplete="postal-code"
                       />
                       <SelectField
@@ -984,7 +992,7 @@ export default function RegisterPage() {
                         label={t("country")}
                         value={form.billingCountry}
                         onChange={handleChange}
-                        required
+                        required={!isParentInvite}
                       >
                         <option value="" className="bg-background text-muted-foreground">
                           {t("selectCountry")}
