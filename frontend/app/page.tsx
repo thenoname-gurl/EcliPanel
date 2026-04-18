@@ -161,13 +161,13 @@ function statusColor(s: string | undefined) {
   if (s === "online")   return "text-green-400"
   if (s === "degraded") return "text-yellow-400"
   if (s === "offline")  return "text-red-400"
-  return "text-purple-400/50"
+  return "text-primary/50"
 }
 function statusDotColor(s: string | undefined) {
   if (s === "online")   return "bg-green-400"
   if (s === "degraded") return "bg-yellow-400"
   if (s === "offline")  return "bg-red-400"
-  return "bg-purple-400/30"
+  return "bg-primary/30"
 }
 
 function Scanlines() {
@@ -196,7 +196,7 @@ function CRTVignette() {
   )
 }
 
-function Cursor({ blink = true, color = "text-purple-400" }: { blink?: boolean; color?: string }) {
+function Cursor({ blink = true, color = "text-primary" }: { blink?: boolean; color?: string }) {
   return (
     <span
       className={`inline-block w-[0.55em] h-[1.1em] ${color} align-middle ml-0.5`}
@@ -211,29 +211,29 @@ function KbdHint({ keys, label }: { keys: string[]; label?: string }) {
       {keys.map(k => (
         <kbd
           key={k}
-          className="inline-flex items-center justify-center rounded border border-purple-500/30 bg-purple-500/10 px-1.5 py-0.5 text-[9px] text-purple-300/60 shadow-[0_1px_0_rgba(168,85,247,0.3)]"
+          className="inline-flex items-center justify-center rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary/60 shadow-[0_1px_0_var(--glow)]"
         >
           {k}
         </kbd>
       ))}
-      {label && <span className="text-[9px] text-purple-500/30 ml-0.5">{label}</span>}
+      {label && <span className="text-[9px] text-primary/30 ml-0.5">{label}</span>}
     </span>
   )
 }
 
 function ControlBar({ hints }: { hints: { keys: string[]; label: string }[] }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[190] border-t border-purple-500/10 bg-black/90 backdrop-blur-sm px-4 py-2">
+    <div className="fixed bottom-0 left-0 right-0 z-[190] border-t border-primary/10 bg-black/90 backdrop-blur-sm px-4 py-2">
       <div className="mx-auto max-w-4xl flex flex-wrap items-center gap-x-5 gap-y-1">
         {hints.map(h => (
           <span key={h.label} className="flex items-center gap-1.5">
             <KbdHint keys={h.keys} />
-            <span className="font-mono text-[9px] text-purple-500/35 uppercase tracking-wider">
+            <span className="font-mono text-[9px] text-primary/35 uppercase tracking-wider">
               {h.label}
             </span>
           </span>
         ))}
-        <span className="ml-auto font-mono text-[9px] text-purple-500/20 hidden sm:block">
+        <span className="ml-auto font-mono text-[9px] text-primary/20 hidden sm:block">
           tap / swipe on mobile
         </span>
       </div>
@@ -245,7 +245,7 @@ function GlitchText({ text, className = "" }: { text: string; className?: string
   const glitching = useGlitch()
   return (
     <span className={`relative inline-block ${className}`}>
-      <span style={{ color: "#c084fc", textShadow: "0 0 30px rgba(192,132,252,0.5)" }}>
+      <span style={{ color: "var(--primary)", textShadow: "0 0 30px var(--glow)" }}>
         {text}
       </span>
       {glitching && (
@@ -277,12 +277,12 @@ function PixelBox({
 }) {
   return (
     <div className={`
-      border font-mono bg-[#0a0014]
+      border font-mono bg-card
       ${active
-        ? "border-purple-400/70 shadow-[0_0_20px_rgba(168,85,247,0.25),inset_0_0_20px_rgba(168,85,247,0.05)]"
-        : "border-purple-500/20"
+        ? "border-primary/70 shadow-[0_0_20px_var(--glow),inset_0_0_20px_rgba(255,255,255,0.05)]"
+        : "border-primary/20"
       }
-      ${glow ? "shadow-[0_0_30px_rgba(168,85,247,0.12)]" : ""}
+      ${glow ? "shadow-[0_0_30px_var(--glow)]" : ""}
       ${className}
     `}>
       {children}
@@ -293,11 +293,11 @@ function PixelBox({
 function SectionHeader({ label, title }: { label: string; title: string }) {
   return (
     <div className="mb-8">
-      <p className="font-mono text-[10px] tracking-[0.3em] text-purple-500/40 uppercase mb-2">
+      <p className="font-mono text-[10px] tracking-[0.3em] text-primary/40 uppercase mb-2">
         // {label}
       </p>
-      <h2 className="font-mono text-2xl sm:text-3xl font-black text-purple-300"
-        style={{ textShadow: "0 0 20px rgba(168,85,247,0.4)" }}>
+      <h2 className="font-mono text-2xl sm:text-3xl font-black text-primary"
+        style={{ textShadow: "0 0 20px var(--glow)" }}>
         {title}
       </h2>
     </div>
@@ -309,7 +309,7 @@ function BackButton({ onBack }: { onBack: () => void }) {
   return (
     <button
       onClick={onBack}
-      className="mb-8 flex items-center gap-3 font-mono text-xs text-purple-400/40 hover:text-purple-300 transition-colors group"
+      className="mb-8 flex items-center gap-3 font-mono text-xs text-primary/40 hover:text-primary transition-colors group"
     >
       <span className="group-hover:-translate-x-1 transition-transform">◄</span>
       {t("controls.backToMenu")}
@@ -344,11 +344,11 @@ function TerminalWindowFrame({
 }) {
   return (
     <PixelBox className={`overflow-hidden p-0 ${className}`} glow>
-      <div className="flex items-center gap-1.5 border-b border-purple-500/15 px-4 py-2 bg-purple-500/5">
+      <div className="flex items-center gap-1.5 border-b border-primary/15 px-4 py-2 bg-primary/5">
         <div className="h-2 w-2 rounded-full bg-red-500/60" />
         <div className="h-2 w-2 rounded-full bg-yellow-500/60" />
         <div className="h-2 w-2 rounded-full bg-green-500/60" />
-        <span className="ml-2 font-mono text-[10px] text-purple-400/30 tracking-wider">{title}</span>
+        <span className="ml-2 font-mono text-[10px] text-primary/30 tracking-wider">{title}</span>
       </div>
       <div className="p-4 sm:p-5">{children}</div>
     </PixelBox>
@@ -408,7 +408,7 @@ function BootScreen({ onDone }: { onDone: () => void }) {
   }, [done, waitingKey, onDone, skip])
 
   return (
-    <div className="fixed inset-0 z-[300] bg-[#060010] flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
+    <div className="fixed inset-0 z-[300] bg-background flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
       <Scanlines />
       <CRTVignette />
       <div className="w-full max-w-2xl">
@@ -416,35 +416,35 @@ function BootScreen({ onDone }: { onDone: () => void }) {
           {output.map((line, i) => (
             <div key={i} className={`font-mono text-xs sm:text-sm ${
               line === ""                   ? "h-3"                                       :
-              i === 0                        ? "text-purple-300 font-bold text-base sm:text-lg" :
-              i === 12                       ? "text-purple-200 font-bold"                :
+              i === 0                        ? "text-primary font-bold text-base sm:text-lg" :
+              i === 12                       ? "text-primary font-bold"                :
               line === t("boot.line10")     ? "text-green-400"                           :
-              line.startsWith("Copyright")  ? "text-purple-500/40"                       :
-              line.includes("OK")           ? "text-purple-400/55"                       :
-              "text-purple-500/30"
+              line.startsWith("Copyright")  ? "text-primary/40"                       :
+              line.includes("OK")           ? "text-primary/55"                       :
+              "text-primary/30"
             }`}>
               {line === "" ? <>&nbsp;</> : line}
             </div>
           ))}
-          {!done && <Cursor color="text-purple-400" />}
+          {!done && <Cursor color="text-primary" />}
         </div>
 
         {!done && (
-          <div className="mt-4 text-xs text-purple-500/40">
+          <div className="mt-4 text-xs text-primary/40">
             {t("boot.skipHint")}
           </div>
         )}
 
         {waitingKey && (
           <div className="space-y-4">
-            <div className="font-mono text-sm text-purple-300/70"
+            <div className="font-mono text-sm text-primary/70"
               style={{ animation: "blink 1s step-end infinite" }}>▌</div>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <KbdHint keys={["ANY KEY"]} />
-                <span className="font-mono text-xs text-purple-500/40">{t("boot.waitPrompt")}</span>
+                <span className="font-mono text-xs text-primary/40">{t("boot.waitPrompt")}</span>
               </div>
-              <span className="font-mono text-[10px] text-purple-500/25">
+              <span className="font-mono text-[10px] text-primary/25">
                 {t("boot.mobileHint")}
               </span>
             </div>
@@ -528,7 +528,7 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
   }, [introDone, selected, confirm, skip])
 
   return (
-    <div className="fixed inset-0 z-[290] bg-[#060010] flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
+    <div className="fixed inset-0 z-[290] bg-background flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
       <Scanlines />
       <CRTVignette />
       <div className="w-full max-w-xl">
@@ -536,24 +536,24 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
         <div className="mb-8 space-y-0.5">
           {output.map((line, i) => (
             <div key={i} className={`font-mono text-xs sm:text-sm ${
-              i === 0 ? "text-purple-300 font-bold" : "text-purple-400/50"
+              i === 0 ? "text-primary font-bold" : "text-primary/50"
             }`}>
               {line}
-              {i === output.length - 1 && !introDone && <Cursor color="text-purple-400" />}
+              {i === output.length - 1 && !introDone && <Cursor color="text-primary" />}
             </div>
           ))}
         </div>
 
         {!introDone && (
-          <div className="mb-6 text-xs text-purple-500/40">
+          <div className="mb-6 text-xs text-primary/40">
             {t("lang.skipHint")}
           </div>
         )}
 
         {introDone && (
           <PixelBox className="p-0 overflow-hidden" glow>
-            <div className="flex items-center justify-between border-b border-purple-500/15 px-4 py-2.5 bg-purple-500/[0.04]">
-              <span className="font-mono text-[10px] text-purple-400/40 tracking-[0.2em] uppercase">
+            <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
+              <span className="font-mono text-[10px] text-primary/40 tracking-[0.2em] uppercase">
                 {t("lang.title")}
               </span>
               <div className="hidden sm:flex items-center gap-3">
@@ -572,8 +572,8 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
                       w-full text-left px-3 py-3 flex items-center gap-3
                       font-mono transition-all duration-100 border-l-2
                       ${isSel
-                        ? "border-purple-400 bg-purple-500/15"
-                        : "border-transparent hover:border-purple-500/30 hover:bg-purple-500/8"
+                        ? "border-primary bg-primary/15"
+                        : "border-transparent hover:border-primary/30 hover:bg-primary/8"
                       }
                       ${confirmed && isSel ? "opacity-60" : ""}
                     `}
@@ -582,8 +582,8 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
                   >
                     <span className="w-3 flex-shrink-0">
                       {isSel
-                        ? <span className="text-purple-300 text-xs">►</span>
-                        : <span className="text-purple-500/15 text-xs">·</span>
+                        ? <span className="text-primary text-xs">►</span>
+                        : <span className="text-primary/15 text-xs">·</span>
                       }
                     </span>
 
@@ -591,27 +591,27 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
                       inline-flex items-center justify-center w-7 rounded border
                       font-mono text-[9px] flex-shrink-0 py-0.5 uppercase
                       ${isSel
-                        ? "border-purple-400/50 bg-purple-500/20 text-purple-300"
-                        : "border-purple-500/20 bg-purple-500/5 text-purple-500/30"
+                        ? "border-primary/50 bg-primary/20 text-primary"
+                        : "border-primary/20 bg-primary/5 text-primary/30"
                       }
                     `}>
                       {locale.code}
                     </kbd>
 
                     <span className={`text-sm font-bold tracking-wide transition-colors ${
-                      isSel ? "text-purple-200" : "text-purple-400/45"
+                      isSel ? "text-primary" : "text-primary/45"
                     }`}>
                       {locale.native}
                     </span>
 
                     <span className={`text-xs ml-auto transition-colors ${
-                      isSel ? "text-purple-400/50" : "text-purple-500/20"
+                      isSel ? "text-primary/50" : "text-primary/20"
                     }`}>
                       {locale.label}
                     </span>
 
                     {locale.code === currentLocale && (
-                      <span className="font-mono text-[9px] text-purple-500/40 border border-purple-500/20 px-1.5 py-0.5">
+                      <span className="font-mono text-[9px] text-primary/40 border border-primary/20 px-1.5 py-0.5">
                         {t("lang.current")}
                       </span>
                     )}
@@ -620,8 +620,8 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
               })}
             </div>
 
-            <div className="border-t border-purple-500/10 px-4 py-2">
-              <span className="font-mono text-[9px] text-purple-500/20">
+            <div className="border-t border-primary/10 px-4 py-2">
+              <span className="font-mono text-[9px] text-primary/20">
                 {t("lang.footer")}
               </span>
             </div>
@@ -629,7 +629,7 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
         )}
 
         {introDone && (
-          <p className="mt-3 font-mono text-[10px] text-purple-500/20 sm:hidden">
+          <p className="mt-3 font-mono text-[10px] text-primary/20 sm:hidden">
             {t("lang.mobileHint")}
           </p>
         )}
@@ -700,7 +700,7 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
   }, [introDone, onBack, skip])
 
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines />
       <CRTVignette />
       <div className="relative z-10 max-w-3xl mx-auto">
@@ -709,21 +709,21 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
 
         <div className="mb-6 space-y-0.5">
           {output.map((line, i) => (
-            <div key={i} className="font-mono text-xs text-purple-400/40">
+            <div key={i} className="font-mono text-xs text-primary/40">
               {line}
-              {i === output.length - 1 && !introDone && <Cursor color="text-purple-400" />}
+              {i === output.length - 1 && !introDone && <Cursor color="text-primary" />}
             </div>
           ))}
         </div>
 
         {!introDone && (
-          <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+          <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
         )}
 
         {introDone && (
           <PixelBox className="p-0 overflow-hidden" glow>
-            <div className="flex items-center justify-between border-b border-purple-500/15 px-4 py-2.5 bg-purple-500/[0.04]">
-              <span className="font-mono text-[10px] text-purple-400/40 tracking-[0.2em] uppercase">
+            <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
+              <span className="font-mono text-[10px] text-primary/40 tracking-[0.2em] uppercase">
                 {t("legal.title")}
               </span>
               <div className="hidden sm:flex items-center gap-3">
@@ -746,16 +746,16 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
                       flex items-center gap-3 px-3 py-3 font-mono
                       transition-all duration-100 border-l-2 group
                       ${isSel
-                        ? "border-purple-400 bg-purple-500/15"
-                        : "border-transparent hover:border-purple-500/30 hover:bg-purple-500/8"
+                        ? "border-primary bg-primary/15"
+                        : "border-transparent hover:border-primary/30 hover:bg-primary/8"
                       }
                     `}
                     onMouseEnter={() => setSelected(i)}
                   >
                     <span className="w-3 flex-shrink-0">
                       {isSel
-                        ? <span className="text-purple-300 text-xs">►</span>
-                        : <span className="text-purple-500/15 text-xs">·</span>
+                        ? <span className="text-primary text-xs">►</span>
+                        : <span className="text-primary/15 text-xs">·</span>
                       }
                     </span>
 
@@ -763,27 +763,27 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
                       inline-flex items-center justify-center w-5 h-5
                       rounded border font-mono text-[9px] flex-shrink-0
                       ${isSel
-                        ? "border-purple-400/50 bg-purple-500/20 text-purple-300"
-                        : "border-purple-500/20 bg-purple-500/5 text-purple-500/30"
+                        ? "border-primary/50 bg-primary/20 text-primary"
+                        : "border-primary/20 bg-primary/5 text-primary/30"
                       }
                     `}>
                       {doc.key}
                     </kbd>
 
                     <span className={`text-sm font-semibold transition-colors ${
-                      isSel ? "text-purple-200" : "text-purple-400/50"
+                      isSel ? "text-primary" : "text-primary/50"
                     }`}>
                       {doc.label}
                     </span>
 
                     <span className={`text-xs ml-auto hidden sm:block transition-colors ${
-                      isSel ? "text-purple-400/45" : "text-purple-500/20"
+                      isSel ? "text-primary/45" : "text-primary/20"
                     }`}>
                       {doc.desc}
                     </span>
 
                     <span className={`font-mono text-[10px] transition-colors flex-shrink-0 ${
-                      isSel ? "text-pink-400/60" : "text-purple-500/15"
+                      isSel ? "text-pink-400/60" : "text-primary/15"
                     }`}>
                       ↗
                     </span>
@@ -792,8 +792,8 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
               })}
             </div>
 
-            <div className="border-t border-purple-500/10 px-4 py-2">
-              <span className="font-mono text-[9px] text-purple-500/20">
+            <div className="border-t border-primary/10 px-4 py-2">
+              <span className="font-mono text-[9px] text-primary/20">
                 {t("legal.footer")}
               </span>
             </div>
@@ -874,7 +874,7 @@ function MainMenu({
   }
 
   return (
-    <div className="min-h-screen bg-[#060010] pb-14">
+    <div className="min-h-screen bg-background pb-14">
       <Scanlines />
       <CRTVignette />
       <div className="relative z-10 flex flex-col min-h-screen max-w-4xl mx-auto w-full px-4 sm:px-8 py-8 sm:py-12">
@@ -887,19 +887,19 @@ function MainMenu({
           <div className="space-y-0.5">
             {headerOut.map((line, i) => (
               <div key={i} className={`font-mono text-xs sm:text-sm ${
-                i === 1 ? "text-purple-400/40" :
+                i === 1 ? "text-primary/40" :
                 i === 2 && infra?.status === "online" ? "text-green-400" :
                 i === 2 && infra?.status === "degraded" ? "text-yellow-400" :
                 i === 2 && infra?.status === "offline" ? "text-red-400" :
-                "text-purple-400/40"
+                "text-primary/40"
               }`}>
                 {line}
-                {i === headerOut.length - 1 && !headerDone && <Cursor color="text-purple-400" />}
+                {i === headerOut.length - 1 && !headerDone && <Cursor color="text-primary" />}
               </div>
             ))}
           </div>
           {!headerDone && (
-            <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+            <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
           )}
         </div>
 
@@ -907,8 +907,8 @@ function MainMenu({
 
           <div className="flex-1">
             <PixelBox className="p-0 overflow-hidden">
-              <div className="flex items-center justify-between border-b border-purple-500/15 px-4 py-2.5 bg-purple-500/[0.04]">
-                <span className="font-mono text-[10px] text-purple-400/40 tracking-[0.2em] uppercase">
+              <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
+                <span className="font-mono text-[10px] text-primary/40 tracking-[0.2em] uppercase">
                   {t("menu.title")}
                 </span>
                 <div className="hidden sm:flex items-center gap-3">
@@ -929,11 +929,11 @@ function MainMenu({
                         w-full text-left px-3 py-3 sm:py-3.5 flex items-center gap-3
                         font-mono transition-all duration-100 border-l-2
                         ${isSel
-                          ? "border-purple-400 bg-purple-500/15"
-                          : "border-transparent hover:border-purple-500/30 hover:bg-purple-500/8"
+                          ? "border-primary bg-primary/15"
+                          : "border-transparent hover:border-primary/30 hover:bg-primary/8"
                         }
                         ${isPress ? "opacity-60 scale-[0.99]" : ""}
-                        ${item.id === "legal" ? "border-t border-purple-500/10 mt-1 pt-4" : ""}
+                        ${item.id === "legal" ? "border-t border-primary/10 mt-1 pt-4" : ""}
                       `}
                       onClick={() => handleItemClick(i)}
                       onMouseEnter={() => setSelected(i)}
@@ -942,8 +942,8 @@ function MainMenu({
                         hidden sm:inline-flex items-center justify-center w-5 h-5
                         rounded border text-[9px] flex-shrink-0 font-mono transition-colors
                         ${isSel
-                          ? "border-purple-400/60 bg-purple-500/20 text-purple-300"
-                          : "border-purple-500/20 bg-purple-500/5 text-purple-500/30"
+                          ? "border-primary/60 bg-primary/20 text-primary"
+                          : "border-primary/20 bg-primary/5 text-primary/30"
                         }
                       `}>
                         {item.key}
@@ -951,19 +951,19 @@ function MainMenu({
 
                       <span className="w-3 flex-shrink-0">
                         {isSel
-                          ? <span className="text-purple-300 text-xs">►</span>
-                          : <span className="text-purple-500/15 text-xs">·</span>
+                          ? <span className="text-primary text-xs">►</span>
+                          : <span className="text-primary/15 text-xs">·</span>
                         }
                       </span>
 
                       <span className={`text-sm font-bold tracking-wider transition-colors ${
-                        isSel ? "text-purple-200" : "text-purple-400/45"
-                      } ${item.id === "legal" ? "text-purple-400/30" : ""}`}>
+                        isSel ? "text-primary" : "text-primary/45"
+                      } ${item.id === "legal" ? "text-primary/30" : ""}`}>
                         {t(item.labelKey)}
                       </span>
 
                       <span className={`text-xs ml-auto hidden sm:block transition-colors ${
-                        isSel ? "text-purple-400/55" : "text-purple-500/20"
+                        isSel ? "text-primary/55" : "text-primary/20"
                       }`}>
                         {t(item.descKey)}
                       </span>
@@ -972,8 +972,8 @@ function MainMenu({
                         hidden lg:inline-flex items-center justify-center
                         rounded border px-1.5 py-0.5 text-[9px] flex-shrink-0 transition-colors
                         ${isSel
-                          ? "border-purple-400/40 bg-purple-500/15 text-purple-300/60"
-                          : "border-purple-500/10 text-purple-500/20"
+                          ? "border-primary/40 bg-primary/15 text-primary/60"
+                          : "border-primary/10 text-primary/20"
                         }
                       `}>
                         {item.fKey}
@@ -983,15 +983,15 @@ function MainMenu({
                 })}
               </div>
 
-              <div className="border-t border-purple-500/10 px-4 py-2 flex items-center justify-between">
+              <div className="border-t border-primary/10 px-4 py-2 flex items-center justify-between">
                 <StatusPip infra={infra} />
-                <span className="font-mono text-[9px] text-purple-500/20">{t("menu.version")}</span>
+                <span className="font-mono text-[9px] text-primary/20">{t("menu.version")}</span>
               </div>
             </PixelBox>
 
             <div className="mt-3 sm:hidden">
               <PixelBox className="px-4 py-3">
-                <p className="font-mono text-xs text-purple-400/40">
+                <p className="font-mono text-xs text-primary/40">
                   ► {t(MENU_ITEMS[selected].descKey)}
                 </p>
               </PixelBox>
@@ -1000,33 +1000,33 @@ function MainMenu({
 
           <div className="hidden lg:flex flex-col gap-3 w-60">
             <PixelBox className="p-4 flex-1" glow>
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase text-purple-500/35 mb-4">
+              <p className="font-mono text-[9px] tracking-[0.2em] uppercase text-primary/35 mb-4">
                 {t("menu.systemInfo")}
               </p>
               <div className="space-y-4">
                 <div>
-                  <p className="font-mono text-[9px] text-purple-500/25 mb-1">{t("menu.statusLabel")}</p>
+                  <p className="font-mono text-[9px] text-primary/25 mb-1">{t("menu.statusLabel")}</p>
                   <StatusPip infra={infra} />
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] text-purple-500/25 mb-1">{t("menu.nodesLabel")}</p>
-                  <p className="font-mono text-lg text-purple-300">
+                  <p className="font-mono text-[9px] text-primary/25 mb-1">{t("menu.nodesLabel")}</p>
+                  <p className="font-mono text-lg text-primary">
                     {infra ? new Intl.NumberFormat().format(infra.nodeCount) : "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] text-purple-500/25 mb-2">{t("menu.networkLabel")}</p>
+                  <p className="font-mono text-[9px] text-primary/25 mb-2">{t("menu.networkLabel")}</p>
                   <div className="space-y-1">
-                    <p className="font-mono text-xs"><span className="text-green-400">{infra?.online ?? "—"}</span><span className="text-purple-500/30 ml-2">{t("status.online")}</span></p>
-                    <p className="font-mono text-xs"><span className="text-yellow-400">{infra?.degraded ?? "—"}</span><span className="text-purple-500/30 ml-2">{t("status.degraded")}</span></p>
-                    <p className="font-mono text-xs"><span className="text-red-400">{infra?.offline ?? "—"}</span><span className="text-purple-500/30 ml-2">{t("status.offline")}</span></p>
+                    <p className="font-mono text-xs"><span className="text-green-400">{infra?.online ?? "—"}</span><span className="text-primary/30 ml-2">{t("status.online")}</span></p>
+                    <p className="font-mono text-xs"><span className="text-yellow-400">{infra?.degraded ?? "—"}</span><span className="text-primary/30 ml-2">{t("status.degraded")}</span></p>
+                    <p className="font-mono text-xs"><span className="text-red-400">{infra?.offline ?? "—"}</span><span className="text-primary/30 ml-2">{t("status.offline")}</span></p>
                   </div>
                 </div>
-                <div className="border-t border-purple-500/10 pt-3 space-y-2">
-                  <Link href="/register" className="block font-mono text-xs text-purple-400/50 hover:text-purple-300 transition-colors">
+                <div className="border-t border-primary/10 pt-3 space-y-2">
+                  <Link href="/register" className="block font-mono text-xs text-primary/50 hover:text-primary transition-colors">
                     &gt; {t("hero.ctaStart")}
                   </Link>
-                  <Link href="/login" className="block font-mono text-xs text-purple-400/50 hover:text-purple-300 transition-colors">
+                  <Link href="/login" className="block font-mono text-xs text-primary/50 hover:text-primary transition-colors">
                     &gt; {t("hero.ctaSignIn")}
                   </Link>
                 </div>
@@ -1034,7 +1034,7 @@ function MainMenu({
             </PixelBox>
 
             <PixelBox className="p-3">
-              <p className="font-mono text-[9px] text-purple-500/20 leading-relaxed">
+              <p className="font-mono text-[9px] text-primary/20 leading-relaxed">
                 {t("hero.nextGen")} {t("hero.subtitle")}
               </p>
             </PixelBox>
@@ -1043,11 +1043,11 @@ function MainMenu({
 
         <div className="mt-4 flex gap-3 lg:hidden">
           <Link href="/register"
-            className="flex-1 border border-purple-500/30 bg-purple-500/10 py-3 text-center font-mono text-xs text-purple-300 hover:bg-purple-500/20 transition-all active:opacity-60">
+            className="flex-1 border border-primary/30 bg-primary/10 py-3 text-center font-mono text-xs text-primary hover:bg-primary/20 transition-all active:opacity-60">
             &gt; {t("hero.ctaStart")}
           </Link>
           <Link href="/login"
-            className="flex-1 border border-purple-500/15 py-3 text-center font-mono text-xs text-purple-400/50 hover:text-purple-300 hover:border-purple-500/30 transition-all active:opacity-60">
+            className="flex-1 border border-primary/15 py-3 text-center font-mono text-xs text-primary/50 hover:text-primary hover:border-primary/30 transition-all active:opacity-60">
             {t("hero.ctaSignIn")}
           </Link>
         </div>
@@ -1085,7 +1085,7 @@ function FeaturesScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeo
     return () => window.removeEventListener("keydown", h)
   }, [features.length, onBack])
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
       <div className="relative z-10 max-w-4xl mx-auto">
         <BackButton onBack={onBack} />
@@ -1095,20 +1095,20 @@ function FeaturesScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeo
             <button key={f.title}
               className={`text-left border p-4 sm:p-5 transition-all duration-200 font-mono ${
                 active === idx
-                  ? "border-purple-400/60 bg-purple-500/15 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
-                  : "border-purple-500/15 bg-[#0a0014] hover:border-purple-500/35 hover:bg-purple-500/5 active:opacity-60"
+                  ? "border-primary/60 bg-primary/15 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+                  : "border-primary/15 bg-card hover:border-primary/35 hover:bg-primary/5 active:opacity-60"
               }`}
               onClick={() => setActive(active === idx ? null : idx)}>
               <div className="flex items-start gap-3 mb-3">
                 <kbd className={`inline-flex items-center justify-center w-5 h-5 rounded border text-[9px] flex-shrink-0 ${
-                  active === idx ? "border-purple-400/50 bg-purple-500/20 text-purple-300" : "border-purple-500/20 bg-purple-500/5 text-purple-500/30"
+                  active === idx ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/20 bg-primary/5 text-primary/30"
                 }`}>{idx + 1}</kbd>
                 <span className={`text-xs font-bold ${active === idx ? "text-pink-300" : "text-pink-400/55"}`}>{f.title}</span>
               </div>
-              <p className={`text-xs leading-relaxed pl-8 ${active === idx ? "text-purple-200/70" : "text-purple-400/35"}`}>{f.text}</p>
+              <p className={`text-xs leading-relaxed pl-8 ${active === idx ? "text-primary/70" : "text-primary/35"}`}>{f.text}</p>
               {active === idx && (
-                <div className="mt-3 pl-8 border-t border-purple-500/20 pt-3">
-                  <span className="text-[10px] text-purple-400/40">{t("features.activeTag")}</span><Cursor color="text-purple-400" />
+                <div className="mt-3 pl-8 border-t border-primary/20 pt-3">
+                  <span className="text-[10px] text-primary/40">{t("features.activeTag")}</span><Cursor color="text-primary" />
                 </div>
               )}
             </button>
@@ -1148,28 +1148,28 @@ function AboutScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof u
     }
   }, [done, onBack, skip])
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
       <div className="relative z-10 max-w-3xl mx-auto">
         <BackButton onBack={onBack} />
         <SectionHeader label={t("sections.about")} title={t("about.title").replace("# ", "")} />
         <PixelBox className="p-5 sm:p-7 mb-5" glow>
-          <div className="mb-5 border-b border-purple-500/15 pb-5">
-            <span className="font-mono text-lg font-bold text-purple-300">{t("about.subtitlePrefix")}</span>{" "}
+          <div className="mb-5 border-b border-primary/15 pb-5">
+            <span className="font-mono text-lg font-bold text-primary">{t("about.subtitlePrefix")}</span>{" "}
             <span className="font-mono text-lg font-bold text-pink-400" style={{ textShadow: "0 0 15px rgba(244,114,182,0.4)" }}>{t("about.subtitleHighlight")}</span>
           </div>
           <div className="space-y-4">
             {output.map((line, i) => (
-              <p key={i} className="font-mono text-xs sm:text-sm leading-[1.9] text-purple-300/50">
-                <span className="text-purple-500/40">&gt; </span>{line.replace("> ", "")}
-                {i === output.length - 1 && !done && <Cursor color="text-purple-400" />}
+              <p key={i} className="font-mono text-xs sm:text-sm leading-[1.9] text-primary/50">
+                <span className="text-primary/40">&gt; </span>{line.replace("> ", "")}
+                {i === output.length - 1 && !done && <Cursor color="text-primary" />}
               </p>
             ))}
           </div>
         </PixelBox>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[t("community.group1"), t("community.group2"), t("community.group3"), t("community.group4")].map(g => (
-            <PixelBox key={g} className="p-3 text-center"><p className="font-mono text-[10px] text-purple-400/35">{g}</p></PixelBox>
+            <PixelBox key={g} className="p-3 text-center"><p className="font-mono text-[10px] text-primary/35">{g}</p></PixelBox>
           ))}
         </div>
       </div>
@@ -1183,7 +1183,7 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
   const plans = useMemo(() => [
     { id: "free", tier: t("plans.free.name"), price: t("plans.free.price"), period: t("plans.free.period"), tagline: t("plans.free.tagline"),
       items: (["item1","item2","item3","item4","item5","item6","item7"] as const).map(k => t(`plans.free.${k}`).replace("→ ", "")),
-      color: "text-purple-400", border: "border-purple-500/30", glow: "shadow-[0_0_20px_rgba(168,85,247,0.15)]" },
+      color: "text-primary", border: "border-primary/30", glow: "shadow-[0_0_20px_rgba(168,85,247,0.15)]" },
     { id: "edu", tier: t("plans.edu.name"), price: t("plans.edu.price"), period: t("plans.edu.period"), tagline: t("plans.edu.tagline"),
       items: (["item1","item2","item3","item4","item5","item6","item7","item8"] as const).map(k => t(`plans.edu.${k}`).replace("→ ", "")),
       color: "text-blue-400", border: "border-blue-500/30", glow: "shadow-[0_0_20px_rgba(96,165,250,0.15)]" },
@@ -1207,33 +1207,33 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
   }, [plans.length, onBack])
   const plan = plans[selected]
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
       <div className="relative z-10 max-w-4xl mx-auto">
         <BackButton onBack={onBack} />
         <SectionHeader label={t("sections.plans")} title={t("plans.title").replace("# ", "")} />
-        <p className="font-mono text-xs text-purple-400/30 mb-8">{t("plans.subtitle")}</p>
+        <p className="font-mono text-xs text-primary/30 mb-8">{t("plans.subtitle")}</p>
         <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
           {plans.map((p, i) => (
             <button key={p.id} onClick={() => setSelected(i)}
               className={`flex-shrink-0 px-3 sm:px-4 py-2 font-mono text-xs border transition-all ${
-                selected === i ? `${p.border} bg-[#0a0014] ${p.color} ${p.glow}` : "border-purple-500/10 text-purple-500/30 hover:border-purple-500/20 hover:text-purple-400/50 active:opacity-60"
+                selected === i ? `${p.border} bg-card ${p.color} ${p.glow}` : "border-primary/10 text-primary/30 hover:border-primary/20 hover:text-primary/50 active:opacity-60"
               }`}>
               <kbd className="hidden sm:inline-flex items-center justify-center w-4 h-4 rounded border border-current opacity-40 text-[9px] mr-1.5">{i+1}</kbd>
               {p.tier}{"badge" in p && p.badge && <span className="ml-1.5 text-[9px] text-pink-400/60">[{p.badge}]</span>}
             </button>
           ))}
         </div>
-        <div className={`border ${plan.border} bg-[#0a0014] ${plan.glow} transition-all`}>
+        <div className={`border ${plan.border} bg-card ${plan.glow} transition-all`}>
           <div className="p-5 sm:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4 mb-6 border-b border-purple-500/10 pb-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6 border-b border-primary/10 pb-6">
               <div>
                 <p className={`font-mono text-[10px] tracking-[0.2em] uppercase ${plan.color} opacity-55 mb-2`}>{plan.tier}</p>
                 <div className="flex items-baseline gap-1.5">
                   <span className={`font-mono text-4xl font-black ${plan.color}`} style={{ textShadow: "0 0 16px currentColor" }}>{plan.price}</span>
                   {plan.period && <span className={`font-mono text-sm ${plan.color} opacity-40`}>{plan.period}</span>}
                 </div>
-                <p className="font-mono text-xs text-purple-400/35 mt-2">{plan.tagline}</p>
+                <p className="font-mono text-xs text-primary/35 mt-2">{plan.tagline}</p>
               </div>
               {"badge" in plan && plan.badge && (
                 <span className={`font-mono text-[10px] border ${plan.border} px-3 py-1 ${plan.color} tracking-widest`}>{plan.badge}</span>
@@ -1241,17 +1241,17 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
             </div>
             <div className="grid sm:grid-cols-2 gap-2 mb-6">
               {plan.items.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 font-mono text-xs text-purple-300/45">
+                <div key={i} className="flex items-center gap-2 font-mono text-xs text-primary/45">
                   <span className={`${plan.color} opacity-40 flex-shrink-0`}>+</span>{item}
                 </div>
               ))}
             </div>
-            <div className="pt-4 border-t border-purple-500/10 flex flex-wrap gap-3">
-              <Link href="/register" className={`border ${plan.border} bg-transparent px-5 py-2.5 font-mono text-sm ${plan.color} hover:bg-purple-500/10 transition-all active:opacity-60`}>
+            <div className="pt-4 border-t border-primary/10 flex flex-wrap gap-3">
+              <Link href="/register" className={`border ${plan.border} bg-transparent px-5 py-2.5 font-mono text-sm ${plan.color} hover:bg-primary/10 transition-all active:opacity-60`}>
                 &gt; {t("plans.ctaStart")}
               </Link>
               {plan.id === "enterprise" && (
-                <a href="mailto:contact@ecli.app" className="border border-purple-500/15 px-5 py-2.5 font-mono text-sm text-purple-400/45 hover:border-purple-500/30 hover:text-purple-300 transition-all">
+                <a href="mailto:contact@ecli.app" className="border border-primary/15 px-5 py-2.5 font-mono text-sm text-primary/45 hover:border-primary/30 hover:text-primary transition-all">
                   {t("plans.contactUs")}
                 </a>
               )}
@@ -1304,7 +1304,7 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
     }
   }, [done, onBack, skip])
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
       <div className="relative z-10 max-w-4xl mx-auto">
         <BackButton onBack={onBack} />
@@ -1314,28 +1314,28 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
             <div className="space-y-1.5">
               {output.map((line, i) => (
                 <div key={i} className={`font-mono text-xs sm:text-sm ${
-                  i === 0 ? "text-purple-500/35" :
+                  i === 0 ? "text-primary/35" :
                   i === 1 ? "text-pink-400/70" :
-                  i === 2 ? "text-purple-300/70" :
+                  i === 2 ? "text-primary/70" :
                   i === 3 && infra?.status === "online" ? "text-green-400" :
                   i === 3 && infra?.status === "degraded" ? "text-yellow-400" :
                   i === 3 && infra?.status === "offline" ? "text-red-400" :
-                  i === 3 ? "text-purple-400/55" :
-                  i === 4 ? "text-purple-300/70" :
-                  "text-purple-400/55"
+                  i === 3 ? "text-primary/55" :
+                  i === 4 ? "text-primary/70" :
+                  "text-primary/55"
                 }`}>
-                  {line}{i === output.length - 1 && !done && <Cursor color="text-purple-400" />}
+                  {line}{i === output.length - 1 && !done && <Cursor color="text-primary" />}
                 </div>
               ))}
             </div>
             {!done && (
-              <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+              <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
             )}
             <div className="flex-1 space-y-3">
             </div>
           </TerminalWindowFrame>
           <div className="space-y-3">
-            <p className="font-mono text-xs text-purple-400/35 leading-relaxed">{t("community.description")}</p>
+            <p className="font-mono text-xs text-primary/35 leading-relaxed">{t("community.description")}</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { label: t("status.online"),   val: infra?.online,   color: "text-green-400",  border: "border-green-500/20"  },
@@ -1344,22 +1344,22 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
               ].map(s => (
                 <PixelBox key={s.label} className={`p-3 text-center border ${s.border}`}>
                   <p className={`font-mono text-xl font-black ${s.color}`}>{s.val ?? "—"}</p>
-                  <p className="font-mono text-[9px] text-purple-500/30 mt-1">{s.label}</p>
+                  <p className="font-mono text-[9px] text-primary/30 mt-1">{s.label}</p>
                 </PixelBox>
               ))}
             </div>
             <PixelBox className="p-4">
-              <p className="font-mono text-[9px] text-purple-500/25 mb-1">{t("community.totalNodes")}</p>
-              <p className="font-mono text-3xl font-black text-purple-300" style={{ textShadow: "0 0 14px rgba(168,85,247,0.5)" }}>
+              <p className="font-mono text-[9px] text-primary/25 mb-1">{t("community.totalNodes")}</p>
+              <p className="font-mono text-3xl font-black text-primary" style={{ textShadow: "0 0 14px var(--glow)" }}>
                 {infra ? new Intl.NumberFormat().format(infra.nodeCount) : "—"}
               </p>
             </PixelBox>
             <div className="grid grid-cols-2 gap-2">
               {[t("community.group1"), t("community.group2"), t("community.group3"), t("community.group4")].map(g => (
-                <PixelBox key={g} className="p-2.5 text-center"><p className="font-mono text-[10px] text-purple-400/35">{g}</p></PixelBox>
+                <PixelBox key={g} className="p-2.5 text-center"><p className="font-mono text-[10px] text-primary/35">{g}</p></PixelBox>
               ))}
             </div>
-            <Link href="/dashboard" className="block w-full border border-purple-500/30 bg-purple-500/10 py-3 text-center font-mono text-sm text-purple-300 hover:bg-purple-500/20 hover:border-purple-500/50 transition-all active:opacity-60">
+            <Link href="/dashboard" className="block w-full border border-primary/30 bg-primary/10 py-3 text-center font-mono text-sm text-primary hover:bg-primary/20 hover:border-primary/50 transition-all active:opacity-60">
               &gt; {t("community.cta")}
             </Link>
           </div>
@@ -1396,23 +1396,23 @@ function FaqScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof use
     return () => window.removeEventListener("keydown", h)
   }, [faqs.length, open, onBack])
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
       <div className="relative z-10 max-w-3xl mx-auto">
         <BackButton onBack={onBack} />
         <SectionHeader label={t("sections.help")} title={t("faq.title").replace("# ", "")} />
         <div className="space-y-1.5">
           {faqs.map((faq, i) => (
-            <div key={i} className={`border transition-all duration-200 ${open === i ? "border-purple-400/40 bg-purple-500/10" : "border-purple-500/10 bg-[#0a0014] hover:border-purple-500/25"}`}>
+            <div key={i} className={`border transition-all duration-200 ${open === i ? "border-primary/40 bg-primary/10" : "border-primary/10 bg-card hover:border-primary/25"}`}>
               <button className="w-full flex items-center gap-3 p-4 text-left group" onClick={() => setOpen(open === i ? null : i)}>
                 <kbd className={`inline-flex items-center justify-center w-5 h-5 rounded border font-mono text-[9px] flex-shrink-0 ${
-                  open === i ? "border-purple-400/50 bg-purple-500/20 text-purple-300" : "border-purple-500/15 bg-purple-500/5 text-purple-500/25"
+                  open === i ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/15 bg-primary/5 text-primary/25"
                 }`}>{i+1}</kbd>
-                <span className={`flex-1 font-mono text-xs sm:text-sm font-semibold transition-colors ${open === i ? "text-purple-200" : "text-purple-400/55 group-hover:text-purple-300/70"}`}>{faq.q}</span>
-                <span className="font-mono text-xs text-purple-500/30 flex-shrink-0 transition-transform duration-200" style={{ transform: open === i ? "rotate(90deg)" : "none" }}>►</span>
+                <span className={`flex-1 font-mono text-xs sm:text-sm font-semibold transition-colors ${open === i ? "text-primary" : "text-primary/55 group-hover:text-primary/70"}`}>{faq.q}</span>
+                <span className="font-mono text-xs text-primary/30 flex-shrink-0 transition-transform duration-200" style={{ transform: open === i ? "rotate(90deg)" : "none" }}>►</span>
               </button>
               <div style={{ maxHeight: open === i ? "300px" : 0, overflow: "hidden", transition: "max-height 0.3s ease" }}>
-                <p className="font-mono text-xs text-purple-400/40 leading-relaxed px-4 pb-4 pl-[52px] border-t border-purple-500/10 pt-3">{faq.a}</p>
+                <p className="font-mono text-xs text-primary/40 leading-relaxed px-4 pb-4 pl-[52px] border-t border-primary/10 pt-3">{faq.a}</p>
               </div>
             </div>
           ))}
@@ -1462,52 +1462,52 @@ function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof 
     }
   }, [done, onBack, skip])
   return (
-    <div className="min-h-screen bg-[#060010] px-4 sm:px-8 py-8 sm:py-12 pb-20">
+    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
       <Scanlines /><CRTVignette />
       <div className="relative z-10 max-w-3xl mx-auto">
         <BackButton onBack={onBack} />
         <SectionHeader label={t("sections.deploy")} title={t("cta.title").replace("# ", "")} />
-        <p className="font-mono text-xs text-purple-400/30 mb-8 max-w-md">{t("cta.subtitle")}</p>
+        <p className="font-mono text-xs text-primary/30 mb-8 max-w-md">{t("cta.subtitle")}</p>
         <TerminalWindowFrame title={t("deploy.consoleTitle")} className="mb-6">
           <div className="space-y-1.5">
             {output.map((line, i) => (
               <div key={i} className={`font-mono text-xs sm:text-sm ${
                 line === "" ? "h-3" :
-                i === 0 ? "text-purple-500/35" :
-                i >= 1 && i <= 5 ? "text-purple-400/55" :
+                i === 0 ? "text-primary/35" :
+                i >= 1 && i <= 5 ? "text-primary/55" :
                 i === 7 ? "text-green-400 font-bold" :
-                i === 8 ? "text-purple-300/60" :
-                "text-purple-500/30"
+                i === 8 ? "text-primary/60" :
+                "text-primary/30"
               }`}>
                 {line === "" ? <>&nbsp;</> : line}
-                {i === output.length - 1 && !done && <Cursor color="text-purple-400" />}
+                {i === output.length - 1 && !done && <Cursor color="text-primary" />}
               </div>
             ))}
           </div>
         </TerminalWindowFrame>
         {!done && (
-          <div className="mb-4 text-xs text-purple-500/40">{t("skipHint")}</div>
+          <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
         )}
         {done && (
           <div className="flex flex-col sm:flex-row gap-3">
             <Link href="/register"
-              className="flex-1 border border-purple-500/50 bg-purple-500/15 py-3 sm:py-4 text-center font-mono text-sm font-bold text-purple-200 hover:bg-purple-500/25 hover:border-purple-400/70 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)] transition-all active:opacity-60"
+              className="flex-1 border border-primary/50 bg-primary/15 py-3 sm:py-4 text-center font-mono text-sm font-bold text-primary hover:bg-primary/25 hover:border-primary/70 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)] transition-all active:opacity-60"
               style={{ textShadow: "0 0 10px rgba(168,85,247,0.5)" }}>
               &gt; {t("cta.register")}
             </Link>
             <Link href="/dashboard"
-              className="flex-1 border border-purple-500/15 py-3 sm:py-4 text-center font-mono text-sm text-purple-400/45 hover:border-purple-500/30 hover:text-purple-300 transition-all active:opacity-60">
+              className="flex-1 border border-primary/15 py-3 sm:py-4 text-center font-mono text-sm text-primary/45 hover:border-primary/30 hover:text-primary transition-all active:opacity-60">
               {t("cta.dashboard")}
             </Link>
           </div>
         )}
-        <div className="mt-8 border-t border-purple-500/10 pt-6" id="contact">
-          <p className="font-mono text-[11px] text-purple-500/25">
+        <div className="mt-8 border-t border-primary/10 pt-6" id="contact">
+          <p className="font-mono text-[11px] text-primary/25">
             {t("footer.customSetup")}{" "}
-            <a href="mailto:contact@ecli.app" className="text-purple-400/55 hover:text-purple-300 transition-colors">contact@ecli.app</a>
+            <a href="mailto:contact@ecli.app" className="text-primary/55 hover:text-primary transition-colors">contact@ecli.app</a>
             {" · "}
             {t("footer.orGoTo")}{" "}
-            <Link href="/dashboard" className="text-purple-400/55 hover:text-purple-300 transition-colors">{t("footer.dashboard")}</Link>
+            <Link href="/dashboard" className="text-primary/55 hover:text-primary transition-colors">{t("footer.dashboard")}</Link>
           </p>
         </div>
       </div>

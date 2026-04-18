@@ -90,7 +90,7 @@ type Submission = {
   status: "pending" | "accepted" | "rejected" | "archived"
   content: string
   createdAt: string
-  form?: { id: number; title: string; slug?: string } | null
+  form?: { id: number; title: string; slug?: string; schema?: FormSchema } | null
   user?: { email?: string; firstName?: string; lastName?: string } | null
   ipAddress?: string | null
 }
@@ -143,6 +143,30 @@ function formatDate(d?: string) {
   return new Date(d).toLocaleDateString(undefined, {
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
   })
+}
+
+function getQuestionLabelMap(questions?: FormQuestion[]) {
+  return new Map((questions || []).map((q) => [q.id, q.label || q.id]))
+}
+
+function parseSubmissionContent(sub: Submission) {
+  if (!sub.content) return null
+
+  let parsed: unknown = null
+  try {
+    parsed = JSON.parse(sub.content)
+  } catch {
+    return null
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null
+
+  const labels = getQuestionLabelMap(sub.form?.schema?.questions)
+  return Object.entries(parsed).map(([key, value]) => ({
+    key,
+    label: labels.get(key) ?? key,
+    value,
+  }))
 }
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
@@ -1245,8 +1269,7 @@ export default function ApplicationsTab() {
                 pagedSubs.map((sub) => {
                   const submitter = sub.user?.email || [sub.user?.firstName, sub.user?.lastName].filter(Boolean).join(" ") || sub.ipAddress || t("submissions.anonymous")
                   const isExpanded = expandedSubs.has(sub.id)
-                  let parsed: Record<string, any> | null = null
-                  try { parsed = JSON.parse(sub.content) } catch {}
+                  const submissionEntries = parseSubmissionContent(sub)
 
                   return (
                     <>
@@ -1297,13 +1320,13 @@ export default function ApplicationsTab() {
                         <tr key={`${sub.id}-exp`} className="border-b border-border/50 bg-secondary/10">
                           <td />
                           <td colSpan={5} className="px-4 py-4">
-                            {parsed && typeof parsed === "object" ? (
+                            {submissionEntries ? (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {Object.entries(parsed).map(([k, v]) => (
-                                  <div key={k} className="space-y-1 min-w-0">
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{k}</p>
+                                {submissionEntries.map(({ key, label, value }) => (
+                                  <div key={key} className="space-y-1 min-w-0">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
                                     <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-sm text-foreground break-words overflow-hidden">
-                                      {Array.isArray(v) ? v.join(", ") : String(v ?? "—")}
+                                      {Array.isArray(value) ? value.join(", ") : String(value ?? "—")}
                                     </div>
                                   </div>
                                 ))}
@@ -1350,8 +1373,7 @@ export default function ApplicationsTab() {
           pagedSubs.map((sub) => {
             const submitter = sub.user?.email || [sub.user?.firstName, sub.user?.lastName].filter(Boolean).join(" ") || sub.ipAddress || t("submissions.anonymous")
             const isExpanded = expandedSubs.has(sub.id)
-            let parsed: Record<string, any> | null = null
-            try { parsed = JSON.parse(sub.content) } catch {}
+            const submissionEntries = parseSubmissionContent(sub)
 
             return (
               <div key={sub.id} className="rounded-xl border border-border bg-card overflow-hidden">
@@ -1392,12 +1414,12 @@ export default function ApplicationsTab() {
                 {/* Expandable details — AntiAbuse pattern */}
                 {isExpanded && (
                   <div className="border-t border-border px-4 py-3 space-y-2.5 bg-secondary/10">
-                    {parsed && typeof parsed === "object" ? (
-                      Object.entries(parsed).map(([k, v]) => (
-                        <div key={k} className="space-y-1 min-w-0">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{k}</p>
+                    {submissionEntries ? (
+                      submissionEntries.map(({ key, label, value }) => (
+                        <div key={key} className="space-y-1 min-w-0">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
                           <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-xs text-foreground break-words overflow-hidden">
-                            {Array.isArray(v) ? v.join(", ") : String(v ?? "—")}
+                            {Array.isArray(value) ? value.join(", ") : String(value ?? "—")}
                           </div>
                         </div>
                       ))

@@ -86,8 +86,11 @@ export const API_ENDPOINTS = {
   userGuide: "/api/users/:id/guide",
   parentLinkRequests: "/api/users/me/parent-link-requests",
   parentLinkRequestAccept: "/api/users/me/parent-link-requests/:id/accept",
+  parentRegistrationInvites: "/api/users/me/parent-registration-invites",
+  parentRegistrationInviteRevoke: "/api/users/me/parent-registration-invites/:inviteId",
   usersMeChildren: "/api/users/me/children",
   childLimits: "/api/users/me/children/:childId/limits",
+  childUpdate: "/api/users/me/children/:childId",
 
   // Organisations
   organisations: "/api/organisations",

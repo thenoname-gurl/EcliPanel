@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { COUNTRIES } from "@/lib/countries"
@@ -54,6 +54,7 @@ interface FormData {
   middleName: string
   phone: string
   dateOfBirth: string
+  parentRegistrationToken?: string
   captchaAnswer: string
   captchaToken: string
   invisibleCaptchaToken?: string
@@ -385,6 +386,7 @@ export default function RegisterPage() {
   const t = useTranslations("register")
   const [step, setStep] = useState(0)
   const steps = [t("steps.account"), t("steps.address"), t("steps.verify")]
+  const searchParams = useSearchParams()
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -401,6 +403,7 @@ export default function RegisterPage() {
     middleName: "",
     phone: "",
     dateOfBirth: "",
+    parentRegistrationToken: "",
     captchaAnswer: "",
     captchaToken: "",
     invisibleCaptchaToken: "",
@@ -453,6 +456,13 @@ export default function RegisterPage() {
       .catch(() => setPanelSettings({ registrationEnabled: true, registrationNotice: "" }))
     loadCaptcha()
   }, [])
+
+  useEffect(() => {
+    const token = searchParams.get("parentRegistrationToken")
+    if (token) {
+      setForm((prev) => ({ ...prev, parentRegistrationToken: token }))
+    }
+  }, [searchParams])
 
   useEffect(() => {
     try {
@@ -703,6 +713,11 @@ export default function RegisterPage() {
               <div className="space-y-3">
                 {notice && !registrationDisabled && (
                   <AlertBanner variant="info">{notice}</AlertBanner>
+                )}
+                {form.parentRegistrationToken && (
+                  <AlertBanner variant="info">
+                    Registering with a parent invite token. Complete the form to finish child account setup.
+                  </AlertBanner>
                 )}
                 {domainOk === false && !dismissedDomainWarning && (
                   <AlertBanner

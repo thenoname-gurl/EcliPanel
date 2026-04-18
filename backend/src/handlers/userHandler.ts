@@ -551,12 +551,16 @@ export async function userRoutes(app: any, prefix = '') {
     });
     await inviteRepo.save(invite);
 
+    const baseUrl = process.env.PANEL_URL || process.env.FRONTEND_URL || (ctx.headers?.origin || 'https://ecli.app');
+    const inviteLink = `${String(baseUrl).replace(/\/$/, '')}/register?parentRegistrationToken=${encodeURIComponent(invite.token)}`;
+
     return {
       success: true,
       invite: {
         id: invite.id,
         token: invite.token,
         childEmail: invite.childEmail || null,
+        link: inviteLink,
         createdAt: invite.createdAt.toISOString(),
         used: invite.used,
       },
@@ -564,8 +568,75 @@ export async function userRoutes(app: any, prefix = '') {
   }, {
    beforeHandle: authenticate,
     body: t.Object({ childEmail: t.Optional(t.String()) }),
-    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Optional(t.String()), createdAt: t.String(), used: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Optional(t.String()), link: t.String(), createdAt: t.String(), used: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Create a parent registration invite for a child account', tags: ['Users'] }
+  });
+
+  app.get(prefix + '/users/me/parent-registration-invites', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
+    const invites = await inviteRepo.find({ where: { parentId: requester.id }, order: { createdAt: 'DESC' } });
+    const baseUrl = process.env.PANEL_URL || process.env.FRONTEND_URL || (ctx.headers?.origin || 'https://ecli.app');
+    const normalizedBase = String(baseUrl).replace(/\/$/, '');
+
+    return {
+      success: true,
+      invites: invites.map((invite) => ({
+        id: invite.id,
+        token: invite.token,
+        childEmail: invite.childEmail || null,
+        link: `${normalizedBase}/register?parentRegistrationToken=${encodeURIComponent(invite.token)}`,
+        createdAt: invite.createdAt.toISOString(),
+        used: invite.used,
+        usedAt: invite.usedAt ? invite.usedAt.toISOString() : null,
+        expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null,
+      })),
+    };
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean(), invites: t.Array(t.Object({ id: t.Number(), token: t.String(), childEmail: t.Optional(t.String()), link: t.String(), createdAt: t.String(), used: t.Boolean(), usedAt: t.Optional(t.Union([t.String(), t.Null()])), expiresAt: t.Optional(t.Union([t.String(), t.Null()])) })) }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List parent registration invites for the current parent', tags: ['Users'] }
+  });
+
+  app.delete(prefix + '/users/me/parent-registration-invites/:inviteId', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+
+    const inviteId = Number(ctx.params['inviteId']);
+    if (!Number.isInteger(inviteId) || inviteId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_invite_id', message: 'Invalid invite id' };
+    }
+
+    const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
+    const invite = await inviteRepo.findOneBy({ id: inviteId });
+    if (!invite) {
+      ctx.set.status = 404;
+      return { error: 'invite_not_found', message: 'Invite not found.' };
+    }
+    if (invite.parentId !== requester.id) {
+      ctx.set.status = 403;
+      return { error: 'forbidden', message: 'You do not own this invite.' };
+    }
+    if (invite.used) {
+      ctx.set.status = 409;
+      return { error: 'invite_already_used', message: 'Cannot revoke an invite that has already been used.' };
+    }
+
+    await inviteRepo.delete({ id: inviteId });
+    return { success: true };
+  }, {
+   beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
+    detail: { summary: 'Revoke a parent registration invite', tags: ['Users'] }
   });
 
   app.get(prefix + '/users/me/parent-link-requests', async (ctx: any) => {
@@ -728,6 +799,63 @@ export async function userRoutes(app: any, prefix = '') {
     body: t.Object({ limits: t.Optional(t.Any()) }),
     response: { 200: t.Object({ success: t.Boolean(), child: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Update limits for a managed child account', tags: ['Users'] }
+  });
+
+  app.put(prefix + '/users/me/children/:childId', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    const parentAge = getAgeFromDate(requester.dateOfBirth);
+    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
+      ctx.set.status = 403;
+      return { error: 'parent_access_required', message: 'Only adult users may update child account details.' };
+    }
+
+    const childId = Number(ctx.params['childId']);
+    if (!Number.isInteger(childId) || childId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+    }
+
+    const payload = ctx.body as any;
+    const dateOfBirth = parseDateOfBirth(payload?.dateOfBirth);
+    if (!dateOfBirth) {
+      ctx.set.status = 400;
+      return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const child = await userRepo.findOneBy({ id: childId });
+    if (!child) {
+      ctx.set.status = 404;
+      return { error: 'child_not_found', message: 'Child account not found.' };
+    }
+    if (child.parentId !== requester.id) {
+      ctx.set.status = 403;
+      return { error: 'forbidden', message: 'You do not manage this child account.' };
+    }
+
+    const childAge = getAgeFromDate(dateOfBirth);
+    const effectiveCountry = child.billingCountry || requester.billingCountry;
+    if (childAge === null || !isMinorByCountry(childAge, effectiveCountry)) {
+      ctx.set.status = 400;
+      return { error: 'child_must_be_underage', message: `Child date of birth must keep the account under the legal age for ${effectiveCountry || 'your country'}.` };
+    }
+
+    child.dateOfBirth = dateOfBirth;
+    await userRepo.save(child);
+
+    const logRepo = AppDataSource.getRepository(UserLog);
+    await logRepo.save(logRepo.create({ userId: requester.id, action: 'update-child-dob', targetId: String(child.id), targetType: 'user', timestamp: new Date(), metadata: { dateOfBirth: child.dateOfBirth?.toISOString().split('T')[0] } } as any));
+
+    return { success: true, child: await safeUser(child) };
+  }, {
+   beforeHandle: authenticate,
+    body: t.Object({ dateOfBirth: t.String() }),
+    response: { 200: t.Object({ success: t.Boolean(), child: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Update a managed child account', tags: ['Users'] }
   });
 
   app.get(prefix + '/users/me/children', async (ctx: any) => {
@@ -1876,6 +2004,17 @@ export async function userRoutes(app: any, prefix = '') {
       delete payload.dateOfBirth;
     }
 
+    const isChildWithParent = requester.id === user.id && user.parentId != null;
+    if (isChildWithParent) {
+      const forbiddenBillingFields = ['address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry'];
+      for (const field of forbiddenBillingFields) {
+        if (field in payload) {
+          ctx.set.status = 403;
+          return { error: 'child_cannot_update_billing', message: 'Child accounts cannot update billing or address information.' };
+        }
+      }
+    }
+
     const requiredProfileFields = ['address', 'billingCity', 'billingZip', 'billingCountry'];
     for (const field of requiredProfileFields) {
       if (field in payload) {
@@ -1890,8 +2029,12 @@ export async function userRoutes(app: any, prefix = '') {
     if ('phone' in payload) {
       const phone = payload.phone;
       if (phone === null || phone === undefined || String(phone).trim() === '') {
-        ctx.set.status = 400;
-        return { error: 'phone_required', message: 'Phone cannot be cleared or set to an empty value.' };
+        if (isChildWithParent) {
+          delete payload.phone;
+        } else {
+          ctx.set.status = 400;
+          return { error: 'phone_required', message: 'Phone cannot be cleared or set to an empty value.' };
+        }
       }
     }
 

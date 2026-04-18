@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad, JoinColumn, AfterInsert, AfterUpdate } from 'typeorm';
 import { Organisation } from './organisation.entity';
 import { UserRole } from './userRole.entity';
 import { Passkey } from './passkey.entity';
@@ -81,6 +81,12 @@ export class User {
     } catch (e) {
       // skip
     }
+  }
+
+  @AfterInsert()
+  @AfterUpdate()
+  decryptFieldsAfterSave() {
+    this.afterLoadDecrypt();
   }
 
   @Column({ nullable: true })
