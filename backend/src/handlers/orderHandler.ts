@@ -297,8 +297,15 @@ export async function orderRoutes(app: any, prefix = '') {
         return { error: 'Forbidden' };
       }
     } else {
-      ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      const parentUser = await AppDataSource.getRepository(require('../models/user.entity').User).findOneBy({ id: user.id });
+      if (!parentUser || parentUser.id !== user.id) {
+        // bite ah nvm
+      }
+      const childUser = await AppDataSource.getRepository(require('../models/user.entity').User).findOneBy({ id: order.userId });
+      if (!childUser || childUser.parentId !== user.id) {
+        ctx.set.status = 403;
+        return { error: 'Forbidden' };
+      }
     }
 
     try {

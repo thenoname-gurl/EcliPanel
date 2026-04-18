@@ -1,15 +1,13 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { SectionHeader } from "@/components/panel/shared"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import {
   Users,
   Link2,
@@ -20,17 +18,146 @@ import {
   Mail,
   Loader2,
   UserPlus,
-  Sliders,
+  Server,
+  Building2,
+  Receipt,
+  Copy,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Clock,
+  Check,
+  AlertCircle,
+  RefreshCw,
+  Globe,
+  KeyRound,
 } from "lucide-react"
 
-const limitFields = [
-  { key: "memory", label: "Memory (MB)" },
-  { key: "disk", label: "Disk (MB)" },
-  { key: "cpu", label: "CPU" },
-  { key: "serverLimit", label: "Server Limit" },
-  { key: "databases", label: "Databases" },
-  { key: "backups", label: "Backups" },
-]
+// ─── Primitives (exact same css as settings page) ────────────────────────────
+
+function SettingsCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow",
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+function FormInput({
+  label,
+  type = "text",
+  placeholder,
+  value,
+  onChange,
+  icon: Icon,
+  className = "",
+  error,
+  hint,
+  disabled,
+}: {
+  label: string
+  type?: string
+  placeholder?: string
+  value: string
+  onChange: (v: string) => void
+  icon?: React.ElementType
+  className?: string
+  error?: string
+  hint?: string
+  disabled?: boolean
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1.5 min-w-0", className)}>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="relative min-w-0">
+        {Icon && (
+          <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 pointer-events-none" />
+        )}
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className={cn(
+            "w-full rounded-lg border bg-secondary/30 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 disabled:opacity-50 disabled:cursor-not-allowed",
+            Icon ? "pl-10" : "px-3",
+            error
+              ? "border-destructive focus:border-destructive"
+              : "border-border focus:border-primary/50"
+          )}
+        />
+      </div>
+      {error && (
+        <p className="text-xs text-destructive flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          {error}
+        </p>
+      )}
+      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+function SettingRow({
+  icon: Icon,
+  title,
+  description,
+  action,
+  className = "",
+  onClick,
+}: {
+  icon?: React.ElementType
+  title: string
+  description?: string
+  action?: React.ReactNode
+  className?: string
+  onClick?: () => void
+}) {
+  const Tag = onClick ? "button" : "div"
+  return (
+    <Tag
+      {...(onClick ? { onClick } : {})}
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4 min-w-0 transition-all",
+        onClick &&
+          "cursor-pointer hover:bg-secondary/40 active:scale-[0.98] w-full text-left",
+        className
+      )}
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {Icon && (
+          <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground truncate">{title}</p>
+          {description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </Tag>
+  )
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getAgeFromDob(dob?: string | null): number | null {
   if (!dob) return null
@@ -38,60 +165,382 @@ function getAgeFromDob(dob?: string | null): number | null {
   if (Number.isNaN(date.getTime())) return null
   const now = new Date()
   let age = now.getUTCFullYear() - date.getUTCFullYear()
-  const monthDiff = now.getUTCMonth() - date.getUTCMonth()
-  const dayDiff = now.getUTCDate() - date.getUTCDate()
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1
+  const m = now.getUTCMonth() - date.getUTCMonth()
+  const d = now.getUTCDate() - date.getUTCDate()
+  if (m < 0 || (m === 0 && d < 0)) age -= 1
   return age
 }
+
+function InlineAlert({
+  type,
+  message,
+}: {
+  type: "success" | "error" | "warning" | "info"
+  message: string
+}) {
+  const styles = {
+    success:
+      "border-green-500/20 bg-green-500/5 text-green-600 dark:text-green-400",
+    error:   "border-destructive/20 bg-destructive/5 text-destructive",
+    warning: "border-yellow-500/20 bg-yellow-500/5 text-yellow-700 dark:text-yellow-400",
+    info:    "border-primary/20 bg-primary/5 text-primary",
+  }
+  const Icon =
+    type === "success" ? CheckCircle : type === "warning" ? AlertTriangle : AlertCircle
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2.5 rounded-lg border p-3 text-xs",
+        styles[type]
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0 mt-0.5" />
+      <span>{message}</span>
+    </div>
+  )
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType
+  title: string
+  description?: string
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
+      <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
+        <Icon className="h-6 w-6 text-muted-foreground" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        {description && (
+          <p className="text-xs text-muted-foreground max-w-xs mt-1">{description}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function parseAlertType(msg: string): "success" | "error" {
+  const l = msg.toLowerCase()
+  return l.includes("fail") || l.includes("error") || l.includes("please")
+    ? "error"
+    : "success"
+}
+
+// ─── Child card ───────────────────────────────────────────────────────────────
+
+function ChildCard({
+  child,
+  servers,
+  orders,
+  orgs,
+  dobEdit,
+  savingDob,
+  onDobChange,
+  onSaveDob,
+}: {
+  child: any
+  servers: any[]
+  orders: any[]
+  orgs: any[]
+  dobEdit: string
+  savingDob: boolean
+  onDobChange: (value: string) => void
+  onSaveDob: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const { toast } = useToast()
+  const childAge = getAgeFromDob(child.dateOfBirth)
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden hover:bg-secondary/30 transition-colors">
+      {/* ── Header ── */}
+      <button
+        onClick={() => setExpanded((p) => !p)}
+        className="w-full flex items-center gap-3 p-3 md:p-4 text-left active:scale-[0.99] transition-all"
+      >
+        <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Baby className="h-5 w-5 text-primary" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground truncate">
+            {child.firstName || child.email}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">{child.email}</p>
+        </div>
+
+        {/* Quick-stat pills – hidden on very small screens */}
+        <div className="hidden sm:flex items-center gap-3 shrink-0">
+          {[
+            { label: "Servers", value: servers.length },
+            { label: "Orders",  value: orders.length  },
+            { label: "Orgs",    value: orgs.length    },
+          ].map(({ label, value }) => (
+            <div key={label} className="text-center">
+              <p className="text-xs font-bold text-foreground">{value}</p>
+              <p className="text-[10px] text-muted-foreground">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge
+            className={cn(
+              "text-[10px] border-0 px-2",
+              child.suspended
+                ? "bg-destructive/10 text-destructive"
+                : "bg-green-500/10 text-green-600 dark:text-green-400"
+            )}
+          >
+            {child.suspended ? "Suspended" : "Active"}
+          </Badge>
+          {expanded
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      </button>
+
+      {/* Mobile quick-stats bar */}
+      <div className="sm:hidden grid grid-cols-3 divide-x divide-border border-t border-border/50">
+        {[
+          { label: "Servers", value: servers.length },
+          { label: "Orders",  value: orders.length  },
+          { label: "Orgs",    value: orgs.length    },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex flex-col items-center py-2">
+            <p className="text-sm font-bold text-foreground">{value}</p>
+            <p className="text-[10px] text-muted-foreground">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Expanded body ── */}
+      {expanded && (
+        <div className="border-t border-border/50 p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+
+          {/* Info grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Age",    value: childAge != null ? `${childAge} yrs` : "Unknown" },
+              { label: "Plan",   value: child.portalType || "Free" },
+              { label: "Status", value: child.suspended ? "Suspended" : "Active" },
+              {
+                label: "Resources",
+                value: child.limits
+                  ? `${child.limits.memory ?? "–"} MB / ${child.limits.cpu ?? "–"}%`
+                  : "Default",
+              },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                className="rounded-lg border border-border/50 bg-secondary/20 p-3"
+              >
+                <p className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+                  {label}
+                </p>
+                <p className="text-sm font-semibold text-foreground mt-1 truncate">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Date of birth */}
+          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground">Date of Birth</p>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={dobEdit}
+                onChange={(e) => onDobChange(e.target.value)}
+                className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+              />
+              <button
+                onClick={onSaveDob}
+                disabled={savingDob}
+                className="shrink-0 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+              >
+                {savingDob
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Check className="h-4 w-4" />}
+                <span className="hidden sm:inline">Save</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Servers */}
+          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Server className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-sm font-medium text-foreground flex-1">Servers</p>
+              <Badge variant="outline" className="text-[10px]">{servers.length}</Badge>
+            </div>
+            {servers.length === 0 ? (
+              <p className="text-xs text-muted-foreground pl-12">No servers found.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {servers.slice(0, 5).map((s: any) => (
+                  <div
+                    key={s.uuid}
+                    className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{s.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{s.template}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
+                      {s.status}
+                    </Badge>
+                  </div>
+                ))}
+                {servers.length > 5 && (
+                  <p className="text-xs text-muted-foreground pl-1">
+                    +{servers.length - 5} more
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Organisations */}
+          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Building2 className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-sm font-medium text-foreground flex-1">Organisations</p>
+              <Badge variant="outline" className="text-[10px]">{orgs.length}</Badge>
+            </div>
+            {orgs.length === 0 ? (
+              <p className="text-xs text-muted-foreground pl-12">No organisations.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {orgs.map((org: any) => (
+                  <div
+                    key={org.id}
+                    className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
+                  >
+                    <p className="text-xs font-medium text-foreground truncate">
+                      {org.name || "Unknown"}
+                    </p>
+                    <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
+                      {org.role}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Billing */}
+          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Receipt className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-sm font-medium text-foreground flex-1">Billing</p>
+              <Badge variant="outline" className="text-[10px]">{orders.length}</Badge>
+            </div>
+            {orders.length === 0 ? (
+              <p className="text-xs text-muted-foreground pl-12">No billing records.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {orders.slice(0, 5).map((order: any) => (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground">
+                        Order #{order.id}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {order.status}
+                        {order.amount != null ? ` · $${order.amount}` : ""}
+                      </p>
+                    </div>
+                    <a
+                      href={API_ENDPOINTS.orderInvoice.replace(":id", String(order.id))}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 ml-2 flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-[10px] font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Invoice
+                    </a>
+                  </div>
+                ))}
+                {orders.length > 5 && (
+                  <p className="text-xs text-muted-foreground pl-1">
+                    +{orders.length - 5} more
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FamilyPage() {
   const { user, refreshUser } = useAuth()
   const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [requests, setRequests] = useState<any[]>([])
-  const [children, setChildren] = useState<any[]>([])
-  const [parentEmail, setParentEmail] = useState("")
-  const [childEmail, setChildEmail] = useState("")
-  const [formMessage, setFormMessage] = useState<string | null>(null)
-  const [inviteMessage, setInviteMessage] = useState<string | null>(null)
-  const [invites, setInvites] = useState<any[]>([])
-  const [formError, setFormError] = useState<string | null>(null)
-  const [acceptCodes, setAcceptCodes] = useState<Record<number, string>>({})
-  const [limitEdits, setLimitEdits] = useState<Record<number, Record<string, string>>>({})
-  const [childDobEdits, setChildDobEdits] = useState<Record<number, string>>({})
-  const [childMessage, setChildMessage] = useState<string | null>(null)
-  const [sendingRequest, setSendingRequest] = useState(false)
-  const [creatingInvite, setCreatingInvite] = useState(false)
-  const [savingLimits, setSavingLimits] = useState<Record<number, boolean>>({})
-  const [savingChildDob, setSavingChildDob] = useState<Record<number, boolean>>({})
+
+  const [loading,        setLoading]        = useState(true)
+  const [requests,       setRequests]        = useState<any[]>([])
+  const [children,       setChildren]        = useState<any[]>([])
+  const [invites,        setInvites]         = useState<any[]>([])
+  const [parentInfo,     setParentInfo]      = useState<any | null>(null)
+
+  const [parentEmail,    setParentEmail]     = useState("")
+  const [childEmail,     setChildEmail]      = useState("")
+
+  const [formMessage,    setFormMessage]     = useState<string | null>(null)
+  const [inviteMessage,  setInviteMessage]   = useState<string | null>(null)
+  const [childMessage,   setChildMessage]    = useState<string | null>(null)
+  const [formError,      setFormError]       = useState<string | null>(null)
+
+  const [acceptCodes,    setAcceptCodes]     = useState<Record<number, string>>({})
+  const [childDobEdits,  setChildDobEdits]   = useState<Record<number, string>>({})
+
+  const [sendingRequest,   setSendingRequest]   = useState(false)
+  const [creatingInvite,   setCreatingInvite]   = useState(false)
+  const [savingChildDob,   setSavingChildDob]   = useState<Record<number, boolean>>({})
   const [acceptingRequest, setAcceptingRequest] = useState<Record<number, boolean>>({})
+
+  const [childServers, setChildServers] = useState<Record<number, any[]>>({})
+  const [childOrders,  setChildOrders]  = useState<Record<number, any[]>>({})
+  const [childOrgs,    setChildOrgs]    = useState<Record<number, any[]>>({})
+
+  // ── derived ────────────────────────────────────────────────────────────────
 
   const computedAge = useMemo(() => {
     if (!user) return null
     return typeof user.age === "number" ? user.age : getAgeFromDob(user?.dateOfBirth)
   }, [user])
 
-  const hasKnownAge = typeof computedAge === "number"
+  const hasKnownAge  = typeof computedAge === "number"
+
   const isAdult = useMemo(() => {
     if (!user) return false
     if (hasKnownAge) return computedAge >= 18
-    if (user.isChildAccount === true) return false
-    return false
+    return user.isChildAccount !== true
   }, [user, computedAge, hasKnownAge])
 
-  const isLinkedChild = useMemo(() => {
-    if (!user) return false
-    return user.parentId != null && !isAdult
-  }, [user, isAdult])
-
-  const canViewChildren = useMemo(() => {
-    if (!user) return false
-    return hasKnownAge ? computedAge >= 18 : false
-  }, [user, hasKnownAge, computedAge])
-
-  const isParent = useMemo(() => {
-    return canViewChildren
-  }, [canViewChildren])
+  const isLinkedChild  = useMemo(() => user != null && user.parentId != null && !isAdult, [user, isAdult])
+  const canViewChildren = useMemo(() => user != null && hasKnownAge && computedAge >= 18, [user, hasKnownAge, computedAge])
+  const isParent        = canViewChildren
 
   const isChild = useMemo(() => {
     if (!user) return false
@@ -100,840 +549,690 @@ export default function FamilyPage() {
     return user.isChildAccount === true
   }, [user, hasKnownAge, computedAge, isAdult])
 
-  const canRequestParent = useMemo(() => {
-    if (!user) return false
-    if (user.parentId != null) return false
-    return isChild
-  }, [user, isChild])
+  const canRequestParent = useMemo(
+    () => user != null && user.parentId == null && isChild,
+    [user, isChild]
+  )
+  const showParentInfo = useMemo(
+    () => user != null && user.parentId != null && !isParent,
+    [user, isParent]
+  )
+
+  const age = typeof user?.age === "number" ? user.age : getAgeFromDob(user?.dateOfBirth)
+
+  const accountRole = isParent
+    ? "Parent"
+    : isLinkedChild
+    ? "Linked Child"
+    : isChild
+    ? "Child"
+    : "Unknown"
+
+  // ── data ───────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!user) return
     fetchData()
-  }, [user])
+    if (showParentInfo) fetchParentInfo()
+  }, [user, showParentInfo])
+
+  async function fetchParentInfo() {
+    try {
+      const data = await apiFetch(API_ENDPOINTS.usersMeParent)
+      setParentInfo(data?.parent || null)
+    } catch { setParentInfo(null) }
+  }
 
   async function fetchData() {
     setLoading(true)
     setFormError(null)
-    setFormMessage(null)
     try {
-      const requestData = await apiFetch(API_ENDPOINTS.parentLinkRequests)
-      const requestArray = Array.isArray(requestData?.requests) ? requestData.requests : []
-      setRequests(requestArray)
+      const rd = await apiFetch(API_ENDPOINTS.parentLinkRequests)
+      setRequests(Array.isArray(rd?.requests) ? rd.requests : [])
 
       let childrenArray: any[] = []
       if (canViewChildren) {
         try {
-          const childrenData = await apiFetch(API_ENDPOINTS.usersMeChildren)
-          childrenArray = Array.isArray(childrenData?.children) ? childrenData.children : []
+          const d = await apiFetch(API_ENDPOINTS.usersMeChildren)
+          childrenArray = Array.isArray(d?.children) ? d.children : []
           setChildren(childrenArray)
-        } catch {
-          setChildren([])
-        }
-      } else {
-        setChildren([])
-      }
+        } catch { setChildren([]) }
+      } else { setChildren([]) }
 
       if (isParent) {
         try {
-          const inviteData = await apiFetch(API_ENDPOINTS.parentRegistrationInvites)
-          setInvites(Array.isArray(inviteData?.invites) ? inviteData.invites : [])
-        } catch {
-          setInvites([])
-        }
-      } else {
-        setInvites([])
+          const d = await apiFetch(API_ENDPOINTS.parentRegistrationInvites)
+          setInvites(Array.isArray(d?.invites) ? d.invites : [])
+        } catch { setInvites([]) }
       }
 
-      const nextLimits: Record<number, Record<string, string>> = {}
-      const nextDobEdits: Record<number, string> = {}
-      childrenArray.forEach((child: any) => {
-        nextLimits[child.id] = {
-          memory: child.limits?.memory != null ? String(child.limits.memory) : "",
-          disk: child.limits?.disk != null ? String(child.limits.disk) : "",
-          cpu: child.limits?.cpu != null ? String(child.limits.cpu) : "",
-          serverLimit: child.limits?.serverLimit != null ? String(child.limits.serverLimit) : "",
-          databases: child.limits?.databases != null ? String(child.limits.databases) : "",
-          backups: child.limits?.backups != null ? String(child.limits.backups) : "",
-        }
-        nextDobEdits[child.id] = child.dateOfBirth || ""
+      const nd: Record<number, string> = {}
+      childrenArray.forEach((c: any) => {
+        nd[c.id] = c.dateOfBirth || ""
       })
-      setLimitEdits((prev) => ({ ...nextLimits, ...prev }))
-      setChildDobEdits((prev) => ({ ...nextDobEdits, ...prev }))
-    } catch (error: any) {
-      setFormError(error?.message || "Unable to load family data.")
+      setChildDobEdits((p) => ({ ...nd, ...p }))
+
+      if (isParent && childrenArray.length) {
+        const ns: Record<number, any[]> = {}
+        const no: Record<number, any[]> = {}
+        const ng: Record<number, any[]> = {}
+        await Promise.all(childrenArray.map(async (c: any) => {
+          try { const d = await apiFetch(API_ENDPOINTS.childServers.replace(":childId", String(c.id)));        ns[c.id] = Array.isArray(d?.servers)       ? d.servers       : [] } catch { ns[c.id] = [] }
+          try { const d = await apiFetch(API_ENDPOINTS.childOrders.replace(":childId", String(c.id)));         no[c.id] = Array.isArray(d?.orders)        ? d.orders        : [] } catch { no[c.id] = [] }
+          try { const d = await apiFetch(API_ENDPOINTS.childOrganisations.replace(":childId", String(c.id))); ng[c.id] = Array.isArray(d?.organisations) ? d.organisations : [] } catch { ng[c.id] = [] }
+        }))
+        setChildServers(ns); setChildOrders(no); setChildOrgs(ng)
+      }
+    } catch (e: any) {
+      setFormError(e?.message || "Unable to load family data.")
     } finally {
       setLoading(false)
     }
   }
 
+  // ── actions ────────────────────────────────────────────────────────────────
+
   async function sendParentRequest() {
-    setFormError(null)
-    setFormMessage(null)
-    if (!parentEmail.trim()) {
-      setFormError("Please enter your parent's email address.")
-      return
-    }
+    setFormError(null); setFormMessage(null)
+    if (!parentEmail.trim()) { setFormError("Please enter your parent's email address."); return }
     setSendingRequest(true)
     try {
       const data = await apiFetch(API_ENDPOINTS.parentLinkRequests, {
-        method: "POST",
-        body: { parentEmail: parentEmail.trim() },
+        method: "POST", body: { parentEmail: parentEmail.trim() },
       })
       setParentEmail("")
-      setFormMessage(`Link request created. Share this code with your parent: ${data.request.code}`)
-      setRequests((prev) => [data.request, ...prev])
-    } catch (error: any) {
-      setFormError(error?.message || "Failed to request a parent link.")
-    } finally {
-      setSendingRequest(false)
-    }
+      setFormMessage(`Request created! Share this code with your parent: ${data.request.code}`)
+      setRequests((p) => [data.request, ...p])
+    } catch (e: any) {
+      setFormError(e?.message || "Failed to send link request.")
+    } finally { setSendingRequest(false) }
   }
 
   async function createParentInvite() {
-    setFormError(null)
-    setInviteMessage(null)
-    setCreatingInvite(true)
+    setFormError(null); setInviteMessage(null); setCreatingInvite(true)
     try {
       const data = await apiFetch(API_ENDPOINTS.parentRegistrationInvites, {
-        method: "POST",
-        body: { childEmail: childEmail.trim() || undefined },
+        method: "POST", body: { childEmail: childEmail.trim() || undefined },
       })
       setChildEmail("")
-      const inviteLink = data?.invite?.link
-      setInviteMessage(`Invite created. Share this link with your child: ${inviteLink}`)
-      setInvites((prev) => [data.invite, ...prev])
+      const link = data?.invite?.link
+      setInviteMessage(`Invite created! Share this link: ${link}`)
+      setInvites((p) => [data.invite, ...p])
       toast({
         title: "Child invite created",
         description: (
           <span>
-            Invite link created.{' '}
-            <a href={inviteLink} target="_blank" rel="noreferrer" className="font-medium underline">
+            <a href={link} target="_blank" rel="noreferrer" className="underline font-medium">
               Open link
             </a>
           </span>
         ),
       })
-    } catch (error: any) {
-      setFormError(error?.message || "Failed to create a child invite.")
-    } finally {
-      setCreatingInvite(false)
-    }
+    } catch (e: any) {
+      setFormError(e?.message || "Failed to create child invite.")
+    } finally { setCreatingInvite(false) }
   }
 
-  async function revokeInvite(inviteId: number) {
-    setChildMessage(null)
+  async function revokeInvite(id: number) {
     try {
-      await apiFetch(API_ENDPOINTS.parentRegistrationInviteRevoke.replace(":inviteId", String(inviteId)), {
-        method: "DELETE",
-      })
-      setInvites((prev) => prev.filter((invite) => invite.id !== inviteId))
-      setChildMessage("Invite revoked successfully.")
-    } catch (error: any) {
-      setChildMessage(error?.message || "Failed to revoke invite.")
-    }
-  }
-
-  async function updateChildDob(childId: number) {
-    setChildMessage(null)
-    const newDob = (childDobEdits[childId] || "").trim()
-    if (!newDob) {
-      setChildMessage("Please provide a date of birth for the child.")
-      return
-    }
-
-    setSavingChildDob((prev) => ({ ...prev, [childId]: true }))
-    try {
-      const data = await apiFetch(API_ENDPOINTS.childUpdate.replace(":childId", String(childId)), {
-        method: "PUT",
-        body: { dateOfBirth: newDob },
-      })
-      setChildren((prev) => prev.map((child) => (child.id === childId ? data.child : child)))
-      setChildDobEdits((prev) => ({ ...prev, [childId]: data.child.dateOfBirth || "" }))
-      setChildMessage("Child date of birth updated successfully.")
-    } catch (error: any) {
-      setChildMessage(error?.message || "Failed to update child date of birth.")
-    } finally {
-      setSavingChildDob((prev) => ({ ...prev, [childId]: false }))
-    }
+      await apiFetch(API_ENDPOINTS.parentRegistrationInviteRevoke.replace(":inviteId", String(id)), { method: "DELETE" })
+      setInvites((p) => p.filter((i) => i.id !== id))
+      setChildMessage("Invite revoked.")
+    } catch (e: any) { setChildMessage(e?.message || "Failed to revoke invite.") }
   }
 
   async function acceptRequest(requestId: number) {
     setChildMessage(null)
     const code = acceptCodes[requestId] || ""
-    if (!code.trim()) {
-      setChildMessage("Please enter the linking code to accept the request.")
-      return
-    }
-    setAcceptingRequest((prev) => ({ ...prev, [requestId]: true }))
+    if (!code.trim()) { setChildMessage("Please enter the linking code."); return }
+    setAcceptingRequest((p) => ({ ...p, [requestId]: true }))
     try {
       await apiFetch(API_ENDPOINTS.parentLinkRequestAccept.replace(":id", String(requestId)), {
-        method: "POST",
-        body: { code: code.trim() },
+        method: "POST", body: { code: code.trim() },
       })
-      setChildMessage("Request accepted successfully.")
-      setAcceptCodes((prev) => ({ ...prev, [requestId]: "" }))
+      setChildMessage("Request accepted!")
+      setAcceptCodes((p) => ({ ...p, [requestId]: "" }))
       fetchData()
-    } catch (error: any) {
-      setChildMessage(error?.message || "Failed to accept the request.")
-    } finally {
-      setAcceptingRequest((prev) => ({ ...prev, [requestId]: false }))
-    }
+    } catch (e: any) {
+      setChildMessage(e?.message || "Failed to accept request.")
+    } finally { setAcceptingRequest((p) => ({ ...p, [requestId]: false })) }
   }
 
-  async function updateChildLimits(childId: number) {
+  async function updateChildDob(childId: number) {
     setChildMessage(null)
-    const edit = limitEdits[childId] || {}
-    const limits: Record<string, number | null> = {}
-    limitFields.forEach((field) => {
-      const value = edit[field.key]
-      if (value !== undefined && value !== null && value !== "") {
-        limits[field.key] = Number(value)
-      }
-    })
-    setSavingLimits((prev) => ({ ...prev, [childId]: true }))
+    const dob = (childDobEdits[childId] || "").trim()
+    if (!dob) { setChildMessage("Please enter a date of birth."); return }
+    setSavingChildDob((p) => ({ ...p, [childId]: true }))
     try {
-      const data = await apiFetch(
-        API_ENDPOINTS.childLimits.replace(":childId", String(childId)),
-        {
-          method: "PUT",
-          body: { limits: Object.keys(limits).length ? limits : null },
-        }
-      )
-      setChildMessage("Child limits updated successfully.")
-      setChildren((prev) => prev.map((child) => (child.id === childId ? data.child : child)))
-      refreshUser()
-    } catch (error: any) {
-      setChildMessage(error?.message || "Failed to update child limits.")
-    } finally {
-      setSavingLimits((prev) => ({ ...prev, [childId]: false }))
-    }
+      const data = await apiFetch(API_ENDPOINTS.childUpdate.replace(":childId", String(childId)), {
+        method: "PUT", body: { dateOfBirth: dob },
+      })
+      setChildren((p) => p.map((c) => (c.id === childId ? data.child : c)))
+      setChildDobEdits((p) => ({ ...p, [childId]: data.child.dateOfBirth || "" }))
+      setChildMessage("Date of birth updated!")
+    } catch (e: any) {
+      setChildMessage(e?.message || "Failed to update date of birth.")
+    } finally { setSavingChildDob((p) => ({ ...p, [childId]: false })) }
   }
 
-  function updateLimitField(childId: number, field: string, value: string) {
-    setLimitEdits((prev) => ({
-      ...prev,
-      [childId]: { ...(prev[childId] || {}), [field]: value },
-    }))
-  }
-
-  const age =
-    typeof user?.age === "number" ? user.age : getAgeFromDob(user?.dateOfBirth)
+  // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <>
-      <PanelHeader
-        title="Family Management"
-        description="Manage parent-child account links and set custom resource limits for child accounts."
-      />
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div className="flex-shrink-0">
+        <PanelHeader
+          title="Family Management"
+          description="Manage parent-child account links and configure resource limits."
+        />
+      </div>
 
-          {/* Development Notice */}
-          <div className="flex items-center gap-4 rounded-xl border border-warning/30 bg-warning/5 p-5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/10">
-              <AlertTriangle className="h-6 w-6 text-warning" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-foreground">Development Preview</h3>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                This feature is still in development and not fully rolled out publicly yet. Use with caution.
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6 lg:p-8 max-w-4xl mx-auto pb-8 w-full min-w-0">
+
+          {/* Beta notice – mirrors the yellow warning style used in settings */}
+          <div className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3.5 min-w-0">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-foreground">Development Preview</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                This feature is in beta and not fully rolled out publicly. Use with caution.
               </p>
             </div>
-            <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning">
+            <Badge
+              variant="outline"
+              className="shrink-0 border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-[10px]"
+            >
               Beta
             </Badge>
           </div>
 
-          {/* Account Status Banner */}
+          {/* Account status */}
           {user && (
             <div
-              className={`flex items-center gap-4 rounded-xl border p-5 ${
+              className={cn(
+                "rounded-xl border p-4 md:p-5 min-w-0 overflow-hidden shadow-sm",
                 isParent
-                  ? "border-success/30 bg-success/5"
-                  : isLinkedChild
-                  ? "border-primary/30 bg-primary/5"
+                  ? "border-green-500/20 bg-green-500/5"
                   : isChild
-                  ? "border-primary/30 bg-primary/5"
-                  : "border-border bg-card"
-              }`}
+                  ? "border-primary/20 bg-primary/5"
+                  : "border-border bg-card/50"
+              )}
             >
-              <div
-                className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                  isParent
-                    ? "bg-success/10"
-                    : isLinkedChild
-                    ? "bg-primary/10"
-                    : isChild
-                    ? "bg-primary/10"
-                    : "bg-muted"
-                }`}
-              >
-                {isParent ? (
-                  <ShieldCheck className="h-6 w-6 text-success" />
-                ) : isLinkedChild ? (
-                  <Link2 className="h-6 w-6 text-primary" />
-                ) : isChild ? (
-                  <Baby className="h-6 w-6 text-primary" />
-                ) : (
-                  <Users className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-medium text-foreground">
-                  {isParent
-                    ? "Parent Account"
-                    : isLinkedChild
-                    ? "Linked Child Account"
-                    : isChild
-                    ? "Child Account"
-                    : "Unknown Account"}
-                </h3>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {isParent
-                    ? "You can manage linked child accounts and configure their resource limits."
-                    : isLinkedChild
-                    ? `Age: ${age ?? "unknown"} · ${user.dateOfBirth ? `DOB: ${user.dateOfBirth}` : "Linked to a parent account."}`
-                    : isChild
-                    ? `Age: ${age ?? "unknown"} · ${user.dateOfBirth ? `DOB: ${user.dateOfBirth}` : "Set your date of birth in Settings to unlock parent linking."}`
-                    : "Your age is unknown. Set your date of birth in Settings to unlock family management features."}
-                </p>
-              </div>
-              <Badge
-                variant="outline"
-                className={
-                  isParent
-                    ? "border-success/30 bg-success/10 text-success"
-                    : isLinkedChild
-                    ? "border-primary/30 bg-primary/10 text-primary"
-                    : isChild
-                    ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border bg-secondary/50 text-muted-foreground"
-                }
-              >
-                {isParent
-                  ? "Parent"
-                  : isLinkedChild
-                  ? "Linked child"
-                  : isChild
-                  ? "Child"
-                  : "Unknown"}
-              </Badge>
-            </div>
-          )}
-
-          {user?.parentId != null && hasKnownAge && isAdult && (
-            <div className="rounded-xl border border-warning/30 bg-warning/5 p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/10 text-warning">
-                  <AlertTriangle className="h-6 w-6" />
+              <div className="flex items-center gap-4 min-w-0">
+                <div
+                  className={cn(
+                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
+                    isParent
+                      ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                      : isChild
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {isParent ? <ShieldCheck className="h-6 w-6" />
+                    : isLinkedChild ? <Link2 className="h-6 w-6" />
+                    : isChild ? <Baby className="h-6 w-6" />
+                    : <Users className="h-6 w-6" />}
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Legal age reached</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Your account is now adult in your country. Please review and update your email, phone, and billing details in Settings.
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-base font-bold text-foreground">
+                      {accountRole} Account
+                    </h2>
+                    <Badge
+                      className={cn(
+                        "text-[10px] border-0 px-2",
+                        isParent
+                          ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                          : isChild
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {accountRole}
+                    </Badge>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {isParent
+                      ? `Managing ${children.length} linked child${children.length !== 1 ? "ren" : ""}`
+                      : isLinkedChild
+                      ? `Age: ${age ?? "unknown"} · Linked to a parent account`
+                      : isChild
+                      ? `Age: ${age ?? "unknown"} · ${user.dateOfBirth ? `DOB: ${user.dateOfBirth}` : "Set your DOB in Settings to enable linking"}`
+                      : "Set your date of birth in Settings to unlock family features"}
                   </p>
                 </div>
+
+                <button
+                  onClick={fetchData}
+                  disabled={loading}
+                  className="shrink-0 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                </button>
               </div>
             </div>
           )}
 
-          {/* Loading state */}
+          {/* Adult-age reached notice */}
+          {user?.parentId != null && hasKnownAge && isAdult && (
+            <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 min-w-0">
+              <AlertCircle className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+              <p className="text-xs text-primary">
+                Your account has reached adult age. Please review and update your details in
+                Settings.
+              </p>
+            </div>
+          )}
+
+          {/* Loading */}
           {loading && (
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading family data...
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card/50 p-10 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" /> Loading family data…
             </div>
           )}
 
           {/* Global error */}
           {!loading && formError && (
-            <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              {formError}
-            </div>
+            <InlineAlert type="error" message={formError} />
           )}
 
-          {/* Request Parent Link */}
-          {canRequestParent && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader
-                title="Request Parent Linkage"
-                description="Send a linking request to your parent. After creation, share the generated code with them so they can accept."
-              />
-              <div className="mt-5 flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Parent email address
-                  </label>
-                  <div className="flex gap-3">
-                    <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        value={parentEmail}
-                        onChange={(e) => setParentEmail(e.target.value)}
-                        placeholder="parent@example.com"
-                        className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                      />
+          {/* ── Parent info (child view) ─────────────────────────────────── */}
+          {!loading && showParentInfo && parentInfo && (
+            <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <h3 className="text-sm font-semibold text-foreground mb-1">
+                Your Parent Account
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Details about the parent account linked to yours.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  { label: "Name",    value: parentInfo.firstName || parentInfo.displayName || parentInfo.email, Icon: Users     },
+                  { label: "Email",   value: parentInfo.email,                                                    Icon: Mail      },
+                  { label: "Role",    value: parentInfo.role || "Parent",                                         Icon: ShieldCheck },
+                  { label: "Country", value: parentInfo.billingCountry || "Not set",                              Icon: Globe     },
+                ].map(({ label, value, Icon }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3 min-w-0"
+                  >
+                    <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon className="h-4 w-4 text-primary" />
                     </div>
-                    <Button
-                      onClick={sendParentRequest}
-                      disabled={sendingRequest || !parentEmail.trim()}
-                      className="shrink-0"
-                    >
-                      {sendingRequest ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Request Link
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {formMessage && (
-                  <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/5 p-4 text-sm text-success">
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    {formMessage}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Parent Invite */}
-          {isParent && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader
-                title="Invite a Child Account"
-                description="Create a child invite code that your child can use during registration. You can optionally prefill their email."
-              />
-              <div className="mt-5 flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Child email address (optional)
-                  </label>
-                  <div className="flex gap-3">
-                    <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        value={childEmail}
-                        onChange={(e) => setChildEmail(e.target.value)}
-                        placeholder="child@example.com"
-                        className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                      />
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                        {label}
+                      </p>
+                      <p className="text-sm font-medium text-foreground truncate">{value}</p>
                     </div>
-                    <Button
-                      onClick={createParentInvite}
-                      disabled={creatingInvite}
-                      className="shrink-0"
-                    >
-                      {creatingInvite ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Create Invite
-                        </>
-                      )}
-                    </Button>
                   </div>
+                ))}
+              </div>
+            </SettingsCard>
+          )}
+
+          {/* ── Request parent link ─────────────────────────────────────── */}
+          {!loading && canRequestParent && (
+            <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <h3 className="text-sm font-semibold text-foreground mb-1">
+                Request Parent Link
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Enter your parent's email. A linking code will be generated for them to
+                confirm.
+              </p>
+              <div className="flex flex-col gap-3">
+                <FormInput
+                  label="Parent email address"
+                  type="email"
+                  placeholder="parent@example.com"
+                  value={parentEmail}
+                  onChange={setParentEmail}
+                  icon={Mail}
+                />
+                <div>
+                  <button
+                    onClick={sendParentRequest}
+                    disabled={sendingRequest || !parentEmail.trim()}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                  >
+                    {sendingRequest
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                      : <><UserPlus className="h-4 w-4" /> Send Request</>}
+                  </button>
                 </div>
-
-                {inviteMessage && (
-                  <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/5 p-4 text-sm text-success">
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    {inviteMessage}
-                  </div>
-                )}
+                {formMessage && <InlineAlert type="success" message={formMessage} />}
               </div>
-            </div>
+            </SettingsCard>
           )}
 
-          {/* Child invites */}
-          {isParent && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader
-                title="Child Invite Codes"
-                description="View and revoke invites that children can use to register directly under your account."
-              />
-              <div className="mt-5 flex flex-col gap-4">
-                {inviteMessage && (
-                  <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/5 p-4 text-sm text-success">
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    {inviteMessage}
-                  </div>
-                )}
-                {!invites.length ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4 shrink-0" />
-                    No child invites created yet.
-                  </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {invites.map((invite) => (
-                      <div key={invite.id} className="rounded-lg border border-border bg-secondary/10 p-4">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">Invite #{invite.id}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {invite.childEmail ? `Child email: ${invite.childEmail}` : "Open invite"}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => navigator.clipboard.writeText(invite.link)}
-                            >
-                              Copy link
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => revokeInvite(invite.id)}
-                            >
-                              Revoke
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 rounded-lg border border-border bg-background p-3 text-sm font-mono text-foreground">
-                          {invite.link}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Family Requests */}
+          {/* ── Link requests ────────────────────────────────────────────── */}
           {!loading && requests.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader
-                title="Family Requests"
-                description="Pending and completed link requests between parent and child accounts."
-              />
+            <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <h3 className="text-sm font-semibold text-foreground mb-1">Link Requests</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Pending and completed parent-child link requests.
+              </p>
 
               {childMessage && (
-                <div
-                  className={`mt-4 flex items-start gap-3 rounded-lg border p-4 text-sm ${
-                    childMessage.toLowerCase().includes("fail") ||
-                    childMessage.toLowerCase().includes("error") ||
-                    childMessage.toLowerCase().includes("please")
-                      ? "border-destructive/30 bg-destructive/5 text-destructive"
-                      : "border-success/30 bg-success/5 text-success"
-                  }`}
-                >
-                  {childMessage.toLowerCase().includes("fail") ||
-                  childMessage.toLowerCase().includes("error") ||
-                  childMessage.toLowerCase().includes("please") ? (
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  ) : (
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  )}
-                  {childMessage}
+                <div className="mb-4">
+                  <InlineAlert type={parseAlertType(childMessage)} message={childMessage} />
                 </div>
               )}
 
-              <div className="mt-5 flex flex-col gap-4">
-                {requests.map((request) => (
+              <div className="flex flex-col gap-2.5 min-w-0">
+                {requests.map((req) => (
                   <div
-                    key={request.id}
-                    className={`rounded-lg border p-4 transition-all ${
-                      request.status === "accepted"
-                        ? "border-success/30 bg-success/5"
-                        : request.status === "pending"
-                        ? "border-primary/30 bg-primary/5"
-                        : "border-border bg-secondary/20"
-                    }`}
+                    key={req.id}
+                    className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden min-w-0"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                    {/* Row */}
+                    <div className="flex items-start justify-between gap-3 p-3 md:p-4 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                            request.status === "accepted"
-                              ? "bg-success/10 text-success"
+                          className={cn(
+                            "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center",
+                            req.status === "accepted"
+                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
                               : "bg-primary/10 text-primary"
-                          }`}
+                          )}
                         >
-                          <Link2 className="h-5 w-5" />
+                          <Link2 className="h-4 w-4" />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground">
-                            Request #{request.id}
+                            Request #{req.id}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Child: {request.child?.email || "Unknown"}
-                            {request.parentEmail ? ` · Parent: ${request.parentEmail}` : ""}
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {req.child?.email || "Unknown"}
+                            {req.parentEmail && ` · ${req.parentEmail}`}
                           </p>
                         </div>
                       </div>
                       <Badge
-                        variant="outline"
-                        className={
-                          request.status === "accepted"
-                            ? "border-success/30 bg-success/10 text-success"
-                            : request.status === "pending"
-                            ? "border-primary/30 bg-primary/10 text-primary"
-                            : "border-border bg-secondary/50 text-muted-foreground"
-                        }
+                        className={cn(
+                          "text-[10px] border-0 shrink-0 flex items-center gap-1",
+                          req.status === "accepted"
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                            : req.status === "pending"
+                            ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                            : "bg-secondary text-muted-foreground"
+                        )}
                       >
-                        {request.status}
+                        {req.status === "accepted"
+                          ? <CheckCircle className="h-3 w-3" />
+                          : <Clock className="h-3 w-3" />}
+                        {req.status}
                       </Badge>
                     </div>
 
-                    {/* Linking code display */}
-                    {request.code && (
-                      <div className="mt-3 rounded-lg border border-border bg-background p-3">
-                        <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                          Linking Code
-                        </p>
-                        <p className="mt-1 font-mono text-sm font-medium text-foreground">
-                          {request.code}
-                        </p>
+                    {/* Linking code */}
+                    {req.code && (
+                      <div className="mx-3 md:mx-4 mb-3 flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 px-4 py-3 min-w-0">
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Linking Code
+                          </p>
+                          <p className="font-mono text-sm font-bold tracking-widest text-foreground mt-0.5">
+                            {req.code}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(req.code)
+                            toast({ title: "Code copied!" })
+                          }}
+                          className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
 
-                    {/* Accept form (shown to parent) */}
-                    {request.parentId === user?.id && request.status === "pending" && (
-                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <div className="flex flex-1 flex-col gap-1.5">
-                          <label className="text-xs font-medium text-foreground">
+                    {/* Accept form */}
+                    {req.parentId === user?.id && req.status === "pending" && (
+                      <div className="px-3 md:px-4 pb-3 flex flex-col sm:flex-row gap-2 sm:items-end min-w-0">
+                        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">
                             Enter code from child
                           </label>
                           <input
-                            value={acceptCodes[request.id] || ""}
+                            value={acceptCodes[req.id] || ""}
                             onChange={(e) =>
-                              setAcceptCodes((prev) => ({
-                                ...prev,
-                                [request.id]: e.target.value,
-                              }))
+                              setAcceptCodes((p) => ({ ...p, [req.id]: e.target.value }))
                             }
-                            placeholder="ABCDE1"
-                            className="rounded-lg border border-border bg-input px-4 py-2.5 font-mono text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                            placeholder="e.g. ABCDE1"
+                            className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all min-w-0"
                           />
                         </div>
-                        <Button
-                          onClick={() => acceptRequest(request.id)}
-                          disabled={acceptingRequest[request.id]}
-                          className="shrink-0"
+                        <button
+                          onClick={() => acceptRequest(req.id)}
+                          disabled={acceptingRequest[req.id]}
+                          className="shrink-0 flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                         >
-                          {acceptingRequest[request.id] ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Accepting...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Accept Request
-                            </>
-                          )}
-                        </Button>
+                          {acceptingRequest[req.id]
+                            ? <><Loader2 className="h-4 w-4 animate-spin" /> Accepting…</>
+                            : <><CheckCircle className="h-4 w-4" /> Accept</>}
+                        </button>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
+            </SettingsCard>
           )}
 
-          {/* Child Account Limits (parents only) */}
-          {isParent && !loading && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader
-                title="Child Account Limits"
-                description="Set custom resource limits for your linked children. Leave fields blank to inherit account defaults."
-              />
-
-              {childMessage && !requests.length && (
-                <div
-                  className={`mt-4 flex items-start gap-3 rounded-lg border p-4 text-sm ${
-                    childMessage.toLowerCase().includes("fail") ||
-                    childMessage.toLowerCase().includes("error")
-                      ? "border-destructive/30 bg-destructive/5 text-destructive"
-                      : "border-success/30 bg-success/5 text-success"
-                  }`}
-                >
-                  {childMessage.toLowerCase().includes("fail") ||
-                  childMessage.toLowerCase().includes("error") ? (
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  ) : (
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  )}
-                  {childMessage}
-                </div>
-              )}
-
-              <div className="mt-5 flex flex-col gap-4">
-                {children.length === 0 ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4 shrink-0" />
-                    No linked children found.
-                  </div>
-                ) : (
-                  children.map((child) => (
-                    <div
-                      key={child.id}
-                      className="rounded-lg border border-border bg-secondary/10 p-4"
+          {/* ── Parent-only ───────────────────────────────────────────────── */}
+          {!loading && isParent && (
+            <>
+              {/* Create invite */}
+              <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  Invite Child Account
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Create an invite link your child can use during registration. Optionally
+                  prefill their email.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <FormInput
+                    label="Child email (optional)"
+                    type="email"
+                    placeholder="child@example.com"
+                    value={childEmail}
+                    onChange={setChildEmail}
+                    icon={Mail}
+                  />
+                  <div>
+                    <button
+                      onClick={createParentInvite}
+                      disabled={creatingInvite}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                     >
-                      {/* Child header */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Baby className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {child.firstName || child.email}
-                            </p>
-                            {child.firstName && (
-                              <p className="text-xs text-muted-foreground">{child.email}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="date"
-                            value={childDobEdits[child.id] ?? ""}
-                            onChange={(e) => setChildDobEdits((prev) => ({ ...prev, [child.id]: e.target.value }))}
-                            className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => updateChildDob(child.id)}
-                            disabled={savingChildDob[child.id]}
-                          >
-                            {savingChildDob[child.id] ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving...
-                              </>
-                            ) : (
-                              "Save DOB"
-                            )}
-                          </Button>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => updateChildLimits(child.id)}
-                          disabled={savingLimits[child.id]}
-                        >
-                          {savingLimits[child.id] ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Sliders className="mr-2 h-4 w-4" />
-                              Save Limits
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                      {creatingInvite
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating…</>
+                        : <><UserPlus className="h-4 w-4" /> Create Invite</>}
+                    </button>
+                  </div>
+                  {inviteMessage && <InlineAlert type="success" message={inviteMessage} />}
+                </div>
+              </SettingsCard>
 
-                      {/* Limit fields */}
-                      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        {limitFields.map((field) => (
-                          <div key={field.key} className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                              {field.label}
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={limitEdits[child.id]?.[field.key] ?? ""}
-                              onChange={(e) =>
-                                updateLimitField(child.id, field.key, e.target.value)
-                              }
-                              placeholder="Default"
-                              className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
+              {/* Active invites list */}
+              <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+                <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground">Active Invites</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Manage pending child invite links.
+                    </p>
+                  </div>
+                  {invites.length > 0 && (
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {invites.length}
+                    </Badge>
+                  )}
+                </div>
+
+                {childMessage && (
+                  <div className="mb-4">
+                    <InlineAlert type={parseAlertType(childMessage)} message={childMessage} />
+                  </div>
                 )}
-              </div>
-            </div>
+
+                {invites.length === 0 ? (
+                  <EmptyState
+                    icon={UserPlus}
+                    title="No active invites"
+                    description="Create an invite above to get started."
+                  />
+                ) : (
+                  <div className="flex flex-col gap-2.5 min-w-0">
+                    {invites.map((invite) => (
+                      <div
+                        key={invite.id}
+                        className="rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4 hover:bg-secondary/30 transition-colors min-w-0 overflow-hidden"
+                      >
+                        <div className="flex items-start justify-between gap-3 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {invite.childEmail || "Open Invite"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              #{invite.id}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(invite.link)
+                                toast({ title: "Link copied!" })
+                              }}
+                              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <a
+                              href={invite.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                            <button
+                              onClick={() => revokeInvite(invite.id)}
+                              className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-[0.98]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-border/50 bg-secondary/30 px-3 py-2 min-w-0">
+                          <p className="flex-1 truncate font-mono text-xs text-muted-foreground min-w-0">
+                            {invite.link}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SettingsCard>
+
+              {/* Linked children */}
+              <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+                <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground">Linked Children</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Overview of child accounts linked to yours. Tap to expand details.
+                    </p>
+                  </div>
+                  {children.length > 0 && (
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {children.length}
+                    </Badge>
+                  )}
+                </div>
+
+                {childMessage && (
+                  <div className="mb-4">
+                    <InlineAlert type={parseAlertType(childMessage)} message={childMessage} />
+                  </div>
+                )}
+
+                {children.length === 0 ? (
+                  <EmptyState
+                    icon={Baby}
+                    title="No linked children"
+                    description="Create an invite above to add a child account."
+                  />
+                ) : (
+                  <div className="flex flex-col gap-2.5 min-w-0">
+                    {children.map((child) => (
+                      <ChildCard
+                        key={child.id}
+                        child={child}
+                        servers={childServers[child.id] || []}
+                        orders={childOrders[child.id]  || []}
+                        orgs={childOrgs[child.id]      || []}
+                        dobEdit={childDobEdits[child.id]   || ""}
+                        savingDob={!!savingChildDob[child.id]}
+                        onDobChange={(value) =>
+                          setChildDobEdits((p) => ({ ...p, [child.id]: value }))
+                        }
+                        onSaveDob={() => updateChildDob(child.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </SettingsCard>
+            </>
           )}
 
-          {/* Account Info */}
-          {user && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader
-                title="Account Information"
-                description="Your current account details and family status."
-              />
-              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="text-sm font-medium text-foreground">{user.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Account Role</p>
-                    <p className="text-sm font-medium text-foreground capitalize">
-                      {isParent
-                        ? "Parent"
-                        : isLinkedChild
-                        ? "Linked child"
-                        : isChild
-                        ? "Child"
-                        : "Unknown"}
-                    </p>
-                  </div>
-                  {isParent ? (
-                    <CheckCircle className="ml-auto h-4 w-4 text-success" />
-                  ) : isLinkedChild ? (
-                    <Link2 className="ml-auto h-4 w-4 text-primary" />
-                  ) : isChild ? (
-                    <Baby className="ml-auto h-4 w-4 text-primary" />
-                  ) : (
-                    <AlertTriangle className="ml-auto h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-                  <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Age</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {age != null ? `${age} years old` : "Not set"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-                  <Link2 className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Linked Children</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {isParent ? `${children.length} linked` : "N/A"}
-                    </p>
-                  </div>
-                  {isParent && children.length > 0 && (
-                    <CheckCircle className="ml-auto h-4 w-4 text-success" />
-                  )}
-                </div>
+          {/* ── Account summary ──────────────────────────────────────────── */}
+          {user && !loading && (
+            <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <h3 className="text-sm font-semibold text-foreground mb-4">
+                Account Summary
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0">
+                <SettingRow icon={Mail} title="Email" description={user.email} />
+                <SettingRow
+                  icon={Users}
+                  title="Account Role"
+                  description={accountRole}
+                  action={
+                    isParent
+                      ? <CheckCircle className="h-4 w-4 text-green-500" />
+                      : isChild
+                      ? <Baby className="h-4 w-4 text-primary" />
+                      : <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  }
+                />
+                <SettingRow
+                  icon={ShieldCheck}
+                  title="Age"
+                  description={age != null ? `${age} years old` : "Not set — update in Settings"}
+                />
+                <SettingRow
+                  icon={Link2}
+                  title="Linked Children"
+                  description={isParent ? `${children.length} linked` : "N/A"}
+                  action={
+                    isParent && children.length > 0
+                      ? <CheckCircle className="h-4 w-4 text-green-500" />
+                      : undefined
+                  }
+                />
               </div>
-            </div>
+            </SettingsCard>
           )}
+
         </div>
-      </ScrollArea>
-    </>
+      </div>
+    </div>
   )
 }

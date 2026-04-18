@@ -18,20 +18,27 @@ function validationErrors(errors: Record<string, string>): ValidationErrorBody {
   return { type: 'validation', on: 'body', found: errors };
 }
 
-export async function validateUserRegistration(ctx: any, _reply?: any, options?: { skipMinimumAge?: boolean }): Promise<boolean> {
+export async function validateUserRegistration(ctx: any, _reply?: any, options?: { skipMinimumAge?: boolean, skipAddressFields?: boolean }): Promise<boolean> {
   const { firstName, lastName, email, password, address, billingCity, billingZip, billingCountry, dateOfBirth, captchaAnswer, captchaToken } = ctx.body as any;
 
-  const missingFields = [
+  const fields = [
     { key: 'firstName', value: firstName },
     { key: 'lastName', value: lastName },
     { key: 'email', value: email },
     { key: 'password', value: password },
-    { key: 'address', value: address },
-    { key: 'billingCity', value: billingCity },
-    { key: 'billingZip', value: billingZip },
-    { key: 'billingCountry', value: billingCountry },
     { key: 'dateOfBirth', value: dateOfBirth },
-  ].filter((item) => !item.value);
+  ];
+
+  if (!options?.skipAddressFields) {
+    fields.push(
+      { key: 'address', value: address },
+      { key: 'billingCity', value: billingCity },
+      { key: 'billingZip', value: billingZip },
+      { key: 'billingCountry', value: billingCountry },
+    );
+  }
+
+  const missingFields = fields.filter((item) => !item.value);
 
   if (missingFields.length) {
     ctx.set.status = 400;
