@@ -216,7 +216,7 @@ function KbdHint({ keys, label }: { keys: string[]; label?: string }) {
           {k}
         </kbd>
       ))}
-      {label && <span className="text-[9px] text-primary/30 ml-0.5">{label}</span>}
+      {label && <span className="text-[9px] text-primary/60 ml-0.5">{label}</span>}
     </span>
   )
 }
@@ -228,12 +228,12 @@ function ControlBar({ hints }: { hints: { keys: string[]; label: string }[] }) {
         {hints.map(h => (
           <span key={h.label} className="flex items-center gap-1.5">
             <KbdHint keys={h.keys} />
-            <span className="font-mono text-[9px] text-primary/35 uppercase tracking-wider">
+            <span className="font-mono text-[9px] text-primary/65 uppercase tracking-wider">
               {h.label}
             </span>
           </span>
         ))}
-        <span className="ml-auto font-mono text-[9px] text-primary/20 hidden sm:block">
+        <span className="ml-auto font-mono text-[9px] text-primary/50 hidden sm:block">
           tap / swipe on mobile
         </span>
       </div>
@@ -293,7 +293,7 @@ function PixelBox({
 function SectionHeader({ label, title }: { label: string; title: string }) {
   return (
     <div className="mb-8">
-      <p className="font-mono text-[10px] tracking-[0.3em] text-primary/40 uppercase mb-2">
+      <p className="font-mono text-[10px] tracking-[0.3em] text-primary/70 uppercase mb-2">
         // {label}
       </p>
       <h2 className="font-mono text-2xl sm:text-3xl font-black text-primary"
@@ -309,7 +309,7 @@ function BackButton({ onBack }: { onBack: () => void }) {
   return (
     <button
       onClick={onBack}
-      className="mb-8 flex items-center gap-3 font-mono text-xs text-primary/40 hover:text-primary transition-colors group"
+      className="mb-8 flex items-center gap-3 font-mono text-xs text-primary/70 hover:text-primary transition-colors group"
     >
       <span className="group-hover:-translate-x-1 transition-transform">◄</span>
       {t("controls.backToMenu")}
@@ -348,7 +348,7 @@ function TerminalWindowFrame({
         <div className="h-2 w-2 rounded-full bg-red-500/60" />
         <div className="h-2 w-2 rounded-full bg-yellow-500/60" />
         <div className="h-2 w-2 rounded-full bg-green-500/60" />
-        <span className="ml-2 font-mono text-[10px] text-primary/30 tracking-wider">{title}</span>
+        <span className="ml-2 font-mono text-[10px] text-primary/60 tracking-wider">{title}</span>
       </div>
       <div className="p-4 sm:p-5">{children}</div>
     </PixelBox>
@@ -419,9 +419,9 @@ function BootScreen({ onDone }: { onDone: () => void }) {
               i === 0                        ? "text-primary font-bold text-base sm:text-lg" :
               i === 12                       ? "text-primary font-bold"                :
               line === t("boot.line10")     ? "text-green-400"                           :
-              line.startsWith("Copyright")  ? "text-primary/40"                       :
+              line.startsWith("Copyright")  ? "text-primary/70"                       :
               line.includes("OK")           ? "text-primary/55"                       :
-              "text-primary/30"
+              "text-primary/60"
             }`}>
               {line === "" ? <>&nbsp;</> : line}
             </div>
@@ -430,7 +430,7 @@ function BootScreen({ onDone }: { onDone: () => void }) {
         </div>
 
         {!done && (
-          <div className="mt-4 text-xs text-primary/40">
+          <div className="mt-4 text-xs text-primary/70">
             {t("boot.skipHint")}
           </div>
         )}
@@ -442,9 +442,9 @@ function BootScreen({ onDone }: { onDone: () => void }) {
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <KbdHint keys={["ANY KEY"]} />
-                <span className="font-mono text-xs text-primary/40">{t("boot.waitPrompt")}</span>
+                <span className="font-mono text-xs text-primary/70">{t("boot.waitPrompt")}</span>
               </div>
-              <span className="font-mono text-[10px] text-primary/25">
+              <span className="font-mono text-[10px] text-primary/55">
                 {t("boot.mobileHint")}
               </span>
             </div>
@@ -545,7 +545,7 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
         </div>
 
         {!introDone && (
-          <div className="mb-6 text-xs text-primary/40">
+          <div className="mb-6 text-xs text-primary/70">
             {t("lang.skipHint")}
           </div>
         )}
@@ -553,7 +553,7 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
         {introDone && (
           <PixelBox className="p-0 overflow-hidden" glow>
             <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
-              <span className="font-mono text-[10px] text-primary/40 tracking-[0.2em] uppercase">
+              <span className="font-mono text-[10px] text-primary/70 tracking-[0.2em] uppercase">
                 {t("lang.title")}
               </span>
               <div className="hidden sm:flex items-center gap-3">
@@ -592,26 +592,26 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
                       font-mono text-[9px] flex-shrink-0 py-0.5 uppercase
                       ${isSel
                         ? "border-primary/50 bg-primary/20 text-primary"
-                        : "border-primary/20 bg-primary/5 text-primary/30"
+                        : "border-primary/20 bg-primary/5 text-primary/60"
                       }
                     `}>
                       {locale.code}
                     </kbd>
 
                     <span className={`text-sm font-bold tracking-wide transition-colors ${
-                      isSel ? "text-primary" : "text-primary/45"
+                      isSel ? "text-primary" : "text-primary/75"
                     }`}>
                       {locale.native}
                     </span>
 
                     <span className={`text-xs ml-auto transition-colors ${
-                      isSel ? "text-primary/50" : "text-primary/20"
+                      isSel ? "text-primary/50" : "text-primary/50"
                     }`}>
                       {locale.label}
                     </span>
 
                     {locale.code === currentLocale && (
-                      <span className="font-mono text-[9px] text-primary/40 border border-primary/20 px-1.5 py-0.5">
+                      <span className="font-mono text-[9px] text-primary/70 border border-primary/20 px-1.5 py-0.5">
                         {t("lang.current")}
                       </span>
                     )}
@@ -621,7 +621,7 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
             </div>
 
             <div className="border-t border-primary/10 px-4 py-2">
-              <span className="font-mono text-[9px] text-primary/20">
+              <span className="font-mono text-[9px] text-primary/50">
                 {t("lang.footer")}
               </span>
             </div>
@@ -629,7 +629,7 @@ function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
         )}
 
         {introDone && (
-          <p className="mt-3 font-mono text-[10px] text-primary/20 sm:hidden">
+          <p className="mt-3 font-mono text-[10px] text-primary/50 sm:hidden">
             {t("lang.mobileHint")}
           </p>
         )}
@@ -709,7 +709,7 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
 
         <div className="mb-6 space-y-0.5">
           {output.map((line, i) => (
-            <div key={i} className="font-mono text-xs text-primary/40">
+            <div key={i} className="font-mono text-xs text-primary/70">
               {line}
               {i === output.length - 1 && !introDone && <Cursor color="text-primary" />}
             </div>
@@ -717,13 +717,13 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
         </div>
 
         {!introDone && (
-          <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
+          <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
         )}
 
         {introDone && (
           <PixelBox className="p-0 overflow-hidden" glow>
             <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
-              <span className="font-mono text-[10px] text-primary/40 tracking-[0.2em] uppercase">
+              <span className="font-mono text-[10px] text-primary/70 tracking-[0.2em] uppercase">
                 {t("legal.title")}
               </span>
               <div className="hidden sm:flex items-center gap-3">
@@ -764,7 +764,7 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
                       rounded border font-mono text-[9px] flex-shrink-0
                       ${isSel
                         ? "border-primary/50 bg-primary/20 text-primary"
-                        : "border-primary/20 bg-primary/5 text-primary/30"
+                        : "border-primary/20 bg-primary/5 text-primary/60"
                       }
                     `}>
                       {doc.key}
@@ -777,7 +777,7 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
                     </span>
 
                     <span className={`text-xs ml-auto hidden sm:block transition-colors ${
-                      isSel ? "text-primary/45" : "text-primary/20"
+                      isSel ? "text-primary/75" : "text-primary/50"
                     }`}>
                       {doc.desc}
                     </span>
@@ -793,7 +793,7 @@ function LegalScreen({ onBack }: { onBack: () => void }) {
             </div>
 
             <div className="border-t border-primary/10 px-4 py-2">
-              <span className="font-mono text-[9px] text-primary/20">
+              <span className="font-mono text-[9px] text-primary/50">
                 {t("legal.footer")}
               </span>
             </div>
@@ -887,11 +887,11 @@ function MainMenu({
           <div className="space-y-0.5">
             {headerOut.map((line, i) => (
               <div key={i} className={`font-mono text-xs sm:text-sm ${
-                i === 1 ? "text-primary/40" :
+                i === 1 ? "text-primary/70" :
                 i === 2 && infra?.status === "online" ? "text-green-400" :
                 i === 2 && infra?.status === "degraded" ? "text-yellow-400" :
                 i === 2 && infra?.status === "offline" ? "text-red-400" :
-                "text-primary/40"
+                "text-primary/70"
               }`}>
                 {line}
                 {i === headerOut.length - 1 && !headerDone && <Cursor color="text-primary" />}
@@ -899,7 +899,7 @@ function MainMenu({
             ))}
           </div>
           {!headerDone && (
-            <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
+            <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
           )}
         </div>
 
@@ -908,7 +908,7 @@ function MainMenu({
           <div className="flex-1">
             <PixelBox className="p-0 overflow-hidden">
               <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
-                <span className="font-mono text-[10px] text-primary/40 tracking-[0.2em] uppercase">
+                <span className="font-mono text-[10px] text-primary/70 tracking-[0.2em] uppercase">
                   {t("menu.title")}
                 </span>
                 <div className="hidden sm:flex items-center gap-3">
@@ -943,7 +943,7 @@ function MainMenu({
                         rounded border text-[9px] flex-shrink-0 font-mono transition-colors
                         ${isSel
                           ? "border-primary/60 bg-primary/20 text-primary"
-                          : "border-primary/20 bg-primary/5 text-primary/30"
+                          : "border-primary/20 bg-primary/5 text-primary/60"
                         }
                       `}>
                         {item.key}
@@ -957,13 +957,13 @@ function MainMenu({
                       </span>
 
                       <span className={`text-sm font-bold tracking-wider transition-colors ${
-                        isSel ? "text-primary" : "text-primary/45"
-                      } ${item.id === "legal" ? "text-primary/30" : ""}`}>
+                        isSel ? "text-primary" : "text-primary/75"
+                      } ${item.id === "legal" ? "text-primary/60" : ""}`}>
                         {t(item.labelKey)}
                       </span>
 
                       <span className={`text-xs ml-auto hidden sm:block transition-colors ${
-                        isSel ? "text-primary/55" : "text-primary/20"
+                        isSel ? "text-primary/55" : "text-primary/50"
                       }`}>
                         {t(item.descKey)}
                       </span>
@@ -973,7 +973,7 @@ function MainMenu({
                         rounded border px-1.5 py-0.5 text-[9px] flex-shrink-0 transition-colors
                         ${isSel
                           ? "border-primary/40 bg-primary/15 text-primary/60"
-                          : "border-primary/10 text-primary/20"
+                          : "border-primary/10 text-primary/50"
                         }
                       `}>
                         {item.fKey}
@@ -985,13 +985,13 @@ function MainMenu({
 
               <div className="border-t border-primary/10 px-4 py-2 flex items-center justify-between">
                 <StatusPip infra={infra} />
-                <span className="font-mono text-[9px] text-primary/20">{t("menu.version")}</span>
+                <span className="font-mono text-[9px] text-primary/50">{t("menu.version")}</span>
               </div>
             </PixelBox>
 
             <div className="mt-3 sm:hidden">
               <PixelBox className="px-4 py-3">
-                <p className="font-mono text-xs text-primary/40">
+                <p className="font-mono text-xs text-primary/70">
                   ► {t(MENU_ITEMS[selected].descKey)}
                 </p>
               </PixelBox>
@@ -1000,26 +1000,26 @@ function MainMenu({
 
           <div className="hidden lg:flex flex-col gap-3 w-60">
             <PixelBox className="p-4 flex-1" glow>
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase text-primary/35 mb-4">
+              <p className="font-mono text-[9px] tracking-[0.2em] uppercase text-primary/65 mb-4">
                 {t("menu.systemInfo")}
               </p>
               <div className="space-y-4">
                 <div>
-                  <p className="font-mono text-[9px] text-primary/25 mb-1">{t("menu.statusLabel")}</p>
+                  <p className="font-mono text-[9px] text-primary/55 mb-1">{t("menu.statusLabel")}</p>
                   <StatusPip infra={infra} />
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] text-primary/25 mb-1">{t("menu.nodesLabel")}</p>
+                  <p className="font-mono text-[9px] text-primary/55 mb-1">{t("menu.nodesLabel")}</p>
                   <p className="font-mono text-lg text-primary">
                     {infra ? new Intl.NumberFormat().format(infra.nodeCount) : "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] text-primary/25 mb-2">{t("menu.networkLabel")}</p>
+                  <p className="font-mono text-[9px] text-primary/55 mb-2">{t("menu.networkLabel")}</p>
                   <div className="space-y-1">
-                    <p className="font-mono text-xs"><span className="text-green-400">{infra?.online ?? "—"}</span><span className="text-primary/30 ml-2">{t("status.online")}</span></p>
-                    <p className="font-mono text-xs"><span className="text-yellow-400">{infra?.degraded ?? "—"}</span><span className="text-primary/30 ml-2">{t("status.degraded")}</span></p>
-                    <p className="font-mono text-xs"><span className="text-red-400">{infra?.offline ?? "—"}</span><span className="text-primary/30 ml-2">{t("status.offline")}</span></p>
+                    <p className="font-mono text-xs"><span className="text-green-400">{infra?.online ?? "—"}</span><span className="text-primary/60 ml-2">{t("status.online")}</span></p>
+                    <p className="font-mono text-xs"><span className="text-yellow-400">{infra?.degraded ?? "—"}</span><span className="text-primary/60 ml-2">{t("status.degraded")}</span></p>
+                    <p className="font-mono text-xs"><span className="text-red-400">{infra?.offline ?? "—"}</span><span className="text-primary/60 ml-2">{t("status.offline")}</span></p>
                   </div>
                 </div>
                 <div className="border-t border-primary/10 pt-3 space-y-2">
@@ -1034,7 +1034,7 @@ function MainMenu({
             </PixelBox>
 
             <PixelBox className="p-3">
-              <p className="font-mono text-[9px] text-primary/20 leading-relaxed">
+              <p className="font-mono text-[9px] text-primary/50 leading-relaxed">
                 {t("hero.nextGen")} {t("hero.subtitle")}
               </p>
             </PixelBox>
@@ -1101,14 +1101,14 @@ function FeaturesScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeo
               onClick={() => setActive(active === idx ? null : idx)}>
               <div className="flex items-start gap-3 mb-3">
                 <kbd className={`inline-flex items-center justify-center w-5 h-5 rounded border text-[9px] flex-shrink-0 ${
-                  active === idx ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/20 bg-primary/5 text-primary/30"
+                  active === idx ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/20 bg-primary/5 text-primary/60"
                 }`}>{idx + 1}</kbd>
                 <span className={`text-xs font-bold ${active === idx ? "text-pink-300" : "text-pink-400/55"}`}>{f.title}</span>
               </div>
-              <p className={`text-xs leading-relaxed pl-8 ${active === idx ? "text-primary/70" : "text-primary/35"}`}>{f.text}</p>
+              <p className={`text-xs leading-relaxed pl-8 ${active === idx ? "text-primary/70" : "text-primary/65"}`}>{f.text}</p>
               {active === idx && (
                 <div className="mt-3 pl-8 border-t border-primary/20 pt-3">
-                  <span className="text-[10px] text-primary/40">{t("features.activeTag")}</span><Cursor color="text-primary" />
+                  <span className="text-[10px] text-primary/70">{t("features.activeTag")}</span><Cursor color="text-primary" />
                 </div>
               )}
             </button>
@@ -1161,7 +1161,7 @@ function AboutScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof u
           <div className="space-y-4">
             {output.map((line, i) => (
               <p key={i} className="font-mono text-xs sm:text-sm leading-[1.9] text-primary/50">
-                <span className="text-primary/40">&gt; </span>{line.replace("> ", "")}
+                <span className="text-primary/70">&gt; </span>{line.replace("> ", "")}
                 {i === output.length - 1 && !done && <Cursor color="text-primary" />}
               </p>
             ))}
@@ -1169,7 +1169,7 @@ function AboutScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof u
         </PixelBox>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[t("community.group1"), t("community.group2"), t("community.group3"), t("community.group4")].map(g => (
-            <PixelBox key={g} className="p-3 text-center"><p className="font-mono text-[10px] text-primary/35">{g}</p></PixelBox>
+            <PixelBox key={g} className="p-3 text-center"><p className="font-mono text-[10px] text-primary/65">{g}</p></PixelBox>
           ))}
         </div>
       </div>
@@ -1212,12 +1212,12 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
       <div className="relative z-10 max-w-4xl mx-auto">
         <BackButton onBack={onBack} />
         <SectionHeader label={t("sections.plans")} title={t("plans.title").replace("# ", "")} />
-        <p className="font-mono text-xs text-primary/30 mb-8">{t("plans.subtitle")}</p>
+        <p className="font-mono text-xs text-primary/60 mb-8">{t("plans.subtitle")}</p>
         <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
           {plans.map((p, i) => (
             <button key={p.id} onClick={() => setSelected(i)}
               className={`flex-shrink-0 px-3 sm:px-4 py-2 font-mono text-xs border transition-all ${
-                selected === i ? `${p.border} bg-card ${p.color} ${p.glow}` : "border-primary/10 text-primary/30 hover:border-primary/20 hover:text-primary/50 active:opacity-60"
+                selected === i ? `${p.border} bg-card ${p.color} ${p.glow}` : "border-primary/10 text-primary/60 hover:border-primary/20 hover:text-primary/50 active:opacity-60"
               }`}>
               <kbd className="hidden sm:inline-flex items-center justify-center w-4 h-4 rounded border border-current opacity-40 text-[9px] mr-1.5">{i+1}</kbd>
               {p.tier}{"badge" in p && p.badge && <span className="ml-1.5 text-[9px] text-pink-400/60">[{p.badge}]</span>}
@@ -1233,7 +1233,7 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
                   <span className={`font-mono text-4xl font-black ${plan.color}`} style={{ textShadow: "0 0 16px currentColor" }}>{plan.price}</span>
                   {plan.period && <span className={`font-mono text-sm ${plan.color} opacity-40`}>{plan.period}</span>}
                 </div>
-                <p className="font-mono text-xs text-primary/35 mt-2">{plan.tagline}</p>
+                <p className="font-mono text-xs text-primary/65 mt-2">{plan.tagline}</p>
               </div>
               {"badge" in plan && plan.badge && (
                 <span className={`font-mono text-[10px] border ${plan.border} px-3 py-1 ${plan.color} tracking-widest`}>{plan.badge}</span>
@@ -1241,7 +1241,7 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
             </div>
             <div className="grid sm:grid-cols-2 gap-2 mb-6">
               {plan.items.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 font-mono text-xs text-primary/45">
+                <div key={i} className="flex items-center gap-2 font-mono text-xs text-primary/75">
                   <span className={`${plan.color} opacity-40 flex-shrink-0`}>+</span>{item}
                 </div>
               ))}
@@ -1251,7 +1251,7 @@ function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof
                 &gt; {t("plans.ctaStart")}
               </Link>
               {plan.id === "enterprise" && (
-                <a href="mailto:contact@ecli.app" className="border border-primary/15 px-5 py-2.5 font-mono text-sm text-primary/45 hover:border-primary/30 hover:text-primary transition-all">
+                <a href="mailto:contact@ecli.app" className="border border-primary/15 px-5 py-2.5 font-mono text-sm text-primary/75 hover:border-primary/30 hover:text-primary transition-all">
                   {t("plans.contactUs")}
                 </a>
               )}
@@ -1314,7 +1314,7 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
             <div className="space-y-1.5">
               {output.map((line, i) => (
                 <div key={i} className={`font-mono text-xs sm:text-sm ${
-                  i === 0 ? "text-primary/35" :
+                  i === 0 ? "text-primary/65" :
                   i === 1 ? "text-pink-400/70" :
                   i === 2 ? "text-primary/70" :
                   i === 3 && infra?.status === "online" ? "text-green-400" :
@@ -1329,13 +1329,13 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
               ))}
             </div>
             {!done && (
-              <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
+              <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
             )}
             <div className="flex-1 space-y-3">
             </div>
           </TerminalWindowFrame>
           <div className="space-y-3">
-            <p className="font-mono text-xs text-primary/35 leading-relaxed">{t("community.description")}</p>
+            <p className="font-mono text-xs text-primary/65 leading-relaxed">{t("community.description")}</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { label: t("status.online"),   val: infra?.online,   color: "text-green-400",  border: "border-green-500/20"  },
@@ -1344,19 +1344,19 @@ function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: Infr
               ].map(s => (
                 <PixelBox key={s.label} className={`p-3 text-center border ${s.border}`}>
                   <p className={`font-mono text-xl font-black ${s.color}`}>{s.val ?? "—"}</p>
-                  <p className="font-mono text-[9px] text-primary/30 mt-1">{s.label}</p>
+                  <p className="font-mono text-[9px] text-primary/60 mt-1">{s.label}</p>
                 </PixelBox>
               ))}
             </div>
             <PixelBox className="p-4">
-              <p className="font-mono text-[9px] text-primary/25 mb-1">{t("community.totalNodes")}</p>
+              <p className="font-mono text-[9px] text-primary/55 mb-1">{t("community.totalNodes")}</p>
               <p className="font-mono text-3xl font-black text-primary" style={{ textShadow: "0 0 14px var(--glow)" }}>
                 {infra ? new Intl.NumberFormat().format(infra.nodeCount) : "—"}
               </p>
             </PixelBox>
             <div className="grid grid-cols-2 gap-2">
               {[t("community.group1"), t("community.group2"), t("community.group3"), t("community.group4")].map(g => (
-                <PixelBox key={g} className="p-2.5 text-center"><p className="font-mono text-[10px] text-primary/35">{g}</p></PixelBox>
+                <PixelBox key={g} className="p-2.5 text-center"><p className="font-mono text-[10px] text-primary/65">{g}</p></PixelBox>
               ))}
             </div>
             <Link href="/dashboard" className="block w-full border border-primary/30 bg-primary/10 py-3 text-center font-mono text-sm text-primary hover:bg-primary/20 hover:border-primary/50 transition-all active:opacity-60">
@@ -1406,13 +1406,13 @@ function FaqScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof use
             <div key={i} className={`border transition-all duration-200 ${open === i ? "border-primary/40 bg-primary/10" : "border-primary/10 bg-card hover:border-primary/25"}`}>
               <button className="w-full flex items-center gap-3 p-4 text-left group" onClick={() => setOpen(open === i ? null : i)}>
                 <kbd className={`inline-flex items-center justify-center w-5 h-5 rounded border font-mono text-[9px] flex-shrink-0 ${
-                  open === i ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/15 bg-primary/5 text-primary/25"
+                  open === i ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/15 bg-primary/5 text-primary/55"
                 }`}>{i+1}</kbd>
                 <span className={`flex-1 font-mono text-xs sm:text-sm font-semibold transition-colors ${open === i ? "text-primary" : "text-primary/55 group-hover:text-primary/70"}`}>{faq.q}</span>
-                <span className="font-mono text-xs text-primary/30 flex-shrink-0 transition-transform duration-200" style={{ transform: open === i ? "rotate(90deg)" : "none" }}>►</span>
+                <span className="font-mono text-xs text-primary/60 flex-shrink-0 transition-transform duration-200" style={{ transform: open === i ? "rotate(90deg)" : "none" }}>►</span>
               </button>
               <div style={{ maxHeight: open === i ? "300px" : 0, overflow: "hidden", transition: "max-height 0.3s ease" }}>
-                <p className="font-mono text-xs text-primary/40 leading-relaxed px-4 pb-4 pl-[52px] border-t border-primary/10 pt-3">{faq.a}</p>
+                <p className="font-mono text-xs text-primary/70 leading-relaxed px-4 pb-4 pl-[52px] border-t border-primary/10 pt-3">{faq.a}</p>
               </div>
             </div>
           ))}
@@ -1467,17 +1467,17 @@ function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof 
       <div className="relative z-10 max-w-3xl mx-auto">
         <BackButton onBack={onBack} />
         <SectionHeader label={t("sections.deploy")} title={t("cta.title").replace("# ", "")} />
-        <p className="font-mono text-xs text-primary/30 mb-8 max-w-md">{t("cta.subtitle")}</p>
+        <p className="font-mono text-xs text-primary/60 mb-8 max-w-md">{t("cta.subtitle")}</p>
         <TerminalWindowFrame title={t("deploy.consoleTitle")} className="mb-6">
           <div className="space-y-1.5">
             {output.map((line, i) => (
               <div key={i} className={`font-mono text-xs sm:text-sm ${
                 line === "" ? "h-3" :
-                i === 0 ? "text-primary/35" :
+                i === 0 ? "text-primary/65" :
                 i >= 1 && i <= 5 ? "text-primary/55" :
                 i === 7 ? "text-green-400 font-bold" :
                 i === 8 ? "text-primary/60" :
-                "text-primary/30"
+                "text-primary/60"
               }`}>
                 {line === "" ? <>&nbsp;</> : line}
                 {i === output.length - 1 && !done && <Cursor color="text-primary" />}
@@ -1486,7 +1486,7 @@ function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof 
           </div>
         </TerminalWindowFrame>
         {!done && (
-          <div className="mb-4 text-xs text-primary/40">{t("skipHint")}</div>
+          <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
         )}
         {done && (
           <div className="flex flex-col sm:flex-row gap-3">
@@ -1496,13 +1496,13 @@ function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof 
               &gt; {t("cta.register")}
             </Link>
             <Link href="/dashboard"
-              className="flex-1 border border-primary/15 py-3 sm:py-4 text-center font-mono text-sm text-primary/45 hover:border-primary/30 hover:text-primary transition-all active:opacity-60">
+              className="flex-1 border border-primary/15 py-3 sm:py-4 text-center font-mono text-sm text-primary/75 hover:border-primary/30 hover:text-primary transition-all active:opacity-60">
               {t("cta.dashboard")}
             </Link>
           </div>
         )}
         <div className="mt-8 border-t border-primary/10 pt-6" id="contact">
-          <p className="font-mono text-[11px] text-primary/25">
+          <p className="font-mono text-[11px] text-primary/55">
             {t("footer.customSetup")}{" "}
             <a href="mailto:contact@ecli.app" className="text-primary/55 hover:text-primary transition-colors">contact@ecli.app</a>
             {" · "}
