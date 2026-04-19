@@ -637,7 +637,7 @@ export const NAVIGATION: NavSection[] = [
     title: "Administration",
     items: [
       {
-        label: "Admin Panel",
+        label: "Staff Portal",
         href: "/dashboard/admin",
         icon: Shield,
         badge: "Staff",
