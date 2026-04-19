@@ -2,12 +2,13 @@ import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
-import { In, MoreThanOrEqual } from 'typeorm';
+import { In, MoreThanOrEqual, Not } from 'typeorm';
 import { User } from '../models/user.entity';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
 import { isValidIpv6Cidr } from '../utils/ipv6';
+import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { t } from 'elysia';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
@@ -78,16 +79,27 @@ export async function nodeRoutes(app: any, prefix = '') {
       return sanitizeNodes(nodes);
     }
 
+    const unhealthyNodeIds = await getUnhealthyNodeIds();
+    const baseOptions: any = { relations: ['organisation'] };
+
     if (portalType === 'enterprise') {
       const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
       const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
       if (orgIds.length === 0) return [];
-      const nodes = await nodeRepo().find({ where: { organisation: { id: In(orgIds) } } as any, relations: ['organisation'] });
+      baseOptions.where = { organisation: { id: In(orgIds) } } as any;
+      if (unhealthyNodeIds.length) {
+        baseOptions.where.id = Not(In(unhealthyNodeIds));
+      }
+      const nodes = await nodeRepo().find(baseOptions);
       return sanitizeNodes(nodes);
     }
 
     const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
-    const nodes = await nodeRepo().find({ where: { nodeType: In(types) }, relations: ['organisation'] });
+    baseOptions.where = { nodeType: In(types) };
+    if (unhealthyNodeIds.length) {
+      baseOptions.where.id = Not(In(unhealthyNodeIds));
+    }
+    const nodes = await nodeRepo().find(baseOptions);
     return sanitizeNodes(nodes);
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
