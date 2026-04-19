@@ -1283,8 +1283,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       {isKvm && (
         <div className="flex items-center gap-1 border-b border-border px-4 pt-3 pb-0 bg-secondary/5">
           {[
-            { key: "qemu", label: "VM Filesystem", icon: HardDrive },
-            { key: "sftp", label: "SFTP", icon: Wifi },
+            { key: "qemu", label: "QEMU Host Folder", icon: HardDrive },
+            { key: "sftp", label: "VM Filesystem via SFTP", icon: Wifi },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
