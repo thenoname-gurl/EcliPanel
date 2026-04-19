@@ -161,6 +161,7 @@ export const API_ENDPOINTS = {
   serverSftpFileCreateDir: "/api/servers/:id/sftp/create-directory",
   serverSftpFileMove: "/api/servers/:id/sftp/move",
   serverSftpFileRename: "/api/servers/:id/sftp/rename",
+  serverSftpValidate: "/api/servers/:id/sftp/validate",
   serverSftpFileChmod: "/api/servers/:id/sftp/chmod",
   serverDatabases: "/api/servers/:id/databases",
   serverDatabaseCredentials: "/api/servers/:id/databases/:dbId/credentials",
