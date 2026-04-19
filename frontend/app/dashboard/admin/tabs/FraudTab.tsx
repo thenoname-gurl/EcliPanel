@@ -13,8 +13,8 @@ export default function FraudTab({ ctx }: { ctx: any }) {
     fraudScanningAll,
     setFraudAlerts,
     displayedFraudAlerts,
-    hideSuspendedFraud,
-    setHideSuspendedFraud,
+    showSuspendedFraud,
+    setShowSuspendedFraud,
     selectAllFraud,
     setSelectAllFraud,
     setSelectedFraudIds,
@@ -67,19 +67,14 @@ export default function FraudTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      {displayedFraudAlerts.length === 0 ? (
-        <div className="p-8 text-center">
-          <Shield className="h-8 w-8 mx-auto text-success/60 mb-2" />
-          <p className="text-sm text-muted-foreground">{t("states.empty")}</p>
-        </div>
-      ) : (
-        <>
-          <div className="p-2 border-b border-border flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <label className="flex items-center text-xs text-muted-foreground gap-2">
-                <input type="checkbox" checked={hideSuspendedFraud} onChange={(e) => setHideSuspendedFraud(e.target.checked)} className="accent-primary" />
-                {t("filters.hideSuspended")}
-              </label>
+      <div className="p-2 border-b border-border flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <label className="flex items-center text-xs text-muted-foreground gap-2">
+            <input type="checkbox" checked={showSuspendedFraud} onChange={(e) => setShowSuspendedFraud(e.target.checked)} className="accent-primary" />
+            {t("filters.showSuspended")}
+          </label>
+          {displayedFraudAlerts.length > 0 && (
+            <>
               <button
                 onClick={() => {
                   const nowAll = !selectAllFraud
@@ -112,9 +107,18 @@ export default function FraudTab({ ctx }: { ctx: any }) {
               >
                 {bulkDismissing ? t("actions.dismissing") : t("actions.dismissSelected", { count: selectedFraudIds.length })}
               </button>
-            </div>
-            <div />
-          </div>
+            </>
+          )}
+        </div>
+        <div />
+      </div>
+      {displayedFraudAlerts.length === 0 ? (
+        <div className="p-8 text-center">
+          <Shield className="h-8 w-8 mx-auto text-success/60 mb-2" />
+          <p className="text-sm text-muted-foreground">{t("states.empty")}</p>
+        </div>
+      ) : (
+        <>
           <div className="divide-y divide-border">
             {displayedFraudAlerts.map((alert: any) => (
               <div key={alert.id} className="p-4 flex items-start gap-4">

@@ -1393,7 +1393,7 @@ export default function AdminPanel() {
   const [fraudScanning, setFraudScanning] = useState(false)
   const [fraudScanningAll, setFraudScanningAll] = useState(false)
   const [selectedFraudIds, setSelectedFraudIds] = useState<number[]>([])
-  const [hideSuspendedFraud, setHideSuspendedFraud] = useState<boolean>(true)
+  const [showSuspendedFraud, setShowSuspendedFraud] = useState<boolean>(false)
   const [selectAllFraud, setSelectAllFraud] = useState<boolean>(false)
   const [bulkDismissing, setBulkDismissing] = useState<boolean>(false)
 
@@ -1974,7 +1974,7 @@ export default function AdminPanel() {
 
   // ── Fraud display filtering ──
   const displayedFraudAlerts = fraudAlerts.filter((a) => {
-    if (hideSuspendedFraud && a.suspended) return false
+    if (!showSuspendedFraud && a.suspended) return false
     return true
   })
 
@@ -5330,8 +5330,8 @@ remote: ${panelUrl}`
                     fraudScanningAll,
                     setFraudAlerts,
                     displayedFraudAlerts,
-                    hideSuspendedFraud,
-                    setHideSuspendedFraud,
+                    showSuspendedFraud,
+                    setShowSuspendedFraud,
                     selectAllFraud,
                     setSelectAllFraud,
                     setSelectedFraudIds,

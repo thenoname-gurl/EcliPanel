@@ -1870,7 +1870,8 @@
       "subtitle": "AI scans user billing info for suspicious patterns"
     },
     "filters": {
-      "hideSuspended": "Hide suspended"
+      "hideSuspended": "Hide suspended",
+      "showSuspended": "Show suspended / handled fraud alerts"
     },
     "states": {
       "empty": "No fraud alerts — all users look clean",
