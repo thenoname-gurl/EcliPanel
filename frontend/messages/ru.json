@@ -3870,6 +3870,7 @@
   },
   "serverFilesTab": {
     "actions": {
+      "connect": "Подключиться",
       "create": "Создать",
       "cancel": "Отмена",
       "save": "Сохранить",
@@ -3901,7 +3902,8 @@
     },
     "inputs": {
       "fileNamePlaceholder": "filename.txt",
-      "folderNamePlaceholder": "folder-name"
+      "folderNamePlaceholder": "folder-name",
+      "sftpPassword": "Пароль SFTP"
     },
     "preview": {
       "zoomOut": "Уменьшить",
@@ -3931,7 +3933,8 @@
       "port": "Порт",
       "username": "Имя пользователя",
       "sftpModeDescription": "Используйте прямой доступ по SFTP к файловой системе гостевой ВМ.",
-      "sftpCommand": "Команда SFTP"
+      "sftpCommand": "Команда SFTP",
+      "sftpPassword": "Пароль SFTP"
     },
     "confirm": {
       "openUnknownType": "Этот тип файла может отображаться некорректно. Всё равно открыть?",
@@ -3966,6 +3969,7 @@
       "sftpAuthRequired": "Введите пароль SFTP, чтобы продолжить.",
       "sftpAuthFailed": "Ошибка авторизации SFTP. Проверьте пароль и попробуйте снова.",
       "sftpAutoAuthFailed": "Авто-вход SFTP через ROOT_PASSWORD не удался: {reason}. Введите пароль вручную.",
+      "sftpDetailsUnavailable": "Данные SFTP-подключения недоступны.",
       "bulkChmodFailed": "Ошибка массового chmod: {reason}",
       "bulkDeleteFailed": "Ошибка массового удаления: {reason}"
     }
