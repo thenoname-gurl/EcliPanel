@@ -1547,6 +1547,7 @@ export async function authRoutes(app: any, prefix = '') {
         limits: returnedLimits,
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,
+        permissions: ctx.userPermissions || [],
         geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
         idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
         demoExpiresAt: user.demoExpiresAt || null,

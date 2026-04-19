@@ -90,7 +90,7 @@ import {
   Code
 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
 import ReactMarkdown from "react-markdown";
@@ -838,8 +838,36 @@ export default function AdminPanel() {
   const t = useTranslations("adminPage")
   const router = useRouter()
   const { user, isLoading } = useAuth()
+  const adminAccess = !!user && hasPermission(user, 'admin:access')
 
-  const isAdmin = !!user && (user.role === "*" || user.role === "rootAdmin" || user.role === "admin")
+  const adminTabs = [
+    { value: 'users', label: t('tabs.users'), permission: 'users:read' },
+    { value: 'metrics', label: t('tabs.metrics'), permission: 'admin:access' },
+    { value: 'export-jobs', label: t('tabs.exportJobs'), permission: 'admin:access' },
+    { value: 'organisations', label: t('tabs.organisations'), permission: 'org:read' },
+    { value: 'servers', label: t('tabs.servers'), permission: 'servers:read' },
+    { value: 'tickets', label: t('tabs.tickets'), feature: 'ticketing', permission: 'tickets:read' },
+    { value: 'applications', label: t('tabs.applications'), feature: 'applications', permission: 'applications:manage' },
+    { value: 'verifications', label: t('tabs.kyc'), permission: 'idverification:read' },
+    { value: 'deletions', label: t('tabs.deletions'), permission: 'deletions:write' },
+    { value: 'nodes', label: t('tabs.nodes'), permission: 'nodes:read' },
+    { value: 'tunnels', label: t('tabs.tunnels'), feature: 'tunnels', permission: 'tunnels:read' },
+    { value: 'eggs', label: t('tabs.eggs'), permission: 'eggs:read' },
+    { value: 'ai', label: t('tabs.aiModels'), feature: 'ai', permission: 'ai:read' },
+    { value: 'announcements', label: t('tabs.announcements'), permission: 'admin:access' },
+    { value: 'outbound-emails', label: t('tabs.outboundEmails'), permission: 'admin:access' },
+    { value: 'antiabuse', label: t('tabs.antiabuse'), permission: 'admin:access' },
+    { value: 'fraud', label: t('tabs.fraud'), permission: 'admin:access' },
+    { value: 'roles', label: t('tabs.roles'), permission: 'roles:read' },
+    { value: 'logs', label: t('tabs.logs'), permission: 'logs:read' },
+    { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permission: 'oauth:manage' },
+    { value: 'databases', label: t('tabs.databases'), permission: 'databases:read' },
+    { value: 'plans', label: t('tabs.plans'), permission: 'plans:read' },
+    { value: 'orders', label: t('tabs.orders'), permission: 'orders:read' },
+    { value: 'settings', label: t('tabs.settings'), permission: 'roles:read' },
+  ]
+
+  const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => tab.permission && hasPermission(user, tab.permission)))
 
   useEffect(() => {
     if (isLoading) return
@@ -847,12 +875,12 @@ export default function AdminPanel() {
       router.replace("/login")
       return
     }
-    if (!isAdmin) {
+    if (!canAccessAdmin) {
       router.replace("/dashboard")
     }
-  }, [user, isAdmin, isLoading, router])
-
-  if (isLoading || !user || !isAdmin) {
+  }, [user, canAccessAdmin, isLoading, router])
+  
+  if (isLoading || !user || !canAccessAdmin) {
     return null
   }
 
@@ -3601,33 +3629,8 @@ remote: ${panelUrl}`
             <TabsList
               className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-hidden px-2 border border-border bg-secondary/50"
             >
-              {[
-                { value: "users", label: t("tabs.users") },
-                { value: "metrics", label: t("tabs.metrics") },
-                { value: "export-jobs", label: t("tabs.exportJobs") },
-                { value: "organisations", label: t("tabs.organisations") },
-                { value: "servers", label: t("tabs.servers") },
-                { value: "tickets", label: t("tabs.tickets"), feature: "ticketing" },
-                { value: "applications", label: t("tabs.applications"), feature: "applications" },
-                { value: "verifications", label: t("tabs.kyc") },
-                { value: "deletions", label: t("tabs.deletions") },
-                { value: "nodes", label: t("tabs.nodes") },
-                { value: "tunnels", label: t("tabs.tunnels"), feature: "tunnels" },
-                { value: "eggs", label: t("tabs.eggs") },
-                { value: "ai", label: t("tabs.aiModels"), feature: "ai" },
-                { value: "announcements", label: t("tabs.announcements") },
-                { value: "outbound-emails", label: t("tabs.outboundEmails") },
-                { value: "antiabuse", label: t("tabs.antiabuse") },
-                { value: "fraud", label: t("tabs.fraud") },
-                { value: "roles", label: t("tabs.roles") },
-                { value: "logs", label: t("tabs.logs") },
-                { value: "oauth", label: t("tabs.oauth"), feature: "oauth" },
-                { value: "databases", label: t("tabs.databases") },
-                { value: "plans", label: t("tabs.plans") },
-                { value: "orders", label: t("tabs.orders") },
-                { value: "settings", label: t("tabs.settings") },
-              ]
-                .filter((t) => !t.feature || panelSettings.featureToggles[t.feature])
+              {adminTabs
+                .filter((t) => (!t.feature || panelSettings.featureToggles[t.feature]) && (adminAccess || !t.permission || hasPermission(user, t.permission)))
                 .map((t) => (
                   <TabsTrigger
                     key={t.value}

@@ -4,7 +4,7 @@ import { OrganisationDnsZone } from '../models/organisationDnsZone.entity';
 import { OrganisationInvite } from '../models/organisationInvite.entity';
 import { OrganisationMember } from '../models/organisationMember.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { User } from '../models/user.entity';
 import { createMailboxMessageForUser } from '../utils/mailboxMessage';
@@ -132,13 +132,11 @@ export async function organisationRoutes(app: any, prefix = '') {
     detail: { summary: 'Create a new organisation', tags: ['Organisations'] }
   });
 
-  async function userCanManageOrg(user: User, org: Organisation) {
+  async function userCanManageOrg(ctx: any, user: User, org: Organisation) {
     const membership = await getMembership(user.id, org.id);
     return (
-      user.role === 'admin' ||
-      user.role === 'rootAdmin' ||
+      hasPermissionSync(ctx, 'admin:access') ||
       user.role === 'staff' ||
-      user.role === '*' ||
       user.id === org.ownerId ||
       !!membership
     );
@@ -152,7 +150,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const membership = await getMembership(user.id, org.id);
-    if (user.id !== org.ownerId && !membership && user.role !== 'admin' && user.role !== '*') {
+    if (user.id !== org.ownerId && !membership && !hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -181,7 +179,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.log?.info?.({ action: 'org:dns:delete:auth-check', userId: user?.id, userRole: user?.role, orgId: org?.id, orgOwnerId: org?.ownerId }, 'org DNS delete auth check');
     } catch { }
 
-    if (!(await userCanManageOrg(user, org))) {
+    if (!(await userCanManageOrg(ctx, user, org))) {
       ctx.log?.info?.({ action: 'org:dns:delete:forbidden', userId: user?.id, userRole: user?.role, orgId: org?.id }, 'forbidden org DNS delete attempt');
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -208,7 +206,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (!(await userCanManageOrg(user, org))) {
+    if (!(await userCanManageOrg(ctx, user, org))) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -251,7 +249,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (!(await userCanManageOrg(user, org))) {
+    if (!(await userCanManageOrg(ctx, user, org))) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -316,7 +314,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         return { error: 'Organisation not found' };
       }
       const user = ctx.user as User;
-      if (!(await userCanManageOrg(user, org))) {
+      if (!(await userCanManageOrg(ctx, user, org))) {
         ctx.set.status = 403;
         return { error: 'Forbidden' };
       }
@@ -385,7 +383,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         return { error: 'Organisation not found' };
       }
       const user = ctx.user as User;
-      if (!(await userCanManageOrg(user, org))) {
+      if (!(await userCanManageOrg(ctx, user, org))) {
         ctx.set.status = 403;
         return { error: 'Forbidden' };
       }
@@ -454,7 +452,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (!(await userCanManageOrg(user, org))) {
+    if (!(await userCanManageOrg(ctx, user, org))) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -491,7 +489,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (!(await userCanManageOrg(user, org))) {
+    if (!(await userCanManageOrg(ctx, user, org))) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -540,7 +538,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.id !== org.ownerId && user.role !== 'admin' && user.role !== '*') {
+    if (user.id !== org.ownerId && !hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -564,7 +562,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const actorMembership = await getMembership(user.id, org.id);
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || user.role === 'admin' || user.role === '*';
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'admin:access');
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -584,7 +582,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const actorMembership = await getMembership(user.id, org.id);
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || user.role === 'admin' || user.role === '*';
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'admin:access');
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -616,7 +614,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const actorMembership = await getMembership(user.id, org.id);
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || user.role === 'admin' || user.role === '*';
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'admin:access');
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -632,7 +630,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Invalid role' };
     }
-    if (orgRole === 'owner' && user.id !== org.ownerId && user.role !== 'admin' && user.role !== '*') {
+    if (orgRole === 'owner' && user.id !== org.ownerId && !hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Only owner can transfer ownership' };
     }
@@ -672,7 +670,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     const inviter = ctx.user as User;
     await createActivityLog({ userId: inviter.id, action: 'org:invite', targetId: String(org.id), targetType: 'organisation', metadata: { invitedEmail: email }, ipAddress: ctx.ip });
 
-    const targetUser = await userRepo().findOneBy({ email }).catch(() => null);
+    const targetUser = await userRepo.findOneBy({ email }).catch(() => null);
     const panelEmail = targetUser ? (await getMailboxAccountForUser(targetUser.id).catch(() => null))?.email : null;
     const recipients = Array.from(new Set([email, panelEmail].filter(Boolean) as string[]));
     try {
@@ -764,8 +762,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const actor = ctx.user as User;
-    const adminRoles = ['admin', 'rootAdmin', '*'];
-    if (!adminRoles.includes(actor.role ?? '')) {
+    if (!hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -975,7 +972,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (!(await userCanManageOrg(user, org))) {
+    if (!(await userCanManageOrg(ctx, user, org))) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

@@ -3,7 +3,7 @@ import { extractStats } from '../services/metricsCollector';
 import { nodeService } from '../services/nodeService';
 import { listSftpFiles, readSftpFile, writeSftpFile, deleteSftpFiles, mkdirSftp, renameSftp, moveSftpFiles, chmodSftp, validateSftpCredentials } from '../services/sftpClientService';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
@@ -373,8 +373,8 @@ export async function serverRoutes(app: any, prefix = '') {
     return nodeSvc.getServiceForServer(serverId);
   }
 
-  async function pickNode(user: any, preferredNodeId?: number, assignedNodeId?: number): Promise<Node> {
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+  async function pickNode(ctx: any, user: any, preferredNodeId?: number, assignedNodeId?: number): Promise<Node> {
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
     const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
     const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
     const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
@@ -459,7 +459,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
 
     const user = ctx.user;
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
     const configs = isAdmin
       ? await cfgRepo.find()
@@ -716,7 +716,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
 
     const user = ctx.user;
-    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
     if (!cfg) {
       ctx.set.status = 404;
       return { error: 'Server not found' };
@@ -913,7 +913,7 @@ export async function serverRoutes(app: any, prefix = '') {
   app.delete(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
     const user = ctx.user;
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
     const force = (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) || (ctx.body && ctx.body.force === true);
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: id });
@@ -972,7 +972,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/servers', async (ctx: any) => {
     const user = ctx.user;
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
     const geoLevel = await getGeoBlockLevel(user.billingCountry);
     if (!isAdmin && geoLevel >= 4) {
@@ -1066,7 +1066,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     let node: Node;
     try {
-      node = await pickNode(user, nodeId, user.nodeId);
+      node = await pickNode(ctx, user, nodeId, user.nodeId);
     } catch (e: any) {
       ctx.set.status = 503;
       return { error: e.message };
@@ -1514,7 +1514,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { memory, disk, cpu, swap, environment, name, kvmPassthroughEnabled } = ctx.body as any;
 
     const user = ctx.user;
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
     if (kvmPassthroughEnabled !== undefined && !isAdmin) {
       const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -1579,7 +1579,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     const { action, ipv6Address } = ctx.body as any || {};
     const user = ctx.user;
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
     if (!isAdmin) {
       ctx.set.status = 403;
@@ -1977,7 +1977,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { enable } = ctx.body as any;
 
     const user = ctx.user;
-    if (!user || !(user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin')) {
+    if (!user || !hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Insufficient permissions (admin only)' };
     }
@@ -3142,7 +3142,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     let svc = await serviceFor(id);
 
-    if (payload && payload.sourceNodeId && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+    if (payload && payload.sourceNodeId && hasPermissionSync(ctx, 'admin:access')) {
       const nodeId = Number(payload.sourceNodeId);
       try {
         const node = await nodeRepo().findOneBy({ id: nodeId });
@@ -3157,7 +3157,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    if (payload && payload.targetNodeId && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')) {
+    if (payload && payload.targetNodeId && hasPermissionSync(ctx, 'admin:access')) {
       const targetId = Number(payload.targetNodeId);
       try {
         const targetNode = await nodeRepo().findOneBy({ id: targetId });
@@ -3288,7 +3288,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const user = ctx.user;
-    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
     if (!isAdmin) {
       const owned = cfg.userId === user?.id;
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
@@ -3448,7 +3448,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const user = ctx.user;
-    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
     if (!isAdmin) {
       const owned = cfg.userId === user?.id;
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
@@ -4005,7 +4005,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const user = ctx.user;
-    const isAdmin = user?.role === '*' || user?.role === 'rootAdmin' || user?.role === 'admin';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
     const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
     const editableKeys = new Set<string>();

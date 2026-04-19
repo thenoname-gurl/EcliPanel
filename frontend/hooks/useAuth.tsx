@@ -8,7 +8,7 @@ import { THEMES, applyTheme } from "@/lib/themes"
 import { Loader2 } from "lucide-react"
 import { locales, type AppLocale } from "@/i18n/config"
 
-interface User {
+export interface User {
   id: number
   email: string
   firstName?: string
@@ -25,6 +25,7 @@ interface User {
   billingCountry?: string
   tier?: string
   role?: string
+  permissions?: string[]
   sessionId?: string
   org?: { id: number; name: string; handle: string } | null
   orgs?: Array<{ id: number; name: string; handle: string; portalTier?: string; avatarUrl?: string | null; orgRole?: string }>
@@ -37,6 +38,7 @@ interface User {
   supportBanned?: boolean
   supportBanReason?: string | null
   suspended?: boolean
+  idVerified?: boolean
   euIdVerificationDisabled?: boolean
   settings?: Record<string, any>
   guideShown?: boolean
@@ -65,6 +67,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 function hasCompletedGuide(user: User | null | undefined): boolean {
   if (!user) return true
   return user.guideShown === true || user.settings?.guideShown === true
+}
+
+function permissionMatches(granted: string, required: string) {
+  if (!granted || !required) return false
+  if (granted === '*') return true
+  if (granted === required) return true
+  const parts = String(granted).split(':')
+  const reqParts = String(required).split(':')
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === '*') return true
+    if (reqParts[i] !== parts[i]) return false
+  }
+  return true
+}
+
+export function hasPermission(user: User | null | undefined, required: string): boolean {
+  if (!user) return false
+  if (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin') return true
+  const perms = Array.isArray(user.permissions) ? user.permissions : []
+  if (perms.includes('*')) return true
+  return perms.some((p) => permissionMatches(p, required))
 }
 
 function needsAgeVerification(user: User | null | undefined): boolean {

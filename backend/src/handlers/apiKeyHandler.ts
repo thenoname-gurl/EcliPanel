@@ -1,7 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { ApiKey } from '../models/apiKey.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import crypto from 'crypto';
 import { t } from 'elysia';
 
@@ -47,7 +47,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
     const actor = ctx.user as any;
 
     let userRef;
-    const isAdmin = actor && (actor.role === 'admin' || actor.role === 'rootAdmin' || actor.role === '*');
+    const isAdmin = actor && hasPermissionSync(ctx, 'admin:access');
     if (userId) {
       if (!isAdmin && userId !== actor?.id) {
         ctx.set.status = 403;
@@ -103,7 +103,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
       return { error: 'Forbidden' };
     }
     const user = ctx.user;
-    if (user && (user.role === 'admin' || key.user?.id === user.id)) {
+    if (user && (hasPermissionSync(ctx, 'apikeys:read') || key.user?.id === user.id)) {
       return { ...key, key: undefined };
     }
     ctx.set.status = 403;

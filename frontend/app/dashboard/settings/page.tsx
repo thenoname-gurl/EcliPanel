@@ -75,6 +75,21 @@ const AVAILABLE_PERMISSIONS = [
   "permissions:assign",
   "users:read",
   "users:write",
+  "logs:read",
+  "idverification:read",
+  "idverification:write",
+  "oauth:manage",
+  "applications:manage",
+  "eggs:read",
+  "deletions:write",
+  "tunnels:read",
+  "soc:read",
+  "ai:read",
+  "databases:read",
+  "plans:read",
+  "orders:read",
+  "mailbox:read",
+  "id-docs:read",
 ] as const
 
 function isSupportedLocale(value: string): value is AppLocale {

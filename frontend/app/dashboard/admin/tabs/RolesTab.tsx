@@ -274,6 +274,15 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                       <option value="roles:read">roles:read</option>
                       <option value="roles:create">roles:create</option>
                       <option value="permissions:assign">permissions:assign</option>
+                      <option value="admin:access">admin:access</option>
+                      <option value="users:read">users:read</option>
+                      <option value="users:write">users:write</option>
+                      <option value="logs:read">logs:read</option>
+                      <option value="idverification:read">idverification:read</option>
+                      <option value="idverification:write">idverification:write</option>
+                      <option value="oauth:manage">oauth:manage</option>
+                      <option value="applications:manage">applications:manage</option>
+                      <option value="deletions:write">deletions:write</option>
                     </optgroup>
                     <optgroup label="Wings">
                       <option value="wings:system">wings:system</option>

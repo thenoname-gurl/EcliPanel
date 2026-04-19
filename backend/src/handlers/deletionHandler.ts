@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { DeletionRequest } from '../models/deletionRequest.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
 
 // I hope this will never be a very popular feature, but here we are.
@@ -33,7 +34,7 @@ export async function deletionRoutes(app: any, prefix = '') {
 
   app.put(prefix + '/deletion-requests/:id', async (ctx: any) => {
     const user = ctx.user;
-    if (user.role !== 'admin') {
+    if (!hasPermissionSync(ctx, 'deletions:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

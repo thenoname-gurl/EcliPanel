@@ -1,6 +1,106 @@
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 
+function permissionMatches(granted: string, required: string) {
+  if (!granted || !required) return false;
+  if (granted === '*') return true;
+  if (granted === required) return true;
+  const parts = String(granted).split(':');
+  const reqParts = String(required).split(':');
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === '*') return true;
+    if (reqParts[i] !== parts[i]) return false;
+  }
+  return true;
+}
+
+function getUserPermissionsFromCtx(ctx: any): string[] {
+  const user = ctx.user as User | undefined;
+  if (!user) return [];
+  if (user.role === '*' || user.role === 'rootAdmin') return ['*'];
+  if (Array.isArray(ctx.userPermissions)) return ctx.userPermissions;
+
+  const perms: string[] = [];
+  const loadedUser = user as any;
+  if (Array.isArray(loadedUser.userRoles)) {
+    for (const ur of loadedUser.userRoles) {
+      const role = ur?.role;
+      if (!role || !Array.isArray(role.permissions)) continue;
+      for (const perm of role.permissions) {
+        if (perm && typeof perm.value === 'string') {
+          perms.push(perm.value);
+        }
+      }
+    }
+  }
+  return perms;
+}
+
+export function hasPermissionSync(ctx: any, required: string): boolean {
+  const user = ctx.user as User | undefined;
+  if (!user) return false;
+  if (user.role === '*' || user.role === 'rootAdmin') return true;
+
+  const perms = getUserPermissionsFromCtx(ctx);
+  return perms.some((p) => permissionMatches(p, required));
+}
+
+export function isAdminContext(ctx: any): boolean {
+  if (!ctx) return false;
+  const apiKey = ctx.apiKey;
+  if (apiKey?.type === 'admin') return true;
+  return hasPermissionSync(ctx, 'admin:access');
+}
+
+export async function getUserPermissions(ctx: any): Promise<string[]> {
+  const user = ctx.user as User | undefined;
+  if (!user) return [];
+  if (user.role === '*' || user.role === 'rootAdmin') return ['*'];
+
+  const perms = getUserPermissionsFromCtx(ctx);
+  if (perms.length > 0) return perms;
+
+  const userRepo = AppDataSource.getRepository(User);
+  const u = await userRepo.findOne({
+    where: { id: user.id },
+    relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+  });
+  if (u && Array.isArray(u.userRoles)) {
+    for (const ur of u.userRoles) {
+      const role = ur?.role as any;
+      if (!role || !Array.isArray(role.permissions)) continue;
+      for (const perm of role.permissions) {
+        if (perm && typeof perm.value === 'string') {
+          perms.push(perm.value);
+        }
+      }
+    }
+  }
+
+  if (perms.length === 0) {
+    try {
+      const roleRepo = AppDataSource.getRepository(require('../models/role.entity').Role);
+      const def = await roleRepo.findOne({ where: { name: 'default' }, relations: ['permissions'] });
+      if (def && Array.isArray(def.permissions)) {
+        def.permissions.forEach((p: any) => perms.push(p.value));
+      }
+    } catch (e) {
+      console.warn('[authorize] failed to load default role permissions', e?.message || e);
+    }
+  }
+
+  return perms;
+}
+
+export async function hasPermission(ctx: any, required: string): Promise<boolean> {
+  const user = ctx.user as User | undefined;
+  if (!user) return false;
+  if (user.role === '*' || user.role === 'rootAdmin') return true;
+
+  const perms = await getUserPermissions(ctx);
+  return perms.some((p) => permissionMatches(p, required));
+}
+
 export function authorize(required: string) {
   return async (ctx: any) => {
     const apiKey = ctx.apiKey;
@@ -9,17 +109,7 @@ export function authorize(required: string) {
     if (apiKey) {
       if (apiKey.type === 'admin') return;
       const perms: string[] = apiKey.permissions || [];
-      const has = perms.some((p) => {
-        if (p === '*') return true;
-        if (p === required) return true;
-        const parts = p.split(':');
-        const reqParts = required.split(':');
-        for (let i = 0; i < parts.length; i++) {
-          if (parts[i] === '*') return true;
-          if (reqParts[i] !== parts[i]) return false;
-        }
-        return false;
-      });
+      const has = perms.some((p) => permissionMatches(p, required));
       if (has) return;
       ctx.set.status = 403;
       return { error: 'Insufficient permissions (api key)' };
@@ -51,13 +141,14 @@ export function authorize(required: string) {
       'databases:',
     ];
     const isServerRelated = serverRelatedPrefixes.some((prefix) => required.startsWith(prefix));
-    if (isServerRelated && user.role !== 'admin' && !user.dateOfBirth) {
+    if (isServerRelated && !hasPermissionSync(ctx, 'admin:access') && !user.dateOfBirth) {
       ctx.set.status = 403;
       return { error: 'Age verification is required before using server management features.' };
     }
 
-    if (required === 'transfer:execute' && user.role === 'admin') {
-      return;
+    if (required === 'transfer:execute' && !hasPermissionSync(ctx, 'admin:access')) {
+      ctx.set.status = 403;
+      return { error: 'Insufficient permissions' };
     }
 
     const isServerScoped = required.startsWith('servers:') || required.startsWith('files:');
@@ -171,47 +262,10 @@ export function authorize(required: string) {
       }
     }
 
-    const userRepo = AppDataSource.getRepository(User);
-    const u = await userRepo.findOne({
-      where: { id: user.id },
-      relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
-    });
-    if (!u) {
-      ctx.set.status = 401;
-      return { error: 'Unauthorized' };
-    }
+    const has = await hasPermission(ctx, required);
+    if (has) return;
 
-    const perms: string[] = [];
-    u.userRoles.forEach((ur) => {
-      ur.role.permissions.forEach((p) => perms.push(p.value));
-    });
-
-    if (perms.length === 0) {
-      try {
-        const roleRepo = AppDataSource.getRepository(require('../models/role.entity').Role);
-        const def = await roleRepo.findOne({ where: { name: 'default' }, relations: ['permissions'] });
-        if (def && Array.isArray(def.permissions)) {
-          def.permissions.forEach((p: any) => perms.push(p.value));
-        }
-      } catch (e) {
-        console.warn('[authorize] failed to load default role permissions', e?.message || e);
-      }
-    }
-
-    const has = perms.some((p) => {
-      if (p === '*') return true;
-      if (p === required) return true;
-      const parts = p.split(':');
-      const reqParts = required.split(':');
-      for (let i = 0; i < parts.length; i++) {
-        if (parts[i] === '*') return true;
-        if (reqParts[i] !== parts[i]) return false;
-      }
-      return false;
-    });
-    if (!has) {
-      ctx.set.status = 403;
-      return { error: 'Insufficient permissions' };
-    }
+    ctx.set.status = 403;
+    return { error: 'Insufficient permissions' };
   };
 }

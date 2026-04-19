@@ -3,7 +3,7 @@ import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
 import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import axios from 'axios';
 import { redisClient } from '../config/redis';
@@ -15,14 +15,13 @@ import { In } from 'typeorm';
 
 // I swear I hate this route handler, 
 // its a dumping ground ngl
-const adminRoles = ['admin', 'rootAdmin', '*'];
 function requireAdmin(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user) {
     ctx.set.status = 401;
     return { error: 'Unauthenticated' };
   }
-  if (!adminRoles.includes(user.role ?? '')) {
+  if (!hasPermissionSync(ctx, 'admin:access')) {
     ctx.set.status = 403;
     return { error: 'Forbidden' };
   }

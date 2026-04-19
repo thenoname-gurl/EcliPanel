@@ -9,6 +9,7 @@ import { Node } from '../models/node.entity';
 import { Organisation } from '../models/organisation.entity';
 import { WingsApiService } from '../services/wingsApiService';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { sendMail } from '../services/mailService';
 import { createAdminBroadcastJob } from '../services/adminBroadcastService';
 import { UserLog } from '../models/userLog.entity';
@@ -68,7 +69,6 @@ import { ApplicationSubmission } from '../models/applicationSubmission.entity';
 import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
 import { createActivityLog } from './logHandler';
 
-const adminRoles = ['admin', 'rootAdmin', '*'];
 const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
 const GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE = 0.0777;
 const GAMBLING_DEFAULT_POWER_DENY_CHANCE = 0.5;
@@ -216,7 +216,7 @@ function requireAdminCtx(ctx: any): true | { error: string } {
     ctx.set.status = 401;
     return { error: 'Unauthorized' };
   }
-  if (!adminRoles.includes(user.role ?? '')) {
+  if (!hasPermissionSync(ctx, 'admin:access')) {
     ctx.set.status = 403;
     return { error: 'Admin access required.' };
   }

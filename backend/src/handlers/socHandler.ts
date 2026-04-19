@@ -1,7 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { SocData } from '../models/socData.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { WingsApiService } from '../services/wingsApiService';
 import { redisGet, redisSet } from '../config/redis';
 import { t } from 'elysia';
@@ -27,7 +27,7 @@ export async function socRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/soc/overview', async (ctx: any) => {
     const user = ctx.user as any;
-    const isAdmin = ['admin', 'rootAdmin', '*'].includes(user.role ?? '');
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
     const cacheKey = isAdmin
       ? 'soc:overview:admin'
