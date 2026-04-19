@@ -15,15 +15,15 @@ import { In } from 'typeorm';
 
 // I swear I hate this route handler, 
 // its a dumping ground ngl
-function requireAdmin(ctx: any): true | { error: string } {
+function requireAiManagement(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user) {
     ctx.set.status = 401;
-    return { error: 'Unauthenticated' };
+    return { error: 'Unauthorized' };
   }
-  if (!hasPermissionSync(ctx, 'admin:access')) {
+  if (!hasPermissionSync(ctx, 'ai:manage')) {
     ctx.set.status = 403;
-    return { error: 'Forbidden' };
+    return { error: 'AI management permission required.' };
   }
   return true;
 }
@@ -125,7 +125,7 @@ export async function aiRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/ai/models', async (ctx: any) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const body = ctx.body as Partial<AIModel>;
     const model = modelRepo.create(body);
@@ -152,7 +152,7 @@ export async function aiRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/ai/models/:id/link-user', async (ctx: any) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
@@ -183,7 +183,7 @@ export async function aiRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/ai/models/:id/link-org', async (ctx: any) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
@@ -517,7 +517,7 @@ export async function aiRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/admin/ai/models', async (ctx: any) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const models = await modelRepo.find();
     return models;
@@ -528,7 +528,7 @@ export async function aiRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/admin/ai/cooldowns', async (ctx: any) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     try {
       const rows = await redisClient.lRange('admin:ai:cooldowns', 0, 99);
@@ -543,7 +543,7 @@ export async function aiRoutes(app: any, prefix = '') {
   }, { beforeHandle: authenticate, response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }, detail: { summary: 'Recent AI endpoint cooldowns (24h)', tags: ['AI','Admin'] } });
 
   app.post(prefix + '/admin/ai/models', async (ctx: any) => {
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const body = ctx.body as Partial<AIModel>;
     const model = modelRepo.create(body);
@@ -555,7 +555,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/ai/models/:id', async (ctx: any) => {
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
@@ -571,7 +571,7 @@ export async function aiRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/ai/models/:id', async (ctx: any) => {
-    const adminCheck = requireAdmin(ctx);
+    const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {

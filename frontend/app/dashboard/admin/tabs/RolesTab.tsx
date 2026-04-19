@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
@@ -16,6 +17,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
     setRoleDialog,
     setRoleName,
     setRoleDesc,
+    setRoleParentId,
     confirmAsync,
     newPermValue,
     setNewPermValue,
@@ -24,8 +26,85 @@ export default function RolesTab({ ctx }: { ctx: any }) {
     forceRefreshTab,
   } = ctx
 
+  type PermissionDefinition = {
+    value: string
+    category: string
+    description?: string
+    admin: boolean
+  }
+
+  const [permissionMetadata, setPermissionMetadata] = useState<Record<string, PermissionDefinition>>({})
+  const [permissionList, setPermissionList] = useState<PermissionDefinition[]>([])
+
+  useEffect(() => {
+    const loadPermissionMetadata = async () => {
+      try {
+        const data = await apiFetch(API_ENDPOINTS.permissions)
+        if (Array.isArray(data)) {
+          const normalized = data as PermissionDefinition[]
+          setPermissionList(normalized)
+          setPermissionMetadata(Object.fromEntries(normalized.map((perm) => [perm.value, perm])))
+        }
+      } catch {
+        setPermissionMetadata({})
+        setPermissionList([])
+      }
+    }
+
+    loadPermissionMetadata()
+  }, [])
+
+  const permissionGroups = permissionList.reduce<Record<string, PermissionDefinition[]>>((acc, perm) => {
+    if (!acc[perm.category]) acc[perm.category] = []
+    acc[perm.category].push(perm)
+    return acc
+  }, {})
+
+  const categoryOrder = [
+    'Global',
+    'Servers',
+    'Nodes',
+    'AI',
+    'SOC',
+    'Orders',
+    'Organisations',
+    'Roles',
+    'Permissions',
+    'Users',
+    'Logs',
+    'KYC',
+    'OAuth',
+    'Applications',
+    'Deletions',
+    'Tickets',
+    'Databases',
+    'Configuration',
+    'Files',
+    'Backups',
+    'Commands',
+    'Reinstall',
+    'Schedules',
+    'Sync',
+    'Transfer',
+    'Version',
+    'Infra',
+    'Wings',
+  ]
+
+  const orderedPermissionCategories = Object.keys(permissionGroups).sort((a, b) => {
+    const ai = categoryOrder.indexOf(a)
+    const bi = categoryOrder.indexOf(b)
+    if (ai === -1 && bi === -1) return a.localeCompare(b)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+
+  const isAdminPermission = (value: string) => permissionMetadata[value]?.admin === true
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Header */}
       <div className="rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
@@ -42,7 +121,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
           <div className="flex items-center gap-2 shrink-0">
             <Button
               size="sm"
-              onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
+              onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); setRoleParentId(""); }}
               className="bg-primary text-primary-foreground h-8 gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -61,6 +140,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
+        {/* Roles List */}
         <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <List className="h-3.5 w-3.5 text-primary" />
@@ -79,7 +159,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
               </div>
               <Button
                 size="sm"
-                onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); }}
+                onClick={() => { setRoleDialog(true); setRoleName(""); setRoleDesc(""); setRoleParentId(""); }}
                 className="bg-primary text-primary-foreground gap-1.5 mt-1"
               >
                 <Plus className="h-3.5 w-3.5" /> {t("actions.createRole")}
@@ -87,6 +167,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto">
+              {/* Desktop list */}
               <div className="hidden md:flex flex-col divide-y divide-border">
                 {roles.map((role: any) => {
                   const isSelected = selectedRole?.id === role.id
@@ -97,10 +178,11 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     <div
                       key={role.id}
                       onClick={() => setSelectedRole(role)}
-                      className={`flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-all group ${isSelected
-                        ? "bg-primary/10 border-l-2 border-l-primary"
-                        : "hover:bg-secondary/30 border-l-2 border-l-transparent"
-                        }`}
+                      className={`flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-all group ${
+                        isSelected
+                          ? "bg-primary/10 border-l-2 border-l-primary"
+                          : "hover:bg-secondary/30 border-l-2 border-l-transparent"
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -140,6 +222,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 })}
               </div>
 
+              {/* Mobile list */}
               <div className="flex flex-col gap-2 p-2 md:hidden">
                 {roles.map((role: any) => {
                   const isSelected = selectedRole?.id === role.id
@@ -150,10 +233,11 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     <div
                       key={role.id}
                       onClick={() => setSelectedRole(role)}
-                      className={`rounded-lg border p-3 cursor-pointer transition-all ${isSelected
-                        ? "border-primary/40 bg-primary/5"
-                        : "border-border hover:border-primary/20 hover:bg-secondary/20"
-                        }`}
+                      className={`rounded-lg border p-3 cursor-pointer transition-all ${
+                        isSelected
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-border hover:border-primary/20 hover:bg-secondary/20"
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -198,6 +282,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
           )}
         </div>
 
+        {/* Permissions Panel */}
         <div className="lg:col-span-3 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <Key className="h-3.5 w-3.5 text-primary" />
@@ -208,9 +293,19 @@ export default function RolesTab({ ctx }: { ctx: any }) {
               <>
                 <span className="text-xs text-muted-foreground">—</span>
                 <span className="text-xs font-medium text-primary truncate">{selectedRole.name}</span>
+                {selectedRole.parentRole && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    inherits from {selectedRole.parentRole.name}
+                  </span>
+                )}
                 <span className="ml-auto inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  {selectedRole.permissions?.length || 0}
+                  {selectedRole.permissions?.length || 0} direct
                 </span>
+                {selectedRole.permissions?.length ? (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    {selectedRole.permissions.filter((p: any) => isAdminPermission(p.value)).length} admin
+                  </span>
+                ) : null}
               </>
             )}
           </div>
@@ -229,10 +324,26 @@ export default function RolesTab({ ctx }: { ctx: any }) {
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
+              {/* Add permission section */}
               <div className="p-4 border-b border-border bg-secondary/10">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
                   {t("permissions.addPermission")}
                 </p>
+                <div className="grid gap-2 sm:grid-cols-2 text-[11px] text-muted-foreground mb-3">
+                  <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                    <p className="font-medium text-foreground">User-level access</p>
+                    <p className="mt-1 text-xs leading-5">
+                      Permissions like <code>servers:*</code>, <code>files:*</code>, <code>tickets:*</code> and{" "}
+                      <code>databases:*</code> allow normal users to manage servers, tickets, and data.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                    <p className="font-medium text-foreground">Admin-level access</p>
+                    <p className="mt-1 text-xs leading-5">
+                      These labels are driven from backend metadata, so only permissions actually classified as admin-level by the server are tagged here.
+                    </p>
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <select
                     value={newPermValue}
@@ -240,63 +351,15 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 cursor-pointer"
                   >
                     <option value="">{t("permissions.selectPermission")}</option>
-                    <optgroup label="Global">
-                      <option value="*">* (full access)</option>
-                    </optgroup>
-                    <optgroup label="Servers">
-                      <option value="servers:read">servers:read</option>
-                      <option value="servers:write">servers:write</option>
-                      <option value="servers:delete">servers:delete</option>
-                      <option value="servers:*">servers:*</option>
-                    </optgroup>
-                    <optgroup label="Nodes">
-                      <option value="nodes:read">nodes:read</option>
-                      <option value="nodes:write">nodes:write</option>
-                      <option value="nodes:*">nodes:*</option>
-                    </optgroup>
-                    <optgroup label="AI">
-                      <option value="ai:chat">ai:chat</option>
-                      <option value="ai:create">ai:create</option>
-                      <option value="ai:assign">ai:assign</option>
-                      <option value="ai:*">ai:*</option>
-                    </optgroup>
-                    <optgroup label="SOC">
-                      <option value="soc:read">soc:read</option>
-                      <option value="soc:write">soc:write</option>
-                      <option value="soc:*">soc:*</option>
-                    </optgroup>
-                    <optgroup label="Orders">
-                      <option value="orders:read">orders:read</option>
-                      <option value="orders:create">orders:create</option>
-                      <option value="orders:*">orders:*</option>
-                    </optgroup>
-                    <optgroup label="Roles & Permissions">
-                      <option value="roles:read">roles:read</option>
-                      <option value="roles:create">roles:create</option>
-                      <option value="permissions:assign">permissions:assign</option>
-                      <option value="admin:access">admin:access</option>
-                      <option value="users:read">users:read</option>
-                      <option value="users:write">users:write</option>
-                      <option value="logs:read">logs:read</option>
-                      <option value="idverification:read">idverification:read</option>
-                      <option value="idverification:write">idverification:write</option>
-                      <option value="oauth:manage">oauth:manage</option>
-                      <option value="applications:manage">applications:manage</option>
-                      <option value="deletions:write">deletions:write</option>
-                    </optgroup>
-                    <optgroup label="Wings">
-                      <option value="wings:system">wings:system</option>
-                      <option value="wings:transfers">wings:transfers</option>
-                      <option value="wings:backups">wings:backups</option>
-                      <option value="wings:deauthorize">wings:deauthorize</option>
-                      <option value="wings:*">wings:*</option>
-                    </optgroup>
-                    <optgroup label="DNS / Tickets / Other">
-                      <option value="dns:read">dns:read</option>
-                      <option value="dns:write">dns:write</option>
-                      <option value="tickets:read">tickets:read</option>
-                      <option value="tickets:write">tickets:write</option>
-                    </optgroup>
+                    {orderedPermissionCategories.map((category) => (
+                      <optgroup key={category} label={category}>
+                        {permissionGroups[category]?.sort((a, b) => a.value.localeCompare(b.value)).map((perm) => (
+                          <option key={perm.value} value={perm.value}>
+                            {perm.value}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                   <Button
                     size="sm"
@@ -309,7 +372,10 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                           method: "POST",
                           body: JSON.stringify({ value: newPermValue.trim() }),
                         })
-                        const updated = { ...selectedRole, permissions: [...(selectedRole.permissions || []), data.perm] }
+                        const updated = {
+                          ...selectedRole,
+                          permissions: [...(selectedRole.permissions || []), data.perm],
+                        }
                         setSelectedRole(updated)
                         setRoles((prev: any[]) => prev.map((r: any) => (r.id === updated.id ? updated : r)))
                         setNewPermValue("")
@@ -331,6 +397,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 </div>
               </div>
 
+              {/* Permissions list */}
               <div className="flex-1 overflow-y-auto">
                 {(selectedRole.permissions || []).length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 py-10 px-4">
@@ -345,7 +412,8 @@ export default function RolesTab({ ctx }: { ctx: any }) {
 
                       perms.forEach((p: any) => {
                         const [cat] = p.value.split(":")
-                        const category = p.value === "*" ? "Global" : cat.charAt(0).toUpperCase() + cat.slice(1)
+                        const category =
+                          p.value === "*" ? "Global" : cat.charAt(0).toUpperCase() + cat.slice(1)
                         if (!groups[category]) groups[category] = []
                         groups[category].push(p)
                       })
@@ -374,23 +442,40 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                               <div className="flex flex-wrap gap-1.5">
                                 {items.map((p: any) => {
                                   const isWildcard = p.value === "*" || p.value.endsWith(":*")
+                                  const admin = isAdminPermission(p.value)
                                   return (
                                     <div
                                       key={p.id}
-                                      className={`group/perm inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${isWildcard
-                                        ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
-                                        : "border-border bg-secondary/20 hover:bg-secondary/40"
-                                        }`}
+                                      className={`group/perm inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                                        isWildcard
+                                          ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
+                                          : admin
+                                          ? "border-amber-300/30 bg-amber-300/10 hover:bg-amber-300/20"
+                                          : "border-border bg-secondary/20 hover:bg-secondary/40"
+                                      }`}
                                     >
                                       <span className={`font-mono text-xs ${isWildcard ? "text-destructive font-medium" : "text-foreground"}`}>
                                         {p.value}
                                       </span>
+                                      {admin && (
+                                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                                          Admin
+                                        </span>
+                                      )}
                                       <button
                                         onClick={async () => {
-                                          await apiFetch(`${API_ENDPOINTS.roles}/${selectedRole.id}/permissions/${p.id}`, { method: "DELETE" })
-                                          const updated = { ...selectedRole, permissions: selectedRole.permissions.filter((x: any) => x.id !== p.id) }
+                                          await apiFetch(
+                                            `${API_ENDPOINTS.roles}/${selectedRole.id}/permissions/${p.id}`,
+                                            { method: "DELETE" }
+                                          )
+                                          const updated = {
+                                            ...selectedRole,
+                                            permissions: selectedRole.permissions.filter((x: any) => x.id !== p.id),
+                                          }
                                           setSelectedRole(updated)
-                                          setRoles((prev: any[]) => prev.map((r: any) => (r.id === updated.id ? updated : r)))
+                                          setRoles((prev: any[]) =>
+                                            prev.map((r: any) => (r.id === updated.id ? updated : r))
+                                          )
                                         }}
                                         className="rounded p-0.5 text-muted-foreground opacity-0 group-hover/perm:opacity-100 hover:text-destructive transition-all"
                                       >
@@ -409,6 +494,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                 )}
               </div>
 
+              {/* Full access warning */}
               {selectedRole.permissions?.some((p: any) => p.value === "*") && (
                 <div className="flex items-start gap-2.5 border-t border-destructive/20 bg-destructive/5 px-4 py-3">
                   <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />

@@ -4,6 +4,7 @@ import { Permission } from '../models/permission.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { t } from 'elysia';
+import { PERMISSION_METADATA } from '../utils/permissionMetadata';
 
 
 export async function roleRoutes(app: any, prefix = '') {
@@ -11,17 +12,22 @@ export async function roleRoutes(app: any, prefix = '') {
   const permRepo = AppDataSource.getRepository(Permission);
 
   app.post(prefix + '/roles', async (ctx: any) => {
-    const body = ctx.body as Partial<Role>;
-    const role = roleRepo.create(body);
+    const { name, description, parentRoleId } = ctx.body as any;
+    const role = roleRepo.create({
+      name,
+      description,
+      parentRole: parentRoleId ? { id: Number(parentRoleId) } : undefined,
+    } as any) as any;
     await roleRepo.save(role);
-    return { success: true, role };
+    const saved = await roleRepo.findOne({ where: { id: role.id }, relations: ['permissions', 'parentRole', 'parentRole.permissions'] });
+    return { success: true, role: saved || role };
   }, {beforeHandle: [authenticate, authorize('roles:create')],
     response: { 200: t.Object({ success: t.Boolean(), role: t.Any() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Create a role (admin only)', tags: ['Roles'] }
   });
 
   app.get(prefix + '/roles', async (ctx: any) => {
-    const roles = await roleRepo.find({ relations: ['permissions'] });
+    const roles = await roleRepo.find({ relations: ['permissions', 'parentRole', 'parentRole.permissions'] });
     return roles;
   }, {beforeHandle: [authenticate, authorize('roles:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -29,7 +35,7 @@ export async function roleRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/roles/:id', async (ctx: any) => {
-    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['permissions'] });
+    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['permissions', 'parentRole', 'parentRole.permissions'] });
     if (!role) {
       ctx.set.status = 404;
       return { error: 'Role not found' };
@@ -50,6 +56,13 @@ export async function roleRoutes(app: any, prefix = '') {
   }, {beforeHandle: [authenticate, authorize('roles:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get permissions for a role (admin only)', tags: ['Roles'] }
+  });
+
+  app.get(prefix + '/permissions', async (ctx: any) => {
+    return PERMISSION_METADATA;
+  }, {beforeHandle: [authenticate, authorize('roles:read')],
+    response: { 200: t.Array(t.Object({ value: t.String(), category: t.String(), description: t.Optional(t.String()), admin: t.Boolean() })), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    detail: { summary: 'Get permission metadata (admin only)', tags: ['Roles'] }
   });
 
   app.delete(prefix + '/roles/:id', async (ctx: any) => {

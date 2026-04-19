@@ -114,7 +114,18 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     const mailboxAccount = await getMailboxAccountForUser(target.id).catch(() => null);
     const recipientTo = Array.from(new Set([target.email, mailboxAccount?.email].filter(Boolean) as string[]));
 
+    function resolvePanelBaseUrl(ctx: any): string {
+      const rawUrl = String(process.env.PANEL_URL || process.env.FRONTEND_URL || '').trim();
+      if (rawUrl && rawUrl !== '*' && rawUrl.toLowerCase() !== 'true') {
+        return rawUrl.replace(/\/+$/, '');
+      }
+      const origin = String(ctx.headers?.origin || ctx.request?.headers?.get?.('origin') || '').trim();
+      if (origin) return origin.replace(/\/+$/, '');
+      return 'https://ecli.app';
+    }
+
     try {
+      const panelUrl = resolvePanelBaseUrl(ctx);
       const { sendMail } = require('../services/mailService');
       await sendMail({
         to: recipientTo,
@@ -124,14 +135,14 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
         vars: {
           name: target.email.split('@')[0],
           orgName: `Server access to ${id}`,
-          link: `${process.env.FRONTEND_URL || 'https://ecli.app'}/dashboard/subusers/invites`,
+          link: `${panelUrl}/dashboard/subusers/invites`,
         },
       });
 
       if (mailboxAccount?.email) {
         await createMailboxMessageForUser(target, {
           subject: `Server access invitation for ${id}`,
-          body: `You have been invited to become a subuser for server ${id}. Review the invitation in your panel inbox at ${process.env.FRONTEND_URL || 'https://ecli.app'}/dashboard/mailbox.`,
+          body: `You have been invited to become a subuser for server ${id}. Review the invitation in your panel inbox at ${panelUrl}/dashboard/mailbox.`,
           toAddress: mailboxAccount.email,
         });
       }

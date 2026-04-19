@@ -1132,11 +1132,11 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
 
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+    const isAdmin = hasPermissionSync(ctx, 'users:read');
     const targetUserId = Number(ctx.query?.userId || ctx.query?.user_id || 0) || requester.id;
     if (targetUserId !== requester.id && !isAdmin) {
       ctx.set.status = 403;
-      return { error: 'Admin access required' };
+      return { error: 'Insufficient permissions' };
     }
 
     const targetUserRepo = AppDataSource.getRepository(User);
@@ -2374,7 +2374,7 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
     const apiKey = ctx.apiKey;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access') || apiKey?.type === 'admin';
+    const isAdmin = (hasPermissionSync(ctx, 'users:read') || apiKey?.type === 'admin');
     if (!isAdmin && requester.id !== userId) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };

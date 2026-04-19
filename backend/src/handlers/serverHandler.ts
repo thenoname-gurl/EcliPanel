@@ -459,7 +459,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
 
     const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+    const isAdmin = hasPermissionSync(ctx, 'servers:list');
 
     const configs = isAdmin
       ? await cfgRepo.find()
@@ -716,7 +716,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
 
     const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+    const isAdmin = hasPermissionSync(ctx, 'servers:list');
     if (!cfg) {
       ctx.set.status = 404;
       return { error: 'Server not found' };
@@ -1977,7 +1977,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { enable } = ctx.body as any;
 
     const user = ctx.user;
-    if (!user || !hasPermissionSync(ctx, 'admin:access')) {
+    if (!user || !hasPermissionSync(ctx, 'servers:kvm')) {
       ctx.set.status = 403;
       return { error: 'Insufficient permissions (admin only)' };
     }
@@ -3142,7 +3142,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     let svc = await serviceFor(id);
 
-    if (payload && payload.sourceNodeId && hasPermissionSync(ctx, 'admin:access')) {
+    if (payload && payload.sourceNodeId) {
       const nodeId = Number(payload.sourceNodeId);
       try {
         const node = await nodeRepo().findOneBy({ id: nodeId });
@@ -3157,7 +3157,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    if (payload && payload.targetNodeId && hasPermissionSync(ctx, 'admin:access')) {
+    if (payload && payload.targetNodeId) {
       const targetId = Number(payload.targetNodeId);
       try {
         const targetNode = await nodeRepo().findOneBy({ id: targetId });
@@ -4005,7 +4005,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+    const isAdmin = hasPermissionSync(ctx, 'servers:list');
 
     const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
     const editableKeys = new Set<string>();

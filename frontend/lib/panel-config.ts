@@ -117,6 +117,7 @@ export const API_ENDPOINTS = {
   roleDetail: "/api/roles/:id",
   rolePermissions: "/api/roles/:id/permissions",
   assignPermission: "/api/roles/:id/permissions",
+  permissions: "/api/permissions",
   userRoles: "/api/users/:id/roles",
   userAvatar: "/api/users/:id/avatar",
   orgAvatar: "/api/organisations/:id/avatar",

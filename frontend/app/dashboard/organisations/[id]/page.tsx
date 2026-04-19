@@ -388,6 +388,10 @@ export default function OrganisationDetail() {
 
   const sendInvite = async () => {
     if (!inviteEmail.trim()) return
+    if (inviteEmail.trim().toLowerCase() === user?.email?.toLowerCase()) {
+      alert(t('alerts.cannotInviteYourself'))
+      return
+    }
     try {
       await apiFetch(API_ENDPOINTS.organisationInvite.replace(":id", id), {
         method: "POST",
@@ -668,20 +672,22 @@ export default function OrganisationDetail() {
                   </div>
                 )}
                 {/* Invite */}
-                <div className="border-t border-border p-4">
-                  <p className="text-xs font-medium text-foreground mb-2">{t('members.inviteUser')}</p>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={t('members.userEmail')}
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button size="sm" onClick={sendInvite}>
-                      <UserPlus className="h-3.5 w-3.5 mr-1.5" /> {t('actions.invite')}
-                    </Button>
+                {(isManager || isAdmin) && (
+                  <div className="border-t border-border p-4">
+                    <p className="text-xs font-medium text-foreground mb-2">{t('members.inviteUser')}</p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={t('members.userEmail')}
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button size="sm" onClick={sendInvite}>
+                        <UserPlus className="h-3.5 w-3.5 mr-1.5" /> {t('actions.invite')}
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </TabsContent>
 
