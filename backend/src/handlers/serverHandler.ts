@@ -14,7 +14,8 @@ import { saveServerConfig, removeServerConfig, signWingsJwt, mergeDuplicateServe
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
-import { In, MoreThanOrEqual } from 'typeorm';
+import { In, MoreThanOrEqual, Not } from 'typeorm';
+import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { SocData } from '../models/socData.entity';
 import { ServerMapping } from '../models/serverMapping.entity';
 import { createActivityLog } from './logHandler';
@@ -352,6 +353,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
     const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
     const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
+    const unhealthyNodeIds = await getUnhealthyNodeIds();
 
     // Enterprise users with assigned nodes must use their assigned node
     // LIKE SERIOUSLY DONT TOUCH POOR USERS ASSIGNED NODES
@@ -360,6 +362,9 @@ export async function serverRoutes(app: any, prefix = '') {
     if (portalType === 'enterprise' && assignedNodeId) {
       const n = await nodeRepo().findOneBy({ id: assignedNodeId });
       if (!n) throw new Error('Assigned enterprise node not found');
+      if (unhealthyNodeIds.includes(n.id)) {
+        throw new Error('Assigned node is currently unavailable');
+      }
       return n;
     }
 
@@ -382,6 +387,9 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
 
+      if (unhealthyNodeIds.includes(n.id)) {
+        throw new Error('Preferred node is currently unavailable');
+      }
       return n;
     }
 
@@ -390,7 +398,11 @@ export async function serverRoutes(app: any, prefix = '') {
       const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
       const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
       if (orgIds.length > 0) {
-        const orgNode = await nodeRepo().findOne({ where: { organisation: { id: In(orgIds) } } as any });
+        const where: any = { organisation: { id: In(orgIds) } };
+        if (unhealthyNodeIds.length) {
+          where.id = Not(In(unhealthyNodeIds));
+        }
+        const orgNode = await nodeRepo().findOne({ where }) as Node | null;
         if (orgNode) return orgNode;
       }
       types = ['enterprise', 'free_and_paid', 'paid', 'free'];
@@ -401,10 +413,17 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     for (const t of types) {
-      const n = await nodeRepo().findOneBy({ nodeType: t as any });
+      const where: any = { nodeType: t as any };
+      if (unhealthyNodeIds.length) {
+        where.id = Not(In(unhealthyNodeIds));
+      }
+      const n = await nodeRepo().findOne({ where });
       if (n) return n;
     }
-    const fallback = await nodeRepo().findOneBy({});
+
+    const fallback = unhealthyNodeIds.length
+      ? await nodeRepo().findOne({ where: { id: Not(In(unhealthyNodeIds)) } })
+      : await nodeRepo().findOneBy({});
     if (!fallback) throw new Error('No nodes available');
     return fallback;
   }
@@ -432,7 +451,9 @@ export async function serverRoutes(app: any, prefix = '') {
     let all: any[] = [];
 
     if (isAdmin) {
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
       const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
+        if (unhealthyNodeIds.includes(n.id)) return null;
         try {
           const base = (n as any).backendWingsUrl || n.url;
           const svc = new WingsApiService(base, n.token);
@@ -484,6 +505,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const allowedUuids = new Set(configs.map((c: any) => c.uuid));
 
       const nodeMap = new Map(nodes.map(n => [n.id, n]));
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
 
       const configsByNode = new Map<number, any[]>();
       for (const c of configs) {
@@ -514,6 +536,26 @@ export async function serverRoutes(app: any, prefix = '') {
       for (const [nodeId, cfgList] of configsByNode.entries()) {
         const node = nodeMap.get(nodeId);
         if (!node) continue;
+        if (unhealthyNodeIds.includes(nodeId)) {
+          for (const c of cfgList) {
+            all.push({
+              uuid: c.uuid,
+              name: c.name || c.uuid,
+              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
+              hibernated: !!c.hibernated,
+              is_suspended: c.suspended || c.dmca,
+              is_dmca: !!c.dmca,
+              resources: null,
+              build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+              container: { image: c.dockerImage },
+              nodeId: c.nodeId,
+              nodeName: node.name,
+              userId: c.userId,
+            });
+          }
+          continue;
+        }
+
         nodePromises.push((async () => {
           const base = (node as any).backendWingsUrl || node.url;
           const svc = new WingsApiService(base, node.token);
@@ -670,8 +712,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
     let nodeName: string | null = null;
     let sftpInfo: Record<string, any> | null = null;
+    let node: Node | null = null;
     if (cfg?.nodeId) {
-      const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+      node = await nodeRepo().findOneBy({ id: cfg.nodeId });
       if (node) {
         nodeName = node.name;
         const urlObj = (() => { try { return new URL(node.url); } catch { return null; } })();
@@ -686,6 +729,50 @@ export async function serverRoutes(app: any, prefix = '') {
         sftpInfo = { host, port, proxied: !!node.sftpProxyPort, username };
       }
     }
+
+    const unhealthyNodeIds = await getUnhealthyNodeIds();
+    if (node && unhealthyNodeIds.includes(node.id)) {
+      const norm = normalizeServer({
+        uuid: cfg.uuid,
+        state: cfg.hibernated ? 'hibernated' : 'unknown',
+        is_suspended: cfg.suspended,
+        is_dmca: cfg.dmca,
+        dmca: cfg.dmca,
+        configuration: {
+          uuid: cfg.uuid,
+          meta: { name: cfg.name, description: cfg.description },
+          build: { memory_limit: cfg.memory, disk_space: cfg.disk, cpu_limit: cfg.cpu, swap: cfg.swap, io_weight: cfg.ioWeight },
+          container: { image: cfg.dockerImage, kvm_passthrough_enabled: cfg.kvmPassthroughEnabled ?? false },
+          invocation: cfg.startup,
+          environment: cfg.environment,
+          allocations: cfg.allocations,
+          autoSyncOnEggChange: cfg.autoSyncOnEggChange,
+        },
+      }, cfg?.hibernated ? 'hibernated' : undefined, cfg);
+
+      return {
+        ...norm,
+        node: nodeName,
+        sftp: sftpInfo,
+        isOwner: cfg.userId === user?.id,
+        userId: cfg.userId,
+        ...(isAdmin
+          ? {
+              owner: cfg.userId,
+              eggId: cfg.eggId ?? null,
+              nodeId: cfg.nodeId,
+              memory: cfg.memory,
+              disk: cfg.disk,
+              cpu: cfg.cpu,
+              swap: cfg.swap,
+              dockerImage: cfg.dockerImage,
+              startup: cfg.startup,
+              description: cfg.description,
+            }
+          : {}),
+      };
+    }
+
     try {
       const svc = await serviceFor(id);
       const res = await svc.getServer(id);
@@ -721,39 +808,36 @@ export async function serverRoutes(app: any, prefix = '') {
       if (cfg) {
         try {
           const svc = await serviceFor(id);
-          try {
-            await svc.syncServer(id, {});
-            const retry = await svc.getServer(id);
-            const norm = applyStartupStatusOverride(
-              normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
-              cfg,
-            );
-            return {
-              ...norm,
-              node: nodeName,
-              sftp: sftpInfo,
-              ...(isAdmin
-                ? {
-                    owner: cfg.userId,
-                    userId: cfg.userId,
-                    eggId: cfg.eggId ?? null,
-                    nodeId: cfg.nodeId,
-                    memory: cfg.memory,
-                    disk: cfg.disk,
-                    cpu: cfg.cpu,
-                    swap: cfg.swap,
-                    dockerImage: cfg.dockerImage,
-                    startup: cfg.startup,
-                    description: cfg.description,
-                  }
-                : {}),
-            };
-          } catch {
-            // skip
-          }
+          await svc.syncServer(id, {});
+          const retry = await svc.getServer(id);
+          const norm = applyStartupStatusOverride(
+            normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
+            cfg,
+          );
+          return {
+            ...norm,
+            node: nodeName,
+            sftp: sftpInfo,
+            ...(isAdmin
+              ? {
+                  owner: cfg.userId,
+                  userId: cfg.userId,
+                  eggId: cfg.eggId ?? null,
+                  nodeId: cfg.nodeId,
+                  memory: cfg.memory,
+                  disk: cfg.disk,
+                  cpu: cfg.cpu,
+                  swap: cfg.swap,
+                  dockerImage: cfg.dockerImage,
+                  startup: cfg.startup,
+                  description: cfg.description,
+                }
+              : {}),
+          };
         } catch {
           // skip
         }
+
         const norm = normalizeServer({
           uuid: cfg.uuid,
           state: cfg.hibernated ? 'hibernated' : 'unknown',
@@ -793,7 +877,7 @@ export async function serverRoutes(app: any, prefix = '') {
         };
       }
       ctx.set.status = 502;
-      return { error: e.message };
+      return { error: e?.message || 'Server fetch failed' };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:read')],
@@ -3369,6 +3453,11 @@ export async function serverRoutes(app: any, prefix = '') {
   app.get(prefix + '/servers/:id/stats', async (ctx: any) => {
     const { id } = ctx.params as any;
 
+    const mappingRepo = AppDataSource.getRepository(ServerMapping);
+    const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+    const unhealthyNodeIds = await getUnhealthyNodeIds();
+    const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
+
     const withNetworkRates = async (input: any) => {
       const merged: any = input && typeof input === 'object' ? { ...input } : {};
 
@@ -3440,6 +3529,12 @@ export async function serverRoutes(app: any, prefix = '') {
       return merged;
     };
 
+    if (nodeIsUnhealthy) {
+      const socRepo = AppDataSource.getRepository(SocData);
+      const latest = await socRepo.findOne({ where: { serverId: id }, order: { timestamp: 'DESC' } });
+      return await withNetworkRates(latest?.metrics ?? {});
+    }
+
     try {
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/stats');
@@ -3465,17 +3560,24 @@ export async function serverRoutes(app: any, prefix = '') {
     const points = Math.max(12, Math.min(1440, Number(p) || 60));
 
     try {
+      const mappingRepo = AppDataSource.getRepository(ServerMapping);
+      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
+      const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
+
       let rows: Array<{ timestamp: string; metrics: Record<string, any> }> = [];
       let liveData: Record<string, any> | null = null;
 
-      try {
-        const svc = await serviceFor(id);
-        const res = await svc.serverRequest(id, '/stats');
-        if (res?.data && typeof res.data === 'object') {
-          liveData = extractStats(res.data);
+      if (!nodeIsUnhealthy) {
+        try {
+          const svc = await serviceFor(id);
+          const res = await svc.serverRequest(id, '/stats');
+          if (res?.data && typeof res.data === 'object') {
+            liveData = extractStats(res.data);
+          }
+        } catch {
+          // skip
         }
-      } catch {
-        // skip
       }
 
       if (w === 'live') {
@@ -3485,6 +3587,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
         const { fetchHistorical } = await import('../services/metricsService');
         rows = await fetchHistorical(id, '5m', points);
+        if (rows.length > 0) {
+          return rows;
+        }
       } else {
         const { fetchHistorical } = await import('../services/metricsService');
         rows = await fetchHistorical(id, w, points);
@@ -3522,7 +3627,13 @@ export async function serverRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: 'No node mapping for server' };
       }
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
       const node = mapping.node;
+      if (unhealthyNodeIds.includes(node.id)) {
+        const { fetchHistorical } = await import('../services/metricsService');
+        const rows = await fetchHistorical(`node:${node.id}`, '5m', 5);
+        return rows.length > 0 ? rows[rows.length - 1].metrics : {};
+      }
       const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
       const [infoResult, statsResult] = await Promise.allSettled([
         svc.getSystemInfo(),
@@ -3634,24 +3745,28 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       const nodeMetricKey = `node:${mapping.node.id}`;
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
+      const nodeIsUnhealthy = unhealthyNodeIds.includes(mapping.node.id);
       const { fetchHistorical } = await import('../services/metricsService');
       let rows = await fetchHistorical(nodeMetricKey, w, points);
 
-      try {
-        const node = mapping.node;
-        const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
-        const latest = await svc.getSystemStats();
-        const liveMetrics = (latest as any)?.data?.stats ?? (latest as any)?.data ?? null;
-        if (liveMetrics && typeof liveMetrics === 'object') {
-          if (rows.length === 0) {
-            rows = [{ timestamp: new Date().toISOString(), metrics: liveMetrics }];
-          } else {
-            rows[rows.length - 1].metrics = liveMetrics;
-            rows[rows.length - 1].timestamp = new Date().toISOString();
+      if (!nodeIsUnhealthy) {
+        try {
+          const node = mapping.node;
+          const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+          const latest = await svc.getSystemStats();
+          const liveMetrics = (latest as any)?.data?.stats ?? (latest as any)?.data ?? null;
+          if (liveMetrics && typeof liveMetrics === 'object') {
+            if (rows.length === 0) {
+              rows = [{ timestamp: new Date().toISOString(), metrics: liveMetrics }];
+            } else {
+              rows[rows.length - 1].metrics = liveMetrics;
+              rows[rows.length - 1].timestamp = new Date().toISOString();
+            }
           }
+        } catch {
+          // skip
         }
-      } catch {
-        // skip live merge
       }
 
       return rows;

@@ -26,6 +26,7 @@ import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } fro
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
+import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
@@ -418,16 +419,33 @@ export async function adminRoutes(app: any, prefix = '') {
       userRepo.count({ where: { fraudFlag: true } }),
     ]);
 
-    let totalServers = 0;
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const configs = await cfgRepo.find();
     const nodes = await AppDataSource.getRepository(Node).find();
-    for (const n of nodes) {
+    const unhealthyNodeIds = await getUnhealthyNodeIds();
+
+    let totalServers = configs.length;
+    const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
+      if (unhealthyNodeIds.includes(n.id)) return null;
       try {
         const base = (n as any).backendWingsUrl || n.url;
         const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
-        totalServers += (res.data || []).length;
-      } catch { }
-    }
+        return (res.data || []).length;
+      } catch {
+        return null;
+      }
+    }));
+
+    const healthyServerCount = nodeResults.reduce((acc, result) => {
+      if (result.status === 'fulfilled' && typeof result.value === 'number') {
+        return acc + result.value;
+      }
+      return acc;
+    }, 0);
+
+    const healthyNodeConfigCount = configs.filter((c: any) => unhealthyNodeIds.includes(c.nodeId)).length;
+    totalServers = healthyServerCount + healthyNodeConfigCount;
 
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentTickets = await ticketRepo.find({
@@ -2029,35 +2047,46 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!requireAdminCtx(ctx)) return;
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
+    const unhealthyNodeIds = await getUnhealthyNodeIds();
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     try { await mergeDuplicateServerConfigs(); } catch (e) { /* skip */ }
     const configs = await cfgRepo.find();
     const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
     let all: any[] = [];
-    for (const n of nodes) {
+
+    const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
+      if (unhealthyNodeIds.includes(n.id)) return null;
       try {
         const base = (n as any).backendWingsUrl || n.url;
         const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
         const servers = res.data || [];
-        for (const s of servers) {
-          const uuid: string = s.configuration?.uuid || s.uuid;
-          const cfg = cfgMap.get(uuid);
-          const wingsSuspended = !!(s?.is_suspended ?? s?.suspended);
-          const isSuspended = !!cfg?.suspended || wingsSuspended;
-          const status = isSuspended ? 'suspended' : (s.state || s.status || 'offline');
-          all.push({
-            ...s,
-            uuid,
-            status,
-            is_suspended: isSuspended,
-            name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
-            nodeName: n.name,
-            nodeId: n.id,
-            eggId: cfg?.eggId || null,
-          });
-        }
-      } catch { }
+        return { node: n, servers };
+      } catch {
+        return null;
+      }
+    }));
+
+    for (const nodeResult of nodeResults) {
+      if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
+      const { node, servers } = nodeResult.value;
+      for (const s of servers) {
+        const uuid: string = s.configuration?.uuid || s.uuid;
+        const cfg = cfgMap.get(uuid);
+        const wingsSuspended = !!(s?.is_suspended ?? s?.suspended);
+        const isSuspended = !!cfg?.suspended || wingsSuspended;
+        const status = isSuspended ? 'suspended' : (s.state || s.status || 'offline');
+        all.push({
+          ...s,
+          uuid,
+          status,
+          is_suspended: isSuspended,
+          name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
+          nodeName: node.name,
+          nodeId: node.id,
+          eggId: cfg?.eggId || null,
+        });
+      }
     }
 
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
