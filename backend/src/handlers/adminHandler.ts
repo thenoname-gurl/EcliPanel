@@ -229,6 +229,77 @@ function requireAdminCtxOrAdminApiKey(ctx: any): true | { error: string } {
   return requireAdminCtx(ctx);
 }
 
+const ADMIN_PAGE_PERMISSIONS = [
+  'admin:access',
+  'admin:metrics',
+  'admin:export-jobs',
+  'admin:announcements',
+  'admin:outbound-emails',
+  'admin:antiabuse',
+  'admin:fraud',
+  'admin:settings',
+  'org:read',
+  'servers:read',
+  'tickets:read',
+  'applications:manage',
+  'idverification:read',
+  'deletions:write',
+  'nodes:read',
+  'tunnels:read',
+  'eggs:read',
+  'ai:read',
+  'roles:read',
+  'logs:read',
+  'oauth:manage',
+  'databases:read',
+  'plans:read',
+  'orders:read',
+  'users:read',
+];
+
+function hasAnyAdminPermission(ctx: any): boolean {
+  const apiKey = ctx.apiKey as any;
+  if (apiKey && apiKey.type === 'admin') return true;
+  if (!ctx?.user) return false;
+  if (hasPermissionSync(ctx, 'admin:access')) return true;
+  return ADMIN_PAGE_PERMISSIONS.some((perm) => hasPermissionSync(ctx, perm));
+}
+
+function requireAdminPageAccess(ctx: any): true | { error: string } {
+  const apiKey = ctx.apiKey as any;
+  const user = ctx.user as User | undefined;
+  if (!user && !(apiKey && apiKey.type === 'admin')) {
+    ctx.set.status = 401;
+    return { error: 'Unauthorized' };
+  }
+  if (!hasAnyAdminPermission(ctx)) {
+    ctx.set.status = 403;
+    return { error: 'Admin page access required.' };
+  }
+  return true;
+}
+
+function requireAdminPermission(ctx: any, permission: string): true | { error: string } {
+  const apiKey = ctx.apiKey as any;
+  const user = ctx.user as User | undefined;
+  if (!user && !(apiKey && apiKey.type === 'admin')) {
+    ctx.set.status = 401;
+    return { error: 'Unauthorized' };
+  }
+  if (apiKey && apiKey.type === 'admin') return true;
+  if (hasPermissionSync(ctx, permission) || hasPermissionSync(ctx, 'admin:access')) {
+    return true;
+  }
+  ctx.set.status = 403;
+  return { error: `Admin permission ${permission} required.` };
+}
+
+function requireAdminPermissionOrAdminApiKey(ctx: any, permission: string): true | { error: string } {
+  const apiKey = ctx.apiKey as any;
+  if (apiKey && apiKey.type === 'admin') return true;
+  return requireAdminPermission(ctx, permission);
+}
+
 function sanitizeAntiAbuseText(input: any, max = 12_000): string {
   return String(input || '').trim().slice(0, max);
 }
@@ -414,7 +485,8 @@ function getTicketResponseDurations(ticket: Ticket): number[] {
 
 export async function adminRoutes(app: any, prefix = '') {
   app.get(prefix + '/admin/stats', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPageAccess(ctx);
+    if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const nodeRepo = AppDataSource.getRepository(Node);
     const ticketRepo = AppDataSource.getRepository(Ticket);
@@ -506,7 +578,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/metrics', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
     if (adminErr !== true) return adminErr;
 
     const queryDays = Number((ctx.query as any)?.days ?? 30);
@@ -718,7 +790,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/metrics/clear', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
     if (adminErr !== true) return adminErr;
 
     const repo = AppDataSource.getRepository(SocData);
@@ -735,7 +807,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/slow-queries', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
+    if (adminErr !== true) return adminErr;
     return getSlowQueries(100);
   }, {
     beforeHandle: authenticate,
@@ -748,7 +821,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/slow-queries/clear', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
+    if (adminErr !== true) return adminErr;
     clearSlowQueries();
     return { success: true };
   }, {
@@ -763,7 +837,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/admin/product-updates', async (ctx) => {
     // In hopes incident with 110k email in a minute wont repeat
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:announcements');
     if (adminErr !== true) return adminErr;
     const body = (ctx.body || {}) as { subject?: string; message?: string; force?: boolean; test?: boolean };
     const { subject, message, force = false, test = false } = body;
@@ -822,7 +896,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/users', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'users:read');
+    if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const passkeyRepo = AppDataSource.getRepository(Passkey);
     const { page = '1', q = '' } = ctx.query as any;
@@ -877,7 +952,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/users/:id/export-job', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
     if (adminErr !== true) return adminErr;
     const targetId = Number(ctx.params.id);
     if (Number.isNaN(targetId)) { ctx.set.status = 400; return { error: 'Invalid user id' }; }
@@ -898,7 +973,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/export-jobs/:id', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
     if (adminErr !== true) return adminErr;
     const id = String(ctx.params.id || '');
     const job = await getExportJob(id);
@@ -914,7 +989,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/export-jobs', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
     if (adminErr !== true) return adminErr;
     const limit = Math.min(500, Math.max(1, Number((ctx.query as any)?.limit || 100)));
     const status = ((ctx.query as any)?.status || '').trim() || undefined;
@@ -939,7 +1014,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/export-jobs/:id/download', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
     if (adminErr !== true) return adminErr;
     const id = String(ctx.params.id || '');
     const job = await getExportJob(id);
@@ -962,7 +1037,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/export-jobs/:id/share-link', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
     if (adminErr !== true) return adminErr;
 
     const id = String(ctx.params.id || '');
@@ -1068,7 +1143,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/users/:id', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'users:write');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -1212,7 +1287,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/users/:id/children', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'users:read');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const parentId = Number(ctx.params.id);
@@ -1237,7 +1312,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/users/:id/deassign-student', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'users:write');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const logRepo = AppDataSource.getRepository(UserLog);
@@ -1277,7 +1352,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/users/:id/require-student-reverify', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'users:write');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const logRepo = AppDataSource.getRepository(UserLog);
@@ -1313,7 +1388,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/users/:id', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'users:write');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -1340,7 +1415,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/tickets', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'tickets:read');
+    if (adminErr !== true) return adminErr;
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const userRepo = AppDataSource.getRepository(User);
     const { page = '1', q = '', priority = '', status = '', archived = '' } = ctx.query as any;
@@ -1429,7 +1505,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/tickets/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'tickets:write');
+    if (adminErr !== true) return adminErr;
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const ticket = await ticketRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!ticket) {
@@ -1513,7 +1590,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/tickets/archive', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'tickets:write');
+    if (adminErr !== true) return adminErr;
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const { ids, archived } = ctx.body as any;
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -1540,7 +1618,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/verifications', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'idverification:read');
+    if (adminErr !== true) return adminErr;
     const verRepo = AppDataSource.getRepository(IDVerification);
     const userRepo = AppDataSource.getRepository(User);
 
@@ -1563,7 +1642,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/verifications/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'idverification:write');
+    if (adminErr !== true) return adminErr;
     const verRepo = AppDataSource.getRepository(IDVerification);
     const userRepo = AppDataSource.getRepository(User);
 
@@ -1604,7 +1684,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/verifications/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'idverification:write');
+    if (adminErr !== true) return adminErr;
     const verRepo = AppDataSource.getRepository(IDVerification);
     const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
@@ -1639,7 +1720,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/deletions', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'deletions:write');
+    if (adminErr !== true) return adminErr;
     const delRepo = AppDataSource.getRepository(DeletionRequest);
     const userRepo = AppDataSource.getRepository(User);
 
@@ -1662,7 +1744,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/deletions/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'deletions:write');
+    if (adminErr !== true) return adminErr;
     const delRepo = AppDataSource.getRepository(DeletionRequest);
     const adminUser = ctx.user as User;
     const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -1712,7 +1795,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/deletions/:id/expedite', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'deletions:write');
+    if (adminErr !== true) return adminErr;
     const delRepo = AppDataSource.getRepository(DeletionRequest);
     const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
@@ -1746,7 +1830,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/deletions/:id/cancel', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'deletions:write');
+    if (adminErr !== true) return adminErr;
     const delRepo = AppDataSource.getRepository(DeletionRequest);
     const userRepo = AppDataSource.getRepository(User);
     const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -1789,7 +1874,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/nodes', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'nodes:read');
     if (adminErr !== true) return adminErr;
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
@@ -1805,7 +1890,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/organisations', async (ctx) => {
-    const adminErr = requireAdminCtx(ctx);
+    const adminErr = requireAdminPermission(ctx, 'org:read');
     if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const userRepo = AppDataSource.getRepository(User);
@@ -1863,7 +1948,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/organisations/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'org:write');
+    if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -1927,7 +2013,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/organisations/:id/members', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'org:write');
+    if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const userRepo = AppDataSource.getRepository(User);
     const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
@@ -1989,7 +2076,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/organisations/:id/members/:userId', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'org:write');
+    if (adminErr !== true) return adminErr;
     const orgId = Number(ctx.params.id);
     const targetUserId = Number(ctx.params.userId);
     const orgRepo = AppDataSource.getRepository(Organisation);
@@ -2025,7 +2113,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/organisations/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'org:write');
+    if (adminErr !== true) return adminErr;
     const orgRepo = AppDataSource.getRepository(Organisation);
     const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -2059,7 +2148,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/servers', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:read');
+    if (adminErr !== true) return adminErr;
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
     const unhealthyNodeIds = await getUnhealthyNodeIds();
@@ -2178,7 +2268,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/power', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const { action } = ctx.body as any;
     const requester = ctx.user as User;
@@ -2242,7 +2333,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/mark-started', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
@@ -2300,7 +2392,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/servers/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated, autoSyncOnEggChange } = ctx.body as any;
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -2404,7 +2497,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/servers/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:delete');
+    if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
@@ -2435,7 +2529,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const { nodeId, userId, eggId, name } = ctx.body as any;
     let memory = (ctx.body as any).memory ?? 1024;
     let disk = (ctx.body as any).disk ?? 10240;
@@ -2553,7 +2648,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/sync-wings', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'nodes:read');
+    if (adminErr !== true) return adminErr;
     const adminUser = ctx.user as any;
     const adminId = adminUser?.id;
 
@@ -2667,7 +2763,8 @@ export async function adminRoutes(app: any, prefix = '') {
   // SO YOU DECIDED TO GO AGAINST LORDS WISHES HUH? 
   // WELL NOW YOUR SERVER IS SUSPENDED, HAVE FUN CRYING TO SUPPORT ABOUT IT
   app.post(prefix + '/admin/servers/:id/suspend', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const body = (ctx.body || {}) as any;
     const dmcaMark = Boolean(body.dmca);
@@ -2791,7 +2888,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/unsuspend', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const nodeRepo = AppDataSource.getRepository(Node);
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -2839,7 +2937,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/throttle', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const serverId = String(ctx.params.id || '').trim();
@@ -2939,7 +3037,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/antiabuse/heartbeat', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const body = (ctx.body || {}) as any;
@@ -2979,7 +3077,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/antiabuse/incidents', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const query = (ctx.query || {}) as any;
@@ -3095,7 +3193,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/antiabuse/incidents/:id/status', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const id = Number((ctx.params as any)?.id);
@@ -3171,7 +3269,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/antiabuse/incidents/bulk-status', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const body = (ctx.body || {}) as any;
@@ -3251,7 +3349,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/antiabuse/incidents/:id', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const id = Number((ctx.params as any)?.id);
@@ -3290,7 +3388,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/antiabuse/incidents/bulk-delete', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const body = (ctx.body || {}) as any;
@@ -3339,7 +3437,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/antiabuse/events', async (ctx) => {
-    const access = requireAdminCtxOrAdminApiKey(ctx);
+    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
     if (access !== true) return access;
 
     const body = (ctx.body || {}) as any;
@@ -3581,7 +3679,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/sync-from-wings', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'nodes:read');
+    if (adminErr !== true) return adminErr;
     const admin = ctx.user as User;
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const ServerMapping = require('../models/serverMapping.entity').ServerMapping;
@@ -3648,7 +3747,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/users/:id/profile', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'users:read');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
     const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
@@ -3746,7 +3846,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/users/:id/export', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
     const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
@@ -4046,7 +4147,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/users/:id/address-change-logs', async (ctx: any) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'users:read');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: userId });
@@ -4068,7 +4170,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete('/admin/users/:id/ai/:linkId', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'ai:read');
+    if (adminErr !== true) return adminErr;
     const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
     const repo = AppDataSource.getRepository(AIModelUser);
     const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
@@ -4088,7 +4191,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/users/:id/ai/:linkId', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'ai:read');
+    if (adminErr !== true) return adminErr;
     const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
     const repo = AppDataSource.getRepository(AIModelUser);
     const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
@@ -4111,7 +4215,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/logs', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'logs:read');
+    if (adminErr !== true) return adminErr;
     const { userId, page = '1', per = '200', type = 'audit' } = ctx.query as any;
     const perNum = Math.min(Math.max(Number(per) || 200, 1), 500);
     const p = Math.max(1, Number(page) || 1);
@@ -4229,7 +4334,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/outbound-emails', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:outbound-emails');
+    if (adminErr !== true) return adminErr;
     const { userId, page = '1', per = '50', status, q } = ctx.query as any;
     const perNum = Math.min(Math.max(Number(per) || 50, 1), 200);
     const p = Math.max(1, Number(page) || 1);
@@ -4283,7 +4389,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/logs/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'logs:read');
+    if (adminErr !== true) return adminErr;
     const logRepo = AppDataSource.getRepository(UserLog);
     const logId = Number(ctx.params.id);
     if (!logId || Number.isNaN(logId)) {
@@ -4313,7 +4420,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/fraud-alerts', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+    if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const flagged = await userRepo.find({ where: { fraudFlag: true }, order: { fraudDetectedAt: 'DESC' } });
     return flagged.map((u) => ({
@@ -4348,7 +4456,8 @@ export async function adminRoutes(app: any, prefix = '') {
   // now you have no excuse to not use it and let the AI do the 
   // hard work of finding fraudsters for you
   app.post(prefix + '/admin/fraud-scan/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: userId });
@@ -4456,7 +4565,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/fraud-scan-all', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+    if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const users = await userRepo.find();
     const modelRepo = AppDataSource.getRepository(AIModel);
@@ -4536,7 +4646,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.put(prefix + '/admin/fraud-alerts/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: userId });
@@ -4571,7 +4682,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/fraud-alerts/dismiss', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+    if (adminErr !== true) return adminErr;
     const body = ctx.body as any;
     const ids = Array.isArray(body?.ids) ? body.ids.map((v: any) => Number(v)).filter((n: number) => Number.isFinite(n)) : [];
     if (ids.length === 0) {
@@ -4662,7 +4774,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/settings', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:settings');
+    if (adminErr !== true) return adminErr;
     const repo = AppDataSource.getRepository(PanelSetting);
     const rows = await repo.find();
     const map = parsePanelSettingsMap(rows);
@@ -4711,7 +4824,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/geo-block/metrics', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:settings');
+    if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const users = await userRepo.find({ select: ['billingCountry'] });
     const rules = await getGeoBlockRules();
@@ -4792,7 +4906,8 @@ isSuspicious: true if fraudScore >= 50`;
    * Didn't happen after that twice anymore :D
    */
   app.put(prefix + '/admin/settings', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:settings');
+    if (adminErr !== true) return adminErr;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
     const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'countryAgeRules', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
@@ -4870,9 +4985,10 @@ isSuspicious: true if fraudScore >= 50`;
     detail: { summary: 'Update portal settings', tags: ['Admin'] },
   });
 
-  // TODO: Check if it works
+  // TODO: Check if it works, still in todo
   app.get(prefix + '/admin/mounts', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const mounts = await AppDataSource.getRepository(Mount).find({ order: { name: 'ASC' } });
     return mounts;
   }, {
@@ -4886,7 +5002,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/mounts', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
     if (!name || !source || !target) {
       ctx.set.status = 400;
@@ -4919,7 +5036,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.put(prefix + '/admin/mounts/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const repo = AppDataSource.getRepository(Mount);
     const mount = await repo.findOneBy({ id: Number(ctx.params.id) });
     if (!mount) {
@@ -4959,7 +5077,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/mounts/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const id = Number(ctx.params.id);
     const repo = AppDataSource.getRepository(Mount);
     const mount = await repo.findOneBy({ id });
@@ -4985,7 +5104,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/servers/:id/mounts', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const { id: uuid } = ctx.params as any;
     const { mountId } = ctx.body as any;
     if (!mountId) {
@@ -5025,7 +5145,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/servers/:id/mounts/:mountId', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    if (adminErr !== true) return adminErr;
     const { id: uuid, mountId } = ctx.params as any;
     const smRepo = AppDataSource.getRepository(ServerMount);
     const link = await smRepo.findOneBy({ serverUuid: uuid, mountId: Number(mountId) });
@@ -5050,7 +5171,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/orders', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'orders:read');
+    if (adminErr !== true) return adminErr;
     const { userId, page = '1', q = '' } = ctx.query as any;
     const orderRepo = AppDataSource.getRepository(Order);
     const per = 50;
@@ -5086,7 +5208,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/orders', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'orders:write');
+    if (adminErr !== true) return adminErr;
     const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
     if (!userId) {
       ctx.set.status = 400;
@@ -5139,7 +5262,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.put(prefix + '/admin/orders/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'orders:write');
+    if (adminErr !== true) return adminErr;
     const orderRepo = AppDataSource.getRepository(Order);
     const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!order) {
@@ -5179,7 +5303,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/orders/:id', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'orders:write');
+    if (adminErr !== true) return adminErr;
     const orderRepo = AppDataSource.getRepository(Order);
     const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!order) {
@@ -5203,7 +5328,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/search', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPageAccess(ctx);
+    if (adminErr !== true) return adminErr;
     const { q = '' } = ctx.query as any;
     const qstr = String(q || '').trim();
 
@@ -5340,7 +5466,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/users/:id/current-plan', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'users:read');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const orderRepo = AppDataSource.getRepository(Order);
     const planRepo = AppDataSource.getRepository(Plan);
@@ -5364,7 +5491,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/users/:id/cancel-plan', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'users:write');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const userRepo = AppDataSource.getRepository(User);
     const orderRepo = AppDataSource.getRepository(Order);
@@ -5402,7 +5530,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/users/:id/apply-plan', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'users:write');
+    if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
     const { planId, temporary, expiresAt, notes, orgId } = ctx.body as any;
     if (!planId) {
@@ -5493,7 +5622,8 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/ensure-portal-plans', async (ctx) => {
-    if (!requireAdminCtx(ctx)) return;
+    const adminErr = requireAdminPermission(ctx, 'admin:settings');
+    if (adminErr !== true) return adminErr;
     const body = (ctx.body as any) || {};
     const portalType = body.portalType as string | undefined;
     const userRepo = AppDataSource.getRepository(User);
