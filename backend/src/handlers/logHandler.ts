@@ -4,6 +4,7 @@ import { User } from '../models/user.entity';
 import { sendMail } from '../services/mailService';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
+import { hasPermissionSync } from '../middleware/authorize';
 
 /*
  * A: Always give your 100%!
@@ -138,7 +139,7 @@ export async function logRoutes(app: any, prefix = '') {
   app.get(prefix + '/users/:id/logs', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user as any;
-    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -166,7 +167,7 @@ export async function logRoutes(app: any, prefix = '') {
   app.get(prefix + '/users/:id/logs/unread-count', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user as any;
-    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -186,7 +187,7 @@ export async function logRoutes(app: any, prefix = '') {
   app.patch(prefix + '/users/:id/logs/read-all', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user as any;
-    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -207,7 +208,7 @@ export async function logRoutes(app: any, prefix = '') {
     const userId = Number(ctx.params['id']);
     const logId = Number(ctx.params['logId']);
     const requester = ctx.user as any;
-    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -302,7 +303,7 @@ export async function logRoutes(app: any, prefix = '') {
   app.get(prefix + '/users/:id/activity', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user as any;
-    if (requester.id !== userId && requester.role !== 'admin' && requester.role !== '*' && requester.role !== 'rootAdmin') {
+    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

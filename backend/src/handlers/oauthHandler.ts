@@ -30,6 +30,7 @@ import { OAuthAuthCode } from '../models/oauthAuthCode.entity';
 import { OAuthToken } from '../models/oauthToken.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { hashPassword, comparePassword } from '../utils/password';
 
@@ -229,7 +230,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'App not found' };
     }
-    if (oauthApp.owner?.id !== user.id && user.role !== 'admin') {
+    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -261,14 +262,13 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'App not found' };
     }
-    if (oauthApp.owner?.id !== user.id && user.role !== 'admin') {
+    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
     const rawSecret = randomToken(40);
     oauthApp.clientSecretHash = await hashPassword(rawSecret);
     await appRepo.save(oauthApp);
-    // revoke all existing tokens for this app
     await tokenRepo.update({ app: { id: oauthApp.id } }, { revoked: true });
     return {
       clientId: oauthApp.clientId,
@@ -290,7 +290,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'App not found' };
     }
-    if (oauthApp.owner?.id !== user.id && user.role !== 'admin') {
+    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -411,7 +411,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     // Don't grant 'admin' to non-admin users
     const finalScopes = grantedScopes.filter(
-      (s) => s !== 'admin' || user.role === 'admin' || user.role === '*',
+      (s) => s !== 'admin' || hasPermissionSync(ctx, 'oauth:manage'),
     );
 
     const code = randomToken(32);

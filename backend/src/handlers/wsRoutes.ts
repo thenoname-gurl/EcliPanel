@@ -1,4 +1,5 @@
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { In } from 'typeorm';
@@ -34,7 +35,7 @@ export async function handleSocConnection(app: any, socket: any, req: RawRequest
   }
 
   let allowedIds: string[] | null = null;
-  const isAdmin = user?.role === 'admin' || user?.role === '*' || apiKey?.type === 'admin';
+  const isAdmin = hasPermissionSync(req, 'soc:read') || apiKey?.type === 'admin';
 
   if (!isAdmin) {
     allowedIds = await getAllowedServerIds(user, apiKey);
@@ -86,7 +87,7 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
     return;
   }
 
-  const isAdmin = user?.role === 'admin' || user?.role === '*' || apiKey?.type === 'admin';
+  const isAdmin = hasPermissionSync(req, 'ai:read') || apiKey?.type === 'admin';
   const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const userOrgIds = user ? (await orgMemberRepo.find({ where: { userId: user.id } })).map((m: any) => Number(m.organisationId)) : [];
 

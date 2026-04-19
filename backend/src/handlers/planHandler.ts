@@ -3,13 +3,14 @@ import { t } from 'elysia';
 import { Plan } from '../models/plan.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 
 function isAdmin(ctx: any): boolean {
   const user = (ctx as any).user as User | undefined;
   const apiKey = (ctx as any).apiKey;
   if (apiKey?.type === 'admin') return true;
-  return !!(user && ['admin', 'rootAdmin', '*'].includes(user.role ?? ''));
+  return !!(user && hasPermissionSync(ctx, 'admin:access'));
 }
 
 export async function planRoutes(app: any, prefix = '') {

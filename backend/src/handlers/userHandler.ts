@@ -8,6 +8,7 @@ import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword } from '../utils/password';
 import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { UserLog } from '../models/userLog.entity';
 import { ParentLinkRequest } from '../models/parentLinkRequest.entity';
 import { ParentRegistrationInvite } from '../models/parentRegistrationInvite.entity';
@@ -1131,7 +1132,7 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
 
-    const isAdmin = requester.role === 'admin' || requester.role === 'rootAdmin' || requester.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
     const targetUserId = Number(ctx.query?.userId || ctx.query?.user_id || 0) || requester.id;
     if (targetUserId !== requester.id && !isAdmin) {
       ctx.set.status = 403;
@@ -2005,7 +2006,7 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    if (requester.id !== user.id && requester.role !== 'admin') {
+    if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -2072,12 +2073,12 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    if (requester.id !== user.id && requester.role !== 'admin') {
+    if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
     const payload = ctx.body as any;
-    const isAdmin = requester.role === 'admin' || requester.role === 'rootAdmin' || requester.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'users:write');
     if (payload.password) {
       if (typeof payload.password !== 'string' || payload.password.length < 8) {
         ctx.set.status = 400;
@@ -2259,7 +2260,7 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    if (requester.id !== user.id && requester.role !== 'admin') {
+    if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -2344,7 +2345,7 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    if (requester.id !== user.id && requester.role !== 'admin') {
+    if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -2373,7 +2374,7 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
     const apiKey = ctx.apiKey;
-    const isAdmin = requester.role === 'admin' || requester.role === 'rootAdmin' || requester.role === '*' || apiKey?.type === 'admin';
+    const isAdmin = hasPermissionSync(ctx, 'admin:access') || apiKey?.type === 'admin';
     if (!isAdmin && requester.id !== userId) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };

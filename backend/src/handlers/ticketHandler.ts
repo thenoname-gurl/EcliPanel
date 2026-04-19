@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { Ticket } from '../models/ticket.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
 import axios from 'axios';
 import { requireFeature } from '../middleware/featureToggle';
@@ -10,8 +11,6 @@ import { AIModelUser } from '../models/aiModelUser.entity';
 import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { Plan } from '../models/plan.entity';
 import { createActivityLog } from './logHandler';
-
-const adminRoles = ['admin', 'rootAdmin', '*'];
 
 export async function ticketRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(Ticket);
@@ -843,7 +842,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const showClosed = includeClosed === 'true' || includeClosed === '1' || includeClosed === 'yes';
     const showReplied = includeReplied === 'true' || includeReplied === '1' || includeReplied === 'yes';
 
-    const tickets = adminRoles.includes(user.role)
+    const tickets = hasPermissionSync(ctx, 'admin:access')
       ? await repo.find({ order: { created: 'DESC' } })
       : await repo.find({ where: { userId: user.id }, order: { created: 'DESC' } });
 
@@ -878,7 +877,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       filtered = filtered.filter((t: any) => !t.archived);
     }
 
-    if (adminRoles.includes(user.role) && !showAi) {
+    if (hasPermissionSync(ctx, 'admin:access') && !showAi) {
       filtered = filtered.filter((t: any) => {
         if (!t.aiTouched) return true;
         const s = (t.status || '').toString().toLowerCase();
@@ -1028,14 +1027,14 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    if (ticket.userId !== user.id && !adminRoles.includes(user.role)) {
+    if (ticket.userId !== user.id && !hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
 
     const output: any = { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
 
-    if (adminRoles.includes(user.role)) {
+    if (hasPermissionSync(ctx, 'admin:access')) {
       const ticketUser = await AppDataSource.getRepository(User).findOneBy({ id: ticket.userId });
       if (ticketUser) {
         const membershipRows = await orgMemberRepo.find({ where: { userId: ticketUser.id }, relations: ['organisation'] });
@@ -1079,7 +1078,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    if (!adminRoles.includes(user.role) && ticket.userId !== user.id) {
+    if (!hasPermissionSync(ctx, 'admin:access') && ticket.userId !== user.id) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -1100,7 +1099,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     let pushedSender: 'staff' | 'user' | null = null;
     let lastMessageText: string | null = null;
     if (typeof reply === 'string' && reply.trim()) {
-      const isAdmin = adminRoles.includes(user.role);
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
       const sender: 'staff' | 'user' = replyAs === 'user' ? 'user' : replyAs === 'staff' ? 'staff' : (isAdmin ? 'staff' : 'user');
       const rawText = reply.trim();
       const txt = sanitizeForDb(rawText);
@@ -1167,7 +1166,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
   app.delete(prefix + '/tickets/:id', async (ctx: any) => {
     const user = ctx.user;
-    if (!adminRoles.includes(user.role)) {
+    if (!hasPermissionSync(ctx, 'admin:access')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

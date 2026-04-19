@@ -7,6 +7,7 @@ import { helmet } from 'elysia-helmet';
 import jsonwebtoken from 'jsonwebtoken';
 import { registerRoutes } from './routes/index';
 import { setupMiddleware, authenticate } from './middleware';
+import { hasPermissionSync } from './middleware/authorize';
 import { setupConfig } from './config';
 import { createActivityLog } from './handlers/logHandler';
 import { AppDataSource } from './config/typeorm';
@@ -520,7 +521,6 @@ app.get('/health', async (ctx: any) => {
 });
 
 app.get('/uploads/id-docs/*', async (ctx: any) => {
-  const adminRoles = ['admin', 'rootAdmin', '*'];
   const user = ctx.user;
   const apiKey = ctx.apiKey;
   if (!user && !apiKey) {
@@ -531,7 +531,7 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
   } else {
-    if (!adminRoles.includes(user.role ?? '')) {
+    if (!hasPermissionSync(ctx, 'id-docs:read')) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
   }
@@ -586,7 +586,6 @@ app.get('/uploads/mailbox/*', async (ctx: any) => {
 
   const requester = ctx.user;
   const apiKey = ctx.apiKey;
-  const adminRoles = ['admin', 'rootAdmin', '*'];
   const ownerId = String(parts[1]);
 
   if (!requester && !apiKey) {
@@ -598,7 +597,7 @@ app.get('/uploads/mailbox/*', async (ctx: any) => {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
   } else {
-    if (String(requester.id) !== ownerId && !adminRoles.includes(requester.role ?? '')) {
+    if (String(requester.id) !== ownerId && !hasPermissionSync(ctx, 'mailbox:read')) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
   }

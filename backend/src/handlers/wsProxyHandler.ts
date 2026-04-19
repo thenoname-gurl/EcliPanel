@@ -4,6 +4,7 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { Node } from '../models/node.entity';
 import { User } from '../models/user.entity';
+import { hasPermissionSync } from '../middleware/authorize';
 import { signWingsJwt } from './remoteHandler';
 import { handleSocConnection } from './wsRoutes';
 import { v4 as uuidv4 } from 'uuid';
@@ -222,7 +223,7 @@ class WingsProxySession {
 
       const user = await AppDataSource.getRepository(User).findOne({
         where: { id: decoded.userId },
-        relations: ['org'],
+        relations: ['org', 'userRoles', 'userRoles.role', 'userRoles.role.permissions'],
       });
 
       if (!user) return null;
@@ -254,7 +255,7 @@ class WingsProxySession {
 
   private async hasConsoleAccess(): Promise<boolean> {
     if (!this.user || !this.serverId) return false;
-    if (this.user.role === '*' || this.user.role === 'rootAdmin') return true;
+    if (hasPermissionSync({ user: this.user }, 'servers:console')) return true;
 
     try {
       const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: this.serverId });

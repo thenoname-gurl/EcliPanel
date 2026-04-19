@@ -5,7 +5,7 @@ import { ServerSubuser } from '../models/serverSubuser.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { createActivityLog } from './logHandler';
 import { createMailboxMessageForUser } from '../utils/mailboxMessage';
 import { getMailboxAccountForUser } from '../services/mailcowService';
@@ -16,7 +16,7 @@ async function canManageSubusers(ctx: any, serverUuid: string): Promise<boolean>
   const user = (ctx as any).user as User;
   if (!user) return false;
 
-  if (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin') return true;
+  if (hasPermissionSync(ctx, 'admin:access')) return true;
 
   const cfgRepo = AppDataSource.getRepository(ServerConfig);
   const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });

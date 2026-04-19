@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { IDVerification } from '../models/idVerification.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { User } from '../models/user.entity';
 import { canPerformIdVerification } from '../utils/eu';
 import { encryptBuffer } from '../utils/crypto';
@@ -87,7 +88,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
   app.get(prefix + '/id-verification/:id', async (ctx: any) => {
     const userId = Number(ctx.params['id']);
     const requester = ctx.user;
-    if (requester?.id !== userId && requester?.role !== 'admin' && requester?.role !== '*') {
+    if (requester?.id !== userId && !hasPermissionSync(ctx, 'idverification:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -105,7 +106,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
   app.put(prefix + '/id-verification/:id', async (ctx: any) => {
     const requester = ctx.user;
-    if (requester?.role !== 'admin' && requester?.role !== '*') {
+    if (!hasPermissionSync(ctx, 'idverification:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -144,7 +145,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
   app.delete(prefix + '/id-verification/:id', async (ctx: any) => {
     const requester = ctx.user;
-    if (requester?.role !== 'admin' && requester?.role !== '*') {
+    if (!hasPermissionSync(ctx, 'idverification:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

@@ -7,8 +7,8 @@ import { ApplicationFormInvite } from '../models/applicationFormInvite.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 
-const adminRoles = ['admin', 'rootAdmin', '*'];
 const submissionStatuses = ['pending', 'accepted', 'rejected', 'archived'] as const;
 const formStatuses = ['active', 'archived', 'closed'] as const;
 const formVisibilities = ['public_anonymous', 'public_users', 'private_invite'] as const;
@@ -16,8 +16,10 @@ const formVisibilities = ['public_anonymous', 'public_users', 'private_invite'] 
 type FormVisibility = typeof formVisibilities[number];
 type FormStatus = typeof formStatuses[number];
 
-function isAdmin(user: User | undefined) {
-  return !!user && adminRoles.includes(String(user.role || ''));
+function isAdmin(user: User | undefined, ctx?: any) {
+  if (!user) return false;
+  if (ctx && hasPermissionSync(ctx, 'applications:manage')) return true;
+  return ['admin', 'rootAdmin', '*'].includes(String(user.role || ''));
 }
 
 function normalizeKind(input: any): 'staff_application' | 'abuse_report' {

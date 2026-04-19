@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { Egg } from '../models/egg.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
 import { nodeService } from '../services/nodeService';
 import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
@@ -15,10 +16,9 @@ function requireAdminCtx(ctx: any): boolean {
     ctx.body = { error: 'Unauthorized' };
     return false;
   }
-  const adminRoles = ['admin', 'rootAdmin', '*'];
-  if (!adminRoles.includes(user.role ?? '')) {
+  if (!hasPermissionSync(ctx, 'eggs:read')) {
     ctx.set.status = 403;
-    ctx.body = { error: 'Admin access required.' };
+    ctx.body = { error: 'Egg administration required.' };
     return false;
   }
   return true;
@@ -28,8 +28,7 @@ export async function eggRoutes(app: any, prefix = '') {
   const repo = () => AppDataSource.getRepository(Egg);
 
   app.get(prefix + '/eggs', async (ctx) => {
-    const user = (ctx as any).user;
-    const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*');
+    const isAdmin = hasPermissionSync(ctx, 'eggs:read');
     if (isAdmin) {
       return await repo().find({ order: { name: 'ASC' } });
     }

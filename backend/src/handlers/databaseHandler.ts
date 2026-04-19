@@ -5,7 +5,7 @@ import { ServerDatabase } from '../models/serverDatabase.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Node } from '../models/node.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { In, Not } from 'typeorm';
 import * as mariadb from 'mariadb';
 import crypto from 'crypto';
@@ -323,7 +323,7 @@ export async function databaseRoutes(app: any, prefix = '') {
 function isAdmin(ctx: any): boolean {
   const user = (ctx as any).user as any;
   if (!user) { ctx.set.status = 401; (ctx as any).body = { error: 'Unauthorized' }; return false; }
-  if (!['admin', 'rootAdmin', '*'].includes(user.role ?? '')) {
+  if (!hasPermissionSync(ctx, 'admin:access')) {
     ctx.set.status = 403; (ctx as any).body = { error: 'Admin access required' };
     return false;
   }

@@ -9,6 +9,7 @@ export type AuthContext = {
   apiKey?: ApiKey;
   oauthToken?: OAuthToken;
   jwtPayload?: any;
+  userPermissions?: string[];
 };
 
 export async function authenticate(ctx: any) {
@@ -77,7 +78,10 @@ export async function authenticate(ctx: any) {
     ctx.jwtPayload = decoded;
 
     const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOne({ where: { id: decoded.userId }, relations: ['org'] });
+    const user = await userRepo.findOne({
+      where: { id: decoded.userId },
+      relations: ['org', 'userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+    });
     const debugInfo = {
       userId: decoded.userId,
       sessionId: decoded.sessionId,
@@ -117,6 +121,16 @@ export async function authenticate(ctx: any) {
     }
 
     ctx.user = user;
+    ctx.userPermissions = [];
+    if (Array.isArray(user.userRoles)) {
+      for (const ur of user.userRoles) {
+        const role = (ur as any).role;
+        if (!role || !Array.isArray(role.permissions)) continue;
+        for (const perm of role.permissions) {
+          if (perm && typeof perm.value === 'string') ctx.userPermissions.push(perm.value);
+        }
+      }
+    }
     return;
   } catch (e: any) {
     ctx.log?.info?.('[authenticate] JWT verify failed', e?.message || e);

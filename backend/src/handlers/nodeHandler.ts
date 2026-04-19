@@ -1,6 +1,6 @@
 import { nodeService } from '../services/nodeService';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
 import { In, MoreThanOrEqual, Not } from 'typeorm';
 import { User } from '../models/user.entity';
@@ -21,10 +21,9 @@ function requireAdminCtx(ctx: any): true | { error: string } {
     ctx.set.status = 401;
     return { error: 'Unauthorized' };
   }
-  const adminRoles = ['admin', 'rootAdmin', '*'];
-  if (!adminRoles.includes(user.role ?? '')) {
+  if (!hasPermissionSync(ctx, 'nodes:read')) {
     ctx.set.status = 403;
-    return { error: 'Admin access required.' };
+    return { error: 'Node administration required.' };
   }
   return true;
 }
@@ -68,7 +67,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       return { error: 'Unauthorized' };
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*';
+    const isAdmin = hasPermissionSync(ctx, 'nodes:read');
 
     const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
     const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
