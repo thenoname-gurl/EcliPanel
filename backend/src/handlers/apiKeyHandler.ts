@@ -47,9 +47,9 @@ export async function apiKeyRoutes(app: any, prefix = '') {
     const actor = ctx.user as any;
 
     let userRef;
-    const isAdmin = actor && hasPermissionSync(ctx, 'admin:access');
+    const canManageUsers = actor && hasPermissionSync(ctx, 'users:write');
     if (userId) {
-      if (!isAdmin && userId !== actor?.id) {
+      if (!canManageUsers && userId !== actor?.id) {
         ctx.set.status = 403;
         return { error: 'Not allowed to create keys for other users' };
       }

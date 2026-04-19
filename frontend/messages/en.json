@@ -35,7 +35,7 @@
       "family": "Family",
       "subuserInvites": "Subuser Invites",
       "mailbox": "Mailbox",
-      "adminPanel": "Admin Panel",
+      "adminPanel": "Staff Portal",
       "tunnels": "Tunnels"
     },
     "badges": {
@@ -1213,7 +1213,7 @@
   },
   "adminPage": {
     "header": {
-      "title": "Admin Panel",
+      "title": "Staff Portal",
       "description": "System administration and management"
     },
     "actions": {
@@ -4980,6 +4980,7 @@
       "orgHandleNotSet": "Organisation handle is not set",
       "onlyHandleZone": "Only organisation handle zone can be created",
       "invitationSent": "Invitation sent",
+      "cannotInviteYourself": "You cannot invite yourself.",
       "userAdded": "User added to organisation",
       "inviteResent": "Invite resent",
       "inviteRevoked": "Invite revoked",

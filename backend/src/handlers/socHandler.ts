@@ -27,7 +27,7 @@ export async function socRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/soc/overview', async (ctx: any) => {
     const user = ctx.user as any;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+    const isAdmin = hasPermissionSync(ctx, 'soc:read');
 
     const cacheKey = isAdmin
       ? 'soc:overview:admin'

@@ -80,7 +80,14 @@ export async function authenticate(ctx: any) {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOne({
       where: { id: decoded.userId },
-      relations: ['org', 'userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+      relations: [
+        'org',
+        'userRoles',
+        'userRoles.role',
+        'userRoles.role.permissions',
+        'userRoles.role.parentRole',
+        'userRoles.role.parentRole.permissions',
+      ],
     });
     const debugInfo = {
       userId: decoded.userId,
@@ -122,13 +129,22 @@ export async function authenticate(ctx: any) {
 
     ctx.user = user;
     ctx.userPermissions = [];
-    if (Array.isArray(user.userRoles)) {
-      for (const ur of user.userRoles) {
-        const role = (ur as any).role;
-        if (!role || !Array.isArray(role.permissions)) continue;
+    const seenRoles = new Set<number>();
+    const addRolePermissions = (role: any) => {
+      if (!role || !role.id || seenRoles.has(role.id)) return;
+      seenRoles.add(role.id);
+      if (Array.isArray(role.permissions)) {
         for (const perm of role.permissions) {
           if (perm && typeof perm.value === 'string') ctx.userPermissions.push(perm.value);
         }
+      }
+      if (role.parentRole) {
+        addRolePermissions(role.parentRole);
+      }
+    };
+    if (Array.isArray(user.userRoles)) {
+      for (const ur of user.userRoles) {
+        addRolePermissions((ur as any).role);
       }
     }
     return;

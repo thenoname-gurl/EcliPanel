@@ -23,8 +23,8 @@ async function run() {
     'files:read', 'files:write',
     // Backups
     'backups:read', 'backups:create', 'backups:write',
-    // Commands, logs, reinstall
-    'commands:execute', 'logs:read', 'reinstall:execute',
+    // Commands, reinstall
+    'commands:execute', 'reinstall:execute',
     // Schedules, sync, transfers, version
     'schedules:read', 'schedules:create', 'schedules:write', 'sync:execute', 'transfer:execute', 'version:read',
     // Configuration
@@ -32,9 +32,7 @@ async function run() {
     // API keys
     'apikeys:read', 'apikeys:create', 'apikeys:delete',
     // Organisations / SOC / Orders / AI
-    'org:create', 'org:invite', 'soc:write', 'orders:create', 'ai:create',
-    // Nodes / infra
-    'nodes:update-creds', 'nodes:read-creds', 'nodes:map', 'infra:dns',
+    'org:invite', 'soc:write',
   ];
 
   for (const pval of basicPerms) {

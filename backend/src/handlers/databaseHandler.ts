@@ -34,7 +34,7 @@ function uuidSlug(uuid: string) {
 export async function databaseRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/admin/database-hosts', async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!requireDatabasePermission(ctx, 'read')) return;
     const hosts = await hostRepo().find({ order: { id: 'ASC' } });
     return hosts.map(h => ({ ...h, password: '***' }));
   }, {
@@ -44,7 +44,7 @@ export async function databaseRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/database-hosts', async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!requireDatabasePermission(ctx, 'write')) return;
     const { name, host, port = 3306, username, password, nodeId, maxDatabases = 0 } = ctx.body as any;
     if (!name || !host || !username || !password) {
       ctx.set.status = 400;
@@ -68,7 +68,7 @@ export async function databaseRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/database-hosts/:id', async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!requireDatabasePermission(ctx, 'write')) return;
     const { id } = ctx.params as any;
     const h = await hostRepo().findOneBy({ id: Number(id) });
     if (!h) {
@@ -92,7 +92,7 @@ export async function databaseRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/database-hosts/:id', async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!requireDatabasePermission(ctx, 'write')) return;
     const { id } = ctx.params as any;
     const h = await hostRepo().findOneBy({ id: Number(id) });
     if (!h) {
@@ -113,7 +113,7 @@ export async function databaseRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/database-hosts/:id/test', async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!requireDatabasePermission(ctx, 'write')) return;
     const { id } = ctx.params as any;
     const h = await hostRepo().findOneBy({ id: Number(id) });
     if (!h) {
@@ -136,7 +136,7 @@ export async function databaseRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/databases', async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!requireDatabasePermission(ctx, 'read')) return;
     const dbs = await dbRepo().find({ order: { createdAt: 'DESC' } });
     return dbs.map(d => ({ ...d, password: '***' }));
   }, {
@@ -320,11 +320,12 @@ export async function databaseRoutes(app: any, prefix = '') {
   });
 }
 
-function isAdmin(ctx: any): boolean {
+function requireDatabasePermission(ctx: any, level: 'read' | 'write'): boolean {
   const user = (ctx as any).user as any;
   if (!user) { ctx.set.status = 401; (ctx as any).body = { error: 'Unauthorized' }; return false; }
-  if (!hasPermissionSync(ctx, 'admin:access')) {
-    ctx.set.status = 403; (ctx as any).body = { error: 'Admin access required' };
+  const permission = level === 'write' ? 'databases:write' : 'databases:read';
+  if (!hasPermissionSync(ctx, permission)) {
+    ctx.set.status = 403; (ctx as any).body = { error: 'Database access required' };
     return false;
   }
   return true;

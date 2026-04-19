@@ -2,7 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { Ticket } from '../models/ticket.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
-import { hasPermissionSync } from '../middleware/authorize';
+import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
 import axios from 'axios';
 import { requireFeature } from '../middleware/featureToggle';
@@ -842,7 +842,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const showClosed = includeClosed === 'true' || includeClosed === '1' || includeClosed === 'yes';
     const showReplied = includeReplied === 'true' || includeReplied === '1' || includeReplied === 'yes';
 
-    const tickets = hasPermissionSync(ctx, 'admin:access')
+    const tickets = hasPermissionSync(ctx, 'tickets:read')
       ? await repo.find({ order: { created: 'DESC' } })
       : await repo.find({ where: { userId: user.id }, order: { created: 'DESC' } });
 
@@ -877,7 +877,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       filtered = filtered.filter((t: any) => !t.archived);
     }
 
-    if (hasPermissionSync(ctx, 'admin:access') && !showAi) {
+    if (hasPermissionSync(ctx, 'tickets:read') && !showAi) {
       filtered = filtered.filter((t: any) => {
         if (!t.aiTouched) return true;
         const s = (t.status || '').toString().toLowerCase();
@@ -1027,14 +1027,14 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    if (ticket.userId !== user.id && !hasPermissionSync(ctx, 'admin:access')) {
+    if (ticket.userId !== user.id && !hasPermissionSync(ctx, 'tickets:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
 
     const output: any = { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
 
-    if (hasPermissionSync(ctx, 'admin:access')) {
+    if (hasPermissionSync(ctx, 'tickets:read')) {
       const ticketUser = await AppDataSource.getRepository(User).findOneBy({ id: ticket.userId });
       if (ticketUser) {
         const membershipRows = await orgMemberRepo.find({ where: { userId: ticketUser.id }, relations: ['organisation'] });
@@ -1078,7 +1078,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    if (!hasPermissionSync(ctx, 'admin:access') && ticket.userId !== user.id) {
+    if (!hasPermissionSync(ctx, 'tickets:write') && ticket.userId !== user.id) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -1099,8 +1099,8 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     let pushedSender: 'staff' | 'user' | null = null;
     let lastMessageText: string | null = null;
     if (typeof reply === 'string' && reply.trim()) {
-      const isAdmin = hasPermissionSync(ctx, 'admin:access');
-      const sender: 'staff' | 'user' = replyAs === 'user' ? 'user' : replyAs === 'staff' ? 'staff' : (isAdmin ? 'staff' : 'user');
+      const canStaffReply = hasPermissionSync(ctx, 'tickets:write');
+      const sender: 'staff' | 'user' = replyAs === 'user' ? 'user' : replyAs === 'staff' ? 'staff' : (canStaffReply ? 'staff' : 'user');
       const rawText = reply.trim();
       const txt = sanitizeForDb(rawText);
       if (sender === 'staff') {
@@ -1166,14 +1166,14 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
   app.delete(prefix + '/tickets/:id', async (ctx: any) => {
     const user = ctx.user;
-    if (!hasPermissionSync(ctx, 'admin:access')) {
+    if (!hasPermissionSync(ctx, 'tickets:delete')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
     await repo.delete(Number(ctx.params.id));
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('tickets:delete')],
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete ticket (admin only)', tags: ['Tickets'] }
   });

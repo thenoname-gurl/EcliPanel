@@ -462,6 +462,12 @@ interface AdminRole {
   name: string
   description?: string
   permissions: { id: number; value: string }[]
+  parentRoleId?: number
+  parentRole?: {
+    id: number
+    name: string
+    permissions: { id: number; value: string }[]
+  }
 }
 
 interface HeartbeatPoint {
@@ -842,8 +848,8 @@ export default function AdminPanel() {
 
   const adminTabs = [
     { value: 'users', label: t('tabs.users'), permission: 'users:read' },
-    { value: 'metrics', label: t('tabs.metrics'), permission: 'admin:access' },
-    { value: 'export-jobs', label: t('tabs.exportJobs'), permission: 'admin:access' },
+    { value: 'metrics', label: t('tabs.metrics'), permission: 'admin:metrics' },
+    { value: 'export-jobs', label: t('tabs.exportJobs'), permission: 'admin:export-jobs' },
     { value: 'organisations', label: t('tabs.organisations'), permission: 'org:read' },
     { value: 'servers', label: t('tabs.servers'), permission: 'servers:read' },
     { value: 'tickets', label: t('tabs.tickets'), feature: 'ticketing', permission: 'tickets:read' },
@@ -854,17 +860,17 @@ export default function AdminPanel() {
     { value: 'tunnels', label: t('tabs.tunnels'), feature: 'tunnels', permission: 'tunnels:read' },
     { value: 'eggs', label: t('tabs.eggs'), permission: 'eggs:read' },
     { value: 'ai', label: t('tabs.aiModels'), feature: 'ai', permission: 'ai:read' },
-    { value: 'announcements', label: t('tabs.announcements'), permission: 'admin:access' },
-    { value: 'outbound-emails', label: t('tabs.outboundEmails'), permission: 'admin:access' },
-    { value: 'antiabuse', label: t('tabs.antiabuse'), permission: 'admin:access' },
-    { value: 'fraud', label: t('tabs.fraud'), permission: 'admin:access' },
+    { value: 'announcements', label: t('tabs.announcements'), permission: 'admin:announcements' },
+    { value: 'outbound-emails', label: t('tabs.outboundEmails'), permission: 'admin:outbound-emails' },
+    { value: 'antiabuse', label: t('tabs.antiabuse'), permission: 'admin:antiabuse' },
+    { value: 'fraud', label: t('tabs.fraud'), permission: 'admin:fraud' },
     { value: 'roles', label: t('tabs.roles'), permission: 'roles:read' },
     { value: 'logs', label: t('tabs.logs'), permission: 'logs:read' },
     { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permission: 'oauth:manage' },
     { value: 'databases', label: t('tabs.databases'), permission: 'databases:read' },
     { value: 'plans', label: t('tabs.plans'), permission: 'plans:read' },
     { value: 'orders', label: t('tabs.orders'), permission: 'orders:read' },
-    { value: 'settings', label: t('tabs.settings'), permission: 'roles:read' },
+    { value: 'settings', label: t('tabs.settings'), permission: 'admin:settings' },
   ]
 
   const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => tab.permission && hasPermission(user, tab.permission)))
@@ -879,7 +885,7 @@ export default function AdminPanel() {
       router.replace("/dashboard")
     }
   }, [user, canAccessAdmin, isLoading, router])
-  
+
   if (isLoading || !user || !canAccessAdmin) {
     return null
   }
@@ -1268,6 +1274,7 @@ export default function AdminPanel() {
   const [roleDialog, setRoleDialog] = useState(false)
   const [roleName, setRoleName] = useState("")
   const [roleDesc, setRoleDesc] = useState("")
+  const [roleParentId, setRoleParentId] = useState<string>("")
   const [roleLoading, setRoleLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState<AdminRole | null>(null)
   const [newPermValue, setNewPermValue] = useState("")
@@ -5364,6 +5371,7 @@ remote: ${panelUrl}`
                     setRoleDialog,
                     setRoleName,
                     setRoleDesc,
+                    setRoleParentId,
                     confirmAsync,
                     newPermValue,
                     setNewPermValue,
@@ -5629,9 +5637,25 @@ remote: ${panelUrl}`
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Inherit Permissions From <span className="normal-case text-muted-foreground/70">(optional)</span></label>
+              <select
+                value={roleParentId}
+                onChange={(e) => setRoleParentId(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 cursor-pointer"
+              >
+                <option value="">None</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                Parent roles automatically share their permissions with this role. Use this to build role hierarchies without duplicating all values.
+              </p>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRoleDialog(false)} className="border-border">Cancel</Button>
+            <Button variant="outline" onClick={() => { setRoleDialog(false); setRoleParentId(""); }} className="border-border">Cancel</Button>
             <Button
               disabled={roleLoading || !roleName.trim()}
               onClick={async () => {
@@ -5639,12 +5663,17 @@ remote: ${panelUrl}`
                 try {
                   const created = await apiFetch(API_ENDPOINTS.roles, {
                     method: "POST",
-                    body: JSON.stringify({ name: roleName.trim(), description: roleDesc.trim() || undefined }),
+                    body: JSON.stringify({
+                      name: roleName.trim(),
+                      description: roleDesc.trim() || undefined,
+                      parentRoleId: roleParentId ? Number(roleParentId) : undefined,
+                    }),
                   })
                   const newRole = { ...created.role, permissions: [] }
                   setRoles((prev) => [...prev, newRole])
                   setSelectedRole(newRole)
                   setRoleDialog(false)
+                  setRoleParentId("")
                 } finally { setRoleLoading(false) }
               }}
               className="bg-primary text-primary-foreground"

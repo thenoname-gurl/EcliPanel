@@ -23,7 +23,7 @@ import {
   type NavItem,
 } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
 import {
   Tooltip,
@@ -142,8 +142,41 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     [tNav]
   )
 
+  const STAFF_PORTAL_PERMISSIONS = [
+    'admin:access',
+    'admin:metrics',
+    'admin:export-jobs',
+    'admin:announcements',
+    'admin:outbound-emails',
+    'admin:antiabuse',
+    'admin:fraud',
+    'admin:settings',
+    'org:read',
+    'servers:read',
+    'tickets:read',
+    'applications:manage',
+    'idverification:read',
+    'deletions:write',
+    'nodes:read',
+    'tunnels:read',
+    'eggs:read',
+    'ai:read',
+    'roles:read',
+    'logs:read',
+    'oauth:manage',
+    'databases:read',
+    'plans:read',
+    'orders:read',
+    'users:read',
+  ]
+
   const isAdmin = useMemo(() => {
-    return user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
+    return !!user && (
+      user.role === 'admin' ||
+      user.role === 'rootAdmin' ||
+      user.role === '*' ||
+      STAFF_PORTAL_PERMISSIONS.some((perm) => hasPermission(user, perm))
+    )
   }, [user])
 
   const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>({

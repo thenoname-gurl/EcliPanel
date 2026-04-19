@@ -146,7 +146,7 @@ export function authorize(required: string) {
       return { error: 'Age verification is required before using server management features.' };
     }
 
-    if (required === 'transfer:execute' && !hasPermissionSync(ctx, 'admin:access')) {
+    if (required === 'transfer:execute' && !hasPermissionSync(ctx, 'admin:access') && !hasPermissionSync(ctx, 'transfer:execute')) {
       ctx.set.status = 403;
       return { error: 'Insufficient permissions' };
     }

@@ -50,6 +50,16 @@ export async function organisationRoutes(app: any, prefix = '') {
     return await memberRepo.findOne({ where: { userId, organisationId } });
   }
 
+  function resolvePanelBaseUrl(ctx: any): string {
+    const rawUrl = String(process.env.PANEL_URL || process.env.FRONTEND_URL || '').trim();
+    if (rawUrl && rawUrl !== '*' && rawUrl.toLowerCase() !== 'true') {
+      return rawUrl.replace(/\/+$/, '');
+    }
+    const origin = String(ctx.headers?.origin || ctx.request?.headers?.get?.('origin') || '').trim();
+    if (origin) return origin.replace(/\/+$/, '');
+    return 'https://ecli.app';
+  }
+
   async function listMembersForOrg(organisationId: number) {
     const memberships = await memberRepo.find({ where: { organisationId }, relations: ['user'] });
     return (Array.isArray(memberships) ? memberships : [])
@@ -135,7 +145,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   async function userCanManageOrg(ctx: any, user: User, org: Organisation) {
     const membership = await getMembership(user.id, org.id);
     return (
-      hasPermissionSync(ctx, 'admin:access') ||
+      hasPermissionSync(ctx, 'org:write') ||
       user.role === 'staff' ||
       user.id === org.ownerId ||
       !!membership
@@ -150,7 +160,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const membership = await getMembership(user.id, org.id);
-    if (user.id !== org.ownerId && !membership && !hasPermissionSync(ctx, 'admin:access')) {
+    if (user.id !== org.ownerId && !membership && !hasPermissionSync(ctx, 'org:read')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -538,7 +548,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const user = ctx.user as User;
-    if (user.id !== org.ownerId && !hasPermissionSync(ctx, 'admin:access')) {
+    if (user.id !== org.ownerId && !hasPermissionSync(ctx, 'org:write')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -562,7 +572,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const actorMembership = await getMembership(user.id, org.id);
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'admin:access');
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'org:read');
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -582,7 +592,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const actorMembership = await getMembership(user.id, org.id);
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'admin:access');
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'org:write');
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -614,7 +624,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
     const user = ctx.user as User;
     const actorMembership = await getMembership(user.id, org.id);
-    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'admin:access');
+    const actorIsOrgAdminOrStaff = user.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'org:write');
     if (!actorIsOrgAdminOrStaff) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
@@ -630,7 +640,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Invalid role' };
     }
-    if (orgRole === 'owner' && user.id !== org.ownerId && !hasPermissionSync(ctx, 'admin:access')) {
+    if (orgRole === 'owner' && user.id !== org.ownerId && !hasPermissionSync(ctx, 'org:write')) {
       ctx.set.status = 403;
       return { error: 'Only owner can transfer ownership' };
     }
@@ -659,18 +669,46 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Organisation not found' };
     }
-    const { email } = ctx.body as any;
+    const inviter = ctx.user as User;
+    const actorMembership = await getMembership(inviter.id, org.id);
+    const actorIsOrgAdmin = inviter.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'org:write');
+    if (!actorIsOrgAdmin) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
+
+    const rawEmail = ctx.body?.email;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
     if (!email) {
       ctx.set.status = 400;
       return { error: 'email required' };
     }
+    if (email === inviter.email?.toLowerCase()) {
+      ctx.set.status = 400;
+      return { error: 'Cannot invite yourself' };
+    }
+
+    const targetUser = await userRepo.findOneBy({ email }).catch(() => null);
+    if (targetUser) {
+      const existingTargetMembership = await getMembership(targetUser.id, org.id);
+      if (existingTargetMembership) {
+        ctx.set.status = 409;
+        return { error: 'User already in organisation' };
+      }
+    }
+
+    const existingInvite = await inviteRepo.findOne({ where: { organisation: org, email, accepted: false } as any });
+    if (existingInvite) {
+      ctx.set.status = 409;
+      return { error: 'Invite already sent' };
+    }
+
     const token = uuidv4();
     const inv = inviteRepo.create({ organisation: org, email, token, accepted: false, createdAt: new Date() });
     await inviteRepo.save(inv);
-    const inviter = ctx.user as User;
     await createActivityLog({ userId: inviter.id, action: 'org:invite', targetId: String(org.id), targetType: 'organisation', metadata: { invitedEmail: email }, ipAddress: ctx.ip });
 
-    const targetUser = await userRepo.findOneBy({ email }).catch(() => null);
+    const panelUrl = resolvePanelBaseUrl(ctx);
     const panelEmail = targetUser ? (await getMailboxAccountForUser(targetUser.id).catch(() => null))?.email : null;
     const recipients = Array.from(new Set([email, panelEmail].filter(Boolean) as string[]));
     try {
@@ -683,14 +721,14 @@ export async function organisationRoutes(app: any, prefix = '') {
         vars: {
           name: email.split('@')[0],
           orgName: org.name,
-          link: `${process.env.FRONTEND_URL || 'https://ecli.app'}/accept?token=${token}`,
+          link: `${panelUrl}/accept?token=${token}`,
         },
       });
 
       if (targetUser && panelEmail) {
         await createMailboxMessageForUser(targetUser, {
           subject: `Invitation to join ${org.name}`,
-          body: `You have been invited to join the organisation ${org.name}. Review the invitation at ${process.env.FRONTEND_URL || 'https://ecli.app'}/accept?token=${token}`,
+          body: `You have been invited to join the organisation ${org.name}. Review the invitation at ${panelUrl}/accept?token=${token}`,
           toAddress: panelEmail,
         });
       }
@@ -720,6 +758,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Invite already accepted' };
     }
     try {
+      const panelUrl = resolvePanelBaseUrl(ctx);
       const { sendMail } = require('../services/mailService');
       await sendMail({
         to: inv.email,
@@ -729,7 +768,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         vars: {
           name: inv.email.split('@')[0],
           orgName: org.name,
-          link: `${process.env.FRONTEND_URL || 'https://ecli.app'}/accept?token=${inv.token}`,
+          link: `${panelUrl}/accept?token=${inv.token}`,
         },
       });
       await createActivityLog({ userId: (ctx.user as User).id, action: 'org:resend_invite', targetId: String(org.id), targetType: 'organisation', metadata: { inviteId: inv.id, invitedEmail: inv.email }, ipAddress: ctx.ip });
@@ -762,7 +801,9 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Organisation not found' };
     }
     const actor = ctx.user as User;
-    if (!hasPermissionSync(ctx, 'admin:access')) {
+    const actorMembership = await getMembership(actor.id, org.id);
+    const actorIsOrgAdmin = actor.id === org.ownerId || actorMembership?.orgRole === 'admin' || actorMembership?.orgRole === 'owner' || hasPermissionSync(ctx, 'org:write');
+    if (!actorIsOrgAdmin) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

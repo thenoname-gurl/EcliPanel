@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import type { Permission } from './permission.entity';
 import type { UserRole } from './userRole.entity';
 
@@ -12,6 +12,16 @@ export class Role {
 
   @Column({ nullable: true })
   description?: string;
+
+  @Column({ nullable: true })
+  parentRoleId?: number;
+
+  @ManyToOne(() => Role, (role) => role.children, { nullable: true })
+  @JoinColumn({ name: 'parentRoleId' })
+  parentRole?: Role;
+
+  @OneToMany(() => Role, (role) => role.parentRole)
+  children?: Role[];
 
   @OneToMany(() => require('./permission.entity').Permission, (perm: any) => perm.role)
   permissions: Permission[];

@@ -3,15 +3,9 @@ import { t } from 'elysia';
 import { Plan } from '../models/plan.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
-import { hasPermissionSync } from '../middleware/authorize';
+import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 
-function isAdmin(ctx: any): boolean {
-  const user = (ctx as any).user as User | undefined;
-  const apiKey = (ctx as any).apiKey;
-  if (apiKey?.type === 'admin') return true;
-  return !!(user && hasPermissionSync(ctx, 'admin:access'));
-}
 
 export async function planRoutes(app: any, prefix = '') {
   const planRepo = () => AppDataSource.getRepository(Plan);
@@ -39,24 +33,16 @@ export async function planRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/plans', async (ctx) => {
-    if (!isAdmin(ctx)) {
-      ctx.set.status = 403;
-      return { error: 'Forbidden' };
-    }
     const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
     const plans = await planRepo().find({ order: { price: 'ASC' } });
     return plans;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('plans:read')],
     detail: { summary: 'List all plans (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) }
   });
 
   app.post(prefix + '/admin/plans', async (ctx) => {
-    if (!isAdmin(ctx)) {
-      ctx.set.status = 403;
-      return { error: 'Forbidden' };
-    }
     const {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
@@ -89,16 +75,12 @@ export async function planRoutes(app: any, prefix = '') {
     await planRepo().save(plan);
     return { success: true, plan };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('plans:write')],
     detail: { summary: 'Create a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Object({ success: t.Boolean(), plan: t.Any() }), 400: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
   });
 
   app.put(prefix + '/admin/plans/:id', async (ctx) => {
-    if (!isAdmin(ctx)) {
-      ctx.set.status = 403;
-      return { error: 'Forbidden' };
-    }
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
@@ -132,17 +114,12 @@ export async function planRoutes(app: any, prefix = '') {
     await planRepo().save(plan);
     return { success: true, plan };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('plans:write')],
     detail: { summary: 'Update a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });
 
   app.post(prefix + '/admin/plans/:id/reapply-limits', async (ctx) => {
-    if (!isAdmin(ctx)) {
-      ctx.set.status = 403;
-      return { error: 'Forbidden' };
-    }
-
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
@@ -207,16 +184,12 @@ export async function planRoutes(app: any, prefix = '') {
 
     return { success: true, updated };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('plans:write')],
     detail: { summary: 'Reapply plan limits to users without custom limits', tags: ['Plans', 'Admin'] },
     response: { 200: t.Object({ success: t.Boolean(), updated: t.Number() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });
 
   app.delete(prefix + '/admin/plans/:id', async (ctx) => {
-    if (!isAdmin(ctx)) {
-      ctx.set.status = 403;
-      return { error: 'Forbidden' };
-    }
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
@@ -225,7 +198,7 @@ export async function planRoutes(app: any, prefix = '') {
     await planRepo().remove(plan);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('plans:write')],
     detail: { summary: 'Delete a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });
