@@ -3913,7 +3913,15 @@
       "dropToUpload": "Перетащите файлы для загрузки",
       "loadingFiles": "Загрузка файлов...",
       "emptyDirectory": "Пустая директория",
-      "openingSftp": "Открывается SFTP-клиент… Если ничего не произошло, скопируйте команду и используйте терминал или приложение."
+      "openingSftp": "Открывается SFTP-клиент… Если ничего не произошло, скопируйте команду и используйте терминал или приложение.",
+      "sftpConnected": "Подключено по SFTP"
+    },
+    "kvmNotes": {
+      "title": "Примечания KVM-доступа",
+      "usePrimary": "Используйте основной выделенный IP/порт для SSH/SFTP.",
+      "default": "По умолчанию:",
+      "filesystemManaged": "Файловая система управляется cloud-init.",
+      "panelFilesGuest": "Файлы панели могут не соответствовать состоянию гостя."
     },
     "labels": {
       "na": "—",
@@ -3955,6 +3963,9 @@
       "permissionUpdateFailed": "Ошибка обновления прав: {reason}",
       "archiveFailed": "Ошибка архивации: {reason}",
       "moveFailed": "Ошибка перемещения: {reason}",
+      "sftpAuthRequired": "Введите пароль SFTP, чтобы продолжить.",
+      "sftpAuthFailed": "Ошибка авторизации SFTP. Проверьте пароль и попробуйте снова.",
+      "sftpAutoAuthFailed": "Авто-вход SFTP через ROOT_PASSWORD не удался: {reason}. Введите пароль вручную.",
       "bulkChmodFailed": "Ошибка массового chmod: {reason}",
       "bulkDeleteFailed": "Ошибка массового удаления: {reason}"
     }

@@ -3922,7 +3922,15 @@
       "dropToUpload": "Drop files to upload",
       "loadingFiles": "Loading files...",
       "emptyDirectory": "Empty directory",
-      "openingSftp": "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app."
+      "openingSftp": "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app.",
+      "sftpConnected": "Connected via SFTP"
+    },
+    "kvmNotes": {
+      "title": "KVM access notes",
+      "usePrimary": "Use the primary allocation for SSH/SFTP.",
+      "default": "Default:",
+      "filesystemManaged": "Filesystem managed by cloud-init.",
+      "panelFilesGuest": "Panel files may not reflect guest state."
     },
     "labels": {
       "na": "—",
@@ -3955,6 +3963,9 @@
       "openFailed": "Failed to open file: {reason}",
       "saveFailed": "Save failed: {reason}",
       "deleteFailed": "Delete failed: {reason}",
+      "sftpAuthRequired": "Enter the SFTP password to continue.",
+      "sftpAuthFailed": "SFTP authorization failed. Check your password and try again.",
+      "sftpAutoAuthFailed": "Automatic SFTP login from ROOT_PASSWORD failed: {reason}. Enter password manually.",
       "folderExists": "A folder named \"{name}\" already exists.",
       "itemExists": "Cannot create: an item named \"{name}\" already exists.",
       "actionFailed": "Failed: {reason}",

@@ -699,10 +699,36 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   const isKvm = !!server?.configuration?.container?.kvm_passthrough_enabled
 
-  const primaryAlloc =
+  const [primaryAlloc, setPrimaryAlloc] = useState<any>(
     server?.allocations?.find((a: any) => a.is_default) ||
     server?.allocations?.[0] ||
     null
+  )
+
+  useEffect(() => {
+    if (server?.allocations && server.allocations.length > 0) {
+      setPrimaryAlloc(
+        server.allocations.find((a: any) => a.is_default) || server.allocations[0]
+      )
+      return
+    }
+
+    let mounted = true
+    apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", id))
+      .then((data) => {
+        if (!mounted) return
+        const arr = Array.isArray(data) ? data : []
+        setPrimaryAlloc(arr.find((a: any) => a.is_default) || arr[0] || null)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setPrimaryAlloc(null)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [server, id])
 
   const sftpHost = isKvm
     ? primaryAlloc?.fqdn || primaryAlloc?.ip || server?.sftp?.host || ""
@@ -715,6 +741,15 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const sftpUser = isKvm
     ? "root"
     : server?.sftp?.username || ""
+
+  const filesTabSftpInfo = isKvm
+    ? {
+        host: sftpHost,
+        port: Number(sftpPort) || 0,
+        username: sftpUser,
+        proxied: server?.sftp?.proxied,
+      }
+    : server?.sftp
 
   const loadServer = useCallback(async () => {
     try {
@@ -1280,19 +1315,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             )}
             {activeTab === "files" && (
               <Suspense fallback={<LoadingState message={t("states.loadingFiles")} />}>
-                {isKvm && (
-                  <div className="p-3 sm:p-4 pb-0">
-                    <KvmInfoNotice message={t("kvm.filesNotice")} />
-                  </div>
-                )}
                 <FilesTabLazy
                   serverId={id}
-                  sftpInfo={isKvm ? {
-                    host: sftpHost,
-                    port: Number(sftpPort) || 0,
-                    username: sftpUser,
-                    proxied: server.sftp?.proxied,
-                  } : server?.sftp}
+                  sftpInfo={filesTabSftpInfo}
                   isKvm={isKvm}
                   editorSettings={editorSettings}
                 />
@@ -3191,6 +3216,15 @@ function SettingsTab({
   const sshCmd = isKvm
     ? `ssh root@${sftpHost} -p ${sftpPort}`
     : `ssh ${server.sftp?.username}@${server.sftp?.host} -p ${server.sftp?.port}`
+
+  const filesTabSftpInfo = isKvm
+    ? {
+        host: sftpHost,
+        port: Number(sftpPort) || 0,
+        username: sftpUser,
+        proxied: server.sftp?.proxied,
+      }
+    : server?.sftp
 
   const launchSsh = () => {
     const host = sftpHost

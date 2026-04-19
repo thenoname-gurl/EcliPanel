@@ -32,7 +32,7 @@ import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
 import { executeDeletionRequest } from '../jobs/deletionExecutionJob';
-import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel } from '../utils/eu';
+import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
 import path from 'path';
 import fs from 'fs';
@@ -40,6 +40,20 @@ import os from 'os';
 import * as tar from 'tar';
 import { promises as fsp } from 'fs';
 import { normalizeProcessConfig } from '../utils/startupDetection';
+
+function getAgeFromDate(date?: Date | string | null): number | null {
+  if (!date) return null;
+  const dob = date instanceof Date ? date : new Date(String(date));
+  if (isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const monthDiff = now.getUTCMonth() - dob.getUTCMonth();
+  const dayDiff = now.getUTCDate() - dob.getUTCDate();
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+  return age;
+}
 
 function getSafeRelativeFilePath(base: string, relPath: string): string | null {
   const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
@@ -1131,10 +1145,11 @@ export async function adminRoutes(app: any, prefix = '') {
         return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
       }
       const updatedAge = getAgeFromDate(dob);
-      if (updatedAge !== null && updatedAge < 14) {
+      const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
+      if (updatedAge !== null && updatedAge < minimumAge) {
         user.suspended = true;
         user.fraudFlag = true;
-        user.fraudReason = 'Underage account (<14 years)';
+        user.fraudReason = `Underage account (<${minimumAge} years)`;
       }
       user.dateOfBirth = dob;
     }

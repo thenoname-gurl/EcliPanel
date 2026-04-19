@@ -94,10 +94,11 @@ async function safeUser(user: User): Promise<any> {
   safe.isChildAccount = computedAge != null ? isMinorByCountry(computedAge, safe.billingCountry) : undefined;
   safe.ageVerificationRequired = !safe.dateOfBirth;
 
-  if (computedAge !== null && computedAge < 14 && !safe.suspended && !safe.parentId) {
+  const minimumAge = await getMinimumAgeForCountry(safe.billingCountry);
+  if (computedAge !== null && computedAge < minimumAge && !safe.suspended && !safe.parentId) {
     safe.suspended = true;
     safe.fraudFlag = true;
-    safe.fraudReason = safe.fraudReason || 'Underage account (<14 years)';
+    safe.fraudReason = safe.fraudReason || `Underage account (<${minimumAge} years)`;
     await AppDataSource.getRepository(User).save({ id: user.id, suspended: true, fraudFlag: true, fraudReason: safe.fraudReason });
   }
 

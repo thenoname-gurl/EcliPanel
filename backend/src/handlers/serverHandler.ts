@@ -105,24 +105,24 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = (ctx as any).user;
     if (!user) {
       ctx.set.status = 401;
-      return { error: { error: 'Unauthorized' } };
+      return { error: 'Unauthorized' };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: serverUuid });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: { error: 'Server not found' } };
+      return { error: 'Server not found' };
     }
 
     if (!cfg.kvmPassthroughEnabled) {
       ctx.set.status = 400;
-      return { error: { error: 'SFTP access is only available for KVM servers' } };
+      return { error: 'SFTP access is only available for KVM servers' };
     }
 
     const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
     if (!node) {
       ctx.set.status = 503;
-      return { error: { error: 'Server node not found' } };
+      return { error: 'Server node not found' };
     }
 
     const isOwner = cfg.userId === user.id;
@@ -131,35 +131,60 @@ export async function serverRoutes(app: any, prefix = '') {
       const sub = await AppDataSource.getRepository(ServerSubuser).findOne({
         where: { serverUuid: cfg.uuid, userId: user.id, accepted: true },
       });
-      if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files') || sub.permissions.includes('console'))) {
+      if (
+        sub &&
+        Array.isArray(sub.permissions) &&
+        (
+          sub.permissions.includes('*') ||
+          sub.permissions.includes('files') ||
+          sub.permissions.includes('console')
+        )
+      ) {
         isSubuser = true;
       }
     }
 
     if (!isOwner && !isSubuser) {
       ctx.set.status = 403;
-      return { error: { error: 'Forbidden' } };
+      return { error: 'Forbidden' };
     }
 
     if (cfg.suspended || cfg.dmca) {
       ctx.set.status = 403;
       return {
-        error: {
-          error: cfg.dmca
-            ? 'Server placed under DMCA takedown'
-            : 'Server suspended',
-        },
+        error: cfg.dmca
+          ? 'Server placed under DMCA takedown'
+          : 'Server suspended',
       };
     }
 
-    const username = `${user.email}.${cfg.uuid.replace(/-/g, '').substring(0, 8)}`;
-    const password = String(ctx.request?.headers?.get('x-sftp-password') || (ctx.body?.password ?? '') || '').trim();
+    const password = String(
+      ctx.request?.headers?.get('x-sftp-password') ||
+      (ctx.body?.password ?? '') ||
+      ''
+    ).trim();
+
     if (!password) {
       ctx.set.status = 401;
-      return { error: { error: 'SFTP password required' } };
+      return { error: 'SFTP password required' };
     }
 
-    return { cfg, node, username, password };
+    const kvmEndpoint = (() => {
+      const alloc = cfg.allocations as any;
+      if (!alloc?.default || !alloc.default.ip) return null;
+      const ip = String(alloc.default.ip);
+      const port = Number(alloc.default.port ?? 2022);
+      if (!Number.isFinite(port) || port <= 0) return null;
+      const host = alloc.fqdns?.[`${ip}:${port}`] || ip;
+      return { host, port };
+    })();
+
+    if (!kvmEndpoint) {
+      ctx.set.status = 503;
+      return { error: 'KVM allocation endpoint not available' };
+    }
+
+    return { cfg, node, username: 'root', password, endpoint: kvmEndpoint };
   }
 
   async function getGamblingConfig() {
@@ -758,17 +783,17 @@ export async function serverRoutes(app: any, prefix = '') {
         userId: cfg.userId,
         ...(isAdmin
           ? {
-              owner: cfg.userId,
-              eggId: cfg.eggId ?? null,
-              nodeId: cfg.nodeId,
-              memory: cfg.memory,
-              disk: cfg.disk,
-              cpu: cfg.cpu,
-              swap: cfg.swap,
-              dockerImage: cfg.dockerImage,
-              startup: cfg.startup,
-              description: cfg.description,
-            }
+            owner: cfg.userId,
+            eggId: cfg.eggId ?? null,
+            nodeId: cfg.nodeId,
+            memory: cfg.memory,
+            disk: cfg.disk,
+            cpu: cfg.cpu,
+            swap: cfg.swap,
+            dockerImage: cfg.dockerImage,
+            startup: cfg.startup,
+            description: cfg.description,
+          }
           : {}),
       };
     }
@@ -791,17 +816,17 @@ export async function serverRoutes(app: any, prefix = '') {
         userId: cfg.userId,
         ...(isAdmin
           ? {
-              owner: cfg.userId,
-              eggId: cfg.eggId ?? null,
-              nodeId: cfg.nodeId,
-              memory: cfg.memory,
-              disk: cfg.disk,
-              cpu: cfg.cpu,
-              swap: cfg.swap,
-              dockerImage: cfg.dockerImage,
-              startup: cfg.startup,
-              description: cfg.description,
-            }
+            owner: cfg.userId,
+            eggId: cfg.eggId ?? null,
+            nodeId: cfg.nodeId,
+            memory: cfg.memory,
+            disk: cfg.disk,
+            cpu: cfg.cpu,
+            swap: cfg.swap,
+            dockerImage: cfg.dockerImage,
+            startup: cfg.startup,
+            description: cfg.description,
+          }
           : {}),
       };
     } catch (e: any) {
@@ -820,18 +845,18 @@ export async function serverRoutes(app: any, prefix = '') {
             sftp: sftpInfo,
             ...(isAdmin
               ? {
-                  owner: cfg.userId,
-                  userId: cfg.userId,
-                  eggId: cfg.eggId ?? null,
-                  nodeId: cfg.nodeId,
-                  memory: cfg.memory,
-                  disk: cfg.disk,
-                  cpu: cfg.cpu,
-                  swap: cfg.swap,
-                  dockerImage: cfg.dockerImage,
-                  startup: cfg.startup,
-                  description: cfg.description,
-                }
+                owner: cfg.userId,
+                userId: cfg.userId,
+                eggId: cfg.eggId ?? null,
+                nodeId: cfg.nodeId,
+                memory: cfg.memory,
+                disk: cfg.disk,
+                cpu: cfg.cpu,
+                swap: cfg.swap,
+                dockerImage: cfg.dockerImage,
+                startup: cfg.startup,
+                description: cfg.description,
+              }
               : {}),
           };
         } catch {
@@ -861,18 +886,18 @@ export async function serverRoutes(app: any, prefix = '') {
           sftp: sftpInfo,
           ...(isAdmin
             ? {
-                owner: cfg.userId,
-                userId: cfg.userId,
-                eggId: cfg.eggId ?? null,
-                nodeId: cfg.nodeId,
-                memory: cfg.memory,
-                disk: cfg.disk,
-                cpu: cfg.cpu,
-                swap: cfg.swap,
-                dockerImage: cfg.dockerImage,
-                startup: cfg.startup,
-                description: cfg.description,
-              }
+              owner: cfg.userId,
+              userId: cfg.userId,
+              eggId: cfg.eggId ?? null,
+              nodeId: cfg.nodeId,
+              memory: cfg.memory,
+              disk: cfg.disk,
+              cpu: cfg.cpu,
+              swap: cfg.swap,
+              dockerImage: cfg.dockerImage,
+              startup: cfg.startup,
+              description: cfg.description,
+            }
             : {}),
         };
       }
@@ -1401,9 +1426,9 @@ export async function serverRoutes(app: any, prefix = '') {
     const requestedStartup = typeof body.startup === 'string' ? body.startup.trim() : '';
     const resolvedStartup = requestedStartup || (typeof egg.startup === 'string'
       ? egg.startup.replace(
-          /\{\{([^}]+)\}\}/g,
-          (_: string, varName: string) => envObject[varName.trim()] ?? '',
-        )
+        /\{\{([^}]+)\}\}/g,
+        (_: string, varName: string) => envObject[varName.trim()] ?? '',
+      )
       : '');
 
     const wingsPayload = {
@@ -2023,6 +2048,16 @@ export async function serverRoutes(app: any, prefix = '') {
   app.get(prefix + '/servers/:id/files/contents', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { path } = ctx.query as any;
+    if (!path) {
+      ctx.set.status = 400;
+      return { error: 'path query param required' };
+    }
+
+    if (/\.qcow2$/i.test(String(path))) {
+      ctx.set.status = 403;
+      return { error: 'Opening qcow2 images via the normal file manager is not allowed' };
+    }
+
     const svc = await serviceFor(id);
     try {
       const res = await svc.readFile(id, path);
@@ -2423,13 +2458,44 @@ export async function serverRoutes(app: any, prefix = '') {
     detail: { summary: 'Change file permissions', tags: ['Servers'] }
   });
 
+  app.post(prefix + '/servers/:id/sftp/validate', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const auth = await resolveSftpAccess(id, ctx);
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      ctx.log?.warn?.({ serverId: id, error: auth.error, path: ctx.query?.path ?? '/' }, 'sftp.validate.access-denied');
+      return { error: auth.error };
+    }
+
+    const filePath = String(ctx.query?.path || '/');
+    const start = Date.now();
+    ctx.log?.info?.({ serverId: id, nodeId: auth.node?.id, nodeName: auth.node?.name, path: filePath, username: auth.username }, 'sftp.validate.start');
+
+    try {
+      await validateSftpCredentials(auth.node, { username: auth.username, password: auth.password }, filePath, auth.endpoint);
+      ctx.log?.info?.({ serverId: id, nodeId: auth.node?.id, durationMs: Date.now() - start }, 'sftp.validate.success');
+      return { success: true };
+    } catch (e: any) {
+      const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 401;
+      ctx.set.status = status;
+      ctx.log?.warn?.({ serverId: id, nodeId: auth.node?.id, durationMs: Date.now() - start, code: e?.code, message: e?.message }, 'sftp.validate.failed');
+      return { error: e?.message || 'Failed to validate SFTP credentials' };
+    }
+  }, {
+    beforeHandle: [authenticate, authorize('files:read')],
+    detail: { summary: 'Validate KVM SFTP credentials', tags: ['Servers'] }
+  });
+
   app.get(prefix + '/servers/:id/sftp/files', async (ctx: any) => {
     const { id } = ctx.params as any;
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
-      return await listSftpFiles(auth.node, { username: auth.username, password: auth.password }, ctx.query?.path ?? '/');
+      return await listSftpFiles(auth.node, { username: auth.username, password: auth.password }, ctx.query?.path ?? '/', auth.endpoint);
     } catch (e: any) {
       const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 500;
       ctx.set.status = status;
@@ -2437,18 +2503,20 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:read')],
-    response: { 200: t.Array(t.Any()), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'List KVM SFTP directory contents', tags: ['Servers'] }
   });
 
   app.get(prefix + '/servers/:id/sftp/contents', async (ctx: any) => {
     const { id } = ctx.params as any;
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     const filePath = String(ctx.query?.path || '/');
     try {
-      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath);
+      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, auth.endpoint);
       return data.toString('utf-8');
     } catch (e: any) {
       const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
@@ -2457,7 +2525,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:read')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Read KVM SFTP file contents', tags: ['Servers'] }
   });
 
@@ -2470,10 +2537,13 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
-      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath);
+      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, auth.endpoint);
       const filename = filePath.split('/').pop() || 'download';
       return new Response(Buffer.from(data), {
         status: 200,
@@ -2491,14 +2561,6 @@ export async function serverRoutes(app: any, prefix = '') {
   }, {
     beforeHandle: [authenticate, authorize('files:read')],
     query: t.Object({ path: t.String() }),
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() }),
-    },
     detail: { summary: 'Download KVM SFTP file', tags: ['Servers'] },
   });
 
@@ -2511,12 +2573,15 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
       const rawBody = await ctx.request.arrayBuffer();
       const binaryData = new Uint8Array(rawBody);
-      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, pathParam, Buffer.from(binaryData));
+      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, pathParam, Buffer.from(binaryData), auth.endpoint);
       return { success: true };
     } catch (e: any) {
       const status = e?.code === 'EACCES' ? 403 : 500;
@@ -2525,35 +2590,29 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() }),
-    },
     detail: { summary: 'Upload a file to KVM SFTP path', tags: ['Servers'] },
   });
 
   app.post(prefix + '/servers/:id/sftp/write', async (ctx: any) => {
     const { id } = ctx.params;
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
       const body = ctx.body as any;
-      const filePath = String(body.path || '');
+      const filePath = String(body?.path || '');
       if (!filePath) {
         ctx.set.status = 400;
         return { error: 'path is required' };
       }
 
-      let content = body.content ?? '';
-      if (typeof content !== 'string') {
-        content = String(content);
-      }
+      let content = body?.content ?? '';
+      if (typeof content !== 'string') content = String(content);
 
-      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, Buffer.from(content, 'utf-8'));
+      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, Buffer.from(content, 'utf-8'), auth.endpoint);
       return { success: true };
     } catch (e: any) {
       const status = e?.code === 'EACCES' ? 403 : 500;
@@ -2562,23 +2621,22 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() }),
-    },
     detail: { summary: 'Write a KVM SFTP file', tags: ['Servers'] },
   });
 
   app.post(prefix + '/servers/:id/sftp/delete', async (ctx: any) => {
     const { id } = ctx.params as any;
     const { path: root = '/', files, bulk } = ctx.body as any;
+
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     let targetFiles: string[] = [];
+    let baseDir: string = root;
+
     if (bulk && Array.isArray(files)) {
       targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
     } else {
@@ -2588,6 +2646,7 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: 'path required' };
       }
       const lastSlash = filePath.lastIndexOf('/');
+      baseDir = filePath.substring(0, lastSlash) || '/';
       const filename = filePath.substring(lastSlash + 1);
       targetFiles = filename ? [filename] : [];
     }
@@ -2598,7 +2657,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     try {
-      await deleteSftpFiles(auth.node, { username: auth.username, password: auth.password }, String(root || '/'), targetFiles);
+      await deleteSftpFiles(auth.node, { username: auth.username, password: auth.password }, baseDir, targetFiles, auth.endpoint);
       return { success: true };
     } catch (e: any) {
       const status = e?.code === 'EACCES' ? 403 : 500;
@@ -2607,7 +2666,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete file(s) over KVM SFTP', tags: ['Servers'] }
   });
 
@@ -2620,10 +2678,13 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
-      await mkdirSftp(auth.node, { username: auth.username, password: auth.password }, dirPath);
+      await mkdirSftp(auth.node, { username: auth.username, password: auth.password }, dirPath, auth.endpoint);
       return { success: true };
     } catch (e: any) {
       const status = e?.code === 'EACCES' ? 403 : 500;
@@ -2632,7 +2693,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Create directory over KVM SFTP', tags: ['Servers'] }
   });
 
@@ -2645,16 +2705,20 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
+      const base = root.replace(/\/+$/, '') || '/';
       for (const entry of files) {
         if (!entry || typeof entry.from !== 'string' || typeof entry.to !== 'string') {
           throw new Error('Invalid file mapping entry');
         }
-        const fromPath = `${root.replace(/\/+$/, '')}/${entry.from}`.replace(/\/+/g, '/');
-        const toPath = `${root.replace(/\/+$/, '')}/${entry.to}`.replace(/\/+/g, '/');
-        await renameSftp(auth.node, { username: auth.username, password: auth.password }, fromPath, toPath);
+        const fromPath = `${base}/${entry.from}`.replace(/\/+/g, '/');
+        const toPath = `${base}/${entry.to}`.replace(/\/+/g, '/');
+        await renameSftp(auth.node, { username: auth.username, password: auth.password }, fromPath, toPath, auth.endpoint);
       }
       return { success: true };
     } catch (e: any) {
@@ -2664,7 +2728,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Rename files over KVM SFTP', tags: ['Servers'] }
   });
 
@@ -2681,16 +2744,19 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
-    const dest = destination.replace(/^\/+|\/+$/g, '');
+    const dest = ('/' + destination).replace(/\/+/g, '/').replace(/\/+$/, '') || '/';
     const mappings = files.map((name: string) => ({
       from: name,
-      to: dest ? `${dest}/${name}` : name,
+      to: `${dest}/${name}`.replace(/\/+/g, '/'),
     }));
 
     try {
-      await moveSftpFiles(auth.node, { username: auth.username, password: auth.password }, String(root || '/'), mappings);
+      await moveSftpFiles(auth.node, { username: auth.username, password: auth.password }, String(root || '/'), mappings, auth.endpoint);
       return { success: true };
     } catch (e: any) {
       const status = e?.code === 'EACCES' ? 403 : 500;
@@ -2699,7 +2765,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Move files over KVM SFTP', tags: ['Servers'] }
   });
 
@@ -2712,19 +2777,21 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) return auth.error;
+    if ('error' in auth) {
+      ctx.set.status = 401;
+      return { error: auth.error };
+    }
 
     try {
+      const base = root.replace(/\/+$/, '') || '/';
       for (const entry of files) {
         if (!entry || typeof entry.file !== 'string' || typeof entry.mode !== 'string') {
           throw new Error('Invalid chmod entry');
         }
         const mode = parseInt(entry.mode, 8);
-        if (Number.isNaN(mode)) {
-          throw new Error('Invalid mode');
-        }
-        const target = `${root.replace(/\/+$/, '')}/${entry.file}`.replace(/\/+/g, '/');
-        await chmodSftp(auth.node, { username: auth.username, password: auth.password }, target, mode);
+        if (Number.isNaN(mode)) throw new Error(`Invalid mode: ${entry.mode}`);
+        const target = `${base}/${entry.file}`.replace(/\/+/g, '/');
+        await chmodSftp(auth.node, { username: auth.username, password: auth.password }, target, mode, auth.endpoint);
       }
       return { success: true };
     } catch (e: any) {
@@ -2734,7 +2801,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Change permissions over KVM SFTP', tags: ['Servers'] }
   });
 
