@@ -3895,7 +3895,9 @@
       "viewImage": "View image",
       "edit": "Edit",
       "openSftp": "Open via SFTP",
-      "openQemuFolder": "Open QEMU folder"
+      "openQemuFolder": "Open QEMU folder",
+      "hide": "Hide",
+      "details": "Details"
     },
     "table": {
       "name": "Name",
@@ -3923,12 +3925,18 @@
       "loadingFiles": "Loading files...",
       "emptyDirectory": "Empty directory",
       "openingSftp": "Opening SFTP client… If nothing happened, copy the command above and use your terminal or an SFTP app.",
-      "sftpConnected": "Connected via SFTP"
+      "sftpConnected": "Connected via SFTP",
+      "sftpNotConnected": "SFTP — Not connected",
+      "sftpAutoConnected": "Auto-connected via SFTP",
+      "fileSaved": "File saved",
+      "archiveCreated": "Archive created",
+      "commandCopied": "Command copied to clipboard"
     },
     "kvmNotes": {
       "title": "KVM access notes",
       "usePrimary": "Use the primary allocation for SSH/SFTP.",
       "default": "Default:",
+      "defaultCredentials": "Default credentials:",
       "filesystemManaged": "Filesystem managed by cloud-init.",
       "panelFilesGuest": "Panel files may not reflect guest state."
     },
@@ -3939,12 +3947,17 @@
       "host": "Host",
       "port": "Port",
       "username": "Username",
+      "qemuHostFolder": "QEMU Host Folder",
+      "vmFilesystemViaSftp": "VM Filesystem via SFTP",
       "sftpModeDescription": "Use direct SFTP access to the guest filesystem.",
       "sftpCommand": "SFTP command",
       "sftpPassword": "SFTP password"
     },
     "confirm": {
       "openUnknownType": "This file type may not display correctly. Open anyway?",
+      "openUnknownFileTitle": "Open unknown file type",
+      "openUnknownFileDescription": "\"{name}\" may not be a text file. Open anyway?",
+      "openAnyway": "Open anyway",
       "deleteFile": "Delete \"{name}\"?",
       "fileExistsOpen": "\"{name}\" exists. Open it instead?",
       "applyRecursive": "Apply recursively?",

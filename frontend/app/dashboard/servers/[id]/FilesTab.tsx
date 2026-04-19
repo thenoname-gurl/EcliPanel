@@ -459,7 +459,7 @@ function SftpConnectionPanel({
               "h-2 w-2 rounded-full",
               sftpAuthorized ? "bg-emerald-400 shadow-[0_0_6px_#34d399]" : "bg-muted-foreground/40"
             )} />
-            {sftpAuthorized ? "Connected via SFTP" : "SFTP — Not connected"}
+            {sftpAuthorized ? t("states.sftpConnected") : t("states.sftpNotConnected")}
           </div>
 
           {canUseSftp && (
@@ -473,7 +473,7 @@ function SftpConnectionPanel({
           onClick={() => setShowDetails(v => !v)}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          {showDetails ? "Hide" : "Details"}
+          {showDetails ? t("actions.hide") : t("actions.details")}
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
         </button>
       </div>
@@ -484,9 +484,9 @@ function SftpConnectionPanel({
           {/* Info Cards */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: "Host", value: sftpInfo?.host || "—", icon: Globe },
-              { label: "Port", value: sftpInfo?.port?.toString() || "—", icon: Server },
-              { label: "User", value: sftpInfo?.username ?? "—", icon: Terminal },
+              { label: t("labels.host"), value: sftpInfo?.host || "—", icon: Globe },
+              { label: t("labels.port"), value: sftpInfo?.port?.toString() || "—", icon: Server },
+              { label: t("labels.username"), value: sftpInfo?.username ?? "—", icon: Terminal },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="rounded-lg border border-border/60 bg-secondary/30 p-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -521,7 +521,7 @@ function SftpConnectionPanel({
             <ul className="list-disc pl-4 space-y-1 leading-relaxed">
               <li>{t("kvmNotes.usePrimary")}</li>
               <li>
-                Default credentials:{" "}
+                {t("kvmNotes.defaultCredentials")} {" "}
                 <code className="bg-indigo-500/10 px-1 rounded">root</code>{" / "}
                 <code className="bg-indigo-500/10 px-1 rounded">changeme</code>
               </li>
@@ -804,7 +804,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       autoConnectingRef.current = true
       setSftpPassword(String(candidate))
       setSftpAuthorized(true)
-      toast("success", "Auto-connected via SFTP")
+      toast("success", t("states.sftpAutoConnected"))
     } catch {
       setSftpPassword("")
       setSftpAuthorized(false)
@@ -933,13 +933,13 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
     if (!isTextFile(name)) {
       showConfirm(
-        "Open unknown file type",
-        `"${name}" may not be a text file. Open anyway?`,
+        t("confirm.openUnknownFileTitle"),
+        t("confirm.openUnknownFileDescription", { name }),
         async () => {
           closeConfirm()
           await doOpenFile(filePath)
         },
-        { confirmLabel: "Open anyway" }
+        { confirmLabel: t("confirm.openAnyway") }
       )
       return
     }
@@ -975,7 +975,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         headers: isSftpMode ? sftpHeaders : undefined,
         body: JSON.stringify({ path: editingFile, content: fileContent }),
       })
-      toast("success", "File saved")
+      toast("success", t("states.fileSaved"))
       setEditingFile(null)
     } catch (e: any) {
       toast("error", t("errors.saveFailed", { reason: e.message }))
@@ -1129,7 +1129,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       await apiFetch(API_ENDPOINTS.serverFileArchive.replace(":id", serverId), {
         method: "POST", body: JSON.stringify({ root: path, files: selectedNames }),
       })
-      toast("success", "Archive created")
+      toast("success", t("states.archiveCreated"))
       setSelectedNames([]); await loadFiles(path)
     } catch (e: any) {
       toast("error", t("errors.archiveFailed", { reason: e.message }))
@@ -1283,8 +1283,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       {isKvm && (
         <div className="flex items-center gap-1 border-b border-border px-4 pt-3 pb-0 bg-secondary/5">
           {[
-            { key: "qemu", label: "QEMU Host Folder", icon: HardDrive },
-            { key: "sftp", label: "VM Filesystem via SFTP", icon: Wifi },
+            { key: "qemu", label: t("labels.qemuHostFolder"), icon: HardDrive },
+            { key: "sftp", label: t("labels.vmFilesystemViaSftp"), icon: Wifi },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -1324,7 +1324,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
           sftpCommand={sftpCommand}
           onCopyCommand={() => {
             navigator.clipboard.writeText(sftpCommand)
-            toast("info", "Command copied to clipboard")
+            toast("info", t("states.commandCopied"))
           }}
           t={t}
         />

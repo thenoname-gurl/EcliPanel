@@ -3888,7 +3888,9 @@
       "viewImage": "Просмотреть изображение",
       "edit": "Редактировать",
       "openSftp": "Открыть через SFTP",
-      "openQemuFolder": "Открыть папку QEMU"
+      "openQemuFolder": "Открыть папку QEMU",
+      "hide": "Скрыть",
+      "details": "Детали"
     },
     "table": {
       "name": "Имя",
@@ -3916,12 +3918,18 @@
       "loadingFiles": "Загрузка файлов...",
       "emptyDirectory": "Пустая директория",
       "openingSftp": "Открывается SFTP-клиент… Если ничего не произошло, скопируйте команду и используйте терминал или приложение.",
-      "sftpConnected": "Подключено по SFTP"
+      "sftpConnected": "Подключено по SFTP",
+      "sftpNotConnected": "SFTP — не подключено",
+      "sftpAutoConnected": "Автоматически подключено по SFTP",
+      "fileSaved": "Файл сохранён",
+      "archiveCreated": "Архив создан",
+      "commandCopied": "Команда скопирована в буфер обмена"
     },
     "kvmNotes": {
       "title": "Примечания KVM-доступа",
       "usePrimary": "Используйте основной выделенный IP/порт для SSH/SFTP.",
       "default": "По умолчанию:",
+      "defaultCredentials": "Учётные данные по умолчанию:",
       "filesystemManaged": "Файловая система управляется cloud-init.",
       "panelFilesGuest": "Файлы панели могут не соответствовать состоянию гостя."
     },
@@ -3932,12 +3940,17 @@
       "host": "Хост",
       "port": "Порт",
       "username": "Имя пользователя",
+      "qemuHostFolder": "Папка хоста QEMU",
+      "vmFilesystemViaSftp": "Файловая система ВМ через SFTP",
       "sftpModeDescription": "Используйте прямой доступ по SFTP к файловой системе гостевой ВМ.",
       "sftpCommand": "Команда SFTP",
       "sftpPassword": "Пароль SFTP"
     },
     "confirm": {
       "openUnknownType": "Этот тип файла может отображаться некорректно. Всё равно открыть?",
+      "openUnknownFileTitle": "Открыть неизвестный тип файла",
+      "openUnknownFileDescription": "«{name}» может быть не текстовым файлом. Открыть всё равно?",
+      "openAnyway": "Открыть всё равно",
       "deleteFile": "Удалить «{name}»?",
       "fileExistsOpen": "«{name}» существует. Открыть его?",
       "applyRecursive": "Применить рекурсивно?",
