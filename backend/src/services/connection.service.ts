@@ -26,7 +26,8 @@ export async function handleServerConnectionOpen(
     allocation.serverDevice?.deviceCode !== serverAgentId
   ) {
     console.warn(
-      `[tunnel] Rejected connection.open: invalid allocation ${allocationId} for server ${serverAgentId}`
+      `[tunnel] Rejected connection.open: allocation=${allocationId} serverAgent=${serverAgentId} ` +
+        `serverDevice=${allocation?.serverDevice?.deviceCode ?? 'none'} clientDevice=${allocation?.clientDevice?.deviceCode ?? 'none'}`
     );
     return;
   }
@@ -35,17 +36,40 @@ export async function handleServerConnectionOpen(
     allocationId: allocation.id,
     clientAgentId: allocation.clientDevice.deviceCode,
     serverAgentId,
+    directToken: uuidv4(),
   });
 
-  sendAgentMessage(allocation.clientDevice.deviceCode, {
+  const mapping = connectionMap.get(connectionId);
+  if (!mapping) return;
+
+  const serverTokenSent = sendAgentMessage(serverAgentId, {
+    type: 'direct.token',
+    connectionId,
+    directToken: mapping.directToken,
+  });
+  if (!serverTokenSent) {
+    console.warn(
+      `[tunnel] Failed to deliver direct token to server agent ${serverAgentId} for connection ${connectionId}`
+    );
+  }
+
+  const clientOpenSent = sendAgentMessage(allocation.clientDevice.deviceCode, {
     type: 'connection.open',
     allocationId: allocation.id,
     connectionId,
     localHost: allocation.localHost,
     localPort: allocation.localPort,
+    publicHost: allocation.host,
+    publicPort: allocation.port,
+    directToken: mapping.directToken,
     remoteAddr: msg.remoteAddr ?? null,
     remotePort: msg.remotePort ?? null,
   });
+  if (!clientOpenSent) {
+    console.warn(
+      `[tunnel] Failed to deliver connection.open to client agent ${allocation.clientDevice.deviceCode} for connection ${connectionId}`
+    );
+  }
 }
 
 export function handleConnectionData(

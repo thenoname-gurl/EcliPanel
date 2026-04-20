@@ -12,7 +12,7 @@ edition = "2021"
  http = "0.2"
  futures-util = "0.3"
  tracing = "0.1"
- tracing-subscriber = "0.3"
+ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
  clap = { version = "4.4", features = ["derive"] }
  base64 = "0.21"
  anyhow = "1.0"

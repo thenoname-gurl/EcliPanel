@@ -1,4 +1,3 @@
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use clap::{Parser, Subcommand};
 use futures_util::{SinkExt, StreamExt};
 use reqwest::Client;
@@ -12,7 +11,7 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{copy_bidirectional, AsyncBufReadExt, BufReader},
     net::{TcpListener, TcpStream},
     sync::{oneshot, Mutex},
 };
@@ -25,9 +24,20 @@ use uuid::Uuid;
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsSink = futures_util::stream::SplitSink<WsStream, Message>;
-type SharedConnections = Arc<Mutex<HashMap<String, Arc<Mutex<TcpStream>>>>>;
 type ListenerControl = Arc<Mutex<HashMap<u64, oneshot::Sender<()>>>>;
 type ConnectionAllocationMap = Arc<Mutex<HashMap<String, u64>>>;
+type DirectWaiters = Arc<Mutex<HashMap<String, oneshot::Sender<TcpStream>>>>;
+type DirectTokens = Arc<Mutex<HashMap<String, String>>>;
+type ConnectionShutdowns = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
+
+enum DirectClassification {
+    Direct {
+        stream: TcpStream,
+        connection_id: String,
+        token: String,
+    },
+    Public(TcpStream),
+}
 
 fn build_systemd_service(exe: &PathBuf, backend: &str, token: &str) -> String {
     let exec = exe.display();
@@ -72,6 +82,8 @@ enum Command {
         name: String,
         #[arg(long, default_value = "https://ecli.app")]
         backend: String,
+        #[arg(long)]
+        jwt_token: Option<String>,
     },
     Run {
         #[arg(long)]
@@ -138,17 +150,6 @@ impl OutgoingMessage {
         }
     }
 
-    fn connection_data(connection_id: &str, data: String) -> Self {
-        Self {
-            type_name: "connection.data".into(),
-            allocation_id: None,
-            connection_id: Some(connection_id.to_owned()),
-            remote_addr: None,
-            remote_port: None,
-            data: Some(data),
-        }
-    }
-
     fn connection_close(connection_id: &str) -> Self {
         Self {
             type_name: "connection.close".into(),
@@ -171,7 +172,7 @@ async fn main() {
     let args = Args::parse();
 
     match args.command {
-        Command::Enroll { name, backend } => enroll(name, backend).await,
+        Command::Enroll { name, backend, jwt_token } => enroll(name, backend, jwt_token).await,
         Command::Run {
             token,
             backend,
@@ -180,13 +181,19 @@ async fn main() {
     }
 }
 
-async fn enroll(name: String, backend: String) {
+async fn enroll(name: String, backend: String, jwt_token: Option<String>) {
     let client = Client::new();
     let backend = backend.trim_end_matches('/');
 
-    let start: StartResponse = client
+    let mut request = client
         .post(format!("{backend}/api/tunnel/device/start"))
-        .json(&serde_json::json!({ "name": name, "kind": "server" }))
+        .json(&serde_json::json!({ "name": name, "kind": "server" }));
+
+    if let Some(token) = jwt_token {
+        request = request.header("Authorization", format!("Bearer {}", token));
+    }
+
+    let start: StartResponse = request
         .send()
         .await
         .expect("failed to start enrollment")
@@ -237,6 +244,9 @@ async fn enroll(name: String, backend: String) {
                                 "Enable it with: systemctl daemon-reload && \
                                      systemctl enable --now eclipanel-tunnel"
                             );
+                        }
+                        Err(err) if err.kind() == io::ErrorKind::PermissionDenied => {
+                            info!("skipping systemd service creation (permission denied)");
                         }
                         Err(err) => {
                             warn!(%err, "failed to write systemd service file");
@@ -308,9 +318,11 @@ async fn try_connect_and_serve(
 
     let (write, mut read) = ws_stream.split();
     let write: Arc<Mutex<WsSink>> = Arc::new(Mutex::new(write));
-    let tunnels: SharedConnections = Arc::new(Mutex::new(HashMap::new()));
     let listeners: ListenerControl = Arc::new(Mutex::new(HashMap::new()));
     let connection_allocations: ConnectionAllocationMap = Arc::new(Mutex::new(HashMap::new()));
+    let direct_waiters: DirectWaiters = Arc::new(Mutex::new(HashMap::new()));
+    let direct_tokens: DirectTokens = Arc::new(Mutex::new(HashMap::new()));
+    let shutdowns: ConnectionShutdowns = Arc::new(Mutex::new(HashMap::new()));
 
     while let Some(msg) = read.next().await {
         match msg? {
@@ -318,9 +330,11 @@ async fn try_connect_and_serve(
                 handle_text_message(
                     &txt,
                     write.clone(),
-                    tunnels.clone(),
                     listeners.clone(),
+                    direct_waiters.clone(),
+                    direct_tokens.clone(),
                     connection_allocations.clone(),
+                    shutdowns.clone(),
                 )
                 .await;
             }
@@ -341,9 +355,11 @@ async fn try_connect_and_serve(
 async fn handle_text_message(
     txt: &str,
     write: Arc<Mutex<WsSink>>,
-    tunnels: SharedConnections,
     listeners: ListenerControl,
+    direct_waiters: DirectWaiters,
+    direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
 ) {
     let msg: serde_json::Value = match serde_json::from_str(txt) {
         Ok(v) => v,
@@ -368,9 +384,11 @@ async fn handle_text_message(
                 tokio::spawn(bind_listener(
                     bind,
                     write,
-                    tunnels,
                     listeners,
+                    direct_waiters,
+                    direct_tokens,
                     connection_allocations,
+                    shutdowns,
                 ));
             }
             Err(err) => error!(%err, "failed to parse bind message"),
@@ -381,51 +399,37 @@ async fn handle_text_message(
                 handle_unbind(
                     allocation_id,
                     write,
-                    tunnels,
                     listeners,
+                    direct_waiters,
+                    direct_tokens,
                     connection_allocations,
+                    shutdowns,
                 )
                 .await;
             }
         }
 
-        Some("connection.data") => {
-            let connection_id = match msg.get("connectionId").and_then(|v| v.as_str()) {
-                Some(id) => id.to_owned(),
-                None => return,
-            };
-
-            let data_b64 = match msg.get("data").and_then(|v| v.as_str()) {
-                Some(d) => d,
-                None => return,
-            };
-
-            let bytes = match BASE64.decode(data_b64) {
-                Ok(b) => b,
-                Err(err) => {
-                    error!(%err, "base64 decode failed");
-                    return;
+        Some("connection.close") => {
+            if let Some(connection_id) = msg.get("connectionId").and_then(|v| v.as_str()) {
+                if let Some(tx) = shutdowns.lock().await.remove(connection_id) {
+                    let _ = tx.send(());
                 }
-            };
-
-            let conn = {
-                let tunnels = tunnels.lock().await;
-                tunnels.get(&connection_id).cloned()
-            };
-
-            if let Some(conn) = conn {
-                if let Err(err) = conn.lock().await.write_all(&bytes).await {
-                    error!(%err, %connection_id, "write to local connection failed");
-                }
+                connection_allocations.lock().await.remove(connection_id);
+                direct_waiters.lock().await.remove(connection_id);
+                direct_tokens.lock().await.remove(connection_id);
+                info!(%connection_id, "connection closed by remote");
             }
         }
 
-        Some("connection.close") => {
-            if let Some(connection_id) = msg.get("connectionId").and_then(|v| v.as_str()) {
-                if tunnels.lock().await.remove(connection_id).is_some() {
-                    connection_allocations.lock().await.remove(connection_id);
-                    info!(%connection_id, "connection closed by remote");
-                }
+        Some("direct.token") => {
+            if let (Some(connection_id), Some(token)) = (
+                msg.get("connectionId").and_then(|v| v.as_str()),
+                msg.get("directToken").and_then(|v| v.as_str()),
+            ) {
+                direct_tokens
+                    .lock()
+                    .await
+                    .insert(connection_id.to_owned(), token.to_owned());
             }
         }
 
@@ -442,9 +446,11 @@ async fn handle_text_message(
 async fn bind_listener(
     bind: BindMessage,
     write: Arc<Mutex<WsSink>>,
-    tunnels: SharedConnections,
     listeners: ListenerControl,
+    direct_waiters: DirectWaiters,
+    direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
 ) {
     let addr: SocketAddr = format!("0.0.0.0:{}", bind.port)
         .parse()
@@ -471,16 +477,15 @@ async fn bind_listener(
             result = listener.accept() => {
                 match result {
                     Ok((stream, peer)) => {
-                        let connection_id = Uuid::new_v4().to_string();
-                        info!(%connection_id, %peer, "accepted connection");
-                        tokio::spawn(handle_incoming_connection(
+                        tokio::spawn(handle_incoming_socket(
                             bind.allocation_id,
-                            connection_id,
                             stream,
                             peer,
                             write.clone(),
-                            tunnels.clone(),
+                            direct_waiters.clone(),
+                            direct_tokens.clone(),
                             connection_allocations.clone(),
+                            shutdowns.clone(),
                         ));
                     }
                     Err(err) => {
@@ -502,9 +507,11 @@ async fn bind_listener(
 async fn handle_unbind(
     allocation_id: u64,
     write: Arc<Mutex<WsSink>>,
-    tunnels: SharedConnections,
     listeners: ListenerControl,
+    direct_waiters: DirectWaiters,
+    direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
 ) {
     if let Some(tx) = listeners.lock().await.remove(&allocation_id) {
         let _ = tx.send(());
@@ -523,31 +530,152 @@ async fn handle_unbind(
     };
 
     for connection_id in &removed {
-        tunnels.lock().await.remove(connection_id);
+        direct_waiters.lock().await.remove(connection_id);
+        direct_tokens.lock().await.remove(connection_id);
+        if let Some(tx) = shutdowns.lock().await.remove(connection_id) {
+            let _ = tx.send(());
+        }
         if let Err(err) = send_ws(&write, OutgoingMessage::connection_close(connection_id)).await {
             error!(%err, %connection_id, "failed to send connection.close during unbind");
         }
     }
 }
 
-async fn handle_incoming_connection(
+async fn handle_incoming_socket(
     allocation_id: u64,
-    connection_id: String,
     stream: TcpStream,
     peer: SocketAddr,
     write: Arc<Mutex<WsSink>>,
-    tunnels: SharedConnections,
+    direct_waiters: DirectWaiters,
+    direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
 ) {
-    let stream = Arc::new(Mutex::new(stream));
-    tunnels
-        .lock()
-        .await
-        .insert(connection_id.clone(), stream.clone());
+    match classify_direct_handshake(stream).await {
+        Ok(DirectClassification::Direct { stream, connection_id, token }) => {
+            handle_direct_connection(stream, connection_id, token, direct_waiters, direct_tokens)
+                .await;
+        }
+        Ok(DirectClassification::Public(stream)) => {
+            let connection_id = Uuid::new_v4().to_string();
+            info!(%connection_id, %peer, "accepted public connection");
+            handle_public_connection(
+                allocation_id,
+                connection_id,
+                stream,
+                peer,
+                write,
+                direct_waiters,
+                connection_allocations,
+                shutdowns,
+            )
+            .await;
+        }
+        Err(err) => error!(%err, "failed to classify connection"),
+    }
+}
+
+async fn classify_direct_handshake(
+    stream: TcpStream,
+) -> Result<DirectClassification, io::Error> {
+    let mut preview = vec![0u8; 128];
+    let peek = tokio::time::timeout(Duration::from_millis(200), stream.peek(&mut preview)).await;
+    let Ok(Ok(n)) = peek else {
+        return Ok(DirectClassification::Public(stream));
+    };
+
+    if n == 0 {
+        return Ok(DirectClassification::Public(stream));
+    }
+
+    let snippet = std::str::from_utf8(&preview[..n]).unwrap_or("");
+    if !snippet.starts_with("ECLI-DIRECT ") {
+        return Ok(DirectClassification::Public(stream));
+    }
+
+    let mut reader = BufReader::new(stream);
+    let mut line = String::new();
+    let _ = reader.read_line(&mut line).await?;
+    let stream = reader.into_inner();
+
+    let Some((connection_id, token)) = parse_direct_handshake(&line) else {
+        return Ok(DirectClassification::Public(stream));
+    };
+
+    Ok(DirectClassification::Direct {
+        stream,
+        connection_id,
+        token,
+    })
+}
+
+fn parse_direct_handshake(line: &str) -> Option<(String, String)> {
+    let trimmed = line.trim();
+    let mut parts = trimmed.split_whitespace();
+    if parts.next()? != "ECLI-DIRECT" {
+        return None;
+    }
+    let connection_id = parts.next()?.to_owned();
+    let token = parts.next()?.to_owned();
+    Some((connection_id, token))
+}
+
+async fn handle_direct_connection(
+    stream: TcpStream,
+    connection_id: String,
+    token: String,
+    direct_waiters: DirectWaiters,
+    direct_tokens: DirectTokens,
+) {
+    let expected = wait_for_token(&direct_tokens, &connection_id, Duration::from_secs(5)).await;
+    if expected.as_deref() != Some(token.as_str()) {
+        warn!(%connection_id, "direct token mismatch or timeout");
+        return;
+    }
+
+    direct_tokens.lock().await.remove(&connection_id);
+
+    if let Some(tx) = direct_waiters.lock().await.remove(&connection_id) {
+        let _ = tx.send(stream);
+    } else {
+        warn!(%connection_id, "no pending public connection for direct link");
+    }
+}
+
+async fn wait_for_token(
+    direct_tokens: &DirectTokens,
+    connection_id: &str,
+    timeout: Duration,
+) -> Option<String> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if let Some(token) = direct_tokens.lock().await.get(connection_id).cloned() {
+            return Some(token);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return None;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+async fn handle_public_connection(
+    allocation_id: u64,
+    connection_id: String,
+    mut public_stream: TcpStream,
+    peer: SocketAddr,
+    write: Arc<Mutex<WsSink>>,
+    direct_waiters: DirectWaiters,
+    connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
+) {
     connection_allocations
         .lock()
         .await
         .insert(connection_id.clone(), allocation_id);
+
+    let (tx, rx) = oneshot::channel();
+    direct_waiters.lock().await.insert(connection_id.clone(), tx);
 
     if let Err(err) = send_ws(
         &write,
@@ -556,50 +684,34 @@ async fn handle_incoming_connection(
     .await
     {
         error!(%err, %connection_id, "failed to send connection.open");
-        cleanup(&connection_id, &write, &tunnels, &connection_allocations).await;
+        direct_waiters.lock().await.remove(&connection_id);
+        connection_allocations.lock().await.remove(&connection_id);
         return;
     }
 
-    let mut buf = vec![0u8; 8192];
-    loop {
-        let n = {
-            let mut locked = stream.lock().await;
-            match locked.read(&mut buf).await {
-                Ok(0) => break,
-                Ok(n) => n,
-                Err(err) => {
-                    error!(%err, %connection_id, "read error");
-                    break;
-                }
-            }
-        };
-
-        let encoded = BASE64.encode(&buf[..n]);
-        if let Err(err) = send_ws(
-            &write,
-            OutgoingMessage::connection_data(&connection_id, encoded),
-        )
-        .await
-        {
-            error!(%err, %connection_id, "failed to send connection.data");
-            break;
+    let client_stream = match tokio::time::timeout(Duration::from_secs(15), rx).await {
+        Ok(Ok(stream)) => stream,
+        _ => {
+            warn!(%connection_id, "direct client did not connect in time");
+            direct_waiters.lock().await.remove(&connection_id);
+            connection_allocations.lock().await.remove(&connection_id);
+            let _ = send_ws(&write, OutgoingMessage::connection_close(&connection_id)).await;
+            return;
         }
+    };
+
+    let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+    shutdowns.lock().await.insert(connection_id.clone(), shutdown_tx);
+
+    let mut client_stream = client_stream;
+    tokio::select! {
+        _ = copy_bidirectional(&mut public_stream, &mut client_stream) => {}
+        _ = &mut shutdown_rx => {}
     }
 
-    cleanup(&connection_id, &write, &tunnels, &connection_allocations).await;
-}
-
-async fn cleanup(
-    connection_id: &str,
-    write: &Arc<Mutex<WsSink>>,
-    tunnels: &SharedConnections,
-    connection_allocations: &ConnectionAllocationMap,
-) {
-    tunnels.lock().await.remove(connection_id);
-    connection_allocations.lock().await.remove(connection_id);
-    if let Err(err) = send_ws(write, OutgoingMessage::connection_close(connection_id)).await {
-        error!(%err, %connection_id, "failed to send connection.close");
-    }
+    shutdowns.lock().await.remove(&connection_id);
+    connection_allocations.lock().await.remove(&connection_id);
+    let _ = send_ws(&write, OutgoingMessage::connection_close(&connection_id)).await;
 }
 
 async fn send_ws(

@@ -41,19 +41,25 @@ If you already created an allocation separately, you can also run the client wit
 cargo run --release -- run --backend https://your-backend.example
 ```
 
+To enable verbose client logging, add the `--verbose` flag:
+
+```bash
+cargo run --release -- --verbose run --backend https://your-backend.example
+```
+
 ### What the client does
 
 - Calls `/api/tunnel/device/start` to begin enrollment.
 - Polls `/api/tunnel/device/poll` for approval.
 - Connects to `/api/tunnel/ws` with the approved bearer token.
-- Receives `connection.open` requests from the backend when the server receives inbound traffic.
-- Opens a local TCP connection to the configured service and forwards data.
+- Receives `connection.open` from the backend when the server accepts inbound traffic.
+- Opens a direct TCP connection to the server allocation port and bridges it to the local service.
 
 ## Server usage
 
 ```bash
 cd tunnel/server
-cargo run --release -- enroll --backend https://your-backend.example
+cargo run --release -- enroll --backend https://your-backend.example --jwt-token <admin_jwt>
 ```
 
 After approval, run the server agent:
@@ -68,8 +74,18 @@ cargo run --release -- run --token <access_token> --backend https://your-backend
 - Connects to `/api/tunnel/ws` with bearer authentication.
 - Receives `bind` events from the backend for each active allocation.
 - Listens on `0.0.0.0:<allocated_port>` for inbound tunnel traffic.
-- Forwards inbound data to the client agent over the WebSocket.
+- For each inbound connection, coordinates a direct client connection on the same port and bridges traffic.
 - Stops listening when the allocation is closed from the panel.
+
+## Direct data path
+
+Tunnel data no longer flows through the backend. The control plane remains on the backend WebSocket, but data travels directly:
+
+```
+internet -> server agent -> client agent -> local service
+```
+
+When a public connection arrives, the server agent notifies the backend, which issues a one-time direct token. The client then connects to the server allocation port, presents the token, and traffic is bridged directly.
 
 ## Proper server configuration
 

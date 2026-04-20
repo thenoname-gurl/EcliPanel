@@ -2,6 +2,7 @@ export interface ConnectionMapping {
   allocationId: number;
   clientAgentId: string;
   serverAgentId: string;
+  directToken: string;
 }
 
 export interface AgentMessage {
