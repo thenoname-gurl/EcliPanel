@@ -112,6 +112,11 @@ export async function authenticate(ctx: any) {
       return { error: 'Invalid session' };
     }
 
+    if (user.suspended) {
+      ctx.set.status = 403;
+      return { error: 'Account is suspended. Please contact support.' };
+    }
+
     if (user.pendingDeletionUntil && new Date(user.pendingDeletionUntil) > new Date()) {
       ctx.set.status = 403;
       return { error: 'Account is pending deletion and currently frozen' };

@@ -136,21 +136,35 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
       const effectiveCountry = typeof body.billingCountry === 'string' ? body.billingCountry : user.billingCountry;
       const minimumAge = await getMinimumAgeForCountry(effectiveCountry);
+      const nextAttempts = attempts + 1;
+      const remaining = Math.max(0, 3 - nextAttempts);
+
       if (age < minimumAge) {
-        await AppDataSource.getRepository(User).save({
-          id: user.id,
-          suspended: true,
-          fraudFlag: true,
-          fraudReason: `Underage account (<${minimumAge} years)`,
-          fraudDetectedAt: new Date(),
-        });
+        settings.ageVerificationSelfieAttempts = nextAttempts;
+        settings.ageVerificationSelfieLastAttemptAt = new Date().toISOString();
+        await AppDataSource.getRepository(User).save({ id: user.id, settings });
+
+        if (nextAttempts >= 3) {
+          await AppDataSource.getRepository(User).save({
+            id: user.id,
+            suspended: true,
+            fraudFlag: true,
+            fraudReason: `Underage account (<${minimumAge} years)`,
+            fraudDetectedAt: new Date(),
+          });
+        }
+
         ctx.set.status = 400;
-        return { error: 'minimum_age', message: `Users must be at least ${minimumAge} years old.` };
+        return {
+          error: 'minimum_age',
+          message: `Users must be at least ${minimumAge} years old. Attempts left: ${remaining}.`,
+          attempts: settings.ageVerificationSelfieAttempts,
+          remaining,
+        };
       }
 
       const maxDelta = 11;
       const difference = Math.abs(predictedAge - age);
-      const remaining = Math.max(0, 3 - attempts - 1);
 
       if (difference > maxDelta) {
         settings.ageVerificationSelfieAttempts = attempts + 1;
