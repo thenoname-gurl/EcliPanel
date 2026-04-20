@@ -3383,6 +3383,7 @@
       "gotIt": "Понятно",
       "uploading": "Загрузка...",
       "submitForVerification": "Отправить на проверку",
+      "verifySelfieAge": "Проверить возраст по селфи",
       "connectHackClub": "Подключить Hack Club",
       "connectGithub": "Подключить GitHub"
     },
@@ -3409,7 +3410,11 @@
       "idDocumentHint": "Принимаются: JPEG, PNG, PDF (макс. 10 МБ)",
       "selfieLabel": "Фото селфи",
       "selfieHint": "Сделайте или загрузите чёткое фото вашего лица (JPEG, PNG)",
-      "selected": "Выбрано"
+      "selected": "Выбрано",
+      "selfieOptionalTitle": "Проверка селфи",
+      "selfieOptionalDescription": "Используйте селфи, чтобы подтвердить возраст без загрузки документа.",
+      "selfieDateOfBirthRequired": "Пожалуйста, укажите дату рождения в Настройках перед проверкой селфи.",
+      "selfieVerified": "Проверка селфи прошла успешно."
     },
     "steps": {
       "common": {
@@ -5192,6 +5197,9 @@
       "disk": "Диск",
       "cpu": "CPU",
       "serverLimit": "Лимит серверов",
+      "ports": "Портов на сервер",
+      "emailDailyLimit": "Лимит отправки писем",
+      "emailQueueLimit": "Лимит очереди писем",
       "databases": "Базы данных",
       "backups": "Резервные копии",
       "renews": "Обновляется"

@@ -3390,6 +3390,7 @@
       "gotIt": "Got it",
       "uploading": "Uploading...",
       "submitForVerification": "Submit for Verification",
+      "verifySelfieAge": "Verify selfie age",
       "connectHackClub": "Connect Hack Club",
       "connectGithub": "Connect GitHub"
     },
@@ -3416,7 +3417,11 @@
       "idDocumentHint": "Accepted: JPEG, PNG, PDF (max 10MB)",
       "selfieLabel": "Selfie Photo",
       "selfieHint": "Take or upload a clear photo of your face (JPEG, PNG)",
-      "selected": "Selected"
+      "selected": "Selected",
+      "selfieOptionalTitle": "Selfie Verification",
+      "selfieOptionalDescription": "Use a selfie to verify your age without submitting an ID document.",
+      "selfieDateOfBirthRequired": "Please set your date of birth in Settings before verifying with a selfie.",
+      "selfieVerified": "Selfie age verification successful."
     },
     "steps": {
       "common": {
@@ -5199,6 +5204,9 @@
       "disk": "Disk",
       "cpu": "CPU",
       "serverLimit": "Server limit",
+      "ports": "Ports per server",
+      "emailDailyLimit": "Email send limit",
+      "emailQueueLimit": "Email queue limit",
       "databases": "Databases",
       "backups": "Backups",
       "renews": "Renews"

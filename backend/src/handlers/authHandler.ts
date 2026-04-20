@@ -1153,10 +1153,13 @@ export async function authRoutes(app: any, prefix = '') {
     if (user) {
       user.portalType = 'educational';
       user.educationLimits = {
-        memory: eduPlan?.memory ?? 2048,
-        disk: eduPlan?.disk ?? 20480,
-        cpu: eduPlan?.cpu ?? 400,
-        serverLimit: eduPlan?.serverLimit ?? 2,
+        memory: eduPlan?.memory ?? 4096,
+        disk: eduPlan?.disk ?? 51200,
+        cpu: eduPlan?.cpu ?? 600,
+        serverLimit: eduPlan?.serverLimit ?? 3,
+        portCount: eduPlan?.portCount ?? 3,
+        emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
+        emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
       };
       user.limits = user.educationLimits ? { ...user.educationLimits } : null;
       ctx.log.info({ eduPlan: eduPlan?.id ?? null, limits: user.limits }, 'Applying educational plan limits to user');
@@ -1285,10 +1288,13 @@ export async function authRoutes(app: any, prefix = '') {
       user.studentVerifiedAt = new Date();
 
       const defaultEduLimits = {
-        memory: eduPlan?.memory ?? 2048,
-        disk: eduPlan?.disk ?? 20480,
-        cpu: eduPlan?.cpu ?? 400,
-        serverLimit: eduPlan?.serverLimit ?? 2,
+        memory: eduPlan?.memory ?? 4096,
+        disk: eduPlan?.disk ?? 51200,
+        cpu: eduPlan?.cpu ?? 600,
+        serverLimit: eduPlan?.serverLimit ?? 3,
+        portCount: eduPlan?.portCount ?? 3,
+        emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
+        emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
       };
 
       const existingLimits = user.educationLimits || {};
@@ -1299,6 +1305,9 @@ export async function authRoutes(app: any, prefix = '') {
         disk: Math.max(existingLimits.disk || 0, currentBaseLimits.disk || 0, defaultEduLimits.disk),
         cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, defaultEduLimits.cpu),
         serverLimit: Math.max(existingLimits.serverLimit || 0, currentBaseLimits.serverLimit || 0, defaultEduLimits.serverLimit),
+        portCount: Math.max(existingLimits.portCount || 0, currentBaseLimits.portCount || 0, defaultEduLimits.portCount),
+        emailSendDailyLimit: Math.max(existingLimits.emailSendDailyLimit || 0, currentBaseLimits.emailSendDailyLimit || 0, defaultEduLimits.emailSendDailyLimit),
+        emailSendQueueLimit: Math.max(existingLimits.emailSendQueueLimit || 0, currentBaseLimits.emailSendQueueLimit || 0, defaultEduLimits.emailSendQueueLimit),
       };
 
       if (!keepExistingPaidTier) {

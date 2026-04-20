@@ -322,6 +322,7 @@ export const API_ENDPOINTS = {
   // Identity / ID Verification
   identity: "/api/id-verification",
   identityStatus: "/api/id-verification/:id",
+  ageVerificationSelfie: "/api/id-verification/age-selfie",
 
   // Account
   account: "/api/account",
@@ -444,7 +445,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
     description: "Free access for verified students",
     icon: User,
     color: "#3b82f6",
-    maxServers: 5,
+    maxServers: 3,
     features: [
       "Loading from backend..",
     ],

@@ -41,6 +41,7 @@ function computeSteps(
   passkeyCount: number,
   twoFactorEnabled: boolean,
   emailVerified: boolean,
+  selfieVerified: boolean,
   studentVerified: boolean,
   portalType: string | undefined,
   euIdDisabled: boolean | undefined,
@@ -61,9 +62,7 @@ function computeSteps(
     {
       id: 5,
       title: t("steps.selfie.title"),
-      description: euIdDisabled
-        ? t("steps.common.notApplicableEu")
-        : t("steps.selfie.description"),
+      description: t("steps.selfie.description"),
       icon: Camera,
     },
   ] as any[];
@@ -99,10 +98,7 @@ function computeSteps(
     }
     if (s.id === 5) {
       if (!emailVerified) return { ...s, status: "locked" };
-      if (euIdDisabled) return { ...s, status: "notApplicable" };
-      if (completed) return { ...s, status: "completed" };
-      if (pending) return { ...s, status: "pending" };
-      if (failed) return { ...s, status: "failed" };
+      if (selfieVerified || completed) return { ...s, status: "completed" };
       return { ...s, status: "available" };
     }
     return { ...s, status: "locked" };
@@ -116,6 +112,10 @@ export default function IdentityPage() {
   const [passkeyCount, setPasskeyCount] = useState(0)
   const [idDocFile, setIdDocFile] = useState<File | null>(null)
   const [selfieFile, setSelfieFile] = useState<File | null>(null)
+  const [selfieOnlyFile, setSelfieOnlyFile] = useState<File | null>(null)
+  const [selfieOnlyLoading, setSelfieOnlyLoading] = useState(false)
+  const [selfieOnlyMessage, setSelfieOnlyMessage] = useState<string | null>(null)
+  const [selfieVerified, setSelfieVerified] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [euIdDialogOpen, setEuIdDialogOpen] = useState(false)
   const euIdDisabled = !!user?.euIdVerificationDisabled
@@ -131,6 +131,12 @@ export default function IdentityPage() {
         .catch(() => setPasskeyCount(0));
     }
   }, [user])
+
+  useEffect(() => {
+    if (user?.settings?.ageVerificationSelfieVerifiedAt) {
+      setSelfieVerified(true);
+    }
+  }, [user?.settings?.ageVerificationSelfieVerifiedAt]);
 
   useEffect(() => {
     if (euIdDisabled) {
@@ -158,7 +164,7 @@ export default function IdentityPage() {
         <div className="flex flex-col gap-6 p-6">
           {/* Status Banner */}
           {(() => {
-            const s = computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, !!user?.studentVerified, portalType, euIdDisabled, t);
+            const s = computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, selfieVerified, !!user?.studentVerified, portalType, euIdDisabled, t);
             const requiredSteps = s.filter((x: any) => x.id === 1 || x.id === 2);
             const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed' || x.status === 'notApplicable').length;
             const allRequired = doneRequired === requiredSteps.length;
@@ -251,10 +257,63 @@ export default function IdentityPage() {
               </div>
             </div>
           )}
+          {!selfieVerified && status?.status !== 'verified' && (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <SectionHeader title={t('start.selfieOptionalTitle')} description={t('start.selfieOptionalDescription')} />
+              <div className="mt-4 grid grid-cols-1 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-foreground">{t('start.selfieLabel')}</label>
+                  <p className="text-xs text-muted-foreground">{t('start.selfieHint')}</p>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={selfieOnlyLoading}
+                    onChange={(e) => setSelfieOnlyFile(e.target.files?.[0] ?? null)}
+                    className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
+                  />
+                  {selfieOnlyFile && <p className="text-xs text-success">{t('start.selected')}: {selfieOnlyFile.name}</p>}
+                  {!user?.dateOfBirth && (
+                    <p className="text-xs text-destructive">{t('start.selfieDateOfBirthRequired')}</p>
+                  )}
+                </div>
+                <button
+                  disabled={selfieOnlyLoading || !selfieOnlyFile || !user?.dateOfBirth}
+                  onClick={async () => {
+                    if (!selfieOnlyFile) return;
+                    if (!user?.dateOfBirth) {
+                      setSelfieOnlyMessage(t('start.selfieDateOfBirthRequired'));
+                      return;
+                    }
+                    setSelfieOnlyLoading(true);
+                    setSelfieOnlyMessage(null);
+                    try {
+                      const formData = new FormData();
+                      formData.append('selfie', selfieOnlyFile);
+                      formData.append('dateOfBirth', user.dateOfBirth);
+                      await apiFetch(API_ENDPOINTS.ageVerificationSelfie, { method: 'POST', body: formData });
+                      setSelfieVerified(true);
+                      setSelfieOnlyMessage(t('start.selfieVerified'));
+                      setSelfieOnlyFile(null);
+                    } catch (e: any) {
+                      setSelfieOnlyMessage(e?.message || t('errors.failed'));
+                    } finally {
+                      setSelfieOnlyLoading(false);
+                    }
+                  }}
+                  className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {selfieOnlyLoading ? t('actions.uploading') : t('actions.verifySelfieAge')}
+                </button>
+                {selfieOnlyMessage && (
+                  <p className="text-sm text-foreground">{selfieOnlyMessage}</p>
+                )}
+              </div>
+            </div>
+          )}
           <div className="rounded-xl border border-border bg-card p-6">
             <SectionHeader title={t("stepsSection.title")} description={t("stepsSection.description")} />
             <div className="mt-6 flex flex-col gap-4">
-          {computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, !!user?.studentVerified, portalType, euIdDisabled, t).map((step, idx) => (
+          {computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, selfieVerified, !!user?.studentVerified, portalType, euIdDisabled, t).map((step, idx) => (
                 <div
                   key={step.id}
                   className={`flex items-center gap-4 rounded-lg border p-4 transition-all ${

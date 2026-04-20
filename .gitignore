@@ -78,3 +78,6 @@ tunnel/client/target/*
 
 # UI Agents skills
 .agents/*
+
+# Age Verification Model
+/backend/model

@@ -367,6 +367,9 @@ export default function BillingPage() {
                       <li>{t("activeSubscription.disk")}: <span className="text-foreground font-medium">{activePlan.plan.disk ?? currentUser?.limits?.disk ?? t("common.unlimited")}</span></li>
                       <li>{t("activeSubscription.cpu")}: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? currentUser?.limits?.cpu ?? t("common.unlimited")}</span></li>
                       <li>{t("activeSubscription.serverLimit")}: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? currentUser?.limits?.serverLimit ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.ports")}: <span className="text-foreground font-medium">{activePlan.plan.portCount ?? currentUser?.limits?.portCount ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.emailDailyLimit")}: <span className="text-foreground font-medium">{activePlan.plan.emailSendDailyLimit ?? currentUser?.limits?.emailSendDailyLimit ?? t("common.unlimited")}</span></li>
+                      <li>{t("activeSubscription.emailQueueLimit")}: <span className="text-foreground font-medium">{activePlan.plan.emailSendQueueLimit ?? currentUser?.limits?.emailSendQueueLimit ?? t("common.unlimited")}</span></li>
                       <li>{t("activeSubscription.databases")}: <span className="text-foreground font-medium">{activePlan.plan.databases ?? currentUser?.limits?.databases ?? t("common.unlimited")}</span></li>
                       <li>{t("activeSubscription.backups")}: <span className="text-foreground font-medium">{activePlan.plan.backups ?? currentUser?.limits?.backups ?? t("common.unlimited")}</span></li>
                     </ul>
