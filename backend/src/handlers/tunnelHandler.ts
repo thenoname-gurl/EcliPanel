@@ -984,19 +984,64 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const { ws, message } = unwrapWsArgs(args);
       if (!ws) return;
 
-      let text: string;
-      try {
-        if (typeof message === 'string') {
-          text = message;
-        } else if (Buffer.isBuffer(message)) {
-          text = message.toString('utf8');
-        } else if (message instanceof ArrayBuffer) {
-          text = Buffer.from(message).toString('utf8');
-        } else {
-          return;
+      const extractText = (value: unknown): string | null => {
+        if (typeof value === 'string') return value;
+        if (Buffer.isBuffer(value)) return value.toString('utf8');
+        if (value instanceof ArrayBuffer) {
+          return Buffer.from(value).toString('utf8');
         }
-      } catch {
-        return;
+        if (ArrayBuffer.isView(value)) {
+          return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8');
+        }
+        if (value && typeof value === 'object' && 'data' in (value as any)) {
+          return extractText((value as any).data);
+        }
+        return null;
+      };
+
+      if (message && typeof message === 'object' && 'type' in (message as any)) {
+        const msg = message as Record<string, unknown>;
+        const deviceCode: string = ws.data?._ecliDeviceCode;
+        const deviceKind: string = ws.data?._ecliKind;
+        if (!deviceCode || !deviceKind) return;
+
+        switch (msg.type) {
+          case 'ping':
+            ws.send(JSON.stringify({ type: 'pong' }));
+            return;
+
+          case 'connection.open':
+            if (deviceKind === 'server') {
+              handleServerConnectionOpen(msg, deviceCode).catch((err) => {
+                console.error('[tunnel] connection.open error:', err);
+              });
+            }
+            return;
+
+          case 'connection.data':
+            handleConnectionData(msg, deviceCode, deviceKind);
+            return;
+
+          case 'connection.close':
+            handleConnectionClose(msg, deviceCode, deviceKind);
+            return;
+
+          default:
+            return;
+        }
+      }
+
+      const text = extractText(message);
+      try {
+        if (text) {
+          console.info('[tunnel] ws message (text):', text);
+        } else {
+          const ctor = (message as any)?.constructor?.name ?? 'unknown';
+          const keys = message && typeof message === 'object' ? Object.keys(message as any) : [];
+          console.info('[tunnel] ws message (unparsed):', { type: typeof message, ctor, keys });
+        }
+      } catch (err) {
+        console.warn('[tunnel] ws message log error:', err);
       }
 
       if (!text) return;
@@ -1019,6 +1064,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
         case 'connection.open':
           if (deviceKind === 'server') {
+            console.info(
+              `[tunnel] received connection.open from ${deviceCode}: ` +
+                `allocationId=${String((msg as any).allocationId ?? '')} ` +
+                `connectionId=${String((msg as any).connectionId ?? '')}`
+            );
             handleServerConnectionOpen(msg, deviceCode).catch((err) => {
               console.error('[tunnel] connection.open error:', err);
             });
