@@ -138,6 +138,9 @@ export async function planRoutes(app: any, prefix = '') {
     if (plan.serverLimit != null) planLimits.serverLimit = Number(plan.serverLimit);
     if (plan.databases != null) planLimits.databases = Number(plan.databases);
     if (plan.backups != null) planLimits.backups = Number(plan.backups);
+    if (plan.emailSendDailyLimit != null) planLimits.emailSendDailyLimit = Number(plan.emailSendDailyLimit);
+    if (plan.emailSendQueueLimit != null) planLimits.emailSendQueueLimit = Number(plan.emailSendQueueLimit);
+    if (plan.portCount != null) planLimits.portCount = Number(plan.portCount);
 
     const isCustomLimits = (userLimits: Record<string, any> | null | undefined, planLimits: Record<string, number>) => {
       if (!userLimits || Object.keys(userLimits).length === 0) return false;

@@ -3,9 +3,10 @@ import { IDVerification } from '../models/idVerification.entity';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
 import { User } from '../models/user.entity';
-import { canPerformIdVerification } from '../utils/eu';
+import { canPerformIdVerification, getMinimumAgeForCountry } from '../utils/eu';
 import { encryptBuffer } from '../utils/crypto';
 import { encryptBufferWithWorker } from '../workers/cryptoWorker';
+import { estimateAgeFromSelfie } from '../services/faceApiService';
 import path from 'path';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
@@ -83,6 +84,123 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     body: t.Any(),
     response: { 200: t.Object({ success: t.Boolean(), record: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'Submit ID verification', description: 'User submits scanned ID and selfie for manual review.', tags: ['Identity'] }
+  });
+
+  app.post(prefix + '/id-verification/age-selfie', async (ctx: any) => {
+    const user = ctx.user as User;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+
+    const body = (ctx.body || {}) as any;
+    const selfie = Array.isArray(body.selfie) ? body.selfie[0] : body.selfie;
+    if (!selfie) {
+      ctx.set.status = 400;
+      return { error: 'selfie_required', message: 'A selfie image is required for age verification.' };
+    }
+
+    const settings = user.settings && typeof user.settings === 'object' ? { ...user.settings } : {};
+    const attempts = Number(settings.ageVerificationSelfieAttempts ?? 0);
+    if (attempts >= 3) {
+      ctx.set.status = 403;
+      return { error: 'selfie_attempts_exceeded', message: 'Maximum selfie verification attempts reached.' };
+    }
+
+    const dateOfBirth = body.dateOfBirth ? new Date(String(body.dateOfBirth)) : user.dateOfBirth ? new Date(String(user.dateOfBirth)) : null;
+    if (!dateOfBirth || isNaN(dateOfBirth.getTime())) {
+      ctx.set.status = 400;
+      return { error: 'date_of_birth_required', message: 'Your date of birth is required for selfie age verification.' };
+    }
+    const age = ((): number | null => {
+      const now = new Date();
+      let calculated = now.getUTCFullYear() - dateOfBirth.getUTCFullYear();
+      const monthDiff = now.getUTCMonth() - dateOfBirth.getUTCMonth();
+      const dayDiff = now.getUTCDate() - dateOfBirth.getUTCDate();
+      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) calculated -= 1;
+      return Number.isFinite(calculated) ? calculated : null;
+    })();
+    if (age === null) {
+      ctx.set.status = 400;
+      return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+    }
+
+    try {
+      const data = await selfie.arrayBuffer();
+      const buffer = Buffer.from(data);
+      const predictedAge = await estimateAgeFromSelfie(buffer);
+      if (predictedAge === null) {
+        ctx.set.status = 400;
+        return { error: 'no_face_detected', message: 'Could not detect a face in the selfie. Please try again.' };
+      }
+
+      const effectiveCountry = typeof body.billingCountry === 'string' ? body.billingCountry : user.billingCountry;
+      const minimumAge = await getMinimumAgeForCountry(effectiveCountry);
+      if (age < minimumAge) {
+        await AppDataSource.getRepository(User).save({
+          id: user.id,
+          suspended: true,
+          fraudFlag: true,
+          fraudReason: `Underage account (<${minimumAge} years)`,
+          fraudDetectedAt: new Date(),
+        });
+        ctx.set.status = 400;
+        return { error: 'minimum_age', message: `Users must be at least ${minimumAge} years old.` };
+      }
+
+      const maxDelta = 11;
+      const difference = Math.abs(predictedAge - age);
+      const remaining = Math.max(0, 3 - attempts - 1);
+
+      if (difference > maxDelta) {
+        settings.ageVerificationSelfieAttempts = attempts + 1;
+        settings.ageVerificationSelfieLastAttemptAt = new Date().toISOString();
+        await AppDataSource.getRepository(User).save({ id: user.id, settings });
+
+        ctx.set.status = 400;
+        return {
+          error: 'age_mismatch',
+          message: `Estimated age ${predictedAge.toFixed(1)} does not match your DOB age ${age}. Please ensure your face is clearly visible in the selfie and try again.`,
+          attempts: settings.ageVerificationSelfieAttempts,
+          remaining,
+        };
+      }
+
+      settings.ageVerificationSelfieAttempts = 0;
+      settings.ageVerificationSelfieVerifiedAt = new Date().toISOString();
+
+      const update: any = { id: user.id, settings };
+      if (!user.dateOfBirth) {
+        update.dateOfBirth = dateOfBirth;
+      }
+      await AppDataSource.getRepository(User).save(update);
+
+      return {
+        success: true,
+        age: predictedAge,
+        difference,
+        maxError: maxDelta,
+        attempts: 0,
+        remaining: 3,
+      };
+    } catch (err: any) {
+      ctx.log.error({ err: err?.message || err }, 'Selfie age verification failed');
+      ctx.set.status = 500;
+      return {
+        error: 'age_verification_failed',
+        message: 'Failed to estimate age from the selfie. Please try again later.',
+        details: String(err?.message || err || 'unknown error'),
+      };
+    }
+  }, { beforeHandle: authenticate,
+    body: t.Any(),
+    response: {
+      200: t.Object({ success: t.Boolean(), age: t.Number(), difference: t.Number(), maxError: t.Number(), attempts: t.Number(), remaining: t.Number() }),
+      400: t.Object({ error: t.String(), message: t.String(), details: t.Optional(t.String()) }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String(), message: t.Optional(t.String()) }),
+    },
+    detail: { summary: 'Verify age from selfie', description: 'Estimate a user age from selfie data and compare against the provided date of birth.', tags: ['Identity'] }
   });
 
   app.get(prefix + '/id-verification/:id', async (ctx: any) => {

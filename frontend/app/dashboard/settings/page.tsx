@@ -220,7 +220,10 @@ function SettingRow({
 }
 
 function bufferToBase64url(buffer: ArrayBuffer | ArrayBufferView): string {
-  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  const bytes =
+    buffer instanceof ArrayBuffer
+      ? new Uint8Array(buffer)
+      : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
   let str = ""
   for (const byte of bytes) {
     str += String.fromCharCode(byte)
@@ -229,7 +232,9 @@ function bufferToBase64url(buffer: ArrayBuffer | ArrayBufferView): string {
 }
 
 function base64urlToBuffer(base64url: string): Uint8Array {
-  const padded = base64url.replace(/-/g, "+").replace(/_/g, "/")
+  const padded = base64url
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
     .padEnd(base64url.length + ((4 - (base64url.length % 4)) % 4), "=")
   const binary = atob(padded)
   const bytes = new Uint8Array(binary.length)
@@ -427,7 +432,10 @@ function PasskeyManager() {
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") updatePasskeyName(pk.id, editingPasskeyName)
-                          if (e.key === "Escape") { setEditingPasskeyId(null); setEditingPasskeyName("") }
+                          if (e.key === "Escape") {
+                            setEditingPasskeyId(null)
+                            setEditingPasskeyName("")
+                          }
                         }}
                       />
                       <button
@@ -438,7 +446,10 @@ function PasskeyManager() {
                       </button>
                       <button
                         className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors"
-                        onClick={() => { setEditingPasskeyId(null); setEditingPasskeyName("") }}
+                        onClick={() => {
+                          setEditingPasskeyId(null)
+                          setEditingPasskeyName("")
+                        }}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -458,7 +469,10 @@ function PasskeyManager() {
               {editingPasskeyId !== pk.id && (
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={() => { setEditingPasskeyId(pk.id); setEditingPasskeyName(pk.name || `${t("passkeys.fallbackName")} #${pk.id}`) }}
+                    onClick={() => {
+                      setEditingPasskeyId(pk.id)
+                      setEditingPasskeyName(pk.name || `${t("passkeys.fallbackName")} #${pk.id}`)
+                    }}
                     className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                   >
                     <Edit className="h-4 w-4" />
@@ -478,7 +492,10 @@ function PasskeyManager() {
 
       <button
         onClick={addPasskey}
-        disabled={registering || (typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials))}
+        disabled={
+          registering ||
+          (typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials))
+        }
         className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
         {registering ? (
@@ -521,7 +538,9 @@ function SshKeyManager() {
     }
   }
 
-  useEffect(() => { loadKeys() }, [])
+  useEffect(() => {
+    loadKeys()
+  }, [])
 
   const handleAdd = async () => {
     if (!name.trim() || !publicKey.trim()) return
@@ -607,7 +626,10 @@ function SshKeyManager() {
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") updateSshKeyName(k.id, editingSshKeyName)
-                          if (e.key === "Escape") { setEditingSshKeyId(null); setEditingSshKeyName("") }
+                          if (e.key === "Escape") {
+                            setEditingSshKeyId(null)
+                            setEditingSshKeyName("")
+                          }
                         }}
                       />
                       <button
@@ -618,7 +640,10 @@ function SshKeyManager() {
                       </button>
                       <button
                         className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors"
-                        onClick={() => { setEditingSshKeyId(null); setEditingSshKeyName("") }}
+                        onClick={() => {
+                          setEditingSshKeyId(null)
+                          setEditingSshKeyName("")
+                        }}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -639,7 +664,10 @@ function SshKeyManager() {
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    onClick={() => { setEditingSshKeyId(k.id); setEditingSshKeyName(k.name || "") }}
+                    onClick={() => {
+                      setEditingSshKeyId(k.id)
+                      setEditingSshKeyName(k.name || "")
+                    }}
                   >
                     <Edit className="h-4 w-4" />
                   </button>
@@ -664,7 +692,12 @@ function SshKeyManager() {
               <p className="text-xs text-destructive break-words">{error}</p>
             </div>
           )}
-          <FormInput label={t("ssh.label")} value={name} onChange={setName} placeholder={t("ssh.labelPlaceholder")} />
+          <FormInput
+            label={t("ssh.label")}
+            value={name}
+            onChange={setName}
+            placeholder={t("ssh.labelPlaceholder")}
+          />
           <div className="flex flex-col gap-1.5 min-w-0">
             <label className="text-xs font-medium text-muted-foreground">{t("ssh.publicKey")}</label>
             <textarea
@@ -677,7 +710,10 @@ function SshKeyManager() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => { setShowForm(false); setError(null) }}
+              onClick={() => {
+                setShowForm(false)
+                setError(null)
+              }}
               className="flex-1 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
             >
               {t("actions.cancel")}
@@ -718,7 +754,9 @@ function TwoFactorManager() {
   const [disableToken, setDisableToken] = useState("")
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => { setEnabled(!!user?.twoFactorEnabled) }, [user])
+  useEffect(() => {
+    setEnabled(!!user?.twoFactorEnabled)
+  }, [user])
 
   const startSetup = async () => {
     setLoading(true)
@@ -805,18 +843,22 @@ function TwoFactorManager() {
               <div className="flex flex-col items-center gap-4 min-w-0">
                 {qrDataUrl && (
                   <div className="relative">
-                    <img src={qrDataUrl} alt="TOTP QR" className="h-40 w-40 md:h-48 md:w-48 rounded-xl border-2 border-border shadow-lg" />
+                    <img
+                      src={qrDataUrl}
+                      alt="TOTP QR"
+                      className="h-40 w-40 md:h-48 md:w-48 rounded-xl border-2 border-border shadow-lg"
+                    />
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                   </div>
                 )}
                 <div className="text-center max-w-md">
                   <p className="text-sm font-medium text-foreground mb-1">{t("twoFactor.scanTitle")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("twoFactor.scanDescription")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("twoFactor.scanDescription")}</p>
                 </div>
                 <div className="w-full min-w-0 overflow-hidden">
-                  <p className="text-xs text-muted-foreground mb-2 text-center">{t("twoFactor.enterCodeManually")}</p>
+                  <p className="text-xs text-muted-foreground mb-2 text-center">
+                    {t("twoFactor.enterCodeManually")}
+                  </p>
                   <div className="relative">
                     <code className="block font-mono text-xs md:text-sm p-3 md:p-4 rounded-lg border bg-secondary/30 break-all text-center select-all">
                       {secret}
@@ -826,7 +868,11 @@ function TwoFactorManager() {
                       className="absolute top-2 right-2 p-2 rounded-lg bg-secondary/80 hover:bg-secondary transition-colors"
                       title={t("twoFactor.copyToClipboard")}
                     >
-                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -841,7 +887,11 @@ function TwoFactorManager() {
                 />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setSecret(null); setOtpauth(null); setQrDataUrl(null) }}
+                    onClick={() => {
+                      setSecret(null)
+                      setOtpauth(null)
+                      setQrDataUrl(null)
+                    }}
                     className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary active:scale-[0.98] transition-all"
                   >
                     {t("actions.cancel")}
@@ -894,9 +944,7 @@ function TwoFactorManager() {
             <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
             <div>
               <h5 className="text-sm font-semibold text-foreground">{t("twoFactor.recoveryCodes")}</h5>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("twoFactor.recoveryCodesHint")}
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{t("twoFactor.recoveryCodesHint")}</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
@@ -1005,13 +1053,16 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>(
     () => searchParams.get("tab") || "profile"
   )
+
   useEffect(() => {
     const tab = searchParams.get("tab")
     if (tab) setActiveTab(tab)
   }, [searchParams])
 
   const [activeTheme, setActiveTheme] = useState("Eclipse Purple")
-  const [settingsLocale, setSettingsLocale] = useState<AppLocale>(isSupportedLocale(locale) ? locale : defaultLocale)
+  const [settingsLocale, setSettingsLocale] = useState<AppLocale>(
+    isSupportedLocale(locale) ? locale : defaultLocale
+  )
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
   const { user, refreshUser } = useAuth()
 
@@ -1022,9 +1073,22 @@ export default function SettingsPage() {
   const [newKeyPerms, setNewKeyPerms] = useState<string[]>([])
   const [showApiForm, setShowApiForm] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
+  const [capturedSelfie, setCapturedSelfie] = useState<Blob | null>(null)
+  const [capturedSelfieUrl, setCapturedSelfieUrl] = useState<string | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [selfieMessage, setSelfieMessage] = useState<string | null>(null)
+  const [selfieLoading, setSelfieLoading] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
-  const isAdmin = user?.role === "admin" || user?.role === "rootAdmin" || user?.role === "*"
-  const canCreateAdminKey = user?.role === "*" || (Array.isArray(user?.permissions) && user.permissions.includes("*"))
+  const isAdmin = user?.role === "admin" || user?.role === "rootAdmin"
+  const canCreateAdminKey =
+    user?.role === "rootAdmin" ||
+    (Array.isArray(user?.permissions) && user.permissions.includes("*"))
 
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -1072,7 +1136,9 @@ export default function SettingsPage() {
   const revokeApiKey = async (id: number) => {
     if (!confirm(t("api.confirmRevoke"))) return
     try {
-      await apiFetch(API_ENDPOINTS.apiKeyDetail.replace(":id", id.toString()), { method: "DELETE" })
+      await apiFetch(API_ENDPOINTS.apiKeyDetail.replace(":id", id.toString()), {
+        method: "DELETE",
+      })
       loadApiKeys()
     } catch (e: any) {
       alert(t("messages.failed") + ": " + e.message)
@@ -1082,7 +1148,7 @@ export default function SettingsPage() {
   const updatePassword = async () => {
     if (!user?.id) return
     setPasswordError("")
-    
+
     if (!currentPassword) {
       setPasswordError(t("security.errors.enterCurrentPassword"))
       return
@@ -1173,6 +1239,161 @@ export default function SettingsPage() {
   }, [user])
 
   useEffect(() => {
+    const fetchVideoDevices = async () => {
+      if (!navigator?.mediaDevices?.enumerateDevices) return
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoInputs = devices.filter((device) => device.kind === "videoinput")
+        setVideoDevices(videoInputs)
+        if (!selectedCameraId && videoInputs.length > 0) {
+          setSelectedCameraId(videoInputs[0].deviceId)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    fetchVideoDevices()
+
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop())
+      }
+      if (capturedSelfieUrl) {
+        URL.revokeObjectURL(capturedSelfieUrl)
+      }
+    }
+  }, [cameraStream, capturedSelfieUrl, selectedCameraId])
+
+  useEffect(() => {
+    if (cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream
+      videoRef.current.play().catch(() => {})
+    }
+  }, [cameraStream])
+
+  const startCamera = async () => {
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access is not available in this browser.")
+      return
+    }
+
+    setCameraError(null)
+    try {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop())
+      }
+      const constraints: MediaStreamConstraints = {
+        video: selectedCameraId
+          ? { deviceId: { exact: selectedCameraId } }
+          : { facingMode: "user" },
+      }
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      setCameraStream(stream)
+      setCameraActive(true)
+    } catch (err: any) {
+      setCameraError(String(err?.message || "Unable to access the camera."))
+      setCameraActive(false)
+    }
+  }
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop())
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setCameraStream(null)
+    setCameraActive(false)
+  }
+
+  const captureSelfie = () => {
+    if (!videoRef.current || !canvasRef.current) {
+      setCameraError("Camera is not ready.")
+      return
+    }
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const width = video.videoWidth
+    const height = video.videoHeight
+
+    if (width === 0 || height === 0) {
+      setCameraError("Camera is still initializing. Please try again in a moment.")
+      return
+    }
+
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext("2d")
+    if (!ctx) {
+      setCameraError("Unable to capture photo.")
+      return
+    }
+
+    ctx.drawImage(video, 0, 0, width, height)
+    canvas.toBlob(
+      (blob: Blob | null) => {
+        if (!blob) {
+          setCameraError("Unable to capture photo.")
+          return
+        }
+        if (capturedSelfieUrl) {
+          URL.revokeObjectURL(capturedSelfieUrl)
+        }
+        const url = URL.createObjectURL(blob)
+        setCapturedSelfie(blob)
+        setCapturedSelfieUrl(url)
+        setCameraError(null)
+        stopCamera()
+      },
+      "image/jpeg",
+      0.9
+    )
+  }
+
+  const selfieAttemptsUsed = Number(user?.settings?.ageVerificationSelfieAttempts ?? 0)
+  const selfieAttemptsRemaining = Math.max(0, 3 - selfieAttemptsUsed)
+
+  const verifySelfieAge = async () => {
+    if (!user?.id) return
+    if (!form.dateOfBirth) {
+      alert("Please enter your date of birth before verifying with a selfie.")
+      return
+    }
+    if (!capturedSelfie) {
+      alert("Please take a selfie before verifying.")
+      return
+    }
+    setSelfieLoading(true)
+    setSelfieMessage(null)
+
+    try {
+      const formData = new FormData()
+      formData.append("selfie", capturedSelfie, "selfie.jpg")
+      formData.append("dateOfBirth", form.dateOfBirth)
+      const data = await apiFetch(API_ENDPOINTS.ageVerificationSelfie, {
+        method: "POST",
+        body: formData,
+      })
+
+      setSelfieMessage(
+        `Estimated age: ${data.age.toFixed(1)} years. Difference ${data.difference.toFixed(1)} years, within allowed ${data.maxError} years.`
+      )
+      setCapturedSelfie(null)
+      if (capturedSelfieUrl) {
+        URL.revokeObjectURL(capturedSelfieUrl)
+        setCapturedSelfieUrl(null)
+      }
+      await refreshUser()
+    } catch (err: any) {
+      setSelfieMessage(`Selfie verification failed: ${err.message || "Unknown error"}`)
+    } finally {
+      setSelfieLoading(false)
+    }
+  }
+
+  useEffect(() => {
     const fromSettings = user?.settings?.locale
     if (fromSettings && isSupportedLocale(fromSettings)) {
       setSettingsLocale(fromSettings)
@@ -1207,7 +1428,9 @@ export default function SettingsPage() {
       await refreshUser()
     } catch (err: any) {
       console.error("Failed to save settings", err)
-      alert(t("messages.failedToSaveSettings") + ": " + (err?.message || t("messages.unknown")))
+      alert(
+        t("messages.failedToSaveSettings") + ": " + (err?.message || t("messages.unknown"))
+      )
     }
   }
 
@@ -1221,16 +1444,55 @@ export default function SettingsPage() {
     window.location.reload()
   }
 
-  const DEFAULT_NOTIFICATION_PREFS: Record<string, { label: string; desc: string; enabled: boolean }> = {
-    serverAlerts: { label: t("notifications.items.serverAlerts.label"), desc: t("notifications.items.serverAlerts.desc"), enabled: true },
-    serverLifecycle: { label: t("notifications.items.serverLifecycle.label"), desc: t("notifications.items.serverLifecycle.desc"), enabled: true },
-    serverErrors: { label: t("notifications.items.serverErrors.label"), desc: t("notifications.items.serverErrors.desc"), enabled: true },
-    serverActivity: { label: t("notifications.items.serverActivity.label"), desc: t("notifications.items.serverActivity.desc"), enabled: false },
-    billing: { label: t("notifications.items.billing.label"), desc: t("notifications.items.billing.desc"), enabled: true },
-    security: { label: t("notifications.items.security.label"), desc: t("notifications.items.security.desc"), enabled: true },
-    productUpdates: { label: t("notifications.items.productUpdates.label"), desc: t("notifications.items.productUpdates.desc"), enabled: false },
-    tickets: { label: t("notifications.items.tickets.label"), desc: t("notifications.items.tickets.desc"), enabled: true },
-    aiUsage: { label: t("notifications.items.aiUsage.label"), desc: t("notifications.items.aiUsage.desc"), enabled: false },
+  const DEFAULT_NOTIFICATION_PREFS: Record<
+    string,
+    { label: string; desc: string; enabled: boolean }
+  > = {
+    serverAlerts: {
+      label: t("notifications.items.serverAlerts.label"),
+      desc: t("notifications.items.serverAlerts.desc"),
+      enabled: true,
+    },
+    serverLifecycle: {
+      label: t("notifications.items.serverLifecycle.label"),
+      desc: t("notifications.items.serverLifecycle.desc"),
+      enabled: true,
+    },
+    serverErrors: {
+      label: t("notifications.items.serverErrors.label"),
+      desc: t("notifications.items.serverErrors.desc"),
+      enabled: true,
+    },
+    serverActivity: {
+      label: t("notifications.items.serverActivity.label"),
+      desc: t("notifications.items.serverActivity.desc"),
+      enabled: false,
+    },
+    billing: {
+      label: t("notifications.items.billing.label"),
+      desc: t("notifications.items.billing.desc"),
+      enabled: true,
+    },
+    security: {
+      label: t("notifications.items.security.label"),
+      desc: t("notifications.items.security.desc"),
+      enabled: true,
+    },
+    productUpdates: {
+      label: t("notifications.items.productUpdates.label"),
+      desc: t("notifications.items.productUpdates.desc"),
+      enabled: false,
+    },
+    tickets: {
+      label: t("notifications.items.tickets.label"),
+      desc: t("notifications.items.tickets.desc"),
+      enabled: true,
+    },
+    aiUsage: {
+      label: t("notifications.items.aiUsage.label"),
+      desc: t("notifications.items.aiUsage.desc"),
+      enabled: false,
+    },
   }
 
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>(() => {
@@ -1238,7 +1500,10 @@ export default function SettingsPage() {
       const fromUser = user?.settings?.notifications || {}
       return Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce(
         (acc, k) => {
-          acc[k] = typeof fromUser[k] === "boolean" ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled
+          acc[k] =
+            typeof fromUser[k] === "boolean"
+              ? fromUser[k]
+              : DEFAULT_NOTIFICATION_PREFS[k].enabled
           return acc
         },
         {} as Record<string, boolean>
@@ -1257,7 +1522,10 @@ export default function SettingsPage() {
       setNotificationPrefs(
         Object.keys(DEFAULT_NOTIFICATION_PREFS).reduce(
           (acc, k) => {
-            acc[k] = typeof fromUser[k] === "boolean" ? fromUser[k] : DEFAULT_NOTIFICATION_PREFS[k].enabled
+            acc[k] =
+              typeof fromUser[k] === "boolean"
+                ? fromUser[k]
+                : DEFAULT_NOTIFICATION_PREFS[k].enabled
             return acc
           },
           {} as Record<string, boolean>
@@ -1274,12 +1542,15 @@ export default function SettingsPage() {
 
     setActiveTheme(themeName)
     await applyTheme(newThemeObj, { animate: true })
-
     await saveUserSettings({ theme: { name: themeName } })
   }
 
   const updateEditorSettings = async (partial: Partial<EditorSettings>) => {
-    const merged = { ...DEFAULT_EDITOR_SETTINGS, ...(user?.settings?.editor || {}), ...partial }
+    const merged = {
+      ...DEFAULT_EDITOR_SETTINGS,
+      ...(user?.settings?.editor || {}),
+      ...partial,
+    }
     setEditorSettings(merged)
     await saveUserSettings({ editor: merged })
   }
@@ -1299,11 +1570,18 @@ export default function SettingsPage() {
       .then(async (data) => {
         const orderList = Array.isArray(data) ? data : []
         const planOrder = orderList.find((o: any) => o.status === "active" && o.planId)
-        if (!planOrder) { setActivePlan(null); return }
+        if (!planOrder) {
+          setActivePlan(null)
+          return
+        }
         try {
-          const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
+          const plan = await apiFetch(
+            API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId))
+          )
           setActivePlan({ plan, order: planOrder })
-        } catch { setActivePlan(null) }
+        } catch {
+          setActivePlan(null)
+        }
       })
       .catch(() => setActivePlan(null))
   }, [])
@@ -1312,7 +1590,7 @@ export default function SettingsPage() {
   const userBadges = Array.isArray((user as any)?.settings?.badges)
     ? ((user as any).settings.badges as string[])
     : Array.isArray((user as any)?.settings?.gambling?.badges)
-      ? ((user as any).settings.gambling.badges as string[])
+    ? ((user as any).settings.gambling.badges as string[])
     : []
 
   const formatDocumentDate = (value: string | undefined | null) => {
@@ -1326,20 +1604,26 @@ export default function SettingsPage() {
   const agreedDocuments = Array.isArray(documentsSetting?.agreed)
     ? documentsSetting.agreed
     : Array.isArray(documentsSetting)
-      ? documentsSetting
-      : []
-  const agreedDocumentUrls = new Set(agreedDocuments.map((doc: any) => String(doc.url || doc.href || doc.href || '').trim()))
-  const implicitAgreedDocuments = LEGAL_DOCUMENTS.filter((doc) => !agreedDocumentUrls.has(doc.href)).map((doc) => ({
+    ? documentsSetting
+    : []
+  const agreedDocumentUrls = new Set(
+    agreedDocuments.map((doc: any) =>
+      String(doc.url || doc.href || "").trim()
+    )
+  )
+  const implicitAgreedDocuments = LEGAL_DOCUMENTS.filter(
+    (doc) => !agreedDocumentUrls.has(doc.href)
+  ).map((doc) => ({
     name: doc.title,
     url: doc.href,
-    acceptedAt: 'implicit',
+    acceptedAt: "implicit",
   }))
   const allAgreedDocuments = [...agreedDocuments, ...implicitAgreedDocuments]
   const adminDocuments = Array.isArray(documentsSetting?.admin)
     ? documentsSetting.admin
     : Array.isArray(documentsSetting)
-      ? documentsSetting
-      : []
+    ? documentsSetting
+    : []
 
   const showGuideAgain = async () => {
     if (!user?.id) return
@@ -1350,7 +1634,11 @@ export default function SettingsPage() {
       })
       const params = new URLSearchParams(window.location.search)
       params.set("guide", "true")
-      window.history.replaceState({}, "", window.location.pathname + "?" + params.toString())
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + "?" + params.toString()
+      )
       window.location.reload()
     } catch (e: any) {
       alert(t("messages.failed") + ": " + (e.message || e))
@@ -1394,10 +1682,25 @@ export default function SettingsPage() {
   const tabs = [
     { value: "profile", icon: User, label: t("tabs.profile"), guideId: "settings-profile" },
     { value: "security", icon: Lock, label: t("tabs.security"), guideId: "settings-security" },
-    { value: "notifications", icon: Bell, label: t("tabs.alerts"), guideId: "settings-notifications" },
-    { value: "documents", icon: BookOpen, label: t("tabs.documents"), guideId: "settings-documents" },
+    {
+      value: "notifications",
+      icon: Bell,
+      label: t("tabs.alerts"),
+      guideId: "settings-notifications",
+    },
+    {
+      value: "documents",
+      icon: BookOpen,
+      label: t("tabs.documents"),
+      guideId: "settings-documents",
+    },
     { value: "api", icon: Code, label: t("tabs.api"), count: apiKeys.length },
-    { value: "appearance", icon: Palette, label: t("tabs.theme"), guideId: "settings-appearance" },
+    {
+      value: "appearance",
+      icon: Palette,
+      label: t("tabs.theme"),
+      guideId: "settings-appearance",
+    },
     { value: "editor", icon: Settings, label: t("tabs.editor"), guideId: "settings-editor" },
   ]
 
@@ -1409,10 +1712,10 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6 lg:p-8 max-w-5xl mx-auto pb-8 w-full min-w-0">
-          {/* Tab Navigation - Sticky on mobile */}
+          {/* Tab Navigation */}
           <div
             className="flex items-center gap-1.5 rounded-xl border border-border bg-card/80 p-1.5 overflow-x-auto scrollbar-none min-w-0 sticky top-0 z-20 backdrop-blur-xl shadow-sm"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             {tabs.map((tab) => (
               <TabButton
@@ -1435,11 +1738,13 @@ export default function SettingsPage() {
                   <div className="flex items-start gap-2">
                     <AlertCircle className="mt-0.5 h-4 w-4" />
                     <div>
-                      Please enter your date of birth below to complete age verification and continue using server management.
+                      Please enter your date of birth below to complete age verification and
+                      continue using server management.
                     </div>
                   </div>
                 </div>
               )}
+
               {/* Avatar & Info */}
               <SettingsCard>
                 <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start min-w-0">
@@ -1447,7 +1752,11 @@ export default function SettingsPage() {
                     <div className="relative shrink-0">
                       <div className="h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-border flex items-center justify-center overflow-hidden shadow-lg">
                         {user?.avatarUrl ? (
-                          <img src={user.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                          <img
+                            src={user.avatarUrl}
+                            alt="avatar"
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <span className="text-2xl md:text-3xl font-bold text-muted-foreground">
                             {user?.firstName?.[0]?.toUpperCase() || "?"}
@@ -1468,7 +1777,10 @@ export default function SettingsPage() {
                             try {
                               const fd = new FormData()
                               fd.append("file", file)
-                              await apiFetch(API_ENDPOINTS.userAvatar.replace(":id", String(user.id)), { method: "POST", body: fd })
+                              await apiFetch(
+                                API_ENDPOINTS.userAvatar.replace(":id", String(user.id)),
+                                { method: "POST", body: fd }
+                              )
                               await refreshUser()
                             } catch (err: any) {
                               alert(t("profile.uploadFailed") + ": " + err.message)
@@ -1488,7 +1800,9 @@ export default function SettingsPage() {
 
                     {userBadges.length > 0 && (
                       <div className="w-full sm:w-80">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 text-center sm:text-left font-semibold">{t("profile.badges")}</p>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 text-center sm:text-left font-semibold">
+                          {t("profile.badges")}
+                        </p>
                         <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                           {userBadges.map((badge) => (
                             <span
@@ -1523,21 +1837,23 @@ export default function SettingsPage() {
 
               {/* Basic Info */}
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-4">{t("profile.basicInformation")}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  {t("profile.basicInformation")}
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormInput 
-                    label={t("profile.displayName")} 
-                    value={form.displayName} 
-                    onChange={(v) => setForm({ ...form, displayName: v })} 
-                    placeholder={t("profile.displayNamePlaceholder")} 
-                    icon={User} 
+                  <FormInput
+                    label={t("profile.displayName")}
+                    value={form.displayName}
+                    onChange={(v) => setForm({ ...form, displayName: v })}
+                    placeholder={t("profile.displayNamePlaceholder")}
+                    icon={User}
                     hint={t("profile.displayNameHint")}
                   />
-                  <FormInput 
-                    label={t("profile.emailAddress")} 
-                    type="email" 
-                    value={form.email} 
-                    onChange={(v) => setForm({ ...form, email: v })} 
+                  <FormInput
+                    label={t("profile.emailAddress")}
+                    type="email"
+                    value={form.email}
+                    onChange={(v) => setForm({ ...form, email: v })}
                     icon={Mail}
                     hint={t("profile.emailHint")}
                   />
@@ -1546,41 +1862,260 @@ export default function SettingsPage() {
 
               {/* Legal Name */}
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{t("profile.legalName")}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("profile.legalName")}
+                </h3>
                 <p className="text-xs text-muted-foreground mb-4">{t("profile.legalNameHint")}</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormInput label={t("profile.firstName")} value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} />
-                  <FormInput label={t("profile.middleName")} value={form.middleName} onChange={(v) => setForm({ ...form, middleName: v })} placeholder={t("profile.optional")} />
-                  <FormInput label={t("profile.lastName")} value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} />
+                  <FormInput
+                    label={t("profile.firstName")}
+                    value={form.firstName}
+                    onChange={(v) => setForm({ ...form, firstName: v })}
+                  />
+                  <FormInput
+                    label={t("profile.middleName")}
+                    value={form.middleName}
+                    onChange={(v) => setForm({ ...form, middleName: v })}
+                    placeholder={t("profile.optional")}
+                  />
+                  <FormInput
+                    label={t("profile.lastName")}
+                    value={form.lastName}
+                    onChange={(v) => setForm({ ...form, lastName: v })}
+                  />
                   <FormInput
                     label="Date of Birth"
                     type="date"
                     icon={Calendar}
                     value={form.dateOfBirth}
                     onChange={(v) => setForm({ ...form, dateOfBirth: v })}
-                    hint={user?.idVerified
-                      ? "Your date of birth is locked after identity verification and can only be changed by support."
-                      : "Enter your birth date to verify eligibility before managing servers."
+                    hint={
+                      user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt
+                        ? "Your date of birth is locked after identity or selfie verification and can only be changed by support."
+                        : "Enter your birth date to verify eligibility before managing servers."
                     }
-                    disabled={user?.idVerified}
+                    disabled={Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt)}
                   />
+
+                  {!Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt) && (
+                    <div className="md:col-span-3">
+                      <div className="rounded-2xl border border-border bg-secondary/5 p-4 space-y-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              Selfie age verification
+                            </p>
+                          </div>
+                          <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase text-muted-foreground">
+                            Attempts left: {selfieAttemptsRemaining}
+                          </span>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-[1fr_auto] items-end">
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">
+                              Camera
+                            </label>
+                            {videoDevices.length > 0 ? (
+                              <select
+                                value={selectedCameraId ?? ""}
+                                onChange={(e) => setSelectedCameraId(e.target.value || null)}
+                                className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                              >
+                                {videoDevices.map((device) => (
+                                  <option key={device.deviceId} value={device.deviceId}>
+                                    {device.label ||
+                                      `Camera ${videoDevices.indexOf(device) + 1}`}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                No camera detected yet.
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={startCamera}
+                              disabled={
+                                selfieLoading ||
+                                selfieAttemptsRemaining === 0 ||
+                                !!user?.idVerified
+                              }
+                              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Open camera
+                            </button>
+                            <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
+                              Upload image
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={
+                                  selfieLoading ||
+                                  selfieAttemptsRemaining === 0 ||
+                                  !!user?.idVerified
+                                }
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (!file) return
+                                  if (capturedSelfieUrl) {
+                                    URL.revokeObjectURL(capturedSelfieUrl)
+                                  }
+                                  if (cameraStream) {
+                                    stopCamera()
+                                  }
+                                  const url = URL.createObjectURL(file)
+                                  setCapturedSelfie(file)
+                                  setCapturedSelfieUrl(url)
+                                  setCameraError(null)
+                                  setCameraActive(false)
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        {cameraError && (
+                          <p className="text-xs text-destructive">{cameraError}</p>
+                        )}
+
+                        {cameraActive && (
+                          <div className="space-y-3">
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className="h-64 w-full rounded-lg bg-black object-cover"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={captureSelfie}
+                                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                              >
+                                Capture photo
+                              </button>
+                              <button
+                                type="button"
+                                onClick={stopCamera}
+                                className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {capturedSelfie && (
+                          <div className="space-y-3">
+                            <img
+                              src={capturedSelfieUrl ?? ""}
+                              alt="Captured selfie preview"
+                              className="h-64 w-full rounded-lg object-cover"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={verifySelfieAge}
+                                disabled={
+                                  selfieLoading ||
+                                  selfieAttemptsRemaining === 0 ||
+                                  !!user?.idVerified
+                                }
+                                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {selfieLoading ? "Verifying..." : "Verify selfie age"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCapturedSelfie(null)
+                                  if (capturedSelfieUrl) {
+                                    URL.revokeObjectURL(capturedSelfieUrl)
+                                    setCapturedSelfieUrl(null)
+                                  }
+                                  setCameraError(null)
+                                }}
+                                className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+                              >
+                                Retake
+                              </button>
+                            </div>
+                            {selfieMessage && (
+                              <p className="text-sm text-foreground">{selfieMessage}</p>
+                            )}
+                          </div>
+                        )}
+
+                        <canvas ref={canvasRef} className="hidden" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </SettingsCard>
 
               {/* Billing */}
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{t("profile.billingInformation")}</h3>
-                <p className="text-xs text-muted-foreground mb-4">{t("profile.billingInformationHint")}</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("profile.billingInformation")}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t("profile.billingInformationHint")}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormInput label={t("profile.streetAddress")} value={form.address} onChange={(v) => setForm({ ...form, address: v })} icon={MapPin} className="md:col-span-2" />
-                  <FormInput label={t("profile.addressLine2")} value={form.address2} onChange={(v) => setForm({ ...form, address2: v })} placeholder={t("profile.addressLine2Placeholder")} className="md:col-span-2" />
-                  <FormInput label={t("profile.company")} value={form.billingCompany} onChange={(v) => setForm({ ...form, billingCompany: v })} placeholder={t("profile.optional")} icon={Building} />
-                  <FormInput label={t("profile.phone")} type="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1 (555) 000-0000" icon={Phone} />
-                  <FormInput label={t("profile.city")} value={form.billingCity} onChange={(v) => setForm({ ...form, billingCity: v })} />
-                  <FormInput label={t("profile.stateProvince")} value={form.billingState} onChange={(v) => setForm({ ...form, billingState: v })} />
-                  <FormInput label={t("profile.zipPostal")} value={form.billingZip} onChange={(v) => setForm({ ...form, billingZip: v })} />
+                  <FormInput
+                    label={t("profile.streetAddress")}
+                    value={form.address}
+                    onChange={(v) => setForm({ ...form, address: v })}
+                    icon={MapPin}
+                    className="md:col-span-2"
+                  />
+                  <FormInput
+                    label={t("profile.addressLine2")}
+                    value={form.address2}
+                    onChange={(v) => setForm({ ...form, address2: v })}
+                    placeholder={t("profile.addressLine2Placeholder")}
+                    className="md:col-span-2"
+                  />
+                  <FormInput
+                    label={t("profile.company")}
+                    value={form.billingCompany}
+                    onChange={(v) => setForm({ ...form, billingCompany: v })}
+                    placeholder={t("profile.optional")}
+                    icon={Building}
+                  />
+                  <FormInput
+                    label={t("profile.phone")}
+                    type="tel"
+                    value={form.phone}
+                    onChange={(v) => setForm({ ...form, phone: v })}
+                    placeholder="+1 (555) 000-0000"
+                    icon={Phone}
+                  />
+                  <FormInput
+                    label={t("profile.city")}
+                    value={form.billingCity}
+                    onChange={(v) => setForm({ ...form, billingCity: v })}
+                  />
+                  <FormInput
+                    label={t("profile.stateProvince")}
+                    value={form.billingState}
+                    onChange={(v) => setForm({ ...form, billingState: v })}
+                  />
+                  <FormInput
+                    label={t("profile.zipPostal")}
+                    value={form.billingZip}
+                    onChange={(v) => setForm({ ...form, billingZip: v })}
+                  />
                   <div className="flex flex-col gap-1.5 min-w-0">
-                    <label className="text-xs font-medium text-muted-foreground">{t("profile.country")}</label>
+                    <label className="text-xs font-medium text-muted-foreground">
+                      {t("profile.country")}
+                    </label>
                     <select
                       value={form.billingCountry}
                       onChange={(e) => setForm({ ...form, billingCountry: e.target.value })}
@@ -1588,12 +2123,18 @@ export default function SettingsPage() {
                     >
                       <option value="">{t("profile.selectCountry")}</option>
                       {COUNTRIES.map((country) => (
-                        <option key={country.code} value={country.name}>{country.name}</option>
+                        <option key={country.code} value={country.name}>
+                          {country.name}
+                        </option>
                       ))}
                     </select>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      {t("profile.taxRateFor")} {form.billingCountry || t("profile.selectedCountry")}: <span className="text-foreground font-semibold">{selectedCountryTaxRate.toFixed(2)}%</span>
-                      {` `}({displayCurrency})
+                      {t("profile.taxRateFor")}{" "}
+                      {form.billingCountry || t("profile.selectedCountry")}:{" "}
+                      <span className="text-foreground font-semibold">
+                        {selectedCountryTaxRate.toFixed(2)}%
+                      </span>{" "}
+                      ({displayCurrency})
                     </p>
                   </div>
                 </div>
@@ -1625,8 +2166,12 @@ export default function SettingsPage() {
                     <HelpCircle className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">Need help getting started?</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t("profile.guideHelp")}</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      Need help getting started?
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("profile.guideHelp")}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -1644,7 +2189,9 @@ export default function SettingsPage() {
           {activeTab === "security" && (
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-4">{t("security.changePassword")}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  {t("security.changePassword")}
+                </h3>
                 {passwordError && (
                   <div className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
                     <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
@@ -1653,12 +2200,12 @@ export default function SettingsPage() {
                 )}
                 <div className="grid grid-cols-1 gap-4">
                   <div className="relative">
-                    <FormInput 
-                      label={t("security.currentPassword")} 
+                    <FormInput
+                      label={t("security.currentPassword")}
                       type={showCurrentPassword ? "text" : "password"}
-                      value={currentPassword} 
-                      onChange={setCurrentPassword} 
-                      placeholder={t("security.currentPasswordPlaceholder")} 
+                      value={currentPassword}
+                      onChange={setCurrentPassword}
+                      placeholder={t("security.currentPasswordPlaceholder")}
                       icon={Lock}
                     />
                     <button
@@ -1666,16 +2213,20 @@ export default function SettingsPage() {
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                       className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showCurrentPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
-                      <FormInput 
-                        label={t("security.newPassword")} 
+                      <FormInput
+                        label={t("security.newPassword")}
                         type={showNewPassword ? "text" : "password"}
-                        value={newPassword} 
-                        onChange={setNewPassword} 
+                        value={newPassword}
+                        onChange={setNewPassword}
                         placeholder={t("security.newPasswordPlaceholder")}
                         hint={t("security.newPasswordHint")}
                       />
@@ -1684,15 +2235,19 @@ export default function SettingsPage() {
                         onClick={() => setShowNewPassword(!showNewPassword)}
                         className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
-                    <FormInput 
-                      label={t("security.confirmPassword")} 
+                    <FormInput
+                      label={t("security.confirmPassword")}
                       type={showNewPassword ? "text" : "password"}
-                      value={confirmPassword} 
-                      onChange={setConfirmPassword} 
-                      placeholder={t("security.confirmPasswordPlaceholder")} 
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      placeholder={t("security.confirmPasswordPlaceholder")}
                     />
                   </div>
                 </div>
@@ -1718,26 +2273,36 @@ export default function SettingsPage() {
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.passkeys")}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("security.passkeys")}
+                </h3>
                 <p className="text-xs text-muted-foreground">{t("security.passkeysHint")}</p>
                 <PasskeyManager />
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.twoFactor")}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("security.twoFactor")}
+                </h3>
                 <p className="text-xs text-muted-foreground">{t("security.twoFactorHint")}</p>
                 <TwoFactorManager />
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.sshKeys")}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("security.sshKeys")}
+                </h3>
                 <p className="text-xs text-muted-foreground">{t("security.sshKeysHint")}</p>
                 <SshKeyManager />
               </SettingsCard>
 
               <SettingsCard>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{t("security.activeSessions")}</h3>
-                <p className="text-xs text-muted-foreground mb-2">{t("security.activeSessionsHint")}</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("security.activeSessions")}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {t("security.activeSessionsHint")}
+                </p>
                 <SessionList />
                 <div className="mt-5 pt-5 border-t border-border flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end">
                   <button
@@ -1781,8 +2346,12 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">{t("notifications.title")}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{t("notifications.subtitle")}</p>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t("notifications.title")}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("notifications.subtitle")}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2.5 min-w-0">
                   {Object.keys(DEFAULT_NOTIFICATION_PREFS).map((key) => {
@@ -1804,7 +2373,11 @@ export default function SettingsPage() {
                                 await saveUserSettings({ notifications: newPrefs })
                               } catch (e: any) {
                                 setNotificationPrefs(notificationPrefs)
-                                alert(t("messages.failedToSave") + ": " + (e?.message || t("messages.unknown")))
+                                alert(
+                                  t("messages.failedToSave") +
+                                    ": " +
+                                    (e?.message || t("messages.unknown"))
+                                )
                               }
                             }}
                           />
@@ -1822,7 +2395,9 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">{t("documents.title")}</h3>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t("documents.title")}
+                  </h3>
                   <p className="text-xs text-muted-foreground mt-1">{t("documents.subtitle")}</p>
                 </div>
 
@@ -1830,8 +2405,12 @@ export default function SettingsPage() {
                   <div className="rounded-xl border border-border bg-secondary/20 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-sm font-semibold text-foreground">{t("documents.agreementsTitle")}</p>
-                        <p className="text-xs text-muted-foreground">{t("documents.agreementsDescription")}</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {t("documents.agreementsTitle")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("documents.agreementsDescription")}
+                        </p>
                       </div>
                     </div>
                     {allAgreedDocuments.length === 0 ? (
@@ -1842,18 +2421,31 @@ export default function SettingsPage() {
                           <div key={index} className="rounded-lg border border-border bg-card/80 p-3">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{doc.name || doc.title || doc.type || t("documents.agreement")}</p>
-                                <p className="text-xs text-muted-foreground">{doc.version ? `${t("documents.version")}: ${doc.version}` : doc.description || doc.type || ""}</p>
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                  {doc.name || doc.title || doc.type || t("documents.agreement")}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {doc.version
+                                    ? `${t("documents.version")}: ${doc.version}`
+                                    : doc.description || doc.type || ""}
+                                </p>
                                 <p className="text-[11px] text-muted-foreground">
-                                  {doc.acceptedAt === 'implicit'
+                                  {doc.acceptedAt === "implicit"
                                     ? t("documents.acceptedImplicit")
                                     : doc.acceptedAt
-                                      ? `${t("documents.acceptedOn")} ${formatDocumentDate(doc.acceptedAt)}`
-                                      : t("documents.acceptedUnknown")}
+                                    ? `${t("documents.acceptedOn")} ${formatDocumentDate(doc.acceptedAt)}`
+                                    : t("documents.acceptedUnknown")}
                                 </p>
                               </div>
                               {doc.url ? (
-                                <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline">{t("documents.view")}</a>
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-medium text-primary hover:underline"
+                                >
+                                  {t("documents.view")}
+                                </a>
                               ) : null}
                             </div>
                           </div>
@@ -1865,24 +2457,48 @@ export default function SettingsPage() {
                   <div className="rounded-xl border border-border bg-secondary/20 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-sm font-semibold text-foreground">{t("documents.adminTitle")}</p>
-                        <p className="text-xs text-muted-foreground">{t("documents.adminDescription")}</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {t("documents.adminTitle")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("documents.adminDescription")}
+                        </p>
                       </div>
                     </div>
                     {adminDocuments.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">{t("documents.noAdminDocuments")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("documents.noAdminDocuments")}
+                      </p>
                     ) : (
                       <div className="space-y-3">
                         {adminDocuments.map((doc: any) => (
-                          <div key={doc.id || doc.filename} className="rounded-lg border border-border bg-card/80 p-3">
+                          <div
+                            key={doc.id || doc.filename}
+                            className="rounded-lg border border-border bg-card/80 p-3"
+                          >
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{doc.name || doc.filename}</p>
-                                {doc.description && <p className="text-xs text-muted-foreground">{doc.description}</p>}
-                                <p className="text-[11px] text-muted-foreground">{doc.uploadedAt ? `${t("documents.uploadedOn")} ${formatDocumentDate(doc.uploadedAt)}` : t("documents.uploadedUnknown")}</p>
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                  {doc.name || doc.filename}
+                                </p>
+                                {doc.description && (
+                                  <p className="text-xs text-muted-foreground">{doc.description}</p>
+                                )}
+                                <p className="text-[11px] text-muted-foreground">
+                                  {doc.uploadedAt
+                                    ? `${t("documents.uploadedOn")} ${formatDocumentDate(doc.uploadedAt)}`
+                                    : t("documents.uploadedUnknown")}
+                                </p>
                               </div>
                               {doc.url ? (
-                                <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline">{t("documents.download")}</a>
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-medium text-primary hover:underline"
+                                >
+                                  {t("documents.download")}
+                                </a>
                               ) : null}
                             </div>
                           </div>
@@ -1918,34 +2534,52 @@ export default function SettingsPage() {
 
                 {showApiForm && (
                   <div className="rounded-xl border border-border bg-secondary/10 p-4 mb-5 space-y-4 min-w-0 overflow-hidden animate-in slide-in-from-top-2">
-                    <FormInput label={t("api.keyName")} value={newKeyName} onChange={setNewKeyName} placeholder={t("api.keyNamePlaceholder")} hint={t("api.keyNameHint")} />
+                    <FormInput
+                      label={t("api.keyName")}
+                      value={newKeyName}
+                      onChange={setNewKeyName}
+                      placeholder={t("api.keyNamePlaceholder")}
+                      hint={t("api.keyNameHint")}
+                    />
                     <div className="flex flex-col gap-1.5 min-w-0">
-                      <label className="text-xs font-medium text-muted-foreground">{t("api.keyType")}</label>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        {t("api.keyType")}
+                      </label>
                       <select
                         value={newKeyType}
                         onChange={(e) => setNewKeyType(e.target.value)}
                         className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 w-full"
                       >
                         <option value="client">{t("api.client")}</option>
-                        {canCreateAdminKey && <option value="admin">{t("api.admin")}</option>}
+                        {canCreateAdminKey && (
+                          <option value="admin">{t("api.admin")}</option>
+                        )}
                       </select>
                     </div>
                     {newKeyType === "client" && (
                       <div className="flex flex-col gap-1.5 min-w-0">
-                        <label className="text-xs font-medium text-muted-foreground">{t("api.permissions")}</label>
+                        <label className="text-xs font-medium text-muted-foreground">
+                          {t("api.permissions")}
+                        </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-border bg-secondary/20 p-3 md:p-4 max-h-64 overflow-y-auto min-w-0">
                           {AVAILABLE_PERMISSIONS.map((perm) => (
-                            <label key={perm} className="flex items-center gap-2.5 text-xs cursor-pointer py-1.5 min-w-0 hover:bg-secondary/30 rounded px-2 transition-colors">
+                            <label
+                              key={perm}
+                              className="flex items-center gap-2.5 text-xs cursor-pointer py-1.5 min-w-0 hover:bg-secondary/30 rounded px-2 transition-colors"
+                            >
                               <input
                                 type="checkbox"
                                 checked={newKeyPerms.includes(perm)}
                                 onChange={(e) => {
-                                  if (e.target.checked) setNewKeyPerms((p) => [...p, perm])
+                                  if (e.target.checked)
+                                    setNewKeyPerms((p) => [...p, perm])
                                   else setNewKeyPerms((p) => p.filter((x) => x !== perm))
                                 }}
                                 className="accent-primary h-4 w-4 shrink-0 rounded"
                               />
-                              <span className="text-muted-foreground truncate min-w-0">{perm}</span>
+                              <span className="text-muted-foreground truncate min-w-0">
+                                {perm}
+                              </span>
                             </label>
                           ))}
                         </div>
@@ -1953,7 +2587,11 @@ export default function SettingsPage() {
                     )}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => { setShowApiForm(false); setNewKeyName(""); setNewKeyPerms([]) }}
+                        onClick={() => {
+                          setShowApiForm(false)
+                          setNewKeyName("")
+                          setNewKeyPerms([])
+                        }}
                         className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-all active:scale-[0.98]"
                       >
                         {t("actions.cancel")}
@@ -1980,13 +2618,18 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">{t("api.emptyTitle")}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{t("api.emptyDescription")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("api.emptyDescription")}
+                      </p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 min-w-0">
                     {apiKeys.map((k) => (
-                      <div key={k.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors">
+                      <div
+                        key={k.id}
+                        className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
+                      >
                         <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -2008,8 +2651,12 @@ export default function SettingsPage() {
               <SettingsCard>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 min-w-0">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">{t("api.documentation")}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t("api.documentationHint")}</p>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {t("api.documentation")}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("api.documentationHint")}
+                    </p>
                   </div>
                   <button
                     onClick={() => window.open("https://backend.ecli.app/openapi", "_blank")}
@@ -2029,14 +2676,23 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               <SettingsCard>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">{t("appearance.theme")}</h3>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t("appearance.theme")}
+                  </h3>
                   <p className="text-xs text-muted-foreground mt-1">{t("appearance.themeHint")}</p>
                 </div>
                 <div className="mb-4 rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4">
-                  <label className="text-xs font-medium text-muted-foreground">{t("appearance.language")}</label>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">{t("appearance.languageHint")}</p>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    {t("appearance.language")}
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    {t("appearance.languageHint")}
+                  </p>
                   <Select value={settingsLocale} onValueChange={updateLocalePreference}>
-                    <SelectTrigger className="h-9 w-full md:w-[220px]" aria-label={t("appearance.language")}>
+                    <SelectTrigger
+                      className="h-9 w-full md:w-[220px]"
+                      aria-label={t("appearance.language")}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -2048,7 +2704,9 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 min-w-0">
                   {THEMES.map((theme) => {
                     const isActive = activeTheme === theme.name
-                    const isGamblingTheme = theme.name === "Gambling Mode Dark" || theme.name === "Gambling Mode White"
+                    const isGamblingTheme =
+                      theme.name === "Gambling Mode Dark" ||
+                      theme.name === "Gambling Mode White"
                     return (
                       <button
                         key={theme.name}
@@ -2064,7 +2722,10 @@ export default function SettingsPage() {
                         <div className="flex gap-1.5">
                           <div
                             className="h-8 w-8 md:h-10 md:w-10 rounded-lg shadow-md transition-transform hover:scale-105"
-                            style={{ backgroundColor: theme.bg, border: "1px solid var(--border)" }}
+                            style={{
+                              backgroundColor: theme.bg,
+                              border: "1px solid var(--border)",
+                            }}
                           />
                           <div
                             className="h-8 w-8 md:h-10 md:w-10 rounded-lg shadow-md transition-transform hover:scale-105"
@@ -2081,7 +2742,9 @@ export default function SettingsPage() {
                             </p>
                           )}
                           {isGamblingTheme && (
-                            <p className="text-[10px] text-destructive mt-1.5 font-medium">{t("appearance.luckMode")}</p>
+                            <p className="text-[10px] text-destructive mt-1.5 font-medium">
+                              {t("appearance.luckMode")}
+                            </p>
                           )}
                         </div>
                         {isActive && (
@@ -2119,27 +2782,52 @@ export default function SettingsPage() {
                     icon={Sparkles}
                     title={t("editor.aiAssistant")}
                     description={t("editor.aiAssistantHint")}
-                    action={<Switch checked={!!editorSettings.aiAssistant} onCheckedChange={(v) => updateEditorSettings({ aiAssistant: v })} />}
+                    action={
+                      <Switch
+                        checked={!!editorSettings.aiAssistant}
+                        onCheckedChange={(v) => updateEditorSettings({ aiAssistant: v })}
+                      />
+                    }
                   />
                   <SettingRow
                     title={t("editor.autoIndent")}
                     description={t("editor.autoIndentHint")}
-                    action={<Switch checked={!!editorSettings.autoIndent} onCheckedChange={(v) => updateEditorSettings({ autoIndent: v })} />}
+                    action={
+                      <Switch
+                        checked={!!editorSettings.autoIndent}
+                        onCheckedChange={(v) => updateEditorSettings({ autoIndent: v })}
+                      />
+                    }
                   />
                   <SettingRow
                     title={t("editor.showMinimap")}
                     description={t("editor.showMinimapHint")}
-                    action={<Switch checked={!!editorSettings.minimap} onCheckedChange={(v) => updateEditorSettings({ minimap: v })} />}
+                    action={
+                      <Switch
+                        checked={!!editorSettings.minimap}
+                        onCheckedChange={(v) => updateEditorSettings({ minimap: v })}
+                      />
+                    }
                   />
                   <SettingRow
                     title={t("editor.formatOnPaste")}
                     description={t("editor.formatOnPasteHint")}
-                    action={<Switch checked={!!editorSettings.formatOnPaste} onCheckedChange={(v) => updateEditorSettings({ formatOnPaste: v })} />}
+                    action={
+                      <Switch
+                        checked={!!editorSettings.formatOnPaste}
+                        onCheckedChange={(v) => updateEditorSettings({ formatOnPaste: v })}
+                      />
+                    }
                   />
                   <SettingRow
                     title={t("editor.formatOnType")}
                     description={t("editor.formatOnTypeHint")}
-                    action={<Switch checked={!!editorSettings.formatOnType} onCheckedChange={(v) => updateEditorSettings({ formatOnType: v })} />}
+                    action={
+                      <Switch
+                        checked={!!editorSettings.formatOnType}
+                        onCheckedChange={(v) => updateEditorSettings({ formatOnType: v })}
+                      />
+                    }
                   />
                   <SettingRow
                     title={t("editor.fontSize")}
@@ -2150,7 +2838,9 @@ export default function SettingsPage() {
                         min={8}
                         max={24}
                         value={editorSettings.fontSize ?? DEFAULT_EDITOR_SETTINGS.fontSize}
-                        onChange={(e) => updateEditorSettings({ fontSize: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateEditorSettings({ fontSize: Number(e.target.value) })
+                        }
                         className="w-16 md:w-20 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm text-center text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       />
                     }
@@ -2164,24 +2854,34 @@ export default function SettingsPage() {
                         min={1}
                         max={8}
                         value={editorSettings.tabSize ?? DEFAULT_EDITOR_SETTINGS.tabSize}
-                        onChange={(e) => updateEditorSettings({ tabSize: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateEditorSettings({ tabSize: Number(e.target.value) })
+                        }
                         className="w-16 md:w-20 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm text-center text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       />
                     }
                   />
                   <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/50 bg-secondary/20 min-w-0">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-foreground">{t("editor.fontFamily")}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {t("editor.fontFamily")}
+                      </span>
                     </div>
                     <select
-                      value={editorSettings.fontFamily ?? DEFAULT_EDITOR_SETTINGS.fontFamily}
+                      value={
+                        editorSettings.fontFamily ?? DEFAULT_EDITOR_SETTINGS.fontFamily
+                      }
                       onChange={(e) => updateEditorSettings({ fontFamily: e.target.value })}
                       className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
                     >
-                      <option value='"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, monospace'>
+                      <option
+                        value='"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, monospace'
+                      >
                         JetBrains Mono / Fira Code
                       </option>
-                      <option value='"Source Code Pro", "Menlo", "Consolas", "Courier New", monospace'>
+                      <option
+                        value='"Source Code Pro", "Menlo", "Consolas", "Courier New", monospace'
+                      >
                         Source Code Pro
                       </option>
                       <option value='"Arial", "Helvetica", sans-serif'>Arial / Sans</option>

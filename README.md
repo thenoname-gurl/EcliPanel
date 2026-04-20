@@ -124,6 +124,7 @@ I have included system files inside of /systemd folder that are used for https:/
 
 - The API routes are documented in `example.com/openapi` and should be used by the
   frontend code.
+- You might need to run `npm rebuild @tensorflow/tfjs-node --build-from-source` on backend to make selfie verification work!
 
 > You may view API routes without deploying at https://backend.ecli.app/openapi for production or https://backend.canary.ecli.app/openapi for canary.
 > Canary version of EcliPanel are offline during non developmet periods.

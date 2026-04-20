@@ -103,15 +103,24 @@ export async function apiFetch(
         let msg = text;
         try {
           const json = JSON.parse(text);
+          let hasMessage = false;
           if (json?.error) {
             msg = json.error;
-          } else if (json?.message) {
+            hasMessage = true;
+          }
+          if (json?.message) {
             msg = json.message;
-          } else if (json?.type === 'validation' && json?.found) {
+            hasMessage = true;
+          }
+          if (json?.details) {
+            msg = `${hasMessage ? msg + ' - ' : ''}${json.details}`;
+            hasMessage = true;
+          }
+          if (!hasMessage && json?.type === 'validation' && json?.found) {
             msg = Object.entries(json.found)
               .map(([field, value]) => `${field}: ${value}`)
               .join('; ');
-          } else {
+          } else if (!hasMessage) {
             msg = JSON.stringify(json);
           }
         } catch {}
