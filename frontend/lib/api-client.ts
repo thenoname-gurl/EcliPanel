@@ -12,7 +12,12 @@ export async function apiFetch(
   options: Omit<RequestInit, 'body'> & { body?: any; timeout?: number; retries?: number } = {}
 ): Promise<any> {
   const timeout = Number(options.timeout ?? DEFAULT_API_TIMEOUT)
-  const retries = Number(options.retries ?? DEFAULT_API_RETRIES)
+  let retries = Number(options.retries ?? DEFAULT_API_RETRIES)
+
+  const isFormDataBody = options.body instanceof FormData;
+  if (isFormDataBody && retries > 1) {
+    retries = 1;
+  }
 
   let base = process.env.NEXT_PUBLIC_API_BASE || "";
   if (typeof window !== 'undefined') {

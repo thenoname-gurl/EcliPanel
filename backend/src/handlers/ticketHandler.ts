@@ -842,7 +842,9 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const showClosed = includeClosed === 'true' || includeClosed === '1' || includeClosed === 'yes';
     const showReplied = includeReplied === 'true' || includeReplied === '1' || includeReplied === 'yes';
 
-    const tickets = hasPermissionSync(ctx, 'tickets:read')
+    const isAdminApiKey = ctx.apiKey?.type === 'admin';
+    const hasTicketAccess = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
+    const tickets = hasTicketAccess
       ? await repo.find({ order: { created: 'DESC' } })
       : await repo.find({ where: { userId: user.id }, order: { created: 'DESC' } });
 
@@ -1027,14 +1029,16 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    if (ticket.userId !== user.id && !hasPermissionSync(ctx, 'tickets:read')) {
+    const isAdminApiKey = ctx.apiKey?.type === 'admin';
+    const canTicketRead = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
+    if (ticket.userId !== user.id && !canTicketRead) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
 
     const output: any = { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
 
-    if (hasPermissionSync(ctx, 'tickets:read')) {
+    if (canTicketRead) {
       const ticketUser = await AppDataSource.getRepository(User).findOneBy({ id: ticket.userId });
       if (ticketUser) {
         const membershipRows = await orgMemberRepo.find({ where: { userId: ticketUser.id }, relations: ['organisation'] });
@@ -1078,20 +1082,25 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       ctx.set.status = 404;
       return { error: 'Ticket not found' };
     }
-    if (!hasPermissionSync(ctx, 'tickets:write') && ticket.userId !== user.id) {
+
+    const { status, priority, reply, replyAs, message, assignedTo, department, aiDisabled, aiTouched, archived } = ctx.body as any;
+    const isAdminApiKey = ctx.apiKey?.type === 'admin';
+    const canAdminWrite = isAdminApiKey || hasPermissionSync(ctx, 'tickets:write');
+    const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
+    if (!canAdminWrite && !canStaffReply && ticket.userId !== user.id) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
 
-    const { status, priority, reply, replyAs, message, assignedTo, department, aiDisabled, aiTouched } = ctx.body as any;
     const now = new Date();
 
     if (status) ticket.status = normalizeStatus(status);
-    if (priority) ticket.priority = priority;
-    if (assignedTo != null) ticket.assignedTo = Number(assignedTo);
-    if (typeof department === 'string') ticket.department = department;
-    if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
-    if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
+    if (priority && (canAdminWrite || canStaffReply)) ticket.priority = priority;
+    if (assignedTo != null && canAdminWrite) ticket.assignedTo = Number(assignedTo);
+    if (typeof department === 'string' && canAdminWrite) ticket.department = department;
+    if (typeof aiDisabled === 'boolean' && canAdminWrite) ticket.aiDisabled = aiDisabled;
+    if (typeof aiTouched === 'boolean' && canAdminWrite) ticket.aiTouched = aiTouched;
+    if (archived !== undefined && canAdminWrite) ticket.archived = Boolean(archived);
 
     normalizeTicketMessages(ticket);
     if (!Array.isArray(ticket.messages)) ticket.messages = [];
@@ -1099,10 +1108,13 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     let pushedSender: 'staff' | 'user' | null = null;
     let lastMessageText: string | null = null;
     if (typeof reply === 'string' && reply.trim()) {
-      const canStaffReply = hasPermissionSync(ctx, 'tickets:write');
-      const sender: 'staff' | 'user' = replyAs === 'user' ? 'user' : replyAs === 'staff' ? 'staff' : (canStaffReply ? 'staff' : 'user');
       const rawText = reply.trim();
       const txt = sanitizeForDb(rawText);
+      const sender: 'staff' | 'user' = replyAs === 'user'
+        ? 'user'
+        : replyAs === 'staff'
+          ? (canStaffReply ? 'staff' : 'user')
+          : (canStaffReply ? 'staff' : 'user');
       if (sender === 'staff') {
         const staffDisplayName = typeof user.displayName === 'string' ? user.displayName.trim() : '';
         const staffLegalName = `${user.firstName || ''} ${user.lastName || ''}`.trim();

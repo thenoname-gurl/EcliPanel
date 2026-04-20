@@ -12,7 +12,7 @@ import { PanelHeader } from "@/components/panel/header"
 import { FeatureGuard } from "@/components/panel/feature-guard"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import {
   ArrowLeft,
   Send,
@@ -175,10 +175,13 @@ export default function TicketDetailPage({
   const t = useTranslations("ticketDetailPage")
   const { id } = use(params)
   const { user } = useAuth()
+  const canTicketStaff = !!user && hasPermission(user, 'admin:ticket:staff')
+  const canTicketWrite = !!user && hasPermission(user, 'tickets:write')
   const isAdmin =
     user?.role === "admin" ||
     user?.role === "rootAdmin" ||
-    user?.role === "*"
+    user?.role === "*" ||
+    canTicketStaff
 
   const [ticket, setTicket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -191,6 +194,12 @@ export default function TicketDetailPage({
   const [replyAs, setReplyAs] = useState<"staff" | "user">("user")
   const [replyPriority, setReplyPriority] = useState("medium")
   const [adminStatus, setAdminStatus] = useState("")
+
+  useEffect(() => {
+    if (!canTicketStaff && replyAs === "staff") {
+      setReplyAs("user")
+    }
+  }, [canTicketStaff, replyAs])
   const [adminPriority, setAdminPriority] = useState("")
   const [adminDepartment, setAdminDepartment] = useState("")
   const [adminAiDisabled, setAdminAiDisabled] = useState(false)
@@ -227,7 +236,7 @@ export default function TicketDetailPage({
         setAdminDepartment(data?.department || "")
         setAdminAiDisabled(Boolean(data?.aiDisabled))
         setAdminAiTouched(Boolean(data?.aiTouched))
-        if (isAdmin)
+        if (canTicketStaff)
           setReplyAs(data?.userId === user?.id ? "user" : "staff")
       } catch (e: any) {
         setError(e.message || t("errors.failedLoadTicket"))
@@ -298,9 +307,9 @@ export default function TicketDetailPage({
           method: "PUT",
           body: JSON.stringify({
             reply: reply.trim(),
-            replyAs,
+            replyAs: canTicketStaff ? replyAs : "user",
             status: ticket.status,
-            ...(isAdmin ? { priority: replyPriority } : {}),
+            ...((canTicketWrite || canTicketStaff) ? { priority: replyPriority } : {}),
           }),
         }
       )
@@ -1097,7 +1106,7 @@ export default function TicketDetailPage({
 
                   <div className="flex items-center justify-between border-t border-border/30 px-2.5 py-1.5 sm:px-3 sm:py-2 gap-2">
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                      {isAdmin && (
+                      {canTicketStaff && (
                         <button
                           onClick={() =>
                             setReplyAs(
@@ -1121,7 +1130,7 @@ export default function TicketDetailPage({
                         </button>
                       )}
 
-                      {isAdmin && (
+                      {(canTicketWrite || canTicketStaff) && (
                         <select
                           value={replyPriority}
                           onChange={(e) =>

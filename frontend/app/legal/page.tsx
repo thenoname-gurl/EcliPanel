@@ -1,17 +1,19 @@
+import type { ElementType } from "react";
 import Link from "next/link";
 import { FileText, Shield, Lock, Globe2, BookOpen, Cpu, Mail } from "lucide-react";
+import { LEGAL_DOCUMENTS } from "@/lib/legal-docs";
 
-const documents = [
-  { title: "Terms of Service", href: "/legal/terms-of-service", icon: FileText },
-  { title: "Privacy Policy", href: "/legal/privacy-policy", icon: Shield },
-  { title: "Acceptable Use Policy", href: "/legal/acceptable-use-policy", icon: Lock },
-  { title: "AI Policy", href: "/legal/ai-policy", icon: Cpu },
-  { title: "Email Policy", href: "/legal/email-policy", icon: Mail },
-  { title: "Minimum Age Policy", href: "/legal/minimum-age", icon: Globe2 },
-  { title: "Cookies Policy", href: "/legal/cookies-policy", icon: Globe2 },
-  { title: "DMCA Copyright Policy", href: "/legal/dmca-copyright-policy", icon: BookOpen },
-  { title: "Imprint / Legal Notice", href: "/legal/imprint", icon: FileText },
-];
+const ICONS: Record<string, ElementType> = {
+  'terms-of-service': FileText,
+  'privacy-policy': Shield,
+  'acceptable-use-policy': Lock,
+  'ai-policy': Cpu,
+  'email-policy': Mail,
+  'minimum-age': Globe2,
+  'cookies-policy': Globe2,
+  'dmca-copyright-policy': BookOpen,
+  imprint: FileText,
+};
 
 export default function LegalIndexPage() {
   return (
@@ -30,8 +32,8 @@ export default function LegalIndexPage() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">
-          {documents.map((doc) => {
-            const Icon = doc.icon;
+          {LEGAL_DOCUMENTS.map((doc) => {
+            const Icon = ICONS[doc.id] || FileText;
             return (
               <Link key={doc.href} href={doc.href} className="group rounded-3xl border border-border bg-card p-6 transition hover:border-primary/40 hover:bg-secondary/60">
                 <div className="flex items-center gap-3">

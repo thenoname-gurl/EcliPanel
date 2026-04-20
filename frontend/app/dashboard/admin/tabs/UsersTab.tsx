@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { useTranslations } from "next-intl"
 import {
   Ban,
@@ -24,6 +25,7 @@ import {
 
 export default function UsersTab({ ctx }: { ctx: any }) {
   const t = useTranslations("adminUsersTab")
+  const { user } = useAuth()
   const {
     userSearch,
     setUserSearch,
@@ -49,6 +51,13 @@ export default function UsersTab({ ctx }: { ctx: any }) {
     usersPage,
     USERS_PER,
   } = ctx
+
+  const canEditUser = !!user && hasPermission(user, 'admin:user:edit')
+  const canSuspendUser = !!user && hasPermission(user, 'users:suspend')
+  const canDeleteUser = !!user && hasPermission(user, 'users:delete')
+  const canResetDemo = !!user && hasPermission(user, 'users:write')
+  const canRequireStudentReverify = !!user && hasPermission(user, 'users:write')
+  const canDeassignStudent = !!user && hasPermission(user, 'admin:student:deassign')
 
   return (
     <div className="flex flex-col gap-4">
@@ -228,17 +237,21 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                         <button onClick={() => openViewUser(user)} title={t("actions.viewProfile")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <Eye className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => openEditUser(user)} title={t("actions.editUser")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                          <UserCog className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleSuspend(user)}
-                          title={user.suspended ? t("actions.unsuspend") : t("actions.suspend")}
-                          className={`rounded-md p-1.5 transition-colors ${user.suspended ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}
-                        >
-                          {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                        </button>
-                        {user.demoUsed && (
+                        {canEditUser && (
+                          <button onClick={() => openEditUser(user)} title={t("actions.editUser")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                            <UserCog className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {canSuspendUser && (
+                          <button
+                            onClick={() => toggleSuspend(user)}
+                            title={user.suspended ? t("actions.unsuspend") : t("actions.suspend")}
+                            className={`rounded-md p-1.5 transition-colors ${user.suspended ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}
+                          >
+                            {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                        {user.demoUsed && canResetDemo && (
                           <button onClick={() => resetDemo(user)} title={t("actions.resetDemo")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                             <RefreshCw className="h-3.5 w-3.5" />
                           </button>
@@ -258,19 +271,21 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                             )}
                           </>
                         )}
-                        {(user.studentVerified || user.portalType === "educational") && (
-                          <>
-                            <button onClick={() => deassignStudent(user)} title={t("actions.deassignStudent")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                              <UserMinus className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => requireStudentReverify(user)} title={t("actions.requireReverify")} className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            </button>
-                          </>
+                        {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
+                          <button onClick={() => deassignStudent(user)} title={t("actions.deassignStudent")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                            <UserMinus className="h-3.5 w-3.5" />
+                          </button>
                         )}
-                        <button onClick={() => deleteUser(user)} title={t("actions.deleteAccount")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {canRequireStudentReverify && (user.studentVerified || user.portalType === "educational") && (
+                          <button onClick={() => requireStudentReverify(user)} title={t("actions.requireReverify")} className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {canDeleteUser && (
+                          <button onClick={() => deleteUser(user)} title={t("actions.deleteAccount")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -354,45 +369,51 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                   <Eye className="h-3.5 w-3.5" />
                   <span>{t("actions.view")}</span>
                 </button>
-                <button onClick={() => openEditUser(user)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-                  <UserCog className="h-3.5 w-3.5" />
-                  <span>{t("actions.edit")}</span>
-                </button>
-                <button
-                  onClick={() => toggleSuspend(user)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs transition-colors ${user.suspended ? "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
-                >
-                  {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                  <span>{user.suspended ? t("actions.unsuspend") : t("actions.suspend")}</span>
-                </button>
+                {canEditUser && (
+                  <button onClick={() => openEditUser(user)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+                    <UserCog className="h-3.5 w-3.5" />
+                    <span>{t("actions.edit")}</span>
+                  </button>
+                )}
+                {canSuspendUser && (
+                  <button
+                    onClick={() => toggleSuspend(user)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs transition-colors ${user.suspended ? "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+                  >
+                    {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                    <span>{user.suspended ? t("actions.unsuspend") : t("actions.suspend")}</span>
+                  </button>
+                )}
 
                 <div className="relative group/more">
                   <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
                     <MoreHorizontal className="h-3.5 w-3.5" />
                   </button>
                   <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
-                    {user.demoUsed && (
+                    {user.demoUsed && canResetDemo && (
                       <button onClick={() => resetDemo(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
                         <RefreshCw className="h-3.5 w-3.5" />
                         {t("actions.resetDemo")}
                       </button>
                     )}
-                    {(user.studentVerified || user.portalType === "educational") && (
-                      <>
-                        <button onClick={() => deassignStudent(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                          <UserMinus className="h-3.5 w-3.5" />
-                          {t("actions.deassignStudent")}
-                        </button>
-                        <button onClick={() => requireStudentReverify(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors">
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          {t("actions.requireReverify")}
-                        </button>
-                      </>
+                    {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
+                      <button onClick={() => deassignStudent(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                        <UserMinus className="h-3.5 w-3.5" />
+                        {t("actions.deassignStudent")}
+                      </button>
                     )}
-                    <button onClick={() => deleteUser(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors border-t border-border">
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {t("actions.deleteAccount")}
-                    </button>
+                    {(user.studentVerified || user.portalType === "educational") && canRequireStudentReverify && (
+                      <button onClick={() => requireStudentReverify(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors">
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {t("actions.requireReverify")}
+                      </button>
+                    )}
+                    {canDeleteUser && (
+                      <button onClick={() => deleteUser(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors border-t border-border">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {t("actions.deleteAccount")}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

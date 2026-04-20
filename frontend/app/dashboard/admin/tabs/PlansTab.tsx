@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,11 @@ import { useTranslations } from "next-intl"
 
 export default function PlansTab({ ctx }: { ctx: any }) {
   const t = useTranslations("adminPlansTab")
+  const { user } = useAuth()
+  const canManagePlans = !!user && hasPermission(user, 'admin:plans:manage')
+  const canDeletePlans = !!user && hasPermission(user, 'admin:plans:delete')
+  const canReapplyPlans = !!user && hasPermission(user, 'admin:plans:reapply')
+  const canForceReapplyPlans = !!user && hasPermission(user, 'admin:plans:forcereapply')
   const {
     plans,
     ensurePortalPlans,
@@ -82,14 +88,18 @@ export default function PlansTab({ ctx }: { ctx: any }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={ensurePortalPlans} disabled={ensureLoading}>
-            {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-            {t("actions.syncPortal")}
-          </Button>
-          <Button size="sm" onClick={openNewPlan} className="bg-primary text-primary-foreground">
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            {t("actions.newPlan")}
-          </Button>
+          {canManagePlans && (
+            <Button size="sm" variant="outline" onClick={ensurePortalPlans} disabled={ensureLoading}>
+              {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              {t("actions.syncPortal")}
+            </Button>
+          )}
+          {canManagePlans && (
+            <Button size="sm" onClick={openNewPlan} className="bg-primary text-primary-foreground">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              {t("actions.newPlan")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -187,54 +197,62 @@ export default function PlansTab({ ctx }: { ctx: any }) {
 
                 <div className="flex items-center justify-between border-t border-border px-4 py-2.5 bg-secondary/10 rounded-b-xl">
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
-                      disabled={isReapplying}
-                      onClick={() => reapplyPlanLimits(plan.id)}
-                    >
-                      {isReapplying ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-3 w-3" />
-                      )}
-                      {t("actions.reapply")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-orange-400/70 hover:text-orange-400 hover:bg-orange-500/10 gap-1"
-                      disabled={isReapplying}
-                      onClick={() => reapplyPlanLimits(plan.id, true)}
-                    >
-                      {isReapplying ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <AlertTriangle className="h-3 w-3" />
-                      )}
-                      {t("actions.force")}
-                    </Button>
+                    {canReapplyPlans && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+                        disabled={isReapplying}
+                        onClick={() => reapplyPlanLimits(plan.id)}
+                      >
+                        {isReapplying ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                        {t("actions.reapply")}
+                      </Button>
+                    )}
+                    {canForceReapplyPlans && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-orange-400/70 hover:text-orange-400 hover:bg-orange-500/10 gap-1"
+                        disabled={isReapplying}
+                        onClick={() => reapplyPlanLimits(plan.id, true)}
+                      >
+                        {isReapplying ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3" />
+                        )}
+                        {t("actions.force")}
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-center gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                      onClick={() => openEditPlan(plan)}
-                      title={t("actions.editPlan")}
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => deletePlan(plan)}
-                      title={t("actions.deletePlan")}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canManagePlans && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditPlan(plan)}
+                        title={t("actions.editPlan")}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canDeletePlans && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deletePlan(plan)}
+                        title={t("actions.deletePlan")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

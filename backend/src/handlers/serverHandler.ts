@@ -2148,8 +2148,17 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: 'Unsupported media type; expected application/octet-stream' };
       }
 
-      const rawBody = await ctx.request.arrayBuffer();
-      const binaryData = new Uint8Array(rawBody);
+      let binaryData: Uint8Array;
+      if (ctx.body instanceof Uint8Array) {
+        binaryData = ctx.body;
+      } else if (ctx.body instanceof ArrayBuffer) {
+        binaryData = new Uint8Array(ctx.body);
+      } else if (Buffer.isBuffer(ctx.body)) {
+        binaryData = new Uint8Array(ctx.body);
+      } else {
+        const rawBody = await ctx.request.arrayBuffer();
+        binaryData = new Uint8Array(rawBody);
+      }
 
       const res = await svc.writeFile(id, pathParam, binaryData);
 
@@ -2579,8 +2588,17 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     try {
-      const rawBody = await ctx.request.arrayBuffer();
-      const binaryData = new Uint8Array(rawBody);
+      let binaryData: Uint8Array;
+      if (ctx.body instanceof Uint8Array) {
+        binaryData = ctx.body;
+      } else if (ctx.body instanceof ArrayBuffer) {
+        binaryData = new Uint8Array(ctx.body);
+      } else if (Buffer.isBuffer(ctx.body)) {
+        binaryData = new Uint8Array(ctx.body);
+      } else {
+        const rawBody = await ctx.request.arrayBuffer();
+        binaryData = new Uint8Array(rawBody);
+      }
       await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, pathParam, Buffer.from(binaryData), auth.endpoint);
       return { success: true };
     } catch (e: any) {

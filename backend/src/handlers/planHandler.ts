@@ -37,7 +37,7 @@ export async function planRoutes(app: any, prefix = '') {
     const plans = await planRepo().find({ order: { price: 'ASC' } });
     return plans;
   }, {
-    beforeHandle: [authenticate, authorize('plans:read')],
+    beforeHandle: [authenticate, authorize('admin:plans:view')],
     detail: { summary: 'List all plans (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) }
   });
@@ -75,7 +75,7 @@ export async function planRoutes(app: any, prefix = '') {
     await planRepo().save(plan);
     return { success: true, plan };
   }, {
-    beforeHandle: [authenticate, authorize('plans:write')],
+    beforeHandle: [authenticate, authorize('admin:plans:manage')],
     detail: { summary: 'Create a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Object({ success: t.Boolean(), plan: t.Any() }), 400: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
   });
@@ -114,7 +114,7 @@ export async function planRoutes(app: any, prefix = '') {
     await planRepo().save(plan);
     return { success: true, plan };
   }, {
-    beforeHandle: [authenticate, authorize('plans:write')],
+    beforeHandle: [authenticate, authorize('admin:plans:manage')],
     detail: { summary: 'Update a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });
@@ -184,7 +184,7 @@ export async function planRoutes(app: any, prefix = '') {
 
     return { success: true, updated };
   }, {
-    beforeHandle: [authenticate, authorize('plans:write')],
+    beforeHandle: [authenticate, authorize('admin:plans:reapply')],
     detail: { summary: 'Reapply plan limits to users without custom limits', tags: ['Plans', 'Admin'] },
     response: { 200: t.Object({ success: t.Boolean(), updated: t.Number() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });
@@ -198,7 +198,7 @@ export async function planRoutes(app: any, prefix = '') {
     await planRepo().remove(plan);
     return { success: true };
   }, {
-    beforeHandle: [authenticate, authorize('plans:write')],
+    beforeHandle: [authenticate, authorize('admin:plans:delete')],
     detail: { summary: 'Delete a plan (admin)', tags: ['Plans', 'Admin'] },
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) }
   });

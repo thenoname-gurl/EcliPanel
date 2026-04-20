@@ -632,6 +632,64 @@ app.get('/uploads/mailbox/*', async (ctx: any) => {
   detail: { hide: true }
 });
 
+app.get('/uploads/user-documents/*', async (ctx: any) => {
+  const relPath = String((ctx.params as any)['*'] || '');
+  let filepath: string;
+  try {
+    filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'user-documents'), relPath);
+  } catch {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const normalised = path.relative(path.join(process.cwd(), 'uploads', 'user-documents'), filepath);
+  const parts = normalised.split(path.sep);
+  if (parts.length < 2) {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const ownerId = parts[0];
+  const requester = ctx.user;
+  const apiKey = ctx.apiKey;
+  if (!requester && !apiKey) {
+    return new Response(JSON.stringify({ error: 'Missing Authorization token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  if (apiKey) {
+    if (apiKey.type !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
+  } else if (String(requester.id) !== ownerId && !hasPermissionSync(ctx, 'admin:users:documents')) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const ext = path.extname(filepath).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    '.pdf': 'application/pdf',
+  };
+
+  try {
+    let buf: any = await fsp.readFile(filepath);
+    try {
+      buf = decryptBuffer(buf);
+    } catch {
+      // meow
+    }
+    return new Response((new Uint8Array(buf as any)) as any, {
+      status: 200,
+      headers: {
+        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+        'Content-Length': String(buf.length),
+        'Cache-Control': 'private, max-age=300',
+      },
+    });
+  } catch {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  }
+}, {
+  beforeHandle: authenticate,
+  detail: { hide: true }
+});
+
 app.get('/uploads/*', async (ctx: any) => {
   const relPath = String((ctx.params as any)['*'] || '');
   let filepath: string;

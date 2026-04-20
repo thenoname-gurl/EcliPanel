@@ -346,6 +346,7 @@ export const API_ENDPOINTS = {
   adminMetrics: "/api/admin/metrics",
   adminMetricsClear: "/api/admin/metrics/clear",
   adminUsers: "/api/admin/users",
+  adminUserDocuments: "/api/admin/users/:id/documents",
   adminProductUpdates: "/api/admin/product-updates",
   adminOrganisations: "/api/admin/organisations",
   adminServers: "/api/admin/servers",

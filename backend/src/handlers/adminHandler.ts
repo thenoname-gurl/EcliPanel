@@ -35,6 +35,7 @@ import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
 import { executeDeletionRequest } from '../jobs/deletionExecutionJob';
 import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
+import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -238,10 +239,38 @@ const ADMIN_PAGE_PERMISSIONS = [
   'admin:antiabuse',
   'admin:fraud',
   'admin:settings',
+  'admin:tunnels:read',
+  'admin:oauth',
+  'admin:geoblock:view',
+  'admin:plans:view',
+  'admin:plans:manage',
+  'admin:plans:delete',
+  'admin:plans:reapply',
+  'admin:plans:forcereapply',
+  'orders:view',
+  'orders:issue',
+  'orders:update',
+  'orders:delete',
+  'admin:servers:read',
+  'admin:servers:write',
+  'admin:servers:manage',
+  'admin:servers:delete',
+  'admin:servers:suspend',
+  'admin:kyc:view',
+  'admin:user:edit',
+  'admin:student:assign',
+  'admin:student:deassign',
   'org:read',
   'servers:read',
+  'admin:servers:read',
+  'admin:servers:write',
+  'admin:servers:manage',
+  'admin:servers:delete',
+  'admin:servers:suspend',
   'tickets:read',
   'applications:manage',
+  'users:delete',
+  'users:suspend',
   'idverification:read',
   'deletions:write',
   'nodes:read',
@@ -287,7 +316,7 @@ function requireAdminPermission(ctx: any, permission: string): true | { error: s
     return { error: 'Unauthorized' };
   }
   if (apiKey && apiKey.type === 'admin') return true;
-  if (hasPermissionSync(ctx, permission) || hasPermissionSync(ctx, 'admin:access')) {
+  if (hasPermissionSync(ctx, permission)) {
     return true;
   }
   ctx.set.status = 403;
@@ -1143,8 +1172,17 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/users/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
     if (adminErr !== true) return adminErr;
+    const body = ctx.body as any;
+    if ('suspended' in body) {
+      const suspendErr = requireAdminPermission(ctx, 'users:suspend');
+      if (suspendErr !== true) return suspendErr;
+    }
+    if ('supportBanned' in body || 'supportBanReason' in body) {
+      const banErr = requireAdminPermission(ctx, 'tickets:ban');
+      if (banErr !== true) return banErr;
+    }
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!user) {
@@ -1312,7 +1350,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/users/:id/deassign-student', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:student:deassign');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const logRepo = AppDataSource.getRepository(UserLog);
@@ -1388,7 +1426,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/users/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:write');
+    const adminErr = requireAdminPermission(ctx, 'users:delete');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -1415,8 +1453,12 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/tickets', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'tickets:read');
-    if (adminErr !== true) return adminErr;
+    const isAdminApiKey = ctx.apiKey?.type === 'admin';
+    const canReadTickets = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
+    if (!canReadTickets) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const userRepo = AppDataSource.getRepository(User);
     const { page = '1', q = '', priority = '', status = '', archived = '' } = ctx.query as any;
@@ -1505,8 +1547,13 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/tickets/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'tickets:write');
-    if (adminErr !== true) return adminErr;
+    const isAdminApiKey = ctx.apiKey?.type === 'admin';
+    const canAdminWrite = isAdminApiKey || hasPermissionSync(ctx, 'tickets:write');
+    const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
+    if (!canAdminWrite && !canStaffReply) {
+      ctx.set.status = 403;
+      return { error: 'Forbidden' };
+    }
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const ticket = await ticketRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!ticket) {
@@ -1530,12 +1577,14 @@ export async function adminRoutes(app: any, prefix = '') {
     const now = new Date();
     const previousStatus = ticket.status;
 
-    if (priority) ticket.priority = priority;
-    if (assignedTo != null) ticket.assignedTo = Number(assignedTo);
-    if (typeof department === 'string') ticket.department = department;
-    if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
-    if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
-    if (archived !== undefined) ticket.archived = Boolean(archived);
+    if (canAdminWrite) {
+      if (priority) ticket.priority = priority;
+      if (assignedTo != null) ticket.assignedTo = Number(assignedTo);
+      if (typeof department === 'string') ticket.department = department;
+      if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
+      if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
+      if (archived !== undefined) ticket.archived = Boolean(archived);
+    }
 
     if (status) {
       const nextStatus = normalizeTicketStatus(status);
@@ -1555,14 +1604,20 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!Array.isArray(ticket.messages)) ticket.messages = [];
 
     if (typeof reply === 'string' && reply.trim()) {
+      const isAdminApiKey = ctx.apiKey?.type === 'admin';
+      const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
       const cleanReply = sanitizeForDb(reply.trim());
-      const sender = replyAs === 'user' ? 'user' : 'staff';
+      const sender = replyAs === 'user'
+        ? 'user'
+        : replyAs === 'staff'
+          ? (canStaffReply ? 'staff' : 'user')
+          : (canStaffReply ? 'staff' : 'user');
       ticket.messages.push({ sender, message: cleanReply, created: now });
       if (sender === 'staff') {
         ticket.adminReply = cleanReply;
       }
       if (!status) ticket.status = sender === 'staff' ? 'replied' : 'awaiting_staff_reply';
-    } else if (adminReply !== undefined) {
+    } else if (adminReply !== undefined && canAdminWrite) {
       ticket.adminReply = sanitizeForDb(String(adminReply));
     }
 
@@ -1618,8 +1673,9 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/verifications', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'idverification:read');
+    const adminErr = requireAdminPermission(ctx, 'admin:kyc:view');
     if (adminErr !== true) return adminErr;
+    const canViewFiles = hasPermissionSync(ctx, 'admin:kyc:view:id');
     const verRepo = AppDataSource.getRepository(IDVerification);
     const userRepo = AppDataSource.getRepository(User);
 
@@ -1629,7 +1685,14 @@ export async function adminRoutes(app: any, prefix = '') {
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
-    const result = records.map((r) => ({ ...r, user: userMap[r.userId] ?? null }));
+    const result = records.map((r) => {
+      const row: any = { ...r, user: userMap[r.userId] ?? null };
+      if (!canViewFiles) {
+        row.idDocumentUrl = null;
+        row.selfieUrl = null;
+      }
+      return row;
+    });
     return result;
   }, {
     beforeHandle: authenticate,
@@ -1642,7 +1705,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/verifications/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'idverification:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
     if (adminErr !== true) return adminErr;
     const verRepo = AppDataSource.getRepository(IDVerification);
     const userRepo = AppDataSource.getRepository(User);
@@ -1684,7 +1747,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/verifications/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'idverification:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
     if (adminErr !== true) return adminErr;
     const verRepo = AppDataSource.getRepository(IDVerification);
     const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -2148,7 +2211,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/admin/servers', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:read');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
     if (adminErr !== true) return adminErr;
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
@@ -2268,7 +2331,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/power', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const { action } = ctx.body as any;
@@ -2333,7 +2396,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/mark-started', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
@@ -2392,7 +2455,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/admin/servers/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated, autoSyncOnEggChange } = ctx.body as any;
@@ -2497,7 +2560,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/servers/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:delete');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:delete');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const nodeRepo = AppDataSource.getRepository(Node);
@@ -2529,7 +2592,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:write');
     if (adminErr !== true) return adminErr;
     const { nodeId, userId, eggId, name } = ctx.body as any;
     let memory = (ctx.body as any).memory ?? 1024;
@@ -2763,7 +2826,7 @@ export async function adminRoutes(app: any, prefix = '') {
   // SO YOU DECIDED TO GO AGAINST LORDS WISHES HUH? 
   // WELL NOW YOUR SERVER IS SUSPENDED, HAVE FUN CRYING TO SUPPORT ABOUT IT
   app.post(prefix + '/admin/servers/:id/suspend', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:suspend');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const body = (ctx.body || {}) as any;
@@ -2888,7 +2951,7 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/unsuspend', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:suspend');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
     const nodeRepo = AppDataSource.getRepository(Node);
@@ -3843,6 +3906,91 @@ export async function adminRoutes(app: any, prefix = '') {
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     },
     detail: { summary: 'Get detailed profile for a user', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/users/:id/documents', async (ctx: any) => {
+    const adminErr = requireAdminPermission(ctx, 'admin:users:documents');
+    if (adminErr !== true) return adminErr;
+    const userId = Number(ctx.params.id);
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: userId });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    const { file, name, description } = (ctx.body || {}) as any;
+    const uploadFile = Array.isArray(file) ? file[0] : file;
+    if (!uploadFile) {
+      ctx.set.status = 400;
+      return { error: 'No file' };
+    }
+
+    const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
+    if (mime !== 'application/pdf') {
+      ctx.set.status = 400;
+      return { error: 'Invalid file type; only PDF supported' };
+    }
+
+    const ab = await uploadFile.arrayBuffer();
+    const buffer = Buffer.from(ab);
+    const originalName = uploadFile.name || uploadFile.filename || `document_${Date.now()}.pdf`;
+    const safeName = path.basename(originalName).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = `document_${Date.now()}_${safeName}`;
+
+    const uploadDir = path.join(process.cwd(), 'uploads', 'user-documents', String(user.id));
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const filepath = path.join(uploadDir, filename);
+
+    const encrypted = await encryptBufferWithWorker(buffer).catch(() => {
+      const { encryptBuffer } = require('../utils/crypto');
+      return encryptBuffer(buffer);
+    });
+    fs.writeFileSync(filepath, encrypted);
+
+    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
+      const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request.headers.get('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })();
+
+    const documentUrl = `${backendBase}/uploads/user-documents/${user.id}/${encodeURIComponent(filename)}`;
+
+    if (!user.settings || typeof user.settings !== 'object') {
+      user.settings = {};
+    }
+    const currentDocs = (user.settings as any).documents;
+    const documents = Array.isArray(currentDocs)
+      ? { admin: currentDocs, agreed: [] }
+      : { agreed: Array.isArray(currentDocs?.agreed) ? currentDocs.agreed : [], admin: Array.isArray(currentDocs?.admin) ? currentDocs.admin : [] };
+
+    const newDoc = {
+      id: uuidv4(),
+      name: String(name || originalName),
+      description: description ? String(description) : undefined,
+      filename,
+      url: documentUrl,
+      uploadedAt: new Date().toISOString(),
+    };
+    documents.admin.push(newDoc);
+    (user.settings as any).documents = documents;
+
+    await userRepo.save(user);
+    return { success: true, document: newDoc };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ file: t.File({ type: 'application/pdf' }), name: t.Optional(t.String()), description: t.Optional(t.String()) }),
+      response: {
+        200: t.Object({ success: t.Boolean(), document: t.Object({ id: t.String(), name: t.String(), description: t.Optional(t.String()), filename: t.String(), url: t.String(), uploadedAt: t.String() }) }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Upload a user-specific PDF document', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/users/:id/export', async (ctx) => {
@@ -4824,7 +4972,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/geo-block/metrics', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:settings');
+    const adminErr = requireAdminPermission(ctx, 'admin:geoblock:view');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
     const users = await userRepo.find({ select: ['billingCountry'] });
@@ -4987,7 +5135,7 @@ isSuspicious: true if fraudScore >= 50`;
 
   // TODO: Check if it works, still in todo
   app.get(prefix + '/admin/mounts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const mounts = await AppDataSource.getRepository(Mount).find({ order: { name: 'ASC' } });
     return mounts;
@@ -5002,7 +5150,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/mounts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
     if (!name || !source || !target) {
@@ -5036,7 +5184,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.put(prefix + '/admin/mounts/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const repo = AppDataSource.getRepository(Mount);
     const mount = await repo.findOneBy({ id: Number(ctx.params.id) });
@@ -5077,7 +5225,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/mounts/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const id = Number(ctx.params.id);
     const repo = AppDataSource.getRepository(Mount);
@@ -5104,7 +5252,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/servers/:id/mounts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const { id: uuid } = ctx.params as any;
     const { mountId } = ctx.body as any;
@@ -5145,7 +5293,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/servers/:id/mounts/:mountId', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'servers:write');
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const { id: uuid, mountId } = ctx.params as any;
     const smRepo = AppDataSource.getRepository(ServerMount);
@@ -5171,7 +5319,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.get(prefix + '/admin/orders', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:read');
+    const adminErr = requireAdminPermission(ctx, 'orders:view');
     if (adminErr !== true) return adminErr;
     const { userId, page = '1', q = '' } = ctx.query as any;
     const orderRepo = AppDataSource.getRepository(Order);
@@ -5208,7 +5356,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/orders', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:write');
+    const adminErr = requireAdminPermission(ctx, 'orders:issue');
     if (adminErr !== true) return adminErr;
     const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
     if (!userId) {
@@ -5262,7 +5410,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.put(prefix + '/admin/orders/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:write');
+    const adminErr = requireAdminPermission(ctx, 'orders:update');
     if (adminErr !== true) return adminErr;
     const orderRepo = AppDataSource.getRepository(Order);
     const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -5303,7 +5451,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/orders/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:write');
+    const adminErr = requireAdminPermission(ctx, 'orders:delete');
     if (adminErr !== true) return adminErr;
     const orderRepo = AppDataSource.getRepository(Order);
     const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
@@ -5622,7 +5770,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/ensure-portal-plans', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:settings');
+    const adminErr = requireAdminPermission(ctx, 'admin:plans:forcereapply');
     if (adminErr !== true) return adminErr;
     const body = (ctx.body as any) || {};
     const portalType = body.portalType as string | undefined;

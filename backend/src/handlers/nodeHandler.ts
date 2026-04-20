@@ -121,8 +121,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/nodes', async (ctx: any) => {
-    const adminErr = requireAdminCtx(ctx);
-    if (adminErr !== true) return adminErr;
+    const adminErr = await authorize('nodes:create')(ctx);
+    if (adminErr !== undefined) return adminErr;
     const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
@@ -180,8 +180,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.put(prefix + '/nodes/:id', async (ctx: any) => {
-    const adminErr = requireAdminCtx(ctx);
-    if (adminErr !== true) return adminErr;
+    const adminErr = await authorize('nodes:*')(ctx);
+    if (adminErr !== undefined) return adminErr;
     const { id } = ctx.params as any;
     const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl } = ctx.body as any;
 
@@ -268,8 +268,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/nodes/:id', async (ctx: any) => {
-    const adminErr = requireAdminCtx(ctx);
-    if (adminErr !== true) return adminErr;
+    const adminErr = await authorize('nodes:*')(ctx);
+    if (adminErr !== undefined) return adminErr;
     const node = await resolveNode(ctx.params.id);
     if (!node) {
       ctx.set.status = 404;
@@ -338,8 +338,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/generate-token', async (ctx: any) => {
-    const adminErr = requireAdminCtx(ctx);
-    if (adminErr !== true) return adminErr;
+    const adminErr = await authorize('nodes:read-creds')(ctx);
+    if (adminErr !== undefined) return adminErr;
     const token = require('crypto').randomBytes(32).toString('hex');
     return { token };
   }, {beforeHandle: authenticate,
@@ -376,8 +376,8 @@ export async function nodeRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/nodes/:id/token', async (ctx: any) => {
-    const adminErr = requireAdminCtx(ctx);
-    if (adminErr !== true) return adminErr;
+    const adminErr = await authorize('nodes:read-creds')(ctx);
+    if (adminErr !== undefined) return adminErr;
     const node = await nodeRepo().findOneBy({ id: Number(ctx.params.id) });
     if (!node) {
       ctx.set.status = 404;

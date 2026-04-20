@@ -175,8 +175,9 @@ export async function oauthRoutes(app: any, prefix = '') {
   app.get(prefix + '/oauth/apps', async (ctx) => {
     const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
+    const isAdmin = hasPermissionSync(ctx, 'admin:oauth');
     const apps = await appRepo.find({
-      where: { owner: { id: user.id } },
+      where: isAdmin ? {} : { owner: { id: user.id } },
       relations: ['owner'],
     });
     return apps.map((a) => ({
@@ -230,7 +231,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'App not found' };
     }
-    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage')) {
+    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -262,7 +263,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'App not found' };
     }
-    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage')) {
+    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
@@ -290,7 +291,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'App not found' };
     }
-    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage')) {
+    if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }

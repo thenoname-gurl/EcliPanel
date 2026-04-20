@@ -61,6 +61,15 @@ export async function apiKeyRoutes(app: any, prefix = '') {
       return { error: 'Unauthorized' };
     }
 
+    if (type === 'admin') {
+      const actorRole = actor?.role;
+      const actorPerms = Array.isArray(actor?.permissions) ? actor.permissions : [];
+      if (actorRole !== '*' && !actorPerms.includes('*')) {
+        ctx.set.status = 403;
+        return { error: 'Only system administrators with * permission can create admin API keys' };
+      }
+    }
+
     const ent = repo.create({
       name,
       type,

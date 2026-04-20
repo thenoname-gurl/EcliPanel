@@ -845,35 +845,44 @@ export default function AdminPanel() {
   const router = useRouter()
   const { user, isLoading } = useAuth()
   const adminAccess = !!user && hasPermission(user, 'admin:access')
+  const canUploadUserDocuments = !!user && hasPermission(user, 'admin:users:documents')
+  const canTicketWrite = !!user && hasPermission(user, 'tickets:write')
+  const canTicketStaff = !!user && hasPermission(user, 'admin:ticket:staff')
+  const canReply = canTicketWrite || canTicketStaff
+
+  const hasAnyPermission = (permissions?: string[]): boolean => {
+    if (!permissions || permissions.length === 0) return true
+    return permissions.some((permission) => hasPermission(user, permission))
+  }
 
   const adminTabs = [
-    { value: 'users', label: t('tabs.users'), permission: 'users:read' },
-    { value: 'metrics', label: t('tabs.metrics'), permission: 'admin:metrics' },
-    { value: 'export-jobs', label: t('tabs.exportJobs'), permission: 'admin:export-jobs' },
-    { value: 'organisations', label: t('tabs.organisations'), permission: 'org:read' },
-    { value: 'servers', label: t('tabs.servers'), permission: 'servers:read' },
-    { value: 'tickets', label: t('tabs.tickets'), feature: 'ticketing', permission: 'tickets:read' },
-    { value: 'applications', label: t('tabs.applications'), feature: 'applications', permission: 'applications:manage' },
-    { value: 'verifications', label: t('tabs.kyc'), permission: 'idverification:read' },
-    { value: 'deletions', label: t('tabs.deletions'), permission: 'deletions:write' },
-    { value: 'nodes', label: t('tabs.nodes'), permission: 'nodes:read' },
-    { value: 'tunnels', label: t('tabs.tunnels'), feature: 'tunnels', permission: 'tunnels:read' },
-    { value: 'eggs', label: t('tabs.eggs'), permission: 'eggs:read' },
-    { value: 'ai', label: t('tabs.aiModels'), feature: 'ai', permission: 'ai:read' },
-    { value: 'announcements', label: t('tabs.announcements'), permission: 'admin:announcements' },
-    { value: 'outbound-emails', label: t('tabs.outboundEmails'), permission: 'admin:outbound-emails' },
-    { value: 'antiabuse', label: t('tabs.antiabuse'), permission: 'admin:antiabuse' },
-    { value: 'fraud', label: t('tabs.fraud'), permission: 'admin:fraud' },
-    { value: 'roles', label: t('tabs.roles'), permission: 'roles:read' },
-    { value: 'logs', label: t('tabs.logs'), permission: 'logs:read' },
-    { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permission: 'oauth:manage' },
-    { value: 'databases', label: t('tabs.databases'), permission: 'databases:read' },
-    { value: 'plans', label: t('tabs.plans'), permission: 'plans:read' },
-    { value: 'orders', label: t('tabs.orders'), permission: 'orders:read' },
-    { value: 'settings', label: t('tabs.settings'), permission: 'admin:settings' },
+    { value: 'users', label: t('tabs.users'), permissions: ['users:read'] },
+    { value: 'metrics', label: t('tabs.metrics'), permissions: ['admin:metrics'] },
+    { value: 'export-jobs', label: t('tabs.exportJobs'), permissions: ['admin:export-jobs'] },
+    { value: 'organisations', label: t('tabs.organisations'), permissions: ['org:read'] },
+    { value: 'servers', label: t('tabs.servers'), permissions: ['servers:read'] },
+    { value: 'tickets', label: t('tabs.tickets'), feature: 'ticketing', permissions: ['tickets:read', 'tickets:ban', 'tickets:delete', 'admin:ticket:staff'] },
+    { value: 'applications', label: t('tabs.applications'), feature: 'applications', permissions: ['applications:manage'] },
+    { value: 'verifications', label: t('tabs.kyc'), permissions: ['idverification:read'] },
+    { value: 'deletions', label: t('tabs.deletions'), permissions: ['deletions:write'] },
+    { value: 'nodes', label: t('tabs.nodes'), permissions: ['nodes:read'] },
+    { value: 'tunnels', label: t('tabs.tunnels'), feature: 'tunnels', permissions: ['tunnels:read', 'admin:tunnels:read'] },
+    { value: 'eggs', label: t('tabs.eggs'), permissions: ['eggs:read'] },
+    { value: 'ai', label: t('tabs.aiModels'), feature: 'ai', permissions: ['ai:read'] },
+    { value: 'announcements', label: t('tabs.announcements'), permissions: ['admin:announcements'] },
+    { value: 'outbound-emails', label: t('tabs.outboundEmails'), permissions: ['admin:outbound-emails'] },
+    { value: 'antiabuse', label: t('tabs.antiabuse'), permissions: ['admin:antiabuse'] },
+    { value: 'fraud', label: t('tabs.fraud'), permissions: ['admin:fraud'] },
+    { value: 'roles', label: t('tabs.roles'), permissions: ['roles:read'] },
+    { value: 'logs', label: t('tabs.logs'), permissions: ['logs:read'] },
+    { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permissions: ['oauth:manage', 'admin:oauth'] },
+    { value: 'databases', label: t('tabs.databases'), permissions: ['databases:read'] },
+    { value: 'plans', label: t('tabs.plans'), permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
+    { value: 'orders', label: t('tabs.orders'), permissions: ['orders:view', 'orders:issue', 'orders:update', 'orders:delete'] },
+    { value: 'settings', label: t('tabs.settings'), permissions: ['admin:settings', 'admin:geoblock:view'] },
   ]
 
-  const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => tab.permission && hasPermission(user, tab.permission)))
+  const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => hasAnyPermission(tab.permissions)))
 
   useEffect(() => {
     if (isLoading) return
@@ -1268,6 +1277,10 @@ export default function AdminPanel() {
   const [viewUserRoles, setViewUserRoles] = useState<any[]>([])
   const [viewUserAssignRoleId, setViewUserAssignRoleId] = useState("")
   const [viewUserRoleLoading, setViewUserRoleLoading] = useState(false)
+  const [viewUserDocFile, setViewUserDocFile] = useState<File | null>(null)
+  const [viewUserDocName, setViewUserDocName] = useState("")
+  const [viewUserDocDescription, setViewUserDocDescription] = useState("")
+  const [viewUserDocUploading, setViewUserDocUploading] = useState(false)
 
   // ── Roles ──
   const [roles, setRoles] = useState<AdminRole[]>([])
@@ -2170,7 +2183,7 @@ export default function AdminPanel() {
     setReplyDepartment(ticket.department || "")
     setReplyAssignedTo(ticket.assignedTo ? String(ticket.assignedTo) : "")
 
-    setReplyAs('staff')
+    setReplyAs(canTicketStaff ? 'staff' : 'user')
 
     if (staffUsers.length === 0) {
       setStaffLoading(true)
@@ -2192,11 +2205,9 @@ export default function AdminPanel() {
         method: "PUT",
         body: JSON.stringify({
           reply: replyText,
-          replyAs: replyAs,
+          replyAs: canTicketStaff ? replyAs : 'user',
           status: replyStatus,
-          priority: replyPriority,
-          department: replyDepartment || undefined,
-          assignedTo: replyAssignedTo ? Number(replyAssignedTo) : undefined,
+          ...(canTicketWrite ? { priority: replyPriority, department: replyDepartment || undefined, assignedTo: replyAssignedTo ? Number(replyAssignedTo) : undefined } : {}),
         }),
       })
       setTickets((prev) =>
@@ -3338,6 +3349,50 @@ remote: ${panelUrl}`
     setViewUserProfile((prev: any) => prev ? { ...prev, aiModels: prev.aiModels.filter((l: any) => l.id !== linkId) } : prev)
   }
 
+  async function uploadUserDocument() {
+    if (!viewUserDialog || !viewUserDocFile) return
+    setViewUserDocUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', viewUserDocFile)
+      formData.append('name', viewUserDocName || viewUserDocFile.name)
+      if (viewUserDocDescription) formData.append('description', viewUserDocDescription)
+      const res = await apiFetch(API_ENDPOINTS.adminUserDocuments.replace(':id', String(viewUserDialog.id)), {
+        method: 'POST',
+        body: formData,
+      })
+      if (res?.document) {
+        setViewUserProfile((prev: any) => {
+          if (!prev) return prev
+          const documents = prev.settings?.documents
+          const updatedAdmin = Array.isArray(documents?.admin)
+            ? [...documents.admin, res.document]
+            : Array.isArray(documents)
+              ? [...documents, res.document]
+              : [res.document]
+          const updatedDocuments = Array.isArray(documents)
+            ? { admin: updatedAdmin, agreed: [] }
+            : { ...documents, admin: updatedAdmin }
+          return {
+            ...prev,
+            settings: {
+              ...prev.settings,
+              documents: updatedDocuments,
+            },
+          }
+        })
+        setViewUserDocFile(null)
+        setViewUserDocName("")
+        setViewUserDocDescription("")
+        alert('Document uploaded successfully.')
+      }
+    } catch (e: any) {
+      alert('Failed to upload document: ' + (e?.message || 'unknown error'))
+    } finally {
+      setViewUserDocUploading(false)
+    }
+  }
+
   // ── OAuth app management ───────────────────────────────────────────────────
 
   async function submitCreateOAuthApp() {
@@ -3637,7 +3692,7 @@ remote: ${panelUrl}`
               className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-hidden px-2 border border-border bg-secondary/50"
             >
               {adminTabs
-                .filter((t) => (!t.feature || panelSettings.featureToggles[t.feature]) && (adminAccess || !t.permission || hasPermission(user, t.permission)))
+                .filter((t) => (!t.feature || panelSettings.featureToggles[t.feature]) && hasAnyPermission(t.permissions))
                 .map((t) => (
                   <TabsTrigger
                     key={t.value}
@@ -4217,7 +4272,7 @@ remote: ${panelUrl}`
                               </td>
                               <td className="px-3 py-3">
                                 <div className="flex items-center justify-end gap-0.5">
-                                  {ticket.status !== "closed" && (
+                                  {ticket.status !== "closed" && canReply && (
                                     <button onClick={() => openReply(ticket)} title="Reply"
                                       className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                                       <MessageSquare className="h-3.5 w-3.5" />
@@ -4359,7 +4414,7 @@ remote: ${panelUrl}`
 
                           {/* Card Actions */}
                           <div className="flex items-center border-t border-border divide-x divide-border">
-                            {ticket.status !== "closed" && (
+                            {ticket.status !== "closed" && canReply && (
                               <button
                                 onClick={() => openReply(ticket)}
                                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -6525,6 +6580,83 @@ remote: ${panelUrl}`
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Admin Documents */}
+              <div className="rounded-lg border border-border bg-secondary/20 p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Admin Documents</p>
+                    <p className="text-xs text-muted-foreground">Upload a PDF directly to this user account and let them download it securely.</p>
+                  </div>
+                  {canUploadUserDocuments ? (
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                      <label className="cursor-pointer rounded-lg border border-border bg-background/80 px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/50 transition-all w-full sm:w-auto text-center">
+                        Choose PDF
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            setViewUserDocFile(file)
+                            setViewUserDocName(file.name)
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={uploadUserDocument}
+                        disabled={!viewUserDocFile || viewUserDocUploading}
+                        className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {viewUserDocUploading ? 'Uploading…' : 'Upload PDF'}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">You do not have permission to upload admin documents.</p>
+                  )}
+                </div>
+
+                {canUploadUserDocuments && (
+                  <div className="grid grid-cols-1 gap-3">
+                    <input
+                      type="text"
+                      value={viewUserDocName}
+                      onChange={(e) => setViewUserDocName(e.target.value)}
+                      placeholder="Document name"
+                      className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                    />
+                    <textarea
+                      value={viewUserDocDescription}
+                      onChange={(e) => setViewUserDocDescription(e.target.value)}
+                      placeholder="Optional description"
+                      rows={3}
+                      className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                    />
+                  </div>
+                )}
+
+                <div className="mt-4 space-y-3">
+                  {(viewUserProfile.settings?.documents?.admin || []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No admin documents uploaded.</p>
+                  ) : (
+                    (viewUserProfile.settings?.documents?.admin || []).map((doc: any) => (
+                      <div key={doc.id || doc.filename} className="rounded-lg border border-border bg-card/80 p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{doc.name || doc.filename}</p>
+                            {doc.description && <p className="text-xs text-muted-foreground">{doc.description}</p>}
+                            <p className="text-[11px] text-muted-foreground">{doc.uploadedAt ? `Uploaded ${new Date(doc.uploadedAt).toLocaleString()}` : 'Upload date unavailable'}</p>
+                          </div>
+                          {doc.url ? (
+                            <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline">Download</a>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
               {/* Custom Roles */}

@@ -11,6 +11,7 @@ import { PORTALS } from "@/lib/panel-config"
 import { COUNTRIES } from "@/lib/countries"
 import { resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from "@/lib/editor-settings"
+import { LEGAL_DOCUMENTS } from "@/lib/legal-docs"
 import { cn } from "@/lib/utils"
 import { getBadgeColorClass } from "@/lib/badge-colors"
 import {
@@ -87,6 +88,7 @@ const AVAILABLE_PERMISSIONS = [
   "deletions:write",
   "tickets:read",
   "tickets:write",
+  "admin:ticket:staff",
   "tickets:delete",
   "databases:write",
   "plans:write",
@@ -1022,6 +1024,7 @@ export default function SettingsPage() {
   const [avatarUploading, setAvatarUploading] = useState(false)
 
   const isAdmin = user?.role === "admin" || user?.role === "rootAdmin" || user?.role === "*"
+  const canCreateAdminKey = user?.role === "*" || (Array.isArray(user?.permissions) && user.permissions.includes("*"))
 
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -1312,6 +1315,32 @@ export default function SettingsPage() {
       ? ((user as any).settings.gambling.badges as string[])
     : []
 
+  const formatDocumentDate = (value: string | undefined | null) => {
+    if (!value) return null
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return null
+    return date.toLocaleString()
+  }
+
+  const documentsSetting = user?.settings?.documents
+  const agreedDocuments = Array.isArray(documentsSetting?.agreed)
+    ? documentsSetting.agreed
+    : Array.isArray(documentsSetting)
+      ? documentsSetting
+      : []
+  const agreedDocumentUrls = new Set(agreedDocuments.map((doc: any) => String(doc.url || doc.href || doc.href || '').trim()))
+  const implicitAgreedDocuments = LEGAL_DOCUMENTS.filter((doc) => !agreedDocumentUrls.has(doc.href)).map((doc) => ({
+    name: doc.title,
+    url: doc.href,
+    acceptedAt: 'implicit',
+  }))
+  const allAgreedDocuments = [...agreedDocuments, ...implicitAgreedDocuments]
+  const adminDocuments = Array.isArray(documentsSetting?.admin)
+    ? documentsSetting.admin
+    : Array.isArray(documentsSetting)
+      ? documentsSetting
+      : []
+
   const showGuideAgain = async () => {
     if (!user?.id) return
     try {
@@ -1366,6 +1395,7 @@ export default function SettingsPage() {
     { value: "profile", icon: User, label: t("tabs.profile"), guideId: "settings-profile" },
     { value: "security", icon: Lock, label: t("tabs.security"), guideId: "settings-security" },
     { value: "notifications", icon: Bell, label: t("tabs.alerts"), guideId: "settings-notifications" },
+    { value: "documents", icon: BookOpen, label: t("tabs.documents"), guideId: "settings-documents" },
     { value: "api", icon: Code, label: t("tabs.api"), count: apiKeys.length },
     { value: "appearance", icon: Palette, label: t("tabs.theme"), guideId: "settings-appearance" },
     { value: "editor", icon: Settings, label: t("tabs.editor"), guideId: "settings-editor" },
@@ -1787,6 +1817,84 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Documents Tab */}
+          {activeTab === "documents" && (
+            <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <SettingsCard>
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-foreground">{t("documents.title")}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{t("documents.subtitle")}</p>
+                </div>
+
+                <div className="grid gap-4">
+                  <div className="rounded-xl border border-border bg-secondary/20 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{t("documents.agreementsTitle")}</p>
+                        <p className="text-xs text-muted-foreground">{t("documents.agreementsDescription")}</p>
+                      </div>
+                    </div>
+                    {allAgreedDocuments.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">{t("documents.noAgreements")}</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {allAgreedDocuments.map((doc: any, index: number) => (
+                          <div key={index} className="rounded-lg border border-border bg-card/80 p-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{doc.name || doc.title || doc.type || t("documents.agreement")}</p>
+                                <p className="text-xs text-muted-foreground">{doc.version ? `${t("documents.version")}: ${doc.version}` : doc.description || doc.type || ""}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {doc.acceptedAt === 'implicit'
+                                    ? t("documents.acceptedImplicit")
+                                    : doc.acceptedAt
+                                      ? `${t("documents.acceptedOn")} ${formatDocumentDate(doc.acceptedAt)}`
+                                      : t("documents.acceptedUnknown")}
+                                </p>
+                              </div>
+                              {doc.url ? (
+                                <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline">{t("documents.view")}</a>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-secondary/20 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{t("documents.adminTitle")}</p>
+                        <p className="text-xs text-muted-foreground">{t("documents.adminDescription")}</p>
+                      </div>
+                    </div>
+                    {adminDocuments.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">{t("documents.noAdminDocuments")}</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {adminDocuments.map((doc: any) => (
+                          <div key={doc.id || doc.filename} className="rounded-lg border border-border bg-card/80 p-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{doc.name || doc.filename}</p>
+                                {doc.description && <p className="text-xs text-muted-foreground">{doc.description}</p>}
+                                <p className="text-[11px] text-muted-foreground">{doc.uploadedAt ? `${t("documents.uploadedOn")} ${formatDocumentDate(doc.uploadedAt)}` : t("documents.uploadedUnknown")}</p>
+                              </div>
+                              {doc.url ? (
+                                <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline">{t("documents.download")}</a>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </SettingsCard>
+            </div>
+          )}
+
           {/* API Tab */}
           {activeTab === "api" && (
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -1819,7 +1927,7 @@ export default function SettingsPage() {
                         className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 w-full"
                       >
                         <option value="client">{t("api.client")}</option>
-                        {isAdmin && <option value="admin">{t("api.admin")}</option>}
+                        {canCreateAdminKey && <option value="admin">{t("api.admin")}</option>}
                       </select>
                     </div>
                     {newKeyType === "client" && (

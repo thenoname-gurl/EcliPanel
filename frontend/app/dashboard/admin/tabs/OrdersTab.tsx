@@ -8,6 +8,7 @@ import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/l
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useTranslations } from "next-intl"
 import { useEffect, useState } from "react"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,10 @@ import {
 
 export default function OrdersTab({ ctx }: { ctx: any }) {
   const t = useTranslations("adminOrdersTab")
+  const { user } = useAuth()
+  const canIssueOrders = !!user && hasPermission(user, 'orders:issue')
+  const canUpdateOrders = !!user && hasPermission(user, 'orders:update')
+  const canDeleteOrders = !!user && hasPermission(user, 'orders:delete')
   const {
     adminOrders,
     panelSettings,
@@ -166,15 +171,17 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                onClick={openIssueOrder}
-                className="bg-primary text-primary-foreground h-8 gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("actions.issueOrder")}</span>
-                <span className="sm:hidden">{t("actions.issue")}</span>
-              </Button>
+              {canIssueOrders && (
+                <Button
+                  size="sm"
+                  onClick={openIssueOrder}
+                  className="bg-primary text-primary-foreground h-8 gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{t("actions.issueOrder")}</span>
+                  <span className="sm:hidden">{t("actions.issue")}</span>
+                </Button>
+              )}
               <button
                 onClick={() => fetchOrders(ordersPage, ordersQuery)}
                 className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
@@ -315,14 +322,16 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => openEditOrder(order)}
-                              title={t("actions.editOrder")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </button>
-                            {order.status === "active" && (
+                            {canUpdateOrders && (
+                              <button
+                                onClick={() => openEditOrder(order)}
+                                title={t("actions.editOrder")}
+                                className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {order.status === "active" && canUpdateOrders && (
                               <button
                                 onClick={() => cancelOrder(order)}
                                 title={t("actions.cancelOrder")}
@@ -331,13 +340,15 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                                 <XCircle className="h-3.5 w-3.5" />
                               </button>
                             )}
-                            <button
-                              onClick={() => deleteOrder(order)}
-                              title={t("actions.deleteOrder")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            {canDeleteOrders && (
+                              <button
+                                onClick={() => deleteOrder(order)}
+                                title={t("actions.deleteOrder")}
+                                className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -418,14 +429,16 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
 
                   {/* Card Actions */}
                   <div className="flex items-center border-t border-border divide-x divide-border">
-                    <button
-                      onClick={() => openEditOrder(order)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                      <span>{t("actions.edit")}</span>
-                    </button>
-                    {order.status === "active" && (
+                    {canUpdateOrders && (
+                      <button
+                        onClick={() => openEditOrder(order)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        <span>{t("actions.edit")}</span>
+                      </button>
+                    )}
+                    {order.status === "active" && canUpdateOrders && (
                       <button
                         onClick={() => cancelOrder(order)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
