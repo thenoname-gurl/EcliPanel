@@ -133,18 +133,6 @@ jobs:
           version: 10
           cache: true
 
-      - name: Ensure app/dist for Capacitor
-        run: |
-          if [ ! -d app/dist ]; then
-            mkdir -p app/dist
-            cat > app/dist/index.html <<'HTML'
-            <!doctype html>
-            <meta charset="utf-8">
-            <title>EcliPanel</title>
-            <meta http-equiv="refresh" content="0;url=https://ecli.app">
-            HTML
-          fi
-
       - name: Setup Java 21 for Android
         if: matrix.platform == 'android'
         uses: actions/setup-java@v4
