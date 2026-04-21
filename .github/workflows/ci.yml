@@ -71,7 +71,7 @@ jobs:
         working-directory: frontend
         run: pnpm run build
 
-  app:
+    app:
     name: App packaging
     runs-on: ${{ matrix.os }}
     strategy:
@@ -81,6 +81,7 @@ jobs:
             platform: android
           - os: macos-latest
             platform: ios
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,7 +112,26 @@ jobs:
         working-directory: app
         run: pnpm run package:android
 
+      - name: Upload Android artifact
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: |
+            app/android/app/build/outputs/**/*.apk
+            app/android/app/build/outputs/**/*.aab
+          retention-days: 14
+
       - name: Package iOS unsigned IPA
         if: matrix.platform == 'ios'
         working-directory: app
         run: pnpm run package:ios:unsigned
+
+      - name: Upload iOS artifact
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: |
+            app/ios/build/**/*.ipa
+          retention-days: 14
