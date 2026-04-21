@@ -47,7 +47,7 @@ export async function planRoutes(app: any, prefix = '') {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
       emailSendDailyLimit, emailSendQueueLimit,
-      portCount, isDefault, hiddenFromBilling, features,
+      portCount, tunnelPortCount, isDefault, hiddenFromBilling, features,
     } = ctx.body as any;
     if (!name || !type) {
       ctx.set.status = 400;
@@ -68,6 +68,7 @@ export async function planRoutes(app: any, prefix = '') {
       emailSendDailyLimit: emailSendDailyLimit != null ? Number(emailSendDailyLimit) : undefined,
       emailSendQueueLimit: emailSendQueueLimit != null ? Number(emailSendQueueLimit) : undefined,
       portCount: portCount != null ? Number(portCount) : 1,
+      tunnelPortCount: tunnelPortCount != null ? Number(tunnelPortCount) : 10,
       isDefault: isDefault ?? false,
       hiddenFromBilling: hiddenFromBilling ?? false,
       features: features ?? undefined,
@@ -91,7 +92,7 @@ export async function planRoutes(app: any, prefix = '') {
       name, type, price, description,
       memory, disk, cpu, serverLimit, databases, backups,
       emailSendDailyLimit, emailSendQueueLimit,
-      portCount, isDefault, hiddenFromBilling, features,
+      portCount, tunnelPortCount, isDefault, hiddenFromBilling, features,
     } = ctx.body as any;
 
     if (name !== undefined) plan.name = name;
@@ -107,6 +108,7 @@ export async function planRoutes(app: any, prefix = '') {
     if (emailSendDailyLimit !== undefined) plan.emailSendDailyLimit = emailSendDailyLimit != null ? Number(emailSendDailyLimit) : undefined;
     if (emailSendQueueLimit !== undefined) plan.emailSendQueueLimit = emailSendQueueLimit != null ? Number(emailSendQueueLimit) : undefined;
     if (portCount !== undefined) plan.portCount = Number(portCount);
+    if (tunnelPortCount !== undefined) plan.tunnelPortCount = Number(tunnelPortCount);
     if (isDefault !== undefined) plan.isDefault = Boolean(isDefault);
     if (hiddenFromBilling !== undefined) plan.hiddenFromBilling = Boolean(hiddenFromBilling);
     if (features !== undefined) plan.features = features ?? undefined;
@@ -141,6 +143,7 @@ export async function planRoutes(app: any, prefix = '') {
     if (plan.emailSendDailyLimit != null) planLimits.emailSendDailyLimit = Number(plan.emailSendDailyLimit);
     if (plan.emailSendQueueLimit != null) planLimits.emailSendQueueLimit = Number(plan.emailSendQueueLimit);
     if (plan.portCount != null) planLimits.portCount = Number(plan.portCount);
+    if (plan.tunnelPortCount != null) planLimits.tunnelPortCount = Number(plan.tunnelPortCount);
 
     const isCustomLimits = (userLimits: Record<string, any> | null | undefined, planLimits: Record<string, number>) => {
       if (!userLimits || Object.keys(userLimits).length === 0) return false;

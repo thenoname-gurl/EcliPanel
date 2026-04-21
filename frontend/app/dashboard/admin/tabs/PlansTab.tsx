@@ -60,6 +60,8 @@ export default function PlansTab({ ctx }: { ctx: any }) {
     setPlanEmailSendQueueLimit,
     planPortCount,
     setPlanPortCount,
+    planTunnelPortCount,
+    setPlanTunnelPortCount,
     planIsDefault,
     setPlanIsDefault,
     planHiddenFromBilling,
@@ -131,6 +133,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
               { label: t("resources.servers"), value: plan.serverLimit != null ? `${plan.serverLimit}` : t("common.infinity") },
               { label: t("resources.dbs"), value: plan.databases != null ? `${plan.databases}` : t("common.infinity") },
               { label: t("resources.backups"), value: plan.backups != null ? `${plan.backups}` : t("common.infinity") },
+              { label: t("resources.tunnelPorts"), value: plan.tunnelPortCount != null ? `${plan.tunnelPortCount}` : t("common.infinity") },
             ]
 
             return (
@@ -340,6 +343,11 @@ export default function PlansTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.portsPerServer")}</label>
               <input type="number" min="1" placeholder="1" value={planPortCount} onChange={(e) => setPlanPortCount(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.tunnelPortCount")}</label>
+              <input type="number" min="1" placeholder="10" value={planTunnelPortCount} onChange={(e) => setPlanTunnelPortCount(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">

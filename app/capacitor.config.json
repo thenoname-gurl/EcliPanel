@@ -1,7 +1,7 @@
 {
   "appId": "app.eclipanel",
   "appName": "EcliPanel",
-  "webDir": "public",
+  "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
     "url": "https://ecli.app",

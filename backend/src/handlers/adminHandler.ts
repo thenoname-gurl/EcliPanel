@@ -1223,6 +1223,16 @@ export async function adminRoutes(app: any, prefix = '') {
           if (!Number.isFinite(sl) || sl < 0) { ctx.set.status = 400; return { error: 'Invalid serverLimit value in limits' }; }
           outLimits.serverLimit = Math.round(sl);
         }
+        if (limits.portsPerServer !== undefined) {
+          const pp = Number(limits.portsPerServer);
+          if (!Number.isFinite(pp) || pp < 0) { ctx.set.status = 400; return { error: 'Invalid portsPerServer value in limits' }; }
+          outLimits.portsPerServer = Math.round(pp);
+        }
+        if (limits.tunnelPortCount !== undefined) {
+          const tp = Number(limits.tunnelPortCount);
+          if (!Number.isFinite(tp) || tp < 0) { ctx.set.status = 400; return { error: 'Invalid tunnelPortCount value in limits' }; }
+          outLimits.tunnelPortCount = Math.round(tp);
+        }
         if (limits.databases !== undefined) {
           const d = Number(limits.databases);
           if (!Number.isFinite(d) || d < 0) { ctx.set.status = 400; return { error: 'Invalid databases value in limits' }; }

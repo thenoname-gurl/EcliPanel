@@ -234,5 +234,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eclipanel-electron-${{ matrix.platform }}
-          path: dist/*
+          path: app/dist/**/*
           retention-days: 14

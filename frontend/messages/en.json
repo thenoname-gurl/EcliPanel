@@ -2040,7 +2040,8 @@
       "cpu": "CPU",
       "servers": "Servers",
       "dbs": "DBs",
-      "backups": "Backups"
+      "backups": "Backups",
+      "tunnelPorts": "Tunnel Ports"
     },
     "types": {
       "free": "Free",
@@ -2080,6 +2081,7 @@
         "backups": "Backups",
         "backupsPlaceholder": "e.g. 20",
         "portsPerServer": "Ports per Server",
+        "tunnelPortCount": "Tunnel Ports",
         "accountDatabasesLimit": "Account Databases Limit",
         "accountBackupsLimit": "Account Backups Limit",
         "setAsDefaultPlan": "Set as default plan",

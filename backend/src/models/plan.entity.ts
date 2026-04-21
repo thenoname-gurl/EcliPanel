@@ -44,6 +44,9 @@ export class Plan {
   @Column({ default: 1 })
   portCount: number;
 
+  @Column({ default: 10 })
+  tunnelPortCount: number;
+
   @Column({ default: false })
   isDefault: boolean;
 

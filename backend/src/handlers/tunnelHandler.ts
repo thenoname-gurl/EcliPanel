@@ -701,6 +701,30 @@ export function tunnelRoutes(app: any, prefix: string): void {
         process.env.TUNNEL_PUBLIC_HOST ?? 'n2.ecli.app';
 
       const repo = AppDataSource.getRepository(TunnelAllocation);
+      let tunnelLimit = 10;
+      let requestingUser: User | null = null;
+      if (ctx.user) {
+        requestingUser = ctx.user;
+      } else if (clientDevice?.ownerUser) {
+        requestingUser = clientDevice.ownerUser;
+      }
+      if (requestingUser && !isAdminUser(requestingUser)) {
+        tunnelLimit = (requestingUser.limits && typeof requestingUser.limits.tunnelPortCount === 'number')
+          ? requestingUser.limits.tunnelPortCount
+          : 10;
+
+        const activeCount = await repo
+          .createQueryBuilder('allocation')
+          .leftJoin('allocation.clientDevice', 'clientDevice')
+          .leftJoin('clientDevice.ownerUser', 'ownerUser')
+          .where('allocation.status != :closed', { closed: 'closed' })
+          .andWhere('ownerUser.id = :ownerId', { ownerId: requestingUser.id })
+          .getCount();
+
+        if (activeCount + 1 > tunnelLimit) {
+          return errorResponse('tunnel_port_limit_exceeded', 403);
+        }
+      }
       const allocation = repo.create({
         port,
         host,

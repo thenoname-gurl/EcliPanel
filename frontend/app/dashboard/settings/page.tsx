@@ -1078,16 +1078,16 @@ export default function SettingsPage() {
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [capturedSelfie, setCapturedSelfie] = useState<Blob | null>(null)
-  const [previewSelfieUrl, setPreviewSelfieUrl] = useState<string | null>(null)
+  const [capturedSelfieUrl, setCapturedSelfieUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!capturedSelfie) {
-      setPreviewSelfieUrl(null)
+      setCapturedSelfieUrl(null)
       return
     }
 
     const url = URL.createObjectURL(capturedSelfie)
-    setPreviewSelfieUrl(url)
+    setCapturedSelfieUrl(url)
 
     return () => {
       URL.revokeObjectURL(url)
@@ -1099,11 +1099,11 @@ export default function SettingsPage() {
   const [selfieLoading, setSelfieLoading] = useState(false)
   useEffect(() => {
     return () => {
-      if (previewSelfieUrl) {
-        URL.revokeObjectURL(previewSelfieUrl)
+      if (capturedSelfieUrl) {
+        URL.revokeObjectURL(capturedSelfieUrl)
       }
     }
-  }, [previewSelfieUrl])
+  }, [capturedSelfieUrl])
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -2020,7 +2020,7 @@ export default function SettingsPage() {
                         {capturedSelfie && (
                           <div className="space-y-3">
                             <img
-                              src={previewSelfieUrl ?? undefined}
+                              src={capturedSelfieUrl ?? undefined}
                               alt="Captured selfie preview"
                               className="h-64 w-full rounded-lg object-cover"
                             />

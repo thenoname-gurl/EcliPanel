@@ -459,7 +459,7 @@ export async function ticketRoutes(app: any, prefix = '') {
           planSummary = plans.map((p: any) => {
             const features = p.features && typeof p.features === 'object' ? JSON.stringify(p.features) : 'none';
             const priceText = (p.type && String(p.type).toLowerCase() === 'enterprise') ? 'varies' : `$${p.price}/mo`;
-            return `- ${p.name} (${p.type}) ${priceText}: memory=${p.memory ?? 'n/a'}MB, disk=${p.disk ?? 'n/a'}MB, cpu=${p.cpu ?? 'n/a'}, servers=${p.serverLimit ?? 'n/a'}, databases=${p.databases ?? 'n/a'}, backups=${p.backups ?? 'n/a'}, ports=${p.portCount ?? 'n/a'}, features=${features}`;
+            return `- ${p.name} (${p.type}) ${priceText}: memory=${p.memory ?? 'n/a'}MB, disk=${p.disk ?? 'n/a'}MB, cpu=${p.cpu ?? 'n/a'}, servers=${p.serverLimit ?? 'n/a'}, databases=${p.databases ?? 'n/a'}, backups=${p.backups ?? 'n/a'}, ports=${p.portCount ?? 'n/a'}, tunnelPorts=${p.tunnelPortCount ?? 'n/a'}, features=${features}`;
           }).join('\n');
         }
       } catch { /* skip */ }

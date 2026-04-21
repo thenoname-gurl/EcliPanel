@@ -1158,6 +1158,8 @@ export async function authRoutes(app: any, prefix = '') {
         cpu: eduPlan?.cpu ?? 600,
         serverLimit: eduPlan?.serverLimit ?? 3,
         portCount: eduPlan?.portCount ?? 3,
+        portsPerServer: eduPlan?.portCount ?? 3,
+        tunnelPortCount: eduPlan?.tunnelPortCount ?? 10,
         emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
         emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
       };
@@ -1293,6 +1295,7 @@ export async function authRoutes(app: any, prefix = '') {
         cpu: eduPlan?.cpu ?? 600,
         serverLimit: eduPlan?.serverLimit ?? 3,
         portCount: eduPlan?.portCount ?? 3,
+        portsPerServer: eduPlan?.portCount ?? 3,
         emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
         emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
       };
@@ -1300,12 +1303,16 @@ export async function authRoutes(app: any, prefix = '') {
       const existingLimits = user.educationLimits || {};
       const currentBaseLimits = user.limits || {};
 
+      const portLimitExisting = existingLimits.portsPerServer ?? existingLimits.portCount ?? 0;
+      const portLimitBase = currentBaseLimits.portsPerServer ?? currentBaseLimits.portCount ?? 0;
       user.educationLimits = {
         memory: Math.max(existingLimits.memory || 0, currentBaseLimits.memory || 0, defaultEduLimits.memory),
         disk: Math.max(existingLimits.disk || 0, currentBaseLimits.disk || 0, defaultEduLimits.disk),
         cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, defaultEduLimits.cpu),
         serverLimit: Math.max(existingLimits.serverLimit || 0, currentBaseLimits.serverLimit || 0, defaultEduLimits.serverLimit),
         portCount: Math.max(existingLimits.portCount || 0, currentBaseLimits.portCount || 0, defaultEduLimits.portCount),
+        portsPerServer: Math.max(portLimitExisting, portLimitBase, defaultEduLimits.portsPerServer),
+        tunnelPortCount: Math.max(existingLimits.tunnelPortCount || 0, currentBaseLimits.tunnelPortCount || 0, defaultEduLimits.tunnelPortCount),
         emailSendDailyLimit: Math.max(existingLimits.emailSendDailyLimit || 0, currentBaseLimits.emailSendDailyLimit || 0, defaultEduLimits.emailSendDailyLimit),
         emailSendQueueLimit: Math.max(existingLimits.emailSendQueueLimit || 0, currentBaseLimits.emailSendQueueLimit || 0, defaultEduLimits.emailSendQueueLimit),
       };

@@ -439,6 +439,7 @@ interface AdminPlan {
   emailSendDailyLimit?: number
   emailSendQueueLimit?: number
   portCount?: number
+  tunnelPortCount?: number
   isDefault?: boolean
   hiddenFromBilling?: boolean
   features?: string[]
@@ -1141,6 +1142,7 @@ export default function AdminPanel() {
   const [planEmailSendDailyLimit, setPlanEmailSendDailyLimit] = useState("")
   const [planEmailSendQueueLimit, setPlanEmailSendQueueLimit] = useState("")
   const [planPortCount, setPlanPortCount] = useState("1")
+  const [planTunnelPortCount, setPlanTunnelPortCount] = useState("10")
   const [planIsDefault, setPlanIsDefault] = useState(false)
   const [planHiddenFromBilling, setPlanHiddenFromBilling] = useState(false)
   const [planFeatures, setPlanFeatures] = useState("")
@@ -2641,7 +2643,7 @@ export default function AdminPanel() {
     setPlanName(""); setPlanType("free"); setPlanPrice("0"); setPlanDesc("")
     setPlanMemory(""); setPlanDisk(""); setPlanCpu(""); setPlanServerLimit("")
     setPlanDatabases(""); setPlanBackups(""); setPlanEmailSendDailyLimit(""); setPlanEmailSendQueueLimit("")
-    setPlanPortCount("1"); setPlanIsDefault(false); setPlanHiddenFromBilling(false); setPlanFeatures(""); setPlanError("")
+    setPlanPortCount("1"); setPlanTunnelPortCount("10"); setPlanIsDefault(false); setPlanHiddenFromBilling(false); setPlanFeatures(""); setPlanError("")
     setPlanDialogOpen(true)
   }
 
@@ -2653,7 +2655,7 @@ export default function AdminPanel() {
     setPlanDatabases((plan as any).databases != null ? String((plan as any).databases) : ""); setPlanBackups((plan as any).backups != null ? String((plan as any).backups) : "")
     setPlanEmailSendDailyLimit((plan as any).emailSendDailyLimit != null ? String((plan as any).emailSendDailyLimit) : "")
     setPlanEmailSendQueueLimit((plan as any).emailSendQueueLimit != null ? String((plan as any).emailSendQueueLimit) : "")
-    setPlanPortCount(plan.portCount != null ? String(plan.portCount) : "1"); setPlanIsDefault(plan.isDefault ?? false)
+    setPlanPortCount(plan.portCount != null ? String(plan.portCount) : "1"); setPlanTunnelPortCount((plan as any).tunnelPortCount != null ? String((plan as any).tunnelPortCount) : "10"); setPlanIsDefault(plan.isDefault ?? false)
     setPlanHiddenFromBilling(Boolean((plan as any).hiddenFromBilling))
     const featList = (plan as any).features?.list
     setPlanFeatures(Array.isArray(featList) ? featList.join("\n") : "")
@@ -2677,6 +2679,7 @@ export default function AdminPanel() {
       emailSendDailyLimit: planEmailSendDailyLimit !== "" ? Number(planEmailSendDailyLimit) : null,
       emailSendQueueLimit: planEmailSendQueueLimit !== "" ? Number(planEmailSendQueueLimit) : null,
       portCount: planPortCount ? Number(planPortCount) : 1,
+      tunnelPortCount: planTunnelPortCount ? Number(planTunnelPortCount) : 10,
       isDefault: planIsDefault,
       hiddenFromBilling: planHiddenFromBilling,
       features: featuresList.length ? { list: featuresList } : null,
@@ -5546,6 +5549,8 @@ remote: ${panelUrl}`
                     setPlanEmailSendQueueLimit,
                     planPortCount,
                     setPlanPortCount,
+                    planTunnelPortCount,
+                    setPlanTunnelPortCount,
                     planIsDefault,
                     setPlanIsDefault,
                     planHiddenFromBilling,
