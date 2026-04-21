@@ -675,11 +675,11 @@ export async function serverRoutes(app: any, prefix = '') {
       suspendedBy: cfg.suspendedBy ?? persistedCfg?.suspendedBy ?? null,
       resources: raw.utilization || raw.resources || null,
       build: {
-        memory_limit: build.memory_limit ?? 0,
-        disk_space: build.disk_space ?? 0,
-        cpu_limit: build.cpu_limit ?? 0,
-        swap: build.swap ?? 0,
-        io_weight: build.io_weight ?? 500,
+        memory_limit: build.memory_limit ?? persistedCfg?.memory ?? 0,
+        disk_space: build.disk_space ?? persistedCfg?.disk ?? 0,
+        cpu_limit: build.cpu_limit ?? persistedCfg?.cpu ?? 0,
+        swap: build.swap ?? persistedCfg?.swap ?? 0,
+        io_weight: build.io_weight ?? persistedCfg?.ioWeight ?? 500,
         oom_disabled: build.oom_disabled ?? false,
       },
       container: {
