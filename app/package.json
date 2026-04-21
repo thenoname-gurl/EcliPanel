@@ -7,7 +7,7 @@
     "build": "pnpm exec cap add android || true && pnpm exec cap add ios || true && pnpm exec cap sync",
     "package:android": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && cd android && ./gradlew assembleDebug",
     "package:android:release": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && cd android && ./gradlew assembleRelease",
-    "package:ios:unsigned": "if [ ! -d ios ]; then pnpm exec cap add ios; fi && pnpm exec cap sync ios && xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -sdk iphoneos archive -archivePath ios/build/App.xcarchive CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=\"\" && mkdir -p ios/build/unsigned_ipa/Payload && cp -R ios/build/App.xcarchive/Products/Applications/App.app ios/build/unsigned_ipa/Payload/ && cd ios/build/unsigned_ipa && zip -r ../App-unsigned.ipa Payload",
+    "package:ios:unsigned": "bash ./scripts/package-ios-unsigned.sh",
     "package:electron:linux": "pnpm exec electron-builder --linux AppImage --publish never",
     "package:electron:win": "pnpm exec electron-builder --win nsis --publish never"
   },
