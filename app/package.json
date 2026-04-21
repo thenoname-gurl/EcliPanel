@@ -12,14 +12,14 @@
     "package:electron:win": "pnpm exec electron-builder --win nsis --publish never"
   },
   "dependencies": {
-    "@capacitor/core": "^5.7.8"
+    "@capacitor/core": "latest"
   },
   "devDependencies": {
-    "@capacitor/android": "^5.7.8",
-    "@capacitor/cli": "^5.7.8",
-    "@capacitor/ios": "^5.7.8",
-    "electron": "^29.6.0",
-    "electron-builder": "^24.7.0"
+    "@capacitor/android": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/ios": "latest",
+    "electron": "latest",
+    "electron-builder": "latest"
   },
   "build": {
     "appId": "app.eclipanel",
@@ -32,11 +32,15 @@
       "output": "dist"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Utility"
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "nsis": {
       "oneClick": false,

@@ -1078,10 +1078,22 @@ export default function SettingsPage() {
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [capturedSelfie, setCapturedSelfie] = useState<Blob | null>(null)
-  const previewSelfieUrl = useMemo(() => {
-    if (!capturedSelfie) return ""
-    return URL.createObjectURL(capturedSelfie)
+  const [previewSelfieUrl, setPreviewSelfieUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!capturedSelfie) {
+      setPreviewSelfieUrl(null)
+      return
+    }
+
+    const url = URL.createObjectURL(capturedSelfie)
+    setPreviewSelfieUrl(url)
+
+    return () => {
+      URL.revokeObjectURL(url)
+    }
   }, [capturedSelfie])
+
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [selfieMessage, setSelfieMessage] = useState<string | null>(null)
   const [selfieLoading, setSelfieLoading] = useState(false)
@@ -1270,11 +1282,8 @@ export default function SettingsPage() {
       if (cameraStream) {
         cameraStream.getTracks().forEach((track) => track.stop())
       }
-      if (capturedSelfieUrl) {
-        URL.revokeObjectURL(capturedSelfieUrl)
-      }
     }
-  }, [cameraStream, capturedSelfieUrl, selectedCameraId])
+  }, [cameraStream, selectedCameraId])
 
   useEffect(() => {
     if (cameraStream && videoRef.current) {
@@ -1349,12 +1358,7 @@ export default function SettingsPage() {
           setCameraError("Unable to capture photo.")
           return
         }
-        if (capturedSelfieUrl) {
-          URL.revokeObjectURL(capturedSelfieUrl)
-        }
-        const url = URL.createObjectURL(blob)
         setCapturedSelfie(blob)
-        setCapturedSelfieUrl(url)
         setCameraError(null)
         stopCamera()
       },
@@ -1392,10 +1396,6 @@ export default function SettingsPage() {
         `Estimated age: ${data.age.toFixed(1)} years. Difference ${data.difference.toFixed(1)} years, within allowed ${data.maxError} years.`
       )
       setCapturedSelfie(null)
-      if (capturedSelfieUrl) {
-        URL.revokeObjectURL(capturedSelfieUrl)
-        setCapturedSelfieUrl(null)
-      }
       await refreshUser()
     } catch (err: any) {
       setSelfieMessage(`Selfie verification failed: ${err.message || "Unknown error"}`)
@@ -2020,7 +2020,7 @@ export default function SettingsPage() {
                         {capturedSelfie && (
                           <div className="space-y-3">
                             <img
-                              src={previewSelfieUrl}
+                              src={previewSelfieUrl ?? undefined}
                               alt="Captured selfie preview"
                               className="h-64 w-full rounded-lg object-cover"
                             />
@@ -2041,10 +2041,6 @@ export default function SettingsPage() {
                                 type="button"
                                 onClick={() => {
                                   setCapturedSelfie(null)
-                                  if (capturedSelfieUrl) {
-                                    URL.revokeObjectURL(capturedSelfieUrl)
-                                    setCapturedSelfieUrl(null)
-                                  }
                                   setCameraError(null)
                                 }}
                                 className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
