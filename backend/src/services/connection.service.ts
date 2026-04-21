@@ -53,6 +53,11 @@ export async function handleServerConnectionOpen(
     );
   }
 
+  const protocol = (msg.protocol as string | undefined) ?? allocation.protocol;
+  const directPort =
+    (msg.directPort as number | undefined) ??
+    (protocol === 'udp' ? allocation.port + 1 : allocation.port);
+
   const clientOpenSent = sendAgentMessage(allocation.clientDevice.deviceCode, {
     type: 'connection.open',
     allocationId: allocation.id,
@@ -61,6 +66,8 @@ export async function handleServerConnectionOpen(
     localPort: allocation.localPort,
     publicHost: allocation.host,
     publicPort: allocation.port,
+    protocol,
+    directPort,
     directToken: mapping.directToken,
     remoteAddr: msg.remoteAddr ?? null,
     remotePort: msg.remotePort ?? null,

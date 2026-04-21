@@ -11,8 +11,8 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{copy_bidirectional, AsyncBufReadExt, BufReader},
-    net::{TcpListener, TcpStream},
+    io::{copy_bidirectional, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    net::{tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpListener, TcpStream, UdpSocket},
     sync::{oneshot, Mutex},
 };
 use tokio_tungstenite::{
@@ -29,6 +29,13 @@ type ConnectionAllocationMap = Arc<Mutex<HashMap<String, u64>>>;
 type DirectWaiters = Arc<Mutex<HashMap<String, oneshot::Sender<TcpStream>>>>;
 type DirectTokens = Arc<Mutex<HashMap<String, String>>>;
 type ConnectionShutdowns = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
+type UdpSessions = Arc<Mutex<HashMap<String, UdpSession>>>;
+type UdpRemotes = Arc<Mutex<HashMap<SocketAddr, String>>>;
+type UdpPending = Arc<Mutex<HashMap<String, Vec<Vec<u8>>>>>;
+
+struct UdpSession {
+    writer: Arc<Mutex<OwnedWriteHalf>>,
+}
 
 enum DirectClassification {
     Direct {
@@ -130,6 +137,10 @@ struct OutgoingMessage {
     allocation_id: Option<u64>,
     #[serde(rename = "connectionId", skip_serializing_if = "Option::is_none")]
     connection_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    protocol: Option<String>,
+    #[serde(rename = "directPort", skip_serializing_if = "Option::is_none")]
+    direct_port: Option<u16>,
     #[serde(rename = "remoteAddr", skip_serializing_if = "Option::is_none")]
     remote_addr: Option<String>,
     #[serde(rename = "remotePort", skip_serializing_if = "Option::is_none")]
@@ -139,11 +150,19 @@ struct OutgoingMessage {
 }
 
 impl OutgoingMessage {
-    fn connection_open(allocation_id: u64, connection_id: &str, peer: SocketAddr) -> Self {
+    fn connection_open(
+        allocation_id: u64,
+        connection_id: &str,
+        peer: SocketAddr,
+        protocol: &str,
+        direct_port: u16,
+    ) -> Self {
         Self {
             type_name: "connection.open".into(),
             allocation_id: Some(allocation_id),
             connection_id: Some(connection_id.to_owned()),
+            protocol: Some(protocol.to_owned()),
+            direct_port: Some(direct_port),
             remote_addr: Some(peer.ip().to_string()),
             remote_port: Some(peer.port()),
             data: None,
@@ -155,6 +174,8 @@ impl OutgoingMessage {
             type_name: "connection.close".into(),
             allocation_id: None,
             connection_id: Some(connection_id.to_owned()),
+            protocol: None,
+            direct_port: None,
             remote_addr: None,
             remote_port: None,
             data: None,
@@ -323,6 +344,9 @@ async fn try_connect_and_serve(
     let direct_waiters: DirectWaiters = Arc::new(Mutex::new(HashMap::new()));
     let direct_tokens: DirectTokens = Arc::new(Mutex::new(HashMap::new()));
     let shutdowns: ConnectionShutdowns = Arc::new(Mutex::new(HashMap::new()));
+    let udp_sessions: UdpSessions = Arc::new(Mutex::new(HashMap::new()));
+    let udp_remotes: UdpRemotes = Arc::new(Mutex::new(HashMap::new()));
+    let udp_pending: UdpPending = Arc::new(Mutex::new(HashMap::new()));
 
     while let Some(msg) = read.next().await {
         match msg? {
@@ -335,6 +359,9 @@ async fn try_connect_and_serve(
                     direct_tokens.clone(),
                     connection_allocations.clone(),
                     shutdowns.clone(),
+                    udp_sessions.clone(),
+                    udp_remotes.clone(),
+                    udp_pending.clone(),
                 )
                 .await;
             }
@@ -360,6 +387,9 @@ async fn handle_text_message(
     direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
     shutdowns: ConnectionShutdowns,
+    udp_sessions: UdpSessions,
+    udp_remotes: UdpRemotes,
+    udp_pending: UdpPending,
 ) {
     let msg: serde_json::Value = match serde_json::from_str(txt) {
         Ok(v) => v,
@@ -389,6 +419,9 @@ async fn handle_text_message(
                     direct_tokens,
                     connection_allocations,
                     shutdowns,
+                    udp_sessions,
+                    udp_remotes,
+                    udp_pending,
                 ));
             }
             Err(err) => error!(%err, "failed to parse bind message"),
@@ -404,6 +437,9 @@ async fn handle_text_message(
                     direct_tokens,
                     connection_allocations,
                     shutdowns,
+                    udp_sessions,
+                    udp_remotes,
+                    udp_pending,
                 )
                 .await;
             }
@@ -417,6 +453,8 @@ async fn handle_text_message(
                 connection_allocations.lock().await.remove(connection_id);
                 direct_waiters.lock().await.remove(connection_id);
                 direct_tokens.lock().await.remove(connection_id);
+                udp_sessions.lock().await.remove(connection_id);
+                udp_remotes.lock().await.retain(|_, id| id != connection_id);
                 info!(%connection_id, "connection closed by remote");
             }
         }
@@ -451,7 +489,27 @@ async fn bind_listener(
     direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
     shutdowns: ConnectionShutdowns,
+    udp_sessions: UdpSessions,
+    udp_remotes: UdpRemotes,
+    udp_pending: UdpPending,
 ) {
+    if bind.protocol == "udp" {
+        bind_udp_listener(
+            bind,
+            write,
+            listeners,
+            direct_waiters,
+            direct_tokens,
+            connection_allocations,
+            shutdowns,
+            udp_sessions,
+            udp_remotes,
+            udp_pending,
+        )
+        .await;
+        return;
+    }
+
     let addr: SocketAddr = format!("0.0.0.0:{}", bind.port)
         .parse()
         .expect("invalid bind address");
@@ -479,6 +537,8 @@ async fn bind_listener(
                     Ok((stream, peer)) => {
                         tokio::spawn(handle_incoming_socket(
                             bind.allocation_id,
+                            bind.port,
+                            bind.protocol.clone(),
                             stream,
                             peer,
                             write.clone(),
@@ -512,6 +572,9 @@ async fn handle_unbind(
     direct_tokens: DirectTokens,
     connection_allocations: ConnectionAllocationMap,
     shutdowns: ConnectionShutdowns,
+    udp_sessions: UdpSessions,
+    udp_remotes: UdpRemotes,
+    udp_pending: UdpPending,
 ) {
     if let Some(tx) = listeners.lock().await.remove(&allocation_id) {
         let _ = tx.send(());
@@ -532,6 +595,9 @@ async fn handle_unbind(
     for connection_id in &removed {
         direct_waiters.lock().await.remove(connection_id);
         direct_tokens.lock().await.remove(connection_id);
+        udp_sessions.lock().await.remove(connection_id);
+        udp_remotes.lock().await.retain(|_, id| id != connection_id);
+        udp_pending.lock().await.remove(connection_id);
         if let Some(tx) = shutdowns.lock().await.remove(connection_id) {
             let _ = tx.send(());
         }
@@ -543,6 +609,8 @@ async fn handle_unbind(
 
 async fn handle_incoming_socket(
     allocation_id: u64,
+    direct_port: u16,
+    protocol: String,
     stream: TcpStream,
     peer: SocketAddr,
     write: Arc<Mutex<WsSink>>,
@@ -562,6 +630,8 @@ async fn handle_incoming_socket(
             handle_public_connection(
                 allocation_id,
                 connection_id,
+                direct_port,
+                protocol,
                 stream,
                 peer,
                 write,
@@ -662,6 +732,8 @@ async fn wait_for_token(
 async fn handle_public_connection(
     allocation_id: u64,
     connection_id: String,
+    direct_port: u16,
+    protocol: String,
     mut public_stream: TcpStream,
     peer: SocketAddr,
     write: Arc<Mutex<WsSink>>,
@@ -679,7 +751,13 @@ async fn handle_public_connection(
 
     if let Err(err) = send_ws(
         &write,
-        OutgoingMessage::connection_open(allocation_id, &connection_id, peer),
+        OutgoingMessage::connection_open(
+            allocation_id,
+            &connection_id,
+            peer,
+            &protocol,
+            direct_port,
+        ),
     )
     .await
     {
@@ -712,6 +790,258 @@ async fn handle_public_connection(
     shutdowns.lock().await.remove(&connection_id);
     connection_allocations.lock().await.remove(&connection_id);
     let _ = send_ws(&write, OutgoingMessage::connection_close(&connection_id)).await;
+}
+
+async fn bind_udp_listener(
+    bind: BindMessage,
+    write: Arc<Mutex<WsSink>>,
+    listeners: ListenerControl,
+    direct_waiters: DirectWaiters,
+    direct_tokens: DirectTokens,
+    connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
+    udp_sessions: UdpSessions,
+    udp_remotes: UdpRemotes,
+    udp_pending: UdpPending,
+) {
+    let addr: SocketAddr = format!("0.0.0.0:{}", bind.port)
+        .parse()
+        .expect("invalid bind address");
+
+    let udp_socket = match UdpSocket::bind(addr).await {
+        Ok(socket) => socket,
+        Err(err) => {
+            error!(%err, port = bind.port, "failed to bind UDP listener");
+            return;
+        }
+    };
+
+    let direct_port = match compute_direct_port(bind.port) {
+        Some(port) => port,
+        None => {
+            error!(port = bind.port, "unable to compute UDP direct port");
+            return;
+        }
+    };
+
+    let tcp_listener = match TcpListener::bind(("0.0.0.0", direct_port)).await {
+        Ok(listener) => listener,
+        Err(err) => {
+            error!(%err, port = direct_port, "failed to bind UDP direct TCP listener");
+            return;
+        }
+    };
+
+    info!(port = bind.port, direct_port, "listening for inbound UDP connections");
+
+    let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+    listeners
+        .lock()
+        .await
+        .insert(bind.allocation_id, shutdown_tx);
+
+    let udp_socket = Arc::new(udp_socket);
+
+    loop {
+        let mut buf = vec![0u8; 65535];
+        tokio::select! {
+            result = udp_socket.recv_from(&mut buf) => {
+                match result {
+                    Ok((n, peer)) => {
+                        info!(%peer, size = n, "received UDP datagram");
+                        handle_udp_datagram(
+                            bind.allocation_id,
+                            &bind.protocol,
+                            direct_port,
+                            peer,
+                            &buf[..n],
+                            udp_socket.clone(),
+                            write.clone(),
+                            direct_waiters.clone(),
+                            connection_allocations.clone(),
+                            shutdowns.clone(),
+                            udp_sessions.clone(),
+                            udp_remotes.clone(),
+                            udp_pending.clone(),
+                        ).await;
+                    }
+                    Err(err) => {
+                        error!(%err, "udp recv error");
+                        break;
+                    }
+                }
+            }
+            result = tcp_listener.accept() => {
+                match result {
+                    Ok((stream, peer)) => {
+                        info!(%peer, "accepted UDP direct TCP connection");
+                        match classify_direct_handshake(stream).await {
+                            Ok(DirectClassification::Direct { stream, connection_id, token }) => {
+                                handle_direct_connection(stream, connection_id, token, direct_waiters.clone(), direct_tokens.clone()).await;
+                            }
+                            Ok(DirectClassification::Public(_)) => {}
+                            Err(err) => error!(%err, "failed to classify UDP direct connection"),
+                        }
+                    }
+                    Err(err) => {
+                        error!(%err, "udp direct accept error");
+                        break;
+                    }
+                }
+            }
+            _ = &mut shutdown_rx => {
+                info!(allocation_id = bind.allocation_id, "unbind received, stopping UDP listener");
+                break;
+            }
+        }
+    }
+
+    listeners.lock().await.remove(&bind.allocation_id);
+}
+
+async fn handle_udp_datagram(
+    allocation_id: u64,
+    protocol: &str,
+    direct_port: u16,
+    peer: SocketAddr,
+    data: &[u8],
+    udp_socket: Arc<UdpSocket>,
+    write: Arc<Mutex<WsSink>>,
+    direct_waiters: DirectWaiters,
+    connection_allocations: ConnectionAllocationMap,
+    shutdowns: ConnectionShutdowns,
+    udp_sessions: UdpSessions,
+    udp_remotes: UdpRemotes,
+    udp_pending: UdpPending,
+) {
+    let connection_id = {
+        let mut remotes = udp_remotes.lock().await;
+        if let Some(id) = remotes.get(&peer) {
+            id.clone()
+        } else {
+            let id = Uuid::new_v4().to_string();
+            remotes.insert(peer, id.clone());
+            id
+        }
+    };
+
+    if !udp_sessions.lock().await.contains_key(&connection_id) {
+        udp_pending
+            .lock()
+            .await
+            .entry(connection_id.clone())
+            .or_default()
+            .push(data.to_vec());
+        let (tx, rx) = oneshot::channel();
+        direct_waiters.lock().await.insert(connection_id.clone(), tx);
+        connection_allocations
+            .lock()
+            .await
+            .insert(connection_id.clone(), allocation_id);
+
+        if let Err(err) = send_ws(
+            &write,
+            OutgoingMessage::connection_open(
+                allocation_id,
+                &connection_id,
+                peer,
+                protocol,
+                direct_port,
+            ),
+        )
+        .await
+        {
+            error!(%err, %connection_id, "failed to send udp connection.open");
+            direct_waiters.lock().await.remove(&connection_id);
+            connection_allocations.lock().await.remove(&connection_id);
+            return;
+        }
+        info!(%connection_id, %peer, "sent udp connection.open");
+
+        let udp_socket = udp_socket.clone();
+        let udp_sessions = udp_sessions.clone();
+        let shutdowns = shutdowns.clone();
+        let udp_pending = udp_pending.clone();
+        tokio::spawn(async move {
+            if let Ok(stream) = rx.await {
+                let (reader, writer) = stream.into_split();
+                let writer = Arc::new(Mutex::new(writer));
+                udp_sessions.lock().await.insert(
+                    connection_id.clone(),
+                    UdpSession { writer: writer.clone() },
+                );
+                let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+                shutdowns.lock().await.insert(connection_id.clone(), shutdown_tx);
+                if let Some(pending) = udp_pending.lock().await.remove(&connection_id) {
+                    for frame in pending {
+                        let _ = write_udp_frame(&writer, &frame).await;
+                    }
+                }
+                tokio::select! {
+                    _ = udp_downlink(reader, udp_socket.clone(), peer, connection_id.clone()) => {}
+                    _ = &mut shutdown_rx => {}
+                }
+                shutdowns.lock().await.remove(&connection_id);
+            }
+        });
+        return;
+    }
+
+    if let Some(session) = udp_sessions.lock().await.get(&connection_id) {
+        if let Err(err) = write_udp_frame(&session.writer, data).await {
+            error!(%err, %connection_id, "failed to send udp frame");
+        }
+    }
+}
+
+async fn udp_downlink(
+    mut reader: OwnedReadHalf,
+    udp_socket: Arc<UdpSocket>,
+    peer: SocketAddr,
+    connection_id: String,
+) -> io::Result<()> {
+    loop {
+        match read_udp_frame(&mut reader).await? {
+            Some(frame) => {
+                udp_socket.send_to(&frame, peer).await?;
+            }
+            None => break,
+        }
+    }
+    info!(%connection_id, "udp direct connection closed");
+    Ok(())
+}
+
+async fn write_udp_frame(writer: &Arc<Mutex<OwnedWriteHalf>>, data: &[u8]) -> io::Result<()> {
+    let len = data.len() as u32;
+    let mut writer = writer.lock().await;
+    writer.write_all(&len.to_be_bytes()).await?;
+    writer.write_all(data).await?;
+    Ok(())
+}
+
+async fn read_udp_frame(reader: &mut OwnedReadHalf) -> io::Result<Option<Vec<u8>>> {
+    let mut len_buf = [0u8; 4];
+    if let Err(err) = reader.read_exact(&mut len_buf).await {
+        if err.kind() == std::io::ErrorKind::UnexpectedEof {
+            return Ok(None);
+        }
+        return Err(err);
+    }
+    let len = u32::from_be_bytes(len_buf) as usize;
+    let mut data = vec![0u8; len];
+    reader.read_exact(&mut data).await?;
+    Ok(Some(data))
+}
+
+fn compute_direct_port(port: u16) -> Option<u16> {
+    if port < u16::MAX {
+        return Some(port + 1);
+    }
+    if port > 1 {
+        return Some(port - 1);
+    }
+    None
 }
 
 async fn send_ws(

@@ -47,6 +47,14 @@ To enable verbose client logging, add the `--verbose` flag:
 cargo run --release -- --verbose run --backend https://your-backend.example
 ```
 
+To manage allocations (list, delete, or edit local ports), run:
+
+```bash
+cargo run --release -- allocations --backend https://your-backend.example
+```
+
+Use `c` to close (keeps history) or `d` to delete allocations.
+
 ### What the client does
 
 - Calls `/api/tunnel/device/start` to begin enrollment.

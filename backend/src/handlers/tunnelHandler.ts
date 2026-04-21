@@ -906,6 +906,129 @@ export function tunnelRoutes(app: any, prefix: string): void {
     }
   );
 
+  app.post(
+    `${prefix}/tunnel/allocations/:id/edit`,
+    async (ctx: any) => {
+      const { device, error } = await requireAuthOrDevice(ctx, app);
+      if (error) return error;
+
+      const allocationId = Number(ctx.params.id);
+      if (!Number.isFinite(allocationId)) {
+        return errorResponse('invalid_id', 400);
+      }
+
+      const body = (ctx.body as Record<string, unknown>) || {};
+      const localPort = getNumberField(body, ['local_port', 'localPort']);
+      if (localPort < 1 || localPort > 65535) {
+        return errorResponse('invalid_local_port', 400);
+      }
+
+      const repo = AppDataSource.getRepository(TunnelAllocation);
+      const allocation = await repo.findOne({
+        where: { id: allocationId },
+        relations: ['clientDevice', 'serverDevice'],
+      });
+
+      if (!allocation) {
+        return errorResponse('not_found', 404);
+      }
+
+      if (device && allocation.clientDevice?.id !== device.id) {
+        return errorResponse('forbidden', 403);
+      }
+
+      allocation.localPort = localPort;
+      await repo.save(allocation);
+
+      return createJsonResponse({
+        allocation: {
+          id: allocation.id,
+          host: allocation.host,
+          port: allocation.port,
+          protocol: allocation.protocol,
+          status: allocation.status,
+          localHost: allocation.localHost,
+          localPort: allocation.localPort,
+        },
+      });
+    },
+    {
+      response: {
+        200: t.Object({
+          allocation: t.Object({
+            id: t.Number(),
+            host: t.String(),
+            port: t.Number(),
+            protocol: t.String(),
+            status: t.String(),
+            localHost: t.String(),
+            localPort: t.Number(),
+          }),
+        }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Edit tunnel allocation',
+        tags: ['Tunnels'],
+        description: 'Update local port for a tunnel allocation.',
+      },
+    }
+  );
+
+  app.post(
+    `${prefix}/tunnel/allocations/:id/delete`,
+    async (ctx: any) => {
+      const { device, error } = await requireAuthOrDevice(ctx, app);
+      if (error) return error;
+
+      const allocationId = Number(ctx.params.id);
+      if (!Number.isFinite(allocationId)) {
+        return errorResponse('invalid_id', 400);
+      }
+
+      const repo = AppDataSource.getRepository(TunnelAllocation);
+      const allocation = await repo.findOne({
+        where: { id: allocationId },
+        relations: ['clientDevice', 'serverDevice'],
+      });
+
+      if (!allocation) {
+        return errorResponse('not_found', 404);
+      }
+
+      if (device && allocation.clientDevice?.id !== device.id) {
+        return errorResponse('forbidden', 403);
+      }
+
+      if (allocation.status !== 'closed' && allocation.serverDevice) {
+        sendAgentMessage(allocation.serverDevice.deviceCode, {
+          type: 'unbind',
+          allocationId: allocation.id,
+        });
+      }
+
+      await repo.remove(allocation);
+      return createJsonResponse({ ok: true });
+    },
+    {
+      response: {
+        200: t.Object({ ok: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Delete tunnel allocation',
+        tags: ['Tunnels'],
+        description: 'Remove a tunnel allocation permanently.',
+      },
+    }
+  );
+
   function unwrapWsArgs(args: IArguments | any[]) {
     const arr = Array.from(args as any[]);
     let ctx: any = undefined;
