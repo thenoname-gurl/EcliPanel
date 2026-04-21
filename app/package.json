@@ -4,7 +4,7 @@
   "private": true,
   "main": "electron/main.js",
   "scripts": {
-    "build": "pnpm exec cap add android || true && pnpm exec cap add ios || true && pnpm exec cap sync",
+    "build": "mkdir -p android/app/src/main/assets && mkdir -p android/app/src/main/assets/public && pnpm exec cap add android || true && pnpm exec cap add ios || true && pnpm exec cap sync",
     "package:android": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && cd android && ./gradlew assembleDebug",
     "package:android:release": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && cd android && ./gradlew assembleRelease",
     "package:ios:unsigned": "bash ./scripts/package-ios-unsigned.sh",
