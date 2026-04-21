@@ -120,6 +120,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.x'
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -199,6 +204,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.x'
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -211,12 +221,7 @@ jobs:
 
       - name: Package Electron app
         working-directory: app
-        run: |
-          if [ "${{ matrix.platform }}" = "linux" ]; then
-            pnpm run package:electron:linux
-          else
-            pnpm run package:electron:win
-          fi
+        run: pnpm run package:electron:${{ matrix.platform }}
 
       - name: Upload Electron artifact
         uses: actions/upload-artifact@v4
