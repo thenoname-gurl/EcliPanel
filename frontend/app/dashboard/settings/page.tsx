@@ -1,7 +1,7 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -1078,12 +1078,21 @@ export default function SettingsPage() {
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [capturedSelfie, setCapturedSelfie] = useState<Blob | null>(null)
-  const [capturedSelfieUrl, setCapturedSelfieUrl] = useState<string | null>(null)
-  const safeCapturedSelfieUrl =
-    capturedSelfieUrl && capturedSelfieUrl.startsWith("blob:") ? capturedSelfieUrl : ""
+  const previewSelfieUrl = useMemo(() => {
+    if (!capturedSelfie) return ""
+    return URL.createObjectURL(capturedSelfie)
+  }, [capturedSelfie])
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [selfieMessage, setSelfieMessage] = useState<string | null>(null)
   const [selfieLoading, setSelfieLoading] = useState(false)
+  useEffect(() => {
+    return () => {
+      if (previewSelfieUrl) {
+        URL.revokeObjectURL(previewSelfieUrl)
+      }
+    }
+  }, [previewSelfieUrl])
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -1964,15 +1973,10 @@ export default function SettingsPage() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0]
                                   if (!file) return
-                                  if (capturedSelfieUrl) {
-                                    URL.revokeObjectURL(capturedSelfieUrl)
-                                  }
                                   if (cameraStream) {
                                     stopCamera()
                                   }
-                                  const url = URL.createObjectURL(file)
                                   setCapturedSelfie(file)
-                                  setCapturedSelfieUrl(url)
                                   setCameraError(null)
                                   setCameraActive(false)
                                 }}
@@ -2016,7 +2020,7 @@ export default function SettingsPage() {
                         {capturedSelfie && (
                           <div className="space-y-3">
                             <img
-                              src={safeCapturedSelfieUrl}
+                              src={previewSelfieUrl}
                               alt="Captured selfie preview"
                               className="h-64 w-full rounded-lg object-cover"
                             />
