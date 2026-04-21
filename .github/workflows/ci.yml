@@ -112,10 +112,13 @@ jobs:
         working-directory: app
         run: pnpm run package:android
 
-      - name: Rename Android output
+      - name: Collect Android APK
         if: matrix.platform == 'android'
         run: |
-          ANDROID_OUT=$(find app/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) | head -n 1)
+          ANDROID_OUT=$(find app/android/app/build/outputs/apk/debug -type f -name "*.apk" | head -n 1)
+          if [ -z "$ANDROID_OUT" ]; then
+            ANDROID_OUT=$(find app/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) | head -n 1)
+          fi
           echo "Found Android build: $ANDROID_OUT"
           cp "$ANDROID_OUT" eclipanelmobile.apk
 

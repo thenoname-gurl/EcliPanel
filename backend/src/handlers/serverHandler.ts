@@ -1045,6 +1045,21 @@ export async function serverRoutes(app: any, prefix = '') {
     let disk = reqDisk != null ? Number(reqDisk) : (limits.disk ?? 10240);
     let cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
 
+    if (!isAdmin) {
+      if (memory < 1) {
+        ctx.set.status = 400;
+        return { error: 'Memory must be at least 1 MB for non-admin users.' };
+      }
+      if (disk < 1) {
+        ctx.set.status = 400;
+        return { error: 'Disk must be at least 1 MB for non-admin users.' };
+      }
+      if (cpu < 1) {
+        ctx.set.status = 400;
+        return { error: 'CPU must be at least 1% for non-admin users.' };
+      }
+    }
+
     const gamblingConfig = await getGamblingConfig();
     const gamblingRequested = body?.playerStandAt !== undefined;
     const gamblingModeEnabled = gamblingConfig.enabled && (gamblingRequested || (!isAdmin && isGamblingModeEnabled(user)));
@@ -1536,6 +1551,21 @@ export async function serverRoutes(app: any, prefix = '') {
     if (ioWeight !== undefined && !isAdmin) {
       ctx.set.status = 403;
       return { error: 'Only admins may modify IO weight on an existing server.' };
+    }
+
+    if (!isAdmin) {
+      if (memory !== undefined && Number(memory) < 1) {
+        ctx.set.status = 400;
+        return { error: 'Memory must be at least 1 MB for non-admin users.' };
+      }
+      if (disk !== undefined && Number(disk) < 1) {
+        ctx.set.status = 400;
+        return { error: 'Disk must be at least 1 MB for non-admin users.' };
+      }
+      if (cpu !== undefined && Number(cpu) < 1) {
+        ctx.set.status = 400;
+        return { error: 'CPU must be at least 1% for non-admin users.' };
+      }
     }
 
     try {
