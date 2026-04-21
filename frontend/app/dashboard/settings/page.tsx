@@ -1079,6 +1079,8 @@ export default function SettingsPage() {
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [capturedSelfie, setCapturedSelfie] = useState<Blob | null>(null)
   const [capturedSelfieUrl, setCapturedSelfieUrl] = useState<string | null>(null)
+  const safeCapturedSelfieUrl =
+    capturedSelfieUrl && capturedSelfieUrl.startsWith("blob:") ? capturedSelfieUrl : ""
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [selfieMessage, setSelfieMessage] = useState<string | null>(null)
   const [selfieLoading, setSelfieLoading] = useState(false)
@@ -2014,7 +2016,7 @@ export default function SettingsPage() {
                         {capturedSelfie && (
                           <div className="space-y-3">
                             <img
-                              src={capturedSelfieUrl ?? ""}
+                              src={safeCapturedSelfieUrl}
                               alt="Captured selfie preview"
                               className="h-64 w-full rounded-lg object-cover"
                             />
