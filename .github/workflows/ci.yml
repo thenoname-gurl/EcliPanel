@@ -109,7 +109,7 @@ jobs:
     name: App packaging
     runs-on: ${{ matrix.os }}
     env:
-      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+      ANDROID_SDK_ROOT: $RUNNER_TEMP/android-sdk
     strategy:
       matrix:
         include:
