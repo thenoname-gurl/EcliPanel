@@ -131,6 +131,13 @@ jobs:
           version: 10
           cache: true
 
+      - name: Setup Java 21 for Android
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
       - name: Skip app packaging if missing
         run: |
           if [ ! -f app/package.json ]; then
