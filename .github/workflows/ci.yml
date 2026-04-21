@@ -112,14 +112,19 @@ jobs:
         working-directory: app
         run: pnpm run package:android
 
+      - name: Rename Android output
+        if: matrix.platform == 'android'
+        run: |
+          ANDROID_OUT=$(find app/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) | head -n 1)
+          echo "Found Android build: $ANDROID_OUT"
+          cp "$ANDROID_OUT" eclipanelmobile.apk
+
       - name: Upload Android artifact
         if: matrix.platform == 'android'
         uses: actions/upload-artifact@v4
         with:
-          name: android-build
-          path: |
-            app/android/app/build/outputs/**/*.apk
-            app/android/app/build/outputs/**/*.aab
+          name: eclipanelmobile-android
+          path: eclipanelmobile.apk
           retention-days: 14
 
       - name: Package iOS unsigned IPA
@@ -127,11 +132,17 @@ jobs:
         working-directory: app
         run: pnpm run package:ios:unsigned
 
+      - name: Rename iOS output
+        if: matrix.platform == 'ios'
+        run: |
+          IOS_OUT=$(find app/ios/build -type f -name "*.ipa" | head -n 1)
+          echo "Found iOS build: $IOS_OUT"
+          cp "$IOS_OUT" eclipanelmobile.ipa
+
       - name: Upload iOS artifact
         if: matrix.platform == 'ios'
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build
-          path: |
-            app/ios/build/**/*.ipa
+          name: eclipanelmobile-ios
+          path: eclipanelmobile.ipa
           retention-days: 14
