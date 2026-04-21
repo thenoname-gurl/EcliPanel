@@ -1511,7 +1511,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(prefix + '/servers/:id', async (ctx: any) => {
     const { id } = ctx.params as any;
-    const { memory, disk, cpu, swap, environment, name, kvmPassthroughEnabled } = ctx.body as any;
+    const { memory, disk, cpu, swap, ioWeight, environment, name, kvmPassthroughEnabled } = ctx.body as any;
 
     const user = ctx.user;
     const isAdmin = hasPermissionSync(ctx, 'admin:access');
@@ -1533,6 +1533,11 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
+    if (ioWeight !== undefined && !isAdmin) {
+      ctx.set.status = 403;
+      return { error: 'Only admins may modify IO weight on an existing server.' };
+    }
+
     try {
       const svc = await serviceFor(id);
 
@@ -1541,6 +1546,7 @@ export async function serverRoutes(app: any, prefix = '') {
       if (disk !== undefined) build.disk_space = Number(disk);
       if (cpu !== undefined) build.cpu_limit = Number(cpu);
       if (swap !== undefined) build.swap = Number(swap);
+      if (ioWeight !== undefined) build.io_weight = Number(ioWeight);
       const syncPayload: any = {};
       if (Object.keys(build).length) syncPayload.build = build;
       if (environment !== undefined) syncPayload.environment = environment;
@@ -1556,6 +1562,7 @@ export async function serverRoutes(app: any, prefix = '') {
         if (disk !== undefined) existing.disk = Number(disk);
         if (cpu !== undefined) existing.cpu = Number(cpu);
         if (swap !== undefined) existing.swap = Number(swap);
+        if (ioWeight !== undefined) existing.ioWeight = Number(ioWeight);
         if (environment !== undefined) Object.assign(existing.environment ??= {}, environment);
         if (name !== undefined) existing.name = name;
         if (kvmPassthroughEnabled !== undefined) existing.kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
@@ -1563,7 +1570,24 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       const user = ctx.user;
-      await createActivityLog({ userId: user.id, action: 'server:update', targetId: id, targetType: 'server', metadata: { changes: { memory, disk, cpu, swap, name, environment: environment ? '(updated)' : undefined } }, ipAddress: ctx.ip });
+      await createActivityLog({
+        userId: user.id,
+        action: 'server:update',
+        targetId: id,
+        targetType: 'server',
+        metadata: {
+          changes: {
+            memory,
+            disk,
+            cpu,
+            swap,
+            ioWeight,
+            name,
+            environment: environment ? '(updated)' : undefined,
+          },
+        },
+        ipAddress: ctx.ip,
+      });
       return { success: true };
     } catch (e: any) {
       ctx.set.status = 502;

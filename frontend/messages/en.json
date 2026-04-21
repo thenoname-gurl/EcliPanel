@@ -3702,6 +3702,7 @@
         "cpu": "CPU",
         "planOption": "Plan · {value}{unit}",
         "nodeOption": "Node · {value}{unit}",
+        "resourcePoolSelection": "Resource pool selection",
         "noLimitsPlan": "Your <strong>{planName}</strong> plan has no configured limits. Contact an admin.",
         "noPlanAssigned": "No plan assigned. Resources use defaults."
       },
@@ -4378,6 +4379,9 @@
       "ioWeight": "IO Weight",
       "swap": "Swap",
       "kvmPassthrough": "KVM Passthrough",
+      "saveResources": "Save resources",
+      "resourcesSaved": "Resource limits updated successfully.",
+      "saveFailed": "Save failed: {reason}",
       "dangerZone": "Danger Zone",
       "dangerDescription": "These actions are irreversible. Proceed with caution.",
       "reinstall": "Reinstall",
