@@ -9,8 +9,8 @@ fi
 
 pnpm exec cap sync ios
 
-IOS_WORKSPACE=$(find ios -type f -name '*.xcworkspace' | head -n 1 || true)
-IOS_PROJECT=$(find ios -type f -name '*.xcodeproj' | head -n 1 || true)
+IOS_WORKSPACE=$(find ios -type d -name '*.xcworkspace' | head -n 1 || true)
+IOS_PROJECT=$(find ios -type d -name '*.xcodeproj' | head -n 1 || true)
 
 if [ -n "$IOS_WORKSPACE" ]; then
   XCODE_ARG="-workspace"
