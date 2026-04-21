@@ -1,0 +1,10 @@
+node_modules/
+android/
+ios/
+build/
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+*.local
+.idea/
+.vscode/

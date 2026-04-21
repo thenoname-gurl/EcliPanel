@@ -1,0 +1,16 @@
+{
+  "appId": "app.eclipanel",
+  "appName": "EcliPanel",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://ecli.app",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "cordovaLinkerFlags": ["-ObjC"]
+  }
+}

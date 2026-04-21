@@ -1349,6 +1349,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 onDelete={deleteServer}
                 reload={loadServer}
                 isKvm={isKvm}
+                isAdminUser={isAdminUser}
               />
             )}
           </div>
@@ -3147,28 +3148,101 @@ function SettingsTab({
   onDelete,
   reload,
   isKvm,
+  isAdminUser,
 }: {
   serverId: string
   server: any
   onDelete: () => void
   reload: () => void
   isKvm?: boolean
+  isAdminUser?: boolean
 }) {
   const t = useTranslations("serverDetailPage")
+  const { user } = useAuth()
   const [reinstalling, setReinstalling] = useState(false)
   const [launchNotice, setLaunchNotice] = useState<string | null>(null)
+  const [savingResources, setSavingResources] = useState(false)
+  const [memoryLimit, setMemoryLimit] = useState<number>(Number(server?.build?.memory_limit ?? 0))
+  const [diskSpace, setDiskSpace] = useState<number>(Number(server?.build?.disk_space ?? 0))
+  const [cpuLimit, setCpuLimit] = useState<number>(Number(server?.build?.cpu_limit ?? 0))
+  const [swapLimit, setSwapLimit] = useState<number>(Number(server?.build?.swap ?? 0))
+  const [ioWeight, setIoWeight] = useState<number>(Number(server?.build?.io_weight ?? 500))
+  const [memorySource, setMemorySource] = useState<"plan" | "node">("plan")
+  const [diskSource, setDiskSource] = useState<"plan" | "node">("plan")
+  const [cpuSource, setCpuSource] = useState<"plan" | "node">("plan")
+  const [nodeResources, setNodeResources] = useState<{ memory?: number; disk?: number; cpu?: number }>({})
   const [primaryAlloc, setPrimaryAlloc] = useState<any>(
     server?.allocations?.find((a: any) => a.is_default) || server?.allocations?.[0] || null
   )
 
   useEffect(() => {
-    if (server?.allocations && server.allocations.length > 0) {
-      setPrimaryAlloc(
-        server.allocations.find((a: any) => a.is_default) || server.allocations[0]
-      )
-      return
-    }
+    setMemoryLimit(Number(server?.build?.memory_limit ?? 0))
+    setDiskSpace(Number(server?.build?.disk_space ?? 0))
+    setCpuLimit(Number(server?.build?.cpu_limit ?? 0))
+    setSwapLimit(Number(server?.build?.swap ?? 0))
+    setIoWeight(Number(server?.build?.io_weight ?? 500))
+  }, [server])
 
+  useEffect(() => {
+    let mounted = true
+    if (!server?.node) return
+
+    apiFetch(API_ENDPOINTS.nodesAvailable)
+      .then((data) => {
+        if (!mounted) return
+        const nodes = Array.isArray(data) ? data : []
+        const match = nodes.find((n: any) =>
+          n.name === server.node || String(n.nodeId) === String(server.node) || String(n.id) === String(server.node)
+        )
+        if (!match) return
+        setNodeResources({
+          memory: match.memory != null ? Number(match.memory) : undefined,
+          disk: match.disk != null ? Number(match.disk) : undefined,
+          cpu: match.cpu != null ? Number(match.cpu) : undefined,
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      mounted = false
+    }
+  }, [server?.node])
+
+  const planLimits = {
+    memory: user?.limits?.memory ?? null,
+    disk: user?.limits?.disk ?? null,
+    cpu: user?.limits?.cpu ?? null,
+  }
+
+  useEffect(() => {
+    if (!planLimits.memory && nodeResources.memory != null) setMemorySource("node")
+    if (!planLimits.disk && nodeResources.disk != null) setDiskSource("node")
+    if (!planLimits.cpu && nodeResources.cpu != null) setCpuSource("node")
+  }, [planLimits, nodeResources])
+
+  const maxMemory = memorySource === "node" ? nodeResources.memory : planLimits.memory ?? nodeResources.memory
+  const maxDisk = diskSource === "node" ? nodeResources.disk : planLimits.disk ?? nodeResources.disk
+  const maxCpu = cpuSource === "node" ? nodeResources.cpu : planLimits.cpu ?? nodeResources.cpu
+
+  useEffect(() => {
+    if (maxMemory != null && memoryLimit > maxMemory) setMemoryLimit(maxMemory)
+  }, [maxMemory])
+
+  useEffect(() => {
+    if (maxDisk != null && diskSpace > maxDisk) setDiskSpace(maxDisk)
+  }, [maxDisk])
+
+  useEffect(() => {
+    if (maxCpu != null && cpuLimit > maxCpu) setCpuLimit(maxCpu)
+  }, [maxCpu])
+
+  const sliderMaxMemory = Math.max(128, maxMemory ?? Number(server?.build?.memory_limit ?? 0), memoryLimit)
+  const sliderMaxDisk = Math.max(1024, maxDisk ?? Number(server?.build?.disk_space ?? 0), diskSpace)
+  const sliderMaxCpu = Math.max(10, maxCpu ?? Number(server?.build?.cpu_limit ?? 0), cpuLimit)
+
+  const hasResourcePools = !isAdminUser && (planLimits.memory != null || planLimits.disk != null || planLimits.cpu != null || nodeResources.memory != null || nodeResources.disk != null || nodeResources.cpu != null)
+
+  useEffect(() => {
     let mounted = true
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       .then((data) => {
@@ -3405,13 +3479,198 @@ function SettingsTab({
       {/* Build Configuration */}
       {server.build && (
         <CollapsibleSection title={t("settings.resourceLimits")} icon={Cpu}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0 pt-3">
-            <InfoRow label={t("stats.memory")} value={`${server.build.memory_limit || 0} MB`} />
-            <InfoRow label={t("stats.disk")} value={`${server.build.disk_space || 0} MB`} />
-            <InfoRow label={t("stats.cpu")} value={`${server.build.cpu_limit || 0}%`} />
-            <InfoRow label={t("settings.ioWeight")} value={String(server.build.io_weight || 500)} />
-            <InfoRow label={t("settings.swap")} value={`${server.build.swap || 0} MB`} />
-            {isKvm && <InfoRow label={t("settings.kvmPassthrough")} value={t("states.enabled")} />}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0 pt-3">
+            <div className="space-y-4">
+              {hasResourcePools && (
+                <div className="space-y-3 rounded-xl border border-border/50 bg-secondary/10 p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {t("resources.resourcePoolSelection")}
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">
+                        {t("resources.memory")}
+                      </label>
+                      <select
+                        value={memorySource}
+                        onChange={(e) => setMemorySource(e.target.value as "plan" | "node")}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      >
+                        {planLimits.memory != null && (
+                          <option value="plan">
+                            {t("resources.planOption", { value: planLimits.memory, unit: "MB" })}
+                          </option>
+                        )}
+                        {nodeResources.memory != null && (
+                          <option value="node">
+                            {t("resources.nodeOption", { value: nodeResources.memory, unit: "MB" })}
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">
+                        {t("resources.disk")}
+                      </label>
+                      <select
+                        value={diskSource}
+                        onChange={(e) => setDiskSource(e.target.value as "plan" | "node")}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      >
+                        {planLimits.disk != null && (
+                          <option value="plan">
+                            {t("resources.planOption", { value: planLimits.disk, unit: "MB" })}
+                          </option>
+                        )}
+                        {nodeResources.disk != null && (
+                          <option value="node">
+                            {t("resources.nodeOption", { value: nodeResources.disk, unit: "MB" })}
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">
+                        {t("resources.cpu")}
+                      </label>
+                      <select
+                        value={cpuSource}
+                        onChange={(e) => setCpuSource(e.target.value as "plan" | "node")}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      >
+                        {planLimits.cpu != null && (
+                          <option value="plan">
+                            {t("resources.planOption", { value: planLimits.cpu, unit: "%" })}
+                          </option>
+                        )}
+                        {nodeResources.cpu != null && (
+                          <option value="node">
+                            {t("resources.nodeOption", { value: nodeResources.cpu, unit: "%" })}
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <ResourceSlider
+                label={t("stats.memory")}
+                icon={MemoryStick}
+                value={memoryLimit}
+                min={128}
+                max={sliderMaxMemory}
+                step={128}
+                onChange={(value) => setMemoryLimit(Math.max(0, value))}
+                format={(value) => `${value} MB`}
+                formatMax={(value) => `${value} MB`}
+                color="text-blue-500"
+              />
+              <ResourceSlider
+                label={t("stats.disk")}
+                icon={HardDrive}
+                value={diskSpace}
+                min={1024}
+                max={sliderMaxDisk}
+                step={1024}
+                onChange={(value) => setDiskSpace(Math.max(0, value))}
+                format={(value) =>
+                  value >= 1024 ? `${(value / 1024).toFixed(1)} GB` : `${value} MB`
+                }
+                formatMax={(value) =>
+                  value >= 1024 ? `${(value / 1024).toFixed(0)} GB` : `${value} MB`
+                }
+                color="text-emerald-500"
+              />
+              <ResourceSlider
+                label={t("stats.cpu")}
+                icon={Cpu}
+                value={cpuLimit}
+                min={10}
+                max={sliderMaxCpu}
+                step={5}
+                onChange={(value) => setCpuLimit(Math.max(0, value))}
+                format={(value) => `${value}%`}
+                color="text-amber-500"
+              />
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-4">
+                {isAdminUser ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {t("settings.swap")}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={swapLimit}
+                        onChange={(e) => setSwapLimit(Number(e.target.value) || 0)}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {t("settings.ioWeight")}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={ioWeight}
+                        onChange={(e) => setIoWeight(Number(e.target.value) || 0)}
+                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <InfoRow
+                      label={t("settings.swap")}
+                      value={`${Number(server.build.swap ?? 0)} MB`}
+                    />
+                    <InfoRow label={t("settings.ioWeight")} value={String(server.build.io_weight || 500)} />
+                  </>
+                )}
+                {isKvm && <InfoRow label={t("settings.kvmPassthrough")} value={t("states.enabled")} />}
+              </div>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  setSavingResources(true)
+                  try {
+                    const payload: Record<string, any> = {
+                      memory: memoryLimit,
+                      disk: diskSpace,
+                      cpu: cpuLimit,
+                    }
+                    if (isAdminUser) {
+                      payload.swap = swapLimit
+                      payload.ioWeight = ioWeight
+                    }
+                    await apiFetch(API_ENDPOINTS.serverUpdate.replace(":id", serverId), {
+                      method: "PUT",
+                      body: JSON.stringify(payload),
+                    })
+                    alert(t("settings.resourcesSaved"))
+                    reload()
+                  } catch (e: any) {
+                    alert(t("settings.saveFailed", { reason: e?.message || e }))
+                  } finally {
+                    setSavingResources(false)
+                  }
+                }}
+                disabled={savingResources}
+                className="h-10 sm:h-9"
+              >
+                {savingResources ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {t("settings.saveResources")}
+              </Button>
+            </div>
           </div>
         </CollapsibleSection>
       )}
@@ -3450,6 +3709,68 @@ function SettingsTab({
           </Button>
         </div>
       </div>
+    </div>
+  )
+}
+function ResourceSlider({
+  label,
+  icon: Icon,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  format,
+  formatMax,
+  color,
+}: {
+  label: string
+  icon: any
+  value: number
+  min: number
+  max: number
+  step: number
+  onChange: (v: number) => void
+  format: (v: number) => string
+  formatMax?: (v: number) => string
+  color: string
+}) {
+  const pct = ((value - min) / (max - min)) * 100
+  const clampedPct = Math.max(0, Math.min(100, pct))
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className={`h-3.5 w-3.5 ${color}`} />
+          <span className="text-xs font-medium text-foreground">{label}</span>
+        </div>
+        <span className="text-xs font-semibold text-foreground tabular-nums">{format(value)}</span>
+      </div>
+      <div className="relative">
+        <div className="h-2 rounded-full bg-border/60 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-150 ${color.replace("text-", "bg-")}/60`}
+            style={{ width: `${clampedPct}%` }}
+          />
+        </div>
+        <div
+          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border border-white bg-white shadow-md pointer-events-none"
+          style={{ left: `calc(${clampedPct}% - 0.375rem)` }}
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer touch-pan-x"
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground/60 text-right">
+        Max: {formatMax ? formatMax(max) : format(max)}
+      </p>
     </div>
   )
 }

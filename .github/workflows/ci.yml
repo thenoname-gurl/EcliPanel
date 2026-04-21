@@ -70,3 +70,48 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: pnpm run build
+
+  app:
+    name: App packaging
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: android
+          - os: macos-latest
+            platform: ios
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 10
+          cache: true
+
+      - name: Skip app packaging if missing
+        run: |
+          if [ ! -f app/package.json ]; then
+            echo "No app/package.json found. Skipping app packaging."
+            exit 0
+          fi
+
+      - name: Install app dependencies
+        working-directory: app
+        run: pnpm install
+
+      - name: Build app wrapper
+        working-directory: app
+        run: pnpm run build
+
+      - name: Package Android APK
+        if: matrix.platform == 'android'
+        working-directory: app
+        run: pnpm run package:android
+
+      - name: Package iOS unsigned IPA
+        if: matrix.platform == 'ios'
+        working-directory: app
+        run: pnpm run package:ios:unsigned

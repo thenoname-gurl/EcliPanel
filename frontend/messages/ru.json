@@ -3695,6 +3695,7 @@
         "cpu": "CPU",
         "planOption": "Тариф · {value}{unit}",
         "nodeOption": "Нода · {value}{unit}",
+        "resourcePoolSelection": "Выбор пула ресурсов",
         "noLimitsPlan": "У вашего тарифа <strong>{planName}</strong> нет настроенных лимитов. Свяжитесь с администратором.",
         "noPlanAssigned": "Тариф не назначен. Используются ресурсы по умолчанию."
       },
@@ -4371,6 +4372,9 @@
       "ioWeight": "Вес IO",
       "swap": "Swap",
       "kvmPassthrough": "KVM passthrough",
+      "saveResources": "Сохранить ресурсы",
+      "resourcesSaved": "Ограничения ресурсов успешно обновлены.",
+      "saveFailed": "Сохранение не удалось: {reason}",
       "dangerZone": "Опасная зона",
       "dangerDescription": "Эти действия необратимы. Действуйте осторожно.",
       "reinstall": "Переустановить",
