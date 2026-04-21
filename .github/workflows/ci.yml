@@ -50,6 +50,42 @@ jobs:
         working-directory: antiabuse
         run: cargo check
 
+  tunnel-client:
+    name: Tunnel Client (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Run tunnel cargo check
+        working-directory: tunnel/client
+        run: cargo check
+
+  tunnel-server:
+    name: Tunnel Server (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Run tunnel cargo check
+        working-directory: tunnel/server
+        run: cargo check
+
   frontend:
     name: Frontend (pnpm + Node)
     runs-on: ubuntu-latest
