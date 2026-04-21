@@ -5,8 +5,8 @@
   "main": "electron/main.js",
   "scripts": {
     "build": "mkdir -p android/app/src/main/assets && mkdir -p android/app/src/main/assets/public && pnpm exec cap add android || true && pnpm exec cap add ios || true && pnpm exec cap sync",
-    "package:android": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && cd android && ./gradlew assembleDebug",
-    "package:android:release": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && cd android && ./gradlew assembleRelease",
+    "package:android": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && if [ -x ./android/gradlew ]; then cd android && ./gradlew assembleDebug; else echo 'gradlew not found. Build the android project locally with Android Studio or install Gradle / generate wrapper.' && exit 1; fi",
+    "package:android:release": "if [ ! -d android ]; then pnpm exec cap add android; fi && pnpm exec cap sync android && if [ -x ./android/gradlew ]; then cd android && ./gradlew assembleRelease; else echo 'gradlew not found. Build the android project locally with Android Studio or install Gradle / generate wrapper.' && exit 1; fi",
     "package:ios:unsigned": "bash ./scripts/package-ios-unsigned.sh",
     "package:electron:linux": "pnpm exec electron-builder --linux AppImage --publish never",
     "package:electron:win": "pnpm exec electron-builder --win nsis --publish never"

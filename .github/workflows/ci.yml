@@ -108,6 +108,8 @@ jobs:
   app:
     name: App packaging
     runs-on: ${{ matrix.os }}
+    env:
+      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
     strategy:
       matrix:
         include:
@@ -131,6 +133,18 @@ jobs:
           version: 10
           cache: true
 
+      - name: Ensure app/dist for Capacitor
+        run: |
+          if [ ! -d app/dist ]; then
+            mkdir -p app/dist
+            cat > app/dist/index.html <<'HTML'
+            <!doctype html>
+            <meta charset="utf-8">
+            <title>EcliPanel</title>
+            <meta http-equiv="refresh" content="0;url=https://ecli.app">
+            HTML
+          fi
+
       - name: Setup Java 21 for Android
         if: matrix.platform == 'android'
         uses: actions/setup-java@v4
@@ -152,6 +166,25 @@ jobs:
       - name: Build app wrapper
         working-directory: app
         run: pnpm run build
+
+      - name: Install Android commandline tools
+        if: matrix.platform == 'android'
+        run: |
+          mkdir -p "$ANDROID_SDK_ROOT"
+          cd "$ANDROID_SDK_ROOT"
+          curl -sSLo commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools.zip -d cmdline-tools-temp
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools-temp/cmdline-tools/* cmdline-tools/latest/
+          rm -rf commandlinetools.zip cmdline-tools-temp
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
+          sdkmanager --sdk_root="$ANDROID_SDK_ROOT" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+      - name: Make Gradle wrapper executable
+        if: matrix.platform == 'android'
+        run: |
+          if [ -f app/android/gradlew ]; then chmod +x app/android/gradlew || true; fi
 
       - name: Package Android APK
         if: matrix.platform == 'android'
