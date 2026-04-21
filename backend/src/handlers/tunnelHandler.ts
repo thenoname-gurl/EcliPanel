@@ -906,6 +906,129 @@ export function tunnelRoutes(app: any, prefix: string): void {
     }
   );
 
+  app.post(
+    `${prefix}/tunnel/allocations/:id/edit`,
+    async (ctx: any) => {
+      const { device, error } = await requireAuthOrDevice(ctx, app);
+      if (error) return error;
+
+      const allocationId = Number(ctx.params.id);
+      if (!Number.isFinite(allocationId)) {
+        return errorResponse('invalid_id', 400);
+      }
+
+      const body = (ctx.body as Record<string, unknown>) || {};
+      const localPort = getNumberField(body, ['local_port', 'localPort']);
+      if (localPort < 1 || localPort > 65535) {
+        return errorResponse('invalid_local_port', 400);
+      }
+
+      const repo = AppDataSource.getRepository(TunnelAllocation);
+      const allocation = await repo.findOne({
+        where: { id: allocationId },
+        relations: ['clientDevice', 'serverDevice'],
+      });
+
+      if (!allocation) {
+        return errorResponse('not_found', 404);
+      }
+
+      if (device && allocation.clientDevice?.id !== device.id) {
+        return errorResponse('forbidden', 403);
+      }
+
+      allocation.localPort = localPort;
+      await repo.save(allocation);
+
+      return createJsonResponse({
+        allocation: {
+          id: allocation.id,
+          host: allocation.host,
+          port: allocation.port,
+          protocol: allocation.protocol,
+          status: allocation.status,
+          localHost: allocation.localHost,
+          localPort: allocation.localPort,
+        },
+      });
+    },
+    {
+      response: {
+        200: t.Object({
+          allocation: t.Object({
+            id: t.Number(),
+            host: t.String(),
+            port: t.Number(),
+            protocol: t.String(),
+            status: t.String(),
+            localHost: t.String(),
+            localPort: t.Number(),
+          }),
+        }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Edit tunnel allocation',
+        tags: ['Tunnels'],
+        description: 'Update local port for a tunnel allocation.',
+      },
+    }
+  );
+
+  app.post(
+    `${prefix}/tunnel/allocations/:id/delete`,
+    async (ctx: any) => {
+      const { device, error } = await requireAuthOrDevice(ctx, app);
+      if (error) return error;
+
+      const allocationId = Number(ctx.params.id);
+      if (!Number.isFinite(allocationId)) {
+        return errorResponse('invalid_id', 400);
+      }
+
+      const repo = AppDataSource.getRepository(TunnelAllocation);
+      const allocation = await repo.findOne({
+        where: { id: allocationId },
+        relations: ['clientDevice', 'serverDevice'],
+      });
+
+      if (!allocation) {
+        return errorResponse('not_found', 404);
+      }
+
+      if (device && allocation.clientDevice?.id !== device.id) {
+        return errorResponse('forbidden', 403);
+      }
+
+      if (allocation.status !== 'closed' && allocation.serverDevice) {
+        sendAgentMessage(allocation.serverDevice.deviceCode, {
+          type: 'unbind',
+          allocationId: allocation.id,
+        });
+      }
+
+      await repo.remove(allocation);
+      return createJsonResponse({ ok: true });
+    },
+    {
+      response: {
+        200: t.Object({ ok: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Delete tunnel allocation',
+        tags: ['Tunnels'],
+        description: 'Remove a tunnel allocation permanently.',
+      },
+    }
+  );
+
   function unwrapWsArgs(args: IArguments | any[]) {
     const arr = Array.from(args as any[]);
     let ctx: any = undefined;
@@ -984,19 +1107,64 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const { ws, message } = unwrapWsArgs(args);
       if (!ws) return;
 
-      let text: string;
-      try {
-        if (typeof message === 'string') {
-          text = message;
-        } else if (Buffer.isBuffer(message)) {
-          text = message.toString('utf8');
-        } else if (message instanceof ArrayBuffer) {
-          text = Buffer.from(message).toString('utf8');
-        } else {
-          return;
+      const extractText = (value: unknown): string | null => {
+        if (typeof value === 'string') return value;
+        if (Buffer.isBuffer(value)) return value.toString('utf8');
+        if (value instanceof ArrayBuffer) {
+          return Buffer.from(value).toString('utf8');
         }
-      } catch {
-        return;
+        if (ArrayBuffer.isView(value)) {
+          return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8');
+        }
+        if (value && typeof value === 'object' && 'data' in (value as any)) {
+          return extractText((value as any).data);
+        }
+        return null;
+      };
+
+      if (message && typeof message === 'object' && 'type' in (message as any)) {
+        const msg = message as Record<string, unknown>;
+        const deviceCode: string = ws.data?._ecliDeviceCode;
+        const deviceKind: string = ws.data?._ecliKind;
+        if (!deviceCode || !deviceKind) return;
+
+        switch (msg.type) {
+          case 'ping':
+            ws.send(JSON.stringify({ type: 'pong' }));
+            return;
+
+          case 'connection.open':
+            if (deviceKind === 'server') {
+              handleServerConnectionOpen(msg, deviceCode).catch((err) => {
+                console.error('[tunnel] connection.open error:', err);
+              });
+            }
+            return;
+
+          case 'connection.data':
+            handleConnectionData(msg, deviceCode, deviceKind);
+            return;
+
+          case 'connection.close':
+            handleConnectionClose(msg, deviceCode, deviceKind);
+            return;
+
+          default:
+            return;
+        }
+      }
+
+      const text = extractText(message);
+      try {
+        if (text) {
+          console.info('[tunnel] ws message (text):', text);
+        } else {
+          const ctor = (message as any)?.constructor?.name ?? 'unknown';
+          const keys = message && typeof message === 'object' ? Object.keys(message as any) : [];
+          console.info('[tunnel] ws message (unparsed):', { type: typeof message, ctor, keys });
+        }
+      } catch (err) {
+        console.warn('[tunnel] ws message log error:', err);
       }
 
       if (!text) return;
@@ -1019,6 +1187,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
         case 'connection.open':
           if (deviceKind === 'server') {
+            console.info(
+              `[tunnel] received connection.open from ${deviceCode}: ` +
+                `allocationId=${String((msg as any).allocationId ?? '')} ` +
+                `connectionId=${String((msg as any).connectionId ?? '')}`
+            );
             handleServerConnectionOpen(msg, deviceCode).catch((err) => {
               console.error('[tunnel] connection.open error:', err);
             });
