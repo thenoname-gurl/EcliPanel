@@ -137,7 +137,7 @@ jobs:
 
       - name: Install app dependencies
         working-directory: app
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build app wrapper
         working-directory: app
@@ -208,7 +208,7 @@ jobs:
 
       - name: Install app dependencies
         working-directory: app
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Package Electron app
         working-directory: app
