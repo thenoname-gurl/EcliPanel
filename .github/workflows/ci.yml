@@ -71,7 +71,7 @@ jobs:
         working-directory: frontend
         run: pnpm run build
 
-    app:
+  app:
     name: App packaging
     runs-on: ${{ matrix.os }}
     strategy:
