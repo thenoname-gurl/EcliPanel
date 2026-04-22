@@ -4405,7 +4405,8 @@
     },
     "sections": {
       "devices": "Devices",
-      "allocations": "Allocations"
+      "allocations": "Allocations",
+      "createAllocation": "Create allocation"
     },
     "labels": {
       "localHost": "Local host",

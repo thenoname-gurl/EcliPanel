@@ -63,8 +63,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
 
     if (type === 'admin') {
       const actorRole = actor?.role;
-      const actorPerms = Array.isArray(actor?.permissions) ? actor.permissions : [];
-      if (actorRole !== '*' && !actorPerms.includes('*')) {
+      if (actorRole !== '*' && !hasPermissionSync(ctx, '*')) {
         ctx.set.status = 403;
         return { error: 'Only system administrators with * permission can create admin API keys' };
       }

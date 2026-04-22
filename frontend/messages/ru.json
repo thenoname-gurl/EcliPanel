@@ -4397,7 +4397,8 @@
     },
     "sections": {
       "devices": "Устройства",
-      "allocations": "Перенаправления"
+      "allocations": "Перенаправления",
+      "createAllocation": "Создать перенаправление"
     },
     "labels": {
       "localHost": "Локальный хост",
