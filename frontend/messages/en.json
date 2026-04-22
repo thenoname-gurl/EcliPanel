@@ -3706,7 +3706,8 @@
         "nodeOption": "Node · {value}{unit}",
         "resourcePoolSelection": "Resource pool selection",
         "noLimitsPlan": "Your <strong>{planName}</strong> plan has no configured limits. Contact an admin.",
-        "noPlanAssigned": "No plan assigned. Resources use defaults."
+        "noPlanAssigned": "No plan assigned. Resources use defaults.",
+        "notice": "Resources on this node are shared with other people. Allocate enough memory, disk, and CPU for your application, but avoid over-allocating so others can also enjoy the service."
       },
       "kvm": {
         "required": "KVM Virtualization (required)",
@@ -5211,6 +5212,7 @@
       "cpu": "CPU",
       "serverLimit": "Server limit",
       "ports": "Ports per server",
+      "tunnelPorts": "Tunnel ports",
       "emailDailyLimit": "Email send limit",
       "emailQueueLimit": "Email queue limit",
       "databases": "Databases",

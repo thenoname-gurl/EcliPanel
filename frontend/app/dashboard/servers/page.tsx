@@ -625,6 +625,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   }
 
   const selectedNode = nodes.find((n) => n.id === nodeId)
+  const isEnterpriseNode = selectedNode?.nodeType?.toLowerCase().includes("enterprise") ?? false
   const nodeMemory = selectedNode?.memory ?? null
   const nodeDisk = selectedNode?.disk ?? null
   const nodeCpu = selectedNode?.cpu ?? null
@@ -792,6 +793,12 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 <Zap className="h-4 w-4 text-primary" />
                 <p className="text-sm font-semibold text-foreground">{t("resources.title")}</p>
               </div>
+
+              {!isEnterpriseNode && (
+                <div className="rounded-xl border border-border/40 bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
+                  {t("resources.notice")}
+                </div>
+              )}
 
               {gamblingModeEnabled && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
