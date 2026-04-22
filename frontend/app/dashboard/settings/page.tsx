@@ -1108,9 +1108,10 @@ export default function SettingsPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
-  const isAdmin = user?.role === "admin" || user?.role === "rootAdmin"
+  const isAdmin = user?.role === "admin" || user?.role === "rootAdmin" || user?.role === "*"
   const canCreateAdminKey =
     user?.role === "rootAdmin" ||
+    user?.role === "*" ||
     (Array.isArray(user?.permissions) && user.permissions.includes("*"))
 
   const [currentPassword, setCurrentPassword] = useState("")
