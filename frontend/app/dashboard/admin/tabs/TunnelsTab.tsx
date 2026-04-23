@@ -142,8 +142,47 @@ export default function TunnelsTab() {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
   }
 
+  const backendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const clientBinaryUrl = backendUrl + API_ENDPOINTS.tunnelClientDownload
+  const serverBinaryUrl = backendUrl + API_ENDPOINTS.tunnelServerDownload
+  const curlClientCmd = `curl -fsSL \"${clientBinaryUrl}\" -o ecli-tunnel-client && chmod +x ecli-tunnel-client`
+  const curlServerCmd = `curl -fsSL \"${serverBinaryUrl}\" -o ecli-tunnel-server && chmod +x ecli-tunnel-server`
+
   return (
     <div className="flex flex-col gap-6 max-w-full">
+      <section className="mb-6">
+        <h3 className="font-semibold mb-2">{t("downloads.client")}</h3>
+        <div className="flex flex-col gap-2">
+          <a
+            href={API_ENDPOINTS.tunnelClientDownload}
+            className="inline-block px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90"
+            download
+          >
+            {t("downloads.downloadClient")}
+          </a>
+          <div className="mt-2">
+            <span className="font-mono text-xs select-all bg-muted px-2 py-1 rounded">{curlClientCmd}</span>
+            <span className="ml-2 text-xs text-muted-foreground">{t("downloads.curlClient")}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-6">
+        <h3 className="font-semibold mb-2">{t("downloads.server")}</h3>
+        <div className="flex flex-col gap-2">
+          <a
+            href={API_ENDPOINTS.tunnelServerDownload}
+            className="inline-block px-4 py-2 rounded bg-secondary text-foreground hover:bg-secondary/90"
+            download
+          >
+            {t("downloads.downloadServer")}
+          </a>
+          <div className="mt-2">
+            <span className="font-mono text-xs select-all bg-muted px-2 py-1 rounded">{curlServerCmd}</span>
+            <span className="ml-2 text-xs text-muted-foreground">{t("downloads.curlServer")}</span>
+          </div>
+        </div>
+      </section>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-foreground">{t("tunnelsTab.header.title")}</h2>

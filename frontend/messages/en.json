@@ -1330,6 +1330,21 @@
         "failedToLoad": "Failed to load tunnels data.",
         "failedToApprove": "Unable to approve device.",
         "failedToClose": "Unable to close allocation."
+      },
+      "downloads": {
+        "title": "Tunnel Binaries",
+        "client": "Client Binary",
+        "server": "Server Binary",
+        "downloadClient": "Download Client",
+        "downloadServer": "Download Server",
+        "curlClient": "Setup Client via curl",
+        "curlServer": "Setup Server via curl",
+        "curlCopy": "Copy curl command",
+        "curlCopied": "Copied!",
+        "description": "Download the latest tunnel binaries or use the curl command to set up on your server.",
+        "clientCurlDesc": "Install the tunnel client on your device:",
+        "serverCurlDesc": "Install the tunnel server on your server:",
+        "adminNote": "Admin: Use these commands to deploy tunnel binaries on managed servers."
       }
     },
     "adminOutboundEmails": {
@@ -4338,6 +4353,10 @@
       "serverUnavailable": "Server unavailable",
       "acceptInvite": "Accept",
       "rejectInvite": "Reject",
+      "viewServer": "View server",
+      "unableToLoadInvites": "Unable to load pending invites.",
+      "failedAcceptInvite": "Failed to accept invite.",
+      "failedRejectInvite": "Failed to reject invite.",
       "inviteServerName": "Server: {name}",
       "inviteServerMissing": "Server no longer exists",
       "invitesEmpty": "You have no pending subuser invites.",
@@ -4406,13 +4425,16 @@
     "sections": {
       "devices": "Devices",
       "allocations": "Allocations",
-      "createAllocation": "Create allocation"
+      "createAllocation": "Create allocation",
+      "createAllocationDescription": "Forward public traffic to a local service"
     },
     "labels": {
       "localHost": "Local host",
       "localPort": "Local port",
       "protocol": "Protocol",
       "clientDevice": "Client device",
+      "serverDevice": "Server device",
+      "deviceCode": "Device code",
       "name": "Name",
       "type": "Type",
       "userCode": "User code",
@@ -4426,14 +4448,47 @@
     "placeholders": {
       "selectClientDevice": "Select a client device"
     },
+    "search": {
+      "devices": "Search devices..."
+    },
     "actions": {
       "createAllocation": "Create allocation",
       "approve": "Approve",
-      "close": "Close"
+      "close": "Close",
+      "manage": "Manage",
+      "regenerateToken": "Regenerate token",
+      "deleteDevice": "Delete device"
+    },
+    "downloads": {
+      "title": "Tunnel Binaries",
+      "description": "Download the latest tunnel binaries or use the curl command to set up on your server.",
+      "client": "Client Binary",
+      "server": "Server Binary",
+      "downloadClient": "Download Client",
+      "downloadServer": "Download Server",
+      "curlClient": "Setup Client via curl",
+      "curlServer": "Setup Server via curl",
+      "curlCopy": "Copy curl command",
+      "curlCopied": "Copied!",
+      "clientCurlDesc": "Install the tunnel client on your device:",
+      "serverCurlDesc": "Install the tunnel server on your server:"
     },
     "states": {
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "loading": "Loading…",
+      "noApprovedClients": "No approved clients yet — approve a device below first.",
+      "noDevicesMatchSearch": "No devices match your search",
+      "noDevicesConnected": "No devices connected",
+      "tryDifferentSearchTerm": "Try a different search term.",
+      "downloadAgentToGetStarted": "Download and run the tunnel agent to get started.",
+      "unnamedDevice": "Unnamed device",
+      "never": "Never",
+      "pending": "Pending",
+      "noAllocationsYet": "No allocations yet",
+      "createAllocationHint": "Create a tunnel allocation above to start forwarding traffic.",
+      "closed": "Closed",
+      "active": "Active"
     }
   },
   "infrastructureCodeInstancesPage": {

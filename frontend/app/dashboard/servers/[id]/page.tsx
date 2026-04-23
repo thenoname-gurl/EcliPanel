@@ -2962,7 +2962,7 @@ function SubusersTab({
         action={
           <div className="flex items-center gap-2">
             <Link
-              href="/dashboard/mailbox"
+              href="/dashboard/subusers/invites"
               className="inline-flex items-center rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary/30"
             >
               {t("subusers.pendingInvites")}

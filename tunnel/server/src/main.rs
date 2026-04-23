@@ -459,6 +459,14 @@ async fn handle_text_message(
             }
         }
 
+        Some("error") => {
+            let err_text = msg
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown_error");
+            warn!(%err_text, raw = %txt, "received error message from backend");
+        }
+
         Some("direct.token") => {
             if let (Some(connection_id), Some(token)) = (
                 msg.get("connectionId").and_then(|v| v.as_str()),

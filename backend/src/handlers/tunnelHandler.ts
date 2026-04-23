@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { t } from 'elysia';
 import { v4 as uuidv4 } from 'uuid';
 import { AppDataSource } from '../config/typeorm';
@@ -83,7 +85,7 @@ async function canManageOrganisation(user: User, organisationId: number): Promis
 function getRequestBaseUrl(ctx: any): string {
   const headers = ctx?.headers || {};
   const host = (headers['x-forwarded-host'] || headers['host'] || headers['Host']) as string | undefined;
-  const proto = (headers['x-forwarded-proto'] || headers['x-forwarded-protocol'] || headers['x-forwarded-scheme'] || headers['forwarded']) as string | undefined;
+  const proto = (headers['x-forwarded-proto'] || headers['x-forwarded-protocol'] || headers['x-forwarded-scheme']) as string | undefined;
   if (host && proto) {
     const scheme = proto.toString().split(',')[0].trim();
     return `${scheme}://${host}`;
@@ -95,6 +97,29 @@ function getRequestBaseUrl(ctx: any): string {
   } catch {}
 
   return origin;
+}
+
+function getTunnelFrontendUrl(ctx: any): string {
+  const normalize = (value: string | undefined) => {
+    if (!value) return '';
+    const trimmed = value.trim();
+    if (trimmed === '*' || trimmed.toLowerCase() === 'true') return '';
+    return trimmed.replace(/\/+$/, '');
+  };
+
+  const frontendUrl = normalize(process.env.FRONTEND_URL);
+  if (frontendUrl) return frontendUrl;
+
+  const appUrl = normalize(process.env.APP_URL);
+  if (appUrl) return appUrl;
+
+  const backendUrl = normalize(process.env.BACKEND_URL);
+  if (backendUrl) return backendUrl;
+
+  const requestUrl = normalize(getRequestBaseUrl(ctx));
+  if (requestUrl) return requestUrl;
+
+  return 'https://ecli.app';
 }
 
 async function requireAdmin(ctx: any): Promise<Response | null> {
@@ -157,6 +182,90 @@ async function requireAuthOrDevice(
 }
 
 export function tunnelRoutes(app: any, prefix: string): void {
+    app.get(
+      `${prefix}/tunnel/server/download`,
+      async (ctx: any) => {
+        const binaryPath = path.resolve(
+          process.cwd(),
+          '..',
+          'tunnel',
+          'server',
+          'target',
+          'release',
+          'ecli-tunnel-server'
+        );
+
+        if (!fs.existsSync(binaryPath)) {
+          ctx.set.status = 404;
+          return errorResponse('Tunnel server binary not available', 404);
+        }
+
+        const file = await fs.promises.readFile(binaryPath);
+        const fileName = path.basename(binaryPath);
+
+        return new Response(file, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+            'Content-Length': String(Buffer.byteLength(file)),
+          },
+        });
+      },
+      {
+        response: {
+          200: t.Any(),
+          404: t.Object({ error: t.String() }),
+        },
+        detail: {
+          summary: 'Download the tunnel server binary',
+          tags: ['Tunnels'],
+        },
+      }
+    );
+  
+  app.get(
+    `${prefix}/tunnel/client/download`,
+    async (ctx: any) => {
+      const binaryPath = path.resolve(
+        process.cwd(),
+        '..',
+        'tunnel',
+        'client',
+        'target',
+        'release',
+        'ecli-tunnel-client'
+      );
+
+      if (!fs.existsSync(binaryPath)) {
+        ctx.set.status = 404;
+        return errorResponse('Tunnel client binary not available', 404);
+      }
+
+      const file = await fs.promises.readFile(binaryPath);
+      const fileName = path.basename(binaryPath);
+
+      return new Response(file, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+          'Content-Length': String(Buffer.byteLength(file)),
+        },
+      });
+    },
+    {
+      response: {
+        200: t.Any(),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Download the tunnel client binary',
+        tags: ['Tunnels'],
+      },
+    }
+  );
+
   app.post(
     `${prefix}/tunnel/device/start`,
     async (ctx: any) => {
@@ -199,12 +308,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const device = repo.create(deviceData);
       await repo.save(device);
 
-      const baseUrl =
-        process.env.FRONTEND_URL ||
-        process.env.APP_URL ||
-        process.env.BACKEND_URL ||
-        getRequestBaseUrl(ctx) ||
-        'https://ecli.app';
+      const baseUrl = getTunnelFrontendUrl(ctx);
       return createJsonResponse({
         device_code: deviceCode,
         user_code: userCode,

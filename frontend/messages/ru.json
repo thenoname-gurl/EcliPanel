@@ -1323,6 +1323,21 @@
         "failedToLoad": "Не удалось загрузить данные туннелей.",
         "failedToApprove": "Не удалось одобрить устройство.",
         "failedToClose": "Не удалось закрыть выделение."
+      },
+      "downloads": {
+        "title": "Бинарники туннеля",
+        "client": "Клиентский бинарник",
+        "server": "Серверный бинарник",
+        "downloadClient": "Скачать клиент",
+        "downloadServer": "Скачать сервер",
+        "curlClient": "Установка клиента через curl",
+        "curlServer": "Установка сервера через curl",
+        "curlCopy": "Скопировать curl-команду",
+        "curlCopied": "Скопировано!",
+        "description": "Скачайте последние бинарники туннеля или используйте curl-команду для установки на сервер.",
+        "clientCurlDesc": "Установите туннельный клиент на ваше устройство:",
+        "serverCurlDesc": "Установите туннельный сервер на ваш сервер:",
+        "adminNote": "Админ: используйте эти команды для развертывания туннельных бинарников на управляемых серверах."
       }
     },
     "adminOutboundEmails": {
@@ -4330,6 +4345,10 @@
       "serverUnavailable": "Сервер недоступен",
       "acceptInvite": "Принять",
       "rejectInvite": "Отклонить",
+      "viewServer": "Перейти к серверу",
+      "unableToLoadInvites": "Не удалось загрузить ожидающие приглашения.",
+      "failedAcceptInvite": "Не удалось принять приглашение.",
+      "failedRejectInvite": "Не удалось отклонить приглашение.",
       "inviteServerName": "Сервер: {name}",
       "inviteServerMissing": "Сервер больше не существует",
       "invitesEmpty": "У вас нет ожидающих приглашений субпользователя.",
@@ -4398,13 +4417,16 @@
     "sections": {
       "devices": "Устройства",
       "allocations": "Перенаправления",
-      "createAllocation": "Создать перенаправление"
+      "createAllocation": "Создать перенаправление",
+      "createAllocationDescription": "Перенаправляйте публичный трафик на локальный сервис"
     },
     "labels": {
       "localHost": "Локальный хост",
       "localPort": "Локальный порт",
       "protocol": "Протокол",
       "clientDevice": "Клиентское устройство",
+      "serverDevice": "Серверное устройство",
+      "deviceCode": "Код устройства",
       "name": "Название",
       "type": "Тип",
       "userCode": "Код пользователя",
@@ -4418,14 +4440,47 @@
     "placeholders": {
       "selectClientDevice": "Выберите клиентское устройство"
     },
+    "search": {
+      "devices": "Поиск устройств..."
+    },
     "actions": {
       "createAllocation": "Создать перенаправление",
       "approve": "Утвердить",
-      "close": "Закрыть"
+      "close": "Закрыть",
+      "manage": "Управлять",
+      "regenerateToken": "Перегенерировать токен",
+      "deleteDevice": "Удалить устройство"
+    },
+    "downloads": {
+      "title": "Туннельные бинарники",
+      "description": "Скачайте последние бинарники туннеля или используйте команду curl для установки на сервер.",
+      "client": "Клиентский бинарник",
+      "server": "Серверный бинарник",
+      "downloadClient": "Скачать клиент",
+      "downloadServer": "Скачать сервер",
+      "curlClient": "Установить туннельный клиент через curl",
+      "curlServer": "Установить туннельный сервер через curl",
+      "curlCopy": "Скопировать команду curl",
+      "curlCopied": "Скопировано!",
+      "clientCurlDesc": "Установите туннельный клиент на ваше устройство:",
+      "serverCurlDesc": "Установите туннельный сервер на ваш сервер:"
     },
     "states": {
       "yes": "Да",
-      "no": "Нет"
+      "no": "Нет",
+      "loading": "Загрузка…",
+      "noApprovedClients": "Сначала утвердите устройство — оно появится в списке.",
+      "noDevicesMatchSearch": "Нет устройств, соответствующих поиску",
+      "noDevicesConnected": "Нет подключенных устройств",
+      "tryDifferentSearchTerm": "Попробуйте другой поисковый запрос.",
+      "downloadAgentToGetStarted": "Скачайте и запустите туннельный агент, чтобы начать.",
+      "unnamedDevice": "Безымянное устройство",
+      "never": "Никогда",
+      "pending": "Ожидает",
+      "noAllocationsYet": "Перенаправлений пока нет",
+      "createAllocationHint": "Создайте туннельное перенаправление выше, чтобы начать прием трафика.",
+      "closed": "Закрыто",
+      "active": "Активно"
     }
   },
   "infrastructureCodeInstancesPage": {
