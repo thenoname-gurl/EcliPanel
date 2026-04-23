@@ -154,6 +154,17 @@ export async function authenticate(ctx: any) {
     }
     return;
   } catch (e: any) {
+    const apiKeyRepo = AppDataSource.getRepository(ApiKey);
+    const entry = await apiKeyRepo.findOne({ where: { key: rawToken }, relations: ['user'] });
+    if (entry) {
+      if (entry.expiresAt && new Date(entry.expiresAt) < new Date()) {
+        ctx.set.status = 401;
+        return { error: 'Invalid API key' };
+      }
+      ctx.apiKey = entry;
+      if (entry.user) ctx.user = entry.user;
+      return;
+    }
     ctx.log?.info?.('[authenticate] JWT verify failed', e?.message || e);
   }
 

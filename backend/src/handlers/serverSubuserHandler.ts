@@ -142,7 +142,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
       if (mailboxAccount?.email) {
         await createMailboxMessageForUser(target, {
           subject: `Server access invitation for ${id}`,
-          body: `You have been invited to become a subuser for server ${id}. Review the invitation in your panel inbox at ${panelUrl}/dashboard/mailbox.`,
+          body: `You have been invited to become a subuser for server ${id}. Review the invitation in your panel at ${panelUrl}/dashboard/subusers/invites.`,
           toAddress: mailboxAccount.email,
         });
       }
