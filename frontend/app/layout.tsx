@@ -37,7 +37,7 @@ export const viewport: Viewport = {
   userScalable: true,
 }
 
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, type User } from "@/hooks/useAuth";
 import { Footer } from "@/components/Footer";
 import { RenderLogger } from "@/components/RenderLogger";
 import { THEMES } from "@/lib/themes";
@@ -74,6 +74,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   );
 
   let themeName: string | null = null;
+  let initialUser: User | null | undefined = undefined;
+
   try {
     const res = await fetch(API_ENDPOINTS.session, {
       headers: { cookie: cookieHeader },
@@ -82,9 +84,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     if (res.ok) {
       const data = await res.json();
       themeName = data?.user?.settings?.theme?.name || null;
+      initialUser = data?.user || null;
+    } else {
+      initialUser = null;
     }
   } catch (e) {
-    // skippy
+    initialUser = undefined;
   }
 
   const inlineScript = `(() => {
@@ -109,7 +114,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
         <NextIntlClientProvider messages={messages}>
-          <AuthProvider>
+          <AuthProvider initialUser={initialUser}>
             <Suspense fallback={null}>
               <Guide />
             </Suspense>

@@ -37,6 +37,9 @@ export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterPro
       <Link href="/legal" className="hover:text-foreground">
         {t("legalDocuments")}
       </Link>
+      <Link href="/docs" className="hover:text-foreground">
+        {t("docs")}
+      </Link>
     </div>
   )
 

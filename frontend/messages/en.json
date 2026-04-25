@@ -217,6 +217,7 @@
   },
   "footer": {
     "legalDocuments": "Legal Documents",
+    "docs": "Docs",
     "imprint": "Imprint",
     "copyrightShort": "© {year} EclipseSystems",
     "copyrightLong": "© {year} EclipseSystems under Misiu LLC"
