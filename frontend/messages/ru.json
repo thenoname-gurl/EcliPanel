@@ -22,7 +22,6 @@
       "accountActivity": "Активность аккаунта",
       "organisations": "Организации",
       "servers": "Серверы",
-      "codeInstances": "Экземпляры кода",
       "nodes": "Ноды",
       "aiStudio": "ИИ Студия",
       "aiChat": "ИИ Чат",
@@ -2286,11 +2285,6 @@
         "enabled": "Новые пользователи могут создавать аккаунты",
         "disabled": "Регистрация заблокирована (возвращает HTTP 503)"
       },
-      "codeInstances": {
-        "label": "Экземпляры кода",
-        "enabled": "Пользователи могут создавать экземпляры для разработки",
-        "disabled": "Создание экземпляров заблокировано для не-администраторов"
-      },
       "tempEmailFilter": {
         "label": "Фильтр временных email",
         "enabled": "Одноразовые email-адреса заблокированы",
@@ -2336,10 +2330,6 @@
       "oauth": {
         "label": "OAuth-сервер",
         "note": "Клиентские и токен-сервисы OAuth"
-      },
-      "codeInstances": {
-        "label": "Экземпляры кода",
-        "note": "Временные среды разработки"
       },
       "tunnels": {
         "label": "Туннели",
@@ -3604,7 +3594,6 @@
     },
     "sections": {
       "favorites": "Избранное",
-      "codeInstances": "Экземпляры кода",
       "code": "Код",
       "yourServers": "Ваши серверы",
       "sharedWithYou": "Доступные вам"
@@ -3637,18 +3626,6 @@
     },
     "errors": {
       "favoriteSaveFailed": "Не удалось сохранить состояние избранного: {reason}"
-    },
-    "codeInstances": {
-      "title": "Экземпляры кода",
-      "subtitle": "Автоудаление после 30 мин бездействия.",
-      "confirmStop": "Остановить и удалить этот экземпляр кода?",
-      "failedWithReason": "Ошибка: {reason}",
-      "expiresSoon": "Скоро истекает",
-      "minutesLeft": "Осталось {minutes} мин.",
-      "noActive": "Нет активных экземпляров.",
-      "open": "Открыть",
-      "stopping": "Остановка…",
-      "delete": "Удалить"
     },
     "newServerModal": {
       "header": {
@@ -4481,58 +4458,6 @@
       "createAllocationHint": "Создайте туннельное перенаправление выше, чтобы начать прием трафика.",
       "closed": "Закрыто",
       "active": "Активно"
-    }
-  },
-  "infrastructureCodeInstancesPage": {
-    "header": {
-      "title": "Экземпляры кода",
-      "description": "Создание и управление временными средами для кода."
-    },
-    "intro": "Разворачивайте изолированные экземпляры кода для разработки и тестирования.",
-    "actions": {
-      "refresh": "Обновить",
-      "createCodeInstance": "Создать экземпляр кода",
-      "stopDelete": "Остановить и удалить",
-      "cancel": "Отмена",
-      "creating": "Создание...",
-      "create": "Создать"
-    },
-    "table": {
-      "name": "Название",
-      "uuid": "UUID",
-      "resources": "Ресурсы",
-      "resourcesValue": "{memory} МБ / {cpu} CPU / {disk} МБ",
-      "status": "Статус",
-      "lastActivity": "Последняя активность",
-      "actions": "Действия"
-    },
-    "states": {
-      "never": "Никогда",
-      "noInstances": "Экземпляры кода не найдены."
-    },
-    "defaults": {
-      "instanceName": "Экземпляр кода"
-    },
-    "dialog": {
-      "title": "Создать экземпляр кода"
-    },
-    "form": {
-      "name": "Название",
-      "namePlaceholder": "my-code-instance",
-      "memory": "Память (МБ)",
-      "disk": "Диск (МБ)",
-      "cpu": "CPU",
-      "instanceTemplate": "Шаблон экземпляра"
-    },
-    "confirm": {
-      "stopDelete": "Остановить и удалить этот экземпляр кода?"
-    },
-    "errors": {
-      "failedLoad": "Не удалось загрузить экземпляры кода.",
-      "noEggFound": "Шаблон экземпляра кода не найден.",
-      "createFailed": "Не удалось создать экземпляр кода: {reason}",
-      "unexpectedCreateResponse": "Неожиданный ответ при создании экземпляра кода.",
-      "failedCreate": "Не удалось создать экземпляр кода: {reason}"
     }
   },
   "infrastructureNodesPage": {

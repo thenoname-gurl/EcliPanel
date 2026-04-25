@@ -1316,102 +1316,6 @@ function ServerCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  CodeInstancesModal                                                 */
-/* ------------------------------------------------------------------ */
-
-function CodeInstancesModal({ onClose }: { onClose: () => void }) {
-  const t = useTranslations("serversPage.codeInstances")
-  const [list, setList] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [stopping, setStopping] = useState<string | null>(null)
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const data = await apiFetch(API_ENDPOINTS.infraCodeInstances)
-      setList(Array.isArray(data) ? data : [])
-    } catch {
-      setList([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [])
-
-  const stopInstance = async (id: string) => {
-    if (!confirm(t("confirmStop"))) return
-    setStopping(id)
-    try {
-      await apiFetch(API_ENDPOINTS.infraCodeInstanceStop.replace(":id", id), { method: "POST" })
-      await load()
-    } catch (e: any) {
-      alert(t("failedWithReason", { reason: e?.message || e }))
-    } finally {
-      setStopping(null)
-    }
-  }
-
-  const minutesLeft = (lastActivity?: string | null) => {
-    if (!lastActivity) return t("expiresSoon")
-    const remaining = Math.max(0, 30 * 60 * 1000 - (Date.now() - new Date(lastActivity).getTime()))
-    return t("minutesLeft", { minutes: Math.ceil(remaining / 60000) })
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full sm:max-w-2xl max-h-[90dvh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-card border border-border/50 shadow-2xl overflow-hidden">
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
-        </div>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 flex-shrink-0">
-          <h3 className="text-base font-semibold">{t("title")}</h3>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all active:scale-95">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-3">
-          <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          ) : list.length === 0 ? (
-            <div className="text-center py-12">
-              <Terminal className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">{t("noActive")}</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {list.map((ci) => (
-                <div key={ci.uuid} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/50 p-4 bg-muted/5 hover:bg-muted/10 transition-colors">
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">{ci.name || ci.uuid}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{minutesLeft(ci.lastActivityAt)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Link href={`/dashboard/servers/${ci.uuid}`} className="rounded-xl px-4 py-2 bg-primary/10 text-xs font-medium text-primary flex-1 sm:flex-none text-center active:scale-95 transition-all">
-                      {t("open")}
-                    </Link>
-                    <button onClick={() => stopInstance(ci.uuid)} disabled={stopping === ci.uuid}
-                      className="rounded-xl px-4 py-2 bg-red-500/10 text-xs font-medium text-red-500 flex-1 sm:flex-none text-center disabled:opacity-50 active:scale-95 transition-all">
-                      {stopping === ci.uuid ? t("stopping") : t("delete")}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
 /*  ServersPage                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -1431,9 +1335,7 @@ export default function ServersPage() {
   }, [user])
   const [loading, setLoading] = useState(true)
   const [showNewModal, setShowNewModal] = useState(false)
-  const [showCodeModal, setShowCodeModal] = useState(false)
   const [powerLoading, setPowerLoading] = useState<string | null>(null)
-  const [codeInstancesEnabled, setCodeInstancesEnabled] = useState(false)
   const [powerToast, setPowerToast] = useState<{ type: "success" | "warning" | "error"; title: string; message: string } | null>(null)
   const [gamblingFeatureEnabled, setGamblingFeatureEnabled] = useState(true)
   const [activeThemeName, setActiveThemeName] = useState<string>(() => resolveActiveThemeName(String(user?.settings?.theme?.name || "")))
@@ -1459,50 +1361,6 @@ export default function ServersPage() {
     const timer = window.setTimeout(() => setPowerToast(null), 2800)
     return () => window.clearTimeout(timer)
   }, [powerToast])
-
-  useEffect(() => {
-    let mounted = true
-
-    const loadFeatureToggles = async () => {
-      try {
-        const data = await apiFetch(API_ENDPOINTS.panelSettings)
-        if (!mounted) return
-
-        const value =
-          data?.featureToggles?.codeInstances ??
-          data?.codeInstancesEnabled ??
-          false
-
-        setCodeInstancesEnabled(toBool(value))
-        setGamblingFeatureEnabled(data?.gamblingEnabled !== false)
-      } catch {
-        setCodeInstancesEnabled(false)
-        setGamblingFeatureEnabled(true)
-      }
-    }
-
-    const onSettingsUpdate = (e: any) => {
-      try {
-        const incoming = e?.detail?.featureToggles ?? e?.detail ?? null
-        if (!incoming || typeof incoming !== "object") return
-        if (incoming.codeInstances !== undefined) {
-          setCodeInstancesEnabled(toBool(incoming.codeInstances))
-        }
-      } catch {
-        // skip
-      }
-    }
-
-    loadFeatureToggles()
-    window.addEventListener("panelSettingsUpdated", onSettingsUpdate)
-    const interval = window.setInterval(loadFeatureToggles, 15000)
-
-    return () => {
-      mounted = false
-      window.removeEventListener("panelSettingsUpdated", onSettingsUpdate)
-      clearInterval(interval)
-    }
-  }, [])
 
   const loadServers = useCallback(async () => {
     setLoading(true)
@@ -1708,7 +1566,6 @@ export default function ServersPage() {
         </div>
       )}
 
-      {showCodeModal && <CodeInstancesModal onClose={() => setShowCodeModal(false)} />}
       {showNewModal && <NewServerModal onClose={() => setShowNewModal(false)} onCreated={loadServers} gamblingModeEnabled={gamblingModeEnabled} />}
 
       <PanelHeader title={t("header.title")} description={t("header.description")} />
@@ -1777,17 +1634,7 @@ export default function ServersPage() {
               )}
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              {codeInstancesEnabled && (
                 <button
-                  onClick={() => setShowCodeModal(true)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2.5 text-sm font-medium hover:bg-primary/10 active:scale-95 transition-all flex-1 sm:flex-initial"
-                >
-                  <Server className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t("sections.codeInstances")}</span>
-                  <span className="sm:hidden">{t("sections.code")}</span>
-                </button>
-              )}
-              <button
                 data-guide-id="servers-new"
                 onClick={() => setShowNewModal(true)}
                 className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 transition-all flex-1 sm:flex-initial"

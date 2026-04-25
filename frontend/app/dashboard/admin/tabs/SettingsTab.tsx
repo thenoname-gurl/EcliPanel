@@ -286,27 +286,6 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
             variant={panelSettings.registrationEnabled ? "success" : "danger"}
           />
 
-          <ToggleCard
-            icon={FileCode}
-            label={t("toggles.codeInstances.label")}
-            description={
-              panelSettings.codeInstancesEnabled
-                ? t("toggles.codeInstances.enabled")
-                : t("toggles.codeInstances.disabled")
-            }
-            enabled={panelSettings.codeInstancesEnabled}
-            onToggle={() =>
-              setPanelSettings((s: any) => ({
-                ...s,
-                codeInstancesEnabled: !s.codeInstancesEnabled,
-                featureToggles: {
-                  ...s.featureToggles,
-                  codeInstances: !s.featureToggles?.codeInstances,
-                },
-              }))
-            }
-            variant="success"
-          />
 
           <ToggleCard
             icon={Shield}
@@ -410,7 +389,6 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               { key: "ticketing", label: t("featureFlags.ticketing.label"), note: t("featureFlags.ticketing.note") },
               { key: "applications", label: t("featureFlags.applications.label"), note: t("featureFlags.applications.note") },
               { key: "oauth", label: t("featureFlags.oauth.label"), note: t("featureFlags.oauth.note") },
-              { key: "codeInstances", label: t("featureFlags.codeInstances.label"), note: t("featureFlags.codeInstances.note") },
               { key: "tunnels", label: t("featureFlags.tunnels.label"), note: t("featureFlags.tunnels.note") },
               { key: "captcha", label: t("featureFlags.captcha.label"), note: t("featureFlags.captcha.note") },
               { key: "captchaInvisible", label: t("featureFlags.captchaInvisible.label"), note: t("featureFlags.captchaInvisible.note") },

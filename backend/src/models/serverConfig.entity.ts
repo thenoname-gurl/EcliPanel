@@ -101,14 +101,8 @@ export class ServerConfig {
   @Column('json', { nullable: true })
   processConfig?: Record<string, any>;
 
-  @Column({ default: false })
-  isCodeInstance: boolean;
-
   @Column({ nullable: true, type: 'datetime' })
   lastActivityAt?: Date;
-
-  @Column({ default: 0 })
-  codeInstanceMinutesUsed: number;
 
   @Column({ default: 0 })
   maxDatabases: number;

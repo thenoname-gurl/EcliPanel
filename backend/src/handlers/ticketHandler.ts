@@ -431,6 +431,9 @@ export async function ticketRoutes(app: any, prefix = '') {
       }
 
       ticket.aiTouched = true;
+      if (dir.escalate) {
+        ticket.aiDisabled = true;
+      }
       ticket.status = dir.escalate || changes.applied.priority === 'urgent' ? 'awaiting_staff_reply' : 'replied';
       await repo.save(ticket);
 
@@ -1162,6 +1165,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
       if (pushedSender === 'user' && userEscalated) {
         saved.status = 'awaiting_staff_reply';
+        saved.aiDisabled = true;
         await repo.save(saved);
         try { await createActivityLog({ userId: user.id, action: 'ticket:escalate:user', targetId: String(saved.id), targetType: 'ticket', metadata: { reason: 'user requested escalation/no access' }, ipAddress: '' }); } catch (e) { }
       } else {

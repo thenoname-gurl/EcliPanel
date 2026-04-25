@@ -11,23 +11,40 @@ DISK_IMAGE="debian13.qcow2"
 CLOUD_IMAGE_URL="${CLOUD_IMAGE_URL:-https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-amd64-daily.qcow2}"
 CLOUD_IMAGE_FILE="debian-13-cloud-base.qcow2"
 USE_CLOUD_IMAGE="${USE_CLOUD_IMAGE:-1}"
+ENABLE_BALLOON="${ENABLE_BALLOON:-1}"
+VM_MEMORY_MIN="${VM_MEMORY_MIN:-$(( VM_MEMORY / 2 ))}"
+BALLOON_CHECK_INTERVAL="${BALLOON_CHECK_INTERVAL:-10}"
+BALLOON_HOST_THRESHOLD="${BALLOON_HOST_THRESHOLD:-80}"
+BALLOON_AGGRESSIVE="${BALLOON_AGGRESSIVE:-0}"
+BALLOON_RECLAIM_STEP="${BALLOON_RECLAIM_STEP:-10}"
+BALLOON_HOST_RECOVERY="${BALLOON_HOST_RECOVERY:-90}"
 
 echo "══════════════════════════════════════════════"
 echo " EclipseSystems QEMU - Debian 13 (Trixie) VM  "
 echo "══════════════════════════════════════════════"
-echo "  Memory:   ${VM_MEMORY}MB"
-echo "  Cores:    ${VM_CORES}"
-echo "  Disk:     ${VM_DISK_SIZE}"
-echo "  SSH Port: ${VM_SSH_PORT} (forwarded from host)"
+echo "  Memory:       ${VM_MEMORY}MB"
+echo "  Cores:        ${VM_CORES}"
+echo "  Disk:         ${VM_DISK_SIZE}"
+echo "  SSH Port:     ${VM_SSH_PORT} (forwarded from host)"
+echo "  Balloon:      ${ENABLE_BALLOON}"
+if [ "${ENABLE_BALLOON}" = "1" ]; then
+echo "  Min Floor:    ${VM_MEMORY_MIN}MB"
+echo "  Check Int:    ${BALLOON_CHECK_INTERVAL}s"
+echo "  Host Thresh:  ${BALLOON_HOST_THRESHOLD}%"
+echo "  Reclaim Step: ${BALLOON_RECLAIM_STEP}%"
+fi
 echo "══════════════════════════════════════════════"
 echo "  Developed by Maksym H. (noname@ecli.app)    "
 echo "  Licensed under ecli.app/license             "
 echo "══════════════════════════════════════════════"
 
+check_balloon_support() {
+    qemu-system-x86_64 -device help 2>&1 | grep -q "virtio-balloon"
+}
+
 KVM_FLAG=""
 if [ -e /dev/kvm ]; then
     echo "[*] /dev/kvm exists, checking permissions..."
-
     if dd if=/dev/kvm count=0 2>/dev/null; then
         echo "[✓] KVM acceleration available and accessible"
         KVM_FLAG="-enable-kvm -cpu host"
@@ -42,7 +59,6 @@ fi
 
 if [ "$USE_CLOUD_IMAGE" = "1" ]; then
     echo "[*] Using cloud image method..."
-
     if [ ! -f "$CLOUD_IMAGE_FILE" ]; then
         echo "[*] Downloading Debian 13 cloud image..."
         wget -q --show-progress -O "$CLOUD_IMAGE_FILE" "$CLOUD_IMAGE_URL"
@@ -71,6 +87,11 @@ local-hostname: debian
 METADATA
 
     PASS_HASH=$(echo "${ROOT_PASSWORD}" | openssl passwd -6 -stdin)
+
+    BALLOON_PACKAGE=""
+    if [ "${ENABLE_BALLOON}" = "1" ]; then
+        BALLOON_PACKAGE="  - qemu-guest-agent"
+    fi
 
     cat > "$SEED_DIR/user-data" <<USERDATA
 #cloud-config
@@ -103,6 +124,9 @@ runcmd:
   - systemctl restart ssh
   - growpart /dev/vda 1 || growpart /dev/sda 1 || true
   - resize2fs /dev/vda1 || resize2fs /dev/sda1 || true
+  - modprobe virtio_balloon || true
+  - systemctl enable qemu-guest-agent || true
+  - systemctl start qemu-guest-agent || true
   - echo "VM_READY" > /dev/ttyS0
 
 package_update: true
@@ -113,6 +137,7 @@ packages:
   - nano
   - htop
   - cloud-guest-utils
+${BALLOON_PACKAGE}
 
 final_message: "Debian 13 VM is ready! SSH available."
 USERDATA
@@ -139,78 +164,149 @@ USERDATA
 
     is_valid_ip() {
         local ip=$1
-        if [[ -z "$ip" ]]; then
-            return 1
-        fi
-        if [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-            IFS='.' read -r a b c d <<< "$ip"
-            for oct in $a $b $c $d; do
-                if ((oct < 0 || oct > 255)); then
-                    return 1
-                fi
-            done
-            return 0
-        fi
-        return 1
+        [[ -z "$ip" ]] && return 1
+        [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+        IFS='.' read -r a b c d <<< "$ip"
+        for oct in $a $b $c $d; do
+            ((oct < 0 || oct > 255)) && return 1
+        done
+        return 0
     }
 
     is_valid_portnum() {
         local p=$1
-        if [[ $p =~ ^[0-9]+$ ]]; then
-            if ((p >= 1 && p <= 65535)); then
-                return 0
-            fi
-        fi
-        return 1
+        [[ $p =~ ^[0-9]+$ ]] && ((p >= 1 && p <= 65535))
     }
 
-    if [ -n "${VM_HOSTADDR}" ]; then
-        if ! is_valid_ip "${VM_HOSTADDR}" && [ "${VM_HOSTADDR}" != "0.0.0.0" ]; then
-            echo "[!] VM_HOSTADDR '${VM_HOSTADDR}' is invalid; ignoring."
-            VM_HOSTADDR=""
-        fi
-    fi
+    [ -n "${VM_HOSTADDR}" ] && ! is_valid_ip "${VM_HOSTADDR}" && [ "${VM_HOSTADDR}" != "0.0.0.0" ] && {
+        echo "[!] VM_HOSTADDR '${VM_HOSTADDR}' is invalid; ignoring."
+        VM_HOSTADDR=""
+    }
 
     if [ -n "${VM_PORTS}" ]; then
         IFS=','
         for raw in ${VM_PORTS}; do
             p=$(echo "${raw}" | tr -d '[:space:]')
             proto="tcp"
-            if [[ "${p}" == */udp ]]; then
-                proto="udp"
-                p="${p%/udp}"
-            elif [[ "${p}" == */tcp ]]; then
-                p="${p%/tcp}"
-            fi
+            [[ "${p}" == */udp ]] && { proto="udp"; p="${p%/udp}"; }
+            [[ "${p}" == */tcp ]] && { p="${p%/tcp}"; }
             if [[ "${p}" == *:* ]]; then
-                hostport="${p%%:*}"
-                guestport="${p##*:}"
+                hostport="${p%%:*}"; guestport="${p##*:}"
             else
-                hostport="${p}"
-                guestport="${p}"
+                hostport="${p}"; guestport="${p}"
             fi
-
             if ! is_valid_portnum "${hostport}" || ! is_valid_portnum "${guestport}"; then
                 echo "[!] Ignoring invalid port entry: ${raw}"
                 continue
             fi
-
             if [ -n "${VM_HOSTADDR}" ]; then
                 NET_ENTRY="hostfwd=${proto}:${VM_HOSTADDR}:${hostport}-:${guestport}"
             else
                 NET_ENTRY="hostfwd=${proto}::${hostport}-:${guestport}"
             fi
-
             NET_HOSTFWD="${NET_HOSTFWD},${NET_ENTRY}"
         done
         unset IFS
         echo "[*] Forwarding additional ports: ${VM_PORTS}"
     fi
 
-    KVM_ARR=()
-    if [ -n "${KVM_FLAG}" ]; then
-        read -r -a KVM_ARR <<< "${KVM_FLAG}"
+    balloon_manager() {
+        local monitor_sock="/tmp/qemu-monitor.sock"
+        local current_balloon="${VM_MEMORY}"
+        local in_reclaim=0
+
+        qmp_cmd() {
+            echo "$1" | socat - "UNIX-CONNECT:${monitor_sock}" 2>/dev/null
+        }
+
+        get_host_free_pct() {
+            if [ -f /proc/meminfo ]; then
+                local avail total
+                avail=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)
+                total=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+                if [ -n "$avail" ] && [ -n "$total" ] && [ "$total" -gt 0 ]; then
+                    echo $(( avail * 100 / total ))
+                    return
+                fi
+            fi
+            free -m | awk 'NR==2 {printf "%.0f", $4/$2*100}'
+        }
+
+        echo "[balloon] Waiting for QEMU monitor socket..."
+        for i in $(seq 1 30); do
+            [ -S "$monitor_sock" ] && break
+            sleep 1
+        done
+
+        if [ ! -S "$monitor_sock" ]; then
+            echo "[balloon] Monitor socket not found after 30s; exiting."
+            return 1
+        fi
+
+        qmp_greeting='{"execute":"qmp_capabilities"}'
+        qmp_cmd "$qmp_greeting" > /dev/null
+
+        echo "[balloon] Manager active — monitoring every ${BALLOON_CHECK_INTERVAL}s"
+        echo "           Host threshold: ${BALLOON_HOST_THRESHOLD}% | Recovery: ${BALLOON_HOST_RECOVERY}%"
+
+        while true; do
+            sleep "${BALLOON_CHECK_INTERVAL}"
+
+            host_free=$(get_host_free_pct)
+            used_mem=$(( VM_MEMORY - current_balloon ))
+            reclaim_target=$(( VM_MEMORY_MIN ))
+
+            if (( host_free < BALLOON_HOST_THRESHOLD )); then
+                shrink_by=$(( current_balloon * BALLOON_RECLAIM_STEP / 100 ))
+                if [ "${BALLOON_AGGRESSIVE}" = "1" ]; then
+                    shrink_by=$(( shrink_by * 2 ))
+                fi
+
+                new_target=$(( current_balloon - shrink_by ))
+                [ $new_target -lt $reclaim_target ] && new_target=$reclaim_target
+
+                if [ $new_target -lt $current_balloon ]; then
+                    echo "[balloon] Host free RAM low (${host_free}%) — reclaiming ${shrink_by}MB"
+                    echo "{ \"execute\": \"balloon\", \"arguments\": { \"value\": $(( new_target * 1024 * 1024 )) } }" \
+                        | socat - "UNIX-CONNECT:${monitor_sock}" > /dev/null 2>&1
+                    current_balloon=$new_target
+                    in_reclaim=1
+                fi
+
+            elif (( host_free > BALLOON_HOST_RECOVERY )) && [ $in_reclaim -eq 1 ]; then
+                grow_by=$(( VM_MEMORY * BALLOON_RECLAIM_STEP / 100 / 2 ))
+                new_target=$(( current_balloon + grow_by ))
+                [ $new_target -gt $VM_MEMORY ] && new_target=$VM_MEMORY
+
+                if [ $new_target -gt $current_balloon ]; then
+                    echo "[balloon] Host RAM recovered (${host_free}%) — returning ${grow_by}MB"
+                    echo "{ \"execute\": \"balloon\", \"arguments\": { \"value\": $(( new_target * 1024 * 1024 )) } }" \
+                        | socat - "UNIX-CONNECT:${monitor_sock}" > /dev/null 2>&1
+                    current_balloon=$new_target
+                    [ $current_balloon -ge $VM_MEMORY ] && in_reclaim=0
+                fi
+            fi
+        done
+    }
+
+    BALLOON_ARGS=()
+    if [ "${ENABLE_BALLOON}" = "1" ]; then
+        if check_balloon_support; then
+            echo "[✓] Memory ballooning supported"
+            echo "    Max: ${VM_MEMORY}MB  |  Min floor: ${VM_MEMORY_MIN}MB"
+            BALLOON_ARGS+=(
+                -device "virtio-balloon-pci,id=balloon0,deflate-on-oom=on"
+            )
+            BALLOON_ARGS+=("-qmp" "unix:/tmp/qemu-monitor.sock,server,nowait")
+        else
+            echo "[!] virtio-balloon not available; skipping."
+        fi
+    else
+        echo "[*] Memory ballooning disabled."
     fi
+
+    KVM_ARR=()
+    [ -n "${KVM_FLAG}" ] && read -r -a KVM_ARR <<< "${KVM_FLAG}"
 
     QEMU_CMD=(qemu-system-x86_64)
     QEMU_CMD+=("${KVM_ARR[@]}")
@@ -220,7 +316,21 @@ USERDATA
         read -r -a CLOUD_ARR <<< "${CLOUD_INIT_ARGS}"
         QEMU_CMD+=("${CLOUD_ARR[@]}")
     fi
+    [ "${#BALLOON_ARGS[@]}" -gt 0 ] && QEMU_CMD+=("${BALLOON_ARGS[@]}")
     QEMU_CMD+=(-netdev "user,id=net0,${NET_HOSTFWD}" -device "virtio-net-pci,netdev=net0" -nographic -serial mon:stdio)
+
+    if [ "${ENABLE_BALLOON}" = "1" ] && [ "${#BALLOON_ARGS[@]}" -gt 0 ]; then
+        rm -f /tmp/qemu-monitor.sock
+        balloon_manager &
+        BALLOON_PID=$!
+        echo "[*] Balloon manager started (PID: ${BALLOON_PID})"
+    fi
+
+    cleanup() {
+        echo "[*] Shutting down balloon manager..."
+        [ -n "$BALLOON_PID" ] && kill "$BALLOON_PID" 2>/dev/null
+    }
+    trap cleanup EXIT
 
     exec "${QEMU_CMD[@]}"
 

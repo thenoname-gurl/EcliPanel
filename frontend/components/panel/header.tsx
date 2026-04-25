@@ -314,7 +314,6 @@ export function PanelHeader({
 
   const [featureToggles, setFeatureToggles] = useState<Record<FeatureFlag, boolean>>({
     registration: true,
-    codeInstances: true,
     billing: true,
     ai: true,
     dns: true,

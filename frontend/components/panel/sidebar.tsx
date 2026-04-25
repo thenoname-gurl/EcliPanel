@@ -196,7 +196,6 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
 
   const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>({
     registration: true,
-    codeInstances: true,
     billing: true,
     ai: true,
     dns: true,
@@ -215,7 +214,6 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
 
         const toggles: Record<string, boolean> = {
           registration: true,
-          codeInstances: true,
           billing: true,
           ai: true,
           dns: true,
@@ -231,9 +229,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
           })
         }
 
-        if (data?.codeInstancesEnabled !== undefined) {
-          toggles.codeInstances = toBool(data.codeInstancesEnabled)
-        }
+
 
         setFeatureToggles(toggles)
       })
@@ -317,10 +313,6 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             Object.entries(data.featureToggles).forEach(([k, v]) => {
               updates[k] = toBool(v)
             })
-          }
-
-          if (data?.codeInstancesEnabled !== undefined) {
-            updates.codeInstances = toBool(data.codeInstancesEnabled)
           }
 
           if (Object.keys(updates).length > 0) {

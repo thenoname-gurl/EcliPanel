@@ -385,9 +385,6 @@ export const API_ENDPOINTS = {
   infraNodeDetail: "/api/infrastructure/nodes/:id",
   infraNodeConfig: "/api/infrastructure/nodes/:id/config",
   infraNodeAllocations: "/api/infrastructure/nodes/:id/allocations",
-  infraCodeInstances: "/api/infrastructure/code-instances",
-  infraCodeInstancePing: "/api/infrastructure/code-instances/:id/ping",
-  infraCodeInstanceStop: "/api/infrastructure/code-instances/:id/stop",
   infraEmail: "/api/infrastructure/email",
   infraEmailDomains: "/api/infrastructure/email/domains",
   infraEmailMailboxes: "/api/infrastructure/email/mailboxes",
@@ -466,7 +463,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'codeInstances' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels'
 
 export interface NavItem {
   label: string
@@ -498,7 +495,6 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   Organisations: "organisations",
   Servers: "servers",
   Mailbox: "mailbox",
-  "Code Instances": "codeInstances",
   Nodes: "nodes",
   "AI Studio": "aiStudio",
   "AI Chat": "aiChat",
@@ -553,13 +549,6 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/tunnels",
         icon: Globe,
         feature: "tunnels",
-      },
-      {
-        label: "Code Instances",
-        href: "/dashboard/infrastructure/code-instances",
-        icon: Server,
-        requiredTier: "educational",
-        feature: "codeInstances",
       },
       {
         label: "Nodes",
