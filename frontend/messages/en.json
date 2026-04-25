@@ -4227,7 +4227,16 @@
       "empty": "No mounts configured. Mounts are managed by administrators.",
       "readOnly": "Read Only",
       "source": "Source",
-      "target": "Target"
+      "target": "Target",
+      "attach": "Attach Mount",
+      "detach": "Detach",
+      "available": "Available mounts",
+      "selectPlaceholder": "Select a mount to attach",
+      "loading": "Loading mounts...",
+      "attachSuccess": "Mount attached successfully.",
+      "attachFailed": "Failed to attach mount: {reason}",
+      "detachSuccess": "Mount detached successfully.",
+      "detachFailed": "Failed to detach mount: {reason}"
     },
     "databases": {
       "title": "Databases",

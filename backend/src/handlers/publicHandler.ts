@@ -3,7 +3,6 @@ import { AppDataSource } from '../config/typeorm';
 import { MoreThanOrEqual } from 'typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
-import { ShortUrl } from '../models/shortUrl.entity';
 import { getCountryAgeRules, getGeoBlockRulesWithDefaults } from '../utils/eu';
 
 export async function publicRoutes(app: any, prefix = '') {
@@ -181,47 +180,6 @@ export async function publicRoutes(app: any, prefix = '') {
       tags: ['Public'],
       summary: 'Public geoblock rules',
       description: 'Returns the current geoblocked countries and the services restricted for each jurisdiction.',
-    },
-  });
-
-  app.get(prefix + '/public/shorturls/:scope/:code', async (ctx) => {
-    const scope = String(ctx.params['scope'] || '').toLowerCase();
-    if (scope !== 'a' && scope !== 'root') {
-      ctx.set.status = 404;
-      return { error: 'Short URL not found' };
-    }
-
-    const code = String(ctx.params['code'] || '').trim().toLowerCase();
-    if (!code) {
-      ctx.set.status = 404;
-      return { error: 'Short URL not found' };
-    }
-
-    const shortUrlRepo = AppDataSource.getRepository(ShortUrl);
-    const shortUrl = await shortUrlRepo.findOne({ where: { code, prefix: scope, active: true } });
-    if (!shortUrl) {
-      ctx.set.status = 404;
-      return { error: 'Short URL not found' };
-    }
-
-    return {
-      code: shortUrl.code,
-      prefix: shortUrl.prefix,
-      target: shortUrl.target,
-    };
-  }, {
-    response: {
-      200: t.Object({
-        code: t.String(),
-        prefix: t.String(),
-        target: t.String(),
-      }),
-      404: t.Object({ error: t.String() }),
-    },
-    detail: {
-      tags: ['Public'],
-      summary: 'Resolve admin short URLs',
-      description: 'Returns the redirect target for an admin-managed short URL.',
     },
   });
 
