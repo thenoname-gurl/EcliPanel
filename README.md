@@ -163,6 +163,6 @@ Before and after optimization showed performance improvement on most pages avg a
 
 Happy exploring!
 >Side note: 
-> [This project](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) took part in [flavortown](https://flavortown.hack.club/?ref=eclipsesystems)!
-> I do not get paid for developing this and entire hosting is not profitable enough to cover development costs, 
+> This project took part in [Flavortown](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) and in [Macondo](https://macondo.hackclub.com/projects/506?ref=HHDFS)!
+> I do not get paid for developing this and entire hosting is not profitable enough to cover development costs,
 > if you really liked panel atleast star the repo or go order something from us https://ecli.app/
