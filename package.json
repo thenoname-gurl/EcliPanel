@@ -13,7 +13,7 @@
 		"reflect-metadata": "^0.2.2",
 		"sharp": "^0.34.5",
 		"typeorm": "^0.3.28",
-		"uuid": "^13.0.0"
+		"uuid": "^14.0.0"
 	},
 	"overrides": {
 		"follow-redirects": "1.16.0"
