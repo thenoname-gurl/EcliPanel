@@ -194,11 +194,6 @@ const PlansTab = dynamic(() => import("./tabs/PlansTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading plans tab...</div>,
 })
 
-const ShortUrlsTab = dynamic(() => import("./tabs/ShortUrlsTab"), {
-  ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading short URLs tab...</div>,
-})
-
 const OrdersTab = dynamic(() => import("./tabs/OrdersTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading orders tab...</div>,
@@ -882,7 +877,6 @@ export default function AdminPanel() {
     { value: 'roles', label: t('tabs.roles'), permissions: ['roles:read'] },
     { value: 'logs', label: t('tabs.logs'), permissions: ['logs:read'] },
     { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permissions: ['oauth:manage', 'admin:oauth'] },
-    { value: 'shorturls', label: t('tabs.shortUrls'), permissions: ['admin.shorturl.add', 'admin.shorturl.remove', 'admin.shorturl.edit.own', 'admin.shorturl.edit.any'] },
     { value: 'databases', label: t('tabs.databases'), permissions: ['databases:read'] },
     { value: 'plans', label: t('tabs.plans'), permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
     { value: 'orders', label: t('tabs.orders'), permissions: ['orders:view', 'orders:issue', 'orders:update', 'orders:delete'] },
@@ -5499,13 +5493,6 @@ remote: ${panelUrl}`
                     confirmAsync,
                   }}
                 />
-              ) : null}
-            </TabsContent>
-
-            {/* ═════════════════ SHORT URLS ═══════════════════════════════════ */}
-            <TabsContent value="shorturls" className="mt-4">
-              {activeTab === "shorturls" ? (
-                <ShortUrlsTab />
               ) : null}
             </TabsContent>
 
