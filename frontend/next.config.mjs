@@ -13,13 +13,7 @@ const nextConfig = {
     unoptimized: true,
   },
   async redirects() {
-    return [
-      {
-        source: '/docs',
-        destination: '/legal',
-        permanent: true,
-      },
-    ]
+    return []
   },
   async rewrites() {
     return [

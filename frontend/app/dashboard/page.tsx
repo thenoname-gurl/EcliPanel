@@ -147,8 +147,12 @@ export default function SOCDashboard() {
   const myUptimePct = myServers.length > 0 ? Math.round((myOnlineServers / myServers.length) * 10000) / 100 : 0
   const totalUptimePct = totalServers > 0 ? Math.round((onlineServers / totalServers) * 10000) / 100 : 0
 
-  const totalCpuUsed = onlineList.reduce((a, s) => a + (s.resources?.cpu_absolute ?? 0), 0)
-  const avgCpu = onlineServers > 0 ? Math.round(totalCpuUsed / onlineServers) : 0
+  const totalCpuPct = onlineList.reduce((a, s) => {
+    const cpuVal = Number(s.resources?.cpu_absolute ?? 0)
+    const cpuLimit = Number(s.build?.cpu_limit ?? 100)
+    return a + (cpuLimit > 0 ? (cpuVal / cpuLimit) * 100 : cpuVal)
+  }, 0)
+  const avgCpu = onlineServers > 0 ? Math.round(totalCpuPct / onlineServers) : 0
   const totalMemUsed = onlineList.reduce((a, s) => a + (s.resources?.memory_bytes ?? 0), 0)
   const totalMemLimit = onlineList.reduce((a, s) => a + ((s.build?.memory_limit ?? 0) * 1024 * 1024), 0)
   const totalDiskUsed = onlineList.reduce((a, s) => a + (s.resources?.disk_bytes ?? 0), 0)
@@ -157,7 +161,9 @@ export default function SOCDashboard() {
   const diskPct = totalDiskLimit > 0 ? Math.round((totalDiskUsed / totalDiskLimit) * 100) : 0
 
   const renderServerCard = (server: any) => {
-    const cpuPct = Math.round(server.resources?.cpu_absolute ?? 0)
+    const cpuVal = Number(server.resources?.cpu_absolute ?? 0)
+    const cpuLimit = Number(server.build?.cpu_limit ?? 100)
+    const cpuPct = cpuLimit > 0 ? Math.round((cpuVal / cpuLimit) * 100) : Math.round(cpuVal)
     const memUsed = server.resources?.memory_bytes ?? 0
     const memLimit = (server.build?.memory_limit ?? 0) * 1024 * 1024
     const ramPct = memLimit > 0 ? Math.round((memUsed / memLimit) * 100) : 0
@@ -183,7 +189,7 @@ export default function SOCDashboard() {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <UsageBar label="CPU" value={cpuPct} />
-            <p className="text-[10px] text-muted-foreground mt-0.5">{cpuPct}%</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{Math.round(cpuVal)}%</p>
           </div>
           <div>
             <UsageBar label="RAM" value={ramPct} />

@@ -1171,7 +1171,10 @@ function ServerCard({
   const sid = server.uuid || server.id
   const isOnline = server.status === "online" || server.status === "running"
 
-  const cpuVal = Math.round(server.resources?.cpu_absolute ?? 0)
+  const cpuVal = Number(server.resources?.cpu_absolute ?? 0)
+  const cpuLimit = Number(server.build?.cpu_limit ?? 100)
+  const cpuPct = cpuLimit > 0 ? Math.round((cpuVal / cpuLimit) * 100) : Math.round(cpuVal)
+  const cpuDisplay = `${Math.round(cpuVal)}%`
   const ramPct = server.build?.memory_limit
     ? Math.round(((server.resources?.memory_bytes ?? 0) / (server.build.memory_limit * 1024 * 1024)) * 100)
     : 0
@@ -1231,12 +1234,12 @@ function ServerCard({
           {/* CPU */}
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div className="relative flex-shrink-0">
-              <UsageRing value={cpuVal} size={36} stroke={3} color={cpuVal > 80 ? "#ef4444" : cpuVal > 50 ? "#f59e0b" : "#3b82f6"} />
+              <UsageRing value={Math.min(cpuPct, 100)} size={36} stroke={3} color={cpuPct > 80 ? "#ef4444" : cpuPct > 50 ? "#f59e0b" : "#3b82f6"} />
               <Cpu className="absolute inset-0 m-auto h-3 w-3 text-muted-foreground" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] sm:text-[11px] text-muted-foreground">{t("resources.cpu")}</p>
-              <p className="text-xs font-semibold text-foreground tabular-nums">{cpuVal}%</p>
+              <p className="text-xs font-semibold text-foreground tabular-nums">{cpuDisplay}</p>
             </div>
           </div>
 

@@ -140,9 +140,18 @@ function AuthLoadingScreen({ message = "Loading..." }: { message?: string }) {
   )
 }
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null | undefined>(undefined)
-  const [authState, setAuthState] = useState<AuthState>("initializing")
+export const AuthProvider = ({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode
+  initialUser?: User | null
+}) => {
+  const [user, setUser] = useState<User | null | undefined>(initialUser)
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    if (initialUser === undefined) return "initializing"
+    return initialUser ? "authenticated" : "unauthenticated"
+  })
   const router = useRouter()
   const pathname = usePathname()
   
@@ -322,6 +331,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [refreshUser])
 
   useEffect(() => {
+    if (initialUser) {
+      applyUserTheme(initialUser)
+      applyUserLocale(initialUser)
+    }
+  }, [initialUser])
+
+  useEffect(() => {
+    if (authState !== "initializing") return
+
     let mounted = true
 
     const initializeAuth = async () => {
@@ -358,7 +376,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       mounted = false
     }
-  }, [checkAndPromptGuide, handleStudentVerificationCallback])
+  }, [authState, checkAndPromptGuide, handleStudentVerificationCallback])
 
   useEffect(() => {
     if (authState !== "authenticated" || !user || !pathname) return
