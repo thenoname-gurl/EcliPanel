@@ -12,7 +12,6 @@ import { setupConfig } from './config';
 import { createActivityLog } from './handlers/logHandler';
 import { AppDataSource } from './config/typeorm';
 import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
-import { scheduleCodeInstanceIdleJob } from './jobs/codeInstanceIdleJob';
 import { scheduleMetricsCollectionJob } from './jobs/metricsCollectionJob';
 import { scheduleExportJobRunner } from './jobs/exportJobRunner';
 import { scheduleDeletionExecutionJob } from './jobs/deletionExecutionJob';
@@ -488,7 +487,6 @@ export async function initApp() {
   setupMiddleware(app);
   registerRoutes(app);
   try { scheduleStudentReverifyJob(); } catch (e) { console.error('Failed to schedule student reverify job:', e); }
-  try { scheduleCodeInstanceIdleJob(); } catch (e) { console.error('Failed to schedule code instance idle job:', e); }
   try { scheduleMetricsCollectionJob(); } catch (e) { console.error('Failed to schedule metrics collection job:', e); }
   try { scheduleExportJobRunner(); } catch (e) { console.error('Failed to schedule export job runner:', e); }
   try { scheduleDeletionExecutionJob(); } catch (e) { console.error('Failed to schedule deletion execution job:', e); }

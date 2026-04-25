@@ -22,7 +22,6 @@
       "accountActivity": "Account Activity",
       "organisations": "Organisations",
       "servers": "Servers",
-      "codeInstances": "Code Instances",
       "nodes": "Nodes",
       "aiStudio": "AI Studio",
       "aiChat": "AI Chat",
@@ -2294,11 +2293,6 @@
         "enabled": "New users can sign up for accounts",
         "disabled": "Sign-ups are blocked (returns HTTP 503)"
       },
-      "codeInstances": {
-        "label": "Code Instances",
-        "enabled": "Users can create development instances",
-        "disabled": "Instance creation blocked for non-admins"
-      },
       "tempEmailFilter": {
         "label": "Temp Email Filter",
         "enabled": "Disposable email addresses are blocked",
@@ -2344,10 +2338,6 @@
       "oauth": {
         "label": "OAuth Server",
         "note": "OAuth client and token services"
-      },
-      "codeInstances": {
-        "label": "Code Instances",
-        "note": "Temporary development environments"
       },
       "tunnels": {
         "label": "Tunnels",
@@ -3612,7 +3602,6 @@
     },
     "sections": {
       "favorites": "Favorites",
-      "codeInstances": "Code Instances",
       "code": "Code",
       "yourServers": "Your Servers",
       "sharedWithYou": "Shared With You"
@@ -3645,18 +3634,6 @@
     },
     "errors": {
       "favoriteSaveFailed": "Failed to save favorite state: {reason}"
-    },
-    "codeInstances": {
-      "title": "Code Instances",
-      "subtitle": "Auto-deleted after 30 min of inactivity.",
-      "confirmStop": "Stop and delete this Code Instance?",
-      "failedWithReason": "Failed: {reason}",
-      "expiresSoon": "Expires soon",
-      "minutesLeft": "{minutes}m left",
-      "noActive": "No active instances.",
-      "open": "Open",
-      "stopping": "Stopping…",
-      "delete": "Delete"
     },
     "newServerModal": {
       "header": {
@@ -4489,58 +4466,6 @@
       "createAllocationHint": "Create a tunnel allocation above to start forwarding traffic.",
       "closed": "Closed",
       "active": "Active"
-    }
-  },
-  "infrastructureCodeInstancesPage": {
-    "header": {
-      "title": "Code Instances",
-      "description": "Create and manage temporary code environments."
-    },
-    "intro": "Spin up isolated code instances for development and testing.",
-    "actions": {
-      "refresh": "Refresh",
-      "createCodeInstance": "Create Code Instance",
-      "stopDelete": "Stop & Delete",
-      "cancel": "Cancel",
-      "creating": "Creating...",
-      "create": "Create"
-    },
-    "table": {
-      "name": "Name",
-      "uuid": "UUID",
-      "resources": "Resources",
-      "resourcesValue": "{memory} MB / {cpu} CPU / {disk} MB",
-      "status": "Status",
-      "lastActivity": "Last Activity",
-      "actions": "Actions"
-    },
-    "states": {
-      "never": "Never",
-      "noInstances": "No code instances found."
-    },
-    "defaults": {
-      "instanceName": "Code Instance"
-    },
-    "dialog": {
-      "title": "Create Code Instance"
-    },
-    "form": {
-      "name": "Name",
-      "namePlaceholder": "my-code-instance",
-      "memory": "Memory (MB)",
-      "disk": "Disk (MB)",
-      "cpu": "CPU",
-      "instanceTemplate": "Instance Template"
-    },
-    "confirm": {
-      "stopDelete": "Stop and delete this code instance?"
-    },
-    "errors": {
-      "failedLoad": "Failed to load code instances.",
-      "noEggFound": "No code instance template found.",
-      "createFailed": "Failed to create code instance: {reason}",
-      "unexpectedCreateResponse": "Unexpected response while creating code instance.",
-      "failedCreate": "Failed to create code instance: {reason}"
     }
   },
   "infrastructureNodesPage": {

@@ -6,7 +6,6 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   tempEmailFilter: true,
   captcha: true,
   captchaInvisible: false,
-  codeInstances: true,
   billing: true,
   ai: true,
   dns: true,
@@ -19,11 +18,6 @@ export async function getPanelFeatureToggles(): Promise<Record<string, boolean>>
   const repo = AppDataSource.getRepository(PanelSetting);
   const row = await repo.findOneBy({ key: 'panelFeatureToggles' });
   const result = { ...DEFAULT_FEATURE_TOGGLES };
-
-  const codeInstancesSetting = await repo.findOneBy({ key: 'codeInstancesEnabled' });
-  if (codeInstancesSetting?.value === 'false') {
-    result.codeInstances = false;
-  }
 
   if (!row || !row.value) return result;
 

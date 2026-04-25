@@ -1451,7 +1451,6 @@ export default function AdminPanel() {
   const [panelSettings, setPanelSettings] = useState<{
     registrationEnabled: boolean
     registrationNotice: string
-    codeInstancesEnabled: boolean
     geoBlockCountries: string
     countryAgeRules: string
     billingCurrency: string
@@ -1463,7 +1462,6 @@ export default function AdminPanel() {
   }>({
     registrationEnabled: true,
     registrationNotice: "",
-    codeInstancesEnabled: true,
     geoBlockCountries: "",
     countryAgeRules: "",
     billingCurrency: "USD",
@@ -1473,7 +1471,6 @@ export default function AdminPanel() {
     gamblingPowerDenyChance: 0.5,
     featureToggles: {
       registration: true,
-      codeInstances: true,
       gambling: true,
       billing: true,
       ai: true,
@@ -1602,8 +1599,6 @@ export default function AdminPanel() {
             setPanelSettings({
               registrationEnabled: data.registrationEnabled ?? true,
               registrationNotice: data.registrationNotice ?? "",
-              codeInstancesEnabled:
-                data.codeInstancesEnabled === "false" ? false : Boolean(data.codeInstancesEnabled),
               geoBlockCountries: data.geoBlockCountries ?? "",
               countryAgeRules: data.countryAgeRules ?? "",
               billingCurrency: (data.billingCurrency ?? "USD").toUpperCase(),
@@ -1615,9 +1610,6 @@ export default function AdminPanel() {
                 typeof data.gamblingPowerDenyChance === "number" ? data.gamblingPowerDenyChance : 0.5,
               featureToggles: {
                 registration: true,
-                codeInstances: data.codeInstancesEnabled !== false
-                  ? (data.featureToggles?.codeInstances ?? true)
-                  : false,
                 gambling: data.gamblingEnabled !== false,
                 billing: true,
                 ai: true,

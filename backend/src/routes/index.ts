@@ -50,7 +50,6 @@ export function registerRoutes(app: any) {
         { prefix: '/api/orders', feature: 'billing' },
         { prefix: '/api/admin/orders', feature: 'billing' },
         { prefix: '/api/plans', feature: 'billing' },
-        { prefix: '/api/infrastructure/code-instances', feature: 'codeInstances' },
         { prefix: '/api/oauth', feature: 'oauth' },
         { prefix: '/api/users/register', feature: 'registration' },
       ];

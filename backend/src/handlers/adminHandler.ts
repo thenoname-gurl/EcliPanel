@@ -4886,12 +4886,10 @@ isSuspicious: true if fraudScore >= 50`;
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
     const featureToggles = await getPanelFeatureToggles();
-    const codeInstancesEnabled = map['codeInstancesEnabled'] !== 'false';
     return {
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
       portalDescriptions: portalDescriptions || null,
-      codeInstancesEnabled,
       geoBlockCountries: map['geoBlockCountries'] || '',
       countryAgeRules: map['countryAgeRules'] || '',
       billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
@@ -4907,7 +4905,6 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: t.Boolean(),
         registrationNotice: t.String(),
         portalDescriptions: t.Optional(t.Any()),
-        codeInstancesEnabled: t.Boolean(),
         featureToggles: t.Record(t.String(), t.Boolean()),
         geoBlockCountries: t.String(),
         countryAgeRules: t.Optional(t.String()),
@@ -4943,11 +4940,9 @@ isSuspicious: true if fraudScore >= 50`;
       try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
     }
     const featureToggles = await getPanelFeatureToggles();
-    const codeInstancesEnabled = map['codeInstancesEnabled'] !== 'false';
     return {
       registrationEnabled: map['registrationEnabled'] !== 'false',
       registrationNotice: map['registrationNotice'] || '',
-      codeInstancesEnabled,
       portalDescriptions: portalDescriptions || null,
       geoBlockCountries: map['geoBlockCountries'] || '',
       countryAgeRules: map['countryAgeRules'] || '',
@@ -4964,7 +4959,6 @@ isSuspicious: true if fraudScore >= 50`;
       200: t.Object({
         registrationEnabled: t.Boolean(),
         registrationNotice: t.String(),
-        codeInstancesEnabled: t.Boolean(),
         portalDescriptions: t.Optional(t.Any()),
         geoBlockCountries: t.String(),
         countryAgeRules: t.Optional(t.String()),
@@ -5068,7 +5062,7 @@ isSuspicious: true if fraudScore >= 50`;
     if (adminErr !== true) return adminErr;
     const repo = AppDataSource.getRepository(PanelSetting);
     const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice', 'codeInstancesEnabled', 'geoBlockCountries', 'countryAgeRules', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
+    const allowed = ['registrationEnabled', 'registrationNotice', 'geoBlockCountries', 'countryAgeRules', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
     for (const key of allowed) {
       if (body[key] !== undefined) {
         let value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
@@ -5106,7 +5100,6 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: map['registrationEnabled'] !== 'false',
         registrationNotice: map['registrationNotice'] || '',
         portalDescriptions: portalDescriptions || null,
-        codeInstancesEnabled: map['codeInstancesEnabled'] !== 'false',
         geoBlockCountries: map['geoBlockCountries'] || '',
         countryAgeRules: map['countryAgeRules'] || '',
         billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
@@ -5124,7 +5117,6 @@ isSuspicious: true if fraudScore >= 50`;
         registrationEnabled: t.Optional(t.Boolean()),
         registrationNotice: t.Optional(t.String()),
         portalDescriptions: t.Optional(t.Any()),
-        codeInstancesEnabled: t.Optional(t.Boolean()),
         geoBlockCountries: t.Optional(t.String()),
         billingCurrency: t.Optional(t.String()),
         billingTaxRules: t.Optional(t.String()),
