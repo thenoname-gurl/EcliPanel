@@ -23,6 +23,7 @@ import { t } from 'elysia';
 import { createExportJob, getExportJob, listExportJobs } from '../services/exportJobService';
 import { ExportJob } from '../models/exportJob.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
+import { ShortUrl } from '../models/shortUrl.entity';
 import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } from './remoteHandler';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
@@ -329,6 +330,26 @@ function requireAdminPermissionOrAdminApiKey(ctx: any, permission: string): true
   return requireAdminPermission(ctx, permission);
 }
 
+function normalizeShortUrlCode(value: any): string | null {
+  const code = String(value || '').trim().toLowerCase();
+  if (!code) return null;
+  if (!/^[a-z0-9_-]+$/.test(code)) return null;
+  return code;
+}
+
+function normalizeShortUrlPrefix(value: any): 'root' | 'a' {
+  const prefix = String(value || '').trim().toLowerCase();
+  return prefix === 'root' ? 'root' : 'a';
+}
+
+function canEditShortUrl(ctx: any, shortUrl: ShortUrl): boolean {
+  const apiKey = ctx.apiKey as any;
+  if (apiKey && apiKey.type === 'admin') return true;
+  if (hasPermissionSync(ctx, 'admin.shorturl.edit.any')) return true;
+  if (hasPermissionSync(ctx, 'admin.shorturl.edit.own') && ctx.user?.id === shortUrl.ownerId) return true;
+  return false;
+}
+
 function sanitizeAntiAbuseText(input: any, max = 12_000): string {
   return String(input || '').trim().slice(0, max);
 }
@@ -604,6 +625,199 @@ export async function adminRoutes(app: any, prefix = '') {
       403: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Get aggregated admin statistics (admin only)', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/shorturls', async (ctx) => {
+    const adminErr = requireAdminPageAccess(ctx);
+    if (adminErr !== true) return adminErr;
+
+    const shortUrlRepo = AppDataSource.getRepository(ShortUrl);
+    const entries = await shortUrlRepo.find({ relations: ['owner'], order: { createdAt: 'DESC' } });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      code: entry.code,
+      prefix: entry.prefix,
+      target: entry.target,
+      active: entry.active,
+      ownerId: entry.ownerId,
+      ownerEmail: entry.owner?.email || null,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+    }));
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Array(t.Any()),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'List admin short URLs', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/shorturls', async (ctx) => {
+    const adminErr = requireAdminPermission(ctx, 'admin.shorturl.add');
+    if (adminErr !== true) return adminErr;
+
+    const { code, target, prefix } = ctx.body as any;
+    const normalizedCode = normalizeShortUrlCode(code);
+    const normalizedPrefix = normalizeShortUrlPrefix(prefix);
+    const destination = String(target || '').trim();
+
+    if (!normalizedCode) {
+      ctx.set.status = 400;
+      return { error: 'code must contain only letters, numbers, underscores, or hyphens' };
+    }
+    if (!destination) {
+      ctx.set.status = 400;
+      return { error: 'target is required' };
+    }
+
+    const shortUrlRepo = AppDataSource.getRepository(ShortUrl);
+    const existing = await shortUrlRepo.findOne({ where: { code: normalizedCode, prefix: normalizedPrefix } });
+    if (existing) {
+      ctx.set.status = 409;
+      return { error: 'Short URL already exists for this path' };
+    }
+
+    const shortUrl = shortUrlRepo.create({
+      code: normalizedCode,
+      prefix: normalizedPrefix,
+      target: destination,
+      active: true,
+      owner: ctx.user,
+    });
+    await shortUrlRepo.save(shortUrl);
+
+    return {
+      id: shortUrl.id,
+      code: shortUrl.code,
+      prefix: shortUrl.prefix,
+      target: shortUrl.target,
+      active: shortUrl.active,
+      ownerId: shortUrl.ownerId,
+      createdAt: shortUrl.createdAt,
+      updatedAt: shortUrl.updatedAt,
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      409: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Create an admin short URL', tags: ['Admin'] },
+  });
+
+  app.patch(prefix + '/admin/shorturls/:id', async (ctx) => {
+    const adminErr = requireAdminPageAccess(ctx);
+    if (adminErr !== true) return adminErr;
+
+    const id = Number(ctx.params['id']);
+    if (!Number.isFinite(id)) {
+      ctx.set.status = 400;
+      return { error: 'Invalid short URL id' };
+    }
+
+    const shortUrlRepo = AppDataSource.getRepository(ShortUrl);
+    const shortUrl = await shortUrlRepo.findOne({ where: { id }, relations: ['owner'] });
+    if (!shortUrl) {
+      ctx.set.status = 404;
+      return { error: 'Short URL not found' };
+    }
+
+    if (!canEditShortUrl(ctx, shortUrl)) {
+      ctx.set.status = 403;
+      return { error: 'Admin permission admin.shorturl.edit.required' };
+    }
+
+    const { code, target, prefix, active } = ctx.body as any;
+    if (code !== undefined) {
+      const normalizedCode = normalizeShortUrlCode(code);
+      if (!normalizedCode) {
+        ctx.set.status = 400;
+        return { error: 'code must contain only letters, numbers, underscores, or hyphens' };
+      }
+      shortUrl.code = normalizedCode;
+    }
+    if (prefix !== undefined) {
+      shortUrl.prefix = normalizeShortUrlPrefix(prefix);
+    }
+    if (target !== undefined) {
+      const destination = String(target || '').trim();
+      if (!destination) {
+        ctx.set.status = 400;
+        return { error: 'target is required' };
+      }
+      shortUrl.target = destination;
+    }
+    if (active !== undefined) {
+      shortUrl.active = Boolean(active);
+    }
+
+    const existing = await shortUrlRepo.findOne({ where: { code: shortUrl.code, prefix: shortUrl.prefix } });
+    if (existing && existing.id !== shortUrl.id) {
+      ctx.set.status = 409;
+      return { error: 'Another short URL exists with the same code and prefix' };
+    }
+
+    await shortUrlRepo.save(shortUrl);
+
+    return {
+      id: shortUrl.id,
+      code: shortUrl.code,
+      prefix: shortUrl.prefix,
+      target: shortUrl.target,
+      active: shortUrl.active,
+      ownerId: shortUrl.ownerId,
+      ownerEmail: shortUrl.owner?.email || null,
+      createdAt: shortUrl.createdAt,
+      updatedAt: shortUrl.updatedAt,
+    };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+      409: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Update an admin short URL', tags: ['Admin'] },
+  });
+
+  app.delete(prefix + '/admin/shorturls/:id', async (ctx) => {
+    const adminErr = requireAdminPermission(ctx, 'admin.shorturl.remove');
+    if (adminErr !== true) return adminErr;
+
+    const id = Number(ctx.params['id']);
+    if (!Number.isFinite(id)) {
+      ctx.set.status = 400;
+      return { error: 'Invalid short URL id' };
+    }
+
+    const shortUrlRepo = AppDataSource.getRepository(ShortUrl);
+    const shortUrl = await shortUrlRepo.findOne({ where: { id } });
+    if (!shortUrl) {
+      ctx.set.status = 404;
+      return { error: 'Short URL not found' };
+    }
+
+    await shortUrlRepo.remove(shortUrl);
+    return { success: true };
+  }, {
+    beforeHandle: authenticate,
+    response: {
+      200: t.Object({ success: t.Boolean() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Delete an admin short URL', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/metrics', async (ctx) => {
