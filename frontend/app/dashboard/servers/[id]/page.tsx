@@ -673,6 +673,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     (user.role === "*" || user.role === "rootAdmin" || user.role === "admin" || user.role === "staff")
   )
 
+  const [mounts, setMounts] = useState<any[] | null>(null)
+  useEffect(() => {
+    apiFetch(`/api/servers/${id}/mounts`)
+      .then((data) => setMounts(Array.isArray(data) ? data : []))
+      .catch(() => setMounts([]))
+  }, [id])
+
   const [editorSettings, setEditorSettings] = useState<EditorSettings | undefined>(undefined)
   const [server, setServer] = useState<any>(null)
   const [subuserEntry, setSubuserEntry] = useState<any | null>(null)
@@ -982,8 +989,8 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     [subuserEntry?.permissions]
   )
 
-  const tabs: TabItem[] = useMemo(
-    () => [
+  const tabs: TabItem[] = useMemo(() => {
+    const baseTabs = [
       { id: "console", label: t("tabs.console"), icon: Terminal },
       { id: "stats", label: t("tabs.statistics"), icon: BarChart3, shortLabel: t("tabs.statsShort") },
       { id: "files", label: t("tabs.files"), icon: Folder },
@@ -995,11 +1002,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       { id: "backups", label: t("tabs.backups"), icon: HardDrive },
       { id: "activity", label: t("tabs.activity"), icon: Activity },
       { id: "subusers", label: t("tabs.subusers"), icon: Users },
-      { id: "mounts", label: t("tabs.mounts"), icon: Box },
       { id: "settings", label: t("tabs.settings"), icon: Settings },
-    ],
-    [t, isKvm]
-  )
+    ]
+    if (mounts && mounts.length > 0) {
+      baseTabs.splice(baseTabs.length - 1, 0, { id: "mounts", label: t("tabs.mounts"), icon: Box })
+    }
+    return baseTabs
+  }, [t, isKvm, mounts])
 
   const tabPermissionMap: Record<string, string | null> = useMemo(
     () => ({
