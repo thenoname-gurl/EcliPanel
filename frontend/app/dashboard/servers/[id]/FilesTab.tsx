@@ -843,13 +843,17 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
           ? API_ENDPOINTS.serverSftpFileUpload.replace(":id", serverId)
           : API_ENDPOINTS.serverFileUpload.replace(":id", serverId)) +
           `?path=${encodeURIComponent(filePath)}`
+        const token = localStorage.getItem("token")
+        const headers: Record<string, string> = {
+          "Content-Type": "application/octet-stream",
+          ...(isSftpMode ? sftpHeaders : {}),
+        }
+        if (token) {
+          headers.Authorization = `Bearer ${token}`
+        }
         const res = await fetch(url, {
           method: "POST", credentials: "include",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-            "Content-Type": "application/octet-stream",
-            ...(isSftpMode ? sftpHeaders : {}),
-          },
+          headers,
           body: new Uint8Array(buf),
         })
         if (!res.ok) throw new Error(await res.text() || `Upload failed: ${res.status}`)
