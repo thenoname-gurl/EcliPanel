@@ -926,9 +926,14 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
     if (isImageFile(name)) {
       try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        const headers: Record<string, string> = {}
+        if (token) {
+          headers.Authorization = `Bearer ${token}`
+        }
         const res = await fetch(
           API_ENDPOINTS.serverFileDownload.replace(":id", serverId) + `?path=${encodeURIComponent(filePath)}`,
-          { credentials: "include", headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` } }
+          { credentials: "include", headers }
         )
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const blob = await res.blob()
@@ -1088,6 +1093,13 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   // ── Download ─────────────────────────────────────────────────────────────────
   const downloadFile = async (fileName: string) => {
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: Record<string, string> = {
+        ...(isSftpMode ? sftpHeaders : {}),
+      }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
       const ep = isSftpMode
         ? API_ENDPOINTS.serverSftpFileDownload.replace(":id", serverId)
         : API_ENDPOINTS.serverFileDownload.replace(":id", serverId)
@@ -1095,10 +1107,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         ep + `?path=${encodeURIComponent(path + fileName)}`,
         {
           credentials: "include",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-            ...(isSftpMode ? sftpHeaders : {}),
-          },
+          headers,
         }
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
