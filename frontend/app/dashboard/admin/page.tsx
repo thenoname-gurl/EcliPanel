@@ -1418,6 +1418,14 @@ export default function AdminPanel() {
   const [esEggId, setEsEggId] = useState<string | undefined>(undefined)
   const [esReinstalling, setEsReinstalling] = useState(false)
   const [esAutoSyncOnEggChange, setEsAutoSyncOnEggChange] = useState<boolean>(true)
+  const [esAttachedMounts, setEsAttachedMounts] = useState<any[]>([])
+  const [esAvailableMounts, setEsAvailableMounts] = useState<any[]>([])
+  const [esSelectedMountId, setEsSelectedMountId] = useState<string>("")
+  const [esMountsLoading, setEsMountsLoading] = useState(false)
+  const [esMountsSaving, setEsMountsSaving] = useState(false)
+  const [esMountsError, setEsMountsError] = useState("")
+
+  const canManageServerMounts = !!user && (hasPermission(user, 'admin.mounts.add/remove') || hasPermission(user, 'admin:servers:manage'))
 
   // ── Create Server dialog ──
   const [createServerOpen, setCreateServerOpen] = useState(false)
@@ -2395,9 +2403,77 @@ export default function AdminPanel() {
         if (Array.isArray(data)) setEsAllocations(data.map((a: any) => ({ ip: a.ip, port: a.port, is_default: !!a.is_default, fqdn: a.fqdn || "" })))
       })
       .catch(() => { })
-    // ensure eggs are loaded for the egg selector
+
+    if (canManageServerMounts) {
+      await loadEditServerMounts(mergedServer.uuid || srv.uuid)
+    } else {
+      setEsAttachedMounts([])
+      setEsAvailableMounts([])
+      setEsSelectedMountId("")
+      setEsMountsError("")
+    }
+
     if (eggs.length === 0) {
       apiFetch(API_ENDPOINTS.adminEggs).then((data: any) => setEggs(data || [])).catch(() => { })
+    }
+  }
+
+  async function loadEditServerMounts(serverUuid: string) {
+    setEsMountsLoading(true)
+    setEsMountsError("")
+    try {
+      const [attached, available] = await Promise.all([
+        apiFetch(API_ENDPOINTS.serverMounts.replace(":id", serverUuid)),
+        apiFetch(API_ENDPOINTS.adminMounts),
+      ])
+
+      const attachedMounts = Array.isArray(attached) ? attached : []
+      const allMounts = Array.isArray(available) ? available : []
+      const availableMounts = allMounts.filter((mount) => !attachedMounts.some((attachedMount) => attachedMount.id === mount.id))
+
+      setEsAttachedMounts(attachedMounts)
+      setEsAvailableMounts(availableMounts)
+      setEsSelectedMountId(availableMounts[0]?.id ? String(availableMounts[0].id) : "")
+    } catch (e: any) {
+      setEsMountsError(e?.message || "Failed to load mounts")
+      setEsAttachedMounts([])
+      setEsAvailableMounts([])
+      setEsSelectedMountId("")
+    } finally {
+      setEsMountsLoading(false)
+    }
+  }
+
+  async function attachEditServerMount() {
+    if (!editServerDialog || !esSelectedMountId) return
+    setEsMountsSaving(true)
+    setEsMountsError("")
+    try {
+      await apiFetch(API_ENDPOINTS.adminServerMounts.replace(":id", editServerDialog.uuid), {
+        method: "POST",
+        body: JSON.stringify({ mountId: Number(esSelectedMountId) }),
+      })
+      await loadEditServerMounts(editServerDialog.uuid)
+    } catch (e: any) {
+      setEsMountsError(e?.message || "Failed to attach mount")
+    } finally {
+      setEsMountsSaving(false)
+    }
+  }
+
+  async function detachEditServerMount(mountId: number) {
+    if (!editServerDialog) return
+    setEsMountsSaving(true)
+    setEsMountsError("")
+    try {
+      await apiFetch(API_ENDPOINTS.adminServerMountDelete.replace(":id", editServerDialog.uuid).replace(":mountId", String(mountId)), {
+        method: "DELETE",
+      })
+      await loadEditServerMounts(editServerDialog.uuid)
+    } catch (e: any) {
+      setEsMountsError(e?.message || "Failed to remove mount")
+    } finally {
+      setEsMountsSaving(false)
     }
   }
 
@@ -6195,6 +6271,58 @@ remote: ${panelUrl}`
                   }}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
                 </div>
               </div>
+              {canManageServerMounts && (
+                <div className="col-span-2 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mount Attachments</label>
+                      <p className="text-[11px] text-muted-foreground mt-1">Attach existing mounts to this server. Read-only mounts are honored by Wings via the mount definition.</p>
+                    </div>
+                    {esMountsLoading && <span className="text-xs text-muted-foreground">Loading mounts…</span>}
+                  </div>
+                  <div className="space-y-2">
+                    {esAttachedMounts.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">No mounts attached.</p>
+                    ) : esAttachedMounts.map((mount) => (
+                      <div key={mount.id} className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground truncate">{mount.name || `${mount.source} → ${mount.target}`}</p>
+                          <p className="text-xs text-muted-foreground truncate">{mount.source} → {mount.target}</p>
+                          <p className="text-xs text-muted-foreground">{mount.read_only ? 'Read-only' : 'Read/write'}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-9" onClick={() => detachEditServerMount(mount.id)} disabled={esMountsSaving}>
+                          <Trash2 className="h-4 w-4" /> Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    {esAvailableMounts.length > 0 ? (
+                      <Select value={esSelectedMountId} onValueChange={(v) => setEsSelectedMountId(v)} disabled={esMountsLoading || esMountsSaving}>
+                        <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                          <SelectValue placeholder="Select a mount to attach" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000]">
+                          {esAvailableMounts.map((mount) => (
+                            <SelectItem key={mount.id} value={String(mount.id)}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{mount.name || `${mount.source} → ${mount.target}`}</span>
+                                <span className="text-xs text-muted-foreground line-clamp-1">{mount.source} → {mount.target} — {mount.read_only ? 'Read-only' : 'Read/write'}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">No additional mounts available to attach.</div>
+                    )}
+                    <Button size="sm" variant="outline" className="border-border h-9" onClick={attachEditServerMount} disabled={!esSelectedMountId || esMountsSaving || esAvailableMounts.length === 0}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Attach
+                    </Button>
+                  </div>
+                  {esMountsError && <p className="text-xs text-destructive">{esMountsError}</p>}
+                </div>
+              )}
             </div>
             {esError && <p className="text-xs text-destructive">{esError}</p>}
           </div>

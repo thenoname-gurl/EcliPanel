@@ -67,6 +67,7 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'admin:servers:read', category: 'Admin', description: 'View server list and details in admin portal', admin: true },
   { value: 'admin:servers:write', category: 'Admin', description: 'Create and manage server ownership or basic properties', admin: true },
   { value: 'admin:servers:manage', category: 'Admin', description: 'Change server resources, config, KVM state, and mount attachments', admin: true },
+  { value: 'admin.mounts.add/remove', category: 'Admin', description: 'Attach or detach mounts to a server', admin: true },
   { value: 'admin:servers:delete', category: 'Admin', description: 'Delete servers from Wings and local config', admin: true },
   { value: 'admin:servers:suspend', category: 'Admin', description: 'Suspend and unsuspend servers', admin: true },
   { value: 'admin:metrics', category: 'Global', description: 'View platform metrics dashboard', admin: true },

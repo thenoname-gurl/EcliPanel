@@ -5,7 +5,7 @@ import { Notification } from '../models/notification.entity';
 import { OutboundEmail } from '../models/outboundEmail.entity';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
-import { hashPassword, comparePassword } from '../utils/password';
+import { hashPassword, comparePassword, isLegacyPasswordHash } from '../utils/password';
 import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
@@ -79,6 +79,7 @@ async function safeUser(user: User): Promise<any> {
   const { passwordHash, sessions, ...safe } = user as any;
   safe.geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
   safe.isGeoSubuserOnly = safe.geoBlockLevel === 4;
+  safe.usesLegacyPasswordHash = isLegacyPasswordHash(user.passwordHash);
 
   if (safe.fraudDetectedAt instanceof Date) {
     safe.fraudDetectedAt = safe.fraudDetectedAt.toISOString();

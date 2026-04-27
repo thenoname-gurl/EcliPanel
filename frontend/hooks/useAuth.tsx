@@ -47,6 +47,7 @@ export interface User {
   parentId?: number | null
   isChildAccount?: boolean
   ageVerificationRequired?: boolean
+  usesLegacyPasswordHash?: boolean
   limits?: Record<string, number> | null
 }
 

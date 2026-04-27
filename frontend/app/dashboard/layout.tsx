@@ -2,6 +2,7 @@
 
 import { PanelSidebar } from "@/components/panel/sidebar"
 import { EnforcementBanner } from "@/components/panel/enforcement-banner"
+import { PasswordUpgradeBanner } from "@/components/panel/password-upgrade-banner"
 import { Footer } from "@/components/Footer"
 
 import { useEffect, useState } from "react";
@@ -56,6 +57,7 @@ export default function DashboardLayout({
         )}
 
         <EnforcementBanner />
+        <PasswordUpgradeBanner />
         <div className={"flex-1 min-h-0"}>
           {children}
         </div>

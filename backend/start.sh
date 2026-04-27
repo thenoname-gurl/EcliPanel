@@ -67,6 +67,10 @@ export DOVECOT_MASTER_USER=${DOVECOT_MASTER_USER:-""}
 export DOVECOT_MASTER_PASS=${DOVECOT_MASTER_PASS:-""}
 export DOVECOT_MASTER_DOMAIN=${DOVECOT_MASTER_DOMAIN:-""}
 export IMAP_FETCH_CRON=${IMAP_FETCH_CRON:-""}
+
+export NODE_ENCRYPTION_KEY=${NODE_ENCRYPTION_KEY:-""}
+export NODE_PQ_ENCRYPTION_SEED=${NODE_PQ_ENCRYPTION_SEED:-""}
+
 echo "--- environment loaded ---"
 
 if command -v bun >/dev/null 2>&1; then

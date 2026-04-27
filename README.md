@@ -44,6 +44,7 @@ After installing wings complete backend and frontend setup then start them again
    sudo apt install ffmpeg #if using captcha
    sudo apt install espeak #if using captcha
    bun run gen:jwt-secret # generate all secrets needed by .env and set them manually!
+   bun -e "console.log((await import('crypto')).randomBytes(64).toString('base64'))" # generate NODE_PQ_ENCRYPTION_SEED
    nano .env              # edit .env (see .env.example)
    bun run gen:default-role # create default role
    # for development you can simply run:
