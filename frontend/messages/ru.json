@@ -722,6 +722,8 @@
     "hidePassword": "Скрыть пароль",
     "showPassword": "Показать пароль",
     "forgotPassword": "Забыли пароль?",
+    "resend": "Отправить снова",
+    "emailCodeSent": "Код отправлен на почту. Проверьте входящие.",
     "signingIn": "Вход...",
     "signIn": "Войти",
     "orContinueWith": "или продолжить с",

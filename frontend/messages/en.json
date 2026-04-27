@@ -729,6 +729,8 @@
     "hidePassword": "Hide password",
     "showPassword": "Show password",
     "forgotPassword": "Forgot password?",
+    "resend": "Resend",
+    "emailCodeSent": "Email code sent. Check your inbox.",
     "signingIn": "Signing in...",
     "signIn": "Sign In",
     "orContinueWith": "or continue with",
@@ -3251,6 +3253,12 @@
       "activeSessionsHint": "Manage your logged-in devices and locations",
       "passwordUpdated": "Password updated successfully.",
       "confirmLogoutElsewhere": "This will log you out of all devices except this one. Continue?",
+      "passwordUpgrade": {
+        "title": "Upgrade your password security",
+        "description": "Your account is still using an older bcrypt password hash. Update your password to migrate to new Argon2id hash!",
+        "action": "Update password",
+        "dismiss": "Dismiss"
+      },
       "loggedOutElsewhere": "Logged out of all sessions successfully",
       "confirmDeletion": "⚠️ Request account deletion? This action cannot be undone and all your data will be permanently removed.",
       "deletionSubmitted": "Deletion request submitted. Our team will process your request within 30 days.",

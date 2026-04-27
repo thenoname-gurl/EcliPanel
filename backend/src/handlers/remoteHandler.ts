@@ -541,8 +541,8 @@ export async function remoteRoutes(app: any, prefix: string) {
       }
 
       if (authType === 'password') {
-        const bcrypt = require('bcryptjs');
-        const valid = await bcrypt.compare(password, user.passwordHash);
+        const { comparePassword } = require('../utils/password');
+        const valid = await comparePassword(password, user.passwordHash);
         if (!valid) {
           ctx.set.status = 403;
           return { errors: [{ code: 'Forbidden', detail: 'Invalid password' }] };

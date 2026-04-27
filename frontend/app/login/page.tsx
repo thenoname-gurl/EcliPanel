@@ -263,6 +263,7 @@ export default function LoginPage() {
   const [backupCode, setBackupCode] = useState("")
   const [emailCode, setEmailCode] = useState("")
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
   const [otpMethod, setOtpMethod] = useState<OtpMethod | null>(null)
   const [domainOk, setDomainOk] = useState<boolean | null>(null)
   const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(() => {
@@ -362,6 +363,7 @@ export default function LoginPage() {
         body: JSON.stringify({ tempToken }),
       })
       setError(null)
+      setEmailSent(true)
     } catch (e: any) {
       setError(e.message || t("failedToSendEmailCode"))
     }
@@ -570,21 +572,30 @@ export default function LoginPage() {
                       label={t("methodAuthenticator")}
                       description={t("methodAuthenticatorDesc")}
                       selected={otpMethod === "totp"}
-                      onClick={() => setOtpMethod("totp")}
+                      onClick={() => {
+                        setOtpMethod("totp")
+                        setEmailSent(false)
+                      }}
                     />
                     <TwoFactorMethodButton
                       icon={MailCheck}
                       label={t("methodEmail")}
                       description={t("methodEmailDesc")}
                       selected={otpMethod === "email"}
-                      onClick={() => setOtpMethod("email")}
+                      onClick={() => {
+                        setOtpMethod("email")
+                        setEmailSent(false)
+                      }}
                     />
                     <TwoFactorMethodButton
                       icon={KeyRound}
                       label={t("methodBackup")}
                       description={t("methodBackupDesc")}
                       selected={otpMethod === "backup"}
-                      onClick={() => setOtpMethod("backup")}
+                      onClick={() => {
+                        setOtpMethod("backup")
+                        setEmailSent(false)
+                      }}
                     />
                   </div>
 
@@ -643,11 +654,17 @@ export default function LoginPage() {
                                 {sendingEmail ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  t("send")
+                                  emailSent ? t("resend") : t("send")
                                 )}
                               </button>
                             </div>
                           </div>
+
+                          {emailSent && (
+                            <p className="text-xs text-success/80">
+                              {t("emailCodeSent")}
+                            </p>
+                          )}
                         </div>
                       )}
 

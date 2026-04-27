@@ -10,13 +10,13 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column('text')
   firstName: string;
 
   @Column({ nullable: true })
   middleName?: string;
 
-  @Column()
+  @Column('text')
   lastName: string;
 
   @Column({ nullable: true })
@@ -28,7 +28,7 @@ export class User {
   @Column('text', { nullable: true })
   address2?: string;
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   phone?: string;
 
   @Column('text', { nullable: true })
@@ -47,41 +47,52 @@ export class User {
   @AfterLoad()
   afterLoadDecrypt() {
     try {
-      const { decrypt } = require('../utils/crypto');
-      const isEnc = (v: any) => typeof v === 'string' && v.split(':').length === 3;
-      if (this.address && isEnc(this.address)) {
-        this.address = decrypt(this.address);
-      }
-      if (this.address2 && isEnc(this.address2)) {
-        this.address2 = decrypt(this.address2);
-      }
-      if (this.phone && isEnc(this.phone)) {
-        this.phone = decrypt(this.phone);
-      }
-      if (this.firstName && isEnc(this.firstName)) {
-        this.firstName = decrypt(this.firstName);
-      }
-      if (this.lastName && isEnc(this.lastName)) {
-        this.lastName = decrypt(this.lastName);
-      }
-      if (this.billingCompany && isEnc(this.billingCompany)) {
-        this.billingCompany = decrypt(this.billingCompany);
-      }
-      if (this.billingCity && isEnc(this.billingCity)) {
-        this.billingCity = decrypt(this.billingCity);
-      }
-      if (this.billingState && isEnc(this.billingState)) {
-        this.billingState = decrypt(this.billingState);
-      }
-      if (this.billingZip && isEnc(this.billingZip)) {
-        this.billingZip = decrypt(this.billingZip);
-      }
-      if (this.billingCountry && isEnc(this.billingCountry)) {
-        this.billingCountry = decrypt(this.billingCountry);
-      }
-      if (this.dateOfBirth && isEnc(this.dateOfBirth)) {
+      const { decrypt, encrypt, isEncryptedString, isLegacyEncryptedString } = require('../utils/crypto');
+      const legacyUpdates: Record<string, string> = {};
+
+      const normalizeField = (fieldName: keyof User, value: any) => {
+        if (value && isEncryptedString(value)) {
+          const decrypted = decrypt(value);
+          if (isLegacyEncryptedString(value)) {
+            legacyUpdates[fieldName as string] = decrypted;
+          }
+          return decrypted;
+        }
+        return value;
+      };
+
+      this.address = normalizeField('address', this.address);
+      this.address2 = normalizeField('address2', this.address2);
+      this.phone = normalizeField('phone', this.phone);
+      this.firstName = normalizeField('firstName', this.firstName);
+      this.lastName = normalizeField('lastName', this.lastName);
+      this.billingCompany = normalizeField('billingCompany', this.billingCompany);
+      this.billingCity = normalizeField('billingCity', this.billingCity);
+      this.billingState = normalizeField('billingState', this.billingState);
+      this.billingZip = normalizeField('billingZip', this.billingZip);
+      this.billingCountry = normalizeField('billingCountry', this.billingCountry);
+      if (this.dateOfBirth && isEncryptedString(this.dateOfBirth)) {
         const decrypted = decrypt(this.dateOfBirth);
+        if (isLegacyEncryptedString(this.dateOfBirth)) {
+          legacyUpdates.dateOfBirth = decrypted;
+        }
         this.dateOfBirth = new Date(decrypted);
+      }
+
+      if (this.id && Object.keys(legacyUpdates).length > 0) {
+        try {
+          const { AppDataSource } = require('../config/typeorm');
+          if (AppDataSource?.isInitialized) {
+            const repo = AppDataSource.getRepository(this.constructor as any);
+            const updatePayload: any = {};
+            for (const [key, plaintext] of Object.entries(legacyUpdates)) {
+              updatePayload[key] = encrypt(plaintext);
+            }
+            void repo.update(this.id, updatePayload).catch(() => {});
+          }
+        } catch (e) {
+          console.log(`Error updating legacy encrypted fields for user ${this.id}: ${e}`);
+        }
       }
     } catch (e) {
       //skip
@@ -92,8 +103,8 @@ export class User {
   @BeforeUpdate()
   encryptFieldsBeforeSave() {
     try {
-      const { encrypt } = require('../utils/crypto');
-      const isEnc = (v: any) => typeof v === 'string' && v.split(':').length === 3;
+      const { encrypt, isEncryptedString } = require('../utils/crypto');
+      const isEnc = (v: any) => isEncryptedString(v);
       if (this.address && !isEnc(this.address)) {
         this.address = encrypt(this.address);
       }
@@ -142,19 +153,19 @@ export class User {
     this.afterLoadDecrypt();
   }
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   billingCompany?: string;
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   billingCity?: string;
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   billingState?: string;
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   billingZip?: string;
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   billingCountry?: string;
 
   @Column({ default: false })

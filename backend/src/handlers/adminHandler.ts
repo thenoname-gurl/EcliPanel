@@ -255,6 +255,7 @@ const ADMIN_PAGE_PERMISSIONS = [
   'admin:servers:read',
   'admin:servers:write',
   'admin:servers:manage',
+  'admin.mounts.add/remove',
   'admin:servers:delete',
   'admin:servers:suspend',
   'admin:kyc:view',
@@ -332,6 +333,21 @@ function requireAdminPermissionOrAdminApiKey(ctx: any, permission: string): true
   const apiKey = ctx.apiKey as any;
   if (apiKey && apiKey.type === 'admin') return true;
   return requireAdminPermission(ctx, permission);
+}
+
+function requireAdminMountsPermission(ctx: any): true | { error: string } {
+  const apiKey = ctx.apiKey as any;
+  const user = ctx.user as User | undefined;
+  if (!user && !(apiKey && apiKey.type === 'admin')) {
+    ctx.set.status = 401;
+    return { error: 'Unauthorized' };
+  }
+  if (apiKey && apiKey.type === 'admin') return true;
+  if (hasPermissionSync(ctx, 'admin.mounts.add/remove') || hasPermissionSync(ctx, 'admin:servers:manage')) {
+    return true;
+  }
+  ctx.set.status = 403;
+  return { error: 'Admin permission admin.mounts.add/remove required.' };
 }
 
 const RESERVED_SHORT_URL_ROOT_CODES = new Set([
@@ -5540,7 +5556,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.post(prefix + '/admin/servers/:id/mounts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+    const adminErr = requireAdminMountsPermission(ctx);
     if (adminErr !== true) return adminErr;
     const { id: uuid } = ctx.params as any;
     const { mountId } = ctx.body as any;
@@ -5581,7 +5597,7 @@ isSuspicious: true if fraudScore >= 50`;
   });
 
   app.delete(prefix + '/admin/servers/:id/mounts/:mountId', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+    const adminErr = requireAdminMountsPermission(ctx);
     if (adminErr !== true) return adminErr;
     const { id: uuid, mountId } = ctx.params as any;
     const smRepo = AppDataSource.getRepository(ServerMount);

@@ -3,7 +3,7 @@ import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
-import { comparePassword, hashPassword } from '../utils/password';
+import { comparePassword, hashPassword, isLegacyPasswordHash } from '../utils/password';
 import { getGeoBlockLevel, canPerformIdVerification } from '../utils/eu';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
@@ -1564,6 +1564,7 @@ export async function authRoutes(app: any, prefix = '') {
         nodeId: (user as any).nodeId || null,
         settings: (user as any).settings || null,
         permissions: ctx.userPermissions || [],
+        usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
         geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
         idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
         demoExpiresAt: user.demoExpiresAt || null,
