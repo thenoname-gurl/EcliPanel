@@ -728,7 +728,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
   const breadcrumbs = useMemo(() => path.split("/").filter(Boolean), [path])
   const isSftpMode = isKvm && viewMode === "sftp"
-  const canUseSftp = isKvm && !!sftpInfo?.host && !!sftpInfo?.port && !!sftpInfo?.username
+  const canUseSftp = Boolean(isKvm && sftpInfo?.host && sftpInfo?.port && sftpInfo?.username)
   const sftpHeaders = useMemo<Record<string, string> | undefined>(
     () => sftpPassword ? { "x-sftp-password": sftpPassword } : undefined,
     [sftpPassword]
@@ -829,50 +829,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   useEffect(() => { tryAutoSftpPassword() }, [tryAutoSftpPassword])
   useEffect(() => () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl) }, [imagePreviewUrl])
 
-  // ── Drag & drop ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const el = dropRef.current
-    if (!el) return
-    const onEnter = (e: DragEvent) => { e.preventDefault(); if (e.dataTransfer?.types.includes("Files")) setIsDragActive(true) }
-    const onLeave = (e: DragEvent) => { e.preventDefault(); if (e.target === el) setIsDragActive(false) }
-    const onOver = (e: DragEvent) => e.preventDefault()
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault(); setIsDragActive(false)
-      if (e.dataTransfer?.files) handleFileUpload(e.dataTransfer.files)
-    }
-    el.addEventListener("dragenter", onEnter)
-    el.addEventListener("dragleave", onLeave)
-    el.addEventListener("dragover", onOver)
-    el.addEventListener("drop", onDrop)
-    return () => {
-      el.removeEventListener("dragenter", onEnter)
-      el.removeEventListener("dragleave", onLeave)
-      el.removeEventListener("dragover", onOver)
-      el.removeEventListener("drop", onDrop)
-    }
-  }, [path]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Connect SFTP ────────────────────────────────────────────────────────────
-  const connectSftp = async () => {
-    if (!sftpPassword) { setSftpError(t("errors.sftpAuthRequired")); return }
-    setSftpChecking(true); setSftpError(null)
-    try {
-      await apiFetch(
-        API_ENDPOINTS.serverSftpValidate.replace(":id", serverId) + `?path=${encodeURIComponent(path)}`,
-        { method: "POST", headers: sftpHeaders }
-      )
-      setSftpAuthorized(true)
-      toast("success", t("states.sftpConnected"))
-    } catch (err: any) {
-      setSftpAuthorized(false)
-      setSftpError(err?.message || t("errors.sftpAuthFailed"))
-    } finally {
-      setSftpChecking(false)
-    }
-  }
-
   // ── Upload ──────────────────────────────────────────────────────────────────
-  const handleFileUpload = async (fileList: FileList) => {
+  const handleFileUpload = useCallback(async (fileList: FileList) => {
     if (!fileList.length) return
     if (isSftpMode && !sftpAuthorized) { toast("error", t("errors.sftpAuthRequired")); return }
     setUploading(true)
@@ -903,6 +861,58 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }, [isSftpMode, sftpAuthorized, sftpHeaders, path, serverId, toast, t, loadFiles])
+
+  // ── Drag & drop ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = dropRef.current
+    if (!el) return
+    const onEnter = (e: DragEvent) => {
+      e.preventDefault()
+      if (e.dataTransfer?.types.includes("Files")) setIsDragActive(true)
+    }
+    const onLeave = (e: DragEvent) => {
+      e.preventDefault()
+      const related = e.relatedTarget as Node | null
+      if (!related || !el.contains(related)) {
+        setIsDragActive(false)
+      }
+    }
+    const onOver = (e: DragEvent) => e.preventDefault()
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault()
+      setIsDragActive(false)
+      if (e.dataTransfer?.files) handleFileUpload(e.dataTransfer.files)
+    }
+    el.addEventListener("dragenter", onEnter)
+    el.addEventListener("dragleave", onLeave)
+    el.addEventListener("dragover", onOver)
+    el.addEventListener("drop", onDrop)
+    return () => {
+      el.removeEventListener("dragenter", onEnter)
+      el.removeEventListener("dragleave", onLeave)
+      el.removeEventListener("dragover", onOver)
+      el.removeEventListener("drop", onDrop)
+    }
+  }, [path, handleFileUpload])
+
+  // ── Connect SFTP ────────────────────────────────────────────────────────────
+  const connectSftp = async () => {
+    if (!sftpPassword) { setSftpError(t("errors.sftpAuthRequired")); return }
+    setSftpChecking(true); setSftpError(null)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverSftpValidate.replace(":id", serverId) + `?path=${encodeURIComponent(path)}`,
+        { method: "POST", headers: sftpHeaders }
+      )
+      setSftpAuthorized(true)
+      toast("success", t("states.sftpConnected"))
+    } catch (err: any) {
+      setSftpAuthorized(false)
+      setSftpError(err?.message || t("errors.sftpAuthFailed"))
+    } finally {
+      setSftpChecking(false)
     }
   }
 
