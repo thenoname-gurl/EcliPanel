@@ -1265,6 +1265,7 @@
       "antiabuse": "Anti-Abuse",
       "fraud": "Fraud",
       "roles": "Roles",
+      "shortUrls": "Short URLs",
       "logs": "Logs",
       "oauth": "OAuth",
       "databases": "Databases",
@@ -1272,6 +1273,50 @@
       "orders": "Orders",
       "settings": "Settings",
       "tunnels": "Tunnels"
+    },
+    "shortUrls": {
+      "overview": {
+        "title": "Short URLs",
+        "description": "Create and manage short redirect codes for ecli.app and ecli.app/a/.",
+        "count": "{count} total",
+        "activeCount": "{count} active"
+      },
+      "editor": {
+        "editTitle": "Edit short URL",
+        "createTitle": "Create new short URL",
+        "description": "Short redirects can point to internal or external destinations."
+      },
+      "list": {
+        "title": "Active short URLs",
+        "description": "Click an entry to edit or remove it.",
+        "loading": "Loading short URLs...",
+        "empty": "No short URLs have been created yet.",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "fields": {
+        "code": "Short code",
+        "codePlaceholder": "Enter a code like 'launch'",
+        "codeHint": "Codes support letters, numbers, dashes and underscores.",
+        "prefix": "Short URL prefix",
+        "optionA": "prefixed with /a/",
+        "optionRoot": "root path",
+        "targetUrl": "Target URL",
+        "targetPlaceholder": "https://example.com/page",
+        "targetHint": "Use absolute URLs or root-relative paths."
+      },
+      "actions": {
+        "create": "Create short URL",
+        "update": "Update short URL",
+        "cancel": "Cancel",
+        "confirmDelete": "Delete this short URL?"
+      },
+      "errors": {
+        "failedLoad": "Failed to load short URLs.",
+        "failedSave": "Failed to save the short URL.",
+        "failedDelete": "Failed to delete the short URL.",
+        "missingFields": "Code and target URL are required."
+      }
     },
     "tunnelsTab": {
       "header": {

@@ -101,14 +101,14 @@ The backend includes a couple of helper scripts used during setup.
 
 ```bash
 # run backend locally
-cd backend && ./start.sh # bun recommended!
+cd backend && ./start.sh
 
 # run frontend locally (dev)
-cd frontend && pnpm run dev
+cd frontend && bun run dev
 
 # run frontend locally (prod)
-cd frontend && pnpm run build # build
-pnpm run start # start
+cd frontend && bun run build # build
+bun run start # start
 ```
 
 ### Optional: systemd setup

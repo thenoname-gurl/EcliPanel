@@ -3,6 +3,7 @@ Allow: /
 
 Disallow: /_next/
 Disallow: /_static/
+Disallow: /uploads/
 
 Disallow: /api/
 Disallow: /dashboard/

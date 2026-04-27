@@ -419,6 +419,68 @@ function isHtmlRequest(req: NextRequest): boolean {
   return (req.headers.get('accept') ?? '').includes('text/html');
 }
 
+const SHORT_URL_RESERVED_ROOT_PATHS = new Set([
+  'api',
+  'public',
+  '_next',
+  'static',
+  'uploads',
+  'health',
+  'favicon.ico',
+  'robots.txt',
+  'login',
+  'logout',
+  'register',
+  'forgot-password',
+  'reset-password',
+  'restore-email',
+  'verify-email',
+  'license',
+  'legal',
+  'dashboard',
+  'servers',
+  'billing',
+  'identity',
+  'mailbox',
+  'settings',
+  'tickets',
+  'organisations',
+  'tunnel',
+  'wings',
+  'docs',
+  'admin',
+])
+
+function getShortUrlPath(pathname: string): { prefix: 'a' | 'root'; code: string } | null {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 2 && segments[0] === 'a' && segments[1]) {
+    return { prefix: 'a', code: segments[1].toLowerCase() };
+  }
+  if (segments.length === 1 && segments[0] && !SHORT_URL_RESERVED_ROOT_PATHS.has(segments[0])) {
+    return { prefix: 'root', code: segments[0].toLowerCase() };
+  }
+  return null;
+}
+
+async function resolveShortUrlTarget(prefix: 'a' | 'root', code: string): Promise<string | null> {
+  const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '';
+  if (!backendUrl) return null;
+
+  const url = new URL(`${backendUrl.replace(/\/+$/, '')}/public/short-url`);
+  url.searchParams.set('code', code);
+  if (prefix === 'a') url.searchParams.set('prefix', 'a');
+
+  try {
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json || typeof json.targetUrl !== 'string') return null;
+    return json.targetUrl;
+  } catch {
+    return null;
+  }
+}
+
 function getIP(req: NextRequest): string {
   return (
     req.headers.get('cf-connecting-ipv6') ??
@@ -835,6 +897,14 @@ async function handleVerify(req: NextRequest): Promise<NextResponse> {
 export async function middleware(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
   refreshAllCrawlerIPs();
+
+  const shortUrlPath = getShortUrlPath(pathname);
+  if (shortUrlPath && req.method === 'GET') {
+    const targetUrl = await resolveShortUrlTarget(shortUrlPath.prefix, shortUrlPath.code);
+    if (targetUrl) {
+      return NextResponse.redirect(targetUrl, 302);
+    }
+  }
 
   if (pathname === '/api/browser-verify' && req.method === 'POST') {
     return handleVerify(req);

@@ -1,5 +1,6 @@
 import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
+import { ShortUrl } from '../models/shortUrl.entity';
 import { MoreThanOrEqual } from 'typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
@@ -180,6 +181,36 @@ export async function publicRoutes(app: any, prefix = '') {
       tags: ['Public'],
       summary: 'Public geoblock rules',
       description: 'Returns the current geoblocked countries and the services restricted for each jurisdiction.',
+    },
+  });
+
+  app.get(prefix + '/public/short-url', async (ctx: any) => {
+    const code = String(ctx.query?.code || '').trim().toLowerCase();
+    const prefixValue = String(ctx.query?.prefix || 'root') === 'root' ? 'root' : 'a';
+
+    if (!code) {
+      ctx.set.status = 400;
+      return { error: 'Missing short URL code.' };
+    }
+
+    const repo = AppDataSource.getRepository(ShortUrl);
+    const entry = await repo.findOne({ where: { code, prefix: prefixValue, active: true } });
+    if (!entry) {
+      ctx.set.status = 404;
+      return { error: 'Short URL not found.' };
+    }
+
+    return { targetUrl: entry.targetUrl };
+  }, {
+    response: {
+      200: t.Object({ targetUrl: t.String() }),
+      400: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: {
+      tags: ['Public'],
+      summary: 'Lookup a short URL redirect target',
+      description: 'Return redirect target for a short URL code.',
     },
   });
 

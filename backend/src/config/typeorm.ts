@@ -147,6 +147,7 @@ export const AppDataSource = new DataSource({
     require('../models/applicationFormInvite.entity').ApplicationFormInvite,
     require('../models/applicationSubmission.entity').ApplicationSubmission,
     require('../models/tunnelDevice.entity').TunnelDevice,
+    require('../models/shortUrl.entity').ShortUrl,
     require('../models/tunnelAllocation.entity').TunnelAllocation,
   ],
 });
