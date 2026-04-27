@@ -368,6 +368,9 @@ export const API_ENDPOINTS = {
   adminTickets: "/api/admin/tickets",
   adminVerifications: "/api/admin/verifications",
   adminDeletions: "/api/admin/deletions",
+  adminShortUrls: "/api/admin/shorturls",
+  adminShortUrlDetail: "/api/admin/shorturls/:id",
+  publicShortUrlLookup: "/public/short-url",
 
   // Servers (user-facing)
   serverUpdate: "/api/servers/:id",
