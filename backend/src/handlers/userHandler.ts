@@ -2122,7 +2122,8 @@ export async function userRoutes(app: any, prefix = '') {
 
     if ('dateOfBirth' in payload) {
       const hasVerifiedDob = Boolean(user.idVerified || user.settings?.ageVerificationSelfieVerifiedAt);
-      if (hasVerifiedDob && !isAdmin && requester.id === user.id) {
+      const hasExistingDob = user.dateOfBirth != null && String(user.dateOfBirth).trim() !== '';
+      if (hasVerifiedDob && hasExistingDob && !isAdmin && requester.id === user.id) {
         ctx.set.status = 403;
         return { error: 'date_of_birth_locked', message: 'Date of birth is locked after identity or selfie verification and can only be updated by an administrator.' };
       }
