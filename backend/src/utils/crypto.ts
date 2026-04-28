@@ -71,7 +71,21 @@ export function isPqEncryptedString(value: any): boolean {
 }
 
 export function isEncryptedString(value: any): boolean {
-  return isPqEncryptedString(value) || (typeof value === 'string' && value.split(':').length === 3);
+  if (isPqEncryptedString(value)) return true;
+  if (typeof value !== 'string') return false;
+
+  const parts = value.split(':');
+  if (parts.length !== 3) return false;
+
+  try {
+    const iv = Buffer.from(parts[0], 'base64');
+    const tag = Buffer.from(parts[1], 'base64');
+    if (iv.length !== 12 || tag.length !== 16) return false;
+    Buffer.from(parts[2], 'base64');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function isLegacyEncryptedString(value: any): boolean {
@@ -101,7 +115,8 @@ export function encrypt(text: string): string {
 }
 
 export function decrypt(enc: string): string {
-  if (isPqEncryptedString(enc)) {
+  const isPq = isPqEncryptedString(enc);
+  if (isPq) {
     const parts = enc.slice(PQ_PREFIX.length).split(':');
     if (parts.length !== 4) {
       throw new Error('Invalid PQ encrypted payload');
@@ -116,8 +131,11 @@ export function decrypt(enc: string): string {
     }
     const sharedSecret = ml_kem768.decapsulate(encapsulated, pqKeypair.secretKey);
     const aesKey = deriveAesKey(sharedSecret);
-    const payload = Buffer.concat([iv, tag, ciphertext]);
-    return decryptAesPayload(payload, aesKey).toString('utf8');
+    const decrypted = decryptAesPayload(Buffer.concat([iv, tag, ciphertext]), aesKey).toString('utf8');
+    if (decrypted === '') {
+      console.log(`crypto.decrypt: empty string result from PQ payload (len=${enc.length})`);
+    }
+    return decrypted;
   }
 
   const parts = enc.split(':');
@@ -128,6 +146,9 @@ export function decrypt(enc: string): string {
   decipher.setAuthTag(tag);
   let decrypted = decipher.update(data, 'base64', 'utf8');
   decrypted += decipher.final('utf8');
+  if (decrypted === '') {
+    console.log(`crypto.decrypt: empty string result from legacy payload (len=${enc.length})`);
+  }
   return decrypted;
 }
 

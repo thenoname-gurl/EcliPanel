@@ -8,6 +8,7 @@
     "promote": "bun scripts/promote.ts",
     "seed": "bun scripts/seed.ts",
     "fill-sender-rdns": "bun scripts/fill-sender-rdns.ts",
+    "notify-missing-profile": "bun scripts/notify-missing-profile.ts",
     "gen:jwt-secret": "bun scripts/generate-jwt-secret.ts",
     "gen:default-role": "bun scripts/create-default-role.ts",
     "build": "bun install && bun tsc || true"

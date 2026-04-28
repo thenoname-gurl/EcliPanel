@@ -1018,12 +1018,12 @@ export default function AdminPanel() {
     )
   }
 
-  const redactName = (firstName?: string, lastName?: string) => {
+  const redactName = (firstName?: string, lastName?: string, fallback?: string) => {
     if (privateMode) return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
     )
     const parts = [firstName, lastName].filter(Boolean).join(" ")
-    return parts || <span className="text-muted-foreground">████████████</span>
+    return parts || fallback || <span className="text-muted-foreground">—</span>
   }
 
   const redactOrg = (value?: string | number | null) => {
@@ -1040,17 +1040,45 @@ export default function AdminPanel() {
   const redactOrgName = (firstName?: string, lastName?: string) => {
     if (!privateMode) {
       const parts = [firstName, lastName].filter(Boolean).join(" ")
-      return parts || <span className="text-muted-foreground">████████████</span>
+      return parts || <span className="text-muted-foreground">—</span>
     }
     if (redactOrganisations) return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-black text-black text-[0.62rem] tracking-widest select-none">████████</span>
     )
     const parts = [firstName, lastName].filter(Boolean).join(" ")
-    return parts || <span className="text-muted-foreground">████████████</span>
+    return parts || <span className="text-muted-foreground">—</span>
   }
   const [confirmTitle, setConfirmTitle] = useState<string>("Confirm Action")
   const [confirmLoading, setConfirmLoading] = useState(false)
   const confirmResolveRef = useRef<((v: boolean) => void) | null>(null)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("eclipanel_admin_privacy")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (typeof parsed.privateMode === "boolean") setPrivateMode(parsed.privateMode)
+        if (typeof parsed.redactServers === "boolean") setRedactServers(parsed.redactServers)
+        if (typeof parsed.redactOrganisations === "boolean") setRedactOrganisations(parsed.redactOrganisations)
+        setPrivacyDialogOpen(false)
+        return
+      }
+    } catch (e) {
+      // skipp
+    }
+    setPrivacyDialogOpen(true)
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "eclipanel_admin_privacy",
+        JSON.stringify({ privateMode, redactServers, redactOrganisations })
+      )
+    } catch (e) {
+      // skip
+    }
+  }, [privateMode, redactServers, redactOrganisations])
 
   function confirmAsync(message: string, title?: string): Promise<boolean> {
     setConfirmTitle(title || "Confirm Action")
