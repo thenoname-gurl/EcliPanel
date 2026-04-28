@@ -1895,19 +1895,25 @@ export default function SettingsPage() {
                     value={form.lastName}
                     onChange={(v) => setForm({ ...form, lastName: v })}
                   />
-                  <FormInput
-                    label="Date of Birth"
-                    type="date"
-                    icon={Calendar}
-                    value={form.dateOfBirth}
-                    onChange={(v) => setForm({ ...form, dateOfBirth: v })}
-                    hint={
-                      user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt
-                        ? "Your date of birth is locked after identity or selfie verification and can only be changed by support."
-                        : "Enter your birth date to verify eligibility before managing servers."
-                    }
-                    disabled={Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt)}
-                  />
+                  {(() => {
+                    const hasDob = user?.dateOfBirth != null && String(user?.dateOfBirth).trim() !== '';
+                    const dobLocked = hasDob && Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt);
+                    return (
+                      <FormInput
+                        label="Date of Birth"
+                        type="date"
+                        icon={Calendar}
+                        value={form.dateOfBirth}
+                        onChange={(v) => setForm({ ...form, dateOfBirth: v })}
+                        hint={
+                          dobLocked
+                            ? "Your date of birth is locked after identity or selfie verification and can only be changed by support."
+                            : "Enter your birth date to verify eligibility before managing servers."
+                        }
+                        disabled={dobLocked}
+                      />
+                    );
+                  })()}
 
                   {!Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt) && (
                     <div className="md:col-span-3">
