@@ -114,7 +114,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName)}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{redactName(u.firstName, u.lastName, u.displayName)}</p>
                       <p className="text-xs text-muted-foreground truncate">{redact(u.email)}</p>
                     </div>
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -176,7 +176,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{redactName(user.firstName, user.lastName)}</p>
+                          <p className="text-sm font-medium text-foreground truncate">{redactName(user.firstName, user.lastName, user.displayName)}</p>
                           <p className="text-xs text-muted-foreground truncate">{redact(user.email)}</p>
                         </div>
                       </div>
@@ -318,7 +318,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{redactName(user.firstName, user.lastName)}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{redactName(user.firstName, user.lastName, user.displayName)}</p>
                       <p className="text-xs text-muted-foreground truncate">{redact(user.email)}</p>
                     </div>
                     {user.suspended ? (

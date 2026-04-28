@@ -1248,6 +1248,16 @@ export async function adminRoutes(app: any, prefix = '') {
     const total = await qb.getCount();
     const users = await qb.skip((p - 1) * per).take(per).getMany();
 
+    const { decrypt, isEncryptedString } = require('../utils/crypto');
+    const maybeDecryptValue = (value: any) => {
+      if (typeof value !== 'string' || !isEncryptedString(value)) return value;
+      try {
+        return decrypt(value);
+      } catch {
+        return value;
+      }
+    };
+
     const userIds = users.map((u) => u.id);
     const passkeyCounts = userIds.length ? await passkeyRepo
       .createQueryBuilder('p')
@@ -5283,6 +5293,7 @@ isSuspicious: true if fraudScore >= 50`;
     const userRepo = AppDataSource.getRepository(User);
     const users = await userRepo.find({ select: ['billingCountry'] });
     const rules = await getGeoBlockRules();
+    const { decrypt, isEncryptedString } = require('../utils/crypto');
 
     const countryStats: Record<string, { users: number; minLevel: number; maxLevel: number }> = {};
     let totalUsers = 0;
@@ -5293,9 +5304,12 @@ isSuspicious: true if fraudScore >= 50`;
     let blockedSubuserOnly = 0;
 
     for (const u of users) {
-      const level = getGeoBlockLevelFromRules(u.billingCountry, rules);
+      const billingCountry = typeof u.billingCountry === 'string' && isEncryptedString(u.billingCountry)
+        ? decrypt(u.billingCountry)
+        : u.billingCountry;
+      const level = getGeoBlockLevelFromRules(billingCountry, rules);
       totalUsers++;
-      const countryKey = (u.billingCountry || 'unknown').toString().trim().toLowerCase() || 'unknown';
+      const countryKey = (billingCountry || 'unknown').toString().trim().toLowerCase() || 'unknown';
       if (!countryStats[countryKey]) {
         countryStats[countryKey] = { users: 0, minLevel: Number.MAX_SAFE_INTEGER, maxLevel: 0 };
       }
