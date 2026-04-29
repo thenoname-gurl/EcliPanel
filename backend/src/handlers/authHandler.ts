@@ -13,6 +13,7 @@ import { generateCaptcha, generateInvisibleCaptcha } from '../utils/captcha';
 import { isFeatureEnabled } from '../utils/featureToggles';
 import { redisSet, redisGet, redisDel } from '../config/redis';
 import { sendMail } from '../services/mailService';
+import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicyService';
 import crypto from 'crypto';
 const speakeasy = require('speakeasy');
 
@@ -243,6 +244,8 @@ export async function authRoutes(app: any, prefix = '') {
     user.sessions = Array.isArray(user.sessions) ? user.sessions : [];
     user.sessions.push(sessionId);
     if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
+    user.lastLoginAt = new Date();
+    await cancelPendingAutoSunsetDeletionRequest(user);
     await userRepo.save(user);
 
     const token = ctx.app?.jwt?.sign
@@ -414,6 +417,8 @@ export async function authRoutes(app: any, prefix = '') {
       user.sessions = user.sessions || [];
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
+      user.lastLoginAt = new Date();
+      await cancelPendingAutoSunsetDeletionRequest(user);
       await userRepo.save(user);
       const finalToken = app.jwt.sign({ userId: user.id, sessionId });
       try { setAuthCookie(ctx, finalToken); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for 2fa verify-login'); }
@@ -879,6 +884,8 @@ export async function authRoutes(app: any, prefix = '') {
       user.sessions = user.sessions || [];
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
+      user.lastLoginAt = new Date();
+      await cancelPendingAutoSunsetDeletionRequest(user);
       await userRepo.save(user);
       const token = app.jwt.sign({ userId: user.id, sessionId });
       try { setAuthCookie(ctx, token); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for passkey auth'); }
@@ -1296,12 +1303,13 @@ export async function authRoutes(app: any, prefix = '') {
         serverLimit: eduPlan?.serverLimit ?? 3,
         portCount: eduPlan?.portCount ?? 3,
         portsPerServer: eduPlan?.portCount ?? 3,
+        tunnelPortCount: eduPlan?.tunnelPortCount ?? 0,
         emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
         emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
       };
 
-      const existingLimits = user.educationLimits || {};
-      const currentBaseLimits = user.limits || {};
+      const existingLimits = (user.educationLimits || {}) as Record<string, any>;
+      const currentBaseLimits = (user.limits || {}) as Record<string, any>;
 
       const portLimitExisting = existingLimits.portsPerServer ?? existingLimits.portCount ?? 0;
       const portLimitBase = currentBaseLimits.portsPerServer ?? currentBaseLimits.portCount ?? 0;

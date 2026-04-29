@@ -77,8 +77,18 @@ export async function setupConfig(app: any) {
       const link = orgMemberRepo.create({ userId: user.id, organisationId: org.id, user, organisation: org, orgRole: inferredRole as any, createdAt: new Date() });
       await orgMemberRepo.save(link);
     }
+
+    const nullCreatedAtCount = await userRepo.count({ where: { createdAt: null as any } as any });
+    if (nullCreatedAtCount > 0) {
+      app.log?.info({ count: nullCreatedAtCount }, 'Backfilling missing user createdAt values');
+      await userRepo.createQueryBuilder()
+        .update(User)
+        .set({ createdAt: new Date() })
+        .where('createdAt IS NULL')
+        .execute();
+    }
   } catch (err: any) {
-    app.log?.warn({ err }, 'Failed to backfill organisation memberships from legacy user.org relation');
+    app.log?.warn({ err }, 'Failed to backfill organisation memberships from legacy user.org relation or createdAt values');
   }
 
   try {

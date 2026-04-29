@@ -72,6 +72,7 @@ export async function processPendingAdminBroadcastJobs() {
       const users = await userRepo.find();
       for (const user of users) {
         if (!user.email) continue;
+        if (!user.emailVerified) continue;
         const wants = user.settings?.notifications?.productUpdates;
         const enabled = job.force || (typeof wants === 'boolean' ? wants : false);
         if (!enabled) continue;

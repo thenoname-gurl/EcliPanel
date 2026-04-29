@@ -18,6 +18,7 @@ import { scheduleDeletionExecutionJob } from './jobs/deletionExecutionJob';
 import { scheduleMailboxSyncJob } from './jobs/mailboxSyncJob';
 import { scheduleOutboundEmailRunner } from './jobs/outboundEmailRunner';
 import { scheduleAdminBroadcastJobRunner } from './jobs/adminBroadcastJobRunner';
+import { scheduleSunsetPolicyJob } from './jobs/sunsetPolicyJob';
 import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
@@ -493,6 +494,7 @@ export async function initApp() {
   try { scheduleMailboxSyncJob(); } catch (e) { console.error('Failed to schedule mailbox sync job:', e); }
   try { scheduleOutboundEmailRunner(); } catch (e) { console.error('Failed to schedule outbound email runner:', e); }
   try { scheduleAdminBroadcastJobRunner(); } catch (e) { console.error('Failed to schedule admin broadcast job runner:', e); }
+  try { scheduleSunsetPolicyJob(); } catch (e) { console.error('Failed to schedule sunset policy job:', e); }
   try { const { scheduleMailboxPasswordRotation } = require('./services/mailcowService'); scheduleMailboxPasswordRotation(); } catch (e) { console.error('Failed to schedule mailbox password rotation job:', e); }
 }
 

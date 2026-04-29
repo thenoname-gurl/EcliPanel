@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad, JoinColumn, AfterInsert, AfterUpdate } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad, JoinColumn, AfterInsert, AfterUpdate, CreateDateColumn } from 'typeorm';
 import { Organisation } from './organisation.entity';
 import { UserRole } from './userRole.entity';
 import { Passkey } from './passkey.entity';
@@ -9,6 +9,15 @@ import { Node } from './node.entity';
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @CreateDateColumn({ type: 'datetime' })
+  createdAt: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  lastLoginAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  sunsetNoticeSentAt?: Date;
 
   @Column('text')
   firstName: string;

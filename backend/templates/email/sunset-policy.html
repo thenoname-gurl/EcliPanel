@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background-color: #0a0a12;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 0;
+      width: 100% !important;
+      line-height: 1.6;
+    }
+
+    .email-wrapper {
+      width: 100%;
+      background-color: #0a0a12;
+      padding: 20px 0;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 32px;
+      background: #1a1a2e;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid #2a2a4a;
+    }
+
+    .header h1 {
+      color: #f8fafc;
+      font-size: 24px;
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .content {
+      margin-bottom: 24px;
+    }
+
+    .content p {
+      line-height: 1.7;
+      margin: 0 0 16px 0;
+      font-size: 15px;
+      color: #dbe4ff;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+      color: #fff !important;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+      margin: 8px 0;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .details {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #cbd5e1;
+      background: #0f1724;
+      border-radius: 10px;
+      padding: 16px;
+      border-left: 4px solid #a78bfa;
+      margin: 20px 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-x: auto;
+    }
+
+    .footer {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 32px;
+      padding-top: 24px;
+      text-align: center;
+      border-top: 1px solid #2a2a4a;
+      line-height: 1.5;
+    }
+
+    .footer-brand {
+      font-weight: 600;
+      color: #c4b5fd;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        padding: 24px 20px !important;
+        border-radius: 12px !important;
+      }
+      .header h1 {
+        font-size: 20px !important;
+      }
+      .content p {
+        font-size: 14px !important;
+      }
+      .btn {
+        padding: 12px 24px !important;
+        font-size: 14px !important;
+        display: block !important;
+        width: 100% !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>{{title}}</h1>
+      </div>
+      <div class="content">
+        <p>{{message}}</p>
+      </div>
+      <div class="btn-container" style="text-align: center; margin: 24px 0;">
+        <a href="{{action_url}}" class="btn">{{action_text}}</a>
+      </div>
+      <div class="details">{{details}}</div>
+      <div class="footer">
+        <p>
+          &copy; 2026 <span class="footer-brand">EclipseSystems</span> under Misiu LLC.<br>
+          All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -20,6 +20,9 @@ export class DeletionRequest {
   @Column({ nullable: true, type: 'datetime' })
   scheduledDeletionAt?: Date;
 
+  @Column({ default: false })
+  autoSunset: boolean;
+
   @Column({ nullable: true, type: 'datetime' })
   deletedAt?: Date;
 
