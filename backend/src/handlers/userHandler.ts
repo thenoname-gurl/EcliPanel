@@ -2123,14 +2123,17 @@ export async function userRoutes(app: any, prefix = '') {
     if ('dateOfBirth' in payload) {
       const hasVerifiedDob = Boolean(user.idVerified || user.settings?.ageVerificationSelfieVerifiedAt);
       const hasExistingDob = user.dateOfBirth != null && String(user.dateOfBirth).trim() !== '';
-      if (hasVerifiedDob && hasExistingDob && !isAdmin && requester.id === user.id) {
-        ctx.set.status = 403;
-        return { error: 'date_of_birth_locked', message: 'Date of birth is locked after identity or selfie verification and can only be updated by an administrator.' };
-      }
       const dateOfBirth = parseDateOfBirth(payload.dateOfBirth);
       if (!dateOfBirth) {
         ctx.set.status = 400;
         return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      }
+      const existingDob = hasExistingDob ? parseDateOfBirth(user.dateOfBirth) : null;
+      if (hasVerifiedDob && existingDob && !isAdmin && requester.id === user.id) {
+        if (!existingDob || existingDob.getTime() !== dateOfBirth.getTime()) {
+          ctx.set.status = 403;
+          return { error: 'date_of_birth_locked', message: 'Date of birth is locked after identity or selfie verification and can only be updated by an administrator.' };
+        }
       }
       const updatedAge = getAgeFromDate(dateOfBirth);
       const effectiveCountry = typeof payload.billingCountry === 'string' ? payload.billingCountry : user.billingCountry;
@@ -2159,25 +2162,33 @@ export async function userRoutes(app: any, prefix = '') {
       }
     }
 
-    const requiredProfileFields = ['address', 'billingCity', 'billingZip', 'billingCountry'];
-    for (const field of requiredProfileFields) {
-      if (field in payload) {
-        const value = payload[field];
-        if (value === null || value === undefined || String(value).trim() === '') {
-          ctx.set.status = 400;
-          return { error: `${field}_required`, message: `${field} cannot be empty.` };
-        }
-      }
+    const requiredProfileFieldLabels: Record<string, string> = {
+      firstName: 'First name',
+      lastName: 'Last name',
+      phone: 'Phone number',
+      address: 'Address',
+      billingCity: 'Billing city',
+      billingZip: 'Billing ZIP',
+      billingCountry: 'Billing country',
     }
 
-    if ('phone' in payload) {
-      const phone = payload.phone;
-      if (phone === null || phone === undefined || String(phone).trim() === '') {
-        if (isChildWithParent) {
-          delete payload.phone;
-        } else {
+    const finalProfileFields: Record<string, any> = {
+      firstName: 'firstName' in payload ? payload.firstName : user.firstName,
+      lastName: 'lastName' in payload ? payload.lastName : user.lastName,
+      phone: 'phone' in payload ? payload.phone : user.phone,
+      address: 'address' in payload ? payload.address : user.address,
+      billingCity: 'billingCity' in payload ? payload.billingCity : user.billingCity,
+      billingZip: 'billingZip' in payload ? payload.billingZip : user.billingZip,
+      billingCountry: 'billingCountry' in payload ? payload.billingCountry : user.billingCountry,
+    }
+
+    for (const [field, value] of Object.entries(finalProfileFields)) {
+      const normalized = value === null || value === undefined ? '' : String(value).trim()
+      const existingValue = (user as any)[field]
+      if (!normalized) {
+        if (field in payload || !existingValue) {
           ctx.set.status = 400;
-          return { error: 'phone_required', message: 'Phone cannot be cleared or set to an empty value.' };
+          return { error: `${field}_required`, message: `${requiredProfileFieldLabels[field] || field} is required.` };
         }
       }
     }

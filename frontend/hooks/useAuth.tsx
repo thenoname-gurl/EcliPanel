@@ -98,6 +98,20 @@ function needsAgeVerification(user: User | null | undefined): boolean {
   return user.ageVerificationRequired === true || user.age == null
 }
 
+function needsProfileCompletion(user: User | null | undefined): boolean {
+  if (!user) return false
+  if (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*') return false
+  return (
+    !user.firstName?.trim() ||
+    !user.lastName?.trim() ||
+    !user.phone?.trim() ||
+    !user.address?.trim() ||
+    !user.billingCity?.trim() ||
+    !user.billingZip?.trim() ||
+    !user.billingCountry?.trim()
+  )
+}
+
 function applyUserTheme(user: User | null | undefined): void {
   if (!user?.settings?.theme?.name) return
   const theme = THEMES.find((t) => t.name === user.settings!.theme.name)
@@ -395,15 +409,20 @@ export const AuthProvider = ({
   useEffect(() => {
     if (authState !== "authenticated" || !user || !pathname) return
     const ageRequired = needsAgeVerification(user)
+    const profileRequired = needsProfileCompletion(user)
     const onSettingsPage = pathname.startsWith("/dashboard/settings")
 
-    if (ageRequired && !onSettingsPage && !ageVerificationPrompted.current) {
+    if ((ageRequired || profileRequired) && !onSettingsPage && !ageVerificationPrompted.current) {
       ageVerificationPrompted.current = true
 
       if (typeof window !== "undefined") {
-        const shouldGoToSettings = window.confirm(
-          "Your account needs a date of birth for age verification. Go to Settings now to update it?"
-        )
+        const promptMessage = ageRequired && profileRequired
+          ? "Your account needs a date of birth plus required profile information (legal name, phone, billing address). Go to Settings now to update them?"
+          : ageRequired
+          ? "Your account needs a date of birth for age verification. Go to Settings now to update it?"
+          : "Your account needs required profile information (legal name, phone, billing address). Go to Settings now to update it?"
+
+        const shouldGoToSettings = window.confirm(promptMessage)
 
         if (shouldGoToSettings) {
           router.push("/dashboard/settings?tab=profile&ageVerification=1")

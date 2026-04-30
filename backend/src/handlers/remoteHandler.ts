@@ -877,6 +877,7 @@ export async function saveServerConfig(params: {
   processConfig?: Record<string, any>;
   lastActivityAt?: Date;
   hibernated?: boolean;
+  ignoreAntiAbuse?: boolean;
 }): Promise<ServerConfig> {
   if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
   if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
@@ -926,6 +927,7 @@ export async function saveServerConfig(params: {
   keep.swap = params.swap ?? keep.swap ?? 0;
   keep.lastActivityAt = params.lastActivityAt ?? keep.lastActivityAt;
   keep.hibernated = params.hibernated ?? keep.hibernated ?? false;
+  keep.ignoreAntiAbuse = params.ignoreAntiAbuse ?? keep.ignoreAntiAbuse ?? false;
   keep.eggId = params.eggId ?? keep.eggId;
   keep.skipEggScripts = params.skipEggScripts ?? keep.skipEggScripts ?? false;
   keep.allocations = params.allocations ?? keep.allocations ?? null;

@@ -1326,6 +1326,25 @@ export default function ServersPage() {
   const t = useTranslations("serversPage")
   const { user, refreshUser } = useAuth()
   const [search, setSearch] = useState("")
+
+  const needsAgeVerification = !!(
+    user &&
+    !user.dateOfBirth &&
+    (user.ageVerificationRequired === true || user.age == null)
+  )
+
+  const needsProfileCompletion = !!(
+    user &&
+    (!user.firstName?.trim() ||
+      !user.lastName?.trim() ||
+      !user.phone?.trim() ||
+      !user.address?.trim() ||
+      !user.billingCity?.trim() ||
+      !user.billingZip?.trim() ||
+      !user.billingCountry?.trim())
+  )
+
+  const needsLegalInfo = needsAgeVerification || needsProfileCompletion
   const [servers, setServers] = useState<any[]>([])
   const [favoriteServerIds, setFavoriteServerIds] = useState<string[]>([])
 
@@ -1573,6 +1592,20 @@ export default function ServersPage() {
 
       <PanelHeader title={t("header.title")} description={t("header.description")} />
 
+      {needsLegalInfo && (
+        <div className="rounded-2xl border border-amber-300/70 bg-amber-100/70 p-4 text-sm text-foreground">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 text-amber-700" />
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">{t("warnings.legalInfoTitle")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("warnings.legalInfoDescription")}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ScrollArea className="flex-1 overflow-x-hidden">
         <div className="flex flex-col gap-4 sm:gap-5 p-3 sm:p-5 md:p-6 max-w-[100vw] w-full min-w-0 box-border pb-safe">
 
@@ -1639,8 +1672,10 @@ export default function ServersPage() {
             <div className="flex gap-2 w-full sm:w-auto">
                 <button
                 data-guide-id="servers-new"
-                onClick={() => setShowNewModal(true)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 transition-all flex-1 sm:flex-initial"
+                onClick={() => !needsLegalInfo && setShowNewModal(true)}
+                disabled={needsLegalInfo}
+                className={`flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all flex-1 sm:flex-initial ${needsLegalInfo ? "bg-muted/70 cursor-not-allowed opacity-70 shadow-none" : "bg-primary shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95"}`}
+                title={needsLegalInfo ? t("warnings.legalInfoTitle") : undefined}
               >
                 <Plus className="h-4 w-4" />
                 {t("actions.newServer")}

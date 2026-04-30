@@ -37,6 +37,9 @@ export class ServerConfig {
   @Column({ default: false })
   dmca: boolean;
 
+  @Column({ default: false })
+  ignoreAntiAbuse: boolean;
+
   @Column({ nullable: true, type: 'text' })
   dmcaBy?: string;
 

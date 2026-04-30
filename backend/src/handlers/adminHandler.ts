@@ -123,6 +123,167 @@ function listAntiAbuseAgents() {
     });
 }
 
+async function getAdminFraudEmails(): Promise<string[]> {
+  const userRepo = AppDataSource.getRepository(User);
+  const emails = new Set<string>();
+
+  const adminRows = await userRepo
+    .createQueryBuilder('user')
+    .where('user.role IN (:...roles)', { roles: ['admin', 'rootAdmin', '*'] })
+    .andWhere('user.email IS NOT NULL')
+    .select('user.email', 'email')
+    .getRawMany();
+
+  for (const row of adminRows) {
+    const email = String(row.email || '').trim();
+    if (email) emails.add(email);
+  }
+
+  const fraudRows = await userRepo
+    .createQueryBuilder('user')
+    .leftJoin('user.userRoles', 'userRole')
+    .leftJoin('userRole.role', 'role')
+    .leftJoin('role.permissions', 'permission')
+    .where('permission.value = :perm', { perm: 'admin:fraud' })
+    .andWhere('user.email IS NOT NULL')
+    .select('user.email', 'email')
+    .getRawMany();
+
+  for (const row of fraudRows) {
+    const email = String(row.email || '').trim();
+    if (email) emails.add(email);
+  }
+
+  const envRecipients = String(process.env.ABUSE_REPORT_EMAIL || '').split(/[,;\s]+/);
+  for (const recipient of envRecipients) {
+    const email = String(recipient || '').trim();
+    if (email) emails.add(email);
+  }
+
+  return Array.from(emails);
+}
+
+async function sendAntiAbuseAdminNotification(params: {
+  serverId: string;
+  serverName: string | null;
+  nodeName: string | null;
+  detectionType: string;
+  reason: string;
+  action: string;
+  notifiedBy: string;
+  details: string;
+}): Promise<{ sent: boolean; recipient: string | null; error?: string | null }> {
+  const recipients = await getAdminFraudEmails();
+  if (!recipients.length) {
+    return { sent: false, recipient: null, error: 'no admin recipients configured' };
+  }
+
+  const subject = `Abuse Report: ${params.serverName || params.serverId} ${params.action} alert`;
+  const body = [
+    `Server: ${params.serverName || params.serverId}`,
+    `Server UUID: ${params.serverId}`,
+    `Node: ${params.nodeName || 'unknown'}`,
+    `Detection type: ${params.detectionType}`,
+    `Enforcement action: ${params.action}`,
+    `Reason: ${params.reason}`,
+    `Notified by: ${params.notifiedBy}`,
+    '',
+    params.details,
+  ].join('\n');
+
+  try {
+    await sendMail({
+      to: recipients,
+      from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
+      subject,
+      template: 'notification',
+      vars: {
+        title: 'Anti-Abuse enforcement alert',
+        message: body,
+        details: body,
+      },
+    });
+    return { sent: true, recipient: recipients.join(', ') };
+  } catch (err: any) {
+    return { sent: false, recipient: recipients.join(', '), error: err?.message || 'failed to send admin notification' };
+  }
+}
+
+async function attemptAutoSuspendServer(
+  serverId: string,
+  reason: string,
+  actor: string,
+  dmca = false,
+): Promise<{ success: boolean; attempted: boolean; emailSent: boolean; emailRecipient: string | null; emailError: string | null; message: string }> {
+  const nodeRepo = AppDataSource.getRepository(Node);
+  const cfgRepo = AppDataSource.getRepository(ServerConfig);
+  const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
+  const preferredNode = existingCfg?.nodeId ? await nodeRepo.findOneBy({ id: existingCfg.nodeId }) : null;
+  const allNodes = await nodeRepo.find();
+  const nodes = preferredNode
+    ? [preferredNode, ...allNodes.filter((n) => n.id !== preferredNode.id)]
+    : allNodes;
+
+  for (const n of nodes) {
+    try {
+      const base = (n as any).backendWingsUrl || n.url;
+      const svc = new WingsApiService(base, n.token);
+      await svc.getServer(serverId);
+
+      const updateData: any = {
+        suspended: true,
+        suspendedBy: actor,
+        suspendedReason: reason,
+        suspendedAt: new Date(),
+      };
+      if (dmca) {
+        updateData.dmca = true;
+        updateData.dmcaBy = actor;
+        updateData.dmcaReason = reason;
+        updateData.dmcaAt = new Date();
+        updateData.dmcaDeletionAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      }
+      if (existingCfg) {
+        await cfgRepo.update({ uuid: serverId }, updateData);
+      }
+
+      await svc.powerServer(serverId, 'kill').catch(() => { });
+      await svc.syncServer(serverId, {});
+
+      const adminNotification = await sendAntiAbuseAdminNotification({
+        serverId,
+        serverName: existingCfg?.name || null,
+        nodeName: n.name || null,
+        detectionType: dmca ? 'dmca' : 'suspend',
+        reason,
+        action: dmca ? 'dmca' : 'suspend',
+        notifiedBy: 'anti-abuse system',
+        details: `The anti-abuse system has automatically enforced ${dmca ? 'DMCA takedown' : 'suspension'} for this server.`,
+      });
+
+      return {
+        success: true,
+        attempted: true,
+        emailSent: adminNotification.sent,
+        emailRecipient: adminNotification.recipient,
+        emailError: adminNotification.error || null,
+        message: 'Server suspended successfully',
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  return {
+    success: false,
+    attempted: true,
+    emailSent: false,
+    emailRecipient: null,
+    emailError: 'server not found on any node',
+    message: 'Server not found on any node',
+  };
+}
+
 function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
@@ -421,7 +582,7 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
-async function runAntiAbuseAiAssessment(params: {
+interface AntiAbuseParams {
   serverId: string;
   serverName: string | null;
   nodeName: string | null;
@@ -432,75 +593,447 @@ async function runAntiAbuseAiAssessment(params: {
   targetPort: number | null;
   metrics: any;
   recentEvents: any[];
-}) {
+}
+
+interface StageResult {
+  stage: number;
+  stageName: string;
+  modelId: number;
+  modelName: string;
+  durationMs: number;
+  raw: string;
+}
+
+interface TriageResult extends StageResult {
+  stageName: 'triage';
+  initialRiskScore: number;
+  threatCategory: string;
+  shouldEscalate: boolean;
+  redFlags: string[];
+  triageNotes: string;
+}
+
+interface DeepAnalysisResult extends StageResult {
+  stageName: 'deep_analysis';
+  riskScore: number;
+  category: string;
+  confidence: number;
+  attackVector: string;
+  affectedSystems: string[];
+  historicalPattern: string;
+  technicalFindings: string[];
+  mitigationOptions: string[];
+}
+
+interface DecisionResult extends StageResult {
+  stageName: 'decision';
+  finalRiskScore: number;
+  recommendedAction: 'monitor' | 'throttle' | 'suspend' | 'block';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  summary: string;
+  signals: string[];
+  autoActionThreshold: boolean;
+  reasoning: string;
+}
+
+interface FullAssessmentResult {
+  assessmentId: string;
+  completedAt: string;
+  totalDurationMs: number;
+  stagesCompleted: number;
+  triage: TriageResult | null;
+  deepAnalysis: DeepAnalysisResult | null;
+  decision: DecisionResult | null;
+  finalRiskScore: number;
+  finalCategory: string;
+  finalConfidence: number;
+  finalAction: string;
+  finalPriority: string;
+  summary: string;
+  signals: string[];
+  error?: string;
+}
+
+function buildBaseUrl(endpoint: string): string {
+  return (endpoint || '')
+    .replace(/\/+$/, '')
+    .replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
+}
+
+async function callAiModel(
+  model: AIModel,
+  systemPrompt: string,
+  userContent: string,
+  maxTokens: number,
+  timeoutMs = 30_000
+): Promise<string> {
+  const chatUrl = `${buildBaseUrl(model.endpoint)}/v1/chat/completions`;
+
+  const res = await axios.post(
+    chatUrl,
+    {
+      model: (model as any).config?.modelId || model.name,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.1,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${model.apiKey || 'none'}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: timeoutMs,
+    }
+  );
+
+  const reply = res.data?.choices?.[0]?.message?.content || '';
+  return String(reply)
+    .replace(/```json?\s*/g, '')
+    .replace(/```/g, '')
+    .trim();
+}
+
+function safeParseJson(raw: string): any {
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    return JSON.parse(match?.[0] ?? raw);
+  } catch {
+    return {};
+  }
+}
+
+function generateAssessmentId(): string {
+  return `aai_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+const STAGE_1_TRIAGE_PROMPT = `
+You are a first-line abuse triage analyst. Your job is FAST threat classification.
+Analyze the incident data and return ONLY valid JSON:
+{
+  "initialRiskScore": <0-100>,
+  "threatCategory": "ddos|port_scan|crypto_mining|spam|brute_force|data_exfiltration|botnet|unknown",
+  "shouldEscalate": <true|false>,
+  "redFlags": ["flag1", "flag2"],
+  "triageNotes": "one sentence triage note"
+}
+Rules:
+- shouldEscalate = true if initialRiskScore >= 40
+- redFlags: list only concrete observable indicators
+- Be fast, be decisive, do not hedge
+`.trim();
+
+const STAGE_2_DEEP_ANALYSIS_PROMPT = `
+You are a senior abuse investigator performing deep technical analysis.
+You receive raw incident data AND the triage report from Stage 1.
+Return ONLY valid JSON:
+{
+  "riskScore": <0-100>,
+  "category": "ddos|port_scan|crypto_mining|spam|brute_force|data_exfiltration|botnet|unknown",
+  "confidence": <0.0-1.0>,
+  "attackVector": "short description of how the attack works",
+  "affectedSystems": ["system1", "system2"],
+  "historicalPattern": "isolated|recurring|coordinated|unknown",
+  "technicalFindings": ["finding1", "finding2"],
+  "mitigationOptions": ["option1", "option2", "option3"]
+}
+Rules:
+- riskScore must be evidence-based, not a gut feeling
+- confidence reflects data quality (low data = low confidence)
+- technicalFindings: up to 8 concrete technical observations
+- mitigationOptions: ordered from least to most disruptive
+`.trim();
+
+const STAGE_3_DECISION_PROMPT = `
+You are the final decision authority for abuse response.
+You receive the original incident, triage report, and deep analysis.
+Make the final call. Return ONLY valid JSON:
+{
+  "finalRiskScore": <0-100>,
+  "recommendedAction": "monitor|throttle|suspend|block",
+  "priority": "low|medium|high|critical",
+  "summary": "2-3 sentence human-readable summary",
+  "signals": ["signal1", "signal2"],
+  "autoActionThreshold": <true|false>,
+  "reasoning": "one sentence explaining the decision"
+}
+Rules:
+- autoActionThreshold = true only if finalRiskScore >= 80 AND confidence from Stage 2 >= 0.75
+- recommendedAction must align with finalRiskScore:
+    0-29   -> monitor
+    30-59  -> throttle
+    60-79  -> suspend
+    80-100 -> block
+- priority must align with finalRiskScore:
+    0-29   -> low
+    30-59  -> medium
+    60-79  -> high
+    80-100 -> critical
+- signals: up to 10, must be specific and actionable
+`.trim();
+
+async function runStage1Triage(
+  model: AIModel,
+  params: AntiAbuseParams
+): Promise<TriageResult> {
+  const start = Date.now();
+
+  const userContent = JSON.stringify({
+    incident: params,
+    instruction: 'Perform rapid triage on this abuse incident.',
+  });
+
+  const raw = await callAiModel(model, STAGE_1_TRIAGE_PROMPT, userContent, 400);
+  const parsed = safeParseJson(raw);
+
+  return {
+    stage: 1,
+    stageName: 'triage',
+    modelId: model.id,
+    modelName: model.name,
+    durationMs: Date.now() - start,
+    raw: sanitizeAntiAbuseText(raw, 4_000),
+    initialRiskScore: clampNumber(Number(parsed?.initialRiskScore ?? 0), 0, 100),
+    threatCategory: sanitizeAntiAbuseText(parsed?.threatCategory || 'unknown', 40),
+    shouldEscalate: Boolean(parsed?.shouldEscalate ?? false),
+    redFlags: Array.isArray(parsed?.redFlags)
+      ? parsed.redFlags.map((f: any) => sanitizeAntiAbuseText(f, 200)).filter(Boolean).slice(0, 10)
+      : [],
+    triageNotes: sanitizeAntiAbuseText(parsed?.triageNotes || '', 400),
+  };
+}
+
+async function runStage2DeepAnalysis(
+  model: AIModel,
+  params: AntiAbuseParams,
+  triage: TriageResult
+): Promise<DeepAnalysisResult> {
+  const start = Date.now();
+
+  const userContent = JSON.stringify({
+    incident: params,
+    stage1_triage: {
+      initialRiskScore: triage.initialRiskScore,
+      threatCategory: triage.threatCategory,
+      redFlags: triage.redFlags,
+      triageNotes: triage.triageNotes,
+    },
+    instruction: 'Perform deep technical analysis using the triage as a starting point.',
+  });
+
+  const raw = await callAiModel(model, STAGE_2_DEEP_ANALYSIS_PROMPT, userContent, 700);
+  const parsed = safeParseJson(raw);
+
+  return {
+    stage: 2,
+    stageName: 'deep_analysis',
+    modelId: model.id,
+    modelName: model.name,
+    durationMs: Date.now() - start,
+    raw: sanitizeAntiAbuseText(raw, 6_000),
+    riskScore: clampNumber(Number(parsed?.riskScore ?? 0), 0, 100),
+    category: sanitizeAntiAbuseText(parsed?.category || 'unknown', 40),
+    confidence: Math.max(0, Math.min(1, Number(parsed?.confidence ?? 0))),
+    attackVector: sanitizeAntiAbuseText(parsed?.attackVector || '', 300),
+    affectedSystems: Array.isArray(parsed?.affectedSystems)
+      ? parsed.affectedSystems.map((s: any) => sanitizeAntiAbuseText(s, 100)).filter(Boolean).slice(0, 10)
+      : [],
+    historicalPattern: sanitizeAntiAbuseText(parsed?.historicalPattern || 'unknown', 40),
+    technicalFindings: Array.isArray(parsed?.technicalFindings)
+      ? parsed.technicalFindings.map((f: any) => sanitizeAntiAbuseText(f, 300)).filter(Boolean).slice(0, 8)
+      : [],
+    mitigationOptions: Array.isArray(parsed?.mitigationOptions)
+      ? parsed.mitigationOptions.map((o: any) => sanitizeAntiAbuseText(o, 200)).filter(Boolean).slice(0, 5)
+      : [],
+  };
+}
+
+async function runStage3Decision(
+  model: AIModel,
+  params: AntiAbuseParams,
+  triage: TriageResult,
+  deepAnalysis: DeepAnalysisResult
+): Promise<DecisionResult> {
+  const start = Date.now();
+
+  const userContent = JSON.stringify({
+    incident: params,
+    stage1_triage: {
+      initialRiskScore: triage.initialRiskScore,
+      threatCategory: triage.threatCategory,
+      redFlags: triage.redFlags,
+      triageNotes: triage.triageNotes,
+    },
+    stage2_deep_analysis: {
+      riskScore: deepAnalysis.riskScore,
+      category: deepAnalysis.category,
+      confidence: deepAnalysis.confidence,
+      attackVector: deepAnalysis.attackVector,
+      historicalPattern: deepAnalysis.historicalPattern,
+      technicalFindings: deepAnalysis.technicalFindings,
+      mitigationOptions: deepAnalysis.mitigationOptions,
+    },
+    instruction: 'Make the final enforcement decision based on all available intelligence.',
+  });
+
+  const raw = await callAiModel(model, STAGE_3_DECISION_PROMPT, userContent, 600);
+  const parsed = safeParseJson(raw);
+
+  const finalRiskScore = clampNumber(Number(parsed?.finalRiskScore ?? 0), 0, 100);
+  const confidence = deepAnalysis.confidence;
+
+  const enforcedAction = enforceActionFromScore(finalRiskScore);
+  const enforcedPriority = enforcePriorityFromScore(finalRiskScore);
+
+  return {
+    stage: 3,
+    stageName: 'decision',
+    modelId: model.id,
+    modelName: model.name,
+    durationMs: Date.now() - start,
+    raw: sanitizeAntiAbuseText(raw, 4_000),
+    finalRiskScore,
+    recommendedAction: enforcedAction,
+    priority: enforcedPriority,
+    summary: sanitizeAntiAbuseText(parsed?.summary || '', 800),
+    signals: Array.isArray(parsed?.signals)
+      ? parsed.signals.map((s: any) => sanitizeAntiAbuseText(s, 180)).filter(Boolean).slice(0, 10)
+      : [],
+    autoActionThreshold: finalRiskScore >= 80 && confidence >= 0.75,
+    reasoning: sanitizeAntiAbuseText(parsed?.reasoning || '', 400),
+  };
+}
+
+function enforceActionFromScore(
+  score: number
+): 'monitor' | 'throttle' | 'suspend' | 'block' {
+  if (score >= 80) return 'block';
+  if (score >= 60) return 'suspend';
+  if (score >= 30) return 'throttle';
+  return 'monitor';
+}
+
+function enforcePriorityFromScore(
+  score: number
+): 'low' | 'medium' | 'high' | 'critical' {
+  if (score >= 80) return 'critical';
+  if (score >= 60) return 'high';
+  if (score >= 30) return 'medium';
+  return 'low';
+}
+
+async function runAntiAbuseAiAssessment(
+  params: AntiAbuseParams
+): Promise<FullAssessmentResult | null> {
   if (process.env.ANTIABUSE_AI_ENABLED !== 'true') return null;
 
+  const assessmentId = generateAssessmentId();
+  const assessmentStart = Date.now();
   const modelRepo = AppDataSource.getRepository(AIModel);
-  const preferredModelIdRaw = process.env.ANTIABUSE_AI_MODEL_ID;
-  const preferredModelId = preferredModelIdRaw ? Number(preferredModelIdRaw) : null;
+  const preferredModelId = process.env.ANTIABUSE_AI_MODEL_ID
+    ? Number(process.env.ANTIABUSE_AI_MODEL_ID)
+    : null;
 
   let model: AIModel | null = null;
   if (preferredModelId && Number.isFinite(preferredModelId)) {
     model = await modelRepo.findOneBy({ id: preferredModelId as any });
   }
   if (!model) {
-    model = await modelRepo.findOne({ where: {} as any, order: { id: 'ASC' } as any });
+    model = await modelRepo.findOne({
+      where: {} as any,
+      order: { id: 'ASC' } as any,
+    });
   }
-  if (!model || !model.endpoint) return null;
+  if (!model?.endpoint) return null;
 
-  const systemPrompt = `
-  You are an anti-abuse analyst for a hosting platform. Review this network abuse incident and return ONLY JSON:
-{"riskScore": <0-100>, "category": "ddos|port_scan|crypto_mining|spam|unknown", "confidence": <0-1>, "summary": "short summary", "recommendedAction": "monitor|throttle|suspend", "signals": ["signal1", "signal2"]}`;
-
-  const payload = {
-    serverId: params.serverId,
-    serverName: params.serverName,
-    nodeName: params.nodeName,
-    reason: params.reason,
-    detectionType: params.detectionType,
-    sourceIp: params.sourceIp,
-    targetIp: params.targetIp,
-    targetPort: params.targetPort,
-    metrics: params.metrics,
-    recentEvents: params.recentEvents,
-  };
+  let triage: TriageResult | null = null;
+  let deepAnalysis: DeepAnalysisResult | null = null;
+  let decision: DecisionResult | null = null;
+  let stagesCompleted = 0;
 
   try {
-    const baseUrl = (model.endpoint || '').replace(/\/+$/, '').replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
-    const chatUrl = `${baseUrl}/v1/chat/completions`;
-    const res = await axios.post(
-      chatUrl,
-      {
-        model: (model as any).config?.modelId || model.name,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: JSON.stringify(payload) },
-        ],
-        max_tokens: 600,
-      },
-      { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 30000 }
-    );
+    // Stage 1: Triage
+    triage = await runStage1Triage(model, params);
+    stagesCompleted = 1;
 
-    const aiReply = res.data?.choices?.[0]?.message?.content || '';
-    const cleaned = String(aiReply).replace(/```json?\s*/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleaned || '{}');
+    // Stage 2 aka Deep Analysis
+    if (triage.shouldEscalate || triage.initialRiskScore >= 40) {
+      deepAnalysis = await runStage2DeepAnalysis(model, params, triage);
+      stagesCompleted = 2;
+
+      // Stage 3 aka decision
+      decision = await runStage3Decision(model, params, triage, deepAnalysis);
+      stagesCompleted = 3;
+    }
+
+    // Prefer Stage 3 data > Stage 2 data > Stage 1 data
+    // YES YES YES
+    const finalRiskScore =
+      decision?.finalRiskScore ??
+      deepAnalysis?.riskScore ??
+      triage.initialRiskScore;
+
+    const finalCategory =
+      deepAnalysis?.category ?? triage.threatCategory;
+
+    const finalConfidence =
+      deepAnalysis?.confidence ??
+      (triage.initialRiskScore >= 70 ? 0.6 : 0.3);
+
+    const finalAction =
+      decision?.recommendedAction ?? enforceActionFromScore(finalRiskScore);
+
+    const finalPriority =
+      decision?.priority ?? enforcePriorityFromScore(finalRiskScore);
+
+    const summary =
+      decision?.summary ??
+      deepAnalysis?.attackVector ??
+      triage.triageNotes;
+
+    const signals: string[] =
+      decision?.signals.length
+        ? decision.signals
+        : [
+            ...triage.redFlags,
+            ...(deepAnalysis?.technicalFindings ?? []),
+          ].slice(0, 10);
 
     return {
-      modelId: model.id,
-      modelName: model.name,
-      riskScore: clampNumber(Number(parsed?.riskScore ?? 0), 0, 100),
-      category: sanitizeAntiAbuseText(parsed?.category || 'unknown', 40),
-      confidence: Math.max(0, Math.min(1, Number(parsed?.confidence ?? 0))),
-      summary: sanitizeAntiAbuseText(parsed?.summary || '', 800),
-      recommendedAction: sanitizeAntiAbuseText(parsed?.recommendedAction || 'monitor', 30),
-      signals: Array.isArray(parsed?.signals)
-        ? parsed.signals.map((s: any) => sanitizeAntiAbuseText(s, 180)).filter(Boolean).slice(0, 20)
-        : [],
-      raw: sanitizeAntiAbuseText(cleaned, 12_000),
+      assessmentId,
+      completedAt: new Date().toISOString(),
+      totalDurationMs: Date.now() - assessmentStart,
+      stagesCompleted,
+      triage,
+      deepAnalysis,
+      decision,
+      finalRiskScore,
+      finalCategory,
+      finalConfidence,
+      finalAction,
+      finalPriority,
+      summary: sanitizeAntiAbuseText(summary, 800),
+      signals,
     };
   } catch (err: any) {
     return {
-      error: sanitizeAntiAbuseText(err?.message || 'AI analysis failed', 400),
+      assessmentId,
+      completedAt: new Date().toISOString(),
+      totalDurationMs: Date.now() - assessmentStart,
+      stagesCompleted,
+      triage,
+      deepAnalysis,
+      decision,
+      finalRiskScore: triage?.initialRiskScore ?? 0,
+      finalCategory: triage?.threatCategory ?? 'unknown',
+      finalConfidence: 0,
+      finalAction: enforceActionFromScore(triage?.initialRiskScore ?? 0),
+      finalPriority: enforcePriorityFromScore(triage?.initialRiskScore ?? 0),
+      summary: triage?.triageNotes ?? '',
+      signals: triage?.redFlags ?? [],
+      error: sanitizeAntiAbuseText(err?.message || 'AI assessment failed', 400),
     };
   }
 }
@@ -2652,6 +3185,79 @@ export async function adminRoutes(app: any, prefix = '') {
     detail: { summary: 'List all servers across nodes', tags: ['Admin'] },
   });
 
+  app.get(prefix + '/admin/servers/:id/abuse-reports', async (ctx) => {
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
+    if (adminErr !== true) return adminErr;
+
+    const serverId = String(ctx.params.id || '').trim();
+    if (!serverId) {
+      ctx.set.status = 400;
+      return { error: 'Server ID is required' };
+    }
+
+    const formRepo = AppDataSource.getRepository(ApplicationForm);
+    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } as any });
+    if (!form) {
+      return { reports: [] };
+    }
+
+    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+    const submissions = await submissionRepo.find({
+      where: { formId: form.id } as any,
+      order: { createdAt: 'DESC' } as any,
+      take: 200,
+    });
+
+    const reports = submissions
+      .filter((submission) => {
+        const meta = submission.meta || {};
+        const linkedServerId = String(meta.serverId || meta.server?.uuid || meta.server || '').trim();
+        return linkedServerId === serverId;
+      })
+      .map((submission) => {
+        const meta = submission.meta || {};
+        return {
+          id: submission.id,
+          status: submission.status,
+          createdAt: submission.createdAt ? submission.createdAt.toISOString() : null,
+          reason: String(meta.reason || '').trim(),
+          detectionType: String(meta.detectionType || '').trim(),
+          enforcementAction: String(meta.enforcementAction || meta.aiAssessment?.recommendedAction || meta.aiAssessment?.finalAction || '').trim(),
+          suspendAttempted: !!meta.suspendAttempted,
+          suspendSuccess: !!meta.suspendSuccess,
+          nodeName: String(meta.nodeName || '').trim() || null,
+          sourceIp: String(meta.sourceIp || '').trim() || null,
+          targetIp: String(meta.targetIp || '').trim() || null,
+        };
+      });
+
+    return { reports };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ reports: t.Array(t.Object({
+          id: t.Number(),
+          status: t.String(),
+          createdAt: t.Optional(t.String()),
+          reason: t.String(),
+          detectionType: t.String(),
+          enforcementAction: t.String(),
+          suspendAttempted: t.Boolean(),
+          suspendSuccess: t.Boolean(),
+          nodeName: t.Optional(t.String()),
+          sourceIp: t.Optional(t.String()),
+          targetIp: t.Optional(t.String()),
+        })) }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'List abuse reports linked to a server', tags: ['Admin'] },
+  });
+
   app.post(prefix + '/admin/servers/:id/power', async (ctx) => {
     const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
@@ -2780,7 +3386,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
-    const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated, autoSyncOnEggChange } = ctx.body as any;
+    const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated, autoSyncOnEggChange, ignoreAntiAbuse } = ctx.body as any;
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
@@ -2808,6 +3414,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (swap !== undefined) cfg.swap = Number(swap);
     if (ioWeight !== undefined) cfg.ioWeight = Number(ioWeight);
     if (hibernated !== undefined) cfg.hibernated = Boolean(hibernated);
+    if (ignoreAntiAbuse !== undefined) cfg.ignoreAntiAbuse = Boolean(ignoreAntiAbuse);
 
     if (cfg.memory != null && (!(Number.isFinite(Number(cfg.memory)) && Number(cfg.memory) >= 0))) {
       ctx.set.status = 400; return { error: 'Invalid memory value' };
@@ -2868,6 +3475,7 @@ export async function adminRoutes(app: any, prefix = '') {
         allocations: t.Optional(t.Any()),
         eggId: t.Optional(t.Any()),
         hibernated: t.Optional(t.Boolean()),
+        ignoreAntiAbuse: t.Optional(t.Boolean()),
         autoSyncOnEggChange: t.Optional(t.Boolean()),
       }),
       response: {
@@ -3045,6 +3653,23 @@ export async function adminRoutes(app: any, prefix = '') {
       notify: false,
     });
 
+    const retryWithDelay = async <T>(action: () => Promise<T>, attempts = 3, initialDelayMs = 500): Promise<T> => {
+      let lastError: any;
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          return await action();
+        } catch (error: any) {
+          lastError = error;
+          const status = error?.response?.status;
+          if (status === 401 || status === 403) throw error;
+          if (attempt < attempts) {
+            await new Promise((resolve) => setTimeout(resolve, initialDelayMs * attempt));
+          }
+        }
+      }
+      throw lastError;
+    };
+
     void (async () => {
       const nodeRepo = AppDataSource.getRepository(Node);
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
@@ -3058,18 +3683,18 @@ export async function adminRoutes(app: any, prefix = '') {
           results.push({ uuid: cfg.uuid, status: 'node_not_found' });
           continue;
         }
-        try {
+
+        const syncServer = async () => {
           const base = (node as any).backendWingsUrl || node.url;
           const svc = new WingsApiService(base, node.token);
+
           try {
             await svc.getServer(cfg.uuid);
-            results.push({ uuid: cfg.uuid, status: 'exists', nodeId: node.id });
-            continue;
+            return { uuid: cfg.uuid, status: 'exists', nodeId: node.id };
           } catch (e: any) {
             const status = e?.response?.status;
             if (status === 401 || status === 403) {
-              results.push({ uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id });
-              continue;
+              return { uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id };
             }
           }
 
@@ -3107,9 +3732,19 @@ export async function adminRoutes(app: any, prefix = '') {
           if (cfg.description) payload.meta = { description: cfg.description };
 
           const res = await svc.createServer(payload);
-          results.push({ uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status });
+          return { uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status };
+        };
+
+        try {
+          const result = await retryWithDelay(syncServer, 3, 1000);
+          results.push(result);
         } catch (err: any) {
-          results.push({ uuid: cfg.uuid, status: 'error', message: err?.message || String(err) });
+          const status = err?.response?.status;
+          if (status === 401 || status === 403) {
+            results.push({ uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id, message: err?.message || String(err) });
+          } else {
+            results.push({ uuid: cfg.uuid, status: 'error', message: `Failed after 3 retries: ${err?.message || String(err)}` });
+          }
         }
       }
 
@@ -3839,12 +4474,20 @@ export async function adminRoutes(app: any, prefix = '') {
     const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
 
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+    if (cfg?.ignoreAntiAbuse) {
+      return {
+        success: true,
+        ignored: true,
+        message: 'Anti-Abuse reporting is disabled for this server.',
+      };
+    }
+
     const nodeName = sanitizeAntiAbuseText(body.nodeName || body.node || process.env.HOSTNAME || '', 160) || null;
     const sourceIp = sanitizeAntiAbuseText(body.sourceIp || '', 80) || null;
     const targetIp = sanitizeAntiAbuseText(body.targetIp || '', 80) || null;
     const targetPort = Number(body.targetPort);
     const detectionType = sanitizeAntiAbuseText(body.detectionType || '', 120) || 'unknown';
-    const enforcementAction = sanitizeAntiAbuseText(body.enforcementAction || 'unknown', 60);
+    const enforcementAction = sanitizeAntiAbuseText(body.enforcementAction || 'unknown', 60).toLowerCase();
     const strikeCount = Number(body.strikeCount);
     const suspectedServerIds = Array.isArray(body.suspectedServerIds)
       ? body.suspectedServerIds.map((v: any) => sanitizeAntiAbuseText(v, 120)).filter(Boolean).slice(0, 20)
@@ -3852,10 +4495,32 @@ export async function adminRoutes(app: any, prefix = '') {
     const suspectedServerNames = Array.isArray(body.suspectedServerNames)
       ? body.suspectedServerNames.map((v: any) => sanitizeAntiAbuseText(v, 240)).filter(Boolean).slice(0, 20)
       : [];
-    const suspendAttempted = !!body.suspendAttempted;
-    const suspendSuccess = !!body.suspendSuccess;
+    let suspendAttempted = !!body.suspendAttempted;
+    let suspendSuccess = !!body.suspendSuccess;
+    const aiRecommendedAction = sanitizeAntiAbuseText(body.aiAssessment?.recommendedAction || body.aiAssessment?.finalAction || '', 60).toLowerCase();
+    const effectiveAction = enforcementAction !== 'unknown' ? enforcementAction : aiRecommendedAction;
+    let autoSuspendResult: {
+      success: boolean;
+      attempted: boolean;
+      emailSent: boolean;
+      emailRecipient: string | null;
+      emailError: string | null;
+      message: string;
+    } | null = null;
     const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse', 120);
     const incidentId = Number(body.incidentId);
+
+    const shouldAutoSuspend = ['suspend', 'block'].includes(effectiveAction);
+    if (shouldAutoSuspend && !suspendSuccess) {
+      autoSuspendResult = await attemptAutoSuspendServer(
+        serverId,
+        `Auto enforcement (${effectiveAction}): ${reason}`,
+        'anti-abuse system',
+        false,
+      );
+      suspendAttempted = suspendAttempted || autoSuspendResult.attempted;
+      suspendSuccess = suspendSuccess || autoSuspendResult.success;
+    }
 
     let form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
     if (!form) {
@@ -3905,6 +4570,15 @@ export async function adminRoutes(app: any, prefix = '') {
         if (events.length > 0) {
           appendLines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
         }
+        if (autoSuspendResult) {
+          appendLines.push(`Auto-enforcement: ${autoSuspendResult.success ? 'success' : 'failed'}`);
+          if (autoSuspendResult.emailSent) {
+            appendLines.push(`Admin alert sent to: ${autoSuspendResult.emailRecipient}`);
+          }
+          if (autoSuspendResult.emailError) {
+            appendLines.push(`Admin alert error: ${autoSuspendResult.emailError}`);
+          }
+        }
 
         existing.content = `${existing.content || ''}\n${appendLines.join('\n')}`.slice(0, 20_000);
 
@@ -3923,6 +4597,7 @@ export async function adminRoutes(app: any, prefix = '') {
             targetPort: Number.isFinite(targetPort) ? targetPort : null,
             suspendAttempted,
             suspendSuccess,
+            autoSuspendResult,
             metrics,
             recentEvents: events,
           },
@@ -3985,6 +4660,16 @@ export async function adminRoutes(app: any, prefix = '') {
       lines.push('');
       lines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
     }
+    if (autoSuspendResult) {
+      lines.push('');
+      lines.push(`Auto-enforcement: ${autoSuspendResult.success ? 'success' : 'failed'}`);
+      if (autoSuspendResult.emailSent) {
+        lines.push(`Admin alert sent to: ${autoSuspendResult.emailRecipient}`);
+      }
+      if (autoSuspendResult.emailError) {
+        lines.push(`Admin alert error: ${autoSuspendResult.emailError}`);
+      }
+    }
     if (aiAssessment) {
       lines.push('');
       lines.push(`AI assessment: ${sanitizeAntiAbuseText(JSON.stringify(aiAssessment), 7000)}`);
@@ -4017,6 +4702,7 @@ export async function adminRoutes(app: any, prefix = '') {
         metrics,
         recentEvents: events,
         aiAssessment,
+        autoSuspendResult,
         raw: body,
         userAgent: sanitizeAntiAbuseText(ctx.request?.headers?.get?.('user-agent') || '', 500) || null,
       },
@@ -4024,7 +4710,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const saved = await submissionRepo.save(created);
 
-    const recipient = process.env.ABUSE_REPORT_EMAIL || process.env.ADMIN_EMAIL || null;
+    const recipient = process.env.ABUSE_REPORT_EMAIL || null;
     let emailSent = false;
     let emailError: string | null = null;
 
