@@ -1374,11 +1374,11 @@ export default function SettingsPage() {
   const verifySelfieAge = async () => {
     if (!user?.id) return
     if (!form.dateOfBirth) {
-      alert("Please enter your date of birth before verifying with a selfie.")
+      alert(t("messages.enterDateOfBirthSelfie"))
       return
     }
     if (!capturedSelfie) {
-      alert("Please take a selfie before verifying.")
+      alert(t("messages.takeSelfieBeforeVerify"))
       return
     }
     setSelfieLoading(true)
@@ -1399,7 +1399,11 @@ export default function SettingsPage() {
       setCapturedSelfie(null)
       await refreshUser()
     } catch (err: any) {
-      setSelfieMessage(`Selfie verification failed: ${err.message || "Unknown error"}`)
+      setSelfieMessage(
+        t("messages.selfieVerificationFailed", {
+          error: err.message || t("messages.unknown"),
+        })
+      )
     } finally {
       setSelfieLoading(false)
     }
@@ -1637,6 +1641,21 @@ export default function SettingsPage() {
     ? documentsSetting
     : []
 
+  const validateProfileForm = (): string | null => {
+    const missingFields: string[] = []
+
+    if (!form.firstName.trim()) missingFields.push(t("profile.firstName"))
+    if (!form.lastName.trim()) missingFields.push(t("profile.lastName"))
+    if (!form.phone.trim()) missingFields.push(t("profile.phone"))
+    if (!form.address.trim()) missingFields.push(t("profile.streetAddress"))
+    if (!form.billingCity.trim()) missingFields.push(t("profile.city"))
+    if (!form.billingZip.trim()) missingFields.push(t("profile.zipPostal"))
+    if (!form.billingCountry.trim()) missingFields.push(t("profile.country"))
+
+    if (!missingFields.length) return null
+    return t("messages.requiredFields", { fields: missingFields.join(", ") })
+  }
+
   const showGuideAgain = async () => {
     if (!user?.id) return
     try {
@@ -1659,6 +1678,17 @@ export default function SettingsPage() {
 
   const saveProfile = async () => {
     setSaving(true)
+
+    const validationError = validateProfileForm()
+    if (validationError) {
+      alert(validationError)
+      setSaving(false)
+      return
+    }
+
+    const hasDob = user?.dateOfBirth != null && String(user?.dateOfBirth).trim() !== ''
+    const dobLocked = hasDob && Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt)
+
     try {
       await apiFetch(
         API_ENDPOINTS.userDetail.replace(":id", user?.id?.toString() ?? ""),
@@ -1678,7 +1708,7 @@ export default function SettingsPage() {
             billingState: form.billingState || undefined,
             billingZip: form.billingZip || undefined,
             billingCountry: form.billingCountry || undefined,
-            dateOfBirth: form.dateOfBirth || undefined,
+            dateOfBirth: dobLocked ? undefined : form.dateOfBirth || undefined,
           }),
         }
       )

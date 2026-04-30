@@ -301,16 +301,17 @@ export default function TicketDetailPage({
     }
 
     try {
+      const payload: any = {
+        reply: reply.trim(),
+        replyAs: canTicketStaff ? replyAs : "user",
+        ...((canTicketWrite || canTicketStaff) ? { priority: replyPriority } : {}),
+      }
+
       const updated = await apiFetch(
         API_ENDPOINTS.ticketDetail.replace(":id", id),
         {
           method: "PUT",
-          body: JSON.stringify({
-            reply: reply.trim(),
-            replyAs: canTicketStaff ? replyAs : "user",
-            status: ticket.status,
-            ...((canTicketWrite || canTicketStaff) ? { priority: replyPriority } : {}),
-          }),
+          body: JSON.stringify(payload),
         }
       )
       const diff = getTicketChangeNotifications(

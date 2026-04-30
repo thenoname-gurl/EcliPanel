@@ -416,6 +416,7 @@ interface AdminServer {
   description?: string
   status?: string
   owner?: number
+  ignoreAntiAbuse?: boolean
   eggId?: number
   nodeName: string
   nodeId: number
@@ -427,6 +428,20 @@ interface AdminServer {
     docker?: { image?: string }
     autoSyncOnEggChange?: boolean
   }
+}
+
+interface AdminServerAbuseReport {
+  id: number
+  status: string
+  createdAt: string | null
+  reason: string
+  detectionType: string
+  enforcementAction: string
+  suspendAttempted: boolean
+  suspendSuccess: boolean
+  nodeName: string | null
+  sourceIp: string | null
+  targetIp: string | null
 }
 
 interface AdminPlan {
@@ -1435,6 +1450,7 @@ export default function AdminPanel() {
   const [esEnvVarDefs, setEsEnvVarDefs] = useState<any[]>([])
   const [esExtraEnvRows, setEsExtraEnvRows] = useState<Array<{ id: string; key: string; value: string }>>([])
   const [esEnvModified, setEsEnvModified] = useState(false)
+  const [esIgnoreAntiAbuse, setEsIgnoreAntiAbuse] = useState(false)
   const [esLoading, setEsLoading] = useState(false)
   const [esError, setEsError] = useState("")
   const [esAllocations, setEsAllocations] = useState<{ ip: string; port: number; is_default: boolean; fqdn?: string }[]>([])
@@ -1452,6 +1468,9 @@ export default function AdminPanel() {
   const [esMountsLoading, setEsMountsLoading] = useState(false)
   const [esMountsSaving, setEsMountsSaving] = useState(false)
   const [esMountsError, setEsMountsError] = useState("")
+  const [esAbuseReports, setEsAbuseReports] = useState<AdminServerAbuseReport[]>([])
+  const [esAbuseReportsLoading, setEsAbuseReportsLoading] = useState(false)
+  const [esAbuseReportsError, setEsAbuseReportsError] = useState("")
 
   const canManageServerMounts = !!user && (hasPermission(user, 'admin.mounts.add/remove') || hasPermission(user, 'admin:servers:manage'))
 
@@ -2389,6 +2408,7 @@ export default function AdminPanel() {
         ""
     )
     setEsUserId(String(mergedAny.owner || mergedAny.userId || ""))
+    setEsIgnoreAntiAbuse(Boolean(mergedAny.ignoreAntiAbuse ?? false))
     setEsMemory(String(cfgBuild.memory_limit ?? rootBuild.memory_limit ?? mergedAny.memory ?? ""))
     setEsDisk(String(cfgBuild.disk_space ?? rootBuild.disk_space ?? mergedAny.disk ?? ""))
     setEsCpu(String(cfgBuild.cpu_limit ?? rootBuild.cpu_limit ?? mergedAny.cpu ?? ""))
@@ -2432,6 +2452,8 @@ export default function AdminPanel() {
       })
       .catch(() => { })
 
+    await loadEditServerAbuseReports(mergedServer.uuid || srv.uuid)
+
     if (canManageServerMounts) {
       await loadEditServerMounts(mergedServer.uuid || srv.uuid)
     } else {
@@ -2469,6 +2491,24 @@ export default function AdminPanel() {
       setEsSelectedMountId("")
     } finally {
       setEsMountsLoading(false)
+    }
+  }
+
+  async function loadEditServerAbuseReports(serverUuid: string) {
+    setEsAbuseReportsLoading(true)
+    setEsAbuseReportsError("")
+    try {
+      const data = await apiFetch(API_ENDPOINTS.adminServerAbuseReports.replace(":id", serverUuid))
+      if (data && Array.isArray(data.reports)) {
+        setEsAbuseReports(data.reports)
+      } else {
+        setEsAbuseReports([])
+      }
+    } catch (e: any) {
+      setEsAbuseReportsError(e?.message || "Failed to load abuse reports")
+      setEsAbuseReports([])
+    } finally {
+      setEsAbuseReportsLoading(false)
     }
   }
 
@@ -2524,6 +2564,7 @@ export default function AdminPanel() {
           startup: esStartup || undefined,
           allocations: esAllocations,
           eggId: esEggId && esEggId !== "none" ? Number(esEggId) : undefined,
+          ignoreAntiAbuse: esIgnoreAntiAbuse,
           autoSyncOnEggChange: esAutoSyncOnEggChange,
         }),
       })
@@ -2538,7 +2579,9 @@ export default function AdminPanel() {
         })
       }
       setServers((prev) => prev.map((s) =>
-        s.uuid === editServerDialog.uuid ? { ...s, name: esName || s.name, description: esDesc || s.description } : s
+        s.uuid === editServerDialog.uuid
+          ? { ...s, name: esName || s.name, description: esDesc || s.description, ignoreAntiAbuse: esIgnoreAntiAbuse }
+          : s
       ))
       setEditServerDialog(null)
     } catch (e: any) {
@@ -6075,6 +6118,14 @@ remote: ${panelUrl}`
                 <input type="number" value={esUserId} onChange={(e) => setEsUserId(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
+              <div className="flex flex-col gap-1.5 pt-2">
+                <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <input type="checkbox" checked={esIgnoreAntiAbuse} onChange={(e) => setEsIgnoreAntiAbuse(e.target.checked)}
+                    className="h-4 w-4 rounded border border-border bg-secondary/50 text-primary focus:ring-2 focus:ring-primary" />
+                  Ignore anti-abuse reports
+                </label>
+                <p className="text-xs text-muted-foreground">When enabled, this server will not log or enforce incoming anti-abuse events.</p>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Memory (MB)</label>
                 <input type="number" min="128" value={esMemory} onChange={(e) => setEsMemory(e.target.value)}
@@ -6219,6 +6270,48 @@ remote: ${panelUrl}`
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="col-span-2 rounded-2xl border border-border/70 bg-secondary/10 p-4">
+                <div className="flex items-center justify-between gap-4 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Abuse Reports</p>
+                    <p className="text-xs text-muted-foreground">Reports linked to this server from the anti-abuse system.</p>
+                  </div>
+                  <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase text-muted-foreground">
+                    {esAbuseReportsLoading ? 'Loading…' : `${esAbuseReports.length} report${esAbuseReports.length === 1 ? '' : 's'}`}
+                  </span>
+                </div>
+                {esAbuseReportsError ? (
+                  <p className="text-xs text-destructive">{esAbuseReportsError}</p>
+                ) : esAbuseReportsLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading abuse reports...</p>
+                ) : esAbuseReports.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No abuse reports found for this server.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {esAbuseReports.map((report) => (
+                      <div key={report.id} className="rounded-xl border border-border/70 bg-background/80 p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">Report #{report.id}</p>
+                            <p className="text-xs text-muted-foreground">{report.detectionType || 'Unknown detection'} · {report.status}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs uppercase text-muted-foreground">{report.createdAt ? new Date(report.createdAt).toLocaleString() : 'Unknown date'}</p>
+                            <p className="text-[11px] text-muted-foreground">Action: {report.enforcementAction || 'n/a'}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                          {report.reason && <p><span className="font-medium text-foreground">Reason:</span> {report.reason}</p>}
+                          {report.nodeName && <p><span className="font-medium text-foreground">Node:</span> {report.nodeName}</p>}
+                          {report.sourceIp && <p><span className="font-medium text-foreground">Source IP:</span> {report.sourceIp}</p>}
+                          {report.targetIp && <p><span className="font-medium text-foreground">Target IP:</span> {report.targetIp}</p>}
+                          <p>{report.suspendSuccess ? 'Server suspension succeeded' : report.suspendAttempted ? 'Server suspension attempted' : 'No suspension attempted'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="col-span-2 flex flex-col gap-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Network Allocations</label>

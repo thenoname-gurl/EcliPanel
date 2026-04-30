@@ -3187,6 +3187,10 @@
       "failed": "Failed",
       "failedToSave": "Failed to save",
       "failedToSaveSettings": "Failed to save settings",
+      "requiredFields": "Please update required fields: {fields}.",
+      "enterDateOfBirthSelfie": "Please enter your date of birth before verifying with a selfie.",
+      "takeSelfieBeforeVerify": "Please take a selfie before verifying.",
+      "selfieVerificationFailed": "Selfie verification failed: {error}.",
       "unknown": "unknown"
     },
     "actions": {
@@ -3661,6 +3665,10 @@
       "code": "Code",
       "yourServers": "Your Servers",
       "sharedWithYou": "Shared With You"
+    },
+    "warnings": {
+      "legalInfoTitle": "Complete required legal information",
+      "legalInfoDescription": "Your account is missing required legal profile information or age verification, so you cannot view projects or deploy new servers. Please update your legal name, phone, billing address, and date of birth in Settings."
     },
     "search": {
       "placeholder": "Search servers..."
