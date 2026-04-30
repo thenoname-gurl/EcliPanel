@@ -814,6 +814,7 @@ export async function serverRoutes(app: any, prefix = '') {
         sftp: sftpInfo,
         isOwner: cfg.userId === user?.id,
         userId: cfg.userId,
+        ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
         ...(isAdmin
           ? {
             owner: cfg.userId,
@@ -843,6 +844,7 @@ export async function serverRoutes(app: any, prefix = '') {
             ...norm,
             node: nodeName,
             sftp: sftpInfo,
+            ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
             ...(isAdmin
               ? {
                 owner: cfg.userId,
@@ -884,6 +886,7 @@ export async function serverRoutes(app: any, prefix = '') {
           ...norm,
           node: nodeName,
           sftp: sftpInfo,
+          ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
           ...(isAdmin
             ? {
               owner: cfg.userId,
