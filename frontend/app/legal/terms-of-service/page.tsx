@@ -61,14 +61,24 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6">
-          <h2 className="text-xl font-semibold text-foreground">5. Acceptable Use</h2>
+          <h2 className="text-xl font-semibold text-foreground">5. Account Deletion Requests</h2>
+          <div className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
+            <p>We may refuse an account deletion request if your account currently owns active servers, if your profile is missing required legal information, or if deletion would prevent us from complying with applicable law.</p>
+            <p>After you submit a deletion request, we will review and approve or reject it within approximately 14 days.</p>
+            <p>If approved, we will complete deletion of your account and data from our systems and third-party processors within approximately 14 additional days.</p>
+            <p>Certain records may remain longer where required by law or for legitimate business purposes, including audit, security, and tax requirements.</p>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-border bg-card p-6">
+          <h2 className="text-xl font-semibold text-foreground">6. Acceptable Use</h2>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
             You must not use EclipseSystems for illegal content, infringement, spam, DDoS attacks, prohibited mining, proxy or anonymizing services, or any activity that violates our Acceptable Use Policy. High-risk AI use and email communications are also subject to our separate AI Policy and Email Policy.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6">
-          <h2 className="text-xl font-semibold text-foreground">6. Customer Content & Backups</h2>
+          <h2 className="text-xl font-semibold text-foreground">7. Customer Content & Backups</h2>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
             <li>You are responsible for all content uploaded to our services.</li>
             <li>We may access or process content as needed to provide, secure, troubleshoot, or back up services.</li>
@@ -77,14 +87,14 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6">
-          <h2 className="text-xl font-semibold text-foreground">7. Domains</h2>
+          <h2 className="text-xl font-semibold text-foreground">8. Domains</h2>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
             We act as an intermediary for domain registrations and do not guarantee availability or freedom from third-party claims.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6">
-          <h2 className="text-xl font-semibold text-foreground">8. Changes</h2>
+          <h2 className="text-xl font-semibold text-foreground">9. Changes</h2>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
             We may update these Terms. Continued use after changes indicates acceptance.
           </p>

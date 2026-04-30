@@ -56,7 +56,12 @@ export default function PrivacyPolicyPage() {
 
         <section className="rounded-3xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold text-foreground">7. Retention</h2>
-          <p className="mt-4 text-sm leading-7 text-muted-foreground">We retain personal data as long as needed to provide service, comply with legal obligations, resolve disputes, and enforce agreements.</p>
+          <div className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
+            <p>We retain personal data as long as needed to provide service, comply with legal obligations, resolve disputes, and enforce agreements.</p>
+            <p>Account deletion requests are reviewed within approximately 14 days. If approved, data removal from our systems and third-party processors may take up to 14 additional days.</p>
+            <p>Some data is retained longer for legal, security, and operational reasons: up to 1 year for support, audit, and security logs, and up to 10 years for billing and financial records as required by law.</p>
+            <p>We may decline deletion requests when the account owns active servers, if required legal profile information is missing, or if retention is necessary to comply with applicable law.</p>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6">
