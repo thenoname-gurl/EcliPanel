@@ -3300,6 +3300,11 @@ export async function adminRoutes(app: any, prefix = '') {
       const base = (node as any).backendWingsUrl || node.url;
       const svc = new WingsApiService(base, node.token);
       const res = await svc.powerServer(serverId, action);
+      if (action === 'start' || action === 'restart') {
+        await AppDataSource.getRepository(ServerConfig).update({ uuid: serverId }, { desiredPowerState: true });
+      } else if (action === 'stop' || action === 'kill') {
+        await AppDataSource.getRepository(ServerConfig).update({ uuid: serverId }, { desiredPowerState: false });
+      }
       return { success: true, data: res.data };
     } catch (e: any) {
       const status = e?.response?.status || 502;

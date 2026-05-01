@@ -4,6 +4,7 @@ import { initMail } from '../services/mailService';
 import { startRetentionJobs } from '../services/retentionService';
 import { WingsSocketService } from '../services/wingsSocketService';
 import { WingsApiService } from '../services/wingsApiService';
+import { restoreDesiredPowerStatesForNode } from '../services/serverDesiredStateService';
 import { NodeHeartbeatService } from '../services/nodeHeartbeatService';
 import { startAllSftpProxies } from '../services/sftpProxyService';
 import fs from 'fs';
@@ -33,6 +34,11 @@ function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) 
         } catch (e: any) {
           app.log.warn({ err: e, node: node.name, server: id }, 'auto-sync failed on node connect');
         }
+      }
+      try {
+        await restoreDesiredPowerStatesForNode(node.id);
+      } catch (e: any) {
+        app.log.warn({ err: e, node: node.name }, 'failed to restore desired power state on node connect');
       }
     } catch (e: any) {
       app.log.warn({ err: e, node: node.name }, 'failed to list servers for auto-sync on node connect');

@@ -44,6 +44,7 @@ import { ServerMount } from '../models/serverMount.entity';
 import { t } from 'elysia';
 import { createActivityLog } from './logHandler';
 import { nodeService } from '../services/nodeService';
+import { restoreDesiredPowerStatesForNode } from '../services/serverDesiredStateService';
 import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
@@ -177,7 +178,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
         rootless: !!(egg?.rootless ?? false),
       },
       auto_kill: { enabled: false, seconds: 0 },
-      auto_start_behavior: 'unless_stopped',
+      auto_start_behavior: cfg.desiredPowerState ? 'always' : 'unless_stopped',
     },
     process_configuration: {
       startup: {
@@ -337,6 +338,11 @@ export async function remoteRoutes(app: any, prefix: string) {
           } catch (e: any) {
             (app as any).log?.warn?.({ err: e, server: cfg.uuid, nodeId: node.id }, 'auto-sync failed for server');
           }
+        }
+        try {
+          await restoreDesiredPowerStatesForNode(node.id);
+        } catch (e: any) {
+          (app as any).log?.warn?.({ err: e, nodeId: node.id }, 'failed to restore desired power state after wings reset');
         }
       } catch (e: any) {
         (app as any).log?.warn?.({ err: e }, 'auto-sync failed after wings reset');

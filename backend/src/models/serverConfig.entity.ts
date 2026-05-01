@@ -56,6 +56,10 @@ export class ServerConfig {
   @Column({ default: false })
   hibernated: boolean;
 
+  @Index()
+  @Column({ default: false })
+  desiredPowerState: boolean;
+
   @Column('json', { nullable: true })
   environment?: Record<string, string>;
 
