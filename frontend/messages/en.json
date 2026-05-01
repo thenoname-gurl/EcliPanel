@@ -1231,7 +1231,7 @@
       "hidden": "hidden",
       "visible": "visible",
       "confirmationTitle": "Privacy Confirmation",
-      "confirmationDescription": "This admin panel contains private user data (names, emails, IDs), which is prohibited from being shared with third parties (see NDA, clause 4).\nTo proceed, please confirm that you are not recording your screen or sharing it.",
+      "confirmationDescription": "This admin panel contains private user data (names, emails, IDs), which is prohibited from being shared with third parties (see NDA).\nTo proceed, please confirm that you are not recording your screen or sharing it.",
       "continueWithRedaction": "Keep private data hidden",
       "notRecording": "Reveal private data",
       "keepPrivateDataHidden": "Keep private data hidden",
