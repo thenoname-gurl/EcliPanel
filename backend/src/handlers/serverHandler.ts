@@ -1955,6 +1955,11 @@ export async function serverRoutes(app: any, prefix = '') {
       if (gamblingPowerEnabled) {
         await recordPowerGambleOutcome(Number(user.id), true);
       }
+      if (action === 'start' || action === 'restart') {
+        await cfgRepo().update({ uuid: id }, { desiredPowerState: true });
+      } else if (action === 'stop' || action === 'kill') {
+        await cfgRepo().update({ uuid: id }, { desiredPowerState: false });
+      }
       await createActivityLog({ userId: user.id, action: `server:power:${action}`, targetId: id, targetType: 'server', metadata: { powerAction: action }, ipAddress: ctx.ip });
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
