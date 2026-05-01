@@ -2448,8 +2448,8 @@ export async function adminRoutes(app: any, prefix = '') {
         normalizeTicketMessages(ticket);
         if (!Array.isArray(ticket.messages)) ticket.messages = [];
         ticket.messages.push({
-          sender: 'staff',
-          message: `System: status changed from ${previousStatus || 'unknown'} to ${nextStatus}.`,
+          sender: 'system',
+          message: `Status changed from ${previousStatus || 'unknown'} to ${nextStatus}.`,
           created: now,
         });
       }
