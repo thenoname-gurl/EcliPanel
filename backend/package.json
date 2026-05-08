@@ -27,7 +27,7 @@
     "@simplewebauthn/server": "latest",
     "@tensorflow/tfjs-node": "latest",
     "@vladmandic/face-api": "latest",
-    "axios": "^1.15.0",
+    "axios": "^1.15.2",
     "base64url": "latest",
     "bcrypt": "^6.0.0",
     "bcryptjs": "latest",
