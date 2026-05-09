@@ -19,6 +19,14 @@ function getSafeRelativeFilePath(base: string, relPath: string): string | null {
   return fullPath;
 }
 
+function pickUpload(value: any): any {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function isUploadFile(value: any): boolean {
+  return Boolean(value) && typeof value.arrayBuffer === 'function';
+}
+
 export async function idVerificationRoutes(app: any, prefix = '') {
   app.post(prefix + '/id-verification', async (ctx: any) => {
     const user = ctx.user as User;
@@ -37,14 +45,21 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
     try {
       const { idDocument, selfie } = (ctx.body || {}) as any;
+      const idDocumentFile = pickUpload(idDocument);
+      const selfieFile = pickUpload(selfie);
+
+      if (!isUploadFile(idDocumentFile) || !isUploadFile(selfieFile)) {
+        ctx.set.status = 400;
+        return { error: 'Both ID Document and selfie files are required' };
+      }
+
       const files = [
-        { field: 'idDocument', item: Array.isArray(idDocument) ? idDocument[0] : idDocument },
-        { field: 'selfie', item: Array.isArray(selfie) ? selfie[0] : selfie },
+        { field: 'idDocument', item: idDocumentFile },
+        { field: 'selfie', item: selfieFile },
       ];
 
       for (const entry of files) {
         const uploadFile = entry.item;
-        if (!uploadFile) continue;
 
         const safeExt = path.extname(uploadFile.name || uploadFile.filename || '').replace(/[^a-zA-Z0-9.]/g, '').slice(0, 6) || '.bin';
         const filename = `${user.id}-${entry.field}-${Date.now()}${safeExt}`;
@@ -52,6 +67,10 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
         const ab = await uploadFile.arrayBuffer();
         const buffer = Buffer.from(ab);
+        if (buffer.length === 0) {
+          ctx.set.status = 400;
+          return { error: `${entry.field} must not be empty` };
+        }
         const encrypted = encryptBufferToString(buffer);
         fs.writeFileSync(filepath, encrypted, 'utf8');
 
@@ -293,7 +312,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
     const uploadDir = process.cwd();
     for (const url of [rec.idDocumentUrl, rec.selfieUrl]) {
-      if (url) {
+      if (typeof url === 'string' && url.trim()) {
         const filepath = getSafeRelativeFilePath(uploadDir, url);
         if (!filepath) continue;
         try { fs.unlinkSync(filepath); } catch { }
