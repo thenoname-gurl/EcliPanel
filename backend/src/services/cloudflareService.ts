@@ -14,15 +14,23 @@ export class CloudflareService {
     }
   }
 
-  private async request(path: string, options: any = {}) {
+  private async request(path: string, options: any = {}, timeoutMs = 8_000) {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      ...options,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let res: any;
+    try {
+      res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        ...options,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const bodyText = await res.text();
     let body: any = null;
@@ -69,6 +77,53 @@ export class CloudflareService {
       modified_on: z.modified_on,
       name_servers: z.name_servers,
     }));
+  }
+
+  private toDateString(d: Date) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  async getAccountTrafficSummary(days = 30) {
+    if (!this.accountId) {
+      throw new Error('CLOUDFLARE_ACCOUNT_ID is required');
+    }
+    const end = new Date();
+    const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const query = `query($accountTag: String!, $start: Date!, $end: Date!) {
+      viewer {
+        accounts(filter: { accountTag: $accountTag }) {
+          httpRequests1dGroups(limit: 1, filter: { date_geq: $start, date_leq: $end }) {
+            sum {
+              requests
+              bytes
+            }
+          }
+        }
+      }
+    }`;
+
+    const resp = await this.request('/graphql', {
+      method: 'POST',
+      body: JSON.stringify({
+        query,
+        variables: {
+          accountTag: this.accountId,
+          start: this.toDateString(start),
+          end: this.toDateString(end),
+        },
+      }),
+    });
+
+    const group = resp?.data?.viewer?.accounts?.[0]?.httpRequests1dGroups?.[0];
+    const sum = group?.sum || {};
+
+    return {
+      requests: Number(sum.requests || 0),
+      bytes: Number(sum.bytes || 0),
+      start: start.toISOString(),
+      end: end.toISOString(),
+    };
   }
 
   private async getZoneIdByName(name: string): Promise<string | null> {

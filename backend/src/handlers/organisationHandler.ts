@@ -18,6 +18,7 @@ import { WingsApiService } from '../services/wingsApiService';
 import { createActivityLog } from './logHandler';
 import { CloudflareService } from '../services/cloudflareService';
 import { t } from 'elysia';
+import { consumeRateLimit, redisDelByPrefix, withRedisCache } from '../config/redis';
 
 function createDnsService() {
   return new CloudflareService();
@@ -78,17 +79,62 @@ export async function organisationRoutes(app: any, prefix = '') {
       .filter(Boolean);
   }
 
+  function getRequesterIp(ctx: any): string {
+    const forwarded = String(ctx?.headers?.['x-forwarded-for'] || '').trim();
+    const firstForwarded = forwarded.split(',')[0]?.trim();
+    const direct = String(ctx?.ip || ctx?.request?.ip || '').trim();
+    return (firstForwarded || direct || 'unknown').slice(0, 100);
+  }
+
+  async function enforceOrgUpdateRateLimit(ctx: any, userId: number) {
+    try {
+      const ip = getRequesterIp(ctx);
+      const key = `rate:org-update:user:${userId}:ip:${ip}`;
+      const result = await consumeRateLimit(key, 6, 60);
+      if (result.allowed) return null;
+
+      ctx.set.status = 429;
+      ctx.set.headers = {
+        ...(ctx.set.headers || {}),
+        'Retry-After': String(result.retryAfterSeconds),
+      };
+      return { error: 'rate_limited', retryAfter: result.retryAfterSeconds };
+    } catch {
+      return null;
+    }
+  }
+
+  async function enforceDnsMutationRateLimit(ctx: any, userId: number, scope: string, limit: number, windowSeconds: number) {
+    try {
+      const ip = getRequesterIp(ctx);
+      const key = `rate:dns:${scope}:user:${userId}:ip:${ip}`;
+      const result = await consumeRateLimit(key, limit, windowSeconds);
+      if (result.allowed) return null;
+
+      ctx.set.status = 429;
+      ctx.set.headers = {
+        ...(ctx.set.headers || {}),
+        'Retry-After': String(result.retryAfterSeconds),
+      };
+      return { error: 'rate_limited', retryAfter: result.retryAfterSeconds };
+    } catch {
+      return null;
+    }
+  }
+
   app.get(prefix + '/organisations', async (ctx: any) => {
     const user = ctx.user as User;
-    const memberships = await memberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
-    const orgs: Organisation[] = memberships.map((m: any) => m.organisation).filter(Boolean);
-    const roleByOrgId = new Map<number, string>();
-    for (const m of memberships) roleByOrgId.set(m.organisationId, m.orgRole || 'member');
-    const owned = await orgRepo.find({ where: { ownerId: user.id } });
-    for (const o of owned) {
-      if (!orgs.some((x) => x.id === o.id)) orgs.push(o);
-    }
-    return orgs.map((org) => sanitizeOrg(org, { orgRole: roleByOrgId.get(org.id) || (org.ownerId === user.id ? 'owner' : 'member') }));
+    return withRedisCache(`organisations:list:${user.id}:v1`, 20, async () => {
+      const memberships = await memberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+      const orgs: Organisation[] = memberships.map((m: any) => m.organisation).filter(Boolean);
+      const roleByOrgId = new Map<number, string>();
+      for (const m of memberships) roleByOrgId.set(m.organisationId, m.orgRole || 'member');
+      const owned = await orgRepo.find({ where: { ownerId: user.id } });
+      for (const o of owned) {
+        if (!orgs.some((x) => x.id === o.id)) orgs.push(o);
+      }
+      return orgs.map((org) => sanitizeOrg(org, { orgRole: roleByOrgId.get(org.id) || (org.ownerId === user.id ? 'owner' : 'member') }));
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -164,12 +210,14 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const users = await listMembersForOrg(org.id);
-    const invites = await inviteRepo.find({ where: { organisation: { id: org.id } } as any });
-    return sanitizeOrg(org, {
-      orgRole: membership?.orgRole || (org.ownerId === user.id ? 'owner' : undefined),
-      users,
-      invites: (invites || []).map((i: any) => ({ id: i.id, email: i.email, accepted: i.accepted })),
+    return withRedisCache(`organisations:detail:${user.id}:${org.id}:v1`, 15, async () => {
+      const users = await listMembersForOrg(org.id);
+      const invites = await inviteRepo.find({ where: { organisation: { id: org.id } } as any });
+      return sanitizeOrg(org, {
+        orgRole: membership?.orgRole || (org.ownerId === user.id ? 'owner' : undefined),
+        users,
+        invites: (invites || []).map((i: any) => ({ id: i.id, email: i.email, accepted: i.accepted })),
+      });
     });
   }, {
     beforeHandle: authenticate,
@@ -196,8 +244,10 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
 
     try {
-      const zones = await dnsZoneRepo.find({ where: { organisationId: org.id }, order: { createdAt: 'ASC' } });
-      return zones.map((z: any) => ({ id: z.id, name: String(z.name || '').replace(/\.$/, ''), kind: String(z.kind || 'cloudflare').toLowerCase(), status: z.status }));
+      return await withRedisCache(`organisations:dns-zones:${org.id}:${user.id}:v1`, 15, async () => {
+        const zones = await dnsZoneRepo.find({ where: { organisationId: org.id }, order: { createdAt: 'ASC' } });
+        return zones.map((z: any) => ({ id: z.id, name: String(z.name || '').replace(/\.$/, ''), kind: String(z.kind || 'cloudflare').toLowerCase(), status: z.status }));
+      });
     } catch (e: any) {
       ctx.set.status = 500;
       return { error: e.message };
@@ -220,6 +270,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const dnsRateLimit = await enforceDnsMutationRateLimit(ctx, user.id, 'zone-create', 6, 60);
+    if (dnsRateLimit) return dnsRateLimit;
 
     const body = ctx.body as any;
     const rawName = String(body.name || '').trim().replace(/\.$/, '');
@@ -240,6 +292,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         zone = dnsZoneRepo.create({ organisation: org, organisationId: org.id, name: rawName, kind: 'cloudflare', status: 'active' });
         zone = await dnsZoneRepo.save(zone);
       }
+      try { await redisDelByPrefix(`organisations:dns-zones:${org.id}:`); } catch { }
       return { id: zone.id, name: zone.name, kind: zone.kind, status: zone.status };
     } catch (e: any) {
       ctx.set.status = 500;
@@ -247,7 +300,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }), 500: t.Object({ error: t.String() }) },
     detail: { summary: 'Create organisation DNS subdomain', tags: ['Organisations', 'DNS'] }
   });
 
@@ -328,6 +381,8 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: 'Forbidden' };
       }
+      const dnsRateLimit = await enforceDnsMutationRateLimit(ctx, user.id, 'record-create', 20, 60);
+      if (dnsRateLimit) return dnsRateLimit;
 
       const zoneId = Number(ctx.params['zoneId']);
       const zone = await dnsZoneRepo.findOne({ where: { id: zoneId, organisationId: org.id } });
@@ -380,7 +435,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Create organisation DNS record', tags: ['Organisations', 'DNS'] }
   });
 
@@ -397,6 +452,8 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: 'Forbidden' };
       }
+      const dnsRateLimit = await enforceDnsMutationRateLimit(ctx, user.id, 'record-update', 20, 60);
+      if (dnsRateLimit) return dnsRateLimit;
 
       const zoneId = Number(ctx.params['zoneId']);
       const zone = await dnsZoneRepo.findOne({ where: { id: zoneId, organisationId: org.id } });
@@ -450,7 +507,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Update organisation DNS record', tags: ['Organisations', 'DNS'] }
   });
 
@@ -466,6 +523,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const dnsRateLimit = await enforceDnsMutationRateLimit(ctx, user.id, 'record-delete', 20, 60);
+    if (dnsRateLimit) return dnsRateLimit;
 
     const zoneId = Number(ctx.params['zoneId']);
     const zone = await dnsZoneRepo.findOne({ where: { id: zoneId, organisationId: org.id } });
@@ -487,7 +546,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }), 502: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete organisation DNS record', tags: ['Organisations', 'DNS'] }
   });
 
@@ -503,6 +562,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const dnsRateLimit = await enforceDnsMutationRateLimit(ctx, user.id, 'zone-delete', 6, 60);
+    if (dnsRateLimit) return dnsRateLimit;
 
     const zoneId = Number(ctx.params['zoneId']);
     const zone = await dnsZoneRepo.findOne({ where: { id: zoneId, organisationId: org.id } });
@@ -534,10 +595,11 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
 
     await dnsZoneRepo.delete({ id: zoneId, organisationId: org.id });
+    try { await redisDelByPrefix(`organisations:dns-zones:${org.id}:`); } catch { }
     return { success: true };
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }) },
     detail: { summary: 'Delete organisation DNS zone', tags: ['Organisations', 'DNS'] }
   });
 
@@ -552,6 +614,9 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const orgRateLimit = await enforceOrgUpdateRateLimit(ctx, user.id);
+    if (orgRateLimit) return orgRateLimit;
+
     const { name, portalTier } = ctx.body as any;
     if (name) org.name = name;
     if (portalTier) org.portalTier = portalTier;
@@ -560,7 +625,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     return { success: true, org: sanitizeOrg(org, { orgRole: actorMembership?.orgRole || (org.ownerId === user.id ? 'owner' : undefined) }) };
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean(), org: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean(), org: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }) },
     detail: { summary: 'Update organisation', tags: ['Organisations'] }
   });
 
@@ -577,7 +642,9 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    return await listMembersForOrg(org.id);
+    return withRedisCache(`organisations:users:${user.id}:${org.id}:v1`, 15, async () => {
+      return await listMembersForOrg(org.id);
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -866,15 +933,17 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Unauthorized' };
     }
-    const invites = await inviteRepo.find({ where: { email: user.email, accepted: false }, relations: ['organisation'], order: { createdAt: 'ASC' } });
-    return invites.map((invite) => ({
-      id: invite.id,
-      organisationId: invite.organisation?.id || null,
-      organisationName: invite.organisation?.name || null,
-      organisationExists: !!invite.organisation,
-      email: invite.email,
-      createdAt: invite.createdAt,
-    }));
+    return withRedisCache(`organisations:invites:${user.id}:v1`, 10, async () => {
+      const invites = await inviteRepo.find({ where: { email: user.email, accepted: false }, relations: ['organisation'], order: { createdAt: 'ASC' } });
+      return invites.map((invite) => ({
+        id: invite.id,
+        organisationId: invite.organisation?.id || null,
+        organisationName: invite.organisation?.name || null,
+        organisationExists: !!invite.organisation,
+        email: invite.email,
+        createdAt: invite.createdAt,
+      }));
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -978,16 +1047,18 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/organisations/:id/servers', async (ctx: any) => {
     const orgId = Number(ctx.params['id']);
-    const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
-    const nodes = await repo.find({ where: { organisation: { id: orgId } } });
-    let results: any[] = [];
-    for (const n of nodes) {
-      const base = (n as any).backendWingsUrl || n.url;
-      const svc = new WingsApiService(base, n.token);
-      const res = await svc.getServers();
-      results.push(...(res.data || []).map((s: any) => ({ ...s, node: n.id })));
-    }
-    return results;
+    return withRedisCache(`organisations:servers:${orgId}:v1`, 10, async () => {
+      const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
+      const nodes = await repo.find({ where: { organisation: { id: orgId } } });
+      let results: any[] = [];
+      for (const n of nodes) {
+        const base = (n as any).backendWingsUrl || n.url;
+        const svc = new WingsApiService(base, n.token);
+        const res = await svc.getServers();
+        results.push(...(res.data || []).map((s: any) => ({ ...s, node: n.id })));
+      }
+      return results;
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -996,9 +1067,11 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/organisations/:id/nodes', async (ctx: any) => {
     const orgId = Number(ctx.params['id']);
-    const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
-    const nodes = await repo.find({ where: { organisation: { id: orgId } } });
-    return nodes;
+    return withRedisCache(`organisations:nodes:${orgId}:v1`, 30, async () => {
+      const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
+      const nodes = await repo.find({ where: { organisation: { id: orgId } } });
+      return nodes;
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -1033,7 +1106,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
     const ab = await uploadFile.arrayBuffer();
     const buffer = Buffer.from(ab);
-    
+
     let isAnimated = false;
     if (mime === 'image/gif' || mime === 'image/webp') {
       try {

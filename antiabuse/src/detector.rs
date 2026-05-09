@@ -107,8 +107,14 @@ fn should_force_suspend(trigger: &DetectionTrigger, config: &Config) -> bool {
     }
 
     let unique_ports = unique_ports_on_target(trigger);
+    let unique_ips = trigger
+        .metrics
+        .get("uniqueIps")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
 
     unique_ports >= config.port_scan_auto_suspend_unique_ports
+        && unique_ips >= config.port_scan_auto_suspend_min_unique_ips
 }
 
 fn unique_ports_on_target(trigger: &DetectionTrigger) -> usize {

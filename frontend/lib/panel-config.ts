@@ -169,6 +169,7 @@ export const API_ENDPOINTS = {
   serverSchedules: "/api/servers/:id/schedules",
   serverScheduleDelete: "/api/servers/:id/schedules/:sid",
   serverAllocations: "/api/servers/:id/allocations",
+  serverIpRequest: "/api/servers/:id/ip-request",
   serverBackups: "/api/servers/:id/backups",
   serverBackupRestore: "/api/servers/:id/backups/:bid/restore",
   serverBackupDelete: "/api/servers/:id/backups/:bid",

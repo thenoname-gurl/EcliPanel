@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     qemu-utils \
     wget \
     curl \
+    ca-certificates \
     openssh-client \
     cloud-image-utils \
     expect \

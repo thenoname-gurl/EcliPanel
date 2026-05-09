@@ -77,7 +77,15 @@ export class WingsApiService {
   }
 
   async createServer(payload: any) {
-    return axios.post(`${this.baseUrl}/servers`, payload, this.cfg());
+    const normalized: Record<string, any> = {};
+    if (payload?.uuid) normalized.uuid = payload.uuid;
+    if (Object.prototype.hasOwnProperty.call(payload ?? {}, 'start_on_completion')) {
+      normalized.start_on_completion = Boolean(payload.start_on_completion);
+    }
+    if (Object.prototype.hasOwnProperty.call(payload ?? {}, 'skip_scripts')) {
+      normalized.skip_scripts = Boolean(payload.skip_scripts);
+    }
+    return axios.post(`${this.baseUrl}/servers`, normalized, this.cfg());
   }
 
   async powerServer(serverId: string, action: string) {
@@ -251,6 +259,65 @@ export class WingsApiService {
     const settings = server.settings || {};
     const processConfiguration = server.process_configuration || {};
 
+    const sanitizeAllocations = (valueObject: any) => {
+      const raw = (valueObject && typeof valueObject === 'object') ? valueObject : {};
+      const mappings: Record<string, number[]> = {};
+
+      const normalizeIp = (ip: string) => {
+        const clean = String(ip ?? '').trim();
+        if (clean.startsWith('[') && clean.endsWith(']')) {
+          return clean.slice(1, -1).trim();
+        }
+        return clean;
+      };
+
+      const allocationHostKey = (ip: string, port: number) => {
+        const cleanIp = normalizeIp(ip);
+        return cleanIp.includes(':') ? `[${cleanIp}]:${port}` : `${cleanIp}:${port}`;
+      };
+
+      for (const [ip, ports] of Object.entries(raw.mappings ?? {})) {
+        const list = Array.isArray(ports) ? ports : [];
+        const safe = list
+          .map((p) => Number(p))
+          .filter((p) => Number.isInteger(p) && p > 0 && p <= 65535);
+        const normalizedIp = normalizeIp(ip);
+        if (safe.length > 0 && normalizedIp) mappings[normalizedIp] = safe;
+      }
+
+      let def: any = undefined;
+      if (raw.default && typeof raw.default === 'object') {
+        const ip = normalizeIp(raw.default.ip ?? '');
+        const port = Number(raw.default.port ?? 0);
+        if (ip && Number.isInteger(port) && port > 0 && port <= 65535) {
+          def = { ip, port };
+        }
+      }
+
+      const fqdns: Record<string, string> = {};
+      for (const [key, value] of Object.entries(raw.fqdns ?? {})) {
+        const fqdn = String(value ?? '').trim();
+        if (!fqdn) continue;
+        const match = String(key).trim().match(/^\[?(.*?)\]:(\d+)$/);
+        if (!match) {
+          fqdns[String(key).trim()] = fqdn;
+          continue;
+        }
+        const ip = normalizeIp(match[1]);
+        const port = Number(match[2]);
+        if (ip && Number.isInteger(port) && port > 0 && port <= 65535) {
+          fqdns[allocationHostKey(ip, port)] = fqdn;
+        }
+      }
+
+      return {
+        force_outgoing_ip: Boolean(raw.force_outgoing_ip),
+        ...(def ? { default: def } : {}),
+        mappings,
+        ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}),
+      };
+    };
+
     for (const [key, value] of Object.entries(payload)) {
       const valueObject = (typeof value === 'object' && value !== null) ? value : {};
 
@@ -281,10 +348,12 @@ export class WingsApiService {
       if (key === 'build' || key === 'container' || key === 'meta' || key === 'allocations' || key === 'schedules' || key === 'environment' || key === 'labels' || key === 'backups' || key === 'mounts' || key === 'egg') {
         server.settings = {
           ...settings,
-          [key]: {
-            ...settings[key],
-            ...valueObject,
-          },
+          [key]: key === 'allocations'
+            ? sanitizeAllocations(valueObject)
+            : {
+              ...settings[key],
+              ...valueObject,
+            },
         };
         continue;
       }

@@ -4,8 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
 import { User } from '../models/user.entity';
 import { canPerformIdVerification, getMinimumAgeForCountry } from '../utils/eu';
-import { encryptBuffer } from '../utils/crypto';
-import { encryptBufferWithWorker } from '../workers/cryptoWorker';
+import { encryptBuffer, encryptBufferToString } from '../utils/crypto';
 import { estimateAgeFromSelfie } from '../services/faceApiService';
 import path from 'path';
 import fs from 'fs';
@@ -13,7 +12,7 @@ import { pipeline } from 'stream/promises';
 import { t } from 'elysia';
 
 function getSafeRelativeFilePath(base: string, relPath: string): string | null {
-  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
+  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/, '');
   const fullPath = path.join(base, normalised);
   const relative = path.relative(base, fullPath);
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
@@ -53,8 +52,8 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
         const ab = await uploadFile.arrayBuffer();
         const buffer = Buffer.from(ab);
-        const encrypted = await encryptBufferWithWorker(buffer).catch(() => encryptBuffer(buffer));
-        fs.writeFileSync(filepath, encrypted);
+        const encrypted = encryptBufferToString(buffer);
+        fs.writeFileSync(filepath, encrypted, 'utf8');
 
         const url = `/uploads/id-docs/${filename}`;
         if (entry.field === 'idDocument') idDocumentUrl = url;
@@ -80,7 +79,8 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     });
     record = await repo.save(record);
     return { success: true, record };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Any(),
     response: { 200: t.Object({ success: t.Boolean(), record: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'Submit ID verification', description: 'User submits scanned ID and selfie for manual review.', tags: ['Identity'] }
@@ -206,7 +206,8 @@ export async function idVerificationRoutes(app: any, prefix = '') {
         details: String(err?.message || err || 'unknown error'),
       };
     }
-  }, { beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Any(),
     response: {
       200: t.Object({ success: t.Boolean(), age: t.Number(), difference: t.Number(), maxError: t.Number(), attempts: t.Number(), remaining: t.Number() }),
@@ -231,7 +232,8 @@ export async function idVerificationRoutes(app: any, prefix = '') {
       return { error: 'Not found' };
     }
     return JSON.parse(JSON.stringify(record));
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Fetch latest ID verification for a user', tags: ['Identity'] }
   });
@@ -269,7 +271,8 @@ export async function idVerificationRoutes(app: any, prefix = '') {
       }
     } catch {}
     return { success: true, rec };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     body: t.Object({ status: t.Enum({ pending: 'pending', verified: 'verified', failed: 'failed' }) }),
     response: { 200: t.Object({ success: t.Boolean(), rec: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Approve or reject an ID verification', tags: ['Identity'] }
@@ -293,13 +296,14 @@ export async function idVerificationRoutes(app: any, prefix = '') {
       if (url) {
         const filepath = getSafeRelativeFilePath(uploadDir, url);
         if (!filepath) continue;
-        try { fs.unlinkSync(filepath); } catch {}
+        try { fs.unlinkSync(filepath); } catch { }
       }
     }
 
     await repo.remove(rec);
     return { success: true };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete an ID verification record', tags: ['Identity'] }
   });

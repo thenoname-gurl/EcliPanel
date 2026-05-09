@@ -112,25 +112,104 @@ function eggIdToUuid(id?: number): string {
   return `00000000-0000-4000-8000-${hex}`;
 }
 
-/** Build the full server config object in the format Wings expects. */
-function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]): object {
-  const env: Record<string, any> = cfg.environment || {};
-  const alloc = cfg.allocations || {};
+/** Normalize an allocation IP for Wings payloads. Keep raw IPv6 values. */
+function normalizeAllocationIp(ip: string): string {
+  const cleanIp = ip.trim();
+  if (cleanIp.startsWith('[') && cleanIp.endsWith(']')) {
+    return cleanIp.slice(1, -1).trim();
+  }
+  return cleanIp;
+}
 
+function allocationHostKey(ip: string, port: number): string {
+  const cleanIp = normalizeAllocationIp(ip);
+  return cleanIp.includes(':') ? `[${cleanIp}]:${port}` : `${cleanIp}:${port}`;
+}
+
+function isValidPort(port: any): port is number {
+  const num = Number(port);
+  return Number.isInteger(num) && num > 0 && num <= 65535;
+}
+
+function buildAllocationMappings(alloc: any): Record<string, number[]> {
+  const mappings: Record<string, number[]> = {};
+
+  for (const [ip, ports] of Object.entries(alloc.mappings || {})) {
+    const normalizedIp = normalizeAllocationIp(String(ip));
+    if (normalizedIp.includes(':')) continue;
+    const portList = Array.isArray(ports) ? ports : [];
+    const validPorts = portList.map((p: any) => Number(p)).filter(isValidPort);
+    if (validPorts.length > 0) {
+      mappings[normalizedIp] = validPorts;
+    }
+  }
+
+  return mappings;
+}
+
+/** Build sanitized FQDN mappings from allocation config */
+function buildAllocationFqdns(alloc: any, mappings: Record<string, number[]>): Record<string, string> {
+  const fqdns: Record<string, string> = {};
+  const rawByPort = new Map<number, string>();
+
+  for (const [rawKey, value] of Object.entries(alloc.fqdns || {})) {
+    const fqdn = String(value ?? '').trim();
+    if (!fqdn) continue;
+
+    const match = String(rawKey).trim().match(/^\[?(.*?)\]:(\d+)$/);
+    if (!match) continue;
+
+    const port = Number(match[2]);
+    if (isValidPort(port) && !rawByPort.has(port)) {
+      rawByPort.set(port, fqdn);
+    }
+  }
+
+  for (const [ip, ports] of Object.entries(mappings)) {
+    for (const port of ports) {
+      const canonicalKey = allocationHostKey(ip, port);
+      const exact = String(alloc.fqdns?.[canonicalKey] ?? '').trim();
+      if (exact) {
+        fqdns[canonicalKey] = exact;
+        continue;
+      }
+
+      const fallback = rawByPort.get(port);
+      if (fallback) {
+        fqdns[canonicalKey] = fallback;
+      }
+    }
+  }
+
+  return fqdns;
+}
+
+function buildAllocationDefault(alloc: any): { ip: string; port: number } | null {
+  if (alloc.default && typeof alloc.default === 'object') {
+    const rawIp = String(alloc.default.ip ?? '').trim();
+    const ip = normalizeAllocationIp(rawIp);
+    const port = Number(alloc.default.port ?? 0);
+    if (ip && isValidPort(port) && !ip.includes(':')) {
+      return { ip, port };
+    }
+  }
+  return null;
+}
+
+function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]): object {
   const eggProc = egg?.processConfig || {};
   const cfgProc = cfg.processConfig || {};
-  const proc: Record<string, any> = { ...eggProc, ...cfgProc };
+  const proc = { ...eggProc, ...cfgProc };
 
   const image = cfg.dockerImage || egg?.dockerImage || 'ghcr.io/pterodactyl/yolks:nodejs_18';
+  const fileDenylist = egg?.fileDenylist ?? [];
+  const alloc = cfg.allocations || {};
 
-  const fileDenylist: string[] = egg?.fileDenylist ?? [];
+  const mappings = buildAllocationMappings(alloc);
+  const fqdns = buildAllocationFqdns(alloc, mappings);
+  const defaultAlloc = buildAllocationDefault(alloc);
 
-  // On god I hate this messy formatting, but wings is very particular
-  // about it and changing it would break compatibility with both Go and Rust wings,
-  // which would be a nightmare to coordinate and support, so here we are, 
-  // in this beautiful mess of code, forever.
-  // KILL ME
-  return {
+  let object = {
     uuid: cfg.uuid,
     settings: {
       uuid: cfg.uuid,
@@ -142,14 +221,15 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
       suspended: cfg.suspended || cfg.dmca,
       invocation: cfg.startup || egg?.startup || '',
       skip_egg_scripts: cfg.skipEggScripts || false,
-      environment: env,
+      environment: cfg.environment || {},
       labels: {},
       backups: [],
       schedules: [],
       allocations: {
         force_outgoing_ip: alloc.force_outgoing_ip ?? false,
-        default: alloc.default || { ip: '0.0.0.0', port: 0 },
-        mappings: alloc.mappings || {},
+        ...(defaultAlloc ? { default: defaultAlloc } : {}),
+        mappings,
+        ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}),
       },
       build: {
         memory_limit: cfg.memory,
@@ -177,7 +257,10 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
         seccomp: { remove_allowed: [] },
         rootless: !!(egg?.rootless ?? false),
       },
-      auto_kill: { enabled: false, seconds: 0 },
+      auto_kill: {
+        enabled: false,
+        seconds: 0,
+      },
       auto_start_behavior: cfg.desiredPowerState ? 'always' : 'unless_stopped',
     },
     process_configuration: {
@@ -193,6 +276,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
       configs: proc.configs || [],
     },
   };
+  return object;
 }
 
 // ─── JWT helpers for WebSocket auth ───────────────────────────────────────────
@@ -590,7 +674,7 @@ export async function remoteRoutes(app: any, prefix: string) {
       }
 
       const configs = await repo().find({ where: { nodeId: node.id } });
-      let cfg = configs.find(c => c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
+      let cfg = configs.find(c => c.uuid && c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
       if (!cfg) {
         ctx.set.status = 403;
         return { errors: [{ code: 'Forbidden', detail: 'Server not found' }] };

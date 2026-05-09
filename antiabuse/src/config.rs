@@ -47,6 +47,7 @@ pub struct Config {
     pub detection_cooldown: Duration,
     pub use_docker_network_map: bool,
     pub port_scan_auto_suspend_unique_ports: usize,
+    pub port_scan_auto_suspend_min_unique_ips: usize,
     pub yara_enabled: bool,
     pub yara_rules_path: Option<String>,
     pub yara_binary: String,
@@ -210,7 +211,8 @@ pub fn from_env() -> Result<Config> {
         enable_node_fallback_detection: env_bool_or("ENABLE_NODE_FALLBACK_DETECTION", true),
         detection_cooldown: Duration::from_millis(env_req("DETECTION_COOLDOWN_MS")?),
         use_docker_network_map: env_bool_req("USE_DOCKER_NETWORK_MAP")?,
-        port_scan_auto_suspend_unique_ports: env_req("PORT_SCAN_AUTO_SUSPEND_UNIQUE_PORTS")?,
+        port_scan_auto_suspend_unique_ports: env_or("PORT_SCAN_AUTO_SUSPEND_UNIQUE_PORTS", 100usize)?,
+        port_scan_auto_suspend_min_unique_ips: env_or("PORT_SCAN_AUTO_SUSPEND_MIN_UNIQUE_IPS", 2usize)?,
         yara_enabled: env_bool_or("YARA_ENABLED", false),
 
         malware_suspend_signature_severity: env_req("MALWARE_SUSPEND_SIGNATURE_SEVERITY")?,

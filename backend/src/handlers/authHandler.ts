@@ -11,7 +11,7 @@ import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
 import { generateCaptcha, generateInvisibleCaptcha } from '../utils/captcha';
 import { isFeatureEnabled } from '../utils/featureToggles';
-import { redisSet, redisGet, redisDel } from '../config/redis';
+import { redisSet, redisGet, redisDel, redisDelByPrefix, withRedisCache } from '../config/redis';
 import { sendMail } from '../services/mailService';
 import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicyService';
 import crypto from 'crypto';
@@ -90,6 +90,14 @@ async function verifyTempToken(token: string, logSource: string, ctx: any) {
 
 export async function authRoutes(app: any, prefix = '') {
   const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+
+  async function invalidateAuthSessionCache(userId: number) {
+    try {
+      await redisDelByPrefix(`auth:session:user:${userId}:`);
+    } catch {
+      // buh
+    }
+  }
 
   async function getUserOrgMemberships(userId: number) {
     const memberships = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
@@ -513,6 +521,7 @@ export async function authRoutes(app: any, prefix = '') {
     user.sessions = [];
     await userRepo.save(user);
     await redisDel(`password-reset:${token}`);
+    await invalidateAuthSessionCache(user.id);
 
     return { success: true };
   }, {
@@ -535,6 +544,7 @@ export async function authRoutes(app: any, prefix = '') {
       const logRepo = AppDataSource.getRepository(UserLog);
       await logRepo.save(logRepo.create({ userId: user.id, action: 'logout', timestamp: new Date() }));
     }
+    await invalidateAuthSessionCache(user.id);
     try { clearAuthCookie(ctx); } catch { }
     return { success: true };
   }, {
@@ -1447,6 +1457,7 @@ export async function authRoutes(app: any, prefix = '') {
     }
 
     await AppDataSource.getRepository(User).save(user);
+    await invalidateAuthSessionCache(user.id);
 
     return { success: true };
   }, {
@@ -1462,125 +1473,128 @@ export async function authRoutes(app: any, prefix = '') {
       return { error: 'Unauthorized' };
     }
     const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
-    const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-    const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
-    const orgs = await getUserOrgMemberships(user.id);
-    const legacyOrg = orgs[0] || null;
+    const cacheKey = `auth:session:user:${user.id}:session:${decoded?.sessionId || 'none'}:v1`;
+    return withRedisCache(cacheKey, 8, async () => {
+      const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
+      const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
+      const orgs = await getUserOrgMemberships(user.id);
+      const legacyOrg = orgs[0] || null;
 
-    const userTier = (user as any).portalType || (user as any).tier || (legacyOrg?.portalTier || null);
-    let returnedLimits: any = (user as any).limits || (user as any).educationLimits || null;
-    if (!returnedLimits && userTier && userTier !== 'free') {
-      try {
-        const Order = require('../models/order.entity').Order;
-        const Plan = require('../models/plan.entity').Plan;
-        const orderRepo = AppDataSource.getRepository(Order);
-        const planRepo = AppDataSource.getRepository(Plan);
-        let orders: any[] = [];
+      const userTier = (user as any).portalType || (user as any).tier || (legacyOrg?.portalTier || null);
+      let returnedLimits: any = (user as any).limits || (user as any).educationLimits || null;
+      if (!returnedLimits && userTier && userTier !== 'free') {
         try {
-          const orgIds = orgs.map((o: any) => Number(o.id)).filter((x: number) => Number.isFinite(x));
-          if (orgIds.length > 0) {
-            const orgOrderWhere = orgIds.map((oid: number) => ({ orgId: oid, status: 'active' }));
-            orders = await orderRepo.find({ where: [{ userId: user.id, status: 'active' }, ...orgOrderWhere], order: { createdAt: 'DESC' } });
-          } else {
-            orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
-          }
-        } catch (err) {
-          orders = [];
-        }
-
-        let order = orders.find((o: any) => o.planId != null) || null;
-        let plan: any = null;
-        if (order) {
-          plan = await planRepo.findOneBy({ id: order.planId! });
-        }
-
-        if (!plan && userTier) {
+          const Order = require('../models/order.entity').Order;
+          const Plan = require('../models/plan.entity').Plan;
+          const orderRepo = AppDataSource.getRepository(Order);
+          const planRepo = AppDataSource.getRepository(Plan);
+          let orders: any[] = [];
           try {
-            plan = await planRepo.findOne({ where: { type: userTier } });
+            const orgIds = orgs.map((o: any) => Number(o.id)).filter((x: number) => Number.isFinite(x));
+            if (orgIds.length > 0) {
+              const orgOrderWhere = orgIds.map((oid: number) => ({ orgId: oid, status: 'active' }));
+              orders = await orderRepo.find({ where: [{ userId: user.id, status: 'active' }, ...orgOrderWhere], order: { createdAt: 'DESC' } });
+            } else {
+              orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
+            }
           } catch (err) {
-            plan = null;
+            orders = [];
           }
-        }
 
-        if (plan) {
-          const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
-          let limitsFromPlan: any = {};
-          if (plan.type === 'enterprise' && (user as any).nodeId) {
-            const node = await nodeRepo.findOneBy({ id: (user as any).nodeId });
-            if (node) {
-              if (node.memory != null) limitsFromPlan.memory = Number(node.memory);
-              if (node.disk != null) limitsFromPlan.disk = Number(node.disk);
-              if (node.cpu != null) limitsFromPlan.cpu = Number(node.cpu);
-              if (node.serverLimit != null) limitsFromPlan.serverLimit = Number(node.serverLimit);
+          let order = orders.find((o: any) => o.planId != null) || null;
+          let plan: any = null;
+          if (order) {
+            plan = await planRepo.findOneBy({ id: order.planId! });
+          }
+
+          if (!plan && userTier) {
+            try {
+              plan = await planRepo.findOne({ where: { type: userTier } });
+            } catch (err) {
+              plan = null;
             }
           }
-          if (Object.keys(limitsFromPlan).length === 0) {
-            if (plan.memory != null) limitsFromPlan.memory = plan.memory;
-            if (plan.disk != null) limitsFromPlan.disk = plan.disk;
-            if (plan.cpu != null) limitsFromPlan.cpu = plan.cpu;
-            if (plan.serverLimit != null) limitsFromPlan.serverLimit = plan.serverLimit;
-            if (plan.databases != null) limitsFromPlan.databases = plan.databases;
-            if (plan.backups != null) limitsFromPlan.backups = plan.backups;
-          }
-          returnedLimits = Object.keys(limitsFromPlan).length ? limitsFromPlan : null;
-        }
-      } catch (err) {
-        //  skip
-      }
-    }
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        middleName: user.middleName || null,
-        lastName: user.lastName,
-        displayName: user.displayName || null,
-        address: user.address || null,
-        address2: user.address2 || null,
-        phone: user.phone || null,
-        billingCompany: user.billingCompany || null,
-        billingCity: user.billingCity || null,
-        billingState: user.billingState || null,
-        billingZip: user.billingZip || null,
-        billingCountry: user.billingCountry || null,
-        tier: (user as any).portalType || (user as any).tier,
-        role: user.role,
-        sessionId: decoded?.sessionId,
-        emailVerified: user.emailVerified ?? false,
-        passkeyCount,
-        studentVerified: (user as any).studentVerified || false,
-        twoFactorEnabled: !!user.twoFactorEnabled,
-        avatarUrl: user.avatarUrl || null,
-        supportBanned: !!user.supportBanned,
-        supportBanReason: user.supportBanReason || null,
-        dateOfBirth: formatDateOfBirth(user.dateOfBirth),
-        parentId: user.parentId != null ? Number(user.parentId) : null,
-        org: legacyOrg
-          ? {
-            id: legacyOrg.id,
-            name: legacyOrg.name,
-            handle: legacyOrg.handle,
-            portalTier: legacyOrg.portalTier,
-            avatarUrl: legacyOrg.avatarUrl,
+          if (plan) {
+            const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
+            let limitsFromPlan: any = {};
+            if (plan.type === 'enterprise' && (user as any).nodeId) {
+              const node = await nodeRepo.findOneBy({ id: (user as any).nodeId });
+              if (node) {
+                if (node.memory != null) limitsFromPlan.memory = Number(node.memory);
+                if (node.disk != null) limitsFromPlan.disk = Number(node.disk);
+                if (node.cpu != null) limitsFromPlan.cpu = Number(node.cpu);
+                if (node.serverLimit != null) limitsFromPlan.serverLimit = Number(node.serverLimit);
+              }
+            }
+            if (Object.keys(limitsFromPlan).length === 0) {
+              if (plan.memory != null) limitsFromPlan.memory = plan.memory;
+              if (plan.disk != null) limitsFromPlan.disk = plan.disk;
+              if (plan.cpu != null) limitsFromPlan.cpu = plan.cpu;
+              if (plan.serverLimit != null) limitsFromPlan.serverLimit = plan.serverLimit;
+              if (plan.databases != null) limitsFromPlan.databases = plan.databases;
+              if (plan.backups != null) limitsFromPlan.backups = plan.backups;
+            }
+            returnedLimits = Object.keys(limitsFromPlan).length ? limitsFromPlan : null;
           }
-          : null,
-        orgs,
-        orgRole: legacyOrg?.orgRole || 'member',
-        limits: returnedLimits,
-        nodeId: (user as any).nodeId || null,
-        settings: (user as any).settings || null,
-        permissions: ctx.userPermissions || [],
-        usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
-        geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
-        idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
-        demoExpiresAt: user.demoExpiresAt || null,
-        demoLimits: user.demoLimits || null,
-        demoUsed: user.demoUsed === true,
-        guideShown: (user as any).guideShown === true,
-      },
-    };
+        } catch (err) {
+          //  skip
+        }
+      }
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          middleName: user.middleName || null,
+          lastName: user.lastName,
+          displayName: user.displayName || null,
+          address: user.address || null,
+          address2: user.address2 || null,
+          phone: user.phone || null,
+          billingCompany: user.billingCompany || null,
+          billingCity: user.billingCity || null,
+          billingState: user.billingState || null,
+          billingZip: user.billingZip || null,
+          billingCountry: user.billingCountry || null,
+          tier: (user as any).portalType || (user as any).tier,
+          role: user.role,
+          sessionId: decoded?.sessionId,
+          emailVerified: user.emailVerified ?? false,
+          passkeyCount,
+          studentVerified: (user as any).studentVerified || false,
+          twoFactorEnabled: !!user.twoFactorEnabled,
+          avatarUrl: user.avatarUrl || null,
+          supportBanned: !!user.supportBanned,
+          supportBanReason: user.supportBanReason || null,
+          dateOfBirth: formatDateOfBirth(user.dateOfBirth),
+          parentId: user.parentId != null ? Number(user.parentId) : null,
+          org: legacyOrg
+            ? {
+              id: legacyOrg.id,
+              name: legacyOrg.name,
+              handle: legacyOrg.handle,
+              portalTier: legacyOrg.portalTier,
+              avatarUrl: legacyOrg.avatarUrl,
+            }
+            : null,
+          orgs,
+          orgRole: legacyOrg?.orgRole || 'member',
+          limits: returnedLimits,
+          nodeId: (user as any).nodeId || null,
+          settings: (user as any).settings || null,
+          permissions: ctx.userPermissions || [],
+          usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
+          geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
+          idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
+          demoExpiresAt: user.demoExpiresAt || null,
+          demoLimits: user.demoLimits || null,
+          demoUsed: user.demoUsed === true,
+          guideShown: (user as any).guideShown === true,
+        },
+      };
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },

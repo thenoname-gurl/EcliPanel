@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState, useRef, useCallback, useMemo } from "react"
-import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
-import { useLocale } from "next-intl"
-import { locales as supportedLocales } from "@/i18n/config"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useLocale, useTranslations } from "next-intl"
+import { API_ENDPOINTS } from "@/lib/panel-config"
+
+const API_URL = "https://backend.ecli.app/public/status"
+const METRICS_URL = "https://backend.ecli.app/public/metrics"
 
 interface InfraStatus {
   status: "online" | "degraded" | "offline" | string
@@ -13,33 +14,20 @@ interface InfraStatus {
   online: number
   degraded: number
   offline: number
+  tunnelCount: number
+  tunnelActive: number
+  tunnelInactive: number
 }
 
-type Screen =
-  | "boot"
-  | "lang"
-  | "menu"
-  | "features"
-  | "about"
-  | "pricing"
-  | "community"
-  | "faq"
-  | "deploy"
-  | "legal"
-
-const FETCH_INTERVAL_MS = 15_000
-const API_URL = "https://backend.ecli.app/public/status"
-
-const LOCALE_LABELS: Record<string, { label: string; native: string }> = {
-  en: { label: "English", native: "English" },
-  ru: { label: "Russian", native: "Русский" },
+interface PublicMetrics {
+  windowHours: number
+  trafficBytes: number
+  nodeTrafficBytes?: number
+  requestCount: number
+  totalUsers: number
+  trafficStart: string
+  trafficEnd: string
 }
-
-const SUPPORTED_LOCALES: { code: string; label: string; native: string }[] = supportedLocales.map((code) => ({
-  code,
-  label: LOCALE_LABELS[code]?.label ?? code,
-  native: LOCALE_LABELS[code]?.native ?? code,
-}))
 
 function useInfraStatus() {
   const [infra, setInfra] = useState<InfraStatus | null>(null)
@@ -47,1528 +35,1197 @@ function useInfraStatus() {
     let mounted = true
     const go = async () => {
       try {
-        const r = await fetch(API_URL)
+        const r = await fetch(API_URL, { cache: "no-store" })
         if (!r.ok) return
         const d: InfraStatus = await r.json()
         if (mounted) setInfra(d)
-      } catch { /* ghosts life here */ }
+      } catch {}
     }
     go()
-    const iv = setInterval(go, FETCH_INTERVAL_MS)
-    return () => { mounted = false; clearInterval(iv) }
+    const iv = setInterval(go, 15_000)
+    return () => {
+      mounted = false
+      clearInterval(iv)
+    }
   }, [])
   return infra
 }
 
-function useTypewriter(lines: string[], speed = 32, startDelay = 0) {
-  const [output, setOutput]     = useState<string[]>([])
-  const [done, setDone]         = useState(false)
-  const [started, setStarted]   = useState(false)
-
-  const key     = useMemo(() => lines.join("|||"), [lines])
-  const prevKey = useRef<string>("")
-  const linesRef = useRef<string[]>(lines)
-  const intervalRef = useRef<number | null>(null)
-  const timeoutRef = useRef<number | null>(null)
-
-  useEffect(() => { linesRef.current = lines }, [lines])
-
+function usePublicMetrics() {
+  const [metrics, setMetrics] = useState<PublicMetrics | null>(null)
   useEffect(() => {
-    const t = window.setTimeout(() => setStarted(true), startDelay)
-    timeoutRef.current = t
+    let mounted = true
+    const go = async () => {
+      try {
+        const r = await fetch(METRICS_URL, { cache: "no-store" })
+        if (!r.ok) return
+        const d: PublicMetrics = await r.json()
+        if (mounted) setMetrics(d)
+      } catch {}
+    }
+    go()
+    const iv = setInterval(go, 60_000)
     return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current)
-        timeoutRef.current = null
-      }
+      mounted = false
+      clearInterval(iv)
     }
-  }, [startDelay])
-
-  useEffect(() => {
-    if (!started) return
-    if (prevKey.current === key && output.length > 0) return
-    prevKey.current = key
-
-    setOutput([])
-    setDone(false)
-
-    let li = 0, ci = 0
-    intervalRef.current = window.setInterval(() => {
-      const cur = linesRef.current
-      if (li >= cur.length) {
-        setDone(true)
-        if (intervalRef.current) {
-          window.clearInterval(intervalRef.current)
-          intervalRef.current = null
-        }
-        return
-      }
-      const line = cur[li]
-      if (ci <= line.length) {
-        const slice = line.slice(0, ci)
-        setOutput(prev => { const n = [...prev]; n[li] = slice; return n })
-        ci++
-      } else {
-        li++
-        ci = 0
-      }
-    }, speed)
-
-    return () => {
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, key, speed])
-
-  const skip = useCallback(() => {
-    if (done) return
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
-    if (intervalRef.current) {
-      window.clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    setStarted(true)
-    setOutput(linesRef.current)
-    setDone(true)
-  }, [done])
-
-  return { output, done, skip }
-}
-
-function useGlitch(minDelay = 4000, maxDelay = 9000) {
-  const [glitching, setGlitching] = useState(false)
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>
-    const loop = () => {
-      t = setTimeout(() => {
-        setGlitching(true)
-        setTimeout(() => { setGlitching(false); loop() }, 100 + Math.random() * 180)
-      }, minDelay + Math.random() * (maxDelay - minDelay))
-    }
-    loop()
-    return () => clearTimeout(t)
   }, [])
-  return glitching
+  return metrics
 }
 
-function statusColor(s: string | undefined) {
-  if (s === "online")   return "text-green-400"
-  if (s === "degraded") return "text-yellow-400"
-  if (s === "offline")  return "text-red-400"
-  return "text-primary/50"
-}
-function statusDotColor(s: string | undefined) {
-  if (s === "online")   return "bg-green-400"
-  if (s === "degraded") return "bg-yellow-400"
-  if (s === "offline")  return "bg-red-400"
-  return "bg-primary/30"
-}
-
-function Scanlines() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed inset-0 z-[200]"
-      style={{
-        background:
-          "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px)",
-      }}
-    />
-  )
-}
-
-function CRTVignette() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed inset-0 z-[199]"
-      style={{
-        background:
-          "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.88) 100%)",
-      }}
-    />
-  )
-}
-
-function Cursor({ blink = true, color = "text-primary" }: { blink?: boolean; color?: string }) {
-  return (
-    <span
-      className={`inline-block w-[0.55em] h-[1.1em] ${color} align-middle ml-0.5`}
-      style={{ animation: blink ? "blink 1s step-end infinite" : "none", background: "currentColor" }}
-    />
-  )
-}
-
-function KbdHint({ keys, label }: { keys: string[]; label?: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 font-mono">
-      {keys.map(k => (
-        <kbd
-          key={k}
-          className="inline-flex items-center justify-center rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary/60 shadow-[0_1px_0_var(--glow)]"
-        >
-          {k}
-        </kbd>
-      ))}
-      {label && <span className="text-[9px] text-primary/60 ml-0.5">{label}</span>}
-    </span>
-  )
-}
-
-function ControlBar({ hints }: { hints: { keys: string[]; label: string }[] }) {
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-[190] border-t border-primary/10 bg-black/90 backdrop-blur-sm px-4 py-2">
-      <div className="mx-auto max-w-4xl flex flex-wrap items-center gap-x-5 gap-y-1">
-        {hints.map(h => (
-          <span key={h.label} className="flex items-center gap-1.5">
-            <KbdHint keys={h.keys} />
-            <span className="font-mono text-[9px] text-primary/65 uppercase tracking-wider">
-              {h.label}
-            </span>
-          </span>
-        ))}
-        <span className="ml-auto font-mono text-[9px] text-primary/50 hidden sm:block">
-          tap / swipe on mobile
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function GlitchText({ text, className = "" }: { text: string; className?: string }) {
-  const glitching = useGlitch()
-  return (
-    <span className={`relative inline-block ${className}`}>
-      <span style={{ color: "var(--primary)", textShadow: "0 0 30px var(--glow)" }}>
-        {text}
-      </span>
-      {glitching && (
-        <>
-          <span aria-hidden className="absolute inset-0"
-            style={{ color: "#f0abfc", clipPath: "inset(20% 0 60% 0)", transform: "translateX(-3px)", opacity: 0.8 }}>
-            {text}
-          </span>
-          <span aria-hidden className="absolute inset-0"
-            style={{ color: "#818cf8", clipPath: "inset(55% 0 15% 0)", transform: "translateX(3px)", opacity: 0.8 }}>
-            {text}
-          </span>
-        </>
-      )}
-    </span>
-  )
-}
-
-function PixelBox({
-  children,
-  className = "",
-  glow = false,
-  active = false,
-}: {
-  children: React.ReactNode
-  className?: string
-  glow?: boolean
-  active?: boolean
-}) {
-  return (
-    <div className={`
-      border font-mono bg-card
-      ${active
-        ? "border-primary/70 shadow-[0_0_20px_var(--glow),inset_0_0_20px_rgba(255,255,255,0.05)]"
-        : "border-primary/20"
-      }
-      ${glow ? "shadow-[0_0_30px_var(--glow)]" : ""}
-      ${className}
-    `}>
-      {children}
-    </div>
-  )
-}
-
-function SectionHeader({ label, title }: { label: string; title: string }) {
-  return (
-    <div className="mb-8">
-      <p className="font-mono text-[10px] tracking-[0.3em] text-primary/70 uppercase mb-2">
-        // {label}
-      </p>
-      <h2 className="font-mono text-2xl sm:text-3xl font-black text-primary"
-        style={{ textShadow: "0 0 20px var(--glow)" }}>
-        {title}
-      </h2>
-    </div>
-  )
-}
-
-function BackButton({ onBack }: { onBack: () => void }) {
-  const t = useTranslations("landing")
-  return (
-    <button
-      onClick={onBack}
-      className="mb-8 flex items-center gap-3 font-mono text-xs text-primary/70 hover:text-primary transition-colors group"
-    >
-      <span className="group-hover:-translate-x-1 transition-transform">◄</span>
-      {t("controls.backToMenu")}
-      <KbdHint keys={["ESC"]} />
-    </button>
-  )
-}
-
-function StatusPip({ infra }: { infra: InfraStatus | null }) {
-  const t = useTranslations("landing")
-  return (
-    <span className={`inline-flex items-center gap-1.5 font-mono text-xs ${statusColor(infra?.status)}`}>
-      <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-        {infra?.status === "online" && (
-          <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${statusDotColor(infra?.status)} opacity-50`} />
-        )}
-        <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${statusDotColor(infra?.status)}`} />
-      </span>
-      {infra ? (infra.status || t("status.unknown")).toUpperCase() : t("status.connecting").toUpperCase()}
-    </span>
-  )
-}
-
-function TerminalWindowFrame({
-  children,
-  title = "terminal",
-  className = "",
-}: {
-  children: React.ReactNode
-  title?: string
-  className?: string
-}) {
-  return (
-    <PixelBox className={`overflow-hidden p-0 ${className}`} glow>
-      <div className="flex items-center gap-1.5 border-b border-primary/15 px-4 py-2 bg-primary/5">
-        <div className="h-2 w-2 rounded-full bg-red-500/60" />
-        <div className="h-2 w-2 rounded-full bg-yellow-500/60" />
-        <div className="h-2 w-2 rounded-full bg-green-500/60" />
-        <span className="ml-2 font-mono text-[10px] text-primary/60 tracking-wider">{title}</span>
-      </div>
-      <div className="p-4 sm:p-5">{children}</div>
-    </PixelBox>
-  )
-}
-
-function BootScreen({ onDone }: { onDone: () => void }) {
-  const t = useTranslations("landing")
-  const bootLines = useMemo(() => [
-    t("boot.line1"),
-    t("boot.line2"),
-    "",
-    t("boot.line3"),
-    t("boot.line4"),
-    t("boot.line5"),
-    t("boot.line6"),
-    t("boot.line7"),
-    t("boot.line8"),
-    t("boot.line9"),
-    "",
-    t("boot.line10"),
-    "",
-    t("boot.line11"),
-  ], [t])
-
-  const { output, done, skip } = useTypewriter(bootLines, 22)
-  const [waitingKey, setWaitingKey] = useState(false)
+function usePublicFeatures() {
+  const [features, setFeatures] = useState<Record<string, boolean> | null>(null)
 
   useEffect(() => {
-    if (done) {
-      const t = setTimeout(() => setWaitingKey(true), 300)
-      return () => clearTimeout(t)
-    }
-  }, [done])
-
-  useEffect(() => {
-    const handler = () => {
-      if (!done) {
-        skip()
-        return
+    let mounted = true
+    const go = async () => {
+      try {
+        const r = await fetch(API_ENDPOINTS.publicFeatures, { cache: "no-store" })
+        if (!r.ok) return
+        const data = await r.json()
+        if (!mounted) return
+        setFeatures(data?.featureToggles ?? null)
+      } catch {
+        if (!mounted) return
+        setFeatures(null)
       }
-      if (!waitingKey) {
-        setWaitingKey(true)
-        return
-      }
-      onDone()
     }
-
-    window.addEventListener("keydown",    handler)
-    window.addEventListener("click",      handler)
-    window.addEventListener("touchstart", handler)
+    go()
+    const iv = setInterval(go, 60_000)
     return () => {
-      window.removeEventListener("keydown",    handler)
-      window.removeEventListener("click",      handler)
-      window.removeEventListener("touchstart", handler)
+      mounted = false
+      clearInterval(iv)
     }
-  }, [done, waitingKey, onDone, skip])
+  }, [])
 
-  return (
-    <div className="fixed inset-0 z-[300] bg-background flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
-      <Scanlines />
-      <CRTVignette />
-      <div className="w-full max-w-2xl">
-        <div className="space-y-0.5 mb-6">
-          {output.map((line, i) => (
-            <div key={i} className={`font-mono text-xs sm:text-sm ${
-              line === ""                   ? "h-3"                                       :
-              i === 0                        ? "text-primary font-bold text-base sm:text-lg" :
-              i === 12                       ? "text-primary font-bold"                :
-              line === t("boot.line10")     ? "text-green-400"                           :
-              line.startsWith("Copyright")  ? "text-primary/70"                       :
-              line.includes("OK")           ? "text-primary/55"                       :
-              "text-primary/60"
-            }`}>
-              {line === "" ? <>&nbsp;</> : line}
-            </div>
-          ))}
-          {!done && <Cursor color="text-primary" />}
-        </div>
-
-        {!done && (
-          <div className="mt-4 text-xs text-primary/70">
-            {t("boot.skipHint")}
-          </div>
-        )}
-
-        {waitingKey && (
-          <div className="space-y-4">
-            <div className="font-mono text-sm text-primary/70"
-              style={{ animation: "blink 1s step-end infinite" }}>▌</div>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <KbdHint keys={["ANY KEY"]} />
-                <span className="font-mono text-xs text-primary/70">{t("boot.waitPrompt")}</span>
-              </div>
-              <span className="font-mono text-[10px] text-primary/55">
-                {t("boot.mobileHint")}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  return features
 }
 
-function LangSelectScreen({ onDone }: { onDone: (locale: string) => void }) {
-  const t = useTranslations("landing")
-  const currentLocale = useLocale()
-  const router = useRouter()
-
-  const defaultIdx = Math.max(0, SUPPORTED_LOCALES.findIndex(l => l.code === currentLocale))
-  const [selected, setSelected] = useState(defaultIdx)
-  const [confirmed, setConfirmed] = useState(false)
-
-  const confirm = useCallback((idx: number) => {
-    if (confirmed) return
-    setConfirmed(true)
-    const locale = SUPPORTED_LOCALES[idx].code
-    document.cookie = `locale=${locale}; path=/; max-age=31536000; SameSite=Lax`
-    router.refresh()
-    setTimeout(() => onDone(locale), 300)
-  }, [confirmed, router, onDone])
+function useCountUp(target: number, duration = 1200) {
+  const [value, setValue] = useState(0)
+  const started = useRef(false)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowUp")
-        { e.preventDefault(); setSelected(s => (s - 1 + SUPPORTED_LOCALES.length) % SUPPORTED_LOCALES.length) }
-      if (e.key === "ArrowDown")
-        { e.preventDefault(); setSelected(s => (s + 1) % SUPPORTED_LOCALES.length) }
-      if (e.key === "Enter")
-        { e.preventDefault(); confirm(selected) }
-    }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [selected, confirm])
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true
+          const start = performance.now()
+          const tick = (now: number) => {
+            const p = Math.min((now - start) / duration, 1)
+            const ease = 1 - Math.pow(1 - p, 3)
+            setValue(Math.round(ease * target))
+            if (p < 1) requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        }
+      },
+      { threshold: 0.5 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [target, duration])
 
-  const introLines = useMemo(() => [
-    t("lang.line1"),
-    t("lang.line2"),
-    t("lang.line3"),
-  ], [t])
-  const { output, done: introDone, skip } = useTypewriter(introLines, 24)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!introDone) {
-        e.preventDefault()
-        skip()
-        return
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault(); setSelected(s => (s - 1 + SUPPORTED_LOCALES.length) % SUPPORTED_LOCALES.length)
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault(); setSelected(s => (s + 1) % SUPPORTED_LOCALES.length)
-      }
-      if (e.key === "Enter") {
-        e.preventDefault(); confirm(selected)
-      }
-    }
-
-    const clickHandler = () => {
-      if (!introDone) {
-        skip()
-      }
-    }
-
-    window.addEventListener("keydown", handler)
-    window.addEventListener("click", clickHandler)
-    window.addEventListener("touchstart", clickHandler)
-    return () => {
-      window.removeEventListener("keydown", handler)
-      window.removeEventListener("click", clickHandler)
-      window.removeEventListener("touchstart", clickHandler)
-    }
-  }, [introDone, selected, confirm, skip])
-
-  return (
-    <div className="fixed inset-0 z-[290] bg-background flex flex-col items-start justify-center p-6 sm:p-12 overflow-auto">
-      <Scanlines />
-      <CRTVignette />
-      <div className="w-full max-w-xl">
-
-        <div className="mb-8 space-y-0.5">
-          {output.map((line, i) => (
-            <div key={i} className={`font-mono text-xs sm:text-sm ${
-              i === 0 ? "text-primary font-bold" : "text-primary/50"
-            }`}>
-              {line}
-              {i === output.length - 1 && !introDone && <Cursor color="text-primary" />}
-            </div>
-          ))}
-        </div>
-
-        {!introDone && (
-          <div className="mb-6 text-xs text-primary/70">
-            {t("lang.skipHint")}
-          </div>
-        )}
-
-        {introDone && (
-          <PixelBox className="p-0 overflow-hidden" glow>
-            <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
-              <span className="font-mono text-[10px] text-primary/70 tracking-[0.2em] uppercase">
-                {t("lang.title")}
-              </span>
-              <div className="hidden sm:flex items-center gap-3">
-                <KbdHint keys={["↑", "↓"]} label={t("controls.navigate")} />
-                <KbdHint keys={["ENTER"]}   label={t("controls.confirm")}  />
-              </div>
-            </div>
-
-            <div className="p-1.5">
-              {SUPPORTED_LOCALES.map((locale, i) => {
-                const isSel = selected === i
-                return (
-                  <button
-                    key={locale.code}
-                    className={`
-                      w-full text-left px-3 py-3 flex items-center gap-3
-                      font-mono transition-all duration-100 border-l-2
-                      ${isSel
-                        ? "border-primary bg-primary/15"
-                        : "border-transparent hover:border-primary/30 hover:bg-primary/8"
-                      }
-                      ${confirmed && isSel ? "opacity-60" : ""}
-                    `}
-                    onClick={() => { setSelected(i); confirm(i) }}
-                    onMouseEnter={() => setSelected(i)}
-                  >
-                    <span className="w-3 flex-shrink-0">
-                      {isSel
-                        ? <span className="text-primary text-xs">►</span>
-                        : <span className="text-primary/15 text-xs">·</span>
-                      }
-                    </span>
-
-                    <kbd className={`
-                      inline-flex items-center justify-center w-7 rounded border
-                      font-mono text-[9px] flex-shrink-0 py-0.5 uppercase
-                      ${isSel
-                        ? "border-primary/50 bg-primary/20 text-primary"
-                        : "border-primary/20 bg-primary/5 text-primary/60"
-                      }
-                    `}>
-                      {locale.code}
-                    </kbd>
-
-                    <span className={`text-sm font-bold tracking-wide transition-colors ${
-                      isSel ? "text-primary" : "text-primary/75"
-                    }`}>
-                      {locale.native}
-                    </span>
-
-                    <span className={`text-xs ml-auto transition-colors ${
-                      isSel ? "text-primary/50" : "text-primary/50"
-                    }`}>
-                      {locale.label}
-                    </span>
-
-                    {locale.code === currentLocale && (
-                      <span className="font-mono text-[9px] text-primary/70 border border-primary/20 px-1.5 py-0.5">
-                        {t("lang.current")}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="border-t border-primary/10 px-4 py-2">
-              <span className="font-mono text-[9px] text-primary/50">
-                {t("lang.footer")}
-              </span>
-            </div>
-          </PixelBox>
-        )}
-
-        {introDone && (
-          <p className="mt-3 font-mono text-[10px] text-primary/50 sm:hidden">
-            {t("lang.mobileHint")}
-          </p>
-        )}
-      </div>
-
-      <ControlBar hints={[
-        { keys: ["↑", "↓"], label: t("controls.navigate") },
-        { keys: ["ENTER"],  label: t("controls.confirm")  },
-      ]} />
-    </div>
-  )
+  return { value, ref }
 }
 
-function LegalScreen({ onBack }: { onBack: () => void }) {
+function StatusPill({ infra }: { infra: InfraStatus | null }) {
   const t = useTranslations("landing")
-  const [selected, setSelected] = useState(0)
+  const locale = useLocale()
+  const color =
+    infra?.status === "online"
+      ? "#4ade80"
+      : infra?.status === "degraded"
+      ? "#fbbf24"
+      : infra?.status === "offline"
+      ? "#f87171"
+      : "#6b7280"
 
-  const docs = useMemo(() => [
-    { label: t("legal.docs.terms.label"),    href: "/legal/terms-of-service",     key: "1", desc: t("legal.docs.terms.desc")    },
-    { label: t("legal.docs.privacy.label"),   href: "/legal/privacy-policy", key: "2", desc: t("legal.docs.privacy.desc")     },
-    { label: t("legal.docs.cookies.label"),   href: "/legal/cookies-policy", key: "3", desc: t("legal.docs.cookies.desc")  },
-    { label: t("legal.docs.acceptableUse.label"), href: "/legal/acceptable-use-policy", key: "4", desc: t("legal.docs.acceptableUse.desc")     },
-    { label: t("legal.docs.ai.label"),         href: "/legal/ai-policy",     key: "5", desc: t("legal.docs.ai.desc") },
-    { label: t("legal.docs.email.label"),      href: "/legal/email-policy",  key: "6", desc: t("legal.docs.email.desc") },
-    { label: t("legal.docs.dmca.label"),       href: "/legal/dmca-copyright-policy", key: "7", desc: t("legal.docs.dmca.desc") },
-    { label: t("legal.docs.imprint.label"),    href: "/legal/imprint",      key: "8", desc: t("legal.docs.imprint.desc") },
-  ], [t])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape")    { onBack(); return }
-      if (e.key === "ArrowUp")   { e.preventDefault(); setSelected(s => (s - 1 + docs.length) % docs.length) }
-      if (e.key === "ArrowDown") { e.preventDefault(); setSelected(s => (s + 1) % docs.length) }
-      if (e.key === "Enter")     { e.preventDefault(); window.open(docs[selected].href, "_blank") }
-      docs.forEach((d, i) => {
-        if (e.key === d.key) { setSelected(i); window.open(d.href, "_blank") }
+  const label = infra
+    ? t("statusPill.nodesLive", {
+        count: new Intl.NumberFormat(locale).format(infra.nodeCount),
       })
-    }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [docs, selected, onBack])
-
-  const introLines = useMemo(() => [
-    t("legal.line1"),
-    t("legal.line2"),
-  ], [t])
-  const { output, done: introDone, skip } = useTypewriter(introLines, 28)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!introDone) {
-        e.preventDefault()
-        skip()
-        return
-      }
-      if (e.key === "Escape") { onBack(); return }
-    }
-    const clickHandler = () => { if (!introDone) skip() }
-
-    window.addEventListener("keydown", handler)
-    window.addEventListener("click", clickHandler)
-    window.addEventListener("touchstart", clickHandler)
-    return () => {
-      window.removeEventListener("keydown", handler)
-      window.removeEventListener("click", clickHandler)
-      window.removeEventListener("touchstart", clickHandler)
-    }
-  }, [introDone, onBack, skip])
+    : t("statusPill.connecting")
 
   return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines />
-      <CRTVignette />
-      <div className="relative z-10 max-w-3xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.legal")} title="Legal" />
-
-        <div className="mb-6 space-y-0.5">
-          {output.map((line, i) => (
-            <div key={i} className="font-mono text-xs text-primary/70">
-              {line}
-              {i === output.length - 1 && !introDone && <Cursor color="text-primary" />}
-            </div>
-          ))}
-        </div>
-
-        {!introDone && (
-          <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
+    <div
+      className="inline-flex items-center gap-2 rounded-full px-3 py-1"
+      style={{
+        background: `${color}12`,
+        border: `1px solid ${color}30`,
+      }}
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {infra?.status === "online" && (
+          <span
+            className="absolute inline-flex h-full w-full rounded-full animate-ping"
+            style={{ background: color, opacity: 0.5 }}
+          />
         )}
-
-        {introDone && (
-          <PixelBox className="p-0 overflow-hidden" glow>
-            <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
-              <span className="font-mono text-[10px] text-primary/70 tracking-[0.2em] uppercase">
-                {t("legal.title")}
-              </span>
-              <div className="hidden sm:flex items-center gap-3">
-                <KbdHint keys={["↑", "↓"]}  label={t("controls.navigate")} />
-                <KbdHint keys={["ENTER"]}    label={t("controls.open")}     />
-                <KbdHint keys={["1–6"]}     label={t("controls.quickOpen")}    />
-              </div>
-            </div>
-
-            <div className="p-1.5">
-              {docs.map((doc, i) => {
-                const isSel = selected === i
-                return (
-                  <a
-                    key={doc.href}
-                    href={doc.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`
-                      flex items-center gap-3 px-3 py-3 font-mono
-                      transition-all duration-100 border-l-2 group
-                      ${isSel
-                        ? "border-primary bg-primary/15"
-                        : "border-transparent hover:border-primary/30 hover:bg-primary/8"
-                      }
-                    `}
-                    onMouseEnter={() => setSelected(i)}
-                  >
-                    <span className="w-3 flex-shrink-0">
-                      {isSel
-                        ? <span className="text-primary text-xs">►</span>
-                        : <span className="text-primary/15 text-xs">·</span>
-                      }
-                    </span>
-
-                    <kbd className={`
-                      inline-flex items-center justify-center w-5 h-5
-                      rounded border font-mono text-[9px] flex-shrink-0
-                      ${isSel
-                        ? "border-primary/50 bg-primary/20 text-primary"
-                        : "border-primary/20 bg-primary/5 text-primary/60"
-                      }
-                    `}>
-                      {doc.key}
-                    </kbd>
-
-                    <span className={`text-sm font-semibold transition-colors ${
-                      isSel ? "text-primary" : "text-primary/50"
-                    }`}>
-                      {doc.label}
-                    </span>
-
-                    <span className={`text-xs ml-auto hidden sm:block transition-colors ${
-                      isSel ? "text-primary/75" : "text-primary/50"
-                    }`}>
-                      {doc.desc}
-                    </span>
-
-                    <span className={`font-mono text-[10px] transition-colors flex-shrink-0 ${
-                      isSel ? "text-pink-400/60" : "text-primary/15"
-                    }`}>
-                      ↗
-                    </span>
-                  </a>
-                )
-              })}
-            </div>
-
-            <div className="border-t border-primary/10 px-4 py-2">
-              <span className="font-mono text-[9px] text-primary/50">
-                {t("legal.footer")}
-              </span>
-            </div>
-          </PixelBox>
-        )}
-      </div>
-
-      <ControlBar hints={[
-        { keys: ["↑", "↓"], label: "navigate"      },
-        { keys: ["ENTER"],  label: "open in tab"   },
-        { keys: ["1–6"],     label: "quick open"    },
-        { keys: ["ESC"],    label: "back"           },
-      ]} />
+        <span
+          className="relative inline-flex h-1.5 w-1.5 rounded-full"
+          style={{ background: color }}
+        />
+      </span>
+      <span className="text-[11px] font-medium" style={{ color }}>
+        {label}
+      </span>
     </div>
   )
 }
 
-const MENU_ITEMS: { id: Screen; labelKey: string; descKey: string; key: string; fKey: string }[] = [
-  { id: "features",  labelKey: "menu.items.features.label",  descKey: "menu.items.features.desc",  key: "1", fKey: "F1" },
-  { id: "about",     labelKey: "menu.items.about.label",     descKey: "menu.items.about.desc",     key: "2", fKey: "F2" },
-  { id: "pricing",   labelKey: "menu.items.pricing.label",   descKey: "menu.items.pricing.desc",   key: "3", fKey: "F3" },
-  { id: "community", labelKey: "menu.items.community.label", descKey: "menu.items.community.desc", key: "4", fKey: "F4" },
-  { id: "faq",       labelKey: "menu.items.faq.label",       descKey: "menu.items.faq.desc",       key: "5", fKey: "F5" },
-  { id: "deploy",    labelKey: "menu.items.deploy.label",    descKey: "menu.items.deploy.desc",    key: "6", fKey: "F6" },
-  { id: "legal",     labelKey: "menu.items.legal.label",     descKey: "menu.items.legal.desc",     key: "7", fKey: "F7" },
+function Stat({
+  target,
+  suffix,
+  label,
+}: {
+  target: number
+  suffix: string
+  label: string
+}) {
+  const locale = useLocale()
+  const { value, ref } = useCountUp(target)
+  const display = useMemo(
+    () => new Intl.NumberFormat(locale).format(value),
+    [locale, value]
+  )
+
+  return (
+    <div ref={ref} className="text-center">
+      <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">
+        {display}
+        {suffix}
+      </div>
+      <div className="text-xs text-zinc-500 mt-1">{label}</div>
+    </div>
+  )
+}
+
+function formatBytes(bytes: number) {
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"]
+  let value = bytes
+  let index = 0
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024
+    index += 1
+  }
+  return {
+    value: Math.round(value * 10) / 10,
+    suffix: ` ${units[index]}`,
+  }
+}
+
+const FEATURES = [
+  {
+    key: "deploy",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M1.5 9l3-3 3 3 3-3 3 3 3-3" />
+        <path d="M1.5 14l3-3 3 3 3-3 3 3 3-3" opacity=".4" />
+      </svg>
+    ),
+  },
+  {
+    key: "edge",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="9" cy="9" r="7" />
+        <path d="M9 2C9 2 12 5.5 12 9s-3 7-3 7" />
+        <path d="M9 2C9 2 6 5.5 6 9s3 7 3 7" />
+        <path d="M2 9h14" />
+      </svg>
+    ),
+  },
+  {
+    key: "uptime",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="2" y="2" width="14" height="14" rx="3" />
+        <path d="M6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    key: "isolation",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 13V7l6-4 6 4v6l-6 4-6-4z" />
+        <path d="M9 3v10M3 7l6 4 6-4" opacity=".4" />
+      </svg>
+    ),
+  },
+  {
+    key: "metrics",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M2 12l4-4 3 3 4-5 3 3" />
+        <rect x="2" y="2" width="14" height="14" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    key: "coldStarts",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="9" cy="9" r="2.5" />
+        <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.2 3.2l1.4 1.4M13.4 13.4l1.4 1.4M3.2 14.8l1.4-1.4M13.4 4.6l1.4-1.4" />
+      </svg>
+    ),
+  },
 ]
 
-function MainMenu({
-  infra,
-  onSelect,
-  t,
+function FeaturesGrid({
+  items,
 }: {
-  infra: InfraStatus | null
-  onSelect: (s: Screen) => void
-  t: ReturnType<typeof useTranslations>
+  items: { title: string; body: string; icon: React.ReactNode }[]
 }) {
-  const [selected, setSelected] = useState(0)
-  const [pressed,  setPressed]  = useState<number | null>(null)
+  return (
+    <div
+      className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px"
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        borderRadius: 20,
+        overflow: "hidden",
+      }}
+    >
+      {items.map((f) => (
+        <div
+          key={f.title}
+          className="group p-6 sm:p-7 transition-colors"
+          style={{ background: "#0d0d12" }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = "rgba(139,92,246,0.04)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "#0d0d12")
+          }
+        >
+          <div className="text-zinc-500 group-hover:text-violet-400 transition-colors mb-4 w-fit">
+            {f.icon}
+          </div>
+          <h3 className="text-sm font-semibold text-white mb-2">{f.title}</h3>
+          <p className="text-sm text-zinc-500 leading-relaxed">{f.body}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-  const headerLines = useMemo(() => [
-    t("menu.status.operator"),
-    t("menu.status.session", { session: new Date().toISOString().slice(0, 19).replace("T", " ") }),
-    t("menu.status.net", { status: infra?.status?.toUpperCase() ?? t("status.connecting").toUpperCase() }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [infra?.status ?? "pending", t])
-
-  const { output: headerOut, done: headerDone, skip } = useTypewriter(headerLines, 26)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!headerDone) {
-        e.preventDefault()
-        skip()
-        return
-      }
-      if (e.key === "ArrowUp")   { e.preventDefault(); setSelected(s => (s - 1 + MENU_ITEMS.length) % MENU_ITEMS.length) }
-      if (e.key === "ArrowDown") { e.preventDefault(); setSelected(s => (s + 1) % MENU_ITEMS.length) }
-      if (e.key === "Enter")     { e.preventDefault(); onSelect(MENU_ITEMS[selected].id) }
-      MENU_ITEMS.forEach((m, i) => {
-        if (e.key === m.key || e.key === m.fKey) { e.preventDefault(); setSelected(i); onSelect(m.id) }
-      })
-    }
-    const clickHandler = () => { if (!headerDone) skip() }
-
-    window.addEventListener("keydown", handler)
-    window.addEventListener("click", clickHandler)
-    window.addEventListener("touchstart", clickHandler)
-    return () => {
-      window.removeEventListener("keydown", handler)
-      window.removeEventListener("click", clickHandler)
-      window.removeEventListener("touchstart", clickHandler)
-    }
-  }, [headerDone, selected, onSelect, skip])
-
-  const handleItemClick = (i: number) => {
-    setPressed(i); setSelected(i)
-    setTimeout(() => { setPressed(null); onSelect(MENU_ITEMS[i].id) }, 120)
+// Orbit keyframes injected once
+const ORBIT_STYLES = `
+  @keyframes orbit {
+    from { transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
   }
-
-  return (
-    <div className="min-h-screen bg-background pb-14">
-      <Scanlines />
-      <CRTVignette />
-      <div className="relative z-10 flex flex-col min-h-screen max-w-4xl mx-auto w-full px-4 sm:px-8 py-8 sm:py-12">
-
-        <div className="mb-8 sm:mb-10">
-          <GlitchText
-            text={t("brand").toUpperCase()}
-            className="font-mono font-black text-4xl sm:text-6xl md:text-7xl tracking-tighter block mb-4"
-          />
-          <div className="space-y-0.5">
-            {headerOut.map((line, i) => (
-              <div key={i} className={`font-mono text-xs sm:text-sm ${
-                i === 1 ? "text-primary/70" :
-                i === 2 && infra?.status === "online" ? "text-green-400" :
-                i === 2 && infra?.status === "degraded" ? "text-yellow-400" :
-                i === 2 && infra?.status === "offline" ? "text-red-400" :
-                "text-primary/70"
-              }`}>
-                {line}
-                {i === headerOut.length - 1 && !headerDone && <Cursor color="text-primary" />}
-              </div>
-            ))}
-          </div>
-          {!headerDone && (
-            <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
-          )}
-        </div>
-
-        <div className="flex-1 flex flex-col lg:flex-row gap-5">
-
-          <div className="flex-1">
-            <PixelBox className="p-0 overflow-hidden">
-              <div className="flex items-center justify-between border-b border-primary/15 px-4 py-2.5 bg-primary/[0.04]">
-                <span className="font-mono text-[10px] text-primary/70 tracking-[0.2em] uppercase">
-                  {t("menu.title")}
-                </span>
-                <div className="hidden sm:flex items-center gap-3">
-                  <KbdHint keys={["↑", "↓"]} label={t("controls.navigate")} />
-                  <KbdHint keys={["ENTER"]}   label={t("controls.select")}   />
-                  <KbdHint keys={["1–7"]}     label={t("controls.quickJump")}    />
-                </div>
-              </div>
-
-              <div className="p-1.5">
-                {MENU_ITEMS.map((item, i) => {
-                  const isSel = selected === i
-                  const isPress = pressed === i
-                  return (
-                    <button
-                      key={item.id}
-                      className={`
-                        w-full text-left px-3 py-3 sm:py-3.5 flex items-center gap-3
-                        font-mono transition-all duration-100 border-l-2
-                        ${isSel
-                          ? "border-primary bg-primary/15"
-                          : "border-transparent hover:border-primary/30 hover:bg-primary/8"
-                        }
-                        ${isPress ? "opacity-60 scale-[0.99]" : ""}
-                        ${item.id === "legal" ? "border-t border-primary/10 mt-1 pt-4" : ""}
-                      `}
-                      onClick={() => handleItemClick(i)}
-                      onMouseEnter={() => setSelected(i)}
-                    >
-                      <kbd className={`
-                        hidden sm:inline-flex items-center justify-center w-5 h-5
-                        rounded border text-[9px] flex-shrink-0 font-mono transition-colors
-                        ${isSel
-                          ? "border-primary/60 bg-primary/20 text-primary"
-                          : "border-primary/20 bg-primary/5 text-primary/60"
-                        }
-                      `}>
-                        {item.key}
-                      </kbd>
-
-                      <span className="w-3 flex-shrink-0">
-                        {isSel
-                          ? <span className="text-primary text-xs">►</span>
-                          : <span className="text-primary/15 text-xs">·</span>
-                        }
-                      </span>
-
-                      <span className={`text-sm font-bold tracking-wider transition-colors ${
-                        isSel ? "text-primary" : "text-primary/75"
-                      } ${item.id === "legal" ? "text-primary/60" : ""}`}>
-                        {t(item.labelKey)}
-                      </span>
-
-                      <span className={`text-xs ml-auto hidden sm:block transition-colors ${
-                        isSel ? "text-primary/55" : "text-primary/50"
-                      }`}>
-                        {t(item.descKey)}
-                      </span>
-
-                      <kbd className={`
-                        hidden lg:inline-flex items-center justify-center
-                        rounded border px-1.5 py-0.5 text-[9px] flex-shrink-0 transition-colors
-                        ${isSel
-                          ? "border-primary/40 bg-primary/15 text-primary/60"
-                          : "border-primary/10 text-primary/50"
-                        }
-                      `}>
-                        {item.fKey}
-                      </kbd>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="border-t border-primary/10 px-4 py-2 flex items-center justify-between">
-                <StatusPip infra={infra} />
-                <span className="font-mono text-[9px] text-primary/50">{t("menu.version")}</span>
-              </div>
-            </PixelBox>
-
-            <div className="mt-3 sm:hidden">
-              <PixelBox className="px-4 py-3">
-                <p className="font-mono text-xs text-primary/70">
-                  ► {t(MENU_ITEMS[selected].descKey)}
-                </p>
-              </PixelBox>
-            </div>
-          </div>
-
-          <div className="hidden lg:flex flex-col gap-3 w-60">
-            <PixelBox className="p-4 flex-1" glow>
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase text-primary/65 mb-4">
-                {t("menu.systemInfo")}
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <p className="font-mono text-[9px] text-primary/55 mb-1">{t("menu.statusLabel")}</p>
-                  <StatusPip infra={infra} />
-                </div>
-                <div>
-                  <p className="font-mono text-[9px] text-primary/55 mb-1">{t("menu.nodesLabel")}</p>
-                  <p className="font-mono text-lg text-primary">
-                    {infra ? new Intl.NumberFormat().format(infra.nodeCount) : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-mono text-[9px] text-primary/55 mb-2">{t("menu.networkLabel")}</p>
-                  <div className="space-y-1">
-                    <p className="font-mono text-xs"><span className="text-green-400">{infra?.online ?? "—"}</span><span className="text-primary/60 ml-2">{t("status.online")}</span></p>
-                    <p className="font-mono text-xs"><span className="text-yellow-400">{infra?.degraded ?? "—"}</span><span className="text-primary/60 ml-2">{t("status.degraded")}</span></p>
-                    <p className="font-mono text-xs"><span className="text-red-400">{infra?.offline ?? "—"}</span><span className="text-primary/60 ml-2">{t("status.offline")}</span></p>
-                  </div>
-                </div>
-                <div className="border-t border-primary/10 pt-3 space-y-2">
-                  <Link href="/register" className="block font-mono text-xs text-primary/50 hover:text-primary transition-colors">
-                    &gt; {t("hero.ctaStart")}
-                  </Link>
-                  <Link href="/login" className="block font-mono text-xs text-primary/50 hover:text-primary transition-colors">
-                    &gt; {t("hero.ctaSignIn")}
-                  </Link>
-                </div>
-              </div>
-            </PixelBox>
-
-            <PixelBox className="p-3">
-              <p className="font-mono text-[9px] text-primary/50 leading-relaxed">
-                {t("hero.nextGen")} {t("hero.subtitle")}
-              </p>
-            </PixelBox>
-          </div>
-        </div>
-
-        <div className="mt-4 flex gap-3 lg:hidden">
-          <Link href="/register"
-            className="flex-1 border border-primary/30 bg-primary/10 py-3 text-center font-mono text-xs text-primary hover:bg-primary/20 transition-all active:opacity-60">
-            &gt; {t("hero.ctaStart")}
-          </Link>
-          <Link href="/login"
-            className="flex-1 border border-primary/15 py-3 text-center font-mono text-xs text-primary/50 hover:text-primary hover:border-primary/30 transition-all active:opacity-60">
-            {t("hero.ctaSignIn")}
-          </Link>
-        </div>
-      </div>
-
-      <ControlBar hints={[
-        { keys: ["↑", "↓"],  label: t("controls.navigate")   },
-        { keys: ["ENTER"],   label: t("controls.select")      },
-        { keys: ["1–7"],     label: t("controls.quickJump")  },
-        { keys: ["F1–F7"],   label: t("controls.altJump")    },
-      ]} />
-    </div>
-  )
-}
-
-function FeaturesScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof useTranslations> }) {
-  const features = useMemo(() => [
-    { title: t("features.item1Title"), text: t("features.item1Text") },
-    { title: t("features.item2Title"), text: t("features.item2Text") },
-    { title: t("features.item3Title"), text: t("features.item3Text") },
-    { title: t("features.item4Title"), text: t("features.item4Text") },
-    { title: t("features.item5Title"), text: t("features.item5Text") },
-    { title: t("features.item6Title"), text: t("features.item6Text") },
-  ], [t])
-  const [active, setActive] = useState<number | null>(null)
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { onBack(); return }
-      if (e.key === "ArrowRight") setActive(v => v === null ? 0 : (v + 1) % features.length)
-      if (e.key === "ArrowLeft")  setActive(v => v === null ? 0 : (v - 1 + features.length) % features.length)
-      const n = parseInt(e.key)
-      if (n >= 1 && n <= features.length) setActive(v => v === n - 1 ? null : n - 1)
-    }
-    window.addEventListener("keydown", h)
-    return () => window.removeEventListener("keydown", h)
-  }, [features.length, onBack])
-  return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines /><CRTVignette />
-      <div className="relative z-10 max-w-4xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.modules")} title={t("features.title").replace("# ", "")} />
-        <div className="grid gap-2 sm:gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((f, idx) => (
-            <button key={f.title}
-              className={`text-left border p-4 sm:p-5 transition-all duration-200 font-mono ${
-                active === idx
-                  ? "border-primary/60 bg-primary/15 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
-                  : "border-primary/15 bg-card hover:border-primary/35 hover:bg-primary/5 active:opacity-60"
-              }`}
-              onClick={() => setActive(active === idx ? null : idx)}>
-              <div className="flex items-start gap-3 mb-3">
-                <kbd className={`inline-flex items-center justify-center w-5 h-5 rounded border text-[9px] flex-shrink-0 ${
-                  active === idx ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/20 bg-primary/5 text-primary/60"
-                }`}>{idx + 1}</kbd>
-                <span className={`text-xs font-bold ${active === idx ? "text-pink-300" : "text-pink-400/55"}`}>{f.title}</span>
-              </div>
-              <p className={`text-xs leading-relaxed pl-8 ${active === idx ? "text-primary/70" : "text-primary/65"}`}>{f.text}</p>
-              {active === idx && (
-                <div className="mt-3 pl-8 border-t border-primary/20 pt-3">
-                  <span className="text-[10px] text-primary/70">{t("features.activeTag")}</span><Cursor color="text-primary" />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-      <ControlBar hints={[
-        { keys: ["1–6"],    label: t("controls.toggle")      },
-        { keys: ["←", "→"], label: t("controls.cycle")       },
-        { keys: ["ESC"],    label: t("controls.back")        },
-      ]} />
-    </div>
-  )
-}
-
-function AboutScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof useTranslations> }) {
-  const lines = useMemo(() => [`> ${t("about.line1")}`, `> ${t("about.line2")}`], [t])
-  const { output, done, skip } = useTypewriter(lines, 16)
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (!done) {
-        e.preventDefault()
-        skip()
-        return
-      }
-      if (e.key === "Escape") onBack()
-    }
-    const clickHandler = () => { if (!done) skip() }
-
-    window.addEventListener("keydown", h)
-    window.addEventListener("click", clickHandler)
-    window.addEventListener("touchstart", clickHandler)
-    return () => {
-      window.removeEventListener("keydown", h)
-      window.removeEventListener("click", clickHandler)
-      window.removeEventListener("touchstart", clickHandler)
-    }
-  }, [done, onBack, skip])
-  return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines /><CRTVignette />
-      <div className="relative z-10 max-w-3xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.about")} title={t("about.title").replace("# ", "")} />
-        <PixelBox className="p-5 sm:p-7 mb-5" glow>
-          <div className="mb-5 border-b border-primary/15 pb-5">
-            <span className="font-mono text-lg font-bold text-primary">{t("about.subtitlePrefix")}</span>{" "}
-            <span className="font-mono text-lg font-bold text-pink-400" style={{ textShadow: "0 0 15px rgba(244,114,182,0.4)" }}>{t("about.subtitleHighlight")}</span>
-          </div>
-          <div className="space-y-4">
-            {output.map((line, i) => (
-              <p key={i} className="font-mono text-xs sm:text-sm leading-[1.9] text-primary/50">
-                <span className="text-primary/70">&gt; </span>{line.replace("> ", "")}
-                {i === output.length - 1 && !done && <Cursor color="text-primary" />}
-              </p>
-            ))}
-          </div>
-        </PixelBox>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[t("community.group1"), t("community.group2"), t("community.group3"), t("community.group4")].map(g => (
-            <PixelBox key={g} className="p-3 text-center"><p className="font-mono text-[10px] text-primary/65">{g}</p></PixelBox>
-          ))}
-        </div>
-      </div>
-      <ControlBar hints={[{ keys: ["ESC"], label: t("controls.backToMenu") }]} />
-    </div>
-  )
-}
-
-function PricingScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof useTranslations> }) {
-  const [selected, setSelected] = useState(0)
-  const plans = useMemo(() => [
-    { id: "free", tier: t("plans.free.name"), price: t("plans.free.price"), period: t("plans.free.period"), tagline: t("plans.free.tagline"),
-      items: (["item1","item2","item3","item4","item5","item6","item7"] as const).map(k => t(`plans.free.${k}`).replace("→ ", "")),
-      color: "text-primary", border: "border-primary/30", glow: "shadow-[0_0_20px_rgba(168,85,247,0.15)]" },
-    { id: "edu", tier: t("plans.edu.name"), price: t("plans.edu.price"), period: t("plans.edu.period"), tagline: t("plans.edu.tagline"),
-      items: (["item1","item2","item3","item4","item5","item6","item7","item8"] as const).map(k => t(`plans.edu.${k}`).replace("→ ", "")),
-      color: "text-blue-400", border: "border-blue-500/30", glow: "shadow-[0_0_20px_rgba(96,165,250,0.15)]" },
-    { id: "paid", tier: t("plans.paid.name"), price: t("plans.paid.price"), period: t("plans.paid.period"), tagline: t("plans.paid.tagline"),
-      items: (["item1","item2","item3","item4","item5","item6","item7","item8","item9"] as const).map(k => t(`plans.paid.${k}`).replace("→ ", "")),
-      color: "text-pink-400", border: "border-pink-500/30", glow: "shadow-[0_0_20px_rgba(244,114,182,0.15)]", badge: "POPULAR" },
-    { id: "enterprise", tier: t("plans.enterprise.name"), price: t("plans.enterprise.price"), period: undefined, tagline: t("plans.enterprise.tagline"),
-      items: (["item1","item2","item3","item4","item5","item6","item7","item8","item9"] as const).map(k => t(`plans.enterprise.${k}`).replace("→ ", "")),
-      color: "text-yellow-400", border: "border-yellow-500/30", glow: "shadow-[0_0_20px_rgba(250,204,21,0.15)]" },
-  ], [t])
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape")     { onBack(); return }
-      if (e.key === "ArrowLeft")  setSelected(s => (s - 1 + plans.length) % plans.length)
-      if (e.key === "ArrowRight") setSelected(s => (s + 1) % plans.length)
-      const n = parseInt(e.key)
-      if (n >= 1 && n <= plans.length) setSelected(n - 1)
-    }
-    window.addEventListener("keydown", h)
-    return () => window.removeEventListener("keydown", h)
-  }, [plans.length, onBack])
-  const plan = plans[selected]
-  return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines /><CRTVignette />
-      <div className="relative z-10 max-w-4xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.plans")} title={t("plans.title").replace("# ", "")} />
-        <p className="font-mono text-xs text-primary/60 mb-8">{t("plans.subtitle")}</p>
-        <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
-          {plans.map((p, i) => (
-            <button key={p.id} onClick={() => setSelected(i)}
-              className={`flex-shrink-0 px-3 sm:px-4 py-2 font-mono text-xs border transition-all ${
-                selected === i ? `${p.border} bg-card ${p.color} ${p.glow}` : "border-primary/10 text-primary/60 hover:border-primary/20 hover:text-primary/50 active:opacity-60"
-              }`}>
-              <kbd className="hidden sm:inline-flex items-center justify-center w-4 h-4 rounded border border-current opacity-40 text-[9px] mr-1.5">{i+1}</kbd>
-              {p.tier}{"badge" in p && p.badge && <span className="ml-1.5 text-[9px] text-pink-400/60">[{p.badge}]</span>}
-            </button>
-          ))}
-        </div>
-        <div className={`border ${plan.border} bg-card ${plan.glow} transition-all`}>
-          <div className="p-5 sm:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4 mb-6 border-b border-primary/10 pb-6">
-              <div>
-                <p className={`font-mono text-[10px] tracking-[0.2em] uppercase ${plan.color} opacity-55 mb-2`}>{plan.tier}</p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className={`font-mono text-4xl font-black ${plan.color}`} style={{ textShadow: "0 0 16px currentColor" }}>{plan.price}</span>
-                  {plan.period && <span className={`font-mono text-sm ${plan.color} opacity-40`}>{plan.period}</span>}
-                </div>
-                <p className="font-mono text-xs text-primary/65 mt-2">{plan.tagline}</p>
-              </div>
-              {"badge" in plan && plan.badge && (
-                <span className={`font-mono text-[10px] border ${plan.border} px-3 py-1 ${plan.color} tracking-widest`}>{plan.badge}</span>
-              )}
-            </div>
-            <div className="grid sm:grid-cols-2 gap-2 mb-6">
-              {plan.items.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 font-mono text-xs text-primary/75">
-                  <span className={`${plan.color} opacity-40 flex-shrink-0`}>+</span>{item}
-                </div>
-              ))}
-            </div>
-            <div className="pt-4 border-t border-primary/10 flex flex-wrap gap-3">
-              <Link href="/register" className={`border ${plan.border} bg-transparent px-5 py-2.5 font-mono text-sm ${plan.color} hover:bg-primary/10 transition-all active:opacity-60`}>
-                &gt; {t("plans.ctaStart")}
-              </Link>
-              {plan.id === "enterprise" && (
-                <a href="mailto:contact@ecli.app" className="border border-primary/15 px-5 py-2.5 font-mono text-sm text-primary/75 hover:border-primary/30 hover:text-primary transition-all">
-                  {t("plans.contactUs")}
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      <ControlBar hints={[
-        { keys: ["←", "→"], label: t("controls.switchPlan")  },
-        { keys: ["1–4"],     label: t("controls.quickSwitch") },
-        { keys: ["ESC"],     label: t("controls.back")         },
-      ]} />
-    </div>
-  )
-}
-
-function CommunityScreen({ onBack, infra, t }: { onBack: () => void; infra: InfraStatus | null; t: ReturnType<typeof useTranslations> }) {
-  const termLines = useMemo(() => [
-    "$ ./connect --community",
-    `INIT ${t("community.handshake")}`,
-    `${t("community.resolving")} ecli.app`,
-    t("community.statusLine", { status: infra ? (infra.status || t("status.unknown")).toUpperCase() : t("community.connecting") }),
-    t("community.nodesLine", { nodes: infra ? new Intl.NumberFormat().format(infra.nodeCount) : "..." }),
-    t("community.nodeBreakdown", {
-      online: infra?.online ?? "...",
-      degraded: infra?.degraded ?? "...",
-      offline: infra?.offline ?? "...",
-    }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [infra?.status ?? "pending", infra?.online, infra?.degraded, infra?.offline, t])
-  const { output, done, skip } = useTypewriter(termLines, 22)
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (!done) {
-        e.preventDefault()
-        skip()
-        return
-      }
-      if (e.key === "Escape") onBack()
-    }
-    const clickHandler = () => { if (!done) skip() }
-
-    window.addEventListener("keydown", h)
-    window.addEventListener("click", clickHandler)
-    window.addEventListener("touchstart", clickHandler)
-    return () => {
-      window.removeEventListener("keydown", h)
-      window.removeEventListener("click", clickHandler)
-      window.removeEventListener("touchstart", clickHandler)
-    }
-  }, [done, onBack, skip])
-  return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines /><CRTVignette />
-      <div className="relative z-10 max-w-4xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.network")} title={t("community.title").replace("# ", "")} />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <TerminalWindowFrame title={t("community.consoleTitle")}>
-            <div className="space-y-1.5">
-              {output.map((line, i) => (
-                <div key={i} className={`font-mono text-xs sm:text-sm ${
-                  i === 0 ? "text-primary/65" :
-                  i === 1 ? "text-pink-400/70" :
-                  i === 2 ? "text-primary/70" :
-                  i === 3 && infra?.status === "online" ? "text-green-400" :
-                  i === 3 && infra?.status === "degraded" ? "text-yellow-400" :
-                  i === 3 && infra?.status === "offline" ? "text-red-400" :
-                  i === 3 ? "text-primary/55" :
-                  i === 4 ? "text-primary/70" :
-                  "text-primary/55"
-                }`}>
-                  {line}{i === output.length - 1 && !done && <Cursor color="text-primary" />}
-                </div>
-              ))}
-            </div>
-            {!done && (
-              <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
-            )}
-            <div className="flex-1 space-y-3">
-            </div>
-          </TerminalWindowFrame>
-          <div className="space-y-3">
-            <p className="font-mono text-xs text-primary/65 leading-relaxed">{t("community.description")}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: t("status.online"),   val: infra?.online,   color: "text-green-400",  border: "border-green-500/20"  },
-                { label: t("status.degraded"), val: infra?.degraded, color: "text-yellow-400", border: "border-yellow-500/20" },
-                { label: t("status.offline"),  val: infra?.offline,  color: "text-red-400",    border: "border-red-500/20"    },
-              ].map(s => (
-                <PixelBox key={s.label} className={`p-3 text-center border ${s.border}`}>
-                  <p className={`font-mono text-xl font-black ${s.color}`}>{s.val ?? "—"}</p>
-                  <p className="font-mono text-[9px] text-primary/60 mt-1">{s.label}</p>
-                </PixelBox>
-              ))}
-            </div>
-            <PixelBox className="p-4">
-              <p className="font-mono text-[9px] text-primary/55 mb-1">{t("community.totalNodes")}</p>
-              <p className="font-mono text-3xl font-black text-primary" style={{ textShadow: "0 0 14px var(--glow)" }}>
-                {infra ? new Intl.NumberFormat().format(infra.nodeCount) : "—"}
-              </p>
-            </PixelBox>
-            <div className="grid grid-cols-2 gap-2">
-              {[t("community.group1"), t("community.group2"), t("community.group3"), t("community.group4")].map(g => (
-                <PixelBox key={g} className="p-2.5 text-center"><p className="font-mono text-[10px] text-primary/65">{g}</p></PixelBox>
-              ))}
-            </div>
-            <Link href="/dashboard" className="block w-full border border-primary/30 bg-primary/10 py-3 text-center font-mono text-sm text-primary hover:bg-primary/20 hover:border-primary/50 transition-all active:opacity-60">
-              &gt; {t("community.cta")}
-            </Link>
-          </div>
-        </div>
-      </div>
-      <ControlBar hints={[{ keys: ["ESC"], label: t("controls.backToMenu") }]} />
-    </div>
-  )
-}
-
-function FaqScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof useTranslations> }) {
-  const [open, setOpen] = useState<number | null>(null)
-  const faqs = useMemo(() => [
-    { q: t("faq.q1"), a: t("faq.a1") },
-    { q: t("faq.q2"), a: t("faq.a2") },
-    { q: t("faq.q3"), a: t("faq.a3") },
-    { q: t("faq.q4"), a: (
-      <span>{t("faq.a4Prefix")}{" "}
-        <a href="https://github.com/thenoname-gurl/EcliPanel" className="text-pink-400 hover:underline" target="_blank" rel="noopener noreferrer">{t("faq.github")}</a>
-        {" "}{t("faq.a4Suffix")}
-      </span>
-    )},
-  ], [t])
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { onBack(); return }
-      if (e.key === "ArrowDown") setOpen(o => o === null ? 0 : Math.min(o + 1, faqs.length - 1))
-      if (e.key === "ArrowUp")   setOpen(o => o === null ? 0 : Math.max(o - 1, 0))
-      if (e.key === "Enter" && open !== null) setOpen(null)
-      const n = parseInt(e.key)
-      if (n >= 1 && n <= faqs.length) setOpen(o => o === n - 1 ? null : n - 1)
-    }
-    window.addEventListener("keydown", h)
-    return () => window.removeEventListener("keydown", h)
-  }, [faqs.length, open, onBack])
-  return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines /><CRTVignette />
-      <div className="relative z-10 max-w-3xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.help")} title={t("faq.title").replace("# ", "")} />
-        <div className="space-y-1.5">
-          {faqs.map((faq, i) => (
-            <div key={i} className={`border transition-all duration-200 ${open === i ? "border-primary/40 bg-primary/10" : "border-primary/10 bg-card hover:border-primary/25"}`}>
-              <button className="w-full flex items-center gap-3 p-4 text-left group" onClick={() => setOpen(open === i ? null : i)}>
-                <kbd className={`inline-flex items-center justify-center w-5 h-5 rounded border font-mono text-[9px] flex-shrink-0 ${
-                  open === i ? "border-primary/50 bg-primary/20 text-primary" : "border-primary/15 bg-primary/5 text-primary/55"
-                }`}>{i+1}</kbd>
-                <span className={`flex-1 font-mono text-xs sm:text-sm font-semibold transition-colors ${open === i ? "text-primary" : "text-primary/55 group-hover:text-primary/70"}`}>{faq.q}</span>
-                <span className="font-mono text-xs text-primary/60 flex-shrink-0 transition-transform duration-200" style={{ transform: open === i ? "rotate(90deg)" : "none" }}>►</span>
-              </button>
-              <div style={{ maxHeight: open === i ? "300px" : 0, overflow: "hidden", transition: "max-height 0.3s ease" }}>
-                <p className="font-mono text-xs text-primary/70 leading-relaxed px-4 pb-4 pl-[52px] border-t border-primary/10 pt-3">{faq.a}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <ControlBar hints={[
-        { keys: ["↑", "↓"], label: t("controls.navigate")   },
-        { keys: ["ENTER"],  label: t("controls.toggle")     },
-        { keys: ["1–4"],     label: t("controls.quickOpen")  },
-        { keys: ["ESC"],    label: t("controls.back")        },
-      ]} />
-    </div>
-  )
-}
-
-function DeployScreen({ onBack, t }: { onBack: () => void; t: ReturnType<typeof useTranslations> }) {
-  const deployLines = useMemo(() => [
-    "$ eclipse deploy --init",
-    t("deploy.allocating"),
-    t("deploy.configuring"),
-    t("deploy.settingUp"),
-    t("deploy.applying"),
-    t("deploy.starting"),
-    "",
-    t("deploy.ready"),
-    t("deploy.access"),
-  ], [t])
-  const { output, done, skip } = useTypewriter(deployLines, 28, 200)
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (!done) {
-        e.preventDefault()
-        skip()
-        return
-      }
-      if (e.key === "Escape") onBack()
-    }
-    const clickHandler = () => { if (!done) skip() }
-
-    window.addEventListener("keydown", h)
-    window.addEventListener("click", clickHandler)
-    window.addEventListener("touchstart", clickHandler)
-    return () => {
-      window.removeEventListener("keydown", h)
-      window.removeEventListener("click", clickHandler)
-      window.removeEventListener("touchstart", clickHandler)
-    }
-  }, [done, onBack, skip])
-  return (
-    <div className="min-h-screen bg-background px-4 sm:px-8 py-8 sm:py-12 pb-20">
-      <Scanlines /><CRTVignette />
-      <div className="relative z-10 max-w-3xl mx-auto">
-        <BackButton onBack={onBack} />
-        <SectionHeader label={t("sections.deploy")} title={t("cta.title").replace("# ", "")} />
-        <p className="font-mono text-xs text-primary/60 mb-8 max-w-md">{t("cta.subtitle")}</p>
-        <TerminalWindowFrame title={t("deploy.consoleTitle")} className="mb-6">
-          <div className="space-y-1.5">
-            {output.map((line, i) => (
-              <div key={i} className={`font-mono text-xs sm:text-sm ${
-                line === "" ? "h-3" :
-                i === 0 ? "text-primary/65" :
-                i >= 1 && i <= 5 ? "text-primary/55" :
-                i === 7 ? "text-green-400 font-bold" :
-                i === 8 ? "text-primary/60" :
-                "text-primary/60"
-              }`}>
-                {line === "" ? <>&nbsp;</> : line}
-                {i === output.length - 1 && !done && <Cursor color="text-primary" />}
-              </div>
-            ))}
-          </div>
-        </TerminalWindowFrame>
-        {!done && (
-          <div className="mb-4 text-xs text-primary/70">{t("skipHint")}</div>
-        )}
-        {done && (
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/register"
-              className="flex-1 border border-primary/50 bg-primary/15 py-3 sm:py-4 text-center font-mono text-sm font-bold text-primary hover:bg-primary/25 hover:border-primary/70 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)] transition-all active:opacity-60"
-              style={{ textShadow: "0 0 10px rgba(168,85,247,0.5)" }}>
-              &gt; {t("cta.register")}
-            </Link>
-            <Link href="/dashboard"
-              className="flex-1 border border-primary/15 py-3 sm:py-4 text-center font-mono text-sm text-primary/75 hover:border-primary/30 hover:text-primary transition-all active:opacity-60">
-              {t("cta.dashboard")}
-            </Link>
-          </div>
-        )}
-        <div className="mt-8 border-t border-primary/10 pt-6" id="contact">
-          <p className="font-mono text-[11px] text-primary/55">
-            {t("footer.customSetup")}{" "}
-            <a href="mailto:contact@ecli.app" className="text-primary/55 hover:text-primary transition-colors">contact@ecli.app</a>
-            {" · "}
-            {t("footer.orGoTo")}{" "}
-            <Link href="/dashboard" className="text-primary/55 hover:text-primary transition-colors">{t("footer.dashboard")}</Link>
-          </p>
-        </div>
-      </div>
-      <ControlBar hints={[
-        { keys: ["ENTER"], label: t("controls.confirm") },
-        { keys: ["ESC"],   label: t("controls.back")    },
-      ]} />
-    </div>
-  )
-}
+  @keyframes orbit-reverse {
+    from { transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(-360deg) translateX(var(--orbit-r)) rotate(360deg); }
+  }
+`
 
 export default function LandingPage() {
   const t = useTranslations("landing")
   const infra = useInfraStatus()
-  const [screen, setScreen] = useState<Screen>("boot")
+  const metrics = usePublicMetrics()
+  const publicFeatures = usePublicFeatures()
+  const showTunnelStats = publicFeatures?.tunnels !== false
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  useEffect(() => {
-    const booted = sessionStorage.getItem("ec_booted")
-    const langPicked = sessionStorage.getItem("ec_lang_picked")
-    if (booted && langPicked) {
-      setScreen("menu")
-    } else if (booted && !langPicked) {
-      setScreen("lang")
-    }
-  }, [])
+  const features = useMemo(
+    () =>
+      FEATURES.map(({ key, icon }) => ({
+        icon,
+        title: t(`features.items.${key}.title`),
+        body: t(`features.items.${key}.body`),
+      })),
+    [t]
+  )
 
-  const handleBootDone = useCallback(() => {
-    sessionStorage.setItem("ec_booted", "1")
-    setScreen("lang")
-  }, [])
+  const plans = useMemo(
+    () => [
+      {
+        name: t("pricing.plans.free.name"),
+        priceLabel: t("pricing.plans.free.price"),
+        desc: t("pricing.plans.free.desc"),
+        features: [
+          t("pricing.plans.free.features.0"),
+          t("pricing.plans.free.features.1"),
+          t("pricing.plans.free.features.2"),
+          t("pricing.plans.free.features.3"),
+          t("pricing.plans.free.features.4"),
+          t("pricing.plans.free.features.5"),
+          t("pricing.plans.free.features.6"),
+          t("pricing.plans.free.features.7"),
+        ],
+        cta: t("pricing.plans.free.cta"),
+        highlight: false,
+      },
+      {
+        name: t("pricing.plans.educational.name"),
+        priceLabel: t("pricing.plans.educational.price"),
+        desc: t("pricing.plans.educational.desc"),
+        features: [
+          t("pricing.plans.educational.features.0"),
+          t("pricing.plans.educational.features.1"),
+          t("pricing.plans.educational.features.2"),
+          t("pricing.plans.educational.features.3"),
+          t("pricing.plans.educational.features.4"),
+          t("pricing.plans.educational.features.5"),
+          t("pricing.plans.educational.features.6"),
+          t("pricing.plans.educational.features.7"),
+          t("pricing.plans.educational.features.8"),
+        ],
+        cta: t("pricing.plans.educational.cta"),
+        highlight: false,
+      },
+      {
+        name: t("pricing.plans.paid.name"),
+        priceLabel: t("pricing.plans.paid.price"),
+        desc: t("pricing.plans.paid.desc"),
+        features: [
+          t("pricing.plans.paid.features.0"),
+          t("pricing.plans.paid.features.1"),
+          t("pricing.plans.paid.features.2"),
+          t("pricing.plans.paid.features.3"),
+          t("pricing.plans.paid.features.4"),
+          t("pricing.plans.paid.features.5"),
+          t("pricing.plans.paid.features.6"),
+          t("pricing.plans.paid.features.7"),
+          t("pricing.plans.paid.features.8"),
+          t("pricing.plans.paid.features.9"),
+        ],
+        cta: t("pricing.plans.paid.cta"),
+        highlight: true,
+      },
+      {
+        name: t("pricing.plans.enterprise.name"),
+        priceLabel: t("pricing.plans.enterprise.price"),
+        desc: t("pricing.plans.enterprise.desc"),
+        features: [
+          t("pricing.plans.enterprise.features.0"),
+          t("pricing.plans.enterprise.features.1"),
+          t("pricing.plans.enterprise.features.2"),
+          t("pricing.plans.enterprise.features.3"),
+          t("pricing.plans.enterprise.features.4"),
+          t("pricing.plans.enterprise.features.5"),
+          t("pricing.plans.enterprise.features.6"),
+          t("pricing.plans.enterprise.features.7"),
+          t("pricing.plans.enterprise.features.8"),
+          t("pricing.plans.enterprise.features.9"),
+          t("pricing.plans.enterprise.features.10"),
+          t("pricing.plans.enterprise.features.11"),
+          t("pricing.plans.enterprise.features.12"),
+        ],
+        cta: t("pricing.plans.enterprise.cta"),
+        href: "mailto:contact@ecli.app",
+        highlight: false,
+      },
+    ],
+    [t]
+  )
 
-  const handleLangDone = useCallback((_locale: string) => {
-    sessionStorage.setItem("ec_lang_picked", "1")
-    setScreen("menu")
-  }, [])
+  const faqs = useMemo(
+    () => [
+      { q: t("faq.q1"), a: t("faq.a1") },
+      { q: t("faq.q2"), a: t("faq.a2") },
+      { q: t("faq.q3"), a: t("faq.a3") },
+      { q: t("faq.q4"), a: t("faq.a4") },
+    ],
+    [t]
+  )
 
-  const goBack   = useCallback(() => setScreen("menu"), [])
-  const handleSelect = useCallback((s: Screen) => setScreen(s), [])
+  const nodeCount = infra?.nodeCount ?? 0
+  const tunnelCount = showTunnelStats ? infra?.tunnelCount ?? 0 : 0
+  const tunnelActive = showTunnelStats
+    ? Math.min(infra?.tunnelActive ?? 0, tunnelCount)
+    : 0
+  const tunnelInactive = showTunnelStats
+    ? Math.max(0, tunnelCount - tunnelActive)
+    : 0
 
-  if (screen === "boot") return <BootScreen onDone={handleBootDone} />
-  if (screen === "lang") return <LangSelectScreen onDone={handleLangDone} />
-  if (screen === "menu") return <MainMenu infra={infra} onSelect={handleSelect} t={t} />
+  const networkStats = useMemo(
+    () => [
+      {
+        label: t("network.stats.totalNodes"),
+        value: infra?.nodeCount?.toLocaleString() ?? "-",
+        color: "#fff",
+      },
+      {
+        label: t("network.stats.online"),
+        value: infra?.online ?? "-",
+        color: "#4ade80",
+      },
+      {
+        label: t("network.stats.degraded"),
+        value: infra?.degraded ?? "-",
+        color: "#fbbf24",
+      },
+      {
+        label: t("network.stats.offline"),
+        value: infra?.offline ?? "-",
+        color: "#f87171",
+      },
+      {
+        label: t("network.stats.tunnels"),
+        value: infra?.tunnelCount?.toLocaleString() ?? "-",
+        color: "#38bdf8",
+        isTunnel: true,
+      },
+      {
+        label: t("network.stats.tunnelsActive"),
+        value: infra?.tunnelActive?.toLocaleString() ?? "-",
+        color: "#4ade80",
+        isTunnel: true,
+      },
+      {
+        label: t("network.stats.tunnelsInactive"),
+        value: infra?.tunnelInactive?.toLocaleString() ?? "-",
+        color: "#f87171",
+        isTunnel: true,
+      },
+    ].filter((item) => showTunnelStats || !item.isTunnel),
+    [infra, showTunnelStats, t]
+  )
 
-  const shared = { onBack: goBack, t }
+  // orbit radii in px — container is w-72 = 288px, so half = 144px
+  const NODE_R = 0.36 * 144
+  const TUNNEL_R = 0.7 * 144
 
   return (
-    <>
-      {screen === "features"  && <FeaturesScreen  {...shared} />}
-      {screen === "about"     && <AboutScreen      {...shared} />}
-      {screen === "pricing"   && <PricingScreen    {...shared} />}
-      {screen === "community" && <CommunityScreen  {...shared} infra={infra} />}
-      {screen === "faq"       && <FaqScreen        {...shared} />}
-      {screen === "deploy"    && <DeployScreen     {...shared} />}
-      {screen === "legal"     && <LegalScreen      onBack={goBack} />}
+    <div className="bg-[#0a0a0f] min-h-screen text-white">
+      {/* inject orbit keyframes once */}
+      <style>{ORBIT_STYLES}</style>
 
-      <style>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0; }
-        }
-      `}</style>
-    </>
+      <header
+        className="fixed top-0 inset-x-0 z-50 h-14 flex items-center"
+        style={{
+          background: "rgba(10,10,15,0.85)",
+          backdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <div className="max-w-5xl mx-auto w-full px-5 sm:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/assets/icons/logo.png"
+              alt={t("brand")}
+              width={24}
+              height={24}
+              className="h-6 w-6"
+            />
+            <span className="font-semibold text-[14px] tracking-tight">
+              {t("brand")}
+            </span>
+          </div>
+
+          <nav className="hidden md:flex items-center gap-0.5">
+            {[
+              { id: "features", label: t("nav.features") },
+              { id: "pricing", label: t("nav.pricing") },
+              { id: "network", label: t("nav.network") },
+              { id: "faq", label: t("nav.faq") },
+            ].map((l) => (
+              <a
+                key={l.id}
+                href={`#${l.id}`}
+                className="px-3 py-1.5 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                {l.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="hidden sm:block text-sm text-zinc-400 hover:text-white px-3 py-1.5 transition-colors"
+            >
+              {t("nav.signIn")}
+            </Link>
+            <Link
+              href="/register"
+              className="text-sm font-semibold bg-white text-black px-4 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+            >
+              {t("nav.getStarted")}
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section
+        id="hero"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden px-5 pt-14"
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(139,92,246,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.08) 1px,transparent 1px)",
+            backgroundSize: "64px 64px",
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 60% at 50% 40%,transparent 30%,#0a0a0f 100%)",
+          }}
+        />
+        <div
+          className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle,rgba(139,92,246,0.12) 0%,transparent 70%)",
+          }}
+        />
+
+        <div className="relative z-10 max-w-2xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-5">
+            {t("hero.titleLine1")}
+            <br />
+            <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+              {t("hero.titleLine2")}
+            </span>
+          </h1>
+
+          <p className="text-base sm:text-lg text-zinc-400 leading-relaxed mb-8 max-w-lg mx-auto">
+            {t("hero.subtitle")}
+          </p>
+
+          <Link
+            href="/register"
+            className="inline-flex items-center justify-center gap-2.5 bg-white text-black font-semibold text-[15px] px-7 py-3.5 rounded-xl hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-2xl shadow-black/30 mb-4"
+          >
+            {t("hero.cta")}
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path
+                d="M3 7.5h9M9 4l3.5 3.5L9 11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+
+          <p className="text-xs text-zinc-600 mb-10">{t("hero.note")}</p>
+        </div>
+
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
+          <div className="w-px h-8 bg-gradient-to-b from-transparent to-white" />
+        </div>
+      </section>
+
+      <section className="py-20 px-5">
+        <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12">
+          {(() => {
+            const totalTraffic = metrics?.nodeTrafficBytes ?? metrics?.trafficBytes ?? 0
+            const traffic = formatBytes(totalTraffic)
+            return (
+              <Stat
+                target={traffic.value}
+                suffix={traffic.suffix}
+                label={t("stats.dailyNodeTraffic")}
+              />
+            )
+          })()}
+          <Stat
+            target={metrics?.requestCount ?? 0}
+            suffix=""
+            label={t("stats.monthlyRequests")}
+          />
+          <Stat
+            target={metrics?.totalUsers ?? 0}
+            suffix=""
+            label={t("stats.totalUsers")}
+          />
+        </div>
+      </section>
+
+      <section
+        id="features"
+        className="py-20 px-5 sm:px-8"
+        style={{ background: "#0d0d12" }}
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-3">
+              {t("features.eyebrow")}
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {t("features.title")}
+              <br />
+              <span className="text-zinc-500">{t("features.titleMuted")}</span>
+            </h2>
+          </div>
+          <FeaturesGrid items={features} />
+        </div>
+      </section>
+
+      <section
+        id="pricing"
+        className="py-20 px-5 sm:px-8"
+        style={{ background: "#0d0d12" }}
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-3">
+              {t("pricing.eyebrow")}
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">
+              {t("pricing.title")}
+            </h2>
+            <p className="text-zinc-500 text-sm mb-6">
+              {t("pricing.subtitle")}
+            </p>
+            <p className="text-xs text-zinc-600 mb-8">{t("pricing.taxNote")}</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {plans.map((plan) => {
+              const href = plan.href ?? "/register"
+              const isExternal =
+                href.startsWith("http") || href.startsWith("mailto:")
+
+              return (
+                <div
+                  key={plan.name}
+                  className="relative rounded-2xl p-6 flex flex-col"
+                  style={{
+                    background: plan.highlight
+                      ? "linear-gradient(135deg,rgba(139,92,246,0.15) 0%,rgba(99,102,241,0.08) 100%)"
+                      : "rgba(255,255,255,0.02)",
+                    border: plan.highlight
+                      ? "1px solid rgba(139,92,246,0.35)"
+                      : "1px solid rgba(255,255,255,0.06)",
+                    boxShadow: plan.highlight
+                      ? "0 0 40px rgba(139,92,246,0.08)"
+                      : "none",
+                  }}
+                >
+                  <p className="text-sm font-semibold text-zinc-300 mb-3">
+                    {plan.name}
+                  </p>
+
+                  <div className="text-3xl font-bold mb-2">
+                    {plan.priceLabel}
+                  </div>
+
+                  <p className="text-xs text-zinc-500 mb-5">{plan.desc}</p>
+
+                  {isExternal ? (
+                    <a
+                      href={href}
+                      className="block text-center text-sm font-semibold py-2.5 rounded-xl mb-6 transition-all"
+                      style={
+                        plan.highlight
+                          ? { background: "#7c3aed", color: "white" }
+                          : {
+                              background: "rgba(255,255,255,0.07)",
+                              color: "white",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                            }
+                      }
+                    >
+                      {plan.cta}
+                    </a>
+                  ) : (
+                    <Link
+                      href={href}
+                      className="block text-center text-sm font-semibold py-2.5 rounded-xl mb-6 transition-all"
+                      style={
+                        plan.highlight
+                          ? { background: "#7c3aed", color: "white" }
+                          : {
+                              background: "rgba(255,255,255,0.07)",
+                              color: "white",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                            }
+                      }
+                    >
+                      {plan.cta}
+                    </Link>
+                  )}
+
+                  <ul className="space-y-2.5 mt-auto">
+                    {plan.features.map((f) => (
+                      <li
+                        key={f}
+                        className="flex items-center gap-2.5 text-sm text-zinc-400"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 14 14"
+                          fill="none"
+                          className="flex-shrink-0"
+                        >
+                          <circle
+                            cx="7"
+                            cy="7"
+                            r="6.5"
+                            stroke="rgba(139,92,246,0.3)"
+                          />
+                          <path
+                            d="M4 7l2 2 4-4"
+                            stroke="#a78bfa"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section id="network" className="py-20 px-5 sm:px-8">
+        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
+          <div>
+            <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-4">
+              {t("network.eyebrow")}
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">
+              {t("network.title")}
+              <br />
+              <span className="text-zinc-500">{t("network.titleMuted")}</span>
+            </h2>
+            <p className="text-sm text-zinc-400 leading-relaxed mb-8">
+              {t("network.body")}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {networkStats.map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-xl p-4"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <div
+                    className="text-xl font-bold mb-0.5"
+                    style={{ color: s.color }}
+                  >
+                    {s.value}
+                  </div>
+                  <div className="text-xs text-zinc-600">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <div className="relative w-72 h-72">
+
+              {/* RINGS — rotate slowly */}
+              <div
+                className="absolute inset-0 animate-spin"
+                style={{
+                  animationDuration: "20s",
+                  animationTimingFunction: "linear",
+                }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="absolute rounded-full"
+                    style={{
+                      border: "1px solid rgba(139,92,246,0.15)",
+                      width: `${(0.45 + i * 0.275) * 100}%`,
+                      height: `${(0.45 + i * 0.275) * 100}%`,
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* CENTER GLOBE — static */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center"
+                  style={{
+                    background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    boxShadow: "0 0 40px rgba(124,58,237,0.5)",
+                  }}
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  >
+                    <circle cx="10" cy="10" r="7" />
+                    <path d="M10 3C10 3 13 6.5 13 10s-3 7-3 7" />
+                    <path d="M10 3C10 3 7 6.5 7 10s3 7 3 7" />
+                    <path d="M3 10h14" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* NODE DOTS — orbit clockwise on inner ring */}
+              {Array.from({ length: nodeCount }, (_, i) => {
+                const duration = 18 + i * 0.4
+                return (
+                  <div
+                    key={`node-${i}`}
+                    className="absolute rounded-full"
+                    style={
+                      {
+                        top: "50%",
+                        left: "50%",
+                        width: 10,
+                        height: 10,
+                        background: "#4ade80",
+                        boxShadow: "0 0 18px rgba(74,222,128,0.55)",
+                        "--orbit-r": `${NODE_R}px`,
+                        animation: `orbit ${duration}s linear infinite`,
+                        animationDelay: `${-(i / Math.max(nodeCount, 1)) * duration}s`,
+                      } as React.CSSProperties
+                    }
+                  />
+                )
+              })}
+
+              {/* TUNNEL DOTS — orbit counter-clockwise on outer ring */}
+              {showTunnelStats &&
+                Array.from({ length: tunnelCount }, (_, i) => {
+                  const isActive = i < tunnelActive
+                  const color = isActive ? "#38bdf8" : "#f87171"
+                  const duration = 28 + i * 0.3
+                  return (
+                    <div
+                      key={`tunnel-${i}`}
+                      className="absolute rounded-full"
+                      style={
+                        {
+                          top: "50%",
+                          left: "50%",
+                          width: 8,
+                          height: 8,
+                          background: color,
+                          boxShadow: `0 0 ${isActive ? 16 : 10}px ${color}`,
+                          "--orbit-r": `${TUNNEL_R}px`,
+                          animation: `orbit-reverse ${duration}s linear infinite`,
+                          animationDelay: `${-(i / Math.max(tunnelCount, 1)) * duration}s`,
+                        } as React.CSSProperties
+                      }
+                    />
+                  )
+                })}
+
+              {/* STATUS PILL — static */}
+              <div
+                className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-4 py-1.5 whitespace-nowrap"
+                style={{
+                  background: "#0a0a0f",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <StatusPill infra={infra} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="faq"
+        className="py-20 px-5 sm:px-8"
+        style={{ background: "#0d0d12" }}
+      >
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-3">
+              {t("faq.eyebrow")}
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              {t("faq.title")}
+            </h2>
+          </div>
+          <div className="space-y-2">
+            {faqs.map((faq, i) => (
+              <div
+                key={i}
+                className="rounded-xl overflow-hidden transition-all"
+                style={{
+                  background:
+                    openFaq === i
+                      ? "rgba(139,92,246,0.05)"
+                      : "rgba(255,255,255,0.02)",
+                  border:
+                    openFaq === i
+                      ? "1px solid rgba(139,92,246,0.2)"
+                      : "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                <button
+                  className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                >
+                  <span
+                    className={`text-sm font-medium transition-colors ${
+                      openFaq === i ? "text-white" : "text-zinc-300"
+                    }`}
+                  >
+                    {faq.q}
+                  </span>
+                  <span
+                    className="flex-shrink-0 transition-transform duration-200 text-zinc-500"
+                    style={{
+                      transform: openFaq === i ? "rotate(45deg)" : "none",
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    >
+                      <path d="M7 1v12M1 7h12" />
+                    </svg>
+                  </span>
+                </button>
+                <div
+                  style={{
+                    maxHeight: openFaq === i ? "200px" : 0,
+                    overflow: "hidden",
+                    transition: "max-height 0.28s ease",
+                  }}
+                >
+                  <p
+                    className="px-5 pb-5 text-sm text-zinc-400 leading-relaxed"
+                    style={{
+                      borderTop: "1px solid rgba(255,255,255,0.05)",
+                      paddingTop: 16,
+                    }}
+                  >
+                    {faq.a}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-28 px-5 text-center relative overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 60% 50% at 50% 50%,rgba(139,92,246,0.1) 0%,transparent 70%)",
+          }}
+        />
+        <div className="relative z-10 max-w-xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+            {t("finalCta.titleLine1")}
+            <br />
+            {t("finalCta.titleLine2")}
+          </h2>
+          <p className="text-zinc-400 mb-10">{t("finalCta.subtitle")}</p>
+
+          <Link
+            href="/register"
+            className="inline-flex items-center justify-center gap-2.5 bg-white text-black font-bold text-base px-8 py-4 rounded-xl hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-2xl shadow-black/30"
+          >
+            {t("finalCta.cta")}
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path
+                d="M3 7.5h9M9 4l3.5 3.5L9 11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+
+          <p className="text-xs text-zinc-600 mt-4">{t("finalCta.note")}</p>
+        </div>
+      </section>
+
+      <footer
+        className="px-5 sm:px-8 py-12"
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          background: "#0d0d12",
+        }}
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <img
+                  src="/assets/icons/logo.png"
+                  alt={t("brand")}
+                  width={24}
+                  height={24}
+                  className="h-6 w-6"
+                />
+                <span className="font-semibold text-sm">{t("brand")}</span>
+              </div>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                {t("footer.tagline")}
+              </p>
+              <a
+                href="mailto:contact@ecli.app"
+                className="inline-block mt-3 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+              >
+                {t("footer.contact")}
+              </a>
+            </div>
+
+            {[
+              {
+                title: t("footer.columns.product"),
+                links: [
+                  { l: t("footer.links.features"), h: "#features" },
+                  { l: t("footer.links.pricing"), h: "#pricing" },
+                  { l: t("footer.links.network"), h: "#network" },
+                  { l: t("footer.links.status"), h: "/status" },
+                ],
+              },
+              {
+                title: t("footer.columns.developers"),
+                links: [
+                  { l: t("footer.links.docs"), h: "/docs" },
+                  {
+                    l: t("footer.links.api"),
+                    h: "https://backend.ecli.app/openapi",
+                  },
+                  {
+                    l: t("footer.links.github"),
+                    h: "https://github.com/thenoname-gurl/EcliPanel",
+                  },
+                  { l: t("footer.links.changelog"), h: "/changelog" },
+                ],
+              },
+              {
+                title: t("footer.columns.legal"),
+                links: [
+                  { l: t("footer.links.terms"), h: "/legal/terms-of-service" },
+                  {
+                    l: t("footer.links.privacy"),
+                    h: "/legal/privacy-policy",
+                  },
+                  {
+                    l: t("footer.links.cookies"),
+                    h: "/legal/cookies-policy",
+                  },
+                  {
+                    l: t("footer.links.acceptable"),
+                    h: "/legal/acceptable-use-policy",
+                  },
+                  { l: t("footer.links.imprint"), h: "/legal/imprint" },
+                ],
+              },
+            ].map((col) => (
+              <div key={col.title}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-4">
+                  {col.title}
+                </p>
+                <ul className="space-y-2.5">
+                  {col.links.map(({ l, h }) => (
+                    <li key={l}>
+                      <a
+                        href={h}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        {...(h.startsWith("http")
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {l}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-8"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+          >
+            <p className="text-xs text-zinc-700">
+              {t("footer.copyright", { year: new Date().getFullYear() })}
+            </p>
+            <p className="text-xs text-zinc-700">{t("footer.byline")}</p>
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }

@@ -14,6 +14,8 @@ import { saveServerConfig, removeServerConfig, signWingsJwt, mergeDuplicateServe
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
+import { ApplicationForm } from '../models/applicationForm.entity';
+import { ApplicationSubmission } from '../models/applicationSubmission.entity';
 import { In, MoreThanOrEqual, Not } from 'typeorm';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { SocData } from '../models/socData.entity';
@@ -35,7 +37,55 @@ export async function serverRoutes(app: any, prefix = '') {
   const orgMemberRepo = () => AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const eggRepo = () => AppDataSource.getRepository(Egg);
   const cfgRepo = () => AppDataSource.getRepository(ServerConfig);
+  const applicationFormRepo = () => AppDataSource.getRepository(ApplicationForm);
+  const applicationSubmissionRepo = () => AppDataSource.getRepository(ApplicationSubmission);
   const panelSettingRepo = () => AppDataSource.getRepository(PanelSetting);
+
+  const getOrCreateIpRequestForm = async () => {
+    let form = await applicationFormRepo().findOneBy({ slug: 'ip-request' });
+    if (form) {
+      if (form.kind !== 'staff_application') {
+        form.kind = 'staff_application';
+        form = await applicationFormRepo().save(form);
+      }
+      return form;
+    }
+
+    form = applicationFormRepo().create({
+      title: 'IP Request',
+      description: 'Request an IPv4 or IPv6 allocation for your server.',
+      kind: 'staff_application',
+      slug: 'ip-request',
+      visibility: 'public_users',
+      status: 'active',
+      schema: {
+        title: 'IP Request',
+        description: 'Request an IPv4 or IPv6 allocation for your server.',
+        questions: [
+          {
+            id: 'type',
+            label: 'Allocation type',
+            type: 'short_text',
+            required: true,
+            placeholder: 'IPv4 or IPv6',
+          },
+          {
+            id: 'reason',
+            label: 'Reason',
+            type: 'long_text',
+            required: true,
+            placeholder: 'Why do you need this allocation?',
+          },
+        ],
+      },
+      active: true,
+      requiresAccount: true,
+      maxSubmissionsPerUser: 5,
+      ipCooldownSeconds: 0,
+      createdBy: 0,
+    });
+    return await applicationFormRepo().save(form);
+  };
 
   const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
   const GAMBLING_BONUS_PERCENT = 0.0015;
@@ -85,6 +135,29 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
     return ports;
+  }
+
+  function parseVmPorts(raw: any): Set<number> {
+    const ports = new Set<number>();
+    if (raw == null) return ports;
+    const values = Array.isArray(raw) ? raw : String(raw).split(/\s*,\s*/);
+    for (const value of values) {
+      const entry = String(value).trim();
+      if (!entry) continue;
+      const match = entry.match(/^(\d{1,5})(?::\d{1,5})?(?:\/(?:tcp|udp))?$/i);
+      if (!match) continue;
+      const port = Number(match[1]);
+      if (Number.isInteger(port) && port >= 1 && port <= 65535) ports.add(port);
+    }
+    return ports;
+  }
+
+  function normalizeIpv6Host(value: any): string {
+    const raw = String(value ?? '').trim();
+    if (raw.startsWith('[') && raw.endsWith(']')) {
+      return raw.slice(1, -1).trim();
+    }
+    return raw;
   }
 
   function isReservedIpv6(address: string, subnet: string, reservedCount?: number): boolean {
@@ -175,7 +248,9 @@ export async function serverRoutes(app: any, prefix = '') {
       const ip = String(alloc.default.ip);
       const port = Number(alloc.default.port ?? 2022);
       if (!Number.isFinite(port) || port <= 0) return null;
-      const host = alloc.fqdns?.[`${ip}:${port}`] || ip;
+      const legacyKey = `${ip}:${port}`;
+      const bracketKey = ip.includes(':') ? `[${ip}]:${port}` : legacyKey;
+      const host = alloc.fqdns?.[bracketKey] || alloc.fqdns?.[legacyKey] || ip;
       return { host, port };
     })();
 
@@ -1017,11 +1092,14 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const body = ctx.body as any;
-    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled, requestIpv6 } = body;
+    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled } = body;
+
+    if (body.requestIpv6 === true || String(body.requestIpv6) === 'true') {
+      ctx.set.status = 400;
+      return { error: 'IPv6 allocation requests are no longer automatic. Please submit an IP request application instead.' };
+    }
 
     const ownerId: number = (userId && isAdmin) ? userId : user.id;
-    const wantsIpv6 = requestIpv6 === true || String(requestIpv6) === 'true';
-
     kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
 
     let limits: { memory?: number; disk?: number; cpu?: number; serverLimit?: number } = {};
@@ -1279,59 +1357,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     let autoAllocation: Record<string, any> | null = null;
     let assignedIpv6: string | null = null;
-    if (wantsIpv6) {
-      if (!node.ipv6Subnet) {
-        ctx.set.status = 400;
-        return { error: 'IPv6 is not configured on this node.' };
-      }
-      if (!kvmPassthroughEnabled) {
-        ctx.set.status = 400;
-        return { error: 'IPv6 assignment requires a KVM server.' };
-      }
-      if (!node.portRangeStart || !node.portRangeEnd) {
-        ctx.set.status = 400;
-        return { error: 'IPv6 allocation requires a node with a port allocation pool.' };
-      }
-
-      const nodeConfigs = await cfgRepo().find({
-        where: { nodeId: node.id },
-        select: ['allocations'],
-      });
-      const usedIpv6 = new Set<string>();
-      for (const c of nodeConfigs) {
-        const alloc = c.allocations as any;
-        if (!alloc) continue;
-        if (alloc.default?.ip && isValidIpv6(String(alloc.default.ip))) {
-          usedIpv6.add(formatIpv6(parseIpv6(String(alloc.default.ip))));
-        }
-        for (const ip of Object.keys(alloc.mappings || {})) {
-          if (isValidIpv6(ip)) {
-            usedIpv6.add(formatIpv6(parseIpv6(ip)));
-          }
-        }
-      }
-      assignedIpv6 = getNextFreeIpv6Address(node.ipv6Subnet, usedIpv6, BigInt(node.ipv6ReservedCount ?? 0));
-      if (!assignedIpv6) {
-        ctx.set.status = 503;
-        return { error: 'No free IPv6 addresses available in node subnet. Contact an administrator.' };
-      }
-
-      const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
-      const ports: number[] = [];
-      for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
-        if (!excludedIpv6Ports.has(p)) ports.push(p);
-      }
-      if (ports.length === 0) {
-        ctx.set.status = 503;
-        return { error: 'No usable ports remain for IPv6 allocation on this node.' };
-      }
-
-      autoAllocation = {
-        default: { ip: assignedIpv6, port: ports[0] },
-        mappings: { [assignedIpv6]: ports },
-        owners: ports.reduce((acc, port) => ({ ...acc, [`${assignedIpv6}:${port}`]: ownerId }), {} as Record<string, number>),
-      };
-    } else if (node.portRangeStart && node.portRangeEnd) {
+    if (node.portRangeStart && node.portRangeEnd) {
       const bindIp = node.defaultIp || '0.0.0.0';
       const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
       const nodeConfigs = await cfgRepo().find({
@@ -1395,21 +1421,6 @@ export async function serverRoutes(app: any, prefix = '') {
       uuid: serverUuid,
       start_on_completion: false,
       skip_scripts: false,
-      environment: envObject,
-      build: {
-        memory_limit: memory,
-        swap: 0,
-        disk_space: disk,
-        io_weight: 500,
-        cpu_limit: cpu,
-        threads: null,
-      },
-      container: {
-        image: egg.dockerImage,
-        startup: resolvedStartup,
-        kvm_passthrough_enabled: kvmPassthroughEnabled,
-      },
-      ...(name ? { name } : {}),
     };
 
     await nodeSvc.mapServer(serverUuid, node.id);
@@ -1609,20 +1620,13 @@ export async function serverRoutes(app: any, prefix = '') {
     const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
     alloc.mappings = alloc.mappings || {};
     alloc.owners = alloc.owners || {};
-
-    const existingIpv6Addresses = Object.keys(alloc.mappings).filter(isValidIpv6);
-    const defaultPort = alloc.default?.port;
-    const fallbackPort = defaultPort || Number(Object.values(alloc.mappings || {})[0]?.[0] ?? 0);
-    if (!Number.isFinite(fallbackPort) || fallbackPort <= 0) {
-      ctx.set.status = 400;
-      return { error: 'Server must have an existing port allocation before IPv6 can be assigned.' };
-    }
-
-    const port = Number(defaultPort || fallbackPort);
+    const existingIpv6Address = typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)
+      ? formatIpv6(parseIpv6(alloc.ipv6Address))
+      : null;
 
     if (action === 'assign') {
-      if (existingIpv6Addresses.length > 0) {
-        return { success: true, ipv6: existingIpv6Addresses[0], message: 'IPv6 is already assigned.' };
+      if (existingIpv6Address) {
+        return { success: true, ipv6: existingIpv6Address, message: 'IPv6 is already assigned.' };
       }
 
       let candidateIpv6: string | null = null;
@@ -1674,9 +1678,7 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: 'No free IPv6 address available in node subnet.' };
       }
 
-      if (!alloc.mappings[candidateIpv6]) alloc.mappings[candidateIpv6] = [];
-      if (!alloc.mappings[candidateIpv6].includes(port)) alloc.mappings[candidateIpv6].push(port);
-      alloc.owners[`${candidateIpv6}:${port}`] = cfg.userId;
+      alloc.ipv6Address = candidateIpv6;
       cfg.allocations = alloc;
       await cfgRepo.save(cfg);
 
@@ -1695,10 +1697,15 @@ export async function serverRoutes(app: any, prefix = '') {
       return { success: true, ipv6: candidateIpv6 };
     }
 
-    const ipv6Keys = Object.keys(alloc.mappings).filter(isValidIpv6);
-    if (ipv6Keys.length === 0) {
+    const currentIpv6Address = typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)
+      ? formatIpv6(parseIpv6(alloc.ipv6Address))
+      : null;
+    const ipv6Keys = Object.keys(alloc.mappings).filter((ip) => currentIpv6Address ? (isValidIpv6(ip) && formatIpv6(parseIpv6(ip)) === currentIpv6Address) : isValidIpv6(ip));
+    if (!currentIpv6Address) {
       return { success: true, message: 'No IPv6 address is currently assigned.' };
     }
+
+    delete alloc.ipv6Address;
 
     for (const ipv6 of ipv6Keys) delete alloc.mappings[ipv6];
 
@@ -3265,18 +3272,27 @@ export async function serverRoutes(app: any, prefix = '') {
     const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
     const nodeFqdn = node?.fqdn;
     const fqdns: Record<string, string> = (a as any).fqdns ?? {};
+    const resolveFqdn = (ip: string, key: string) => fqdns[key] || (isValidIpv6(ip) ? null : nodeFqdn || null);
     const result: any[] = [];
-    if (a.default) {
+    const ipv6Address = typeof (a as any).ipv6Address === 'string' && isValidIpv6((a as any).ipv6Address)
+      ? formatIpv6(parseIpv6((a as any).ipv6Address))
+      : null;
+    const ipv6Ports = ipv6Address && Array.isArray((a as any).ipv6Ports)
+      ? [...new Set((a as any).ipv6Ports.map((p: any) => Number(p)).filter((p: number) => Number.isInteger(p) && p > 0))].sort((x: number, y: number) => x - y)
+      : [];
+
+    if (a.default && !isValidIpv6(String(a.default.ip))) {
       const key = `${a.default.ip}:${a.default.port}`;
-      result.push({ ip: a.default.ip, port: a.default.port, fqdn: fqdns[key] || nodeFqdn || null, is_default: true, notes: null });
+      result.push({ ip: a.default.ip, port: a.default.port, fqdn: resolveFqdn(a.default.ip, key), is_default: true, notes: null });
     }
     const mappings: Record<string, number[]> = a.mappings ?? {};
     for (const [ip, ports] of Object.entries(mappings)) {
+      if (isValidIpv6(ip)) continue;
       for (const port of (ports as number[]) ?? []) {
         const isDef = a.default?.ip === ip && a.default?.port === port;
         if (!isDef) {
           const key = `${ip}:${port}`;
-          result.push({ ip, port, fqdn: fqdns[key] || nodeFqdn || null, is_default: false, notes: null });
+          result.push({ ip, port, fqdn: resolveFqdn(ip, key), is_default: false, notes: null });
         }
       }
     }
@@ -3322,6 +3338,19 @@ export async function serverRoutes(app: any, prefix = '') {
 
     const alloc = cfg.allocations as any || {};
     const owners: Record<string, any> = alloc.owners || {};
+    const existingIpv6Allocations: string[] = [];
+    if (typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)) {
+      existingIpv6Allocations.push(formatIpv6(parseIpv6(alloc.ipv6Address)));
+    }
+    if (alloc.default?.ip && isValidIpv6(String(alloc.default.ip))) {
+      existingIpv6Allocations.push(formatIpv6(parseIpv6(String(alloc.default.ip))));
+    }
+    for (const ip of Object.keys(alloc.mappings || {})) {
+      if (isValidIpv6(ip)) {
+        const normalized = formatIpv6(parseIpv6(ip));
+        if (!existingIpv6Allocations.includes(normalized)) existingIpv6Allocations.push(normalized);
+      }
+    }
     let existingCount = 0;
     for (const [k, v] of Object.entries(owners)) {
       if (v === user.id) existingCount++;
@@ -3332,13 +3361,17 @@ export async function serverRoutes(app: any, prefix = '') {
         existingCount++;
       }
     }
-    if (existingCount + count > limit) {
+    if (!requestIpv6 && existingCount + count > limit) {
       ctx.set.status = 403;
       return { error: `Per-server port limit exceeded (allowed ${limit}). Currently allocated: ${existingCount}` };
     }
 
     const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
-    if (!node || !node.portRangeStart || !node.portRangeEnd) {
+    if (!node) {
+      ctx.set.status = 400;
+      return { error: 'Node does not support additional allocations' };
+    }
+    if (!requestIpv6 && (!node.portRangeStart || !node.portRangeEnd)) {
       ctx.set.status = 400;
       return { error: 'Node does not support additional allocations' };
     }
@@ -3364,59 +3397,8 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     if (requestIpv6) {
-      if (!cfg.kvmPassthroughEnabled) {
-        ctx.set.status = 400;
-        return { error: 'IPv6 allocation requires a KVM server.' };
-      }
-      if (!node.ipv6Subnet) {
-        ctx.set.status = 400;
-        return { error: 'IPv6 is not configured on this node.' };
-      }
-
-      const usedIpv6 = new Set<string>();
-      for (const c of nodeConfigs) {
-        const a = c.allocations as any;
-        if (!a) continue;
-        if (a.default?.ip && isValidIpv6(String(a.default.ip))) {
-          usedIpv6.add(formatIpv6(parseIpv6(String(a.default.ip))));
-        }
-        for (const ip of Object.keys(a.mappings || {})) {
-          if (isValidIpv6(ip)) {
-            usedIpv6.add(formatIpv6(parseIpv6(ip)));
-          }
-        }
-      }
-
-      const candidateIpv6 = getNextFreeIpv6Address(node.ipv6Subnet, usedIpv6, BigInt(node.ipv6ReservedCount ?? 0));
-      if (!candidateIpv6) {
-        ctx.set.status = 503;
-        return { error: 'No free IPv6 address available in node subnet.' };
-      }
-
-      const ports: number[] = [];
-      for (let p = node.portRangeStart!; p <= node.portRangeEnd!; p++) {
-        if (!takenPorts.has(p) && !excludedPorts.has(p)) {
-          ports.push(p);
-        }
-      }
-      if (ports.length === 0) {
-        ctx.set.status = 503;
-        return { error: 'No free ports available on this node for IPv6 allocation.' };
-      }
-
-      alloc.mappings = alloc.mappings || {};
-      alloc.mappings[candidateIpv6] = alloc.mappings[candidateIpv6] || [];
-      alloc.owners = alloc.owners || {};
-      for (const port of ports) {
-        if (!alloc.mappings[candidateIpv6].includes(port)) {
-          alloc.mappings[candidateIpv6].push(port);
-        }
-        alloc.owners[`${candidateIpv6}:${port}`] = user.id;
-      }
-      cfg.allocations = alloc;
-      await cfgRepo().save(cfg);
-
-      return ports.map((port) => ({ ip: candidateIpv6, port, is_default: false }));
+      ctx.set.status = 400;
+      return { error: 'IPv6 allocation requests are handled through an IP request application. Please submit a request to the admin team.' };
     }
 
     const bindIp = node.defaultIp || '0.0.0.0';
@@ -3447,8 +3429,70 @@ export async function serverRoutes(app: any, prefix = '') {
     return newPorts.map(x => ({ ip: x.ip, port: x.port, is_default: false }));
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 503: t.Object({ error: t.String() }) },
+    response: { 200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }), 503: t.Object({ error: t.String() }) },
     detail: { summary: 'Request additional network allocations for server (per-account limit)', tags: ['Servers'] }
+  });
+
+  app.post(prefix + '/servers/:id/ip-request', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const { type, reason } = ctx.body as any || {};
+    const user = ctx.user;
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+
+    if (!type || (type !== 'ipv4' && type !== 'ipv6')) {
+      ctx.set.status = 400;
+      return { error: 'type is required and must be ipv4 or ipv6' };
+    }
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      ctx.set.status = 400;
+      return { error: 'A reason for the IP request is required' };
+    }
+
+    const cfg = await cfgRepo().findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    if (!isAdmin) {
+      const owned = cfg.userId === user?.id;
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
+      if (!owned && !subuser) {
+        ctx.set.status = 403;
+        return { error: 'Insufficient permissions' };
+      }
+    }
+
+    const form = await getOrCreateIpRequestForm();
+    const submission = applicationSubmissionRepo().create({
+      formId: form.id,
+      userId: user?.id,
+      ipAddress: ctx.ip,
+      status: 'pending',
+      content: `IP request for server ${id} (${type}): ${reason.trim()}`,
+      meta: {
+        serverUuid: id,
+        nodeId: cfg.nodeId,
+        requestType: type,
+        reason: reason.trim(),
+      },
+    });
+    const saved = await applicationSubmissionRepo().save(submission);
+
+    await createActivityLog({
+      userId: user?.id || 0,
+      action: 'server:ip_request',
+      targetId: id,
+      targetType: 'server',
+      metadata: { requestType: type, submissionId: saved.id },
+      ipAddress: ctx.ip,
+    });
+
+    return { success: true, submissionId: saved.id };
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
+    response: { 200: t.Object({ success: t.Boolean(), submissionId: t.Number() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Request an IPv4 or IPv6 allocation via application', tags: ['Servers'] }
   });
 
   app.delete(prefix + '/servers/:id/allocations', async (ctx: any) => {
@@ -3516,6 +3560,55 @@ export async function serverRoutes(app: any, prefix = '') {
     beforeHandle: [authenticate, authorize('servers:write')],
     response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete a network allocation from a server', tags: ['Servers'] }
+  });
+
+  app.delete(prefix + '/servers/:id/allocations/secondary', async (ctx: any) => {
+    const { id } = ctx.params as any;
+    const cfg = await cfgRepo().findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    const user = ctx.user;
+    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+    const owned = cfg.userId === user?.id;
+    if (!isAdmin) {
+      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
+      if (!owned && !subuser) {
+        ctx.set.status = 403;
+        return { error: 'Insufficient permissions' };
+      }
+    }
+
+    const alloc = cfg.allocations as any || {};
+    const defaultKey = alloc.default ? `${alloc.default.ip}:${Number(alloc.default.port)}` : null;
+    const owners: Record<string, any> = alloc.owners || {};
+    const removed: Array<{ ip: string; port: number }> = [];
+
+    alloc.mappings = alloc.mappings || {};
+    for (const [ip, ports] of Object.entries(alloc.mappings) as Array<[string, number[]]>) {
+      for (const port of [...ports]) {
+        const key = `${ip}:${Number(port)}`;
+        if (defaultKey && key === defaultKey) continue;
+        if (!isAdmin && !owned && owners[key] !== user?.id) continue;
+        const idx = ports.indexOf(Number(port));
+        if (idx !== -1) ports.splice(idx, 1);
+        delete owners[key];
+        removed.push({ ip, port: Number(port) });
+      }
+      if (ports.length === 0) delete alloc.mappings[ip];
+    }
+
+    alloc.owners = owners;
+    cfg.allocations = alloc;
+    await cfgRepo().save(cfg);
+
+    return { success: true, removedCount: removed.length, removed };
+  }, {
+    beforeHandle: [authenticate, authorize('servers:write')],
+    response: { 200: t.Object({ success: t.Boolean(), removedCount: t.Number(), removed: t.Array(t.Object({ ip: t.String(), port: t.Number() })) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Delete all secondary network allocations from a server', tags: ['Servers'] }
   });
 
   for (const sub of ['network', 'location']) {
@@ -4026,6 +4119,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     const user = ctx.user;
     const isAdmin = hasPermissionSync(ctx, 'servers:list');
+    let nextEnvironment: Record<string, string> | null = null;
 
     const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
     const editableKeys = new Set<string>();
@@ -4057,7 +4151,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     if (environment && typeof environment === 'object') {
-      const nextEnvironment: Record<string, string> = {};
+      nextEnvironment = {};
       for (const [key, val] of Object.entries(environment)) {
         if (!key) continue;
         if (definedKeys.has(key) && editableKeys.size > 0 && !editableKeys.has(key)) continue;
@@ -4080,6 +4174,48 @@ export async function serverRoutes(app: any, prefix = '') {
         done: normalizeStartupDonePatterns(updated.startup?.done),
       };
       (cfg as any).processConfig = updated;
+    }
+
+    const requestedHostAddr = normalizeIpv6Host(nextEnvironment?.VM_HOSTADDR) || normalizeIpv6Host((cfg.allocations as any)?.ipv6Address) || '';
+    const requestedVmPorts = nextEnvironment?.VM_PORTS ?? '';
+    if (nextEnvironment && requestedHostAddr && isValidIpv6(requestedHostAddr)) {
+      const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
+      const ipv6Address = formatIpv6(parseIpv6(requestedHostAddr));
+      const existingMappings: Record<string, number[]> = alloc.mappings || {};
+      const parsedPorts = parseVmPorts(requestedVmPorts);
+
+      for (const key of Object.keys(existingMappings)) {
+        const normalizedKey = normalizeIpv6Host(key);
+        if (normalizedKey !== ipv6Address && isValidIpv6(normalizedKey) && formatIpv6(parseIpv6(normalizedKey)) === ipv6Address) {
+          delete existingMappings[key];
+        }
+      }
+
+      const currentIpv6 = normalizeIpv6Host(alloc.ipv6Address);
+      if (currentIpv6 && isValidIpv6(currentIpv6) && formatIpv6(parseIpv6(currentIpv6)) !== ipv6Address) {
+        const oldIpv6 = formatIpv6(parseIpv6(currentIpv6));
+        delete existingMappings[oldIpv6];
+        if (alloc.owners) {
+          for (const ownerKey of Object.keys(alloc.owners)) {
+            const idx = ownerKey.lastIndexOf(':');
+            const ipPart = idx >= 0 ? ownerKey.slice(0, idx) : ownerKey;
+            if (isValidIpv6(ipPart) && formatIpv6(parseIpv6(ipPart)) === oldIpv6) delete alloc.owners[ownerKey];
+          }
+        }
+      }
+
+      if (parsedPorts.size > 0) {
+        const ports = Array.from(parsedPorts).sort((a, b) => a - b);
+        existingMappings[ipv6Address] = ports;
+        (alloc as any).ipv6Ports = ports;
+      } else if (existingMappings[ipv6Address]) {
+        delete existingMappings[ipv6Address];
+        delete (alloc as any).ipv6Ports;
+      }
+
+      alloc.ipv6Address = ipv6Address;
+      alloc.mappings = existingMappings;
+      cfg.allocations = alloc;
     }
 
     try {

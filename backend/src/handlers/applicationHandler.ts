@@ -8,6 +8,7 @@ import { ApplicationSubmission } from '../models/applicationSubmission.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
+import { redisDelByPrefix, withRedisCache } from '../config/redis';
 
 const submissionStatuses = ['pending', 'accepted', 'rejected', 'archived'] as const;
 const formStatuses = ['active', 'archived', 'closed'] as const;
@@ -128,11 +129,13 @@ function toFormPublicLink(form: ApplicationForm): string | null {
 function normalizeFormForRead(form: ApplicationForm) {
   const visibility = getEffectiveVisibility(form);
   const status = getEffectiveStatus(form);
+  const slug = String((form as any).slug || '').trim().toLowerCase();
+  const normalizedKind = slug === 'ip-request' && form.kind === 'abuse_report' ? 'staff_application' : form.kind;
   return {
     id: form.id,
     title: form.title,
     description: form.description || '',
-    kind: form.kind,
+    kind: normalizedKind,
     slug: (form as any).slug || null,
     visibility,
     status,
@@ -272,13 +275,15 @@ export async function applicationRoutes(app: any, prefix = '') {
   const userRepo = () => AppDataSource.getRepository(User);
 
   app.get(prefix + '/applications/forms', async (ctx: any) => {
-    const forms = await formRepo().find({ order: { id: 'DESC' } });
-    const visible = forms.filter((form) => {
-      const status = getEffectiveStatus(form);
-      const visibility = getEffectiveVisibility(form);
-      return visibility === 'public_users' && (status === 'active' || status === 'closed');
+    return withRedisCache('applications:forms:user:v1', 20, async () => {
+      const forms = await formRepo().find({ order: { id: 'DESC' } });
+      const visible = forms.filter((form) => {
+        const status = getEffectiveStatus(form);
+        const visibility = getEffectiveVisibility(form);
+        return visibility === 'public_users' && (status === 'active' || status === 'closed');
+      });
+      return visible.map(normalizeFormForRead);
     });
-    return visible.map(normalizeFormForRead);
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -291,8 +296,10 @@ export async function applicationRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Unauthorized' };
     }
-    const rows = await submissionRepo().find({ where: { userId: user.id }, order: { id: 'DESC' } });
-    return rows;
+    return withRedisCache(`applications:my:${user.id}:v1`, 10, async () => {
+      const rows = await submissionRepo().find({ where: { userId: user.id }, order: { id: 'DESC' } });
+      return rows;
+    });
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -326,6 +333,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     });
 
     const saved = await submissionRepo().save(created);
+    try { await redisDelByPrefix(`applications:my:${user!.id}:`); } catch { }
     return { success: true, submission: saved };
   }, {
     beforeHandle: authenticate,
@@ -361,6 +369,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     });
 
     const saved = await submissionRepo().save(created);
+    try { await redisDelByPrefix(`applications:my:${user!.id}:`); } catch { }
     return { success: true, submission: saved };
   }, {
     beforeHandle: authenticate,
@@ -369,10 +378,12 @@ export async function applicationRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/public/applications/forms', async () => {
-    const forms = await formRepo().find({ order: { id: 'DESC' } });
-    return forms
-      .filter((form) => getEffectiveStatus(form) === 'active' && getEffectiveVisibility(form) === 'public_anonymous')
-      .map(normalizeFormForRead);
+    return withRedisCache('applications:public-forms:v1', 30, async () => {
+      const forms = await formRepo().find({ order: { id: 'DESC' } });
+      return forms
+        .filter((form) => getEffectiveStatus(form) === 'active' && getEffectiveVisibility(form) === 'public_anonymous')
+        .map(normalizeFormForRead);
+    });
   }, {
     response: { 200: t.Array(t.Any()) },
     detail: { summary: 'List publicly visible anonymous forms', tags: ['Applications'] },
@@ -430,25 +441,27 @@ export async function applicationRoutes(app: any, prefix = '') {
   app.get(prefix + '/public/applications/forms/:slug', async (ctx: any) => {
     const slug = sanitizeText(ctx.params.slug, 120).toLowerCase();
     const inviteToken = sanitizeText(ctx.query?.invite || '', 180) || undefined;
-    const form = await formRepo().findOne({ where: { slug } });
+    return withRedisCache(`applications:public-form:${slug}:${inviteToken || 'none'}:v1`, 30, async () => {
+      const form = await formRepo().findOne({ where: { slug } });
 
-    if (!form) {
-      ctx.set.status = 404;
-      return { error: 'Form not found' };
-    }
+      if (!form) {
+        ctx.set.status = 404;
+        return { error: 'Form not found' };
+      }
 
-    const invite = await resolveInviteForForm(form.id, inviteToken);
-    if (!publicCanView(form, !!invite)) {
-      ctx.set.status = 403;
-      return { error: 'This form is private or archived' };
-    }
+      const invite = await resolveInviteForForm(form.id, inviteToken);
+      if (!publicCanView(form, !!invite)) {
+        ctx.set.status = 403;
+        return { error: 'This form is private or archived' };
+      }
 
-    const normalized = normalizeFormForRead(form);
-    return {
-      ...normalized,
-      canSubmit: normalized.status === 'active',
-      inviteValidated: !!invite,
-    };
+      const normalized = normalizeFormForRead(form);
+      return {
+        ...normalized,
+        canSubmit: normalized.status === 'active',
+        inviteValidated: !!invite,
+      };
+    });
   }, {
     response: { 200: t.Any(), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get public form by slug (supports invite)', tags: ['Applications'] },
@@ -775,12 +788,12 @@ export async function applicationRoutes(app: any, prefix = '') {
         form: form ? normalizeFormForRead(form) : null,
         user: submitter
           ? {
-              id: submitter.id,
-              email: submitter.email,
-              firstName: submitter.firstName,
-              lastName: submitter.lastName,
-              suspended: submitter.suspended,
-            }
+            id: submitter.id,
+            email: submitter.email,
+            firstName: submitter.firstName,
+            lastName: submitter.lastName,
+            suspended: submitter.suspended,
+          }
           : null,
       };
     });

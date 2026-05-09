@@ -225,326 +225,205 @@
   "landing": {
     "brand": "Eclipse Systems",
     "nav": {
-      "features": "[features]",
-      "about": "[about]",
-      "pricing": "[pricing]",
-      "contact": "[contact]"
+      "features": "Features",
+      "pricing": "Pricing",
+      "network": "Network",
+      "faq": "FAQ",
+      "signIn": "Sign in",
+      "getStarted": "Get started"
+    },
+    "statusPill": {
+      "connecting": "Connecting...",
+      "nodesLive": "{count} nodes live"
     },
     "hero": {
-      "nextGen": "Next-Gen",
-      "subtitle": "Hosting Provider that loves cats",
-      "ctaStart": "./start --journey",
-      "ctaSignIn": "sign_in()"
+      "titleLine1": "Deploy your app.",
+      "titleLine2": "Not your weekend.",
+      "subtitle": "Easy to use hosting that goes live in seconds.",
+      "cta": "Start for free",
+      "note": "No credit card - Free tier forever - Cancel any time"
     },
-    "skipHint": "Press any key or click/tap to skip the typing animation.",
-    "sections": {
-      "legal": "Legal",
-      "modules": "Modules",
-      "about": "About",
-      "plans": "Plans",
-      "network": "Network",
-      "help": "Help",
-      "deploy": "Deploy"
-    },
-    "controls": {
-      "navigate": "navigate",
-      "confirm": "confirm",
-      "open": "open",
-      "quickOpen": "quick open",
-      "back": "back",
-      "select": "select",
-      "quickJump": "quick jump",
-      "altJump": "alt jump",
-      "toggle": "toggle",
-      "cycle": "cycle",
-      "switchPlan": "switch plan",
-      "quickSwitch": "quick switch",
-      "backToMenu": "back to menu"
-    },
-    "lang": {
-      "line1": "Language selection active.",
-      "line2": "Choose your preferred UI language.",
-      "line3": "Your choice will be saved for this browser.",
-      "title": "LANGUAGE",
-      "current": "current",
-      "footer": "Use arrow keys to navigate, ENTER to confirm.",
-      "mobileHint": "Tap to select on mobile.",
-      "skipHint": "Press any key or click/tap to skip the typing animation."
-    },
-    "legal": {
-      "line1": "Choose a document to review.",
-      "line2": "Press ENTER to open it in a new tab.",
-      "title": "DOCUMENTS",
-      "footer": "Use arrows to move and ENTER to open.",
-      "docs": {
-        "terms": {
-          "label": "Terms of Service",
-          "desc": "Rules and terms for using EclipseSystems."
-        },
-        "privacy": {
-          "label": "Privacy Policy",
-          "desc": "How we handle personal data."
-        },
-        "cookies": {
-          "label": "Cookies Policy",
-          "desc": "Details about cookies and tracking."
-        },
-        "acceptableUse": {
-          "label": "Acceptable Use Policy",
-          "desc": "Allowed and prohibited platform behavior."
-        },
-        "ai": {
-          "label": "AI Policy",
-          "desc": "Guidelines for using AI features safely."
-        },
-        "email": {
-          "label": "Email Policy",
-          "desc": "Email rules and whitelist requirements."
-        },
-        "dmca": {
-          "label": "DMCA Copyright Policy",
-          "desc": "How copyright claims are handled."
-        },
-        "imprint": {
-          "label": "Imprint",
-          "desc": "Company and legal contact information."
-        }
-      }
-    },
-    "menu": {
-      "status": {
-        "operator": "OPERATOR: ECLI USER",
-        "session": "SESSION: {session}",
-        "net": "NETWORK: {status}"
-      },
-      "title": "MAIN MENU",
-      "version": "v1.0.0",
-      "systemInfo": "SYSTEM INFO",
-      "statusLabel": "Status",
-      "nodesLabel": "Nodes",
-      "networkLabel": "Network",
-      "items": {
-        "features": {
-          "label": "Features",
-          "desc": "Explore the platform capabilities."
-        },
-        "about": {
-          "label": "About",
-          "desc": "Learn who we are."
-        },
-        "pricing": {
-          "label": "Pricing",
-          "desc": "Find the right plan."
-        },
-        "community": {
-          "label": "Community",
-          "desc": "See network and status."
-        },
-        "faq": {
-          "label": "FAQ",
-          "desc": "Common questions answered."
-        },
-        "deploy": {
-          "label": "Deploy",
-          "desc": "Start your environment."
-        },
-        "legal": {
-          "label": "Legal",
-          "desc": "Browse official documents."
-        }
-      }
-    },
-    "status": {
-      "unknown": "unknown",
-      "connecting": "connecting...",
-      "online": "ONLINE",
-      "degraded": "DEGRADED",
-      "offline": "OFFLINE"
-    },
-    "boot": {
-      "line1": "INITIALIZING...",
-      "line2": "LOADING SECURE SHELL...",
-      "line3": "ESTABLISHING CONTROLS...",
-      "line4": "MOUNTING CONFIGURATION...",
-      "line5": "CHECKING NETWORK STACK...",
-      "line6": "AUTHENTICATING...",
-      "line7": "SYSTEM READY.",
-      "line8": "SELECT LANGUAGE TO CONTINUE.",
-      "line9": "PRESS ANY KEY OR TAP TO PROCEED.",
-      "line10": "OK",
-      "line11": "Copyright 2026 EclipseSystems.",
-      "waitPrompt": "press any key to continue",
-      "skipHint": "Press any key or click/tap to skip typing animation.",
-      "mobileHint": "tap to continue on mobile"
-    },
-    "terminal": {
-      "objective": "OBJECTIVE:",
-      "objectiveValue": "CREATE. BUILD. DEPLOY.",
-      "difficulty": "DIFFICULTY:",
-      "difficultyValue": "EASY",
-      "status": "STATUS:"
-    },
-    "whatIs": {
-      "title": "# What is this?",
-      "subtitlePrefix": "If you are still confused about",
-      "brandUpper": "ECLIPSE SYSTEMS",
-      "subtitleSuffix": "and what this is about:",
-      "card1": {
-        "title": "# Hosting Dream",
-        "line1": "Spin up containers, game servers, web apps. Configure DNS, 2FA, scoped API keys.",
-        "line2": "Just in few clicks.",
-        "item1": "AIO Servers",
-        "item2": "Game Servers",
-        "item3": "Security Audits",
-        "item4": "Dynamic DNS Management"
-      },
-      "card2": {
-        "title": "# That Knows You",
-        "line1": "We know what our customers want and we provide that.",
-        "line2": "In one place, with ease.",
-        "item1": "Scoped API Keys",
-        "item2": "Audit Logs & Metrics",
-        "item3": "Team Permissions",
-        "item4": "Easy Deployments"
-      }
+    "stats": {
+      "dailyNodeTraffic": "Today's node traffic (24h)",
+      "monthlyRequests": "API Calls",
+      "totalUsers": "Total users"
     },
     "features": {
-      "title": "# Features",
-      "activeTag": "MODULE ACTIVE",
-      "item1Title": "simple_panel()",
-      "item1Text": "A minimal, fast panel built for smooth workflows and instant actions.",
-      "item2Title": "scoped_access()",
-      "item2Text": "Roles, permissions, teams, and scoped API keys that work out of the box.",
-      "item3Title": "dynamic_dns()",
-      "item3Text": "Integrated DNS management with direct UI controls and automation.",
-      "item4Title": "security_first()",
-      "item4Text": "Threat detection and full audit history in one place.",
-      "item5Title": "own_nodes()",
-      "item5Text": "Connect your own nodes or manage dedicated ones through a central API.",
-      "item6Title": "open_source()",
-      "item6Text": "Open-source core for maximum transparency."
+      "eyebrow": "Features",
+      "title": "Everything included.",
+      "titleMuted": "Nothing to configure.",
+      "items": {
+        "deploy": {
+          "title": "Deploy in seconds",
+          "body": "Select template, upload code, and configure your app."
+        },
+        "edge": {
+          "title": "Multi-location deployments",
+          "body": "Run across independent locations and serve traffic from the closest available node."
+        },
+        "uptime": {
+          "title": "95% uptime SLA",
+          "body": "Redundant nodes across multiple regions."
+        },
+        "isolation": {
+          "title": "Isolated environments",
+          "body": "Every workload runs namespaced and isolated. Resource limits you control."
+        },
+        "metrics": {
+          "title": "Real-time metrics",
+          "body": "CPU, memory, bandwidth, and traces - live in your dashboard."
+        },
+        "coldStarts": {
+          "title": "Zero cold starts",
+          "body": "Keep-alive infrastructure ensures your app is ready before the first byte arrives."
+        }
+      }
     },
-    "community": {
-      "title": "# Community",
-      "subtitle": "Join the network",
-      "description": "From indie studios to enterprise infrastructure - EclipseSystems powers production workloads everywhere.",
-      "cta": "./connect --dashboard",
-      "init": "INIT",
-      "handshake": "handshake...",
-      "resolving": "RESOLVING:",
-      "statusLine": "STATUS: {status}",
-      "nodesLine": "NODES: {nodes}",
-      "nodeBreakdown": "ONLINE: {online} | DEGRADED: {degraded} | OFFLINE: {offline}",
-      "totalNodes": "TOTAL NODES",
-      "consoleTitle": "eclipse — network-console",
-      "connecting": "CONNECTING...",
-      "group1": "DevOps Teams",
-      "group2": "Startups",
-      "group3": "Enterprise",
-      "group4": "Gaming Communities"
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Simple, honest pricing.",
+      "subtitle": "No hidden fees. No per-seat traps. Scale any time.",
+      "taxNote": "* Taxes may apply based on your billing address.",
+      "monthly": "Monthly",
+      "annual": "Annual",
+      "annualBadge": "-20%",
+      "priceFree": "Free",
+      "priceCustom": "Custom",
+      "perMonth": "/mo",
+      "plans": {
+        "free": {
+          "name": "Free Portal",
+          "price": "0,00 $/mo",
+          "desc": "Free plan, perfect for newbies!",
+          "cta": "Request Change",
+          "features": [
+            "1 Server",
+            "1 Port per server",
+            "1 vCore",
+            "1028 MB ram",
+            "10240 MB storage",
+            "3 E-Mails per day (send)",
+            "3 E-Mails queue (send)",
+            "No SLA"
+          ]
+        },
+        "educational": {
+          "name": "Educational Portal",
+          "price": "0,00 $/mo",
+          "desc": "Perfect for students and their small projects!",
+          "cta": "Connect Hack Club",
+          "features": [
+            "3 Servers",
+            "3 Ports per server",
+            "6 vCores",
+            "4096 MB ram",
+            "51200 MB storage",
+            "Debian 13 VM",
+            "10 E-Mails per day (send)",
+            "10 E-Mails queue (send)",
+            "95% SLA Applies"
+          ]
+        },
+        "paid": {
+          "name": "Paid Portal",
+          "price": "12,00 $/mo",
+          "desc": "Perfect for small to medium projects!",
+          "cta": "Contact Sales",
+          "features": [
+            "10 Servers",
+            "3 Ports per server",
+            "6 vCores",
+            "16028 MB ram",
+            "50240 MB storage",
+            "Basic Support",
+            "AI Access",
+            "50 E-Mails per day (send)",
+            "25 E-Mails queue (send)",
+            "95% SLA Applies"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise Portal",
+          "price": "Price Varies",
+          "desc": "Perfect for medium to large projects!",
+          "cta": "Contact Sales",
+          "features": [
+            "Unmettered Servers",
+            "Entire Node CPU",
+            "Entire Node RAM (from 16gb)",
+            "Entire Node Storage",
+            "10x DB Limit",
+            "10x Backup Limit",
+            "1x IPv4 per node",
+            "1x IPv6 per node (optional)",
+            "Premium Support",
+            "AI Access",
+            "100 E-Mails per day (send)",
+            "50 E-Mails queue (send)",
+            "95% SLA Applies"
+          ]
+        }
+      }
     },
-    "about": {
-      "title": "# About",
-      "subtitlePrefix": "Built by hosters,",
-      "subtitleHighlight": "for hosters.",
-      "line1": "EclipseSystems was created with a simple belief: hosting should feel effortless.",
-      "line2": "Our platform merges orchestration, security, and team operations into a single, elegant control plane. From game servers to enterprise workloads, Eclipse gives you the power to deploy, scale, and secure — without friction."
-    },
-    "plans": {
-      "title": "# Portal Plans",
-      "subtitle": "Choose the portal that fits your workflow. All portals include access to the dashboard.",
-      "free": {
-        "name": "free_portal",
-        "tagline": "Perfect for newbies!",
-        "price": "Free",
-        "period": "/forever",
-        "item1": "→ 1 Server",
-        "item2": "→ 1 Port per server",
-        "item3": "→ 1 vCore",
-        "item4": "→ 1028 MB RAM",
-        "item5": "→ 10240 MB Storage",
-        "item6": "→ AIO Template only",
-        "item7": "→ No SLA"
-      },
-      "edu": {
-        "name": "edu_portal",
-        "tagline": "For students & small projects!",
-        "price": "Free",
-        "period": "/while student",
-        "item1": "→ 3 Servers",
-        "item2": "→ 3 Ports per server",
-        "item3": "→ 2 vCores",
-        "item4": "→ 2048 MB RAM",
-        "item5": "→ 20248 MB Storage",
-        "item6": "→ Basic Support",
-        "item7": "→ KVM Template Access",
-        "item8": "→ 95% SLA"
-      },
-      "paid": {
-        "name": "paid_portal",
-        "tagline": "Small to medium projects!",
-        "price": "€12",
-        "period": "/mo",
-        "item1": "→ 10 Servers",
-        "item2": "→ 3 Ports per server",
-        "item3": "→ 6 vCores",
-        "item4": "→ 16028 MB RAM",
-        "item5": "→ 50240 MB Storage",
-        "item6": "→ Basic Support",
-        "item7": "→ KVM Template Access",
-        "item8": "→ AI Access",
-        "item9": "→ 95% SLA"
-      },
-      "enterprise": {
-        "name": "enterprise",
-        "tagline": "Medium to large projects!",
-        "price": "Varies",
-        "item1": "→ Unmetered Servers",
-        "item2": "→ Entire Node CPU",
-        "item3": "→ Entire Node RAM",
-        "item4": "→ Entire Node Storage",
-        "item5": "→ IPv4 + IPv6",
-        "item6": "→ Premium Support",
-        "item7": "→ KVM Template Access",
-        "item8": "→ AI Access",
-        "item9": "→ Custom SLA"
-      },
-      "ctaStart": "get started",
-      "contactUs": "contact us"
+    "network": {
+      "eyebrow": "Network",
+      "title": "No single point of failure.",
+      "titleMuted": "Ever.",
+      "body": "Distributed across independent nodes globally. Deploy where you want your workload to live and keep control over region placement. No maintenance windows, no dark patterns on our status page.",
+      "stats": {
+        "totalNodes": "Total nodes",
+        "online": "Online",
+        "degraded": "Degraded",
+        "offline": "Offline",
+        "tunnels": "Total tunnels",
+        "tunnelsActive": "Active tunnels",
+        "tunnelsInactive": "Inactive tunnels"
+      }
     },
     "faq": {
-      "title": "# FAQs",
-      "q1": "How do I get started?",
-      "a1": "Sign up for a free portal account and deploy your first server in minutes. Our panel guides you through every step.",
-      "q2": "Can I connect my own nodes?",
-      "a2": "YES! Eclipse supports connecting your own infrastructure. Enterprise plans include full node management.",
-      "q3": "What is included in support?",
-      "a3": "Basic support includes email & community. Premium support includes priority response, dedicated channels, and direct engineering access.",
-      "q4": "Is Eclipse open source?",
-      "a4Prefix": "The core panel is open-source for non-commercial purposes. Check our",
-      "a4Suffix": "for more details!",
-      "github": "GitHub"
+      "eyebrow": "FAQ",
+      "title": "Common questions.",
+      "q1": "How does billing work?",
+      "a1": "Charged at the start of each period. Overage alerts fire before you hit limits - no surprise invoices.",
+      "q2": "Is there a free trial for Pro?",
+      "a2": "Enterprise demos are available from billing. Pro trials are available via support for up to 3 days.",
+      "q3": "What happens when a node goes offline?",
+      "a3": "Traffic can reroute to healthy nodes quickly when available. Pro and Enterprise deployments may also use replication across zones.",
+      "q4": "Can I self-host?",
+      "a4": "Yes. EcliPanel has an open-source core. Self-hosting is supported; review licensing details at https://ecli.app/license."
     },
-    "cta": {
-      "title": "# Ready to deploy?",
-      "subtitle": "Join thousands of teams using EclipseSystems to power their infrastructure.",
-      "register": "./register --now",
-      "dashboard": "go_to_dashboard()"
-    },
-    "deploy": {
-      "allocating": "Allocating resources..............OK",
-      "configuring": "Configuring network stack.........OK",
-      "settingUp": "Setting up DNS records............OK",
-      "applying": "Applying security policies........OK",
-      "starting": "Starting services.................OK",
-      "ready": "Your server is ready.",
-      "access": "Access the dashboard to continue.",
-      "consoleTitle": "eclipse — deploy-console"
+    "finalCta": {
+      "titleLine1": "Your app deserves",
+      "titleLine2": "better infrastructure.",
+      "subtitle": "Join developers already on ecli. Free forever. No card required.",
+      "cta": "Create your free account",
+      "note": "Free tier - No credit card - Cancel any time"
     },
     "footer": {
-      "customSetup": "Want a custom setup? Email",
-      "orGoTo": "or go to",
-      "dashboard": "Dashboard"
+      "tagline": "Distributed hosting built for developers who care about reliability.",
+      "contact": "contact@ecli.app",
+      "columns": {
+        "product": "Product",
+        "developers": "Developers",
+        "legal": "Legal"
+      },
+      "links": {
+        "features": "Features",
+        "pricing": "Pricing",
+        "network": "Network",
+        "status": "Status",
+        "docs": "Docs",
+        "api": "API",
+        "github": "GitHub",
+        "changelog": "Changelog",
+        "terms": "Terms",
+        "privacy": "Privacy",
+        "cookies": "Cookies",
+        "acceptable": "Acceptable use",
+        "imprint": "Imprint"
+      },
+      "copyright": "© {year} EclipseSystems. All rights reserved.",
+      "byline": "Built for developers, by developers."
     }
   },
   "notFound": {
@@ -4113,6 +3992,7 @@
       "helpText": "Use this tab to configure additional host-to-guest port forwards for KVM eggs. The default SSH port is protected and cannot be modified here.",
       "defaultSshPortLabel": "Default SSH port",
       "defaultSshPortHint": "This port is reserved for SSH and cannot be updated using VM_PORTS.",
+      "sshConflict": "Port {{hostPort}} is reserved for SSH.",
       "noVmPortsDefined": "The VM_PORTS variable is not defined for this server. Add it in Startup → Environment Variables to use this tab.",
       "extraPortsTitle": "Extra forwarded ports",
       "extraPortsDescription": "Each entry becomes an additional host-to-guest forward via VM_PORTS.",
@@ -4123,6 +4003,15 @@
       "portRuleHint": "Valid entries: port, host:guest, port/tcp, port/udp. Do not use the default SSH port or guest port 22.",
       "hostBindAddress": "Host bind address",
       "hostBindHelp": "Optional host address for forwards, e.g. 0.0.0.0.",
+      "bindAll": "Bind to all IPs (IPv4 + IPv6)",
+      "bindIpv4": "Bind IPv4 only (0.0.0.0)",
+      "bindIpv6": "Bind IPv6 only",
+      "bindCustom": "Custom bind address",
+      "bindAllHelp": "Applies forwards to all available IPs. IPv6 forwards will appear on the network tab automatically.",
+      "bindIpv4Help": "Forwards bind to IPv4 only. IPv6 forwards will not be created.",
+      "bindIpv6Help": "Forwards bind to the assigned IPv6 address.",
+      "bindCustomHelp": "Provide a specific host address to bind these forwards.",
+      "hostBindNeedsIpv6": "Assign an IPv6 address before choosing IPv6-only binding.",
       "save": "Save",
       "saved": "Saved.",
       "saving": "Saving…",

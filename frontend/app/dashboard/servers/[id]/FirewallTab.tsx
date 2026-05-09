@@ -130,15 +130,6 @@ function validateRule(
     errors.globalPort = t("firewall.portMustBeValid")
   }
 
-  const vp = Number(rule.vmPort)
-  const gp = Number(rule.globalPort)
-
-  if (isValidPort(rule.vmPort) && isValidPort(rule.globalPort)) {
-    if (vp === 22 || gp === defaultSshPort) {
-      errors.conflict = t("firewall.sshConflict", { hostPort: defaultSshPort })
-    }
-  }
-
   return errors
 }
 
@@ -496,7 +487,16 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
   const [startup, setStartup] = useState<any>(null)
   const [rules, setRules] = useState<PortRule[]>([])
   const [hostAddr, setHostAddr] = useState<string>("")
+  const [hostAddrMode, setHostAddrMode] = useState<"all" | "ipv4" | "ipv6" | "custom">("all")
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const assignedIpv6 = useMemo(() => {
+    if (Array.isArray(server?.allocations)) {
+      const row = server.allocations.find((a: any) => String(a?.ip ?? "").includes(":"))
+      if (row?.ip) return String(row.ip)
+    }
+    return ""
+  }, [server?.allocations])
 
   useEffect(() => {
     let mounted = true
@@ -506,7 +506,20 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
         setStartup(data)
         const env = data?.environment || {}
         setRules(parseVmPortsString(env.VM_PORTS || ""))
-        setHostAddr(String(env.VM_HOSTADDR || ""))
+        const rawHostAddr = String(env.VM_HOSTADDR || "").trim()
+        if (!rawHostAddr) {
+          setHostAddrMode("all")
+          setHostAddr("")
+        } else if (rawHostAddr === "0.0.0.0") {
+          setHostAddrMode("ipv4")
+          setHostAddr(rawHostAddr)
+        } else if (rawHostAddr.includes(":")) {
+          setHostAddrMode("ipv6")
+          setHostAddr(rawHostAddr)
+        } else {
+          setHostAddrMode("custom")
+          setHostAddr(rawHostAddr)
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -602,8 +615,20 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
       VM_PORTS: vmPortsValue,
     } as Record<string, string>
 
-    if (hostAddr.trim()) {
-      nextEnvironment.VM_HOSTADDR = hostAddr.trim()
+    const trimmedHostAddr = hostAddr.trim()
+    if (hostAddrMode === "all") {
+      delete nextEnvironment.VM_HOSTADDR
+    } else if (hostAddrMode === "ipv4") {
+      nextEnvironment.VM_HOSTADDR = "0.0.0.0"
+    } else if (hostAddrMode === "ipv6") {
+      const ipv6Addr = assignedIpv6 || trimmedHostAddr
+      if (!ipv6Addr) {
+        setSaveError(t("firewall.hostBindNeedsIpv6"))
+        return
+      }
+      nextEnvironment.VM_HOSTADDR = ipv6Addr
+    } else if (trimmedHostAddr) {
+      nextEnvironment.VM_HOSTADDR = trimmedHostAddr
     } else {
       delete nextEnvironment.VM_HOSTADDR
     }
@@ -781,22 +806,62 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
               title={t("firewall.hostBindAddress")}
               description={t("firewall.hostBindHelp")}
             />
-            <div className="p-4 space-y-2">
-              <input
-                type="text"
-                value={hostAddr}
-                onChange={(e) => {
-                  setHostAddr(e.target.value)
-                  setSaveSuccess(false)
-                }}
-                placeholder="0.0.0.0"
-                className={cn(
-                  "w-full rounded-lg border border-border bg-input px-3 py-2.5",
-                  "text-sm font-mono h-11 sm:h-10 outline-none transition-all",
-                  "focus:ring-2 focus:ring-primary/20 focus:border-primary",
-                  "placeholder:text-muted-foreground/40"
-                )}
-              />
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  { value: "all", label: t("firewall.bindAll") },
+                  { value: "ipv4", label: t("firewall.bindIpv4") },
+                  { value: "ipv6", label: t("firewall.bindIpv6") },
+                  { value: "custom", label: t("firewall.bindCustom") },
+                ] as Array<{ value: "all" | "ipv4" | "ipv6" | "custom"; label: string }>).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setHostAddrMode(opt.value)
+                      setSaveSuccess(false)
+                    }}
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-xs font-medium transition-all text-left",
+                      hostAddrMode === opt.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary/5 text-muted-foreground hover:text-foreground"
+                    )}
+                    disabled={opt.value === "ipv6" && !assignedIpv6 && hostAddrMode !== "ipv6"}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {hostAddrMode === "custom" && (
+                <input
+                  type="text"
+                  value={hostAddr}
+                  onChange={(e) => {
+                    setHostAddr(e.target.value)
+                    setSaveSuccess(false)
+                  }}
+                  placeholder="0.0.0.0"
+                  className={cn(
+                    "w-full rounded-lg border border-border bg-input px-3 py-2.5",
+                    "text-sm font-mono h-11 sm:h-10 outline-none transition-all",
+                    "focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                    "placeholder:text-muted-foreground/40"
+                  )}
+                />
+              )}
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {hostAddrMode === "all"
+                  ? t("firewall.bindAllHelp")
+                  : hostAddrMode === "ipv4"
+                    ? t("firewall.bindIpv4Help")
+                    : hostAddrMode === "ipv6"
+                      ? t("firewall.bindIpv6Help")
+                      : t("firewall.bindCustomHelp")}
+              </p>
+
               {vmHostAddrDefined && (
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {t("firewall.hostBindNote")}
