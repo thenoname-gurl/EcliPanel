@@ -244,6 +244,18 @@ async function sendVerificationEmailToUser(user: User) {
 export async function userRoutes(app: any, prefix = '') {
   app.post(prefix + '/users/register', async (ctx: any) => {
     try {
+      const ip = getRequesterIp(ctx);
+      const key = `rate:registration:ip:${ip}`;
+      const limit = Number(5);
+      const windowSec = Number(3600);
+      const rl = await consumeRateLimit(key, limit, windowSec);
+      if (!rl.allowed) {
+        ctx.set.status = 429;
+        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
+        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+      }
+    } catch (e) {/* meow */}
+    try {
       const settingRepo = AppDataSource.getRepository(PanelSetting);
       const setting = await settingRepo.findOneBy({ key: 'registrationEnabled' });
       if (setting && setting.value === 'false') {
@@ -354,6 +366,23 @@ export async function userRoutes(app: any, prefix = '') {
     if (!user.portalType) user.portalType = 'free';
     try {
       await userRepo.save(user);
+
+      try {
+        const settings = user.settings && typeof user.settings === 'object' ? { ...user.settings } : {};
+        if (!settings.emailPreferences) {
+          settings.emailPreferences = {
+            billing: true,
+            security: true,
+            productUpdates: true,
+            tickets: true,
+            aiUsage: true,
+            marketing: false,
+            news: false,
+          };
+          await userRepo.save({ id: user.id, settings } as any);
+        }
+      } catch (e) { /* woof */ }
+
       if (parentRegistrationInvite) {
         parentRegistrationInvite.used = true;
         parentRegistrationInvite.usedAt = new Date();

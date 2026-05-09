@@ -1045,6 +1045,16 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
   app.post(prefix + '/tickets', async (ctx: any) => {
     const user = ctx.user;
+    try {
+      const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0,200);
+      const keyIp = `rate:ticket:create:ip:${ip}`;
+      const keyUser = `rate:ticket:create:user:${user?.id}`;
+      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(30), Number(3600));
+      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+      const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(20), Number(3600));
+      if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
+    } catch (e) {/* srs */}
+
     const { subject, message, priority, department } = ctx.body as any;
     if (!subject || !message) {
       ctx.set.status = 400;
@@ -1209,6 +1219,19 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
         : replyAs === 'staff'
           ? (canStaffReply ? 'staff' : 'user')
           : (canStaffReply ? 'staff' : 'user');
+
+      if (sender === 'user') {
+        try {
+          const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0,200);
+          const keyIp = `rate:ticket:reply:ip:${ip}`;
+          const keyUser = `rate:ticket:reply:user:${user?.id}`;
+          const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.TICKET_REPLY_RATE_IP || 60), Number(process.env.TICKET_REPLY_WINDOW_IP || 3600));
+          if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+          const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.TICKET_REPLY_RATE_USER || 20), Number(process.env.TICKET_REPLY_WINDOW_USER || 3600));
+          if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
+        } catch (e) { }
+      }
+
       if (sender === 'staff') {
         const staffDisplayName = typeof user.displayName === 'string' ? user.displayName.trim() : '';
         const staffLegalName = `${user.firstName || ''} ${user.lastName || ''}`.trim();

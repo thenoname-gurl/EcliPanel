@@ -226,6 +226,17 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Missing email or password' };
     }
+    
+    try {
+      const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0, 200);
+      const keyIp = `rate:auth:login:ip:${ip}`;
+      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.AUTH_LOGIN_RATE_IP || 20), Number(process.env.AUTH_LOGIN_WINDOW_IP || 60));
+      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+      const keyEmail = `rate:auth:login:email:${String(email).toLowerCase()}`;
+      const rlEmail = await require('../config/redis').consumeRateLimit(keyEmail, Number(process.env.AUTH_LOGIN_RATE_ACCOUNT || 10), Number(process.env.AUTH_LOGIN_WINDOW_ACCOUNT || 600));
+      if (!rlEmail.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlEmail.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlEmail.retryAfterSeconds }; }
+    } catch (e) {/* meow */}
+
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ email });
     if (!user) {
@@ -332,6 +343,12 @@ export async function authRoutes(app: any, prefix = '') {
   app.post(prefix + '/auth/2fa/send-email', async (ctx: any) => {
     const body = ctx.body || {};
     const { tempToken } = body as any;
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:2fa:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.AUTH_2FA_RATE_IP || 6), Number(process.env.AUTH_2FA_WINDOW_IP || 60)); if (!rl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
+    } catch (e) {/* woof */ }
+
     const payload = await verifyTempToken(tempToken, 'send-email', ctx);
     if (payload && payload.error) {
       return payload;
@@ -463,6 +480,10 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Email required' };
     }
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:password-reset:ip:${ip}`; const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.PASSWORD_RESET_RATE_IP || 6), Number(process.env.PASSWORD_RESET_WINDOW_IP || 3600)); if (!rl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
+    } catch (e) {/* meow */}
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ email });
@@ -717,6 +738,15 @@ export async function authRoutes(app: any, prefix = '') {
   app.post(prefix + '/auth/resend-verification', async (ctx: any) => {
     const user = ctx.user;
     if (user.emailVerified) return { success: true, message: 'Already verified' };
+    try {
+      const ip = (ctx.ip || '').toString();
+      const keyIp = `rate:auth:resend-verification:ip:${ip}`;
+      const keyUser = `rate:auth:resend-verification:user:${user?.id}`;
+      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.RESEND_VERIFICATION_RATE_IP || 6), Number(process.env.RESEND_VERIFICATION_WINDOW_IP || 3600));
+      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+      const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.RESEND_VERIFICATION_RATE_USER || 3), Number(process.env.RESEND_VERIFICATION_WINDOW_USER || 3600));
+      if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
+    } catch (e) {/* meow */}
     await sendVerificationEmail(user);
     return { success: true };
   }, {
