@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { Elysia, t } from 'elysia';
-import { jwt } from '@elysiajs/jwt';
-import cors from '@elysiajs/cors';
+import { jwt } from '@elysia/jwt';
+import cors from '@elysia/cors';
 import { helmet } from 'elysia-helmet';
 import jsonwebtoken from 'jsonwebtoken';
 import { registerRoutes } from './routes/index';
@@ -23,7 +23,7 @@ import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
-import { openapi } from '@elysiajs/openapi';
+import { openapi } from '@elysia/openapi';
 
 function getSafeUploadPath(base: string, relPath: string) {
   const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');

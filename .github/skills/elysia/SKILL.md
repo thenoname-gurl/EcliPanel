@@ -140,7 +140,7 @@ const app = new Elysia()
  * Eden Treaty creates a fully typed client from your Elysia app type.
  * No codegen, no OpenAPI parsing — just TypeScript inference.
  */
-import { treaty } from "@elysiajs/eden";
+import { treaty } from "@elysia/eden";
 import type { App } from "./src/index";  // Import the app TYPE
 
 const api = treaty<App>("localhost:3000");
@@ -164,9 +164,9 @@ const { error } = await api.users({ id: "bad-id" }).delete();
 ```typescript
 // src/app.ts — Elysia with plugins
 import { Elysia } from "elysia";
-import { cors } from "@elysiajs/cors";
-import { swagger } from "@elysiajs/swagger";
-import { jwt } from "@elysiajs/jwt";
+import { cors } from "@elysia/cors";
+import { swagger } from "@elysia/swagger";
+import { jwt } from "@elysia/jwt";
 
 const app = new Elysia()
   .use(cors())
