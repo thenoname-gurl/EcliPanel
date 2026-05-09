@@ -18,8 +18,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { formatBytes } from "./serverTabHelpers"
@@ -1335,7 +1339,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             {activeTab === "startup" && <StartupTab serverId={id} />}
             {activeTab === "databases" && <DatabasesTab serverId={id} />}
             {activeTab === "schedules" && <SchedulesTab serverId={id} />}
-            {activeTab === "network" && <NetworkTab serverId={id} />}
+            {activeTab === "network" && <NetworkTab serverId={id} server={server} />}
             {activeTab === "firewall" && (
               <Suspense fallback={<LoadingState message={t("states.loadingFirewall")} />}>
                 <FirewallTabLazy serverId={id} server={server} />
@@ -1963,13 +1967,34 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 
 // ─── Network Tab ─────────────────────────────────────────────────────────────
 
-function NetworkTab({ serverId }: { serverId: string }) {
+function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
   const t = useTranslations("serverDetailPage")
   const [allocations, setAllocations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [allocationSearch, setAllocationSearch] = useState("")
+  const [allocationPage, setAllocationPage] = useState(1)
+  const [assignedIpv6, setAssignedIpv6] = useState("")
+  const [ipRequestOpen, setIpRequestOpen] = useState(false)
+  const [ipRequestType, setIpRequestType] = useState<'ipv4' | 'ipv6'>('ipv6')
+  const [ipRequestReason, setIpRequestReason] = useState("")
+  const [ipRequestError, setIpRequestError] = useState<string | null>(null)
+  const pageSize = 25
+
+  const ipv6Allocation = useMemo(
+    () =>
+      allocations.find((alloc) => {
+        const ip = String(alloc.ip ?? "")
+        return Boolean(alloc.ipv6) || (ip.includes(":") && Number(alloc.port) === 0)
+      }) || null,
+    [allocations]
+  )
+
+  useEffect(() => {
+    setAssignedIpv6(String(ipv6Allocation?.ip || ""))
+  }, [ipv6Allocation])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
@@ -1978,18 +2003,98 @@ function NetworkTab({ serverId }: { serverId: string }) {
       .finally(() => setLoading(false))
   }, [serverId])
 
-  const requestPorts = async (requestIpv6 = false) => {
+  useEffect(() => {
+    setAllocationPage(1)
+  }, [allocationSearch])
+
+  const filteredAllocations = useMemo(() => {
+    const q = allocationSearch.trim().toLowerCase()
+    if (!q) return allocations
+    return allocations.filter((alloc) => {
+      const ip = String(alloc.ip ?? "").toLowerCase()
+      const port = String(alloc.port ?? "").toLowerCase()
+      const fqdn = String(alloc.fqdn ?? "").toLowerCase()
+      const ipv6Ports = Array.isArray(alloc.ipv6Ports) ? alloc.ipv6Ports.join(" ").toLowerCase() : ""
+      return ip.includes(q) || port.includes(q) || fqdn.includes(q) || ipv6Ports.includes(q) || `${ip}:${port}`.includes(q)
+    })
+  }, [allocations, allocationSearch])
+
+  const hasIpv6Allocation = useMemo(
+    () => Boolean(assignedIpv6) || Boolean(ipv6Allocation) || allocations.some((alloc) => String(alloc.ip ?? "").includes(":")),
+    [allocations, assignedIpv6, ipv6Allocation]
+  )
+
+  const hasSecondaryAllocations = useMemo(
+    () => allocations.some((alloc) => !alloc.is_default && !alloc.ipv6),
+    [allocations]
+  )
+
+  const totalPages = Math.max(1, Math.ceil(filteredAllocations.length / pageSize))
+  const safePage = Math.min(allocationPage, totalPages)
+  const pagedAllocations = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return filteredAllocations.slice(start, start + pageSize)
+  }, [filteredAllocations, safePage])
+
+  useEffect(() => {
+    if (allocationPage !== safePage) {
+      setAllocationPage(safePage)
+    }
+  }, [allocationPage, safePage])
+
+  const requestPorts = async () => {
     setRequesting(true)
     setRequestError(null)
     try {
-      await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
+      const result = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId), {
         method: "POST",
-        body: JSON.stringify({ count: 1, requestIpv6 }),
+        body: JSON.stringify({ count: 1 }),
+      })
+      const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
+      setAllocations(Array.isArray(refreshed) ? refreshed : [])
+      return result
+    } catch (e: any) {
+      setRequestError(e?.message || t("network.requestFailed"))
+      throw e
+    } finally {
+      setRequesting(false)
+    }
+  }
+
+  const submitIpRequest = async () => {
+    setRequesting(true)
+    setIpRequestError(null)
+    try {
+      if (!ipRequestReason.trim()) {
+        setIpRequestError(t("network.reasonRequired") || "A reason is required")
+        return
+      }
+      await apiFetch(API_ENDPOINTS.serverIpRequest.replace(":id", serverId), {
+        method: "POST",
+        body: JSON.stringify({ type: ipRequestType, reason: ipRequestReason.trim() }),
+      })
+      setIpRequestOpen(false)
+      setIpRequestReason("")
+      setIpRequestType('ipv6')
+    } catch (e: any) {
+      setIpRequestError(e?.message || t("network.requestFailed"))
+    } finally {
+      setRequesting(false)
+    }
+  }
+
+  const clearSecondaryAllocations = async () => {
+    if (!confirm("Remove all secondary allocations and keep only the primary port?")) return
+    setRequesting(true)
+    setRequestError(null)
+    try {
+      await apiFetch(`${API_ENDPOINTS.serverAllocations.replace(":id", serverId)}/secondary`, {
+        method: "DELETE",
       })
       const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
       setAllocations(Array.isArray(refreshed) ? refreshed : [])
     } catch (e: any) {
-      setRequestError(e?.message || t("network.requestFailed"))
+      setRequestError(e?.message || t("network.failed"))
     } finally {
       setRequesting(false)
     }
@@ -2022,16 +2127,18 @@ function NetworkTab({ serverId }: { serverId: string }) {
         icon={Network}
         action={
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => requestPorts(true)} disabled={requesting}>
-              {requesting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-              ) : (
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              <span className="hidden sm:inline">Request IPv6</span>
-              <span className="sm:hidden">IPv6</span>
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => requestPorts(false)} disabled={requesting}>
+            {!hasIpv6Allocation && (
+              <Button size="sm" onClick={() => setIpRequestOpen(true)} disabled={requesting}>
+                {requesting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                <span className="hidden sm:inline">Request IP</span>
+                <span className="sm:hidden">IP</span>
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={requestPorts} disabled={requesting}>
               {requesting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
               ) : (
@@ -2040,9 +2147,144 @@ function NetworkTab({ serverId }: { serverId: string }) {
               <span className="hidden sm:inline">Request Port</span>
               <span className="sm:hidden">Port</span>
             </Button>
+            {hasSecondaryAllocations && (
+              <Button size="sm" variant="outline" onClick={clearSecondaryAllocations} disabled={requesting} className="border-border">
+                {requesting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                <span className="hidden sm:inline">Remove secondary</span>
+                <span className="sm:hidden">Clear</span>
+              </Button>
+            )}
           </div>
         }
       />
+
+      {assignedIpv6 ? (
+        <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-primary">
+          IPv6 assigned: <span className="font-mono">{assignedIpv6}</span>
+        </div>
+      ) : null}
+      <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Request IP allocation</DialogTitle>
+            <DialogDescription>Choose IPv4 or IPv6 and explain why you need the allocation.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="ip-request-type" className="mb-2 block text-sm font-medium text-foreground">
+                Type
+              </Label>
+              <Select value={ipRequestType} onValueChange={(value) => setIpRequestType(value as 'ipv4' | 'ipv6')}>
+                <SelectTrigger id="ip-request-type" className="w-full">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ipv4">IPv4</SelectItem>
+                  <SelectItem value="ipv6">IPv6</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="ip-request-reason" className="mb-2 block text-sm font-medium text-foreground">
+                Reason / use case
+              </Label>
+              <Textarea
+                id="ip-request-reason"
+                value={ipRequestReason}
+                onChange={(event) => setIpRequestReason(event.target.value)}
+                rows={4}
+                className="min-h-[120px] w-full"
+                placeholder="Describe why you need this allocation"
+              />
+            </div>
+            {ipRequestError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {ipRequestError}
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIpRequestOpen(false)} disabled={requesting}>
+              Cancel
+            </Button>
+            <Button onClick={submitIpRequest} disabled={requesting}>
+              {requesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+              Submit request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Request IP allocation</DialogTitle>
+            <DialogDescription>Choose whether you need an IPv4 or IPv6 allocation and explain your use case.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="ip-request-type" className="mb-2 block text-sm font-medium text-foreground">
+                Address type
+              </Label>
+              <Select value={ipRequestType} onValueChange={(value) => setIpRequestType(value as 'ipv4' | 'ipv6')}>
+                <SelectTrigger id="ip-request-type" className="w-full">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ipv4">IPv4</SelectItem>
+                  <SelectItem value="ipv6">IPv6</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="ip-request-reason" className="mb-2 block text-sm font-medium text-foreground">
+                Reason / use case
+              </Label>
+              <Textarea
+                id="ip-request-reason"
+                value={ipRequestReason}
+                onChange={(event) => setIpRequestReason(event.target.value)}
+                rows={4}
+                className="min-h-[120px] w-full"
+                placeholder="Describe why you need this allocation"
+              />
+            </div>
+            {ipRequestError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {ipRequestError}
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIpRequestOpen(false)} disabled={requesting}>
+              Cancel
+            </Button>
+            <Button onClick={submitIpRequest} disabled={requesting}>
+              {requesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+              Submit request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {ipv6Allocation && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary whitespace-nowrap">
+              IPv6
+            </Badge>
+            <span className="font-mono text-sm text-foreground break-all">{ipv6Allocation.ip}</span>
+          </div>
+          <p className="text-xs text-muted-foreground break-words">
+            {Array.isArray(ipv6Allocation.ipv6Ports) && ipv6Allocation.ipv6Ports.length > 0
+              ? `Forwarded ports: ${ipv6Allocation.ipv6Ports.join(", ")}`
+              : "No forwarded ports are currently assigned."}
+          </p>
+        </div>
+      )}
 
       {requestError && (
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive break-words">
@@ -2050,33 +2292,100 @@ function NetworkTab({ serverId }: { serverId: string }) {
         </div>
       )}
 
-      {allocations.length === 0 ? (
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{t("network.title")}</p>
+            <p className="text-xs text-muted-foreground">
+              {filteredAllocations.length} {filteredAllocations.length === 1 ? "allocation" : "allocations"}
+              {allocations.length !== filteredAllocations.length ? ` · filtered from ${allocations.length}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={allocationSearch}
+              onChange={(e) => setAllocationSearch(e.target.value)}
+              placeholder="Search IP or port"
+              className="h-9 w-full sm:w-72 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary/50"
+            />
+          </div>
+        </div>
+
+        {filteredAllocations.length > pageSize && (
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              Page {safePage} of {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAllocationPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                className="h-8 px-3"
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAllocationPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                className="h-8 px-3"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {filteredAllocations.length === 0 ? (
         <EmptyState icon={Network} message={t("network.empty")} />
       ) : (
         <div className="space-y-2 min-w-0">
-          {allocations.map((alloc: any, i: number) => {
+          {pagedAllocations.map((alloc: any, i: number) => {
             const key = `${alloc.ip}:${alloc.port}`
+            const isIpv6AllocationRow = Boolean(alloc.ipv6) || (String(alloc.ip ?? "").includes(":") && Number(alloc.port) === 0)
             return (
               <div
                 key={i}
                 className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
               >
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <span className="font-mono text-sm text-foreground truncate min-w-0 break-all">
-                      {alloc.fqdn || alloc.ip}:{alloc.port}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap">
-                      {alloc.is_default ? t("network.primary") : t("network.secondary")}
-                    </Badge>
-                  </div>
-                  {alloc.fqdn && alloc.ip && alloc.fqdn !== alloc.ip && (
-                    <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
-                      {alloc.ip}
+                {isIpv6AllocationRow ? (
+                  <div className="min-w-0 flex-1 overflow-hidden space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="font-mono text-sm text-foreground truncate min-w-0 break-all">
+                        {alloc.ip}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap border-primary/30 text-primary">
+                        IPv6
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground break-words">
+                      {Array.isArray(alloc.ipv6Ports) && alloc.ipv6Ports.length > 0
+                        ? `Forwarded ports: ${alloc.ipv6Ports.join(", ")}`
+                        : "IPv6 allocation is ready for firewall forwarding."}
                     </p>
-                  )}
-                </div>
-                {!alloc.is_default && (
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="font-mono text-sm text-foreground truncate min-w-0 break-all">
+                        {alloc.fqdn || alloc.ip}:{alloc.port}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap">
+                        {alloc.is_default ? t("network.primary") : t("network.secondary")}
+                      </Badge>
+                    </div>
+                    {alloc.fqdn && alloc.ip && alloc.fqdn !== alloc.ip && (
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
+                        {alloc.ip}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {!alloc.is_default && !isIpv6AllocationRow && (
                   <Button
                     size="sm"
                     variant="outline"

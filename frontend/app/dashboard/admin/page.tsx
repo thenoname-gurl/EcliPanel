@@ -1486,7 +1486,6 @@ export default function AdminPanel() {
   const [csKvmPassthroughEnabled, setCsKvmPassthroughEnabled] = useState(false)
   const [csLoading, setCsLoading] = useState(false)
   const [csError, setCsError] = useState("")
-  const [csRequestIpv6, setCsRequestIpv6] = useState(false)
 
   // ── Sync from Wings ──
   const [syncingFromWings, setSyncingFromWings] = useState(false)
@@ -2703,7 +2702,6 @@ export default function AdminPanel() {
     setCsDisk("10240")
     setCsCpu("100")
     setCsKvmPassthroughEnabled(false)
-    setCsRequestIpv6(false)
     setCsError("")
     setCreateServerOpen(true)
   }
@@ -2723,7 +2721,6 @@ export default function AdminPanel() {
           disk: Number(csDisk),
           cpu: Number(csCpu),
           kvmPassthroughEnabled: !!csKvmPassthroughEnabled,
-          requestIpv6: !!csRequestIpv6,
         }),
       })
       setCreateServerOpen(false)
@@ -2753,7 +2750,7 @@ export default function AdminPanel() {
     if (!editNodeDialog) return
     setEditNodeLoading(true)
     try {
-      await apiFetch(`${API_ENDPOINTS.nodes}/${editNodeDialog.id}`, {
+      const result = await apiFetch(`${API_ENDPOINTS.nodes}/${editNodeDialog.id}`, {
         method: "PUT",
         body: JSON.stringify({
           nodeType: editNodeType,
@@ -2762,18 +2759,14 @@ export default function AdminPanel() {
           defaultIp: editNodeDefaultIp || null,
           ipv6Subnet: editNodeIpv6Subnet || null,
           ipv6ExcludedPorts: editNodeIpv6ExcludedPorts || null,
-          ipv6ReservedCount: editNodeIpv6ReservedCount ? Number(editNodeIpv6ReservedCount) : null,
+          ipv6ReservedCount: editNodeIpv6ReservedCount !== "" ? Number(editNodeIpv6ReservedCount) : null,
         }),
       })
+      const updatedNode = result?.node ?? result
       setNodes((prev) => prev.map((n) => n.id === editNodeDialog.id ? {
         ...n,
-        nodeType: editNodeType,
-        portRangeStart: editNodePortStart ? Number(editNodePortStart) : undefined,
-        portRangeEnd: editNodePortEnd ? Number(editNodePortEnd) : undefined,
-        defaultIp: editNodeDefaultIp || undefined,
-        ipv6Subnet: editNodeIpv6Subnet || undefined,
-        ipv6ExcludedPorts: editNodeIpv6ExcludedPorts || undefined,
-        ipv6ReservedCount: editNodeIpv6ReservedCount ? Number(editNodeIpv6ReservedCount) : undefined,
+        ...updatedNode,
+        ipv6ReservedCount: editNodeIpv6ReservedCount !== "" ? Number(editNodeIpv6ReservedCount) : undefined,
       } as any : n))
       setEditNodeDialog(null)
     } finally {
@@ -3126,8 +3119,9 @@ remote: ${backendUrl}`
           ipv6ReservedCount: addNodeIpv6ReservedCount ? Number(addNodeIpv6ReservedCount) : undefined,
         }),
       })
-      setNodes((prev) => [...prev, created])
-      setAddNodeCreated(created)
+      const node = created.node ?? created
+      setNodes((prev) => [...prev, node])
+      setAddNodeCreated(node)
       setAddNodeStep("config")
       apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
     } finally {
@@ -6535,11 +6529,6 @@ remote: ${panelUrl}`
                   <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)}
                     className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
                   <label htmlFor="cs-kvm-passthrough" className="text-sm text-foreground">Enable KVM passthrough</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input id="cs-request-ipv6" type="checkbox" checked={csRequestIpv6} onChange={(e) => setCsRequestIpv6(e.target.checked)}
-                    className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
-                  <label htmlFor="cs-request-ipv6" className="text-sm text-foreground">Request IPv6</label>
                 </div>
               </div>
             </div>

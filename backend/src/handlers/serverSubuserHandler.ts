@@ -9,6 +9,7 @@ import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { createActivityLog } from './logHandler';
 import { createMailboxMessageForUser } from '../utils/mailboxMessage';
 import { getMailboxAccountForUser } from '../services/mailcowService';
+import { consumeRateLimit } from '../config/redis';
 
 const VALID_PERMISSIONS = ['console', 'files', 'backups', 'startup', 'settings', 'databases', 'schedules', 'subusersd', 'activity', 'stats', 'network', 'mounts'];
 
@@ -28,6 +29,32 @@ async function canManageSubusers(ctx: any, serverUuid: string): Promise<boolean>
 export async function serverSubuserRoutes(app: any, prefix = '') {
   const subuserRepo = () => AppDataSource.getRepository(ServerSubuser);
   const userRepo = () => AppDataSource.getRepository(User);
+
+  function getRequesterIp(ctx: any): string {
+    const forwarded = String((ctx as any)?.headers?.['x-forwarded-for'] || '').trim();
+    const firstForwarded = forwarded.split(',')[0]?.trim();
+    const direct = String((ctx as any)?.ip || (ctx as any)?.request?.ip || '').trim();
+    return (firstForwarded || direct || 'unknown').slice(0, 100);
+  }
+
+  async function enforceSubuserInviteRateLimit(ctx: any, userId: number) {
+    try {
+      const ip = getRequesterIp(ctx);
+      const key = `rate:subuser-invite:user:${userId}:ip:${ip}`;
+      const result = await consumeRateLimit(key, 10, 30);
+      if (result.allowed) return null;
+
+      (ctx as any).set.status = 429;
+      (ctx as any).set.headers = {
+        ...((ctx as any).set.headers || {}),
+        'Retry-After': String(result.retryAfterSeconds),
+      };
+      return { error: 'rate_limited', retryAfter: result.retryAfterSeconds };
+    } catch {
+      return null;
+    }
+  }
+
   async function attachSubuserUserInfo(entries: any[]) {
     const ids = [...new Set(entries.map((entry) => entry.userId).filter(Boolean))];
     if (ids.length === 0) return entries;
@@ -61,6 +88,9 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
   app.post(prefix + '/servers/:id/subusers', async (ctx) => {
     const { id } = ctx.params as any;
     const user = (ctx as any).user as User;
+    const inviteRateLimit = await enforceSubuserInviteRateLimit(ctx, user.id);
+    if (inviteRateLimit) return inviteRateLimit;
+
     const { email, permissions } = ctx.body as any;
     let actingAsSubuser: any = null;
     if (!(await canManageSubusers(ctx, id))) {
@@ -163,7 +193,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
   }, {
     beforeHandle: authenticate,
     detail: { summary: 'Add a subuser to a server', tags: ['Servers'] },
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) }
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }) }
   });
 
   app.put(prefix + '/servers/:id/subusers/:subId', async (ctx) => {

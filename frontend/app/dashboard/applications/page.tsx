@@ -125,7 +125,6 @@ function StatusPill({
         config.className
       )}
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", config.dot)} />
       <Icon className="h-3 w-3 shrink-0" />
       {config.label}
     </span>
@@ -147,7 +146,10 @@ function FormCard({
   const isClosed = effectiveStatus !== "active"
 
   const visibilityConfig = getVisibilityConfig(form.visibility, form.requiresAccount)
-  const kindConfig = getKindConfig(form.kind)
+  const kindConfig =
+    form.slug === 'ip-request'
+      ? { label: 'IP Request', className: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' }
+      : getKindConfig(form.kind)
   const VisibilityIcon = visibilityConfig.icon
 
   const formUrl = form.slug

@@ -239,8 +239,18 @@ const app = new Elysia()
   .use(cors({
     origin: (request: any) => {
       const origin = request?.headers?.get?.('origin') ?? undefined;
-      const rawCfg = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim()).filter(Boolean);
-      if (process.env.FRONTEND_URL === '*' || process.env.FRONTEND_URL === 'true') return true;
+      const rawCfg = [process.env.FRONTEND_URL, process.env.PANEL_URL]
+        .filter(Boolean)
+        .join(',')
+        .split(',')
+        .map(o => o.trim())
+        .filter(Boolean);
+      if (
+        process.env.FRONTEND_URL === '*' ||
+        process.env.FRONTEND_URL === 'true' ||
+        process.env.PANEL_URL === '*' ||
+        process.env.PANEL_URL === 'true'
+      ) return true;
       if (!origin) return true;
       if (rawCfg.length === 0) return true;
 

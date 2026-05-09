@@ -60,13 +60,16 @@ fi
 if [ "$USE_CLOUD_IMAGE" = "1" ]; then
     echo "[*] Using cloud image method..."
     if [ ! -f "$CLOUD_IMAGE_FILE" ]; then
-        echo "[*] Downloading Debian 13 cloud image..."
-        wget -q --show-progress -O "$CLOUD_IMAGE_FILE" "$CLOUD_IMAGE_URL"
+        echo "[*] Downloading Debian 13 cloud image (IPv4)..."
+        echo "[*] This may take a few minutes depending on your connection speed..."
+        wget -4 --no-check-certificate --timeout=10 --tries=3 --progress=bar:force:noscroll \
+        -O "$CLOUD_IMAGE_FILE" "$CLOUD_IMAGE_URL"
         if [ $? -ne 0 ]; then
             echo "[!] Cloud image download failed."
             rm -f "$CLOUD_IMAGE_FILE"
             exit 1
         fi
+        echo "[✓] Cloud image downloaded successfully"
     fi
 fi
 

@@ -175,11 +175,18 @@
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-4px); }
 }
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+.animate-rotate-slow {
+  animation: rotate-slow 40s linear infinite;
 }
 
 ::view-transition-group(root) {

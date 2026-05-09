@@ -59,7 +59,7 @@ function getAgeFromDate(date?: Date | string | null): number | null {
 }
 
 function getSafeRelativeFilePath(base: string, relPath: string): string | null {
-  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
+  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/, '');
   const fullPath = path.join(base, normalised);
   const relative = path.relative(base, fullPath);
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
@@ -997,9 +997,9 @@ async function runAntiAbuseAiAssessment(
       decision?.signals.length
         ? decision.signals
         : [
-            ...triage.redFlags,
-            ...(deepAnalysis?.technicalFindings ?? []),
-          ].slice(0, 10);
+          ...triage.redFlags,
+          ...(deepAnalysis?.technicalFindings ?? []),
+        ].slice(0, 10);
 
     return {
       assessmentId,
@@ -1931,7 +1931,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await repo.save(job);
 
     let origin = '';
-    try { origin = new URL(String((ctx as any)?.request?.url || '')).origin; } catch {}
+    try { origin = new URL(String((ctx as any)?.request?.url || '')).origin; } catch { }
     const base = process.env.BACKEND_URL || process.env.APP_URL || origin || '';
     const sharePath = `/api/public/export-shares/${shareToken}`;
     const shareUrl = `${base}${sharePath}`;
@@ -2130,9 +2130,9 @@ export async function adminRoutes(app: any, prefix = '') {
     if (badges !== undefined) {
       const normalizedBadges = Array.isArray(badges)
         ? badges
-            .map((badge: any) => String(badge || '').trim())
-            .filter((badge: string) => badge.length > 0)
-            .slice(0, 128)
+          .map((badge: any) => String(badge || '').trim())
+          .filter((badge: string) => badge.length > 0)
+          .slice(0, 128)
         : [];
 
       const currentSettings = user.settings && typeof user.settings === 'object'
@@ -3237,19 +3237,21 @@ export async function adminRoutes(app: any, prefix = '') {
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
-        200: t.Object({ reports: t.Array(t.Object({
-          id: t.Number(),
-          status: t.String(),
-          createdAt: t.Optional(t.String()),
-          reason: t.String(),
-          detectionType: t.String(),
-          enforcementAction: t.String(),
-          suspendAttempted: t.Boolean(),
-          suspendSuccess: t.Boolean(),
-          nodeName: t.Optional(t.String()),
-          sourceIp: t.Optional(t.String()),
-          targetIp: t.Optional(t.String()),
-        })) }),
+        200: t.Object({
+          reports: t.Array(t.Object({
+            id: t.Number(),
+            status: t.String(),
+            createdAt: t.Optional(t.String()),
+            reason: t.String(),
+            detectionType: t.String(),
+            enforcementAction: t.String(),
+            suspendAttempted: t.Boolean(),
+            suspendSuccess: t.Boolean(),
+            nodeName: t.Optional(t.String()),
+            sourceIp: t.Optional(t.String()),
+            targetIp: t.Optional(t.String()),
+          }))
+        }),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
@@ -3440,11 +3442,15 @@ export async function adminRoutes(app: any, prefix = '') {
         const defAlloc = allocations.find((a: any) => a.is_default) || allocations[0];
         const mappings: Record<string, number[]> = {};
         const fqdns: Record<string, string> = {};
+        const allocationKey = (ip: string, port: number) => {
+          const cleanIp = String(ip || '').trim();
+          return cleanIp.includes(':') ? `[${cleanIp}]:${port}` : `${cleanIp}:${port}`;
+        };
         for (const a of allocations) {
           const ip = String(a.ip);
           if (!mappings[ip]) mappings[ip] = [];
           mappings[ip].push(Number(a.port));
-          if (a.fqdn) fqdns[`${ip}:${a.port}`] = String(a.fqdn);
+          if (a.fqdn) fqdns[allocationKey(ip, Number(a.port))] = String(a.fqdn);
         }
         cfg.allocations = { default: { ip: String(defAlloc.ip), port: Number(defAlloc.port) }, mappings, ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}) } as any;
       } else {

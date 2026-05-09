@@ -200,6 +200,8 @@ export default function PublicFormPage() {
   const [form, setForm] = useState<PublicForm | null>(null)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [reporterEmail, setReporterEmail] = useState("")
+  const [servers, setServers] = useState<Array<{ uuid?: string; name?: string; label?: string }>>([])
+  const [selectedServerUuid, setSelectedServerUuid] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -229,15 +231,41 @@ export default function PublicFormPage() {
     if (slug) load()
   }, [slug, inviteToken, t])
 
+  useEffect(() => {
+    const loadServers = async () => {
+      if (slug !== "ip-request" || !user) return
+      try {
+        const data = await apiFetch(API_ENDPOINTS.servers)
+        if (Array.isArray(data)) {
+          const owned = data.filter((server: any) => String(server.userId || server.ownerId || "") === String(user.id))
+          const visibleServers = owned.length > 0 ? owned : []
+          setServers(visibleServers)
+          if (visibleServers.length === 1) {
+            setSelectedServerUuid(String(visibleServers[0].uuid || visibleServers[0].id || ""))
+          }
+        }
+      } catch {
+        setServers([])
+      }
+    }
+    loadServers()
+  }, [slug, user])
+
+  const isIpRequestForm = slug === "ip-request"
+
   const canSubmit = useMemo(() => {
     if (!form) return false
     if (form.status !== "active" || !form.canSubmit) return false
     if (form.visibility === "public_users" && !user) return false
     if (form.visibility === "private_invite" && !inviteToken) return false
+    if (isIpRequestForm && !selectedServerUuid) return false
     return true
-  }, [form, user, inviteToken])
+  }, [form, user, inviteToken, isIpRequestForm, selectedServerUuid])
 
   const validate = () => {
+    if (isIpRequestForm && !selectedServerUuid) {
+      return "Please select the server for this IP request."
+    }
     for (const q of questions) {
       if (!q.required) continue
       const value = answers[q.id]
@@ -258,15 +286,25 @@ export default function PublicFormPage() {
     setError(null)
     setSuccess(null)
     try {
+      const bodyData: Record<string, any> = {
+        answers,
+      }
+      if (isIpRequestForm) {
+        bodyData.meta = { serverUuid: selectedServerUuid }
+      }
       if (form.visibility === "public_users") {
         await apiFetch(API_ENDPOINTS.applicationsSubmitBySlug.replace(":slug", encodeURIComponent(form.slug)), {
           method: "POST",
-          body: JSON.stringify({ answers }),
+          body: JSON.stringify(bodyData),
         })
       } else {
         await apiFetch(API_ENDPOINTS.publicApplicationsSubmitBySlug.replace(":slug", encodeURIComponent(form.slug)), {
           method: "POST",
-          body: JSON.stringify({ answers, inviteToken: inviteToken || undefined, reporterEmail: reporterEmail || undefined }),
+          body: JSON.stringify({
+            ...bodyData,
+            inviteToken: inviteToken || undefined,
+            reporterEmail: reporterEmail || undefined,
+          }),
         })
       }
       setSuccess(t("messages.transmitted"))
@@ -541,6 +579,34 @@ export default function PublicFormPage() {
                         {t("warnings.formClosedDetail")}
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {isIpRequestForm && (
+                  <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-5 backdrop-blur-sm space-y-2">
+                    <label className="font-mono text-xs text-purple-400/70 uppercase tracking-wider">
+                      Server
+                    </label>
+                    {servers.length > 0 ? (
+                      <select
+                        value={selectedServerUuid}
+                        onChange={(e) => setSelectedServerUuid(e.target.value)}
+                        className="w-full rounded border border-purple-500/20 bg-black/40 px-3 py-2 h-10 font-mono text-sm text-purple-100 outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                      >
+                        <option value="">Select server</option>
+                        {servers.map((server) => (
+                          <option key={String(server.uuid || server.label || server.name || "")}
+                            value={String(server.uuid || server.label || server.name || "")}
+                          >
+                            {server.name || server.label || server.uuid || "Untitled server"}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-sm text-purple-400/70">
+                        You need at least one server in your account to submit an IP request.
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -9,6 +9,7 @@ import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
 import { isValidIpv6Cidr } from '../utils/ipv6';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
+import { withRedisCache } from '../config/redis';
 import { t } from 'elysia';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
@@ -51,7 +52,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     const nodes = await nodeRepo().find({ relations: ['organisation'] });
     const safe = nodes.map(({ rootUser, rootPassword, token, ...rest }) => rest);
     return safe;
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List all nodes (admin only)', tags: ['Nodes'] }
   });
@@ -73,34 +75,38 @@ export async function nodeRoutes(app: any, prefix = '') {
     const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
     const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
 
-    if (isAdmin) {
-      const nodes = await nodeRepo().find({ relations: ['organisation'] });
-      return sanitizeNodes(nodes);
-    }
+    const cacheKey = `nodes:available:${user.id}:${portalType}:${isAdmin ? 'admin' : 'user'}:v1`;
+    return withRedisCache(cacheKey, 10, async () => {
+      if (isAdmin) {
+        const nodes = await nodeRepo().find({ relations: ['organisation'] });
+        return sanitizeNodes(nodes);
+      }
 
-    const unhealthyNodeIds = await getUnhealthyNodeIds();
-    const baseOptions: any = { relations: ['organisation'] };
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
+      const baseOptions: any = { relations: ['organisation'] };
 
-    if (portalType === 'enterprise') {
-      const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
-      const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
-      if (orgIds.length === 0) return [];
-      baseOptions.where = { organisation: { id: In(orgIds) } } as any;
+      if (portalType === 'enterprise') {
+        const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
+        const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+        if (orgIds.length === 0) return [];
+        baseOptions.where = { organisation: { id: In(orgIds) } } as any;
+        if (unhealthyNodeIds.length) {
+          baseOptions.where.id = Not(In(unhealthyNodeIds));
+        }
+        const nodes = await nodeRepo().find(baseOptions);
+        return sanitizeNodes(nodes);
+      }
+
+      const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
+      baseOptions.where = { nodeType: In(types) };
       if (unhealthyNodeIds.length) {
         baseOptions.where.id = Not(In(unhealthyNodeIds));
       }
       const nodes = await nodeRepo().find(baseOptions);
       return sanitizeNodes(nodes);
-    }
-
-    const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
-    baseOptions.where = { nodeType: In(types) };
-    if (unhealthyNodeIds.length) {
-      baseOptions.where.id = Not(In(unhealthyNodeIds));
-    }
-    const nodes = await nodeRepo().find(baseOptions);
-    return sanitizeNodes(nodes);
-  }, {beforeHandle: authenticate,
+    });
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'List nodes available for the current user', tags: ['Nodes'] }
   });
@@ -115,7 +121,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
     const { rootUser, rootPassword, token, ...safe } = node as any;
     return safe;
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get node details (admin only)', tags: ['Nodes'] }
   });
@@ -172,9 +179,10 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
     await nodeRepo().save(node);
-    refreshAllSftpProxies().catch(() => {});
+    refreshAllSftpProxies().catch(() => { });
     return { success: true, node };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Create a new node (admin only)', tags: ['Nodes'] }
   });
@@ -259,10 +267,11 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (backendWingsUrl !== undefined) node.backendWingsUrl = backendWingsUrl || undefined as any;
     await nodeRepo().save(node);
     nodeService.invalidateNode(node.id);
-    refreshAllSftpProxies().catch(() => {});
+    refreshAllSftpProxies().catch(() => { });
     const updated = await nodeRepo().findOne({ where: { id: Number(id) }, relations: ['organisation'] });
     return { success: true, node: updated };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Update node (admin only)', tags: ['Nodes'] }
   });
@@ -277,9 +286,10 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
     nodeService.invalidateNode(node.id);
     await nodeRepo().remove(node);
-    refreshAllSftpProxies().catch(() => {});
+    refreshAllSftpProxies().catch(() => { });
     return { success: true };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Delete node (admin only)', tags: ['Nodes'] }
   });
@@ -303,7 +313,8 @@ export async function nodeRoutes(app: any, prefix = '') {
       }));
     }
     return result;
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Get all node heartbeats (admin only)', tags: ['Nodes'] }
   });
@@ -320,19 +331,20 @@ export async function nodeRoutes(app: any, prefix = '') {
       where: { nodeId, timestamp: MoreThanOrEqual(since) },
       order: { id: 'ASC' },
     });
-    const total   = rows.length;
+    const total = rows.length;
     const okCount = rows.filter((r) => r.status === 'ok').length;
     const validMs = rows.filter((r) => r.responseMs != null).map((r) => r.responseMs!);
     return {
       points: rows.map((r) => ({ timestamp: r.timestamp, responseMs: r.responseMs ?? null, status: r.status })),
       summary: {
-        uptime_pct:   total > 0 ? Math.round((okCount / total) * 1000) / 10 : 100,
-        avg_ms:       validMs.length > 0 ? Math.round(validMs.reduce((a, b) => a + b, 0) / validMs.length) : null,
+        uptime_pct: total > 0 ? Math.round((okCount / total) * 1000) / 10 : 100,
+        avg_ms: validMs.length > 0 ? Math.round(validMs.reduce((a, b) => a + b, 0) / validMs.length) : null,
         total_checks: total,
-        window:       w,
+        window: w,
       },
     };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Get heartbeats for single node (admin only)', tags: ['Nodes'] }
   });
@@ -342,7 +354,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (adminErr !== undefined) return adminErr;
     const token = require('crypto').randomBytes(32).toString('hex');
     return { token };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ token: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Generate a temporary node token (admin only)', tags: ['Nodes'] }
   });
@@ -354,7 +367,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     const { rootUser, rootPassword } = ctx.body as any;
     const node = await nodeService.updateCredentials(Number(id), rootUser, rootPassword);
     return { success: true, node };
-  }, { beforeHandle: [authenticate, authorize('nodes:update-creds')],
+  }, {
+    beforeHandle: [authenticate, authorize('nodes:update-creds')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Update node credentials (admin only)', tags: ['Nodes'] }
   });
@@ -370,7 +384,8 @@ export async function nodeRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: e.message };
     }
-  }, { beforeHandle: [authenticate, authorize('nodes:read-creds')],
+  }, {
+    beforeHandle: [authenticate, authorize('nodes:read-creds')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Read node credentials (admin only)', tags: ['Nodes'] }
   });
@@ -384,7 +399,8 @@ export async function nodeRoutes(app: any, prefix = '') {
       return { error: 'Node not found' };
     }
     return { token: (node as any).token };
-  }, {beforeHandle: authenticate,
+  }, {
+    beforeHandle: authenticate,
     response: { 200: t.Object({ token: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get node token (admin only)', tags: ['Nodes'] }
   });
@@ -396,7 +412,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     const { nodeId } = ctx.body as any;
     const mapping = await nodeService.mapServer(uuid, nodeId);
     return { success: true, mapping };
-  }, { beforeHandle: [authenticate, authorize('nodes:map')],
+  }, {
+    beforeHandle: [authenticate, authorize('nodes:map')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Map server to node (admin only)', tags: ['Nodes'] }
   });

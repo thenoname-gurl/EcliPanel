@@ -45,6 +45,9 @@ interface Node {
   portRangeEnd?: number
   defaultIp?: string
   fqdn?: string
+  ipv6Subnet?: string
+  ipv6ExcludedPorts?: string
+  ipv6ReservedCount?: number
   cost?: number
   memory?: number
   disk?: number
@@ -117,6 +120,9 @@ export default function InfraNodesPage() {
   const [nodePortEnd, setNodePortEnd] = useState("")
   const [nodeDefaultIp, setNodeDefaultIp] = useState("")
   const [nodeFqdn, setNodeFqdn] = useState("")
+  const [nodeIpv6Subnet, setNodeIpv6Subnet] = useState("")
+  const [nodeIpv6ExcludedPorts, setNodeIpv6ExcludedPorts] = useState("")
+  const [nodeIpv6ReservedCount, setNodeIpv6ReservedCount] = useState("0")
   const [nodeCost, setNodeCost] = useState("")
   const [nodeMemory, setNodeMemory] = useState("")
   const [nodeDisk, setNodeDisk] = useState("")
@@ -187,6 +193,7 @@ export default function InfraNodesPage() {
     setNodeSftpProxyPort("")
     setNodePortStart(""); setNodePortEnd("")
     setNodeDefaultIp(""); setNodeFqdn("")
+    setNodeIpv6Subnet(""); setNodeIpv6ExcludedPorts(""); setNodeIpv6ReservedCount("0")
     setNodeCost("")
     setNodeMemory(""); setNodeDisk(""); setNodeCpu("")
     setNodeServerLimit("")
@@ -208,6 +215,9 @@ export default function InfraNodesPage() {
     setNodePortEnd(node.portRangeEnd != null ? String(node.portRangeEnd) : "")
     setNodeDefaultIp(node.defaultIp || "")
     setNodeFqdn((node as any).fqdn || "")
+    setNodeIpv6Subnet((node as any).ipv6Subnet || "")
+    setNodeIpv6ExcludedPorts((node as any).ipv6ExcludedPorts || "")
+    setNodeIpv6ReservedCount((node as any).ipv6ReservedCount != null ? String((node as any).ipv6ReservedCount) : "0")
     setNodeCost(node.cost != null ? String(node.cost) : "")
     setNodeMemory(node.memory != null ? String(node.memory) : "")
     setNodeDisk(node.disk != null ? String(node.disk) : "")
@@ -237,6 +247,9 @@ export default function InfraNodesPage() {
         portRangeEnd: nodePortEnd ? Number(nodePortEnd) : null,
         defaultIp: nodeDefaultIp || null,
         fqdn: nodeFqdn || null,
+        ipv6Subnet: nodeIpv6Subnet || null,
+        ipv6ExcludedPorts: nodeIpv6ExcludedPorts || null,
+        ipv6ReservedCount: nodeIpv6ReservedCount !== "" ? Number(nodeIpv6ReservedCount) : null,
         cost: nodeCost ? Number(nodeCost) : null,
         memory: nodeMemory ? Number(nodeMemory) : null,
         disk: nodeDisk ? Number(nodeDisk) : null,
@@ -673,6 +686,41 @@ export default function InfraNodesPage() {
                 </div>
               </div>
             </div>
+
+              {/* IPv6 config */}
+              <div className="border-t border-border pt-3 mt-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">IPv6</p>
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground">IPv6 Subnet</label>
+                    <input
+                      value={nodeIpv6Subnet}
+                      onChange={(e) => setNodeIpv6Subnet(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="e.g. 2001:db8:100::/64"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground">IPv6 Excluded Ports</label>
+                    <input
+                      value={nodeIpv6ExcludedPorts}
+                      onChange={(e) => setNodeIpv6ExcludedPorts(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="e.g. 25,465,587"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground">IPv6 Reserved Count</label>
+                    <input
+                      value={nodeIpv6ReservedCount}
+                      onChange={(e) => setNodeIpv6ReservedCount(e.target.value)}
+                      type="number"
+                      min="0"
+                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    />
+                  </div>
+                </div>
+              </div>
 
             {/* Cost */}
             <div className="flex flex-col gap-1">

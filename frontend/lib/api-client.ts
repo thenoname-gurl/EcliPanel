@@ -7,6 +7,15 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function formatRateLimitMessage(retryAfter?: string | number | null) {
+  const seconds = typeof retryAfter === 'string' ? Number(retryAfter) : retryAfter
+  if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
+    const rounded = Math.max(1, Math.ceil(seconds))
+    return `You’re doing that too often. Please wait ${rounded} second${rounded === 1 ? '' : 's'} and try again.`
+  }
+  return "You’re doing that too often. Please wait a moment and try again."
+}
+
 export async function apiFetch(
   path: string,
   options: Omit<RequestInit, 'body'> & { body?: any; timeout?: number; retries?: number } = {}
@@ -103,8 +112,12 @@ export async function apiFetch(
         let msg = text;
         try {
           const json = JSON.parse(text);
+          const retryAfter = json?.retryAfter ?? res.headers.get('Retry-After');
           let hasMessage = false;
-          if (json?.error) {
+          if (json?.error === 'rate_limited' || res.status === 429) {
+            msg = formatRateLimitMessage(retryAfter);
+            hasMessage = true;
+          } else if (json?.error) {
             msg = json.error;
             hasMessage = true;
           }

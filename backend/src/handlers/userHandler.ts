@@ -17,7 +17,7 @@ import { deleteMessageFromMailbox, fetchMailboxNow } from '../services/imapFetch
 import { detectMailboxSecurityFlags, extractMailboxAuthMetadata, extractMailboxPriority, resolveReverseDns } from '../utils/mailboxMessage';
 import { createOutboundEmailRecord, getOutboundEmailUsage, getSendLimitsForUser, sendOutboundEmailImmediately } from '../services/outboundEmailService';
 import { sendMail } from '../services/mailService';
-import { redisSet, redisGet, redisDel } from '../config/redis';
+import { consumeRateLimit, redisSet, redisGet, redisDel } from '../config/redis';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -167,6 +167,34 @@ function getAgeFromDate(date?: Date | string | null): number | null {
 
 function generateParentLinkCode(): string {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
+function getRequesterIp(ctx: any): string {
+  const forwarded = String(ctx?.headers?.['x-forwarded-for'] || '').trim();
+  const firstForwarded = forwarded.split(',')[0]?.trim();
+  const direct = String(ctx?.ip || ctx?.request?.ip || '').trim();
+  return (firstForwarded || direct || 'unknown').slice(0, 100);
+}
+
+async function enforceUserMutationRateLimit(ctx: any, scope: string, userId: number, limit: number, windowSeconds: number) {
+  try {
+    const ip = getRequesterIp(ctx);
+    const key = `rate:${scope}:user:${userId}:ip:${ip}`;
+    const result = await consumeRateLimit(key, limit, windowSeconds);
+    if (result.allowed) return null;
+
+    ctx.set.status = 429;
+    ctx.set.headers = {
+      ...(ctx.set.headers || {}),
+      'Retry-After': String(result.retryAfterSeconds),
+    };
+    return {
+      error: 'rate_limited',
+      retryAfter: result.retryAfterSeconds,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function sendVerificationEmailToUser(user: User) {
@@ -2078,6 +2106,9 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const profileRateLimit = await enforceUserMutationRateLimit(ctx, 'profile-update', requester.id, 6, 60);
+    if (profileRateLimit) return profileRateLimit;
+
     const payload = ctx.body as any;
     const isAdmin = hasPermissionSync(ctx, 'users:write');
     if (payload.password) {
@@ -2257,7 +2288,7 @@ export async function userRoutes(app: any, prefix = '') {
   }, {
    beforeHandle: authenticate,
     body: t.Any(),
-    response: { 200: t.Object({ success: t.Boolean(), user: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    response: { 200: t.Object({ success: t.Boolean(), user: userSchema }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 429: t.Object({ error: t.String(), retryAfter: t.Number() }) },
     detail: { summary: 'Update user profile', tags: ['Users'] }
   });
 
@@ -2278,6 +2309,9 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
+    const avatarRateLimit = await enforceUserMutationRateLimit(ctx, 'avatar-update', requester.id, 4, 120);
+    if (avatarRateLimit) return avatarRateLimit;
+
     const { file } = (ctx.body || {}) as any;
     const uploadFile = Array.isArray(file) ? file[0] : file;
     if (!uploadFile) {
@@ -2342,7 +2376,8 @@ export async function userRoutes(app: any, prefix = '') {
       400: t.Object({ error: t.String() }),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() })
+      404: t.Object({ error: t.String() }),
+      429: t.Object({ error: t.String(), retryAfter: t.Number() })
     },
     detail: { summary: 'Upload or update user avatar', tags: ['Users'] }
   });

@@ -10,7 +10,9 @@ import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
 import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { Plan } from '../models/plan.entity';
+import { PanelSetting } from '../models/panelSetting.entity';
 import { createActivityLog } from './logHandler';
+import { getGeoBlockRulesWithDefaults } from '../utils/eu';
 
 export async function ticketRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(Ticket);
@@ -38,6 +40,80 @@ export async function ticketRoutes(app: any, prefix = '') {
       out = out.replace(/([\uD800-\uDBFF][\uDC00-\uDFFF])/g, '?');
       return out;
     } catch (e) { return String(s); }
+  }
+
+  function parseDelimitedRules(raw: string | null | undefined): Record<string, number> {
+    if (!raw) return {};
+    const result: Record<string, number> = {};
+    const entries = String(raw)
+      .split(/[\n,;]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    for (const entry of entries) {
+      const [lhs, rhs] = entry.split(/[:=]/).map((value) => value?.trim());
+      if (!lhs || rhs === undefined) continue;
+      const value = Number(rhs);
+      if (!Number.isFinite(value)) continue;
+      result[lhs.toUpperCase()] = value;
+    }
+
+    return result;
+  }
+
+  function formatNumberedRules(rules: Record<string, number>, suffix = ''): string {
+    const entries = Object.entries(rules)
+      .filter(([, value]) => Number.isFinite(value))
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (!entries.length) return 'none configured';
+    return entries.map(([key, value]) => `${key.toUpperCase()}=${value}${suffix}`).join(', ');
+  }
+
+  function formatGeoBlockSummary(rules: Record<string, number>): string {
+    const entries = Object.entries(rules)
+      .filter(([, value]) => Number.isFinite(value) && value > 0)
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (!entries.length) return 'No geo-blocked countries are currently configured.';
+
+    const grouped = new Map<number, string[]>();
+    for (const [country, level] of entries) {
+      const key = Math.max(0, Math.min(5, Math.trunc(level)));
+      const list = grouped.get(key) || [];
+      list.push(country.toUpperCase());
+      grouped.set(key, list);
+    }
+
+    const parts = Array.from(grouped.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([level, countries]) => `level ${level}: ${countries.join(', ')}`);
+
+    return parts.join(' | ');
+  }
+
+  async function buildPolicyKnowledgeBase(): Promise<string> {
+    const panelSettingRepo = AppDataSource.getRepository(PanelSetting);
+    const [geoRules, geoSetting, taxSetting] = await Promise.all([
+      getGeoBlockRulesWithDefaults(),
+      panelSettingRepo.findOneBy({ key: 'geoBlockCountries' }),
+      panelSettingRepo.findOneBy({ key: 'billingTaxRules' }),
+    ]);
+
+    const taxRules = parseDelimitedRules(taxSetting?.value || '');
+    const rawGeoRules = parseDelimitedRules(geoSetting?.value || '');
+    const mergedGeoRules = { ...rawGeoRules, ...geoRules };
+
+    return [
+      'Current policy knowledge base for EcliPanel support tickets:',
+      'Terms of Service (effective 2026-04-13): EclipseSystems under Misiu LLC; services include server hosting, web hosting, voice server hosting, reselling, and related support. AI/automation may be used for fraud detection, abuse prevention, and security. Paid plans may include an SLA with 95% monthly uptime; free plans are excluded. Registration requires accurate information. Minimum age is 13 generally, 14 in the EU and UK, with country-specific rules possibly higher. Restricted jurisdictions are not served. Deletion requests are reviewed in about 14 days and, if approved, completed within about 14 additional days. Acceptable use and email/AI policies apply.',
+      'Privacy Policy (updated 2026-04-13): we collect account information, usage data, cookies, support communication, and identity verification data when needed. We use data to provide the service, manage accounts, communicate with users, and detect/prevent abuse or fraud. We do not sell personal data. Data may be retained for support, security, compliance, billing, and legal obligations. Users may contact legal@ecli.app for privacy requests.',
+      'Acceptable Use Policy: no illegal activity, malware, scanning/attacks, spam/phishing/fraud, proxy/anonymizer/C2/VPN (including Tailscale exist nodes) services unless explicitly approved, IP/privacy infringement, disruption, bypassing limits/security, or unapproved high-risk AI use. Abuse reports go to abuse@ecli.app; support@ecli.app and hi@ecli.app are also valid contacts.',
+      'Other policies: Email Policy, AI Policy, DMCA/Copyright Policy, Cookies Policy, Imprint, and Minimum Age Policy exist in /legal. For policy disputes, exceptions, or legal interpretation, prefer escalation to legal@ecli.app instead of inventing an answer.',
+      'Geo-block rules: level 0 = no restriction; level 1 = ID verification blocked; level 2 = free services blocked; level 3 = educational services blocked; level 4 = paid services blocked / subuser-only; level 5 = registration blocked. Current geo-blocked countries: ' + formatGeoBlockSummary(mergedGeoRules),
+      'Current geo-block rule map: ' + formatNumberedRules(mergedGeoRules),
+      'Current tax rules: ' + formatNumberedRules(taxRules, '%') + '. Tax resolution may use country code, country name, EU, *, or DEFAULT keys.',
+    ].join('\n');
   }
 
   function normalizeTicketMessages(ticket: any) {
@@ -467,6 +543,16 @@ export async function ticketRoutes(app: any, prefix = '') {
         }
       } catch { /* skip */ }
 
+      let policyKnowledgeBase = 'Policy knowledge base unavailable.';
+      try {
+        policyKnowledgeBase = await buildPolicyKnowledgeBase();
+      } catch { /* skip */ }
+
+      const policyKnowledgeMessage = {
+        role: 'system',
+        content: `Policy knowledge base:\n${policyKnowledgeBase}`,
+      };
+
       // STAGE 1 aka Intent Classification & Routing
 
       const stage1System = `You are a ticket intent classifier for EcliPanel (game/app server hosting).
@@ -488,13 +574,14 @@ Output JSON only:
 
 Rules:
 - "isOutage": true if any mention of node down, node offline, multiple servers unreachable, host unreachable, service-wide failure.
-- "needsHumanExpertise": true if the issue requires SSH/root/node access, billing disputes, refunds, legal, security incidents, or anything that cannot be resolved through the web panel alone.
+- "needsHumanExpertise": true if the issue requires SSH/root/node access, billing disputes, refunds, legal/privacy/tax/geoblock disputes or exceptions, security incidents, or anything that cannot be resolved through the web panel alone.
 - "missingInfo": list specific details the user hasn't provided but we need (server ID, error message, node name, etc). Empty array if sufficient.
 - "severity": "critical" for outages/data-loss, "high" for service-degraded, "medium" for feature issues, "low" for questions/general.
 - Be conservative with spam detection — only flag obvious spam/abuse.`;
 
       const stage1Messages = [
         { role: 'system', content: stage1System },
+        policyKnowledgeMessage,
         { role: 'system', content: `Context:\n${buildContext()}` },
         ...conversationMessages(),
         { role: 'user', content: 'Classify this ticket. Output JSON only.' },
@@ -617,6 +704,7 @@ Reply guidelines:
 - If you cannot resolve confidently, say so and explain why human staff are needed.
 - Do not invent details. Ask for missing info if needed.
 - Do not offer billing/purchase actions — link to /dashboard/billing and provide sales email.
+- For ToS, Privacy Policy, Acceptable Use, Email Policy, AI Policy, Minimum Age, DMCA, geo-block, or tax questions, answer from the policy knowledge base and current settings. Do not invent clauses, rates, or blocked countries, please always mention you are not lawyer and advice user to read our policies at https://ecli.app/legal.
 - Keep any summary guide compact at the end.
 ${intentContext}
 
@@ -625,6 +713,7 @@ Write ONLY the user-facing reply.`;
 
       const stage2Messages = [
         { role: 'system', content: stage2System },
+        policyKnowledgeMessage,
         { role: 'system', content: `User & Ticket context:\n${buildContext()}` },
         ...conversationMessages(),
         {
@@ -674,7 +763,7 @@ Output a JSON object with control directives. NOTHING else — no markdown, no e
 }
 
 Rules:
-- "escalate": true if human staff must act (node/host issues, SSH needed, billing disputes, security, AI cannot resolve, outage).
+- "escalate": true if human staff must act (node/host issues, SSH needed, billing disputes, legal/privacy/tax/geoblock disputes or exceptions, security, AI cannot resolve, outage).
 - "spam": true ONLY for obvious spam/abuse (gibberish, ads, phishing).
 - "close": true ONLY if the issue is definitively resolved in the reply. Be conservative.
 - "sets": ONLY include keys that should CHANGE.
@@ -691,6 +780,7 @@ ${intent ? `Intent analysis from Stage 1: ${JSON.stringify(intent)}` : ''}`;
 
       const stage3Messages = [
         { role: 'system', content: stage3System },
+        policyKnowledgeMessage,
         ...conversationMessages(),
         { role: 'assistant', content: aiReply },
         { role: 'user', content: 'Output the control directive JSON for this ticket. JSON only, no other text.' },
@@ -745,9 +835,9 @@ Review the reply for these issues and output JSON:
 
 Check for:
 1. Shell/SSH/terminal/root commands (systemctl, docker, sudo, etc) — these are FORBIDDEN.
-2. Invented information not supported by the ticket context.
+2. Invented information not supported by the ticket context or policy knowledge base, including ToS, Privacy Policy, Acceptable Use, geo-block, or tax details.
 3. Links to domains other than ecli.app, ecli.app, eclipsesystems.top, or status.ecli.app.
-4. Promises about refunds, SLAs, uptime guarantees the AI shouldn't make.
+4. Promises about refunds, SLAs, uptime guarantees, taxes, exemptions, or legal outcomes the AI shouldn't make.
 5. Reply is too short to be helpful (< 2 sentences) or too verbose.
 6. References to "SSH access", "root access", "terminal", "command line" in any form.
 
@@ -756,6 +846,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
         const stage4Messages = [
           { role: 'system', content: stage4System },
+          policyKnowledgeMessage,
           { role: 'system', content: `Ticket context:\n${buildContext()}` },
           { role: 'user', content: `Review this AI reply:\n\n---\n${aiReply}\n---\n\nOutput quality check JSON only.` },
         ];

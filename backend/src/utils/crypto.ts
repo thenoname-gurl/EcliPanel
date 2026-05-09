@@ -114,6 +114,17 @@ export function encrypt(text: string): string {
   return iv.toString('base64') + ':' + tag.toString('base64') + ':' + encrypted;
 }
 
+export function encryptBufferToString(data: Buffer): string {
+  return encrypt(data.toString('base64'));
+}
+
+function isEncryptedTextPayload(value: string): boolean {
+  if (isPqEncryptedString(value)) return true;
+  const parts = value.split(':');
+  if (parts.length !== 3) return false;
+  return parts.every((part) => /^[A-Za-z0-9+/=]+$/.test(part));
+}
+
 export function decrypt(enc: string): string {
   const isPq = isPqEncryptedString(enc);
   if (isPq) {
@@ -173,10 +184,20 @@ export function encryptBuffer(data: Buffer): Buffer {
 }
 
 export function decryptBuffer(data: Buffer): Buffer {
-  const prefix = data.slice(0, PQ_PREFIX.length + 1).toString('utf8');
-  if (prefix === `${PQ_PREFIX}:`) {
+  const asText = data.toString('utf8');
+  if (isEncryptedTextPayload(asText)) {
+    try {
+      const decrypted = decrypt(asText);
+      return Buffer.from(decrypted, 'base64');
+    } catch {
+      // bruh
+    }
+  }
+
+  const prefix = data.slice(0, PQ_PREFIX.length).toString('utf8');
+  if (prefix === PQ_PREFIX) {
     const payload = data.toString('utf8');
-    const parts = payload.slice(PQ_PREFIX.length + 1).split(':');
+    const parts = payload.slice(PQ_PREFIX.length).split(':');
     if (parts.length !== 4) {
       throw new Error('Invalid PQ encrypted payload');
     }
