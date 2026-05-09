@@ -122,5 +122,5 @@ export async function collectAndStoreMetrics() {
 export async function startMetricsCollector() {
   console.log('Starting Metrics Collector...');
   await collectAndStoreMetrics();
-  setInterval(collectAndStoreMetrics, 60 * 1000);
+  setInterval(collectAndStoreMetrics, 5 * 1000);
 }
