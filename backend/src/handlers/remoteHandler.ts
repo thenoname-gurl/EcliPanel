@@ -209,7 +209,12 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
   const fqdns = buildAllocationFqdns(alloc, mappings);
   const defaultAlloc = buildAllocationDefault(alloc);
 
-  let object = {
+  // On god I hate this messy formatting, but wings is very particular
+  // about it and changing it would break compatibility with both Go and Rust wings,
+  // which would be a nightmare to coordinate and support, so here we are, 
+  // in this beautiful mess of code, forever.
+  // KILL ME
+  return {
     uuid: cfg.uuid,
     settings: {
       uuid: cfg.uuid,
@@ -276,7 +281,6 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
       configs: proc.configs || [],
     },
   };
-  return object;
 }
 
 // ─── JWT helpers for WebSocket auth ───────────────────────────────────────────
@@ -337,7 +341,8 @@ export async function remoteRoutes(app: any, prefix: string) {
       if (mountIds.length) {
         const mounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
         for (const m of mounts) allMounts[m.id] = m;
-      }
+      }let object = {
+    uuid: cfg.uuid,
       for (const sm of serverMounts) {
         const mount = allMounts[sm.mountId];
         if (mount) {
