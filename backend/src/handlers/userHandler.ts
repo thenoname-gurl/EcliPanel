@@ -197,6 +197,27 @@ async function enforceUserMutationRateLimit(ctx: any, scope: string, userId: num
   }
 }
 
+async function enforceOutboundEmailRateLimit(ctx: any, scope: string, userId: number, limit: number, windowSeconds: number) {
+  try {
+    const ip = getRequesterIp(ctx);
+    const key = `rate:${scope}:user:${userId}:ip:${ip}`;
+    const result = await consumeRateLimit(key, limit, windowSeconds);
+    if (result.allowed) return null;
+
+    ctx.set.status = 429;
+    ctx.set.headers = {
+      ...(ctx.set.headers || {}),
+      'Retry-After': String(result.retryAfterSeconds),
+    };
+    return {
+      error: 'rate_limited',
+      retryAfter: result.retryAfterSeconds,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function sendVerificationEmailToUser(user: User) {
   const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
   const token = uuidv4();
@@ -1721,6 +1742,9 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Message body or HTML content is required' };
     }
 
+    const sendRateLimit = await enforceOutboundEmailRateLimit(ctx, 'mailbox-send', requester.id, 8, 60);
+    if (sendRateLimit) return sendRateLimit;
+
     const limits = await getSendLimitsForUser(requester);
     if (limits.dailyLimit <= 0) {
       ctx.set.status = 403;
@@ -1734,6 +1758,10 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const sendNow = usage.sentToday < limits.dailyLimit;
+    if (!sendNow) {
+      const queueRateLimit = await enforceOutboundEmailRateLimit(ctx, 'mailbox-queue', requester.id, 3, 600);
+      if (queueRateLimit) return queueRateLimit;
+    }
     const scheduledAt = sendNow ? new Date() : new Date(Date.now() + 24 * 60 * 60 * 1000);
     const record = await createOutboundEmailRecord({
       user: requester,
