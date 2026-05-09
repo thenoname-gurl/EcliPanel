@@ -2097,7 +2097,7 @@ export async function serverRoutes(app: any, prefix = '') {
     try {
       const res = await svc.downloadFile(id, path);
       const filename = path.split('/').pop() || 'download';
-      const contentType = res.headers?.['content-type'] || 'application/octet-stream';
+      const contentType = String(res.headers?.['content-type'] ?? 'application/octet-stream');
 
       let body: Uint8Array;
 
