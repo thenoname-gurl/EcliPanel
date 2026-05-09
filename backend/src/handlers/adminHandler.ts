@@ -2612,7 +2612,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }
     const uploadDir = process.cwd();
     for (const field of ['idDocumentUrl', 'selfieUrl'] as const) {
-      const url = rec[field];
+      const url = typeof rec[field] === 'string' ? rec[field].trim() : '';
       if (url) {
         const filepath = getSafeRelativeFilePath(uploadDir, url);
         if (filepath) {
