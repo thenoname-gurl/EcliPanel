@@ -341,8 +341,7 @@ export async function remoteRoutes(app: any, prefix: string) {
       if (mountIds.length) {
         const mounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
         for (const m of mounts) allMounts[m.id] = m;
-      }let object = {
-    uuid: cfg.uuid,
+      }
       for (const sm of serverMounts) {
         const mount = allMounts[sm.mountId];
         if (mount) {
