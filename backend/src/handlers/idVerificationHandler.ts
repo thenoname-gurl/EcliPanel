@@ -30,6 +30,16 @@ function isUploadFile(value: any): boolean {
 export async function idVerificationRoutes(app: any, prefix = '') {
   app.post(prefix + '/id-verification', async (ctx: any) => {
     const user = ctx.user as User;
+    try {
+      const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0,200);
+      const keyIp = `rate:kyc:ip:${ip}`;
+      const keyUser = `rate:kyc:user:${user?.id}`;
+      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.KYC_RATE_IP || 20), Number(process.env.KYC_WINDOW_IP || 3600));
+      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+      const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.KYC_RATE_USER || 3), Number(process.env.KYC_WINDOW_USER || 86400));
+      if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
+    } catch (e) { }
+
     if (!(await canPerformIdVerification(user?.billingCountry))) {
       ctx.set.status = 403;
       return { error: 'ID verification is not available for your country under geo-block policy' };
