@@ -7,19 +7,15 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { API_ENDPOINTS } from "@/lib/panel-config";
 
+const DEFAULT_TITLE = "EclipseSystems";
+const DEFAULT_DESCRIPTION = "Next-Gen Server Management platform.";
+
 function getBackendBaseUrl(): string {
   return (
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
     ""
   ).replace(/\/+$/, "");
-}
-
-const DEFAULT_TITLE = 'EclipseSystems'
-const DEFAULT_DESCRIPTION = 'Next-Gen Server Management platform.'
-
-function getBackendBaseUrl(): string {
-  return (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/+$/, '')
 }
 
 const _geist = Geist({ subsets: ["latin"] });
