@@ -3,9 +3,11 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 export function End() {
   const t = useTranslations("landing");
+  const { isLoggedIn } = useAuth();
 
   return (
     <div className="my-12 sm:my-20 mt-20 sm:mt-40 mx-4 sm:mx-8 lg:mx-0 flex flex-col gap-6 relative overflow-hidden py-14 sm:py-20 px-6 rounded-2xl">
@@ -50,9 +52,9 @@ export function End() {
         transition={{ duration: 0.7, ease: "easeOut", delay: 0.5 }}
         className="flex items-center gap-3 sm:gap-4 justify-center flex-wrap relative z-40"
       >
-        <Link href="/register">
+        <Link href={isLoggedIn ? "/dashboard" : "/register"}>
           <button className="bg-white text-black px-5 sm:px-4 py-2 sm:py-1.5 rounded-full text-base sm:text-[18px] font-flink transition-colors hover:bg-white/65 cursor-pointer duration-200">
-            {t("finalCta.cta")}
+            {isLoggedIn ? t("nav.openDashboard") : t("finalCta.cta")}
           </button>
         </Link>
         <Link href="#features">
