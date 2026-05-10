@@ -1,17 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Didact_Gothic, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Didact_Gothic } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { API_ENDPOINTS } from "@/lib/panel-config";
-import { AuthProvider, type User } from "@/hooks/useAuth";
-import { Footer } from "@/components/Footer";
-import { RenderLogger } from "@/components/RenderLogger";
-import { THEMES } from "@/lib/themes";
-import GlobalQueryBanner from "@/components/GlobalQueryBanner";
-import Guide from "@/components/Guide";
 
 function getBackendBaseUrl(): string {
   return (
@@ -21,14 +15,10 @@ function getBackendBaseUrl(): string {
   ).replace(/\/+$/, "");
 }
 
-const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const _geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-});
-const _inter = Inter({ variable: "--font-inter" });
+const _geist = Geist({ subsets: ["latin"] });
+const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const _didactGothic = Didact_Gothic({
-  variable: "--font-dedact-gothic",
+  variable: "--font-didact-gothic",
   weight: ["400"],
 });
 
@@ -58,6 +48,13 @@ export const viewport: Viewport = {
   themeColor: "#0a0a12",
   userScalable: true,
 };
+
+import { AuthProvider, type User } from "@/hooks/useAuth";
+import { Footer } from "@/components/Footer";
+import { RenderLogger } from "@/components/RenderLogger";
+import { THEMES } from "@/lib/themes";
+import GlobalQueryBanner from "@/components/GlobalQueryBanner";
+import Guide from "@/components/Guide";
 
 export default async function RootLayout({
   children,
@@ -135,7 +132,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
       <body
-        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_geist.variable} ${_geistMono.variable} ${_inter.variable} ${_didactGothic.variable}`}
+        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_didactGothic.variable}`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider initialUser={initialUser}>
