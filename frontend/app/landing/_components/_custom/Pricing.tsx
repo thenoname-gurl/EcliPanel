@@ -140,7 +140,7 @@ function PlanCard({
               }}
             >
               {Icon && <Icon className="text-white shrink-0" size={18} />}
-              <p className="text-white/70 font-inter text-sm sm:text-base z-[100]">
+              <p className="text-white/70 font-inter text-sm sm:text-base z-100">
                 {f}
               </p>
             </motion.span>
@@ -150,7 +150,7 @@ function PlanCard({
 
       <div className="flex flex-col gap-2 mt-auto pt-6 sm:pt-10">
         <button
-          className={`${highlight ? "bg-[#B85A96]" : "bg-[#202123]"} px-4 py-2 rounded-full text-[18px] transition-colors ${highlight ? "hover:bg-[#a34f86]" : "hover:bg-[#1f1f21]"} cursor-pointer duration-200 text-white z-[100]`}
+          className={`${highlight ? "bg-[#B85A96]" : "bg-[#202123]"} px-4 py-2 rounded-full text-[18px] transition-colors ${highlight ? "hover:bg-[#a34f86]" : "hover:bg-[#1f1f21]"} cursor-pointer duration-200 text-white z-100`}
         >
           {cta}
         </button>
