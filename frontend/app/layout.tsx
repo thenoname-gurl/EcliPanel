@@ -1,17 +1,33 @@
 import type { Metadata, Viewport } from "next";
-import { Didact_Gothic, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Didact_Gothic, Inter } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { API_ENDPOINTS } from "@/lib/panel-config";
+import { AuthProvider, type User } from "@/hooks/useAuth";
+import { Footer } from "@/components/Footer";
+import { RenderLogger } from "@/components/RenderLogger";
+import { THEMES } from "@/lib/themes";
+import GlobalQueryBanner from "@/components/GlobalQueryBanner";
+import Guide from "@/components/Guide";
 
-const _inter = Inter({
-  variable: "--font-inter",
+function getBackendBaseUrl(): string {
+  return (
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    ""
+  ).replace(/\/+$/, "");
+}
+
+const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const _geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
-
-const _dedactGothic = Didact_Gothic({
+const _inter = Inter({ variable: "--font-inter" });
+const _didactGothic = Didact_Gothic({
   variable: "--font-dedact-gothic",
   weight: ["400"],
 });
@@ -42,13 +58,6 @@ export const viewport: Viewport = {
   themeColor: "#0a0a12",
   userScalable: true,
 };
-
-import { AuthProvider, type User } from "@/hooks/useAuth";
-import { Footer } from "@/components/Footer";
-import { RenderLogger } from "@/components/RenderLogger";
-import { THEMES } from "@/lib/themes";
-import GlobalQueryBanner from "@/components/GlobalQueryBanner";
-import Guide from "@/components/Guide";
 
 export default async function RootLayout({
   children,
@@ -86,10 +95,11 @@ export default async function RootLayout({
   );
 
   let themeName: string | null = null;
-  let initialUser: User | null | undefined = undefined;
+  let initialUser: User | null = null;
 
   try {
-    const res = await fetch(API_ENDPOINTS.session, {
+    const backendBase = getBackendBaseUrl();
+    const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
       headers: { cookie: cookieHeader },
       cache: "no-store",
     });
@@ -101,7 +111,7 @@ export default async function RootLayout({
       initialUser = null;
     }
   } catch (e) {
-    initialUser = undefined;
+    initialUser = null;
   }
 
   const inlineScript = `(() => {
@@ -125,7 +135,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
       <body
-        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_inter.variable} ${_dedactGothic.variable}`}
+        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_geist.variable} ${_geistMono.variable} ${_inter.variable} ${_didactGothic.variable}`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider initialUser={initialUser}>
