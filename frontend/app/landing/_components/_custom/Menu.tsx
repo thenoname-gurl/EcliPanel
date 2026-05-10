@@ -77,7 +77,7 @@ export function Menu() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed top-0 left-0 w-full z-[1100] bg-[#e594c7]/90 backdrop-blur-md pt-24 pb-8 px-8 flex flex-col gap-6 md:hidden"
+            className="fixed top-0 left-0 w-full z-1100 bg-[#e594c7]/90 backdrop-blur-md pt-24 pb-8 px-8 flex flex-col gap-6 md:hidden"
           >
             <ul className="flex flex-col gap-5 list-none text-white/90 **:font-flink">
               {links.map(({ href, label }, i) => (
