@@ -387,6 +387,11 @@ export default function RegisterPage() {
   const [step, setStep] = useState(0)
   const steps = [t("steps.account"), t("steps.address"), t("steps.verify")]
   const searchParams = useSearchParams()
+  const rawRedirect = searchParams.get("redirect")
+  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : ""
+  const loginHref = redirectTo
+    ? `/login?redirect=${encodeURIComponent(redirectTo)}`
+    : "/login"
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -669,7 +674,7 @@ export default function RegisterPage() {
           invisibleCaptchaDelay: invisibleTokenRequestedAt ? Date.now() - invisibleTokenRequestedAt : undefined,
         }),
       })
-      router.push("/login")
+      router.push(loginHref)
     } catch (err: any) {
       setError(err.message || t("registrationFailed"))
     } finally {
@@ -783,7 +788,7 @@ export default function RegisterPage() {
               {registrationDisabled ? (
                 <div className="text-center py-10">
                   <p className="text-muted-foreground mb-5">{t("registrationNotAvailable")}</p>
-                  <a href="/login" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors">
+                  <a href={loginHref} className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors">
                     {t("signInInstead")} <ChevronRight className="h-4 w-4" />
                   </a>
                 </div>
@@ -1187,7 +1192,7 @@ export default function RegisterPage() {
             <div className="border-t border-border/40 bg-secondary/10 px-4 sm:px-8 py-4">
               <p className="text-center text-sm text-muted-foreground">
                 {t("alreadyHaveAccount")}{" "}
-                <a href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+                <a href={loginHref} className="text-primary hover:text-primary/80 font-medium transition-colors">
                   {t("signIn")}
                 </a>
               </p>
