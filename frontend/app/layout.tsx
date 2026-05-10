@@ -15,6 +15,13 @@ function getBackendBaseUrl(): string {
   ).replace(/\/+$/, "");
 }
 
+const DEFAULT_TITLE = 'EclipseSystems'
+const DEFAULT_DESCRIPTION = 'Next-Gen Server Management platform.'
+
+function getBackendBaseUrl(): string {
+  return (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/+$/, '')
+}
+
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const _didactGothic = Didact_Gothic({

@@ -30,6 +30,40 @@ const STATIC_EXT =
   /\.(js|css|png|jpg|jpeg|webp|svg|ico|json|xml|txt|woff2?|ttf|eot|map)$/i;
 
 const HEADLESS_RENDERERS = ['swiftshader', 'llvmpipe', 'mesa'];
+const SEO_BOT_PATTERNS = [
+  'googlebot',
+  'bingbot',
+  'duckduckbot',
+  'yandex',
+  'baiduspider',
+  'applebot',
+  'slurp',
+  'facebookexternalhit',
+  'twitterbot',
+  'linkedinbot',
+  'slackbot',
+  'discordbot',
+  'telegrambot',
+  'whatsapp',
+  'curl',
+  'wget',
+  'bot',
+  'crawler',
+  'spider',
+  'preview',
+];
+
+const PROTECTED_ROUTE_PREFIXES = ['/dashboard'];
+const ADMIN_ROUTE_PREFIXES = ['/dashboard/admin'];
+const AUTH_ROUTE_PREFIXES = ['/', '/login', '/register'];
+const ADMIN_PANEL_PERMISSIONS = [
+  'admin:access'
+];
+
+interface MiddlewareSessionUser {
+  role?: string;
+  permissions?: string[];
+}
 
 interface CrawlerConfig {
   name: string;
@@ -410,6 +444,12 @@ function isVerifiedCrawler(req: NextRequest): boolean {
   return false;
 }
 
+function isSeoCrawlerRequest(req: NextRequest): boolean {
+  const ua = (req.headers.get('user-agent') ?? '').toLowerCase();
+  if (!ua) return false;
+  return SEO_BOT_PATTERNS.some((pattern) => ua.includes(pattern));
+}
+
 function shouldBypass(pathname: string): boolean {
   if (BYPASS_PATHS.some((p) => pathname.startsWith(p))) return true;
   return STATIC_EXT.test(pathname);
@@ -417,6 +457,83 @@ function shouldBypass(pathname: string): boolean {
 
 function isHtmlRequest(req: NextRequest): boolean {
   return (req.headers.get('accept') ?? '').includes('text/html');
+}
+
+function isProtectedRoute(pathname: string): boolean {
+  return PROTECTED_ROUTE_PREFIXES.some((prefix) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+function isAdminRoute(pathname: string): boolean {
+  return ADMIN_ROUTE_PREFIXES.some((prefix) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+function isAuthRoute(pathname: string): boolean {
+  if (pathname === '/') return true;
+  return AUTH_ROUTE_PREFIXES.some((prefix) =>
+    prefix !== '/' && (pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
+}
+
+function getBackendBaseUrl(): string {
+  return (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/+$/, '');
+}
+
+async function hasActiveSession(req: NextRequest): Promise<boolean> {
+  return (await getSessionUser(req)) !== null;
+}
+
+async function getSessionUser(req: NextRequest): Promise<MiddlewareSessionUser | null> {
+  const backendBase = getBackendBaseUrl();
+  if (!backendBase) return null;
+
+  try {
+    const res = await fetch(`${backendBase}/api/auth/session`, {
+      method: 'GET',
+      headers: {
+        cookie: req.headers.get('cookie') || '',
+      },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function permissionMatches(granted: string, required: string): boolean {
+  if (!granted || !required) return false;
+  if (granted === '*' || granted === required) return true;
+
+  const parts = String(granted).split(':');
+  const reqParts = String(required).split(':');
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === '*') return true;
+    if (reqParts[i] !== parts[i]) return false;
+  }
+
+  return true;
+}
+
+function hasPermission(user: MiddlewareSessionUser | null, required: string): boolean {
+  if (!user) return false;
+
+  if (user.role === '*' || user.role === 'rootAdmin' || user.role === 'admin') return true;
+
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+  if (permissions.includes('*')) return true;
+
+  return permissions.some((permission) => permissionMatches(permission, required));
+}
+
+function canAccessAdmin(user: MiddlewareSessionUser | null): boolean {
+  return ADMIN_PANEL_PERMISSIONS.some((permission) => hasPermission(user, permission));
 }
 
 const SHORT_URL_RESERVED_ROOT_PATHS = new Set([
@@ -908,6 +1025,43 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
   if (pathname === '/api/browser-verify' && req.method === 'POST') {
     return handleVerify(req);
+  }
+
+  if (
+    req.method === 'GET' &&
+    isHtmlRequest(req) &&
+    isSeoCrawlerRequest(req) &&
+    !isProtectedRoute(pathname) &&
+    !isAdminRoute(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
+  if (req.method === 'GET' && isHtmlRequest(req)) {
+    const protectedRoute = isProtectedRoute(pathname);
+    const adminRoute = isAdminRoute(pathname);
+    const authRoute = isAuthRoute(pathname);
+
+    if (protectedRoute || authRoute || adminRoute) {
+      const sessionUser = await getSessionUser(req);
+      const loggedIn = !!sessionUser;
+
+      if (protectedRoute && !loggedIn) {
+        const loginUrl = new URL('/login', req.url);
+        if (pathname !== '/dashboard') {
+          loginUrl.searchParams.set('next', pathname);
+        }
+        return NextResponse.redirect(loginUrl);
+      }
+
+      if (adminRoute && loggedIn && !canAccessAdmin(sessionUser)) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+
+      if (authRoute && loggedIn) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+    }
   }
 
   if (shouldBypass(pathname)) return NextResponse.next();
