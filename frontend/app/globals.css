@@ -2,24 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@font-face {
-  font-family: "Flink";
-  src: url("/fonts/flink-regular.otf");
-  font-weight: 400;
-}
-
-@font-face {
-  font-family: "Flink";
-  src: url("/fonts/flink-bold.otf");
-  font-weight: 700;
-}
-
-@font-face {
-  font-family: "Flink";
-  src: url("/fonts/flink-black.otf");
-  font-weight: 900;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -107,8 +89,8 @@
   --font-sans: "Geist", "Geist Fallback";
   --font-mono: "Geist Mono", "Geist Mono Fallback";
   --font-inter: var(--font-inter);
-  --font-flink: "Flink";
-  --font-heading: "Flink";
+  --font-flink: var(--font-dedact-gothic);
+  --font-heading: var(--font-dedact-gothic);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
