@@ -13,7 +13,7 @@ export function End() {
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 140% 100% at 50% 100%, #7e87ff33 0%, transparent 100%)",
+            "radial-gradient(ellipse 140% 100% at 50% 100%, #B85A96 0%, transparent 100%)",
         }}
         initial={{ opacity: 0, y: "100%" }}
         whileInView={{ opacity: 1, y: "0%" }}
