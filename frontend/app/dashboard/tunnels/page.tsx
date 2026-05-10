@@ -91,7 +91,7 @@ function LoadingState({ label }: { label: string }) {
   )
 }
 
-function CopyButton({ value, className = "" }: { value: string; className?: string }) {
+function CopyButton({ value, className = "", titleText }: { value: string; className?: string; titleText?: string }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = () => {
     navigator.clipboard.writeText(value)
@@ -101,7 +101,7 @@ function CopyButton({ value, className = "" }: { value: string; className?: stri
   return (
     <button
       onClick={handleCopy}
-      title="Copy"
+      title={titleText}
       className={`rounded p-1 text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-all active:scale-90 ${className}`}
     >
       {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -179,7 +179,7 @@ export default function TunnelsPage() {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   async function approve(userCode: string, kind: string) {
-    const name = prompt("Name for device", "agent")
+    const name = prompt(t("prompts.nameForDevice"), t("prompts.defaultDeviceName"))
     if (!name) return
     setActionLoading(`approve-${userCode}`)
     try {
@@ -199,7 +199,7 @@ export default function TunnelsPage() {
   async function createAllocation() {
     setFormError(null)
     if (!selectedDeviceId) {
-      setFormError("Please select a client device first.")
+      setFormError(t("states.selectClientFirst"))
       return
     }
     setActionLoading("create-allocation")
@@ -229,7 +229,7 @@ export default function TunnelsPage() {
   }
 
   async function deleteDevice(id: number) {
-    if (!confirm("Delete this tunnel device and all its allocations?")) return
+    if (!confirm(t("prompts.deleteDeviceWithAllocations"))) return
     setActionLoading(`delete-${id}`)
     try {
       await apiFetch(`/api/tunnel/devices/${id}/delete`, { method: "POST" })
@@ -294,7 +294,7 @@ export default function TunnelsPage() {
               <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-foreground">{t("downloads.client")}</span>
-                  <Badge variant="muted">Client</Badge>
+                  <Badge variant="muted">{t("downloads.clientBadge")}</Badge>
                 </div>
                 <CommandSnippet cmd={curlClientCmd} />
                 <p className="text-xs text-muted-foreground">{t("downloads.clientCurlDesc")}</p>
@@ -312,7 +312,7 @@ export default function TunnelsPage() {
               <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-foreground">{t("downloads.server")}</span>
-                  <Badge variant="muted">Server</Badge>
+                  <Badge variant="muted">{t("downloads.serverBadge")}</Badge>
                 </div>
                 <CommandSnippet cmd={curlServerCmd} />
                 <p className="text-xs text-muted-foreground">{t("downloads.serverCurlDesc")}</p>
@@ -423,8 +423,8 @@ export default function TunnelsPage() {
                       onChange={(e) => setProtocol(e.target.value)}
                       className={selectCls}
                     >
-                      <option value="tcp">TCP</option>
-                      <option value="udp">UDP</option>
+                      <option value="tcp">{t("labels.protocolTcp")}</option>
+                      <option value="udp">{t("labels.protocolUdp")}</option>
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                   </div>
@@ -467,7 +467,7 @@ export default function TunnelsPage() {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{devices.length} registered</p>
+                  <p className="text-xs text-muted-foreground">{t("states.devicesRegistered", { count: devices.length })}</p>
                 </div>
               </div>
 
@@ -545,7 +545,7 @@ export default function TunnelsPage() {
                                 <code className="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-xs text-foreground">
                                   {device.user_code}
                                 </code>
-                                <CopyButton value={device.user_code} />
+                                <CopyButton value={device.user_code} titleText={t("actions.copy")} />
                               </div>
                             </td>
                             {/* Status */}
@@ -649,7 +649,7 @@ export default function TunnelsPage() {
               </IconBox>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">{t("sections.allocations")}</h2>
-                <p className="text-xs text-muted-foreground">{allocations.length} tunnel(s) allocated</p>
+                <p className="text-xs text-muted-foreground">{t("states.tunnelsAllocated", { count: allocations.length })}</p>
               </div>
             </div>
 
@@ -686,7 +686,7 @@ export default function TunnelsPage() {
                             <span className="font-mono text-xs text-foreground">
                               {a.host}:{a.port}
                             </span>
-                            <CopyButton value={`${a.host}:${a.port}`} />
+                            <CopyButton value={`${a.host}:${a.port}`} titleText={t("actions.copy")} />
                           </div>
                         </td>
                         {/* Local Target */}
@@ -713,7 +713,7 @@ export default function TunnelsPage() {
                         </td>
                         {/* Created */}
                         <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                          {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}
+                          {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : t("states.noDate")}
                         </td>
                         {/* Actions */}
                         <td className="px-4 py-3 text-right">
