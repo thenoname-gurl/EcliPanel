@@ -223,7 +223,8 @@
       "network": "Сеть",
       "faq": "FAQ",
       "signIn": "Войти",
-      "getStarted": "Начать"
+      "getStarted": "Начать",
+      "openDashboard": "Открыть панель"
     },
     "statusPill": {
       "connecting": "Подключение...",

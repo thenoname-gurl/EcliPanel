@@ -359,7 +359,7 @@ export const AuthProvider = ({
   useEffect(() => {
     if (authState !== "authenticated" || !user || !pathname) return
 
-    const authPages = ["/", "/register", "/login"]
+    const authPages = ["/register", "/login"]
     const isAuthPage = authPages.some(
       (page) => pathname === page || pathname.startsWith("/login")
     )

@@ -55,7 +55,7 @@ const SEO_BOT_PATTERNS = [
 
 const PROTECTED_ROUTE_PREFIXES = ['/dashboard'];
 const ADMIN_ROUTE_PREFIXES = ['/dashboard/admin'];
-const AUTH_ROUTE_PREFIXES = ['/', '/login', '/register'];
+const AUTH_ROUTE_PREFIXES = ['/login', '/register'];
 const ADMIN_PANEL_PERMISSIONS = [
   'admin:access'
 ];
@@ -472,10 +472,7 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 function isAuthRoute(pathname: string): boolean {
-  if (pathname === '/') return true;
-  return AUTH_ROUTE_PREFIXES.some((prefix) =>
-    prefix !== '/' && (pathname === prefix || pathname.startsWith(`${prefix}/`))
-  );
+  return AUTH_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function getBackendBaseUrl(): string {

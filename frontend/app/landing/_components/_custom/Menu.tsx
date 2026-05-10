@@ -4,10 +4,12 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Menu() {
   const [open, setOpen] = useState(false);
   const t = useTranslations("landing");
+  const { isLoggedIn } = useAuth();
 
   const links = [
     { href: "#features", label: t("nav.features") },
@@ -37,9 +39,9 @@ export function Menu() {
         </ul>
 
         <div className="hidden md:flex items-center gap-8">
-          <Link href="/register">
+          <Link href={isLoggedIn ? "/dashboard" : "/register"}>
             <button className="px-4 py-1.5 rounded-full text-[18px] font-flink transition-colors hover:bg-white/65 text-white hover:text-black cursor-pointer duration-200">
-              {t("nav.getStarted")}
+              {isLoggedIn ? t("nav.openDashboard") : t("nav.getStarted")}
             </button>
           </Link>
         </div>
@@ -95,7 +97,7 @@ export function Menu() {
             </ul>
 
             <Link
-              href="/register"
+              href={isLoggedIn ? "/dashboard" : "/register"}
               className="w-full"
               onClick={() => setOpen(false)}
             >
@@ -105,7 +107,7 @@ export function Menu() {
                 transition={{ delay: 0.3, duration: 0.2 }}
                 className="w-full py-2.5 rounded-full text-[18px] font-flink border border-white/40 text-white hover:bg-white/20 transition-colors duration-200 cursor-pointer"
               >
-                {t("nav.getStarted")}
+                {isLoggedIn ? t("nav.openDashboard") : t("nav.getStarted")}
               </motion.button>
             </Link>
           </motion.div>

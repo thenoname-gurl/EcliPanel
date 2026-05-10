@@ -230,7 +230,8 @@
       "network": "Network",
       "faq": "FAQ",
       "signIn": "Sign in",
-      "getStarted": "Get started"
+      "getStarted": "Get started",
+      "openDashboard": "Open dashboard"
     },
     "statusPill": {
       "connecting": "Connecting...",
