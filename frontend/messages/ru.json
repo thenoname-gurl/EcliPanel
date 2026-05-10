@@ -239,7 +239,8 @@
     "stats": {
       "dailyNodeTraffic": "Трафик нод за сегодня (24ч)",
       "monthlyRequests": "API вызовы",
-      "totalUsers": "Всего пользователей"
+      "totalUsers": "Всего пользователей",
+      "heading": "Реальные пользователи"
     },
     "features": {
       "eyebrow": "Возможности",
