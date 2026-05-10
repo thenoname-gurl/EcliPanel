@@ -14,6 +14,7 @@ import {
   Sparkles,
   Globe,
 } from "lucide-react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -107,10 +108,12 @@ interface PlanCardProps {
   name: string;
   priceLabel: string;
   perMonthLabel: string;
+  showPerMonthLabel: boolean;
   desc: string;
   features: string[];
   featureIconKinds: FeatureIconKind[];
   cta: string;
+  ctaHref: string;
   highlight: boolean;
   iconKey: string;
 }
@@ -120,10 +123,12 @@ function PlanCard({
   name,
   priceLabel,
   perMonthLabel,
+  showPerMonthLabel,
   desc,
   features,
   featureIconKinds,
   cta,
+  ctaHref,
   highlight,
 }: PlanCardProps) {
   const icons = featureIconKinds.map((kind) => ICON_BY_KIND[kind]);
@@ -164,7 +169,7 @@ function PlanCard({
 
       <span className="flex items-center">
         <p className="text-white font-inter text-[18px]">{priceLabel}</p>
-        <p className="text-white/70 text-[15px] ml-1.5">{perMonthLabel}</p>
+        {showPerMonthLabel && <p className="text-white/70 text-[15px] ml-1.5">{perMonthLabel}</p>}
       </span>
 
       <span className="h-px w-full bg-white/20" />
@@ -195,11 +200,12 @@ function PlanCard({
       </div>
 
       <div className="flex flex-col gap-2 mt-auto pt-6 sm:pt-10">
-        <button
+        <Link
+          href={ctaHref}
           className={`${highlight ? "bg-[#B85A96]" : "bg-[#202123]"} px-4 py-2 rounded-full text-[18px] transition-colors ${highlight ? "hover:bg-[#a34f86]" : "hover:bg-[#1f1f21]"} cursor-pointer duration-200 text-white z-100`}
         >
           {cta}
-        </button>
+        </Link>
       </div>
     </motion.div>
   );
@@ -210,10 +216,12 @@ function EnterpriseCard({
   name,
   priceLabel,
   perMonthLabel,
+  showPerMonthLabel,
   desc,
   features,
   featureIconKinds,
   cta,
+  ctaHref,
 }: PlanCardProps) {
   const icons = featureIconKinds.map((kind) => ICON_BY_KIND[kind]);
 
@@ -235,14 +243,12 @@ function EnterpriseCard({
         </div>
         <span className="flex items-center">
           <p className="text-white font-inter text-[18px]">{priceLabel}</p>
-          <p className="text-white/70 text-[15px] ml-1.5">{perMonthLabel}</p>
+          {showPerMonthLabel && <p className="text-white/70 text-[15px] ml-1.5">{perMonthLabel}</p>}
         </span>
         <div className="mt-auto pt-4">
-          <a href="mailto:contact@ecli.app">
-            <button className="w-full bg-[#202123] px-4 py-2 rounded-full text-[18px] transition-colors hover:bg-[#1f1f21] cursor-pointer duration-200 text-white">
-              {cta}
-            </button>
-          </a>
+          <Link href={ctaHref} className="block w-full bg-[#202123] px-4 py-2 rounded-full text-[18px] transition-colors hover:bg-[#1f1f21] cursor-pointer duration-200 text-white text-center">
+            {cta}
+          </Link>
         </div>
       </div>
 
@@ -279,6 +285,9 @@ function EnterpriseCard({
 
 export function Pricing() {
   const t = useTranslations("landing");
+  const billingTarget = "/dashboard/billing";
+  const ctaHref = `/register?redirect=${encodeURIComponent(billingTarget)}`;
+  const shouldShowPerMonthLabel = (priceLabel: string) => !priceLabel.includes("/");
 
   const plans = useMemo(
     () => [
@@ -287,6 +296,7 @@ export function Pricing() {
         name: t("pricing.plans.free.name"),
         priceLabel: t("pricing.plans.free.price"),
         perMonthLabel: t("pricing.perMonth"),
+        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.free.price")),
         desc: t("pricing.plans.free.desc"),
         features: [
           t("pricing.plans.free.features.0"),
@@ -300,6 +310,7 @@ export function Pricing() {
         ],
         featureIconKinds: planFeatureIconKinds.free,
         cta: t("pricing.plans.free.cta"),
+        ctaHref,
         highlight: false,
       },
       {
@@ -307,6 +318,7 @@ export function Pricing() {
         name: t("pricing.plans.paid.name"),
         priceLabel: t("pricing.plans.paid.price"),
         perMonthLabel: t("pricing.perMonth"),
+        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.paid.price")),
         desc: t("pricing.plans.paid.desc"),
         features: [
           t("pricing.plans.paid.features.0"),
@@ -322,6 +334,7 @@ export function Pricing() {
         ],
         featureIconKinds: planFeatureIconKinds.paid,
         cta: t("pricing.plans.paid.cta"),
+        ctaHref,
         highlight: true,
       },
       {
@@ -329,6 +342,7 @@ export function Pricing() {
         name: t("pricing.plans.educational.name"),
         priceLabel: t("pricing.plans.educational.price"),
         perMonthLabel: t("pricing.perMonth"),
+        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.educational.price")),
         desc: t("pricing.plans.educational.desc"),
         features: [
           t("pricing.plans.educational.features.0"),
@@ -343,6 +357,7 @@ export function Pricing() {
         ],
         featureIconKinds: planFeatureIconKinds.educational,
         cta: t("pricing.plans.educational.cta"),
+        ctaHref,
         highlight: false,
       },
       {
@@ -350,6 +365,7 @@ export function Pricing() {
         name: t("pricing.plans.enterprise.name"),
         priceLabel: t("pricing.plans.enterprise.price"),
         perMonthLabel: t("pricing.perMonth"),
+        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.enterprise.price")),
         desc: t("pricing.plans.enterprise.desc"),
         features: [
           t("pricing.plans.enterprise.features.0"),
@@ -368,6 +384,7 @@ export function Pricing() {
         ],
         featureIconKinds: planFeatureIconKinds.enterprise,
         cta: t("pricing.plans.enterprise.cta"),
+        ctaHref,
         highlight: false,
       },
     ],

@@ -18,7 +18,7 @@ import {
   MailCheck,
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
@@ -251,7 +251,11 @@ type OtpMethod = "totp" | "email" | "backup"
 export default function LoginPage() {
   const { login, refreshUser } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const t = useTranslations("login")
+  const rawRedirect = searchParams.get("redirect")
+  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/dashboard"
+  const redirectQuery = `?redirect=${encodeURIComponent(redirectTo)}`
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -346,7 +350,7 @@ export default function LoginPage() {
         setError(null)
         return
       }
-      router.replace("/dashboard")
+      router.replace(redirectTo)
     } catch (err: any) {
       setError(err.message || t("loginFailed"))
     } finally {
@@ -389,7 +393,7 @@ export default function LoginPage() {
       })
       if (data.token) {
         await refreshUser()
-        router.replace("/dashboard")
+        router.replace(redirectTo)
       } else {
         setError(t("invalidServerResponse"))
       }
@@ -451,7 +455,7 @@ export default function LoginPage() {
       }
 
       await refreshUser()
-      router.push("/dashboard")
+      router.push(redirectTo)
     } catch (err: any) {
       setError(err.message || t("passkeyFailed"))
     } finally {
@@ -836,7 +840,7 @@ export default function LoginPage() {
               <p className="text-center text-sm text-muted-foreground">
                 {t("noAccount")}{" "}
                 <Link
-                  href="/register"
+                  href={`/register${redirectQuery}`}
                   className="text-primary hover:text-primary/80 font-medium transition-colors"
                 >
                   {t("createAccount")}
