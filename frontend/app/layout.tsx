@@ -7,6 +7,9 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { API_ENDPOINTS } from '@/lib/panel-config'
 
+const DEFAULT_TITLE = 'EclipseSystems'
+const DEFAULT_DESCRIPTION = 'Next-Gen Server Management platform.'
+
 function getBackendBaseUrl(): string {
   return (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/+$/, '')
 }
@@ -15,11 +18,21 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('layout');
+  let title = DEFAULT_TITLE
+  let description = DEFAULT_DESCRIPTION
+
+  try {
+    const t = await getTranslations('layout')
+    title = t('title') || DEFAULT_TITLE
+    description = t('description') || DEFAULT_DESCRIPTION
+  } catch {
+    title = DEFAULT_TITLE
+    description = DEFAULT_DESCRIPTION
+  }
 
   return {
-    title: t('title'),
-    description: t('description'),
+    title,
+    description,
     icons: {
       icon: [
         {
