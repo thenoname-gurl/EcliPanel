@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Didact_Gothic, Inter } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
 import { headers } from "next/headers";
@@ -7,10 +7,13 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { API_ENDPOINTS } from "@/lib/panel-config";
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const _inter = Inter({
   variable: "--font-inter",
+});
+
+const _dedactGothic = Didact_Gothic({
+  variable: "--font-dedact-gothic",
+  weight: ["400"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -122,7 +125,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
       <body
-        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_inter.variable}`}
+        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_inter.variable} ${_dedactGothic.variable}`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider initialUser={initialUser}>

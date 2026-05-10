@@ -9,6 +9,7 @@
     "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
+    "@base-ui/react": "latest",
     "@hookform/resolvers": "latest",
     "@monaco-editor/react": "latest",
     "@radix-ui/react-accordion": "latest",
@@ -57,6 +58,7 @@
     "next": "latest",
     "next-intl": "latest",
     "next-themes": "latest",
+    "postprocessing": "latest",
     "qrcode": "latest",
     "react": "latest",
     "react-day-picker": "latest",
@@ -68,10 +70,9 @@
     "remark-gfm": "latest",
     "sonner": "latest",
     "tailwind-merge": "latest",
+    "three": "latest",
     "vaul": "latest",
-    "zod": "latest",
-    "postprocessing": "latest",
-    "three": "latest"
+    "zod": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",

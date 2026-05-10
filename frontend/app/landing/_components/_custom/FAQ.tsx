@@ -26,7 +26,7 @@ export function FAQ() {
   return (
     <motion.div
       id="faq"
-      className="flex flex-col md:flex-row my-12 sm:my-20 mx-6 sm:mx-12 lg:mx-40 border border-white/20 p-4 md:min-h-[60vh]"
+      className="flex flex-col md:flex-row my-12 sm:my-20 mx-6 sm:mx-12 lg:mx-40 border border-white/20 p-4 md:min-h-[60vh] **:font-flink"
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true, margin: "-80px" }}
