@@ -12,50 +12,93 @@ import {
   Monitor,
   ShieldCheck,
   Sparkles,
+  Globe,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 
-const planIcons: Record<string, LucideIcon[]> = {
-  free: [Server, Router, Computer, HardDrive, Send, Mail, Send, Mail],
+type FeatureIconKind =
+  | "servers"
+  | "ports"
+  | "cpu"
+  | "ram"
+  | "storage"
+  | "os"
+  | "support"
+  | "ai"
+  | "emailsPerDay"
+  | "emailQueue"
+  | "sla"
+  | "db"
+  | "backup"
+  | "ip";
+
+const ICON_BY_KIND: Record<FeatureIconKind, LucideIcon> = {
+  servers: Server,
+  ports: Router,
+  cpu: Cpu,
+  ram: Computer,
+  storage: HardDrive,
+  os: Monitor,
+  support: ShieldCheck,
+  ai: Sparkles,
+  emailsPerDay: Send,
+  emailQueue: Mail,
+  sla: ShieldCheck,
+  db: Monitor,
+  backup: Monitor,
+  ip: Globe,
+};
+
+const planFeatureIconKinds: Record<string, FeatureIconKind[]> = {
+  free: [
+    "servers",
+    "ports",
+    "cpu",
+    "ram",
+    "storage",
+    "emailsPerDay",
+    "emailQueue",
+    "sla",
+  ],
   educational: [
-    Server,
-    Router,
-    Cpu,
-    Computer,
-    HardDrive,
-    Monitor,
-    Send,
-    Mail,
-    Send,
+    "servers",
+    "ports",
+    "cpu",
+    "ram",
+    "storage",
+    "os",
+    "emailsPerDay",
+    "emailQueue",
+    "sla",
   ],
   paid: [
-    Server,
-    Router,
-    Cpu,
-    Computer,
-    HardDrive,
-    ShieldCheck,
-    Sparkles,
-    Send,
-    Mail,
-    Send,
+    "servers",
+    "ports",
+    "cpu",
+    "ram",
+    "storage",
+    "support",
+    "ai",
+    "emailsPerDay",
+    "emailQueue",
+    "sla",
   ],
   enterprise: [
-    Server,
-    Router,
-    Cpu,
-    Computer,
-    HardDrive,
-    ShieldCheck,
-    Sparkles,
-    Send,
-    Mail,
-    Monitor,
-    Send,
-    Mail,
-    ShieldCheck,
+    "servers",
+    "cpu",
+    "ram",
+    "storage",
+    "db",
+    "backup",
+    "ip",
+    "ip",
+    "support",
+    "ai",
+    "emailsPerDay",
+    "emailQueue",
+    "sla",
   ],
 };
 
@@ -66,6 +109,7 @@ interface PlanCardProps {
   perMonthLabel: string;
   desc: string;
   features: string[];
+  featureIconKinds: FeatureIconKind[];
   cta: string;
   highlight: boolean;
   iconKey: string;
@@ -78,11 +122,11 @@ function PlanCard({
   perMonthLabel,
   desc,
   features,
+  featureIconKinds,
   cta,
   highlight,
-  iconKey,
 }: PlanCardProps) {
-  const icons = planIcons[iconKey] ?? [];
+  const icons = featureIconKinds.map((kind) => ICON_BY_KIND[kind]);
 
   return (
     <motion.div
@@ -168,10 +212,10 @@ function EnterpriseCard({
   perMonthLabel,
   desc,
   features,
+  featureIconKinds,
   cta,
-  iconKey,
 }: PlanCardProps) {
-  const icons = planIcons[iconKey] ?? [];
+  const icons = featureIconKinds.map((kind) => ICON_BY_KIND[kind]);
 
   return (
     <motion.div
@@ -254,6 +298,7 @@ export function Pricing() {
           t("pricing.plans.free.features.6"),
           t("pricing.plans.free.features.7"),
         ],
+        featureIconKinds: planFeatureIconKinds.free,
         cta: t("pricing.plans.free.cta"),
         highlight: false,
       },
@@ -275,6 +320,7 @@ export function Pricing() {
           t("pricing.plans.paid.features.8"),
           t("pricing.plans.paid.features.9"),
         ],
+        featureIconKinds: planFeatureIconKinds.paid,
         cta: t("pricing.plans.paid.cta"),
         highlight: true,
       },
@@ -295,6 +341,7 @@ export function Pricing() {
           t("pricing.plans.educational.features.7"),
           t("pricing.plans.educational.features.8"),
         ],
+        featureIconKinds: planFeatureIconKinds.educational,
         cta: t("pricing.plans.educational.cta"),
         highlight: false,
       },
@@ -319,6 +366,7 @@ export function Pricing() {
           t("pricing.plans.enterprise.features.11"),
           t("pricing.plans.enterprise.features.12"),
         ],
+        featureIconKinds: planFeatureIconKinds.enterprise,
         cta: t("pricing.plans.enterprise.cta"),
         highlight: false,
       },
