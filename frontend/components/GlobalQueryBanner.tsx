@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -43,15 +43,32 @@ export default function GlobalQueryBanner() {
     let msg: string | null = null;
     for (const [k, v] of entries) {
       const lower = k.toLowerCase();
-      const truthy = v === "1" || v === "true" || v === "ok" || v === "success" || v === "yes" || v === "done" || v === "";
-      if (KNOWN_KEYS.has(k) || lower.includes("verify") || lower.includes("restor") || lower.includes("verified") || lower.includes("restore")) {
+      const truthy =
+        v === "1" ||
+        v === "true" ||
+        v === "ok" ||
+        v === "success" ||
+        v === "yes" ||
+        v === "done" ||
+        v === "";
+      if (
+        KNOWN_KEYS.has(k) ||
+        lower.includes("verify") ||
+        lower.includes("restor") ||
+        lower.includes("verified") ||
+        lower.includes("restore")
+      ) {
         matches.push(k);
         if (!msg) {
           if (lower.includes("email") && lower.includes("restor")) {
             msg = "Email restore successful.";
           } else if (lower.includes("email") && lower.includes("verif")) {
             msg = "Email verified successfully.";
-          } else if (lower.includes("student") || lower.includes("studentverified") || lower.includes("verifiedstudent")) {
+          } else if (
+            lower.includes("student") ||
+            lower.includes("studentverified") ||
+            lower.includes("verifiedstudent")
+          ) {
             msg = "Student verification completed.";
           } else if (truthy) {
             msg = `${prettyKey(k)} completed.`;
