@@ -1,5 +1,6 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -85,8 +86,11 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-inter: var(--font-inter);
+  --font-flink: var(--font-dedact-gothic);
+  --font-heading: var(--font-dedact-gothic);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -140,7 +144,10 @@
 }
 
 .glow-box {
-  box-shadow: 0 0 20px var(--glow), 0 0 60px var(--glow), inset 0 0 20px rgba(139, 92, 246, 0.05);
+  box-shadow:
+    0 0 20px var(--glow),
+    0 0 60px var(--glow),
+    inset 0 0 20px rgba(139, 92, 246, 0.05);
 }
 .glow-box-sm {
   box-shadow: 0 0 10px var(--glow);
@@ -149,7 +156,9 @@
   text-shadow: 0 0 10px var(--glow);
 }
 .glow-border {
-  box-shadow: 0 0 8px var(--glow), inset 0 0 8px rgba(139, 92, 246, 0.03);
+  box-shadow:
+    0 0 8px var(--glow),
+    inset 0 0 8px rgba(139, 92, 246, 0.03);
 }
 
 ::-webkit-scrollbar {
@@ -168,16 +177,30 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-4px); }
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 @keyframes rotate-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
@@ -194,8 +217,8 @@
 }
 
 ::view-transition-new(root) {
-  mask: url('/assets/shigure-ui-smol.gif') center / 0 no-repeat;
-  -webkit-mask: url('/assets/shigure-ui-smol.gif') center / 0 no-repeat;
+  mask: url("/assets/shigure-ui-smol.gif") center / 0 no-repeat;
+  -webkit-mask: url("/assets/shigure-ui-smol.gif") center / 0 no-repeat;
   animation: scale var(--switch-duration, 3s);
   animation-fill-mode: both;
 }

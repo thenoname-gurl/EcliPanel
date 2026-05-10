@@ -1,58 +1,56 @@
-import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import './globals.css'
-import { Suspense } from 'react'
-import { headers } from 'next/headers'
-import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getMessages, getTranslations } from 'next-intl/server'
-import { API_ENDPOINTS } from '@/lib/panel-config'
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, Didact_Gothic } from "next/font/google";
+import "./globals.css";
+import { Suspense } from "react";
+import { headers } from "next/headers";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { API_ENDPOINTS } from "@/lib/panel-config";
 
-const DEFAULT_TITLE = 'EclipseSystems'
-const DEFAULT_DESCRIPTION = 'Next-Gen Server Management platform.'
+const DEFAULT_TITLE = "EclipseSystems";
+const DEFAULT_DESCRIPTION = "Next-Gen Server Management platform.";
 
 function getBackendBaseUrl(): string {
-  return (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/+$/, '')
+  return (
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    ""
+  ).replace(/\/+$/, "");
 }
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _didactGothic = Didact_Gothic({
+  variable: "--font-didact-gothic",
+  weight: ["400"],
+});
 
 export async function generateMetadata(): Promise<Metadata> {
-  let title = DEFAULT_TITLE
-  let description = DEFAULT_DESCRIPTION
-
-  try {
-    const t = await getTranslations('layout')
-    title = t('title') || DEFAULT_TITLE
-    description = t('description') || DEFAULT_DESCRIPTION
-  } catch {
-    title = DEFAULT_TITLE
-    description = DEFAULT_DESCRIPTION
-  }
+  const t = await getTranslations("layout");
 
   return {
-    title,
-    description,
+    title: t("title"),
+    description: t("description"),
     icons: {
       icon: [
         {
-          url: '/assets/icons/logo.png',
-          media: '(prefers-color-scheme: light)',
+          url: "/assets/icons/logo.png",
+          media: "(prefers-color-scheme: light)",
         },
         {
-          url: '/assets/icons/logo.png',
-          media: '(prefers-color-scheme: dark)',
+          url: "/assets/icons/logo.png",
+          media: "(prefers-color-scheme: dark)",
         },
       ],
-      apple: '/assets/icons/logo.png',
+      apple: "/assets/icons/logo.png",
     },
   };
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a12',
+  themeColor: "#0a0a12",
   userScalable: true,
-}
+};
 
 import { AuthProvider, type User } from "@/hooks/useAuth";
 import { Footer } from "@/components/Footer";
@@ -61,11 +59,13 @@ import { THEMES } from "@/lib/themes";
 import GlobalQueryBanner from "@/components/GlobalQueryBanner";
 import Guide from "@/components/Guide";
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const hdrs = await headers();
   const locale = await getLocale();
   const messages = await getMessages();
-  const cookieHeader = hdrs.get('cookie') || '';
+  const cookieHeader = hdrs.get("cookie") || "";
 
   const themesMap = Object.fromEntries(
     THEMES.map((t) => [
@@ -84,10 +84,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         "--sidebar-primary": t.primary,
         "--border": t.border,
         "--chart-1": t.primary,
-        ...(t as any).foreground ? {"--foreground": (t as any).foreground} : {},
-        ...(t as any).cardForeground ? {"--card-foreground": (t as any).cardForeground} : {},
+        ...((t as any).foreground
+          ? { "--foreground": (t as any).foreground }
+          : {}),
+        ...((t as any).cardForeground
+          ? { "--card-foreground": (t as any).cardForeground }
+          : {}),
       },
-    ])
+    ]),
   );
 
   let themeName: string | null = null;
@@ -97,7 +101,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     const backendBase = getBackendBaseUrl();
     const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
       headers: { cookie: cookieHeader },
-      cache: 'no-store',
+      cache: "no-store",
     });
     if (res.ok) {
       const data = await res.json();
@@ -130,7 +134,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
-      <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
+      <body
+        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_didactGothic.variable}`}
+      >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider initialUser={initialUser}>
             <Suspense fallback={null}>
