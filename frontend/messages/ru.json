@@ -240,7 +240,8 @@
       "dailyNodeTraffic": "Трафик нод за сегодня (24ч)",
       "monthlyRequests": "API вызовы",
       "totalUsers": "Всего пользователей",
-      "heading": "Реальные пользователи"
+      "heading": "Реальные пользователи",
+      "totalLabel": "Итого"
     },
     "features": {
       "eyebrow": "Возможности",

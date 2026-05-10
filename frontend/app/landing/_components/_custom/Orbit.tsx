@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { API_ENDPOINTS } from "@/lib/panel-config";
 
 interface InfraStatus {
   status: "online" | "degraded" | "offline" | string;
@@ -13,6 +14,12 @@ interface InfraStatus {
   tunnelCount: number;
   tunnelActive: number;
   tunnelInactive: number;
+}
+
+function toBool(value: any): boolean {
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  if (value === undefined || value === null) return true;
+  return value === true || value === "true" || value === 1 || value === "1" || Boolean(value);
 }
 
 function useInfraStatus() {
@@ -153,16 +160,39 @@ function BarStat({
 export function Network() {
   const t = useTranslations("landing");
   const infra = useInfraStatus();
+  const [tunnelsEnabled, setTunnelsEnabled] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadFeatures = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.publicFeatures, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        const enabled = toBool(data?.featureToggles?.tunnels);
+        if (mounted) setTunnelsEnabled(enabled);
+      } catch {
+      }
+    };
+
+    loadFeatures();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const NODE_R = 52;
   const TUNNEL_R = 100;
 
   const nodeCount = infra?.nodeCount ?? 0;
-  const tunnelCount = infra?.tunnelCount ?? 0;
-  const tunnelActive = Math.min(infra?.tunnelActive ?? 0, tunnelCount);
+  const tunnelCount = tunnelsEnabled ? (infra?.tunnelCount ?? 0) : 0;
+  const tunnelActive = Math.min(tunnelsEnabled ? (infra?.tunnelActive ?? 0) : 0, tunnelCount);
 
-  const stats = useMemo(
-    () => [
+  const stats = useMemo(() => {
+    const baseStats = [
       {
         label: t("network.stats.totalNodes"),
         value: infra?.nodeCount ?? 0,
@@ -179,6 +209,12 @@ export function Network() {
         label: t("network.stats.offline"),
         value: infra?.offline ?? 0,
       },
+    ];
+
+    if (!tunnelsEnabled) return baseStats;
+
+    return [
+      ...baseStats,
       {
         label: t("network.stats.tunnels"),
         value: infra?.tunnelCount ?? 0,
@@ -187,9 +223,8 @@ export function Network() {
         label: t("network.stats.tunnelsActive"),
         value: infra?.tunnelActive ?? 0,
       },
-    ],
-    [infra, t],
-  );
+    ];
+  }, [infra, t, tunnelsEnabled]);
 
   const maxValue = useMemo(
     () => Math.max(...stats.map((s) => s.value), 1),
