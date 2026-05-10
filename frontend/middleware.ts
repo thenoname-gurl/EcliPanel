@@ -30,6 +30,28 @@ const STATIC_EXT =
   /\.(js|css|png|jpg|jpeg|webp|svg|ico|json|xml|txt|woff2?|ttf|eot|map)$/i;
 
 const HEADLESS_RENDERERS = ['swiftshader', 'llvmpipe', 'mesa'];
+const SEO_BOT_PATTERNS = [
+  'googlebot',
+  'bingbot',
+  'duckduckbot',
+  'yandex',
+  'baiduspider',
+  'applebot',
+  'slurp',
+  'facebookexternalhit',
+  'twitterbot',
+  'linkedinbot',
+  'slackbot',
+  'discordbot',
+  'telegrambot',
+  'whatsapp',
+  'curl',
+  'wget',
+  'bot',
+  'crawler',
+  'spider',
+  'preview',
+];
 
 const PROTECTED_ROUTE_PREFIXES = ['/dashboard'];
 const ADMIN_ROUTE_PREFIXES = ['/dashboard/admin'];
@@ -420,6 +442,12 @@ function isVerifiedCrawler(req: NextRequest): boolean {
   }
 
   return false;
+}
+
+function isSeoCrawlerRequest(req: NextRequest): boolean {
+  const ua = (req.headers.get('user-agent') ?? '').toLowerCase();
+  if (!ua) return false;
+  return SEO_BOT_PATTERNS.some((pattern) => ua.includes(pattern));
 }
 
 function shouldBypass(pathname: string): boolean {
@@ -997,6 +1025,16 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
   if (pathname === '/api/browser-verify' && req.method === 'POST') {
     return handleVerify(req);
+  }
+
+  if (
+    req.method === 'GET' &&
+    isHtmlRequest(req) &&
+    isSeoCrawlerRequest(req) &&
+    !isProtectedRoute(pathname) &&
+    !isAdminRoute(pathname)
+  ) {
+    return NextResponse.next();
   }
 
   if (req.method === 'GET' && isHtmlRequest(req)) {
