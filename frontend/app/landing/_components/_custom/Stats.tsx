@@ -108,6 +108,7 @@ interface StatCardProps {
 
 function StatCard({ target, suffix, label, colorKey, index }: StatCardProps) {
   const locale = useLocale();
+  const t = useTranslations("landing");
   const { value, ref } = useCountUp(target);
   const display = useMemo(
     () => new Intl.NumberFormat(locale).format(value),
@@ -137,7 +138,7 @@ function StatCard({ target, suffix, label, colorKey, index }: StatCardProps) {
         {label}
       </p>
       <p className="text-[#171717] text-xl sm:text-2xl lg:text-3xl font-inter font-medium">
-        Total
+        {t("stats.totalLabel")}
       </p>
       <span className="flex gap-1 items-baseline flex-wrap">
         <span className="text-[#171717] text-xl sm:text-2xl lg:text-3xl font-inter font-medium tabular-nums">
@@ -161,6 +162,7 @@ function StatCardMobile({
   index,
 }: StatCardProps) {
   const locale = useLocale();
+  const t = useTranslations("landing");
   const { value, ref } = useCountUp(target);
   const display = useMemo(
     () => new Intl.NumberFormat(locale).format(value),
@@ -178,7 +180,7 @@ function StatCardMobile({
       transition={{ duration: 0.5, ease: "easeOut", delay: index * 0.12 }}
     >
       <p className="text-[#171717] text-lg">{label}</p>
-      <p className="text-sm font-inter text-[#171717]/60">Total</p>
+      <p className="text-sm font-inter text-[#171717]/60">{t("stats.totalLabel")}</p>
       <span className="flex gap-1 items-baseline">
         <span className="text-[#171717] text-3xl font-inter font-bold tabular-nums">
           {display}

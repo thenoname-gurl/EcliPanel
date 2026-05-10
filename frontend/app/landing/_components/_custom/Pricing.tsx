@@ -63,6 +63,7 @@ interface PlanCardProps {
   index: number;
   name: string;
   priceLabel: string;
+  perMonthLabel: string;
   desc: string;
   features: string[];
   cta: string;
@@ -74,6 +75,7 @@ function PlanCard({
   index,
   name,
   priceLabel,
+  perMonthLabel,
   desc,
   features,
   cta,
@@ -118,7 +120,7 @@ function PlanCard({
 
       <span className="flex items-center">
         <p className="text-white font-inter text-[18px]">{priceLabel}</p>
-        <p className="text-white/70 text-[15px] ml-1.5">per month</p>
+        <p className="text-white/70 text-[15px] ml-1.5">{perMonthLabel}</p>
       </span>
 
       <span className="h-px w-full bg-white/20" />
@@ -163,6 +165,7 @@ function EnterpriseCard({
   index,
   name,
   priceLabel,
+  perMonthLabel,
   desc,
   features,
   cta,
@@ -188,7 +191,7 @@ function EnterpriseCard({
         </div>
         <span className="flex items-center">
           <p className="text-white font-inter text-[18px]">{priceLabel}</p>
-          <p className="text-white/70 text-[15px] ml-1.5">per month</p>
+          <p className="text-white/70 text-[15px] ml-1.5">{perMonthLabel}</p>
         </span>
         <div className="mt-auto pt-4">
           <a href="mailto:contact@ecli.app">
@@ -239,6 +242,7 @@ export function Pricing() {
         iconKey: "free",
         name: t("pricing.plans.free.name"),
         priceLabel: t("pricing.plans.free.price"),
+        perMonthLabel: t("pricing.perMonth"),
         desc: t("pricing.plans.free.desc"),
         features: [
           t("pricing.plans.free.features.0"),
@@ -257,6 +261,7 @@ export function Pricing() {
         iconKey: "paid",
         name: t("pricing.plans.paid.name"),
         priceLabel: t("pricing.plans.paid.price"),
+        perMonthLabel: t("pricing.perMonth"),
         desc: t("pricing.plans.paid.desc"),
         features: [
           t("pricing.plans.paid.features.0"),
@@ -277,6 +282,7 @@ export function Pricing() {
         iconKey: "educational",
         name: t("pricing.plans.educational.name"),
         priceLabel: t("pricing.plans.educational.price"),
+        perMonthLabel: t("pricing.perMonth"),
         desc: t("pricing.plans.educational.desc"),
         features: [
           t("pricing.plans.educational.features.0"),
@@ -296,6 +302,7 @@ export function Pricing() {
         iconKey: "enterprise",
         name: t("pricing.plans.enterprise.name"),
         priceLabel: t("pricing.plans.enterprise.price"),
+        perMonthLabel: t("pricing.perMonth"),
         desc: t("pricing.plans.enterprise.desc"),
         features: [
           t("pricing.plans.enterprise.features.0"),
@@ -328,7 +335,7 @@ export function Pricing() {
         viewport={{ once: true }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        Pricing
+        {t("pricing.eyebrow")}
       </motion.p>
       <motion.p
         className="font-flink text-center text-lg sm:text-[22px] text-white/70 mt-2"
@@ -337,11 +344,11 @@ export function Pricing() {
         viewport={{ once: true }}
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
       >
-        Ship for free. Upgrade{" "}
+        {t("pricing.title")} {" "}
         <span className="hidden sm:inline">
           <br />
         </span>
-        to unlock more.
+        {t("pricing.subtitle")}
       </motion.p>
 
       <div className="flex flex-col gap-4 mb-20">

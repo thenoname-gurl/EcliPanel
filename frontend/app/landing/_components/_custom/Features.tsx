@@ -162,7 +162,7 @@ export function Features() {
         viewport={{ once: true }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        Features
+        {t("features.eyebrow")}
       </motion.p>
       <motion.p
         className="font-flink text-center text-lg sm:text-[22px] text-white/70 mt-2"
@@ -171,11 +171,11 @@ export function Features() {
         viewport={{ once: true }}
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
       >
-        Everything included.
+        {t("features.title")}
         <span className="hidden sm:inline">
           <br />
         </span>
-        Nothing to configure.
+        {t("features.titleMuted")}
       </motion.p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8 sm:mt-10">

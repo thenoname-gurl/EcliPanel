@@ -1,7 +1,7 @@
 {
   "layout": {
     "title": "Eclipse Systems - Next-Gen Hosting Provider",
-    "description": "Simple and oddly satisfying feeling."
+    "description": "Deploy in seconds, scale effortlessly with built-in metrics, multi-region, and zero cold starts."
   },
   "locale": {
     "label": "Language",
@@ -247,7 +247,8 @@
       "dailyNodeTraffic": "Today's node traffic (24h)",
       "monthlyRequests": "API Calls",
       "heading": "Real Users",
-      "totalUsers": "Total users"
+      "totalUsers": "Total users",
+      "totalLabel": "Total"
     },
     "features": {
       "eyebrow": "Features",
