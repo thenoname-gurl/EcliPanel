@@ -1,9 +1,15 @@
 "use client";
 
-import PixelBlast from "../_reacts-bits/PixelBlast";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+
+import dynamic from "next/dynamic";
+
+const PixelBlast = dynamic(() => import("../_reacts-bits/PixelBlast"), {
+  ssr: false,
+  loading: () => null,
+});
 
 export function Hero() {
   const t = useTranslations("landing");

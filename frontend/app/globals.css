@@ -4,19 +4,19 @@
 
 @font-face {
   font-family: "Flink";
-  src: url("./landing/_fonts/flink-regular.otf");
+  src: url("/fonts/flink-regular.otf");
   font-weight: 400;
 }
 
 @font-face {
   font-family: "Flink";
-  src: url("./landing/_fonts/flink-bold.otf");
+  src: url("/fonts/flink-bold.otf");
   font-weight: 700;
 }
 
 @font-face {
   font-family: "Flink";
-  src: url("./landing/_fonts/flink-black.otf");
+  src: url("/fonts/flink-black.otf");
   font-weight: 900;
 }
 
