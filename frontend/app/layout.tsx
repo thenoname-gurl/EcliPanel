@@ -7,6 +7,10 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { API_ENDPOINTS } from '@/lib/panel-config'
 
+function getBackendBaseUrl(): string {
+  return (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/+$/, '')
+}
+
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
@@ -74,10 +78,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   );
 
   let themeName: string | null = null;
-  let initialUser: User | null | undefined = undefined;
+  let initialUser: User | null = null;
 
   try {
-    const res = await fetch(API_ENDPOINTS.session, {
+    const backendBase = getBackendBaseUrl();
+    const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
       headers: { cookie: cookieHeader },
       cache: 'no-store',
     });
@@ -89,7 +94,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       initialUser = null;
     }
   } catch (e) {
-    initialUser = undefined;
+    initialUser = null;
   }
 
   const inlineScript = `(() => {

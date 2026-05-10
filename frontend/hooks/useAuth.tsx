@@ -61,7 +61,7 @@ interface AuthContextType {
   isLoading: boolean
 }
 
-type AuthState = "initializing" | "authenticated" | "unauthenticated" | "logging-in" | "logging-out"
+type AuthState = "authenticated" | "unauthenticated" | "logging-in" | "logging-out"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -140,16 +140,18 @@ function updateUrlParams(params: URLSearchParams): void {
 
 function AuthLoadingScreen({ message = "Loading..." }: { message?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4 p-6">
-        <div className="relative">
-          <div className="h-12 w-12 rounded-full border-2 border-primary/20" />
-          <Loader2 className="absolute inset-0 h-12 w-12 animate-spin text-primary" />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-medium text-foreground">{message}</p>
-          <p className="text-xs text-muted-foreground mt-1">Please wait...</p>
-        </div>
+    <div
+      className="pointer-events-none fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 text-sm text-foreground shadow-lg backdrop-blur"
+      role="status"
+      aria-live="polite"
+      aria-label={message}
+    >
+      <div className="relative h-4 w-4">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+      </div>
+      <div className="flex flex-col leading-tight">
+        <span className="font-medium">{message}</span>
+        <span className="text-[11px] text-muted-foreground">Running in the background</span>
       </div>
     </div>
   )
@@ -163,10 +165,7 @@ export const AuthProvider = ({
   initialUser?: User | null
 }) => {
   const [user, setUser] = useState<User | null | undefined>(initialUser)
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    if (initialUser === undefined) return "initializing"
-    return initialUser ? "authenticated" : "unauthenticated"
-  })
+  const [authState, setAuthState] = useState<AuthState>(() => (initialUser ? "authenticated" : "unauthenticated"))
   const router = useRouter()
   const pathname = usePathname()
   
@@ -353,45 +352,9 @@ export const AuthProvider = ({
   }, [initialUser])
 
   useEffect(() => {
-    if (authState !== "initializing") return
-
-    let mounted = true
-
-    const initializeAuth = async () => {
-      try {
-        const data = await apiFetch(API_ENDPOINTS.session, { method: "GET" })
-
-        if (!mounted) return
-
-        if (data?.user) {
-          setUser(data.user)
-          applyUserTheme(data.user)
-          applyUserLocale(data.user)
-          setAuthState("authenticated")
-
-          handleStudentVerificationCallback()
-
-          if (!guideCheckPerformed.current) {
-            await checkAndPromptGuide(data.user)
-          }
-        } else {
-          setUser(null)
-          setAuthState("unauthenticated")
-        }
-      } catch (error) {
-        if (!mounted) return
-        console.error("[useAuth] Initial session fetch failed:", error)
-        setUser(null)
-        setAuthState("unauthenticated")
-      }
-    }
-
-    initializeAuth()
-
-    return () => {
-      mounted = false
-    }
-  }, [authState, checkAndPromptGuide, handleStudentVerificationCallback])
+    if (authState !== "authenticated" || !user) return
+    handleStudentVerificationCallback()
+  }, [authState, user, handleStudentVerificationCallback])
 
   useEffect(() => {
     if (authState !== "authenticated" || !user || !pathname) return
@@ -445,13 +408,11 @@ export const AuthProvider = ({
     refreshUser,
     selectOrganisation,
     isLoggedIn: authState === "authenticated" && !!user,
-    isLoading: authState === "initializing" || authState === "logging-in" || authState === "logging-out",
+    isLoading: authState === "logging-in" || authState === "logging-out",
   }
 
   const renderLoadingState = () => {
     switch (authState) {
-      case "initializing":
-        return <AuthLoadingScreen message="Checking session..." />
       case "logging-in":
         return <AuthLoadingScreen message="Signing in..." />
       case "logging-out":
@@ -465,7 +426,7 @@ export const AuthProvider = ({
     <AuthContext.Provider value={value}>
       <div className="min-h-screen">
         {renderLoadingState()}
-        <div className={authState === "initializing" ? "opacity-0" : "opacity-100 transition-opacity duration-200"}>
+        <div className="opacity-100 transition-opacity duration-200">
           {children}
         </div>
       </div>
