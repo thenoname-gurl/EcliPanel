@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
+import Link from "next/link";
 
 export function Menu() {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("landing");
 
   const links = [
-    { href: "#features", label: "Features" },
-    { href: "#pricing", label: "Pricing" },
-    { href: "#network", label: "Network" },
-    { href: "#faq", label: "FAQ" },
+    { href: "#features", label: t("nav.features") },
+    { href: "#pricing", label: t("nav.pricing") },
+    { href: "#network", label: t("nav.network") },
+    { href: "#faq", label: t("nav.faq") },
   ];
 
   return (
@@ -18,7 +21,7 @@ export function Menu() {
       <div className="w-full fixed top-5 z-1101 flex justify-between items-center px-6 sm:px-12 lg:px-40">
         <img
           src="/assets/icons/logo.png"
-          alt="logo"
+          alt={t("brand")}
           className="w-12 sm:w-15 h-auto"
         />
 
@@ -34,9 +37,11 @@ export function Menu() {
         </ul>
 
         <div className="hidden md:flex items-center gap-8">
-          <button className="px-4 py-1.5 rounded-full text-[18px] font-flink transition-colors hover:bg-white/65 text-white hover:text-black cursor-pointer duration-200">
-            Get started
-          </button>
+          <Link href="/register">
+            <button className="px-4 py-1.5 rounded-full text-[18px] font-flink transition-colors hover:bg-white/65 text-white hover:text-black cursor-pointer duration-200">
+              {t("nav.getStarted")}
+            </button>
+          </Link>
         </div>
 
         <button
@@ -72,7 +77,7 @@ export function Menu() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed top-0 left-0 w-full z-1100 bg-[#e594c7]/90 backdrop-blur-md pt-24 pb-8 px-8 flex flex-col gap-6 md:hidden"
+            className="fixed top-0 left-0 w-full z-[1100] bg-[#e594c7]/90 backdrop-blur-md pt-24 pb-8 px-8 flex flex-col gap-6 md:hidden"
           >
             <ul className="flex flex-col gap-5 list-none text-white/90 **:font-flink">
               {links.map(({ href, label }, i) => (
@@ -89,15 +94,20 @@ export function Menu() {
               ))}
             </ul>
 
-            <motion.button
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.2 }}
-              className="w-full py-2.5 rounded-full text-[18px] font-flink border border-white/40 text-white hover:bg-white/20 transition-colors duration-200 cursor-pointer"
+            <Link
+              href="/register"
+              className="w-full"
               onClick={() => setOpen(false)}
             >
-              Get started
-            </motion.button>
+              <motion.button
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.2 }}
+                className="w-full py-2.5 rounded-full text-[18px] font-flink border border-white/40 text-white hover:bg-white/20 transition-colors duration-200 cursor-pointer"
+              >
+                {t("nav.getStarted")}
+              </motion.button>
+            </Link>
           </motion.div>
         )}
       </AnimatePresence>

@@ -237,15 +237,16 @@
       "nodesLive": "{count} nodes live"
     },
     "hero": {
-      "titleLine1": "Deploy your app.",
-      "titleLine2": "Not your weekend.",
-      "subtitle": "Easy to use hosting that goes live in seconds.",
+      "titleLine1": "Build good",
+      "titleLine2": "Ship Better",
+      "subtitle": " Eclipse Systems is the hosting platform for developers. Deploy in seconds, scale effortlessly with built-in metrics, multi-region, and zero cold starts.",
       "cta": "Start for free",
       "note": "No credit card - Free tier forever - Cancel any time"
     },
     "stats": {
       "dailyNodeTraffic": "Today's node traffic (24h)",
       "monthlyRequests": "API Calls",
+      "heading": "Real Users",
       "totalUsers": "Total users"
     },
     "features": {
