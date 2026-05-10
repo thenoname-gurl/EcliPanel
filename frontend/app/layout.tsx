@@ -1,41 +1,44 @@
-import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import './globals.css'
-import { Suspense } from 'react'
-import { headers } from 'next/headers'
-import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getMessages, getTranslations } from 'next-intl/server'
-import { API_ENDPOINTS } from '@/lib/panel-config'
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
+import "./globals.css";
+import { Suspense } from "react";
+import { headers } from "next/headers";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { API_ENDPOINTS } from "@/lib/panel-config";
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _inter = Inter({
+  variable: "--font-inter",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('layout');
+  const t = await getTranslations("layout");
 
   return {
-    title: t('title'),
-    description: t('description'),
+    title: t("title"),
+    description: t("description"),
     icons: {
       icon: [
         {
-          url: '/assets/icons/logo.png',
-          media: '(prefers-color-scheme: light)',
+          url: "/assets/icons/logo.png",
+          media: "(prefers-color-scheme: light)",
         },
         {
-          url: '/assets/icons/logo.png',
-          media: '(prefers-color-scheme: dark)',
+          url: "/assets/icons/logo.png",
+          media: "(prefers-color-scheme: dark)",
         },
       ],
-      apple: '/assets/icons/logo.png',
+      apple: "/assets/icons/logo.png",
     },
   };
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a12',
+  themeColor: "#0a0a12",
   userScalable: true,
-}
+};
 
 import { AuthProvider, type User } from "@/hooks/useAuth";
 import { Footer } from "@/components/Footer";
@@ -44,11 +47,13 @@ import { THEMES } from "@/lib/themes";
 import GlobalQueryBanner from "@/components/GlobalQueryBanner";
 import Guide from "@/components/Guide";
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const hdrs = await headers();
   const locale = await getLocale();
   const messages = await getMessages();
-  const cookieHeader = hdrs.get('cookie') || '';
+  const cookieHeader = hdrs.get("cookie") || "";
 
   const themesMap = Object.fromEntries(
     THEMES.map((t) => [
@@ -67,10 +72,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         "--sidebar-primary": t.primary,
         "--border": t.border,
         "--chart-1": t.primary,
-        ...(t as any).foreground ? {"--foreground": (t as any).foreground} : {},
-        ...(t as any).cardForeground ? {"--card-foreground": (t as any).cardForeground} : {},
+        ...((t as any).foreground
+          ? { "--foreground": (t as any).foreground }
+          : {}),
+        ...((t as any).cardForeground
+          ? { "--card-foreground": (t as any).cardForeground }
+          : {}),
       },
-    ])
+    ]),
   );
 
   let themeName: string | null = null;
@@ -79,7 +88,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   try {
     const res = await fetch(API_ENDPOINTS.session, {
       headers: { cookie: cookieHeader },
-      cache: 'no-store',
+      cache: "no-store",
     });
     if (res.ok) {
       const data = await res.json();
@@ -112,7 +121,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
-      <body className="font-sans antialiased min-h-screen flex flex-col min-w-0">
+      <body
+        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 ${_inter.variable}`}
+      >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider initialUser={initialUser}>
             <Suspense fallback={null}>
