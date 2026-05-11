@@ -332,32 +332,38 @@ export function ContributorClient() {
             }}
           >
             {contributor.recentCommits.map((rc, i) => (
-              <motion.div
+              <a
                 key={i}
-                className="border border-white/10 bg-white/2 px-4 py-3 text-white/70"
-                variants={{
-                  hidden: {
-                    opacity: 0,
-                    x: -18,
-                  },
-                  visible: {
-                    opacity: 1,
-                    x: 0,
-                    transition: {
-                      duration: 0.35,
-                      ease: "easeOut",
-                    },
-                  },
-                }}
-                whileHover={{
-                  x: 6,
-                  borderColor: "rgba(255,255,255,0.25)",
-                  backgroundColor: "rgba(255,255,255,0.05)",
-                  transition: { duration: 0.2 },
-                }}
+                href={rc.url}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                {rc.message}
-              </motion.div>
+                <motion.div
+                  className="border border-white/10 bg-white/2 px-4 py-3 text-white/70 cursor-pointer hover:text-white transition-colors"
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      x: -18,
+                    },
+                    visible: {
+                      opacity: 1,
+                      x: 0,
+                      transition: {
+                        duration: 0.35,
+                        ease: "easeOut",
+                      },
+                    },
+                  }}
+                  whileHover={{
+                    x: 6,
+                    borderColor: "rgba(255,255,255,0.25)",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                    transition: { duration: 0.2 },
+                  }}
+                >
+                  {rc.message}
+                </motion.div>
+              </a>
             ))}
           </motion.div>
         </motion.div>
