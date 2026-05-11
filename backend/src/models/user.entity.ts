@@ -290,6 +290,27 @@ export class User {
   @Column({ nullable: true })
   avatarUrl?: string;
 
+  @Column({ nullable: true })
+  githubLogin?: string;
+
+  @Column({ nullable: true })
+  githubProfileUrl?: string;
+
+  @Column({ nullable: true })
+  githubAvatarUrl?: string;
+
+  @Column({ nullable: true })
+  contributorTitle?: string;
+
+  @Column('simple-json', { nullable: true })
+  contributorActivity?: Array<{
+    date: string;
+    label: string;
+    details?: string;
+    points?: number;
+    url?: string;
+  }>;
+
   @Column({ default: false })
   guideShown: boolean;
 }

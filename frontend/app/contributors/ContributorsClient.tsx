@@ -42,6 +42,20 @@ type Contributor = {
   login: string;
   avatarUrl: string;
   profileUrl: string;
+  source?: 'github' | 'manual';
+  userId?: number;
+  displayName?: string;
+  title?: string | null;
+  githubLogin?: string | null;
+  githubProfileUrl?: string | null;
+  githubAvatarUrl?: string | null;
+  activity?: Array<{
+    date: string;
+    label: string;
+    details?: string;
+    points?: number;
+    url?: string;
+  }>;
   contributions: number;
   pullRequests: number;
   mergedPullRequests: number;
@@ -234,7 +248,7 @@ export function ContributorsClient() {
               variants={fadeUp}
               custom={0.18}
             >
-              Synced from GitHub on a schedule, filtered to remove bots, and grouped by contribution count with linked commits, pull requests, and activity history.
+              Synced from GitHub on a schedule, with optional EcliPanel-linked contributor profiles for manual activity, staff-managed roles, and GitHub account links.
             </motion.p>
 
             <motion.div
@@ -305,8 +319,40 @@ export function ContributorsClient() {
             {sortedContributors.map((contributor, index) => {
               const commitHistory = Array.isArray(contributor.commitHistory) ? contributor.commitHistory : [];
               const recentCommits = Array.isArray(contributor.recentCommits) ? contributor.recentCommits : [];
+              const activity = Array.isArray(contributor.activity) ? contributor.activity : [];
               const recentPullRequests = Array.isArray(contributor.recentPullRequests) ? contributor.recentPullRequests : [];
-              const chartData = commitHistory.slice(-30);
+              const contributorName = contributor.displayName || contributor.login;
+              const activityAsCommits: ContributorCommit[] = activity.slice(0, 12).map((a, i) => ({
+                sha: `activity-${contributor.userId || contributor.login}-${i}-${(a.date || '').slice(0, 10)}`,
+                message: a.label,
+                url: a.url || contributor.profileUrl || '#',
+                committedAt: a.date,
+              }));
+              const combinedMap = new Map<string, ContributorCommit>();
+              for (const c of [...recentCommits, ...activityAsCommits]) {
+                const key = String(c.sha || c.url || `${c.committedAt}-${c.message}`).trim();
+                if (!combinedMap.has(key)) combinedMap.set(key, c);
+              }
+              const combinedRecentCommits = Array.from(combinedMap.values())
+                .sort((a, b) => {
+                  const ta = a?.committedAt ? new Date(a.committedAt).getTime() : 0;
+                  const tb = b?.committedAt ? new Date(b.committedAt).getTime() : 0;
+                  return tb - ta;
+                })
+                .slice(0, 6);
+              const historyMap = new Map<string, number>();
+              for (const point of commitHistory) {
+                const d = String(point.date || '').slice(0, 10);
+                historyMap.set(d, (historyMap.get(d) || 0) + Number(point.count || 0));
+              }
+              for (const a of activity) {
+                const d = String(a.date || '').slice(0, 10);
+                historyMap.set(d, (historyMap.get(d) || 0) + Math.max(1, Number(a.points) || 1));
+              }
+              const mergedCommitHistory = Array.from(historyMap.entries())
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, count]) => ({ date, count }));
+              const chartData = mergedCommitHistory.slice(-30);
 
               return (
                 <motion.article
@@ -322,12 +368,12 @@ export function ContributorsClient() {
                   <div className="flex items-start gap-4">
                     <img
                       src={contributor.avatarUrl}
-                      alt={contributor.login}
+                      alt={contributorName}
                       className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h2 className="truncate text-lg font-semibold">{contributor.login}</h2>
+                        <h2 className="truncate text-lg font-semibold">{contributorName}</h2>
                         {index === 0 ? (
                           <motion.span
                             className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200"
@@ -338,25 +384,38 @@ export function ContributorsClient() {
                             Top
                           </motion.span>
                         ) : null}
+                        {contributor.title ? (
+                          <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                            {contributor.title}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-sm text-white/60">{contributor.contributions} contributions</p>
-                      <motion.a
-                        href={contributor.profileUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="mt-2 inline-flex items-center gap-1 text-sm text-white/70 transition-colors hover:text-white"
-                        whileHover={{ x: 3 }}
-                      >
-                        Open profile
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </motion.a>
+                      {contributor.source === 'manual' ? (
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/65">
+                          <Users className="h-3.5 w-3.5" />
+                          Managed in EcliPanel
+                        </div>
+                      ) : null}
+                      {contributor.profileUrl ? (
+                        <motion.a
+                          href={contributor.profileUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="mt-2 inline-flex items-center gap-1 text-sm text-white/70 transition-colors hover:text-white"
+                          whileHover={{ x: 3 }}
+                        >
+                          {contributor.githubLogin ? 'Open GitHub profile' : 'Open profile'}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </motion.a>
+                      ) : null}
                     </div>
                   </div>
 
                   <div className="mt-5 space-y-4">
                     <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.28em] text-white/35">
                       <GitCommitVertical className="h-3.5 w-3.5" />
-                      Recent commits
+                      {Array.isArray(contributor.activity) && contributor.activity.length > 0 ? 'Recent activity' : (contributor.source === 'manual' ? 'Recent activity' : 'Recent commits')}
                       <span className="rounded-full border border-white/10 bg-black/15 px-2 py-1 text-[10px] tracking-[0.18em] text-white/50">
                         {contributor.pullRequests} PRs · {contributor.mergedPullRequests} merged
                       </span>
@@ -409,9 +468,9 @@ export function ContributorsClient() {
                       </div>
                     </div>
 
-                    {recentCommits.length > 0 ? (
+                    {combinedRecentCommits.length > 0 ? (
                       <div className="space-y-2">
-                        {recentCommits.slice(0, 3).map((commit, commitIndex) => (
+                        {combinedRecentCommits.slice(0, 3).map((commit, commitIndex) => (
                           <motion.a
                             key={commit.sha}
                             href={commit.url}

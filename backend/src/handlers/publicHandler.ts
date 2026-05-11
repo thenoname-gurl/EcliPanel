@@ -505,6 +505,20 @@ export async function publicRoutes(app: any, prefix = '') {
           login: t.String(),
           avatarUrl: t.String(),
           profileUrl: t.String(),
+          source: t.Optional(t.Union([t.Literal('github'), t.Literal('manual')])),
+          userId: t.Optional(t.Number()),
+          displayName: t.Optional(t.String()),
+          title: t.Optional(t.Union([t.String(), t.Null()])),
+          githubLogin: t.Optional(t.Union([t.String(), t.Null()])),
+          githubProfileUrl: t.Optional(t.Union([t.String(), t.Null()])),
+          githubAvatarUrl: t.Optional(t.Union([t.String(), t.Null()])),
+          activity: t.Optional(t.Array(t.Object({
+            date: t.String(),
+            label: t.String(),
+            details: t.Optional(t.String()),
+            points: t.Optional(t.Number()),
+            url: t.Optional(t.String()),
+          }))),
           contributions: t.Number(),
           pullRequests: t.Number(),
           mergedPullRequests: t.Number(),
@@ -535,7 +549,7 @@ export async function publicRoutes(app: any, prefix = '') {
     detail: {
       tags: ['Public'],
       summary: 'Public GitHub contributors list',
-      description: 'Returns the contributors synced from GitHub, sorted by contribution count with recent commits.',
+      description: 'Returns GitHub-synced contributors plus linked EcliPanel contributor profiles, sorted by contribution count with recent activity.',
     },
   });
 }

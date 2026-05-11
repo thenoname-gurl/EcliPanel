@@ -255,6 +255,7 @@ export const API_ENDPOINTS = {
   adminUserDeassignStudent: "/api/admin/users/:id/deassign-student",
   adminUserRequireStudentReverify: "/api/admin/users/:id/require-student-reverify",
   adminUserExportJob: "/api/admin/users/:id/export-job",
+  adminUserContributorProfile: "/api/admin/users/:id/contributor-profile",
   adminExportJobs: "/api/admin/export-jobs",
   adminExportJobStatus: "/api/admin/export-jobs/:id",
   adminExportJobDownload: "/api/admin/export-jobs/:id/download",

@@ -316,6 +316,17 @@ interface AdminUser {
   settings?: Record<string, any>
   dateOfBirth?: string | null
   parentId?: number | null
+  githubLogin?: string | null
+  githubProfileUrl?: string | null
+  githubAvatarUrl?: string | null
+  contributorTitle?: string | null
+  contributorActivity?: Array<{
+    date: string
+    label: string
+    details?: string
+    points?: number
+    url?: string
+  }>
 }
 
 interface AdminVerification {
@@ -1332,6 +1343,12 @@ export default function AdminPanel() {
   const [viewUserDocName, setViewUserDocName] = useState("")
   const [viewUserDocDescription, setViewUserDocDescription] = useState("")
   const [viewUserDocUploading, setViewUserDocUploading] = useState(false)
+  const [viewUserContributorSaving, setViewUserContributorSaving] = useState(false)
+  const [viewUserContributorLogin, setViewUserContributorLogin] = useState("")
+  const [viewUserContributorProfileUrl, setViewUserContributorProfileUrl] = useState("")
+  const [viewUserContributorAvatarUrl, setViewUserContributorAvatarUrl] = useState("")
+  const [viewUserContributorTitle, setViewUserContributorTitle] = useState("")
+  const [viewUserContributorActivity, setViewUserContributorActivity] = useState<Array<{ date: string; label: string; details?: string; points?: number; url?: string }>>([])
 
   // ── Roles ──
   const [roles, setRoles] = useState<AdminRole[]>([])
@@ -3469,6 +3486,12 @@ remote: ${panelUrl}`
     setViewUserProfile(null)
     setViewUserRoles([])
     setViewUserAssignRoleId("")
+    setViewUserContributorSaving(false)
+    setViewUserContributorLogin("")
+    setViewUserContributorProfileUrl("")
+    setViewUserContributorAvatarUrl("")
+    setViewUserContributorTitle("")
+    setViewUserContributorActivity([])
     setViewUserLoading(true)
     try {
       const [profileData, rolesData] = await Promise.all([
@@ -3476,6 +3499,11 @@ remote: ${panelUrl}`
         apiFetch(API_ENDPOINTS.userRoles.replace(":id", String(user.id))),
       ])
       setViewUserProfile(profileData)
+      setViewUserContributorLogin(profileData?.githubLogin || profileData?.contributor?.githubLogin || "")
+      setViewUserContributorProfileUrl(profileData?.githubProfileUrl || profileData?.contributor?.githubProfileUrl || "")
+      setViewUserContributorAvatarUrl(profileData?.githubAvatarUrl || profileData?.contributor?.githubAvatarUrl || "")
+      setViewUserContributorTitle(profileData?.contributorTitle || profileData?.contributor?.title || "")
+      setViewUserContributorActivity(Array.isArray(profileData?.contributorActivity) ? profileData.contributorActivity : Array.isArray(profileData?.contributor?.activity) ? profileData.contributor.activity : [])
       setViewUserRoles(Array.isArray(rolesData) ? rolesData : [])
       // ensure global roles list is available for the assign dropdown
       if (roles.length === 0) {
@@ -3489,6 +3517,61 @@ remote: ${panelUrl}`
     if (!viewUserDialog) return
     await apiFetch(`${API_ENDPOINTS.adminUsers}/${viewUserDialog.id}/ai/${linkId}`, { method: "DELETE" })
     setViewUserProfile((prev: any) => prev ? { ...prev, aiModels: prev.aiModels.filter((l: any) => l.id !== linkId) } : prev)
+  }
+
+  async function saveContributorProfile() {
+    if (!viewUserDialog) return
+    setViewUserContributorSaving(true)
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.adminUserContributorProfile.replace(":id", String(viewUserDialog.id))}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          githubLogin: viewUserContributorLogin.trim() || null,
+          githubProfileUrl: viewUserContributorProfileUrl.trim() || null,
+          githubAvatarUrl: viewUserContributorAvatarUrl.trim() || null,
+          contributorTitle: viewUserContributorTitle.trim() || null,
+          contributorActivity: viewUserContributorActivity,
+        }),
+      })
+
+      if (res?.contributor) {
+        setViewUserProfile((prev: any) => prev ? {
+          ...prev,
+          githubLogin: res.contributor.githubLogin || null,
+          githubProfileUrl: res.contributor.githubProfileUrl || null,
+          githubAvatarUrl: res.contributor.githubAvatarUrl || null,
+          contributorTitle: res.contributor.title || null,
+          contributorActivity: res.contributor.activity || [],
+          contributor: res.contributor,
+        } : prev)
+      }
+    } catch (err: any) {
+      alert(`Failed to save contributor profile: ${err?.message || 'unknown error'}`)
+    } finally {
+      setViewUserContributorSaving(false)
+    }
+  }
+
+  function addContributorActivityEntry() {
+    const date = window.prompt("Activity date (YYYY-MM-DD)", new Date().toISOString().slice(0, 10))?.trim()
+    if (!date) return
+    const label = window.prompt("Activity title", "Shipped an update")?.trim()
+    if (!label) return
+    const details = window.prompt("Optional details", "")?.trim() || ""
+    const pointsRaw = window.prompt("Activity points", "1")?.trim() || "1"
+    const url = window.prompt("Optional link (GitHub issue, PR, docs, etc.)", "")?.trim() || ""
+    const points = Number(pointsRaw)
+
+    setViewUserContributorActivity((prev) => [
+      ...prev,
+      {
+        date,
+        label,
+        ...(details ? { details } : {}),
+        ...(Number.isFinite(points) && points > 0 ? { points: Math.round(points) } : {}),
+        ...(url ? { url } : {}),
+      },
+    ])
   }
 
   async function uploadUserDocument() {
@@ -6708,6 +6791,86 @@ remote: ${panelUrl}`
                 {viewUserProfile.billingCountry && <div><span className="text-muted-foreground">Country: </span><span className="text-foreground">{redact(viewUserProfile.billingCountry)}</span></div>}
                 {viewUserProfile.billingCompany && <div><span className="text-muted-foreground">Company: </span><span className="text-foreground">{redact(viewUserProfile.billingCompany)}</span></div>}
                 {viewUserProfile.phone && <div><span className="text-muted-foreground">Phone: </span><span className="text-foreground">{redact(viewUserProfile.phone)}</span></div>}
+              </div>
+
+              {/* Contributor Profile */}
+              <div className="rounded-lg border border-border bg-secondary/20 p-4 flex flex-col gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor profile</p>
+                  <p className="text-xs text-muted-foreground">Link a GitHub account or maintain a manual activity timeline for external contributors.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={viewUserContributorLogin}
+                    onChange={(e) => setViewUserContributorLogin(e.target.value)}
+                    placeholder="GitHub login (optional)"
+                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="text"
+                    value={viewUserContributorProfileUrl}
+                    onChange={(e) => setViewUserContributorProfileUrl(e.target.value)}
+                    placeholder="GitHub profile URL (optional)"
+                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="text"
+                    value={viewUserContributorAvatarUrl}
+                    onChange={(e) => setViewUserContributorAvatarUrl(e.target.value)}
+                    placeholder="Avatar override URL (optional)"
+                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="text"
+                    value={viewUserContributorTitle}
+                    onChange={(e) => setViewUserContributorTitle(e.target.value)}
+                    placeholder="Contributor title / role"
+                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={addContributorActivityEntry} className="border-border">
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Add activity
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setViewUserContributorActivity([])} className="border-border">
+                    Clear activity
+                  </Button>
+                  <Button size="sm" onClick={saveContributorProfile} disabled={viewUserContributorSaving} className="bg-primary text-primary-foreground gap-1.5">
+                    {viewUserContributorSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><Save className="h-3.5 w-3.5" /> Save contributor profile</>}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {viewUserContributorActivity.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No manual activity entries yet.</p>
+                  ) : (
+                    viewUserContributorActivity.map((entry, idx) => (
+                      <div key={`${entry.date}-${entry.label}-${idx}`} className="rounded-lg border border-border bg-card/80 px-3 py-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{entry.label}</p>
+                            <p className="text-xs text-muted-foreground">{entry.date}{entry.points ? ` · ${entry.points} pts` : ''}</p>
+                            {entry.details ? <p className="text-xs text-muted-foreground mt-1">{entry.details}</p> : null}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {entry.url ? (
+                              <a href={entry.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary hover:underline">Open</a>
+                            ) : null}
+                            <button
+                              onClick={() => setViewUserContributorActivity((prev) => prev.filter((_, i) => i !== idx))}
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              title="Remove activity"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
               {/* Fraud Scan */}
