@@ -3,9 +3,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { apiFetch } from '@/lib/api-client';
 import { API_ENDPOINTS, BRAND } from '@/lib/panel-config';
-import { ArrowLeft, ExternalLink, GitCommitVertical, Users } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitCommitVertical, GitPullRequest, Users } from 'lucide-react';
 
 type ContributorCommit = {
   sha: string;
@@ -14,14 +23,33 @@ type ContributorCommit = {
   committedAt: string;
 };
 
+type ContributorPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+  createdAt: string;
+  mergedAt?: string;
+  merged: boolean;
+};
+
+type ContributorCommitHistoryPoint = {
+  date: string;
+  count: number;
+};
+
 type Contributor = {
   login: string;
   avatarUrl: string;
   profileUrl: string;
   contributions: number;
+  pullRequests: number;
+  mergedPullRequests: number;
   isBot: boolean;
   lastCommitAt?: string;
   recentCommits: ContributorCommit[];
+  recentPullRequests: ContributorPullRequest[];
+  commitHistory: ContributorCommitHistoryPoint[];
 };
 
 type ContributorsSnapshot = {
@@ -33,6 +61,8 @@ type ContributorsSnapshot = {
   generatedAt: string;
   totalContributors: number;
   totalTrackedCommits: number;
+  totalTrackedPullRequests: number;
+  totalMergedPullRequests: number;
   contributors: Contributor[];
 };
 
@@ -43,7 +73,7 @@ const fadeUp: any = {
     y: 0,
     transition: { delay, duration: 0.5, ease: 'easeOut' },
   }),
-} as const;
+};
 
 const fadeIn: any = {
   hidden: { opacity: 0 },
@@ -51,7 +81,7 @@ const fadeIn: any = {
     opacity: 1,
     transition: { delay, duration: 0.4, ease: 'easeOut' },
   }),
-} as const;
+};
 
 const cardVariants: any = {
   hidden: { opacity: 0, y: 18 },
@@ -60,7 +90,7 @@ const cardVariants: any = {
     y: 0,
     transition: { delay: index * 0.05, duration: 0.35, ease: 'easeOut' },
   }),
-} as const;
+};
 
 function formatDate(value?: string) {
   if (!value) return 'No commits tracked yet';
@@ -71,6 +101,22 @@ function formatDate(value?: string) {
       day: 'numeric',
       year: 'numeric',
     });
+  } catch {
+    return value;
+  }
+}
+
+function formatShortDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function formatCompactDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'numeric', day: 'numeric' }).format(new Date(value));
   } catch {
     return value;
   }
@@ -107,6 +153,22 @@ export function ContributorsClient() {
   }, []);
 
   const sortedContributors = useMemo(() => data?.contributors ?? [], [data]);
+
+  const statLabels = data
+    ? [
+        `${data.totalContributors} contributors`,
+        `${data.totalTrackedCommits} tracked commits`,
+        `${data.totalTrackedPullRequests} tracked pull requests`,
+        `${data.totalMergedPullRequests} merged pull requests`,
+        `Last synced ${formatDate(data.generatedAt)}`,
+      ]
+    : [
+        'Loading contributors...',
+        'Fetching commit history...',
+        'Fetching pull requests...',
+        'Fetching merge stats...',
+        'Syncing from GitHub...',
+      ];
 
   return (
     <main className="min-h-screen bg-[#0a0a0f] text-white font-flink">
@@ -172,7 +234,7 @@ export function ContributorsClient() {
               variants={fadeUp}
               custom={0.18}
             >
-              Synced from GitHub on a schedule, filtered to remove bots, and grouped by contribution count with linked recent commits.
+              Synced from GitHub on a schedule, filtered to remove bots, and grouped by contribution count with linked commits, pull requests, and activity history.
             </motion.p>
 
             <motion.div
@@ -182,11 +244,7 @@ export function ContributorsClient() {
               variants={fadeIn}
               custom={0.25}
             >
-              {[
-                data ? `${data.totalContributors} contributors` : 'Loading contributors...',
-                data ? `${data.totalTrackedCommits} tracked commits` : 'Fetching commit history...',
-                data ? `Last synced ${formatDate(data.generatedAt)}` : 'Syncing from GitHub...',
-              ].map((label, index) => (
+              {statLabels.map((label) => (
                 <motion.div
                   key={label}
                   className="rounded-full border border-white/10 bg-black/20 px-4 py-2"
@@ -244,87 +302,179 @@ export function ContributorsClient() {
           ) : null}
 
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {sortedContributors.map((contributor, index) => (
-              <motion.article
-                key={contributor.login}
-                className="group rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-colors duration-300 hover:border-white/20 hover:bg-white/[0.07]"
-                initial="hidden"
-                animate="visible"
-                variants={cardVariants}
-                custom={index}
-                whileHover={{ y: -4 }}
-                whileTap={{ y: -2 }}
-              >
-                <div className="flex items-start gap-4">
-                  <img
-                    src={contributor.avatarUrl}
-                    alt={contributor.login}
-                    className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="truncate text-lg font-semibold">{contributor.login}</h2>
-                      {index === 0 ? (
-                        <motion.span
-                          className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200"
-                          initial={{ scale: 0.7, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.25, duration: 0.3 }}
-                        >
-                          Top
-                        </motion.span>
-                      ) : null}
+            {sortedContributors.map((contributor, index) => {
+              const commitHistory = Array.isArray(contributor.commitHistory) ? contributor.commitHistory : [];
+              const recentCommits = Array.isArray(contributor.recentCommits) ? contributor.recentCommits : [];
+              const recentPullRequests = Array.isArray(contributor.recentPullRequests) ? contributor.recentPullRequests : [];
+              const chartData = commitHistory.slice(-30);
+
+              return (
+                <motion.article
+                  key={contributor.login}
+                  className="group rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-colors duration-300 hover:border-white/20 hover:bg-white/[0.07]"
+                  initial="hidden"
+                  animate="visible"
+                  variants={cardVariants}
+                  custom={index}
+                  whileHover={{ y: -4 }}
+                  whileTap={{ y: -2 }}
+                >
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={contributor.avatarUrl}
+                      alt={contributor.login}
+                      className="h-16 w-16 rounded-2xl border border-white/10 object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="truncate text-lg font-semibold">{contributor.login}</h2>
+                        {index === 0 ? (
+                          <motion.span
+                            className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200"
+                            initial={{ scale: 0.7, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.25, duration: 0.3 }}
+                          >
+                            Top
+                          </motion.span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm text-white/60">{contributor.contributions} contributions</p>
+                      <motion.a
+                        href={contributor.profileUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="mt-2 inline-flex items-center gap-1 text-sm text-white/70 transition-colors hover:text-white"
+                        whileHover={{ x: 3 }}
+                      >
+                        Open profile
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </motion.a>
                     </div>
-                    <p className="mt-1 text-sm text-white/60">{contributor.contributions} contributions</p>
-                    <motion.a
-                      href={contributor.profileUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="mt-2 inline-flex items-center gap-1 text-sm text-white/70 transition-colors hover:text-white"
-                      whileHover={{ x: 3 }}
-                    >
-                      Open profile
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </motion.a>
-                  </div>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-white/35">
-                    <GitCommitVertical className="h-3.5 w-3.5" />
-                    Recent commits
                   </div>
 
-                  {contributor.recentCommits?.length ? (
-                    <div className="space-y-2">
-                      {contributor.recentCommits.slice(0, 3).map((commit, commitIndex) => (
-                        <motion.a
-                          key={commit.sha}
-                          href={commit.url}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          className="block rounded-2xl border border-white/10 bg-black/20 p-3 transition-colors hover:border-white/20 hover:bg-black/30"
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.15 + commitIndex * 0.05, duration: 0.3 }}
-                          whileHover={{ x: 4 }}
-                        >
-                          <p className="line-clamp-2 text-sm text-white/90">{commit.message}</p>
-                          <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-white/45">
-                            <span>{commit.sha.slice(0, 7)}</span>
-                            <span>{formatDate(commit.committedAt)}</span>
+                  <div className="mt-5 space-y-4">
+                    <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.28em] text-white/35">
+                      <GitCommitVertical className="h-3.5 w-3.5" />
+                      Recent commits
+                      <span className="rounded-full border border-white/10 bg-black/15 px-2 py-1 text-[10px] tracking-[0.18em] text-white/50">
+                        {contributor.pullRequests} PRs · {contributor.mergedPullRequests} merged
+                      </span>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/15 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-3 text-[11px] text-white/45">
+                        <span>Commit activity</span>
+                        <span>{chartData.length} days</span>
+                      </div>
+                      <div className="h-24 w-full">
+                        {chartData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData} margin={{ top: 4, right: 6, left: -20, bottom: 0 }}>
+                              <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                              <XAxis
+                                dataKey="date"
+                                tickFormatter={formatCompactDate}
+                                tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }}
+                                axisLine={false}
+                                tickLine={false}
+                                minTickGap={16}
+                              />
+                              <YAxis hide domain={[0, 'dataMax + 1']} />
+                              <Tooltip
+                                contentStyle={{
+                                  background: 'rgba(12,12,18,0.95)',
+                                  border: '1px solid rgba(255,255,255,0.12)',
+                                  borderRadius: 14,
+                                  color: '#fff',
+                                }}
+                                labelFormatter={(label) => formatShortDate(String(label))}
+                                formatter={(value) => [`${value} commits`, 'Activity']}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="count"
+                                stroke="#ff7db8"
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={{ r: 4 }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-white/45">
+                            No chart data available
                           </div>
-                        </motion.a>
-                      ))}
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-3 text-sm text-white/45">
-                      No linked commits cached yet.
-                    </p>
-                  )}
-                </div>
-              </motion.article>
-            ))}
+
+                    {recentCommits.length > 0 ? (
+                      <div className="space-y-2">
+                        {recentCommits.slice(0, 3).map((commit, commitIndex) => (
+                          <motion.a
+                            key={commit.sha}
+                            href={commit.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="block rounded-2xl border border-white/10 bg-black/20 p-3 transition-colors hover:border-white/20 hover:bg-black/30"
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.15 + commitIndex * 0.05, duration: 0.3 }}
+                            whileHover={{ x: 4 }}
+                          >
+                            <p className="line-clamp-2 text-sm text-white/90">{commit.message}</p>
+                            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-white/45">
+                              <span>{commit.sha.slice(0, 7)}</span>
+                              <span>{formatDate(commit.committedAt)}</span>
+                            </div>
+                          </motion.a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-3 text-sm text-white/45">
+                        No linked commits cached yet.
+                      </p>
+                    )}
+
+                    <div className="pt-1">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-white/35">
+                        <GitPullRequest className="h-3.5 w-3.5" />
+                        Recent pull requests
+                      </div>
+
+                      {recentPullRequests.length > 0 ? (
+                        <div className="mt-2 space-y-2">
+                          {recentPullRequests.slice(0, 3).map((pr, prIndex) => (
+                            <motion.a
+                              key={`${pr.number}-${prIndex}`}
+                              href={pr.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="block rounded-2xl border border-white/10 bg-black/20 p-3 transition-colors hover:border-white/20 hover:bg-black/30"
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.2 + prIndex * 0.05, duration: 0.3 }}
+                              whileHover={{ x: 4 }}
+                            >
+                              <p className="line-clamp-2 text-sm text-white/90">#{pr.number} {pr.title}</p>
+                              <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-white/45">
+                                <span>{pr.merged ? 'Merged' : pr.state}</span>
+                                <span>{formatDate(pr.mergedAt || pr.createdAt)}</span>
+                              </div>
+                            </motion.a>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 rounded-2xl border border-dashed border-white/10 bg-black/15 p-3 text-sm text-white/45">
+                          No linked pull requests cached yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.article>
+              );
+            })}
           </div>
         </motion.section>
       </div>
