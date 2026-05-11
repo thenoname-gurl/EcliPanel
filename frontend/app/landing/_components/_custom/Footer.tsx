@@ -128,8 +128,8 @@ export function Footer() {
         </div>
       </div>
 
-      <span className="text-[22vw] sm:text-[18vw] lg:text-[15rem] font-bold text-center absolute -bottom-7 z-2 right-[50%] translate-x-[50%] w-full overflow-hidden">
-        <ShinyText
+      <span className="text-[22vw] sm:text-[18vw] lg:text-[15vw] font-bold text-center absolute -bottom-7 z-2 right-[50%] translate-x-[50%] w-full overflow-hidden max-w-full">
+        {/* <ShinyText
           text="EclipseSystems"
           speed={2}
           delay={0}
@@ -140,8 +140,8 @@ export function Footer() {
           yoyo={false}
           pauseOnHover={false}
           disabled={false}
-        />
-        <div className="absolute bottom-0 left-0 w-full h-50 bg-linear-to-b from-transparent to-black z-20" />
+        /> */}
+        <div className="absolute bottom-0 left-0 w-full h-50 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
       </span>
 
       <motion.span
