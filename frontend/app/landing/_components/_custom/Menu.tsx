@@ -6,12 +6,24 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
-export function Menu() {
+interface MenuProps {
+  customCTA?: {
+    label: string;
+    href: string;
+    newPage?: boolean;
+  };
+  customMenu?: {
+    label: string;
+    href: string;
+  }[];
+}
+
+export function Menu({ customCTA, customMenu }: MenuProps) {
   const [open, setOpen] = useState(false);
   const t = useTranslations("landing");
   const { isLoggedIn } = useAuth();
 
-  const links = [
+  const links = customMenu || [
     { href: "#features", label: t("nav.features") },
     { href: "#pricing", label: t("nav.pricing") },
     { href: "#network", label: t("nav.network") },
@@ -21,11 +33,13 @@ export function Menu() {
   return (
     <>
       <div className="w-full fixed top-5 z-1101 flex justify-between items-center px-6 sm:px-12 lg:px-40">
-        <img
-          src="/assets/icons/logo.png"
-          alt={t("brand")}
-          className="w-12 sm:w-15 h-auto"
-        />
+        <a href="/">
+          <img
+            src="/assets/icons/logo.png"
+            alt={t("brand")}
+            className="w-12 sm:w-15 h-auto"
+          />
+        </a>
 
         <ul className="hidden md:flex items-center gap-8 list-none text-white/80 **:font-flink">
           {links.map(({ href, label }) => (
@@ -39,9 +53,25 @@ export function Menu() {
         </ul>
 
         <div className="hidden md:flex items-center gap-8">
-          <Link href={isLoggedIn ? "/dashboard" : "/register"}>
+          <Link
+            href={
+              customCTA
+                ? customCTA.href
+                : isLoggedIn
+                  ? "/dashboard"
+                  : "/register"
+            }
+            {...(customCTA?.newPage && {
+              target: "_blank",
+              rel: "noreferrer noopener",
+            })}
+          >
             <button className="px-4 py-1.5 rounded-full text-[18px] font-flink transition-colors hover:bg-white/65 text-white hover:text-black cursor-pointer duration-200">
-              {isLoggedIn ? t("nav.openDashboard") : t("nav.getStarted")}
+              {customCTA
+                ? customCTA.label
+                : isLoggedIn
+                  ? t("nav.openDashboard")
+                  : t("nav.getStarted")}
             </button>
           </Link>
         </div>
@@ -97,7 +127,13 @@ export function Menu() {
             </ul>
 
             <Link
-              href={isLoggedIn ? "/dashboard" : "/register"}
+              href={
+                customCTA
+                  ? customCTA.href
+                  : isLoggedIn
+                    ? "/dashboard"
+                    : "/register"
+              }
               className="w-full"
               onClick={() => setOpen(false)}
             >
@@ -105,9 +141,17 @@ export function Menu() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.2 }}
+                {...(customCTA?.newPage && {
+                  target: "_blank",
+                  rel: "noreferrer noopener",
+                })}
                 className="w-full py-2.5 rounded-full text-[18px] font-flink border border-white/40 text-white hover:bg-white/20 transition-colors duration-200 cursor-pointer"
               >
-                {isLoggedIn ? t("nav.openDashboard") : t("nav.getStarted")}
+                {customCTA
+                  ? customCTA.label
+                  : isLoggedIn
+                    ? t("nav.openDashboard")
+                    : t("nav.getStarted")}
               </motion.button>
             </Link>
           </motion.div>

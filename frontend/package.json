@@ -58,7 +58,7 @@
     "next": "latest",
     "next-intl": "latest",
     "next-themes": "latest",
-    "postprocessing": "latest",
+    "postprocessing": "^6.39.1",
     "qrcode": "latest",
     "react": "latest",
     "react-day-picker": "latest",
@@ -71,7 +71,7 @@
     "shadcn": "latest",
     "sonner": "latest",
     "tailwind-merge": "latest",
-    "three": "latest",
+    "three": "^0.167.1",
     "vaul": "latest",
     "zod": "latest"
   },

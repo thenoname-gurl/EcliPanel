@@ -54,7 +54,7 @@
         "next": "latest",
         "next-intl": "latest",
         "next-themes": "latest",
-        "postprocessing": "latest",
+        "postprocessing": "^6.39.1",
         "qrcode": "latest",
         "react": "latest",
         "react-day-picker": "latest",
@@ -67,7 +67,7 @@
         "shadcn": "latest",
         "sonner": "latest",
         "tailwind-merge": "latest",
-        "three": "latest",
+        "three": "^0.167.1",
         "vaul": "latest",
         "zod": "latest",
       },
@@ -1766,7 +1766,7 @@
 
     "tapable": ["tapable@2.3.3", "", {}, "sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A=="],
 
-    "three": ["three@0.184.0", "", {}, "sha512-wtTRjG92pM5eUg/KuUnHsqSAlPM296brTOcLgMRqEeylYTh/CdtvKUvCyyCQTzFuStieWxvZb8mVTMvdPyUpxg=="],
+    "three": ["three@0.167.1", "", {}, "sha512-gYTLJA/UQip6J/tJvl91YYqlZF47+D/kxiWrbTon35ZHlXEN0VOo+Qke2walF1/x92v55H6enomymg4Dak52kw=="],
 
     "tiny-invariant": ["tiny-invariant@1.3.3", "", {}, "sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg=="],
 
