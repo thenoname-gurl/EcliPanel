@@ -33,6 +33,20 @@ export type Contributor = {
   login: string;
   avatarUrl: string;
   profileUrl: string;
+  source?: 'github' | 'manual';
+  userId?: number;
+  displayName?: string;
+  title?: string | null;
+  githubLogin?: string | null;
+  githubProfileUrl?: string | null;
+  githubAvatarUrl?: string | null;
+  activity?: Array<{
+    date: string;
+    label: string;
+    details?: string;
+    points?: number;
+    url?: string;
+  }>;
   contributions: number;
   pullRequests: number;
   mergedPullRequests: number;
