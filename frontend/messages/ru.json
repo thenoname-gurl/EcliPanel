@@ -223,7 +223,8 @@
       "network": "Сеть",
       "faq": "FAQ",
       "signIn": "Войти",
-      "getStarted": "Начать"
+      "getStarted": "Начать",
+      "openDashboard": "Открыть панель"
     },
     "statusPill": {
       "connecting": "Подключение...",
@@ -410,6 +411,7 @@
         "docs": "Документация",
         "api": "API",
         "github": "GitHub",
+        "contributors": "Участники",
         "changelog": "Изменения",
         "terms": "Условия",
         "privacy": "Конфиденциальность",

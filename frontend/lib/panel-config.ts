@@ -132,6 +132,7 @@ export const API_ENDPOINTS = {
   nodeDetail: "/api/nodes/:id",
   // Public
   geoblockPublic: "/public/geoblock",
+  contributorsPublic: "/public/contributors",
   nodeGenerateToken: "/api/nodes/generate-token",
   nodeAssignOrg: "/api/nodes/:id/assign-org",
   nodeCreds: "/api/nodes/:id/credentials",

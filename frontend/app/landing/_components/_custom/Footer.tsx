@@ -44,6 +44,7 @@ export function Footer() {
           l: t("footer.links.github"),
           h: "https://github.com/thenoname-gurl/EcliPanel",
         },
+        { l: t("footer.links.contributors"), h: "/contributors" },
         { l: t("footer.links.changelog"), h: "/changelog" },
       ],
     },
