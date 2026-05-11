@@ -11,6 +11,7 @@ import { SocData } from '../models/socData.entity';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
 import { TunnelDevice } from '../models/tunnelDevice.entity';
 import { withRedisCache } from '../config/redis';
+const { getGithubContributorsSnapshot } = require('../services/githubContributorsService');
 
 const readNumber = (source: any, paths: string[]): number => {
   for (const path of paths) {
@@ -480,6 +481,44 @@ export async function publicRoutes(app: any, prefix = '') {
       tags: ['Public'],
       summary: 'Public minimum age rules',
       description: 'Returns country-specific minimum age overrides and default policy values.',
+    },
+  });
+
+  app.get(prefix + '/public/contributors', async () => {
+    return withRedisCache('public:contributors:v1', 60, async () => {
+      return getGithubContributorsSnapshot();
+    });
+  }, {
+    response: {
+      200: t.Object({
+        repo: t.Object({
+          owner: t.String(),
+          name: t.String(),
+          url: t.String(),
+        }),
+        generatedAt: t.String(),
+        totalContributors: t.Number(),
+        totalTrackedCommits: t.Number(),
+        contributors: t.Array(t.Object({
+          login: t.String(),
+          avatarUrl: t.String(),
+          profileUrl: t.String(),
+          contributions: t.Number(),
+          isBot: t.Boolean(),
+          lastCommitAt: t.Optional(t.String()),
+          recentCommits: t.Array(t.Object({
+            sha: t.String(),
+            message: t.String(),
+            url: t.String(),
+            committedAt: t.String(),
+          })),
+        })),
+      }),
+    },
+    detail: {
+      tags: ['Public'],
+      summary: 'Public GitHub contributors list',
+      description: 'Returns the contributors synced from GitHub, sorted by contribution count with recent commits.',
     },
   });
 }

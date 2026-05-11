@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 import dynamic from "next/dynamic";
 
@@ -13,6 +14,7 @@ const PixelBlast = dynamic(() => import("../_reacts-bits/PixelBlast"), {
 
 export function Hero() {
   const t = useTranslations("landing");
+  const { isLoggedIn } = useAuth();
 
   return (
     <div className="min-h-screen w-full relative bg-[#e594c7]">
@@ -65,9 +67,9 @@ export function Hero() {
           transition={{ duration: 0.7, ease: "easeOut", delay: 0.25 }}
           className="flex items-center gap-3 sm:gap-4 relative flex-wrap justify-center"
         >
-          <Link href="/register">
+          <Link href={isLoggedIn ? "/dashboard" : "/register"}>
             <button className="bg-white text-black px-5 sm:px-6 py-2 rounded-full text-base sm:text-[18px] font-flink transition-colors hover:bg-white/65 cursor-pointer duration-200">
-              {t("hero.cta")}
+              {isLoggedIn ? t("nav.openDashboard") : t("hero.cta")}
             </button>
           </Link>
           <Link href="#features">
