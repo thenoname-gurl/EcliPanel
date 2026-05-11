@@ -43,6 +43,11 @@ import os from 'os';
 import * as tar from 'tar';
 import { promises as fsp } from 'fs';
 import { normalizeProcessConfig } from '../utils/startupDetection';
+import { SocData } from '../models/socData.entity';
+import { ApplicationForm } from '../models/applicationForm.entity';
+import { ApplicationSubmission } from '../models/applicationSubmission.entity';
+import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import { createActivityLog } from './logHandler';
 
 function getAgeFromDate(date?: Date | string | null): number | null {
   if (!date) return null;
@@ -65,11 +70,69 @@ function getSafeRelativeFilePath(base: string, relPath: string): string | null {
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
   return fullPath;
 }
-import { SocData } from '../models/socData.entity';
-import { ApplicationForm } from '../models/applicationForm.entity';
-import { ApplicationSubmission } from '../models/applicationSubmission.entity';
-import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
-import { createActivityLog } from './logHandler';
+
+type ContributorActivityEntry = {
+  date: string;
+  label: string;
+  details?: string;
+  points?: number;
+  url?: string;
+};
+
+function normalizeContributorActivity(input: any): ContributorActivityEntry[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((item) => {
+      const date = String(item?.date || '').trim();
+      const label = String(item?.label || '').trim();
+      if (!date || !label) return null;
+      const entry: ContributorActivityEntry = { date, label };
+      const details = String(item?.details || '').trim();
+      const url = String(item?.url || '').trim();
+      const points = Number(item?.points);
+      if (details) entry.details = details;
+      if (url) entry.url = url;
+      if (Number.isFinite(points) && points > 0) entry.points = Math.round(points);
+      return entry;
+    })
+    .filter((item): item is ContributorActivityEntry => !!item)
+    .slice(0, 200);
+}
+
+function buildContributorSummary(user: User) {
+  const firstName = String(user.firstName || '').trim();
+  const middleName = String(user.middleName || '').trim();
+  const lastName = String(user.lastName || '').trim();
+  const fallbackName = `${firstName}${middleName ? ` ${middleName}` : ''} ${lastName}`.trim();
+  const displayName = String(user.displayName || fallbackName || user.email || `User #${user.id}`).trim();
+  const githubLogin = String((user as any).githubLogin || '').trim();
+  const githubProfileUrl = String((user as any).githubProfileUrl || '').trim();
+  const ecliAvatarUrl = String((user as any).avatarUrl || '').trim();
+  const githubAvatarUrl = String((user as any).githubAvatarUrl || '').trim();
+  const chosenAvatarUrl = ecliAvatarUrl || githubAvatarUrl;
+  const contributorTitle = String((user as any).contributorTitle || '').trim();
+  const activity = normalizeContributorActivity((user as any).contributorActivity);
+  const activityScore = activity.reduce((sum, item) => sum + Math.max(1, Number(item.points) || 1), 0);
+  const lastActivityAt = activity
+    .map((item) => item.date)
+    .filter(Boolean)
+    .sort((a, b) => String(b).localeCompare(String(a)))[0] || null;
+
+  if (!githubLogin && !githubProfileUrl && !githubAvatarUrl && !contributorTitle && activity.length === 0) {
+    return null;
+  }
+
+  return {
+    displayName,
+    title: contributorTitle || null,
+    githubLogin: githubLogin || null,
+    githubProfileUrl: githubProfileUrl || null,
+    githubAvatarUrl: chosenAvatarUrl || null,
+    activity,
+    activityScore,
+    lastActivityAt,
+  };
+}
 
 const GAMBLING_THEME_NAMES = new Set(['gambling mode dark', 'gambling mode white']);
 const GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE = 0.0777;
@@ -4917,6 +4980,7 @@ export async function adminRoutes(app: any, prefix = '') {
     out.aiModels = aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits }));
     out.servers = servers;
     out.orders = orders;
+    out.contributor = buildContributorSummary(user);
     return out;
   }, {
     beforeHandle: authenticate,
@@ -4925,6 +4989,53 @@ export async function adminRoutes(app: any, prefix = '') {
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     },
     detail: { summary: 'Get detailed profile for a user', tags: ['Admin'] },
+  });
+
+  app.put(prefix + '/admin/users/:id/contributor-profile', async (ctx) => {
+    const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
+    if (adminErr !== true) return adminErr;
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    const body = (ctx.body || {}) as any;
+    const githubLogin = String(body.githubLogin || '').trim();
+    const githubProfileUrl = String(body.githubProfileUrl || '').trim();
+    const githubAvatarUrl = String(body.githubAvatarUrl || '').trim();
+    const contributorTitle = String(body.contributorTitle || '').trim();
+    const activity = normalizeContributorActivity(body.contributorActivity);
+
+    (user as any).githubLogin = githubLogin || null;
+    (user as any).githubProfileUrl = githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : null);
+    (user as any).githubAvatarUrl = githubAvatarUrl || (githubLogin ? `https://github.com/${githubLogin}.png?size=256` : null);
+    (user as any).contributorTitle = contributorTitle || null;
+    (user as any).contributorActivity = activity;
+
+    await userRepo.save(user);
+    return { success: true, contributor: buildContributorSummary(user) };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        githubLogin: t.Optional(t.String()),
+        githubProfileUrl: t.Optional(t.String()),
+        githubAvatarUrl: t.Optional(t.String()),
+        contributorTitle: t.Optional(t.String()),
+        contributorActivity: t.Optional(t.Any()),
+      }),
+      response: {
+        200: t.Object({ success: t.Boolean(), contributor: t.Any() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Update contributor profile details for a user', tags: ['Admin'] },
   });
 
   app.post(prefix + '/admin/users/:id/documents', async (ctx: any) => {
