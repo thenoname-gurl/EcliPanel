@@ -485,7 +485,7 @@ export async function publicRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/public/contributors', async () => {
-    return withRedisCache('public:contributors:v1', 60, async () => {
+    return withRedisCache('public:contributors:v2', 60, async () => {
       return getGithubContributorsSnapshot();
     });
   }, {
@@ -499,11 +499,15 @@ export async function publicRoutes(app: any, prefix = '') {
         generatedAt: t.String(),
         totalContributors: t.Number(),
         totalTrackedCommits: t.Number(),
+        totalTrackedPullRequests: t.Number(),
+        totalMergedPullRequests: t.Number(),
         contributors: t.Array(t.Object({
           login: t.String(),
           avatarUrl: t.String(),
           profileUrl: t.String(),
           contributions: t.Number(),
+          pullRequests: t.Number(),
+          mergedPullRequests: t.Number(),
           isBot: t.Boolean(),
           lastCommitAt: t.Optional(t.String()),
           recentCommits: t.Array(t.Object({
@@ -511,6 +515,19 @@ export async function publicRoutes(app: any, prefix = '') {
             message: t.String(),
             url: t.String(),
             committedAt: t.String(),
+          })),
+          recentPullRequests: t.Array(t.Object({
+            number: t.Number(),
+            title: t.String(),
+            url: t.String(),
+            state: t.String(),
+            createdAt: t.String(),
+            mergedAt: t.Optional(t.String()),
+            merged: t.Boolean(),
+          })),
+          commitHistory: t.Array(t.Object({
+            date: t.String(),
+            count: t.Number(),
           })),
         })),
       }),
