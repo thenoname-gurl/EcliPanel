@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from "react"
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import {
   AlertTriangle,
   Info,
@@ -16,28 +16,31 @@ import {
   KeyRound,
   Smartphone,
   MailCheck,
-} from "lucide-react"
-import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useTranslations } from "next-intl"
-import { useAuth } from "@/hooks/useAuth"
-import { apiFetch } from "@/lib/api-client"
-import { API_ENDPOINTS } from "@/lib/panel-config"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useAuth } from "@/hooks/useAuth";
+import { apiFetch } from "@/lib/api-client";
+import { API_ENDPOINTS } from "@/lib/panel-config";
+import { cn } from "@/lib/utils";
 
 function bufferToBase64url(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  let str = ""
-  for (const b of bytes) str += String.fromCharCode(b)
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "")
+  const bytes = new Uint8Array(buffer);
+  let str = "";
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 function base64urlToBuffer(b64: string): ArrayBuffer {
-  const padded = b64.replace(/-/g, "+").replace(/_/g, "/").padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=")
-  const binary = atob(padded)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes.buffer
+  const padded = b64
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
 }
 
 /* ─── Reusable Input ─── */
@@ -54,24 +57,27 @@ function InputField({
   rightElement,
   autoComplete,
 }: {
-  icon?: any
-  label?: string
-  name: string
-  type?: string
-  placeholder: string
-  value: string
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  required?: boolean
-  className?: string
-  rightElement?: React.ReactNode
-  autoComplete?: string
+  icon?: any;
+  label?: string;
+  name: string;
+  type?: string;
+  placeholder: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  className?: string;
+  rightElement?: React.ReactNode;
+  autoComplete?: string;
 }) {
-  const [focused, setFocused] = useState(false)
+  const [focused, setFocused] = useState(false);
 
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label htmlFor={name} className="block text-[13px] font-medium text-foreground/80">
+        <label
+          htmlFor={name}
+          className="block text-[13px] font-medium text-foreground/80"
+        >
           {label}
           {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
@@ -81,7 +87,7 @@ function InputField({
           <div
             className={cn(
               "absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-150",
-              focused ? "text-primary" : "text-muted-foreground"
+              focused ? "text-primary" : "text-muted-foreground",
             )}
           >
             <Icon className="h-4 w-4" />
@@ -105,15 +111,17 @@ function InputField({
             "focus:border-primary focus:ring-2 focus:ring-primary/20",
             "hover:border-muted-foreground/40",
             Icon ? "pl-10 pr-3" : "px-3.5",
-            rightElement && "pr-11"
+            rightElement && "pr-11",
           )}
         />
         {rightElement && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightElement}</div>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {rightElement}
+          </div>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 /* ─── Alert Banner ─── */
@@ -124,11 +132,11 @@ function AlertBanner({
   onDismiss,
   dismissLabel = "Dismiss",
 }: {
-  variant?: "info" | "warning" | "error" | "success"
-  title?: string
-  children: React.ReactNode
-  onDismiss?: () => void
-  dismissLabel?: string
+  variant?: "info" | "warning" | "error" | "success";
+  title?: string;
+  children: React.ReactNode;
+  onDismiss?: () => void;
+  dismissLabel?: string;
 }) {
   const styles = {
     info: {
@@ -159,24 +167,33 @@ function AlertBanner({
       text: "text-green-200/70",
       IconComponent: CheckCircle2,
     },
-  }
+  };
 
-  const style = styles[variant]
-  const IconComp = style.IconComponent
+  const style = styles[variant];
+  const IconComp = style.IconComponent;
 
   return (
-    <div className={cn("rounded-xl border p-3.5 sm:p-4 animate-in fade-in slide-in-from-top-2 duration-300", style.container)}>
+    <div
+      className={cn(
+        "rounded-xl border p-3.5 sm:p-4 animate-in fade-in slide-in-from-top-2 duration-300",
+        style.container,
+      )}
+    >
       <div className="flex gap-3">
         <IconComp className={cn("h-5 w-5 shrink-0 mt-0.5", style.icon)} />
         <div className="flex-1 min-w-0 space-y-1">
-          {title && <p className={cn("text-sm font-semibold", style.title)}>{title}</p>}
-          <div className={cn("text-sm leading-relaxed", style.text)}>{children}</div>
+          {title && (
+            <p className={cn("text-sm font-semibold", style.title)}>{title}</p>
+          )}
+          <div className={cn("text-sm leading-relaxed", style.text)}>
+            {children}
+          </div>
           {onDismiss && (
             <button
               onClick={onDismiss}
               className={cn(
                 "mt-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors",
-                "border-current/20 hover:bg-white/5"
+                "border-current/20 hover:bg-white/5",
               )}
             >
               {dismissLabel}
@@ -185,7 +202,7 @@ function AlertBanner({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 /* ─── Section Divider ─── */
@@ -199,7 +216,7 @@ function SectionDivider({ label, icon: Icon }: { label: string; icon?: any }) {
       </span>
       <div className="h-px flex-1 bg-border/50" />
     </div>
-  )
+  );
 }
 
 /* ─── Two Factor Method Button ─── */
@@ -210,11 +227,11 @@ function TwoFactorMethodButton({
   selected,
   onClick,
 }: {
-  icon: any
-  label: string
-  description: string
-  selected: boolean
-  onClick: () => void
+  icon: any;
+  label: string;
+  description: string;
+  selected: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
@@ -224,198 +241,217 @@ function TwoFactorMethodButton({
         "w-full flex items-start gap-3 p-3.5 rounded-xl border transition-all text-left",
         selected
           ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-          : "border-border/60 hover:border-muted-foreground/40 hover:bg-secondary/30"
+          : "border-border/60 hover:border-muted-foreground/40 hover:bg-secondary/30",
       )}
     >
-      <div className={cn(
-        "p-2 rounded-lg",
-        selected ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
-      )}>
+      <div
+        className={cn(
+          "p-2 rounded-lg",
+          selected
+            ? "bg-primary/20 text-primary"
+            : "bg-secondary text-muted-foreground",
+        )}
+      >
         <Icon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-medium", selected ? "text-primary" : "text-foreground")}>
+        <p
+          className={cn(
+            "text-sm font-medium",
+            selected ? "text-primary" : "text-foreground",
+          )}
+        >
           {label}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
       </div>
-      {selected && (
-        <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-      )}
+      {selected && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
     </button>
-  )
+  );
 }
 
-type OtpMethod = "totp" | "email" | "backup"
+type OtpMethod = "totp" | "email" | "backup";
 
 export default function LoginPage() {
-  const { login, refreshUser } = useAuth()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const t = useTranslations("login")
-  const rawRedirect = searchParams.get("redirect")
-  const redirectTo = rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/dashboard"
-  const redirectQuery = `?redirect=${encodeURIComponent(redirectTo)}`
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [passkeyLoading, setPasskeyLoading] = useState(false)
-  const [tempToken, setTempToken] = useState<string | null>(null)
-  const [twoFactorCode, setTwoFactorCode] = useState("")
-  const [backupCode, setBackupCode] = useState("")
-  const [emailCode, setEmailCode] = useState("")
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
-  const [otpMethod, setOtpMethod] = useState<OtpMethod | null>(null)
-  const [domainOk, setDomainOk] = useState<boolean | null>(null)
-  const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(() => {
-    try {
-      return typeof window !== "undefined" && localStorage.getItem("domainWarningDismissed") === "1"
-    } catch {
-      return false
-    }
-  })
-  const [backendReady, setBackendReady] = useState<boolean | null>(null)
-  const [backendStatusMessage, setBackendStatusMessage] = useState<string | null>(null)
-  const [backendChecking, setBackendChecking] = useState(false)
+  const { login, refreshUser } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const t = useTranslations("login");
+  const rawRedirect = searchParams.get("redirect");
+  const redirectTo =
+    rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/dashboard";
+  const redirectQuery = `?redirect=${encodeURIComponent(redirectTo)}`;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [backupCode, setBackupCode] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [otpMethod, setOtpMethod] = useState<OtpMethod | null>(null);
+  const [domainOk, setDomainOk] = useState<boolean | null>(null);
+  const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(
+    () => {
+      try {
+        return (
+          typeof window !== "undefined" &&
+          localStorage.getItem("domainWarningDismissed") === "1"
+        );
+      } catch {
+        return false;
+      }
+    },
+  );
+  const [backendReady, setBackendReady] = useState<boolean | null>(null);
+  const [backendStatusMessage, setBackendStatusMessage] = useState<
+    string | null
+  >(null);
+  const [backendChecking, setBackendChecking] = useState(false);
 
   useEffect(() => {
     try {
-      if (typeof window === "undefined") return
-      const host = window.location.hostname || ""
-      setDomainOk(host.endsWith("ecli.app"))
+      if (typeof window === "undefined") return;
+      const host = window.location.hostname || "";
+      setDomainOk(host.endsWith("ecli.app"));
     } catch {
-      setDomainOk(null)
+      setDomainOk(null);
     }
-  }, [])
+  }, []);
 
   const checkBackend = useCallback(async (): Promise<void> => {
-    if (typeof window === "undefined") return
-    setBackendChecking(true)
+    if (typeof window === "undefined") return;
+    setBackendChecking(true);
 
-    const controller = new AbortController()
-    let timeoutId: number | null = null
+    const controller = new AbortController();
+    let timeoutId: number | null = null;
     try {
-      timeoutId = window.setTimeout(() => controller.abort(), 3000)
-      const res = await fetch(API_ENDPOINTS.health, { method: "GET", cache: "no-store", signal: controller.signal })
+      timeoutId = window.setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(API_ENDPOINTS.health, {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal,
+      });
 
       if (!res.ok) {
-        let message = t("backendUnavailableMessage")
+        let message = t("backendUnavailableMessage");
         try {
-          const json = await res.json()
+          const json = await res.json();
           if (json?.status) {
-            message = `${message} (${json.status})`
+            message = `${message} (${json.status})`;
           }
         } catch {}
-        setBackendReady(false)
-        setBackendStatusMessage(message)
-        return
+        setBackendReady(false);
+        setBackendStatusMessage(message);
+        return;
       }
 
-      const data = await res.json()
+      const data = await res.json();
       if (data?.status !== "ok") {
-        setBackendReady(false)
-        setBackendStatusMessage(t("backendUnavailableMessage"))
-        return
+        setBackendReady(false);
+        setBackendStatusMessage(t("backendUnavailableMessage"));
+        return;
       }
 
-      setBackendReady(true)
-      setBackendStatusMessage(null)
+      setBackendReady(true);
+      setBackendStatusMessage(null);
     } catch {
-      setBackendReady(false)
-      setBackendStatusMessage(t("backendUnavailableMessage"))
+      setBackendReady(false);
+      setBackendStatusMessage(t("backendUnavailableMessage"));
     } finally {
       if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
+        window.clearTimeout(timeoutId);
       }
-      setBackendChecking(false)
+      setBackendChecking(false);
     }
-  }, [t])
+  }, [t]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-    checkBackend()
-  }, [checkBackend])
+    if (typeof window === "undefined") return;
+    checkBackend();
+  }, [checkBackend]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
     try {
-      const res: any = await login(email, password)
+      const res: any = await login(email, password);
       if (res && res.twoFactorRequired) {
-        setTempToken(res.tempToken)
-        setError(null)
-        return
+        setTempToken(res.tempToken);
+        setError(null);
+        return;
       }
-      router.replace(redirectTo)
+      router.replace(redirectTo);
     } catch (err: any) {
-      setError(err.message || t("loginFailed"))
+      setError(err.message || t("loginFailed"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const sendEmailCode = async () => {
-    if (!tempToken) return
-    setSendingEmail(true)
+    if (!tempToken) return;
+    setSendingEmail(true);
     try {
       await apiFetch(API_ENDPOINTS.twoFactorSendEmail, {
         method: "POST",
         body: JSON.stringify({ tempToken }),
-      })
-      setError(null)
-      setEmailSent(true)
+      });
+      setError(null);
+      setEmailSent(true);
     } catch (e: any) {
-      setError(e.message || t("failedToSendEmailCode"))
+      setError(e.message || t("failedToSendEmailCode"));
     }
-    setSendingEmail(false)
-  }
+    setSendingEmail(false);
+  };
 
   const verify2fa = async () => {
-    if (!tempToken) return setError(t("missingTemporarySession"))
-    setLoading(true)
+    if (!tempToken) return setError(t("missingTemporarySession"));
+    setLoading(true);
     try {
-      const body: any = { tempToken }
-      if (otpMethod === "totp" && twoFactorCode) body.token = twoFactorCode
-      if (otpMethod === "backup" && backupCode) body.backupCode = backupCode
-      if (otpMethod === "email" && emailCode) body.emailCode = emailCode
+      const body: any = { tempToken };
+      if (otpMethod === "totp" && twoFactorCode) body.token = twoFactorCode;
+      if (otpMethod === "backup" && backupCode) body.backupCode = backupCode;
+      if (otpMethod === "email" && emailCode) body.emailCode = emailCode;
       if (!body.token && !body.backupCode && !body.emailCode) {
-        setError(t("enterCodeSelectedMethod"))
-        setLoading(false)
-        return
+        setError(t("enterCodeSelectedMethod"));
+        setLoading(false);
+        return;
       }
       const data: any = await apiFetch(API_ENDPOINTS.twoFactorVerifyLogin, {
         method: "POST",
         body: JSON.stringify(body),
-      })
+      });
       if (data.token) {
-        await refreshUser()
-        router.replace(redirectTo)
+        await refreshUser();
+        router.replace(redirectTo);
       } else {
-        setError(t("invalidServerResponse"))
+        setError(t("invalidServerResponse"));
       }
     } catch (e: any) {
-      setError(e.message || t("verificationFailed"))
+      setError(e.message || t("verificationFailed"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handlePasskey = async () => {
     if (!email) {
-      setError(t("enterEmailBeforePasskey"))
-      return
+      setError(t("enterEmailBeforePasskey"));
+      return;
     }
-    setError(null)
-    setPasskeyLoading(true)
+    setError(null);
+    setPasskeyLoading(true);
     try {
       const opts = await apiFetch(API_ENDPOINTS.passkeyAuthChallenge, {
         method: "POST",
         body: JSON.stringify({ email }),
-      })
+      });
 
       const publicKey: PublicKeyCredentialRequestOptions = {
         ...opts,
@@ -424,53 +460,60 @@ export default function LoginPage() {
           ...c,
           id: base64urlToBuffer(c.id),
         })),
-      }
+      };
 
-      const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null
-      if (!credential) throw new Error(t("passkeyCancelled"))
+      const credential = (await navigator.credentials.get({
+        publicKey,
+      })) as PublicKeyCredential | null;
+      if (!credential) throw new Error(t("passkeyCancelled"));
 
-      const assertionResponse = credential.response as AuthenticatorAssertionResponse
+      const assertionResponse =
+        credential.response as AuthenticatorAssertionResponse;
 
       const authenticationResponse = {
         id: credential.id,
         rawId: bufferToBase64url(credential.rawId),
         type: credential.type,
         response: {
-          authenticatorData: bufferToBase64url(assertionResponse.authenticatorData),
+          authenticatorData: bufferToBase64url(
+            assertionResponse.authenticatorData,
+          ),
           clientDataJSON: bufferToBase64url(assertionResponse.clientDataJSON),
           signature: bufferToBase64url(assertionResponse.signature),
-          userHandle: assertionResponse.userHandle ? bufferToBase64url(assertionResponse.userHandle) : null,
+          userHandle: assertionResponse.userHandle
+            ? bufferToBase64url(assertionResponse.userHandle)
+            : null,
         },
-      }
+      };
 
       const data = await apiFetch(API_ENDPOINTS.passkeyAuthenticate, {
         method: "POST",
         body: JSON.stringify({ email, authenticationResponse }),
-      })
+      });
 
       if (data && data.token) {
         if (typeof window !== "undefined") {
-          localStorage.setItem("token", data.token)
+          localStorage.setItem("token", data.token);
         }
       }
 
-      await refreshUser()
-      router.push(redirectTo)
+      await refreshUser();
+      router.push(redirectTo);
     } catch (err: any) {
-      setError(err.message || t("passkeyFailed"))
+      setError(err.message || t("passkeyFailed"));
     } finally {
-      setPasskeyLoading(false)
+      setPasskeyLoading(false);
     }
-  }
+  };
 
   const cancelTwoFactor = () => {
-    setTempToken(null)
-    setTwoFactorCode("")
-    setBackupCode("")
-    setEmailCode("")
-    setOtpMethod(null)
-    setError(null)
-  }
+    setTempToken(null);
+    setTwoFactorCode("");
+    setBackupCode("");
+    setEmailCode("");
+    setOtpMethod(null);
+    setError(null);
+  };
 
   return (
     <div className="min-h-[100dvh] w-full bg-background overflow-auto">
@@ -505,16 +548,21 @@ export default function LoginPage() {
                     title={t("verifyDomain")}
                     onDismiss={() => {
                       try {
-                        localStorage.setItem("domainWarningDismissed", "1")
+                        localStorage.setItem("domainWarningDismissed", "1");
                       } catch {}
-                      setDismissedDomainWarning(true)
+                      setDismissedDomainWarning(true);
                     }}
                   >
                     <p>
                       {t.rich("domainWarning", {
-                        domain: (chunks: ReactNode) => <span className="font-medium">{chunks}</span>,
+                        domain: (chunks: ReactNode) => (
+                          <span className="font-medium">{chunks}</span>
+                        ),
                         link: (chunks: ReactNode) => (
-                          <a href="https://ecli.app" className="underline font-medium">
+                          <a
+                            href="https://ecli.app"
+                            className="underline font-medium"
+                          >
                             {chunks}
                           </a>
                         ),
@@ -524,11 +572,16 @@ export default function LoginPage() {
                 )}
 
                 {backendReady === false && (
-                  <AlertBanner variant="error" title={t("backendUnavailableTitle")}> 
+                  <AlertBanner
+                    variant="error"
+                    title={t("backendUnavailableTitle")}
+                  >
                     <div className="space-y-3">
                       <p>{t("backendUnavailableMessage")}</p>
                       {backendStatusMessage && (
-                        <p className="text-xs text-muted-foreground">{backendStatusMessage}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {backendStatusMessage}
+                        </p>
                       )}
                       <button
                         type="button"
@@ -537,7 +590,7 @@ export default function LoginPage() {
                         className={cn(
                           "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
                           "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
-                          "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          "focus:outline-none focus:ring-2 focus:ring-primary/20",
                         )}
                       >
                         {backendChecking ? (
@@ -564,7 +617,9 @@ export default function LoginPage() {
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
                       <KeyRound className="h-6 w-6 text-primary" />
                     </div>
-                    <h2 className="text-lg font-semibold text-foreground">{t("twoFactorTitle")}</h2>
+                    <h2 className="text-lg font-semibold text-foreground">
+                      {t("twoFactorTitle")}
+                    </h2>
                     <p className="text-sm text-muted-foreground mt-1">
                       {t("twoFactorSubtitle")}
                     </p>
@@ -577,8 +632,8 @@ export default function LoginPage() {
                       description={t("methodAuthenticatorDesc")}
                       selected={otpMethod === "totp"}
                       onClick={() => {
-                        setOtpMethod("totp")
-                        setEmailSent(false)
+                        setOtpMethod("totp");
+                        setEmailSent(false);
                       }}
                     />
                     <TwoFactorMethodButton
@@ -587,8 +642,8 @@ export default function LoginPage() {
                       description={t("methodEmailDesc")}
                       selected={otpMethod === "email"}
                       onClick={() => {
-                        setOtpMethod("email")
-                        setEmailSent(false)
+                        setOtpMethod("email");
+                        setEmailSent(false);
                       }}
                     />
                     <TwoFactorMethodButton
@@ -597,8 +652,8 @@ export default function LoginPage() {
                       description={t("methodBackupDesc")}
                       selected={otpMethod === "backup"}
                       onClick={() => {
-                        setOtpMethod("backup")
-                        setEmailSent(false)
+                        setOtpMethod("backup");
+                        setEmailSent(false);
                       }}
                     />
                   </div>
@@ -646,19 +701,23 @@ export default function LoginPage() {
                               <button
                                 type="button"
                                 onClick={sendEmailCode}
-                                disabled={sendingEmail || backendReady === false}
+                                disabled={
+                                  sendingEmail || backendReady === false
+                                }
                                 className={cn(
                                   "h-[46px] px-4 rounded-xl border text-sm font-medium transition-all",
                                   "border-border/60 bg-secondary/30 text-foreground",
                                   "hover:bg-secondary/60 hover:border-muted-foreground/40",
                                   "disabled:opacity-50 disabled:cursor-not-allowed",
-                                  "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  "focus:outline-none focus:ring-2 focus:ring-primary/20",
                                 )}
                               >
                                 {sendingEmail ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : emailSent ? (
+                                  t("resend")
                                 ) : (
-                                  emailSent ? t("resend") : t("send")
+                                  t("send")
                                 )}
                               </button>
                             </div>
@@ -682,7 +741,7 @@ export default function LoginPage() {
                             "bg-primary text-primary-foreground",
                             "hover:bg-primary/90 active:scale-[0.98]",
                             "disabled:opacity-50 disabled:cursor-not-allowed",
-                            "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                            "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
                           )}
                         >
                           {loading ? (
@@ -704,7 +763,7 @@ export default function LoginPage() {
                             "px-5 py-3 rounded-xl border text-sm font-medium transition-all",
                             "border-border/60 bg-secondary/30 text-foreground",
                             "hover:bg-secondary/60 active:scale-[0.98]",
-                            "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            "focus:outline-none focus:ring-2 focus:ring-primary/20",
                           )}
                         >
                           {t("cancel")}
@@ -745,7 +804,9 @@ export default function LoginPage() {
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
-                        aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+                        aria-label={
+                          showPassword ? t("hidePassword") : t("showPassword")
+                        }
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -767,13 +828,15 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    disabled={loading || passkeyLoading || backendReady === false}
+                    disabled={
+                      loading || passkeyLoading || backendReady === false
+                    }
                     className={cn(
                       "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
                       "bg-primary text-primary-foreground",
                       "hover:bg-primary/90 active:scale-[0.98]",
                       "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
-                      "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                      "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
                     )}
                   >
                     {loading ? (
@@ -794,13 +857,15 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={handlePasskey}
-                    disabled={loading || passkeyLoading || backendReady === false}
+                    disabled={
+                      loading || passkeyLoading || backendReady === false
+                    }
                     className={cn(
                       "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-medium transition-all",
                       "border border-border/60 bg-secondary/30",
                       "hover:bg-secondary/60 hover:border-muted-foreground/40 active:scale-[0.98]",
                       "disabled:opacity-50 disabled:cursor-not-allowed",
-                      "focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      "focus:outline-none focus:ring-2 focus:ring-primary/20",
                     )}
                   >
                     {passkeyLoading ? (
@@ -856,5 +921,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
