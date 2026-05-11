@@ -7,11 +7,26 @@ import { API_ENDPOINTS } from "@/lib/panel-config";
 import { Menu } from "../landing/_components/_custom/Menu";
 import { Hero } from "./_components/Hero";
 
-type ContributorCommit = {
+export type ContributorCommit = {
   sha: string;
   message: string;
   url: string;
   committedAt: string;
+};
+
+export type ContributorPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+  createdAt: string;
+  mergedAt?: string;
+  merged: boolean;
+};
+
+export type ContributorCommitHistoryPoint = {
+  date: string;
+  count: number;
 };
 
 export type Contributor = {
@@ -66,7 +81,10 @@ function formatDate(value?: string) {
 
 function formatShortDate(value: string) {
   try {
-    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value));
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+    }).format(new Date(value));
   } catch {
     return value;
   }
@@ -74,7 +92,10 @@ function formatShortDate(value: string) {
 
 function formatCompactDate(value: string) {
   try {
-    return new Intl.DateTimeFormat(undefined, { month: 'numeric', day: 'numeric' }).format(new Date(value));
+    return new Intl.DateTimeFormat(undefined, {
+      month: "numeric",
+      day: "numeric",
+    }).format(new Date(value));
   } catch {
     return value;
   }
@@ -123,11 +144,11 @@ export function ContributorsClient() {
         `Last synced ${formatDate(data.generatedAt)}`,
       ]
     : [
-        'Loading contributors...',
-        'Fetching commit history...',
-        'Fetching pull requests...',
-        'Fetching merge stats...',
-        'Syncing from GitHub...',
+        "Loading contributors...",
+        "Fetching commit history...",
+        "Fetching pull requests...",
+        "Fetching merge stats...",
+        "Syncing from GitHub...",
       ];
 
   return (
