@@ -17,48 +17,91 @@ interface InfraStatus {
 }
 
 function toBool(value: any): boolean {
-  if (value === false || value === "false" || value === 0 || value === "0") return false;
-  if (value === undefined || value === null) return true;
-  return value === true || value === "true" || value === 1 || value === "1" || Boolean(value);
+  if (value === false || value === "false" || value === 0 || value === "0") {
+    return false;
+  }
+
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  return (
+    value === true ||
+    value === "true" ||
+    value === 1 ||
+    value === "1" ||
+    Boolean(value)
+  );
 }
 
 function useInfraStatus() {
   const [infra, setInfra] = useState<InfraStatus | null>(null);
+
   useEffect(() => {
     let mounted = true;
+
     const go = async () => {
       try {
         const r = await fetch("https://backend.ecli.app/public/status", {
           cache: "no-store",
         });
+
         if (!r.ok) return;
+
         const d: InfraStatus = await r.json();
-        if (mounted) setInfra(d);
+
+        if (mounted) {
+          setInfra(d);
+        }
       } catch {}
     };
+
     go();
-    const iv = setInterval(go, 15_000);
+
+    const iv = setInterval(go, 15000);
+
     return () => {
       mounted = false;
       clearInterval(iv);
     };
   }, []);
+
   return infra;
 }
 
 const ORBIT_STYLES = `
-  @keyframes orbit {
-    from { transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
-    to   { transform: translate(-50%, -50%) rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+  @keyframes spin {
+    from {
+      transform:
+        translate(-50%, -50%)
+        rotate(0deg);
+    }
+
+    to {
+      transform:
+        translate(-50%, -50%)
+        rotate(360deg);
+    }
   }
-  @keyframes orbit-reverse {
-    from { transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
-    to   { transform: translate(-50%, -50%) rotate(-360deg) translateX(var(--orbit-r)) rotate(360deg); }
+
+  @keyframes spin-reverse {
+    from {
+      transform:
+        translate(-50%, -50%)
+        rotate(0deg);
+    }
+
+    to {
+      transform:
+        translate(-50%, -50%)
+        rotate(-360deg);
+    }
   }
 `;
 
 function StatusPill({ infra }: { infra: InfraStatus | null }) {
   const t = useTranslations("landing");
+
   const color =
     infra?.status === "online"
       ? "#4ade80"
@@ -69,27 +112,44 @@ function StatusPill({ infra }: { infra: InfraStatus | null }) {
           : "#6b7280";
 
   const label = infra
-    ? t("statusPill.nodesLive", { count: infra.nodeCount })
+    ? t("statusPill.nodesLive", {
+        count: infra.nodeCount,
+      })
     : t("statusPill.connecting");
 
   return (
     <div
       className="inline-flex items-center gap-2 rounded-full px-3 py-1"
-      style={{ background: `${color}12`, border: `1px solid ${color}30` }}
+      style={{
+        background: `${color}12`,
+        border: `1px solid ${color}30`,
+      }}
     >
       <span className="relative flex h-1.5 w-1.5">
         {infra?.status === "online" && (
           <span
             className="absolute inline-flex h-full w-full rounded-full animate-ping"
-            style={{ background: color, opacity: 0.5 }}
+            style={{
+              background: color,
+              opacity: 0.5,
+            }}
           />
         )}
+
         <span
           className="relative inline-flex h-1.5 w-1.5 rounded-full"
-          style={{ background: color }}
+          style={{
+            background: color,
+          }}
         />
       </span>
-      <span className="text-[11px] font-inter font-medium" style={{ color }}>
+
+      <span
+        className="text-[11px] font-inter font-medium"
+        style={{
+          color,
+        }}
+      >
         {label}
       </span>
     </div>
@@ -132,24 +192,47 @@ function BarStat({
   return (
     <motion.div
       className="flex flex-col gap-2 border border-white/20 p-4 justify-end cursor-pointer overflow-hidden relative w-full min-h-25"
-      style={{ background: bg }}
-      initial={{ height: 0, opacity: 0, y: 30 }}
-      whileInView={{ height: barH, opacity: 1, y: 0 }}
-      whileHover={{ height: barH + HOVER_BONUS }}
-      viewport={{ once: true, margin: "-60px" }}
+      style={{
+        background: bg,
+      }}
+      initial={{
+        height: 0,
+        opacity: 0,
+        y: 30,
+      }}
+      whileInView={{
+        height: barH,
+        opacity: 1,
+        y: 0,
+      }}
+      whileHover={{
+        height: barH + HOVER_BONUS,
+      }}
+      viewport={{
+        once: true,
+        margin: "-60px",
+      }}
       transition={{
         height: {
           duration: 0.7,
           ease: [0.34, 1.56, 0.64, 1],
           delay: index * 0.1,
         },
-        opacity: { duration: 0.4, delay: index * 0.1 },
-        y: { duration: 0.5, ease: "easeOut", delay: index * 0.1 },
+        opacity: {
+          duration: 0.4,
+          delay: index * 0.1,
+        },
+        y: {
+          duration: 0.5,
+          ease: "easeOut",
+          delay: index * 0.1,
+        },
       }}
     >
       <p className="text-[#171717]/60 font-flink text-2xl sm:text-xl leading-tight">
         {label}
       </p>
+
       <p className="text-[#171717] font-flink text-sm sm:text-xs leading-none">
         {value.toLocaleString()}
       </p>
@@ -159,7 +242,9 @@ function BarStat({
 
 export function Network() {
   const t = useTranslations("landing");
+
   const infra = useInfraStatus();
+
   const [tunnelsEnabled, setTunnelsEnabled] = useState(true);
 
   useEffect(() => {
@@ -170,15 +255,21 @@ export function Network() {
         const response = await fetch(API_ENDPOINTS.publicFeatures, {
           cache: "no-store",
         });
+
         if (!response.ok) return;
+
         const data = await response.json();
+
         const enabled = toBool(data?.featureToggles?.tunnels);
-        if (mounted) setTunnelsEnabled(enabled);
-      } catch {
-      }
+
+        if (mounted) {
+          setTunnelsEnabled(enabled);
+        }
+      } catch {}
     };
 
     loadFeatures();
+
     return () => {
       mounted = false;
     };
@@ -188,8 +279,13 @@ export function Network() {
   const TUNNEL_R = 100;
 
   const nodeCount = infra?.nodeCount ?? 0;
+
   const tunnelCount = tunnelsEnabled ? (infra?.tunnelCount ?? 0) : 0;
-  const tunnelActive = Math.min(tunnelsEnabled ? (infra?.tunnelActive ?? 0) : 0, tunnelCount);
+
+  const tunnelActive = Math.min(
+    tunnelsEnabled ? (infra?.tunnelActive ?? 0) : 0,
+    tunnelCount,
+  );
 
   const stats = useMemo(() => {
     const baseStats = [
@@ -211,7 +307,9 @@ export function Network() {
       },
     ];
 
-    if (!tunnelsEnabled) return baseStats;
+    if (!tunnelsEnabled) {
+      return baseStats;
+    }
 
     return [
       ...baseStats,
@@ -226,10 +324,9 @@ export function Network() {
     ];
   }, [infra, t, tunnelsEnabled]);
 
-  const maxValue = useMemo(
-    () => Math.max(...stats.map((s) => s.value), 1),
-    [stats],
-  );
+  const maxValue = useMemo(() => {
+    return Math.max(...stats.map((s) => s.value), 1);
+  }, [stats]);
 
   return (
     <div id="network" className="my-12 sm:my-20 px-6 sm:px-12 lg:px-40">
@@ -237,19 +334,43 @@ export function Network() {
 
       <motion.p
         className="font-flink text-white font-bold text-4xl sm:text-5xl lg:text-[5.4rem] text-center"
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        initial={{
+          opacity: 0,
+          y: 30,
+        }}
+        whileInView={{
+          opacity: 1,
+          y: 0,
+        }}
+        viewport={{
+          once: true,
+        }}
+        transition={{
+          duration: 0.6,
+          ease: "easeOut",
+        }}
       >
         {t("network.title")}
       </motion.p>
+
       <motion.p
         className="font-flink text-center text-lg sm:text-[22px] text-white/70 mt-2 mb-10 sm:mb-14"
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+        initial={{
+          opacity: 0,
+          y: 20,
+        }}
+        whileInView={{
+          opacity: 1,
+          y: 0,
+        }}
+        viewport={{
+          once: true,
+        }}
+        transition={{
+          duration: 0.6,
+          ease: "easeOut",
+          delay: 0.1,
+        }}
       >
         {t("network.body")}
       </motion.p>
@@ -257,19 +378,27 @@ export function Network() {
       <div className="flex flex-col lg:flex-row gap-12 lg:gap-0 items-stretch border border-white/20">
         <motion.div
           className="flex items-center justify-center p-10 lg:w-[45%] shrink-0"
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+          initial={{
+            opacity: 0,
+            scale: 0.9,
+          }}
+          whileInView={{
+            opacity: 1,
+            scale: 1,
+          }}
+          viewport={{
+            once: true,
+            margin: "-60px",
+          }}
+          transition={{
+            duration: 0.7,
+            ease: [0.22, 1, 0.36, 1],
+            delay: 0.1,
+          }}
         >
-          <div className="relative w-64 h-64 sm:w-72 sm:h-72">
-            <div
-              className="absolute inset-0 animate-spin"
-              style={{
-                animationDuration: "20s",
-                animationTimingFunction: "linear",
-              }}
-            >
+          <div className="relative w-72 h-72 overflow-visible">
+            {/* ORBIT RINGS */}
+            <div className="absolute inset-0">
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
@@ -286,6 +415,7 @@ export function Network() {
               ))}
             </div>
 
+            {/* CENTER NODE */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center"
@@ -311,51 +441,80 @@ export function Network() {
               </div>
             </div>
 
+            {/* NODE ORBITS */}
             {Array.from({ length: nodeCount }, (_, i) => {
               const duration = 18 + i * 0.4;
+
               return (
                 <div
                   key={`node-${i}`}
-                  className="absolute rounded-full"
-                  style={
-                    {
-                      top: "50%",
-                      left: "50%",
+                  className="absolute"
+                  style={{
+                    top: "50%",
+                    left: "50%",
+                    width: 0,
+                    height: 0,
+                    transform: "translate(-50%, -50%)",
+                    animation: `spin ${duration}s linear infinite`,
+                    animationDelay: `${
+                      -(i / Math.max(nodeCount, 1)) * duration
+                    }s`,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: NODE_R + 6,
+                      top: +6,
                       width: 10,
                       height: 10,
+                      borderRadius: "999px",
                       background: "#4ade80",
                       boxShadow: "0 0 18px rgba(74,222,128,0.6)",
-                      "--orbit-r": `${NODE_R}px`,
-                      animation: `orbit ${duration}s linear infinite`,
-                      animationDelay: `${-(i / Math.max(nodeCount, 1)) * duration}s`,
-                    } as React.CSSProperties
-                  }
-                />
+                    }}
+                  />
+                </div>
               );
             })}
 
+            {/* TUNNEL ORBITS */}
             {Array.from({ length: tunnelCount }, (_, i) => {
               const isActive = i < tunnelActive;
+
               const color = isActive ? "#38bdf8" : "#f87171";
+
               const duration = 28 + i * 0.3;
+
               return (
                 <div
                   key={`tunnel-${i}`}
-                  className="absolute rounded-full"
-                  style={
-                    {
-                      top: "50%",
-                      left: "50%",
+                  className="absolute"
+                  style={{
+                    top: "50%",
+                    left: "50%",
+                    width: 0,
+                    height: 0,
+                    transform: "translate(-50%, -50%)",
+                    animation: `spin-reverse ${duration}s linear infinite`,
+                    animationDelay: `${
+                      -(i / Math.max(tunnelCount, 1)) * duration
+                    }s`,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: TUNNEL_R,
+                      top: 0,
+
                       width: 8,
                       height: 8,
+                      borderRadius: "999px",
                       background: color,
                       boxShadow: `0 0 ${isActive ? 16 : 10}px ${color}`,
-                      "--orbit-r": `${TUNNEL_R}px`,
-                      animation: `orbit-reverse ${duration}s linear infinite`,
-                      animationDelay: `${-(i / Math.max(tunnelCount, 1)) * duration}s`,
-                    } as React.CSSProperties
-                  }
-                />
+                    }}
+                  />
+                </div>
               );
             })}
 
