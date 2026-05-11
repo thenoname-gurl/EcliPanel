@@ -1,35 +1,44 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useTranslations } from "next-intl"
-import { LocaleSwitcher } from "@/components/LocaleSwitcher"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { Footer as CustomFooter } from "@/app/landing/_components/_custom/Footer";
 
 type FooterProps = {
-  dashboard?: boolean
-  hideOnDashboard?: boolean
-  hideOnPathname?: boolean
-}
+  dashboard?: boolean;
+  hideOnDashboard?: boolean;
+  hideOnPathname?: boolean;
+};
 
-export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterProps) {
-  const pathname = usePathname() || ""
-  const t = useTranslations("footer")
-  const isDashboard = dashboard ?? pathname.startsWith("/dashboard")
+export function Footer({
+  dashboard,
+  hideOnDashboard,
+  hideOnPathname,
+}: FooterProps) {
+  const pathname = usePathname() || "";
+  const t = useTranslations("footer");
+  const isDashboard = dashboard ?? pathname.startsWith("/dashboard");
 
   if (pathname === "/") {
-    return null
+    return null;
   }
 
   if (hideOnDashboard && isDashboard) {
-    return null
+    return null;
   }
 
   if (hideOnPathname) {
-    return null
+    return null;
   }
 
-  if (typeof pathname === 'string' && (pathname.startsWith('/dashboard/tickets') || pathname.startsWith('/dashboard/ai'))) {
-    return null
+  if (
+    typeof pathname === "string" &&
+    (pathname.startsWith("/dashboard/tickets") ||
+      pathname.startsWith("/dashboard/ai"))
+  ) {
+    return null;
   }
 
   const commonLinks = (
@@ -41,7 +50,7 @@ export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterPro
         {t("docs")}
       </Link>
     </div>
-  )
+  );
 
   if (isDashboard) {
     return (
@@ -52,21 +61,22 @@ export function Footer({ dashboard, hideOnDashboard, hideOnPathname }: FooterPro
           {commonLinks}
         </div>
       </footer>
-    )
+    );
   }
 
   return (
     <footer className="w-full text-muted-foreground text-[11px] bg-background/60 px-4 py-4">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center sm:flex-row sm:justify-between">
+      {/* <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center sm:flex-row sm:justify-between">
         <div>
           <span>{t("copyrightLong", { year: new Date().getFullYear() })}</span>
         </div>
-           <div className="flex flex-wrap items-center justify-center gap-3">
-          <LocaleSwitcher />
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <span className="hidden sm:inline">·</span>
           {commonLinks}
         </div>
-      </div>
+      </div> */}
+      {/* <LocaleSwitcher /> */}
+      <CustomFooter />
     </footer>
-  )
+  );
 }
