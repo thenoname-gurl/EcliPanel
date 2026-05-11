@@ -19,9 +19,13 @@ export type Contributor = {
   avatarUrl: string;
   profileUrl: string;
   contributions: number;
+  pullRequests: number;
+  mergedPullRequests: number;
   isBot: boolean;
   lastCommitAt?: string;
   recentCommits: ContributorCommit[];
+  recentPullRequests: ContributorPullRequest[];
+  commitHistory: ContributorCommitHistoryPoint[];
 };
 
 export type ContributorsSnapshot = {
@@ -33,6 +37,8 @@ export type ContributorsSnapshot = {
   generatedAt: string;
   totalContributors: number;
   totalTrackedCommits: number;
+  totalTrackedPullRequests: number;
+  totalMergedPullRequests: number;
   contributors: Contributor[];
 };
 
@@ -43,7 +49,7 @@ const fadeUp: any = {
     y: 0,
     transition: { delay, duration: 0.5, ease: "easeOut" },
   }),
-} as const;
+};
 
 function formatDate(value?: string) {
   if (!value) return "No commits tracked yet";
@@ -53,6 +59,22 @@ function formatDate(value?: string) {
       day: "numeric",
       year: "numeric",
     });
+  } catch {
+    return value;
+  }
+}
+
+function formatShortDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function formatCompactDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'numeric', day: 'numeric' }).format(new Date(value));
   } catch {
     return value;
   }
@@ -91,6 +113,22 @@ export function ContributorsClient() {
   }, []);
 
   const sortedContributors = useMemo(() => data?.contributors ?? [], [data]);
+
+  const statLabels = data
+    ? [
+        `${data.totalContributors} contributors`,
+        `${data.totalTrackedCommits} tracked commits`,
+        `${data.totalTrackedPullRequests} tracked pull requests`,
+        `${data.totalMergedPullRequests} merged pull requests`,
+        `Last synced ${formatDate(data.generatedAt)}`,
+      ]
+    : [
+        'Loading contributors...',
+        'Fetching commit history...',
+        'Fetching pull requests...',
+        'Fetching merge stats...',
+        'Syncing from GitHub...',
+      ];
 
   return (
     <main className="min-h-screen bg-[#0a0a0f] text-white font-flink">
