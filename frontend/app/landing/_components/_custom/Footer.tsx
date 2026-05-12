@@ -142,11 +142,8 @@ export function Footer() {
           pauseOnHover={false}
           disabled={false}
         />
-        {/* Bottom fade */}
         <div className="absolute bottom-0 left-0 w-full h-50 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
-        {/* Left fade */}
         <div className="absolute top-0 left-0 h-full w-[15%] bg-linear-to-r from-[#0a0a0f] to-transparent z-20" />
-        {/* Right fade */}
         <div className="absolute top-0 right-0 h-full w-[15%] bg-linear-to-l from-[#0a0a0f] to-transparent z-20" />
       </span>
 

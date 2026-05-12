@@ -130,8 +130,6 @@ export function ContributorsClient() {
         const snapshot = await apiFetch(API_ENDPOINTS.contributorsPublic, {
           retries: 1,
         });
-
-        console.log(snapshot);
         if (!mounted) return;
         setData(snapshot);
       } catch (err: any) {
@@ -261,7 +259,7 @@ export function ContributorsClient() {
                     className="w-full h-auto aspect-square object-cover"
                   />
                   <p className="text-center font-mono text-sm truncate text-white/70">
-                    {s.login}
+                    {s.displayName ?? s.login}
                   </p>
                 </motion.a>
               ))}
