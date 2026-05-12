@@ -300,10 +300,20 @@ interface AdminStats {
 interface AdminUser {
   id: number
   firstName: string
+  middleName?: string | null
   lastName: string
+  displayName?: string | null
   email: string
-  avatarUrl?: string
+  avatarUrl?: string | null
   role?: string
+  address?: string
+  address2?: string | null
+  phone?: string | null
+  billingCompany?: string | null
+  billingCity?: string | null
+  billingState?: string | null
+  billingZip?: string | null
+  billingCountry?: string | null
   portalType: string
   emailVerified: boolean
   idVerified: boolean
@@ -1141,6 +1151,20 @@ export default function AdminPanel() {
   const [editBackupLimit, setEditBackupLimit] = useState("")
   const [editDateOfBirth, setEditDateOfBirth] = useState("")
   const [editParentId, setEditParentId] = useState("")
+  const [editFirstName, setEditFirstName] = useState("")
+  const [editMiddleName, setEditMiddleName] = useState("")
+  const [editLastName, setEditLastName] = useState("")
+  const [editDisplayName, setEditDisplayName] = useState("")
+  const [editEmail, setEditEmail] = useState("")
+  const [editAddress, setEditAddress] = useState("")
+  const [editAddress2, setEditAddress2] = useState("")
+  const [editPhone, setEditPhone] = useState("")
+  const [editBillingCompany, setEditBillingCompany] = useState("")
+  const [editBillingCity, setEditBillingCity] = useState("")
+  const [editBillingState, setEditBillingState] = useState("")
+  const [editBillingZip, setEditBillingZip] = useState("")
+  const [editBillingCountry, setEditBillingCountry] = useState("")
+  const [editAvatarUrl, setEditAvatarUrl] = useState("")
   const [editBadgesText, setEditBadgesText] = useState("")
 
   const parseBadgeText = (value: string): string[] =>
@@ -1152,6 +1176,11 @@ export default function AdminPanel() {
           .filter(Boolean)
       )
     )
+
+  const asNullableText = (value: string) => {
+    const trimmed = value.trim()
+    return trimmed.length ? trimmed : null
+  }
 
   const toggleBadgePreset = (badge: string) => {
     const current = parseBadgeText(editBadgesText)
@@ -2165,6 +2194,20 @@ export default function AdminPanel() {
     setEditBackupLimit(lim.backups !== undefined ? String(lim.backups) : "")
     setEditDateOfBirth(user.dateOfBirth || "")
     setEditParentId(user.parentId != null ? String(user.parentId) : "")
+    setEditFirstName(user.firstName || "")
+    setEditMiddleName((user as any).middleName || "")
+    setEditLastName(user.lastName || "")
+    setEditDisplayName((user as any).displayName || "")
+    setEditEmail(user.email || "")
+    setEditAddress((user as any).address || "")
+    setEditAddress2((user as any).address2 || "")
+    setEditPhone((user as any).phone || "")
+    setEditBillingCompany((user as any).billingCompany || "")
+    setEditBillingCity((user as any).billingCity || "")
+    setEditBillingState((user as any).billingState || "")
+    setEditBillingZip((user as any).billingZip || "")
+    setEditBillingCountry((user as any).billingCountry || "")
+    setEditAvatarUrl((user as any).avatarUrl || "")
     const badges = Array.isArray((user as any)?.settings?.badges)
       ? (user as any).settings.badges
       : Array.isArray((user as any)?.settings?.gambling?.badges)
@@ -2198,6 +2241,18 @@ export default function AdminPanel() {
 
   async function saveEditUser() {
     if (!editUserDialog) return
+    const requiredFields = [
+      ["first name", editFirstName],
+      ["last name", editLastName],
+      ["email", editEmail],
+      ["address", editAddress],
+    ] as const
+    for (const [label, value] of requiredFields) {
+      if (!value.trim()) {
+        alert(`Please enter a valid ${label}.`)
+        return
+      }
+    }
     setEditLoading(true)
     try {
       const limits: Record<string, number> = {}
@@ -2211,11 +2266,25 @@ export default function AdminPanel() {
       await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}`, {
         method: "PUT",
         body: JSON.stringify({
+          firstName: editFirstName.trim(),
+          middleName: asNullableText(editMiddleName),
+          lastName: editLastName.trim(),
+          displayName: asNullableText(editDisplayName),
+          email: editEmail.trim(),
+          address: editAddress.trim(),
+          address2: asNullableText(editAddress2),
+          phone: asNullableText(editPhone),
+          billingCompany: asNullableText(editBillingCompany),
+          billingCity: asNullableText(editBillingCity),
+          billingState: asNullableText(editBillingState),
+          billingZip: asNullableText(editBillingZip),
+          billingCountry: asNullableText(editBillingCountry),
+          avatarUrl: asNullableText(editAvatarUrl),
           role: editRole,
           portalType: editTier,
           limits: Object.keys(limits).length ? limits : null,
           badges,
-          dateOfBirth: editDateOfBirth || undefined,
+          dateOfBirth: editDateOfBirth !== "" ? editDateOfBirth : null,
           parentId: editParentId ? Number(editParentId) : null,
         }),
       })
@@ -2224,6 +2293,20 @@ export default function AdminPanel() {
           u.id === editUserDialog.id
             ? {
                 ...u,
+                firstName: editFirstName.trim(),
+                middleName: asNullableText(editMiddleName),
+                lastName: editLastName.trim(),
+                displayName: asNullableText(editDisplayName),
+                email: editEmail.trim(),
+                address: editAddress.trim(),
+                address2: asNullableText(editAddress2),
+                phone: asNullableText(editPhone),
+                billingCompany: asNullableText(editBillingCompany),
+                billingCity: asNullableText(editBillingCity),
+                billingState: asNullableText(editBillingState),
+                billingZip: asNullableText(editBillingZip),
+                billingCountry: asNullableText(editBillingCountry),
+                avatarUrl: asNullableText(editAvatarUrl),
                 role: editRole,
                 portalType: editTier,
                 dateOfBirth: editDateOfBirth !== "" ? editDateOfBirth : null,
@@ -2241,6 +2324,22 @@ export default function AdminPanel() {
         )
       )
       setEditUserDialog(null)
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  async function unlinkChildAccount() {
+    if (!editUserDialog) return
+    if (!(await confirmAsync(`Unlink ${editUserDialog.firstName} ${editUserDialog.lastName} from their parent account?`))) return
+    setEditLoading(true)
+    try {
+      await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}/unlink-child`, { method: "POST" })
+      setEditParentId("")
+      setUsers((prev) => prev.map((u) => u.id === editUserDialog.id ? { ...u, parentId: null } : u))
+      setEditUserDialog(null)
+    } catch (e: any) {
+      alert("Failed to unlink child account: " + (e.message || "error"))
     } finally {
       setEditLoading(false)
     }
@@ -6047,6 +6146,69 @@ remote: ${panelUrl}`
                 <p className="text-xs text-muted-foreground">No active plan assigned</p>
               )}
             </div>
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Identity & Contact</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">First Name</label>
+                  <input value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Middle Name</label>
+                  <input value={editMiddleName} onChange={(e) => setEditMiddleName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Last Name</label>
+                  <input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Display Name</label>
+                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder="Optional public name" className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</label>
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avatar URL</label>
+                  <input value={editAvatarUrl} onChange={(e) => setEditAvatarUrl(e.target.value)} placeholder="https://..." className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</label>
+                  <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</label>
+                  <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 2</label>
+                  <input value={editAddress2} onChange={(e) => setEditAddress2(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing Company</label>
+                  <input value={editBillingCompany} onChange={(e) => setEditBillingCompany(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing City</label>
+                  <input value={editBillingCity} onChange={(e) => setEditBillingCity(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing State</label>
+                  <input value={editBillingState} onChange={(e) => setEditBillingState(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing ZIP</label>
+                  <input value={editBillingZip} onChange={(e) => setEditBillingZip(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing Country</label>
+                  <input value={editBillingCountry} onChange={(e) => setEditBillingCountry(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+              </div>
+            </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Role</label>
               <select value={editRole} onChange={(e) => setEditRole(e.target.value)}
@@ -6072,7 +6234,14 @@ remote: ${panelUrl}`
               <p className="text-xs text-muted-foreground">Enter a birth date for age verification and child account handling.</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Parent Account ID</label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Parent Account ID</label>
+                {editParentId && (
+                  <Button type="button" variant="outline" size="sm" onClick={unlinkChildAccount} disabled={editLoading} className="h-7 border-border text-xs">
+                    Unlink child account
+                  </Button>
+                )}
+              </div>
               <input
                 type="number"
                 min="1"
