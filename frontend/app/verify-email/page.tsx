@@ -30,7 +30,7 @@ function VerifyEmailClient() {
           <p className="text-sm text-muted-foreground">{t("redirecting")}</p>
         )}
         <p className="mt-4 text-xs text-muted-foreground">
-          {t("notRedirectedPrefix")} <a href={`/api/auth/verify-email?token=${token}`} className="text-primary underline">{t("clickHere")}</a>.
+          {t("notRedirectedPrefix")} <a href={`/api/auth/verify-email?token=${encodeURIComponent(token)}`} className="text-primary underline">{t("clickHere")}</a>.
         </p>
       </div>
     </div>

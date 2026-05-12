@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import DOMPurify from "dompurify"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -135,7 +136,7 @@ export default function OutboundEmailsTab() {
             <p><strong>{t("adminOutboundEmails.viewSubject")}</strong> {view?.subject}</p>
             <div className="rounded border border-border bg-secondary/50 p-3 whitespace-pre-wrap break-words">
               {view?.html ? (
-                <div dangerouslySetInnerHTML={{ __html: view?.html }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(view?.html || '') }} />
               ) : (
                 <pre className="whitespace-pre-wrap break-words">{view?.body}</pre>
               )}

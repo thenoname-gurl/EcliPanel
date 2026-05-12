@@ -127,8 +127,8 @@ export async function aiRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
-    const body = ctx.body as Partial<AIModel>;
-    const model = modelRepo.create(body);
+    const { name, config, limits, tags } = (ctx.body as any) || {};
+    const model = modelRepo.create({ name, config, limits, tags });
     await modelRepo.save(model);
     return { success: true, model };
   }, {beforeHandle: authenticate,
@@ -545,8 +545,8 @@ export async function aiRoutes(app: any, prefix = '') {
   app.post(prefix + '/admin/ai/models', async (ctx: any) => {
     const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
-    const body = ctx.body as Partial<AIModel>;
-    const model = modelRepo.create(body);
+    const { name, config, limits, tags, endpoint, apiKey, endpoints } = (ctx.body as any) || {};
+    const model = modelRepo.create({ name, config, limits, tags, endpoint, apiKey, endpoints });
     await modelRepo.save(model);
     return model;
   }, {beforeHandle: authenticate,
@@ -562,7 +562,8 @@ export async function aiRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Model not found' };
     }
-    Object.assign(model, ctx.body as Partial<AIModel>);
+    const { name, config, limits, tags, endpoint, apiKey, endpoints } = (ctx.body as any) || {};
+    Object.assign(model, { name, config, limits, tags, endpoint, apiKey, endpoints });
     await modelRepo.save(model);
     return model;
   }, {beforeHandle: authenticate,

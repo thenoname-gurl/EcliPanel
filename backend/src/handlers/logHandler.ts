@@ -136,15 +136,35 @@ export async function createActivityLog(opts: {
 
 export async function logRoutes(app: any, prefix = '') {
   app.post(prefix + '/logs', async (ctx: any) => {
-    const body = ctx.body as Partial<UserLog>;
+    const { userId, action, targetId, targetType, metadata, ipAddress } = (ctx.body as any) || {};
+    if (!action) {
+      ctx.set.status = 400;
+      return { error: 'action is required' };
+    }
     const logRepo = AppDataSource.getRepository(UserLog);
-    const log = logRepo.create(body);
-    log.timestamp = new Date();
+    const log = logRepo.create({
+      userId: Number(userId) || undefined,
+      action,
+      targetId: String(targetId || ''),
+      targetType: String(targetType || ''),
+      metadata: metadata || {},
+      ipAddress: String(ipAddress || ''),
+      timestamp: new Date(),
+      isRead: false,
+    });
     await logRepo.save(log);
     return { success: true, log };
   }, {
-    body: t.Any(),
-    response: { 200: t.Any() },
+    beforeHandle: authenticate,
+    body: t.Object({
+      action: t.String({ minLength: 1, maxLength: 100 }),
+      userId: t.Optional(t.Number()),
+      targetId: t.Optional(t.String()),
+      targetType: t.Optional(t.String()),
+      metadata: t.Optional(t.Any()),
+      ipAddress: t.Optional(t.String()),
+    }),
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: {
       summary: 'Create a new log entry (internal use)',
       description: 'Internal endpoint for creating log entries. Not for public use.',

@@ -253,6 +253,7 @@ const app = new Elysia()
         process.env.PANEL_URL === '*' ||
         process.env.PANEL_URL === 'true'
       ) return true;
+      if (origin === 'null') return false;
       if (!origin) return true;
       if (rawCfg.length === 0) return true;
 

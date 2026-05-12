@@ -224,8 +224,14 @@ export async function orderRoutes(app: any, prefix = '') {
       }
     }
 
+    const { orgId, items, amount, description, planId, notes } = body as any;
     const order = orderRepo.create({
-      ...body,
+      orgId,
+      items,
+      amount,
+      description,
+      planId,
+      notes,
       userId: user.id,
       status: 'pending',
       createdAt: new Date(),
