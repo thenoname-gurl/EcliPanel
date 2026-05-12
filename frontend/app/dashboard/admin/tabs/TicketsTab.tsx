@@ -583,7 +583,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
     </div>
 
     <Dialog open={!!replyTicket} onOpenChange={(open) => !open && setReplyTicket(null)}>
-      <DialogContent className="border-border bg-card sm:max-w-lg">
+      <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             {t("dialog.replyTitle", { id: replyTicket?.id ?? "" })}: {replyTicket?.subject}

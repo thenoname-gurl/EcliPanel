@@ -468,7 +468,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
     </div>
 
     <Dialog open={!!assignAiModel} onOpenChange={(open) => !open && setAssignAiModel(null)}>
-      <DialogContent className="border-border bg-card sm:max-w-md">
+      <DialogContent className="border-border bg-card sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -523,7 +523,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
     </Dialog>
 
     <Dialog open={aiModelDialog !== null} onOpenChange={(open) => !open && setAiModelDialog(null)}>
-      <DialogContent className="border-border bg-card sm:max-w-lg">
+      <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <Brain className="h-4 w-4 text-muted-foreground" />

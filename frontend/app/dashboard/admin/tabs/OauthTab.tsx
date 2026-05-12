@@ -435,7 +435,7 @@ Content-Type: application/json
     </div>
 
     <Dialog open={oauthCreateOpen} onOpenChange={setOauthCreateOpen}>
-      <DialogContent className="max-w-lg bg-card border-border">
+      <DialogContent className="max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("createDialog.title")}</DialogTitle>
         </DialogHeader>
@@ -524,7 +524,7 @@ Content-Type: application/json
     </Dialog>
 
     <Dialog open={!!oauthNewSecret} onOpenChange={(open) => { if (!open) setOauthNewSecret(null) }}>
-      <DialogContent className="max-w-md bg-card border-border">
+      <DialogContent className="max-w-md bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("newSecretDialog.title")}</DialogTitle>
         </DialogHeader>
@@ -562,7 +562,7 @@ Content-Type: application/json
     </Dialog>
 
     <Dialog open={!!oauthEditApp} onOpenChange={(open) => { if (!open) setOauthEditApp(null) }}>
-      <DialogContent className="max-w-lg bg-card border-border">
+      <DialogContent className="max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("editDialog.title", { name: oauthEditApp?.name || "" })}</DialogTitle>
         </DialogHeader>
@@ -633,7 +633,7 @@ Content-Type: application/json
     </Dialog>
 
     <Dialog open={!!oauthRotateApp} onOpenChange={(open) => { if (!open) setOauthRotateApp(null) }}>
-      <DialogContent className="max-w-sm bg-card border-border">
+      <DialogContent className="max-w-sm bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("rotateDialog.title")}</DialogTitle>
         </DialogHeader>

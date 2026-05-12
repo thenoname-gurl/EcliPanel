@@ -266,7 +266,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
     </div>
 
     <Dialog open={planDialogOpen} onOpenChange={(open) => !open && setPlanDialogOpen(false)}>
-      <DialogContent className="border-border bg-card sm:max-w-lg">
+      <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{planEditTarget ? t("dialog.editTitle") : t("dialog.newTitle")}</DialogTitle>
         </DialogHeader>

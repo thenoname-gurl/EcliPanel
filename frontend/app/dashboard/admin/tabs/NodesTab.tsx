@@ -162,7 +162,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     </div>
 
     <Dialog open={addNodeOpen} onOpenChange={(open) => { if (!open) setAddNodeOpen(false) }}>
-      <DialogContent className="border-border bg-card sm:max-w-xl">
+      <DialogContent className="border-border bg-card sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <HardDrive className="h-4 w-4 text-muted-foreground" />
@@ -323,7 +323,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     </Dialog>
 
     <Dialog open={!!editNodeDialog} onOpenChange={(open) => !open && setEditNodeDialog(null)}>
-      <DialogContent className="border-border bg-card sm:max-w-sm">
+      <DialogContent className="border-border bg-card sm:max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             {t("editDialog.title", { name: editNodeDialog?.name || "" })}
@@ -394,7 +394,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
       open={!!heartbeatDialogNode}
       onOpenChange={(open) => { if (!open) { setHeartbeatDialogNode(null); setHeartbeatDialogData(null) } }}
     >
-      <DialogContent className="max-w-2xl bg-card border-border">
+      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             {t("heartbeatDialog.title", { name: heartbeatDialogNode?.name || "" })}
@@ -468,7 +468,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     </Dialog>
 
     <Dialog open={!!viewConfigNode} onOpenChange={(open) => { if (!open) { setViewConfigNode(null); setViewConfigToken("") } }}>
-      <DialogContent className="max-w-xl bg-card border-border">
+      <DialogContent className="max-w-xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("configDialog.title", { name: viewConfigNode?.name || "" })}</DialogTitle>
         </DialogHeader>

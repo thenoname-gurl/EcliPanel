@@ -314,7 +314,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
     </div>
 
     <Dialog open={!!editOrgDialog} onOpenChange={(open) => !open && setEditOrgDialog(null)}>
-      <DialogContent className="border-border bg-card sm:max-w-md">
+      <DialogContent className="border-border bg-card sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             {t("editDialog.title")} — {editOrgDialog?.name}

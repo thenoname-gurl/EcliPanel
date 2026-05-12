@@ -6015,7 +6015,7 @@ remote: ${panelUrl}`
 
       {/* Create Role Dialog */}
       <Dialog open={roleDialog} onOpenChange={(open) => setRoleDialog(open)}>
-        <DialogContent className="border-border bg-card sm:max-w-sm">
+        <DialogContent className="border-border bg-card sm:max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Create New Role</DialogTitle>
           </DialogHeader>
@@ -6110,11 +6110,14 @@ remote: ${panelUrl}`
 
       {/* ═══════ Edit User Dialog ═══════════════════════════════════════════════ */}
       <Dialog open={!!editUserDialog} onOpenChange={(open) => !open && setEditUserDialog(null)}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
+        <DialogContent className="border-border bg-card sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               Edit User — {editUserDialog ? (privateMode ? redactName(editUserDialog.firstName, editUserDialog.lastName) : `${editUserDialog.firstName} ${editUserDialog.lastName}`) : ""}
             </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Manage user profile, identity, resource limits, badges, and role assignments.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             {/* Current Plan */}
@@ -6725,9 +6728,12 @@ remote: ${panelUrl}`
 
       {/* ═══════ Create Server Dialog ══════════════════════════════════════════ */}
       <Dialog open={createServerOpen} onOpenChange={(open) => !open && setCreateServerOpen(false)}>
-        <DialogContent className="border-border bg-card sm:max-w-lg">
+        <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Create Server</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Provision a new server with node assignment, resource limits, and optional egg template.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="grid grid-cols-2 gap-3">
@@ -6813,9 +6819,12 @@ remote: ${panelUrl}`
 
       {/* ═══════ Plan Create/Edit Dialog ════════════════════════════════════════ */}
       <Dialog open={planDialogOpen} onOpenChange={(open) => !open && setPlanDialogOpen(false)}>
-        <DialogContent className="border-border bg-card sm:max-w-lg">
+        <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">{planEditTarget ? "Edit Plan" : "New Plan"}</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Configure resource limits, pricing, and feature availability for this plan tier.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
             <div className="grid grid-cols-2 gap-3">
