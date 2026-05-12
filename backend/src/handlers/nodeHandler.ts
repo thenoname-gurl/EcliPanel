@@ -11,6 +11,7 @@ import { isValidIpv6Cidr } from '../utils/ipv6';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { withRedisCache } from '../config/redis';
 import { t } from 'elysia';
+import { sanitizeError } from '../utils/sanitizeError';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
 
@@ -382,7 +383,8 @@ export async function nodeRoutes(app: any, prefix = '') {
       return { success: true, credentials: creds };
     } catch (e: any) {
       ctx.set.status = 404;
-      return { error: e.message };
+      console.error('[nodeHandler:get-credentials]', e);
+      return { error: sanitizeError(e, 'nodeHandler:get-credentials') };
     }
   }, {
     beforeHandle: [authenticate, authorize('nodes:read-creds')],

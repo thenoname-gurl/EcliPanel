@@ -28,6 +28,7 @@ import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
+import { sanitizeError } from '../utils/sanitizeError';
 import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
@@ -3536,9 +3537,9 @@ export async function adminRoutes(app: any, prefix = '') {
       return { success: true, data: res.data };
     } catch (e: any) {
       const status = e?.response?.status || 502;
-      const msg = e?.response?.data?.errors?.[0]?.detail || e?.response?.data?.error || e.message;
       ctx.set.status = status;
-      return { error: msg };
+      console.error('[adminHandler:power-server]', e);
+      return { error: sanitizeError(e, 'adminHandler:power-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -3597,9 +3598,9 @@ export async function adminRoutes(app: any, prefix = '') {
       return { success: true, processConfig: cfg.processConfig };
     } catch (e: any) {
       const status = e?.response?.status || 502;
-      const msg = e?.response?.data?.errors?.[0]?.detail || e?.response?.data?.error || e.message;
       ctx.set.status = status;
-      return { error: msg };
+      console.error('[adminHandler:sync-server]', e);
+      return { error: sanitizeError(e, 'adminHandler:sync-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -3851,7 +3852,8 @@ export async function adminRoutes(app: any, prefix = '') {
       return { uuid: serverUuid, nodeId: node.id, ...res.data };
     } catch (e: any) {
       ctx.set.status = 502;
-      return { error: e.message };
+      console.error('[adminHandler:admin-create-server]', e);
+      return { error: sanitizeError(e, 'adminHandler:admin-create-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -5039,7 +5041,8 @@ export async function adminRoutes(app: any, prefix = '') {
           created++;
         }
       } catch (e: any) {
-        errors.push(`Node ${n.name ?? n.id}: ${e.message}`);
+        const errMsg = sanitizeError(e, 'adminHandler:sync-all-nodes');
+        errors.push(`Node ${n.name ?? n.id}: ${errMsg}`);
       }
     }
 
@@ -5995,10 +5998,9 @@ isSuspicious: true if fraudScore >= 50`;
 
       return { success: true, userId: user.id, ...result };
     } catch (err: any) {
-      const status = err.response?.status;
-      const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
       ctx.set.status = 500;
-      return { error: `AI fraud scan failed (${status ?? 'network'}): ${detail}` };
+      console.error('[adminHandler:ai-fraud-scan]', err);
+      return { error: sanitizeError(err, 'adminHandler:ai-fraud-scan') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],

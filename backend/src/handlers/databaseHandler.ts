@@ -9,6 +9,7 @@ import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { In, Not } from 'typeorm';
 import * as mariadb from 'mariadb';
 import crypto from 'crypto';
+import { sanitizeError } from '../utils/sanitizeError';
 
 function hostRepo() { return AppDataSource.getRepository(DatabaseHost); }
 function dbRepo() { return AppDataSource.getRepository(ServerDatabase); }
@@ -29,6 +30,12 @@ function randStr(len: number) {
 
 function uuidSlug(uuid: string) {
   return uuid.replace(/[^a-fA-F0-9]/g, '').slice(0, 8);
+}
+
+function validateIdentifier(name: string): void {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid database identifier: ${name}`);
+  }
 }
 
 export async function databaseRoutes(app: any, prefix = '') {
@@ -55,7 +62,7 @@ export async function databaseRoutes(app: any, prefix = '') {
       await conn.end();
     } catch (e: any) {
       ctx.set.status = 400;
-      return { error: `Cannot connect to database server: ${e.message}` };
+      return { error: `Cannot connect to database server: ${sanitizeError(e, 'databaseHandler:test-connection')}` };
     }
     const record = hostRepo().create({ name, host, port, username, password, nodeId, maxDatabases });
     await hostRepo().save(record);
@@ -127,7 +134,7 @@ export async function databaseRoutes(app: any, prefix = '') {
       return { success: true, message: 'Connection successful' };
     } catch (e: any) {
       ctx.set.status = 400;
-      return { error: `Connection failed: ${e.message}` };
+      return { error: `Connection failed: ${sanitizeError(e, 'databaseHandler:test-host')}` };
     }
   }, {
     beforeHandle: authenticate,
@@ -215,15 +222,17 @@ export async function databaseRoutes(app: any, prefix = '') {
 
     let conn;
     try {
+      validateIdentifier(dbName);
+      validateIdentifier(dbUser);
       conn = await rootConn(host);
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-      await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY '${dbPass}'`);
+      await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY ?`, [dbPass]);
       await conn.query(`GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'%'`);
       await conn.query(`FLUSH PRIVILEGES`);
     } catch (e: any) {
       if (conn) await conn.end().catch(() => {});
       ctx.set.status = 500;
-      return { error: `Failed to create database: ${e.message}` };
+      return { error: `Failed to create database: ${sanitizeError(e, 'databaseHandler:create-db')}` };
     }
     await conn.end();
 
@@ -262,12 +271,14 @@ export async function databaseRoutes(app: any, prefix = '') {
     if (host) {
       let conn;
       try {
+        validateIdentifier(db.name);
+        validateIdentifier(db.username);
         conn = await rootConn(host);
         await conn.query(`DROP DATABASE IF EXISTS \`${db.name}\``);
         await conn.query(`DROP USER IF EXISTS '${db.username}'@'%'`);
         await conn.query(`FLUSH PRIVILEGES`);
-      } catch {
-        // meow
+      } catch (e: any) {
+        console.error('[databaseHandler:delete-db]', e);
       } finally {
         if (conn) await conn.end().catch(() => {});
       }

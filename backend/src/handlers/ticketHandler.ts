@@ -13,6 +13,7 @@ import { Plan } from '../models/plan.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { createActivityLog } from './logHandler';
 import { getGeoBlockRulesWithDefaults } from '../utils/eu';
+import { sanitizeError } from '../utils/sanitizeError';
 
 export async function ticketRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(Ticket);
@@ -229,7 +230,8 @@ export async function ticketRoutes(app: any, prefix = '') {
           continue;
         }
 
-        errs.push({ endpoint: ep.base, reason: e.message || 'error', status });
+        console.error(`[ticketHandler:requestWithFallback] endpoint ${ep.base}:`, e);
+        errs.push({ endpoint: ep.base, reason: 'endpoint_error', status });
         continue;
       }
     }

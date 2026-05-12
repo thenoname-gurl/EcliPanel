@@ -28,6 +28,7 @@ import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUns
 import { isValidIpv6, isIpv6InSubnet, getNextFreeIpv6Address, parseIpv6, formatIpv6, parseIpv6Cidr } from '../utils/ipv6';
 import { t } from 'elysia';
 import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
+import { sanitizeError } from '../utils/sanitizeError';
 
 export async function serverRoutes(app: any, prefix = '') {
   const nodeSvc = nodeService;
@@ -1165,7 +1166,7 @@ export async function serverRoutes(app: any, prefix = '') {
       node = await pickNode(ctx, user, nodeId, user.nodeId);
     } catch (e: any) {
       ctx.set.status = 503;
-      return { error: e.message };
+      return { error: sanitizeError(e, 'serverHandler:pick-node') };
     }
 
     if (gamblingModeEnabled) {
@@ -1462,7 +1463,8 @@ export async function serverRoutes(app: any, prefix = '') {
         nodeSvc.unmapServer(serverUuid),
       ]);
       ctx.set.status = 502;
-      return { error: `Wings rejected the create request: ${e.message}` };
+      console.error('[serverHandler:create-server]', e);
+      return { error: sanitizeError(e, 'serverHandler:create-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:create')],
@@ -1575,7 +1577,8 @@ export async function serverRoutes(app: any, prefix = '') {
       return { success: true };
     } catch (e: any) {
       ctx.set.status = 502;
-      return { error: e.message };
+      console.error('[serverHandler:update-server]', e);
+      return { error: sanitizeError(e, 'serverHandler:update-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
@@ -1849,7 +1852,8 @@ export async function serverRoutes(app: any, prefix = '') {
       };
     } catch (e: any) {
       ctx.set.status = 502;
-      return { error: e.message };
+      console.error('[serverHandler:suspend-server]', e);
+      return { error: sanitizeError(e, 'serverHandler:suspend-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
@@ -1909,7 +1913,8 @@ export async function serverRoutes(app: any, prefix = '') {
       return { success: true };
     } catch (e: any) {
       ctx.set.status = 502;
-      return { error: e.message };
+      console.error('[serverHandler:unsuspend-server]', e);
+      return { error: sanitizeError(e, 'serverHandler:unsuspend-server') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:write')],
