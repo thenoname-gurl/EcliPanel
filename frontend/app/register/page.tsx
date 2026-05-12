@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { COUNTRIES } from "@/lib/countries"
 import { apiFetch } from "@/lib/api-client"
+import { FIELD_MAX_LENGTHS } from "@/lib/password-validation"
 import {
   AlertTriangle,
   Info,
@@ -104,6 +105,7 @@ function InputField({
   className,
   rightElement,
   autoComplete,
+  maxLength,
 }: {
   icon?: any
   label?: string
@@ -116,6 +118,7 @@ function InputField({
   className?: string
   rightElement?: React.ReactNode
   autoComplete?: string
+  maxLength?: number
 }) {
   const [focused, setFocused] = useState(false)
 
@@ -148,6 +151,7 @@ function InputField({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           required={required}
+          maxLength={maxLength}
           autoComplete={autoComplete}
           aria-required={required}
           className={cn(
@@ -806,6 +810,7 @@ export default function RegisterPage() {
                         value={form.firstName}
                         onChange={handleChange}
                         required
+                        maxLength={FIELD_MAX_LENGTHS.firstName}
                         autoComplete="given-name"
                       />
                       <InputField
@@ -816,6 +821,7 @@ export default function RegisterPage() {
                         value={form.lastName}
                         onChange={handleChange}
                         required
+                        maxLength={FIELD_MAX_LENGTHS.lastName}
                         autoComplete="family-name"
                       />
                     </div>
@@ -829,6 +835,7 @@ export default function RegisterPage() {
                       value={form.email}
                       onChange={handleChange}
                       required
+                      maxLength={FIELD_MAX_LENGTHS.email}
                       autoComplete="email"
                     />
 
@@ -845,6 +852,7 @@ export default function RegisterPage() {
                           setPasswordFocused(true)
                         }}
                         required
+                        maxLength={128}
                         autoComplete="new-password"
                         rightElement={
                           <button
@@ -905,6 +913,7 @@ export default function RegisterPage() {
                       value={form.phone}
                       onChange={handleChange}
                       required={!isParentInvite}
+                      maxLength={FIELD_MAX_LENGTHS.phone}
                       autoComplete="tel"
                     />
 
@@ -931,6 +940,7 @@ export default function RegisterPage() {
                       label={t("companyOptional")}
                       value={form.billingCompany}
                       onChange={handleChange}
+                      maxLength={FIELD_MAX_LENGTHS.billingCompany}
                       autoComplete="organization"
                     />
 
@@ -942,6 +952,7 @@ export default function RegisterPage() {
                       value={form.address}
                       onChange={handleChange}
                       required={!isParentInvite}
+                      maxLength={FIELD_MAX_LENGTHS.address}
                       autoComplete="address-line1"
                     />
 
@@ -951,6 +962,7 @@ export default function RegisterPage() {
                       label={t("addressLine2Optional")}
                       value={form.address2}
                       onChange={handleChange}
+                      maxLength={FIELD_MAX_LENGTHS.address2}
                       autoComplete="address-line2"
                     />
 
@@ -968,6 +980,7 @@ export default function RegisterPage() {
                         value={form.billingCity}
                         onChange={handleChange}
                         required={!isParentInvite}
+                        maxLength={FIELD_MAX_LENGTHS.billingCity}
                         autoComplete="address-level2"
                       />
                       <InputField
@@ -977,6 +990,7 @@ export default function RegisterPage() {
                         value={form.billingState}
                         onChange={handleChange}
                         required={!isParentInvite}
+                        maxLength={FIELD_MAX_LENGTHS.billingState}
                         autoComplete="address-level1"
                       />
                     </div>
@@ -989,6 +1003,7 @@ export default function RegisterPage() {
                         value={form.billingZip}
                         onChange={handleChange}
                         required={!isParentInvite}
+                        maxLength={FIELD_MAX_LENGTHS.billingZip}
                         autoComplete="postal-code"
                       />
                       <SelectField

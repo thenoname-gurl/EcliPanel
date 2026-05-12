@@ -1,8 +1,24 @@
 import { validateCaptcha, validateInvisibleCaptcha, scoreBehavior } from '../utils/captcha';
 import { isFeatureEnabled } from '../utils/featureToggles';
 import { getMinimumAgeForCountry } from '../utils/eu';
+import { validatePassword } from '../utils/passwordValidation';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const FIELD_MAX_LENGTHS: Record<string, number> = {
+  firstName: 64,
+  lastName: 64,
+  middleName: 64,
+  displayName: 64,
+  email: 254,
+  address: 256,
+  address2: 256,
+  billingCompany: 128,
+  billingCity: 128,
+  billingState: 64,
+  billingZip: 20,
+  phone: 32,
+};
 
 type ValidationErrorBody = {
   type: 'validation'
@@ -16,6 +32,17 @@ function validationError(field: string, message: string): ValidationErrorBody {
 
 function validationErrors(errors: Record<string, string>): ValidationErrorBody {
   return { type: 'validation', on: 'body', found: errors };
+}
+
+function validateFieldMaxLengths(body: Record<string, any>): Record<string, string> | null {
+  const errors: Record<string, string> = {};
+  for (const [field, max] of Object.entries(FIELD_MAX_LENGTHS)) {
+    const val = body[field];
+    if (typeof val === 'string' && val.length > max) {
+      errors[field] = `Must be at most ${max} characters.`;
+    }
+  }
+  return Object.keys(errors).length > 0 ? errors : null;
 }
 
 export async function validateUserRegistration(ctx: any, _reply?: any, options?: { skipMinimumAge?: boolean, skipAddressFields?: boolean }): Promise<boolean> {
@@ -48,6 +75,13 @@ export async function validateUserRegistration(ctx: any, _reply?: any, options?:
         return acc;
       }, {} as Record<string, string>)
     );
+    return false;
+  }
+
+  const maxLenErrors = validateFieldMaxLengths(ctx.body as Record<string, any>);
+  if (maxLenErrors) {
+    ctx.set.status = 400;
+    (ctx as any).body = validationErrors(maxLenErrors);
     return false;
   }
 
@@ -127,9 +161,10 @@ export async function validateUserRegistration(ctx: any, _reply?: any, options?:
     return false;
   }
 
-  if (typeof password !== 'string' || password.length < 8) {
+  const pwResult = validatePassword(password);
+  if (!pwResult.valid) {
     ctx.set.status = 400;
-    (ctx as any).body = validationError('password', 'Password must be at least 8 characters long.');
+    (ctx as any).body = validationError('password', pwResult.errors.join(' '));
     return false;
   }
 
