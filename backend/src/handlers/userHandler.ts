@@ -364,7 +364,23 @@ export async function userRoutes(app: any, prefix = '') {
       body.parentId = parentId;
     }
 
-    const user = userRepo.create(body);
+    const { email, firstName, lastName, displayName, phone, address, address2, billingCompany, billingCity, billingState, billingZip, billingCountry, parentId } = body as any;
+    const user = userRepo.create({
+      email,
+      firstName,
+      lastName,
+      displayName,
+      phone,
+      address,
+      address2,
+      billingCompany,
+      billingCity,
+      billingState,
+      billingZip,
+      billingCountry,
+      dateOfBirth,
+      parentId,
+    });
     user.passwordHash = await hashPassword((body as any).password!);
     if (!user.portalType) user.portalType = 'free';
     try {
