@@ -18,6 +18,7 @@ import { WingsApiService } from '../services/wingsApiService';
 import { createActivityLog } from './logHandler';
 import { CloudflareService } from '../services/cloudflareService';
 import { t } from 'elysia';
+import { sanitizeError } from '../utils/sanitizeError';
 import { consumeRateLimit, redisDelByPrefix, withRedisCache } from '../config/redis';
 
 function createDnsService() {
@@ -250,7 +251,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       });
     } catch (e: any) {
       ctx.set.status = 500;
-      return { error: e.message };
+      console.error('[organisationHandler:dns-zones]', e);
+      return { error: sanitizeError(e, 'organisationHandler:dns-zones') };
     }
   }, {
     beforeHandle: authenticate,

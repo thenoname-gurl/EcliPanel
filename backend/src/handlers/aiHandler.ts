@@ -12,6 +12,7 @@ import { AIUsage } from '../models/aiUsage.entity';
 import { User } from '../models/user.entity';
 import { t } from 'elysia';
 import { In } from 'typeorm';
+import { sanitizeError } from '../utils/sanitizeError';
 
 // I swear I hate this route handler, 
 // its a dumping ground ngl
@@ -102,7 +103,8 @@ export async function aiRoutes(app: any, prefix = '') {
           continue;
         }
 
-        errs.push({ endpoint: ep.base, reason: e.message || 'error', status });
+        console.error(`[aiHandler:requestWithFallback] endpoint ${ep.base}:`, e);
+        errs.push({ endpoint: ep.base, reason: 'endpoint_error', status });
         continue;
       }
     }
@@ -322,9 +324,8 @@ export async function aiRoutes(app: any, prefix = '') {
         return { reply: 'AI service temporarily unavailable. Please try again shortly.' };
       }
     } catch (err: any) {
-      const status = err.response?.status;
-      const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-      return { reply: `AI service error (${status ?? 'network'}): ${detail}` };
+      console.error('[aiHandler:chat]', err);
+      return { reply: 'AI service temporarily unavailable. Please try again shortly.' };
     }
   }, {beforeHandle: authenticate,
     response: { 200: t.Object({ reply: t.String() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
@@ -378,10 +379,9 @@ export async function aiRoutes(app: any, prefix = '') {
         return { error: 'AI service temporarily unavailable' };
       }
     } catch (err: any) {
-      const status = err.response?.status;
-      const detail = err.response?.data ? err.response.data : err.message;
-      ctx.set.status = status || 502;
-      return { error: typeof detail === 'string' ? detail : JSON.stringify(detail) };
+      ctx.set.status = 502;
+      console.error('[aiHandler:chat-completions-proxy]', err);
+      return { error: 'AI service temporarily unavailable' };
     }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -435,10 +435,9 @@ export async function aiRoutes(app: any, prefix = '') {
         return { error: 'AI service temporarily unavailable' };
       }
     } catch (err: any) {
-      const status = err.response?.status;
-      const detail = err.response?.data ? err.response.data : err.message;
-      ctx.set.status = status || 502;
-      return { error: typeof detail === 'string' ? detail : JSON.stringify(detail) };
+      ctx.set.status = 502;
+      console.error('[aiHandler:completions-proxy]', err);
+      return { error: 'AI service temporarily unavailable' };
     }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -504,7 +503,8 @@ export async function aiRoutes(app: any, prefix = '') {
           errs.push({ endpoint: ep.base, reason: 'rate_limited', wait });
           continue;
         }
-        errs.push({ endpoint: ep.base, reason: e.message || 'error', status });
+        console.error(`[aiHandler:requestWithFallback2] endpoint ${ep.base}:`, e);
+        errs.push({ endpoint: ep.base, reason: 'endpoint_error', status });
         continue;
       }
     }
