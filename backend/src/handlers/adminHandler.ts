@@ -37,6 +37,7 @@ import { executeDeletionRequest } from '../jobs/deletionExecutionJob';
 import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
 import { encryptBufferWithWorker } from '../workers/cryptoWorker';
+import { redisDel } from '../config/redis';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -2312,6 +2313,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }
 
     await userRepo.save(user);
+    try { await redisDel('public:contributors:v2'); } catch { }
     return { success: true };
   }, {
     beforeHandle: authenticate,
@@ -5168,7 +5170,16 @@ export async function adminRoutes(app: any, prefix = '') {
     const githubProfileUrl = String(body.githubProfileUrl || '').trim();
     const githubAvatarUrl = String(body.githubAvatarUrl || '').trim();
     const contributorTitle = String(body.contributorTitle || '').trim();
-    const activity = normalizeContributorActivity(body.contributorActivity);
+    let rawActivity = body.contributorActivity ?? body.activity;
+    if (typeof rawActivity === 'string') {
+      try {
+        const parsed = JSON.parse(rawActivity);
+        rawActivity = parsed;
+      } catch {
+        rawActivity = [];
+      }
+    }
+    const activity = normalizeContributorActivity(rawActivity);
 
     (user as any).githubLogin = githubLogin || null;
     (user as any).githubProfileUrl = githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : null);
@@ -5177,6 +5188,7 @@ export async function adminRoutes(app: any, prefix = '') {
     (user as any).contributorActivity = activity;
 
     await userRepo.save(user);
+    try { await redisDel('public:contributors:v2'); } catch { }
     return { success: true, contributor: buildContributorSummary(user) };
   }, {
     beforeHandle: authenticate,
@@ -5188,6 +5200,7 @@ export async function adminRoutes(app: any, prefix = '') {
         githubAvatarUrl: t.Optional(t.String()),
         contributorTitle: t.Optional(t.String()),
         contributorActivity: t.Optional(t.Any()),
+        activity: t.Optional(t.Any()),
       }),
       response: {
         200: t.Object({ success: t.Boolean(), contributor: t.Any() }),
