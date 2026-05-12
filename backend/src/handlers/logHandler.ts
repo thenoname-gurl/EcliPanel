@@ -17,7 +17,13 @@ import { hasPermissionSync } from '../middleware/authorize';
 
 function stripHtml(value: any): any {
   if (typeof value === 'string') {
-    return value.replace(/<[^>]*>/g, '');
+    let current = value;
+    let previous: string;
+    do {
+      previous = current;
+      current = current.replace(/<[^>]*>/g, '');
+    } while (current !== previous);
+    return current;
   }
   if (Array.isArray(value)) {
     return value.map(stripHtml);
