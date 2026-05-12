@@ -84,7 +84,11 @@ export function ContributorClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   let { id } = useParams<{ id: string }>();
-  id = id.replace("%20", " ");
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // Keep original id if malformed percent-encoding is present.
+  }
   const router = useRouter();
 
   useEffect(() => {
