@@ -33,7 +33,7 @@ export type Contributor = {
   login: string;
   avatarUrl: string;
   profileUrl: string;
-  source?: 'github' | 'manual';
+  source?: "github" | "manual";
   userId?: number;
   displayName?: string;
   title?: string | null;
@@ -259,7 +259,7 @@ export function ContributorsClient() {
                     className="w-full h-auto aspect-square object-cover"
                   />
                   <p className="text-center font-mono text-sm truncate text-white/70">
-                    {s.login}
+                    {s.displayName ?? s.login}
                   </p>
                 </motion.a>
               ))}
