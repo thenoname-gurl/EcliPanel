@@ -3580,6 +3580,17 @@ remote: ${panelUrl}`
     openEditOrder(order)
   }
 
+  function coerceContributorActivity(value: any) {
+    if (Array.isArray(value)) return value
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value)
+        if (Array.isArray(parsed)) return parsed
+      } catch { }
+    }
+    return []
+  }
+
   async function openViewUser(user: AdminUser) {
     setViewUserDialog(user)
     setViewUserProfile(null)
@@ -3602,7 +3613,9 @@ remote: ${panelUrl}`
       setViewUserContributorProfileUrl(profileData?.githubProfileUrl || profileData?.contributor?.githubProfileUrl || "")
       setViewUserContributorAvatarUrl(profileData?.githubAvatarUrl || profileData?.contributor?.githubAvatarUrl || "")
       setViewUserContributorTitle(profileData?.contributorTitle || profileData?.contributor?.title || "")
-      setViewUserContributorActivity(Array.isArray(profileData?.contributorActivity) ? profileData.contributorActivity : Array.isArray(profileData?.contributor?.activity) ? profileData.contributor.activity : [])
+      setViewUserContributorActivity(
+        coerceContributorActivity(profileData?.contributorActivity ?? profileData?.contributor?.activity),
+      )
       setViewUserRoles(Array.isArray(rolesData) ? rolesData : [])
       // ensure global roles list is available for the assign dropdown
       if (roles.length === 0) {
@@ -3630,19 +3643,22 @@ remote: ${panelUrl}`
           githubAvatarUrl: viewUserContributorAvatarUrl.trim() || null,
           contributorTitle: viewUserContributorTitle.trim() || null,
           contributorActivity: viewUserContributorActivity,
+          activity: viewUserContributorActivity,
         }),
       })
 
       if (res?.contributor) {
+        const updatedActivity = Array.isArray(res.contributor.activity) ? res.contributor.activity : []
         setViewUserProfile((prev: any) => prev ? {
           ...prev,
           githubLogin: res.contributor.githubLogin || null,
           githubProfileUrl: res.contributor.githubProfileUrl || null,
           githubAvatarUrl: res.contributor.githubAvatarUrl || null,
           contributorTitle: res.contributor.title || null,
-          contributorActivity: res.contributor.activity || [],
+          contributorActivity: updatedActivity,
           contributor: res.contributor,
         } : prev)
+        setViewUserContributorActivity(updatedActivity)
       }
     } catch (err: any) {
       alert(`Failed to save contributor profile: ${err?.message || 'unknown error'}`)
