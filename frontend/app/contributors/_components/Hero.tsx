@@ -6,6 +6,8 @@ import PixelSnow from "./_react-bits/PixelSnow";
 import Link from "next/dist/client/link";
 
 export function Hero() {
+  const t = useTranslations("contributorsPage");
+
   return (
     <div className="relative">
       <div className="absolute inset-0 h-full z-0">
@@ -31,9 +33,9 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: "easeOut" }}
         >
-          Meet our
+          {t("hero.titleLine1")}
           <br />
-          amazing contributors
+          {t("hero.titleLine2")}
         </motion.h1>
 
         <motion.div
@@ -47,13 +49,12 @@ export function Hero() {
             target="_blank"
           >
             <button className="bg-white text-black px-5 sm:px-6 py-2 rounded-full text-base sm:text-[18px] font-flink transition-colors hover:bg-white/65 cursor-pointer duration-200">
-              {/* {isLoggedIn ? t("nav.openDashboard") : t("hero.cta")} */}
-              Join Us
+              {t("hero.joinCta")}
             </button>
           </Link>
           <Link href="https://github.com/thenoname-gurl/EcliPanel">
             <button className="bg-white/40 px-5 sm:px-6 py-2 rounded-full text-base sm:text-[18px] font-flink transition-colors hover:bg-white/65 cursor-pointer duration-200 text-white">
-              View Repository
+              {t("hero.repoCta")}
             </button>
           </Link>
         </motion.div>

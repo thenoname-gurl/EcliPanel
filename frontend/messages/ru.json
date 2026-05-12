@@ -423,6 +423,37 @@
       "byline": "Создано разработчиками для разработчиков."
     }
   },
+  "contributorsPage": {
+    "hero": {
+      "titleLine1": "Создано",
+      "titleLine2": "Сообществом",
+      "joinCta": "Стать участником",
+      "repoCta": "Репозиторий"
+    },
+    "stats": {
+      "contributors": "{count} участников",
+      "contributions": "Вклад",
+      "pullRequests": "Pull Requests",
+      "mergedPullRequests": "Слитых PR",
+      "trackedCommits": "Отслежено коммитов: {count}",
+      "trackedPullRequests": "Отслежено PR: {count}",
+      "lastSynced": "Синхронизировано {date}"
+    },
+    "loading": "Загрузка...",
+    "loadError": "Не удалось загрузить участников.",
+    "loadingContributors": "Загрузка участников...",
+    "loadingCommitHistory": "Загрузка истории коммитов...",
+    "loadingPullRequests": "Загрузка pull request'ов...",
+    "loadingMergeStats": "Загрузка статистики слияний...",
+    "loadingSyncing": "Синхронизация...",
+    "noContributorsYet": "Пока нет участников.",
+    "lastCommitAt": "Последний коммит",
+    "noCommitsTrackedYet": "Коммиты ещё не отслежены",
+    "activityTitle": "Активность",
+    "recentActivityTitle": "Последняя активность",
+    "activityChartLabel": "Активность",
+    "activityChartAriaLabel": "График активности участника"
+  },
   "notFound": {
     "brand": "Eclipse Systems",
     "nav": {

@@ -430,6 +430,37 @@
       "byline": "Built for developers, by developers."
     }
   },
+  "contributorsPage": {
+    "hero": {
+      "titleLine1": "Built by",
+      "titleLine2": "The Community",
+      "joinCta": "Join as Contributor",
+      "repoCta": "View Repository"
+    },
+    "stats": {
+      "contributors": "{count} Contributors",
+      "contributions": "Contributions",
+      "pullRequests": "Pull Requests",
+      "mergedPullRequests": "Merged PRs",
+      "trackedCommits": "{count} Commits Tracked",
+      "trackedPullRequests": "{count} PRs Tracked",
+      "lastSynced": "Synced {date}"
+    },
+    "loading": "Loading...",
+    "loadError": "Failed to load contributors.",
+    "loadingContributors": "Loading contributors...",
+    "loadingCommitHistory": "Loading commit history...",
+    "loadingPullRequests": "Loading pull requests...",
+    "loadingMergeStats": "Loading merge stats...",
+    "loadingSyncing": "Syncing...",
+    "noContributorsYet": "No contributors yet.",
+    "lastCommitAt": "Last commit",
+    "noCommitsTrackedYet": "No commits tracked yet",
+    "activityTitle": "Activity",
+    "recentActivityTitle": "Recent Activity",
+    "activityChartLabel": "Activity",
+    "activityChartAriaLabel": "Contributor activity line chart"
+  },
   "notFound": {
     "brand": "Eclipse Systems",
     "nav": {
