@@ -366,7 +366,7 @@ declare module 'elysia' {
 }
 
 const _rateBuckets = new Map<string, { count: number; resetAt: number }>();
-app.onRequest((ctx: any) => {
+app.onRequest(async (ctx: any) => {
   const req: Request = ctx.request;
   const headers = req?.headers;
 
@@ -484,7 +484,6 @@ app.onRequest((ctx: any) => {
     if (rawToken) {
       try {
         const decoded = (app as any).jwt.verify(rawToken) as any;
-        (ctx as any).user = decoded;
         (ctx as any).jwtPayload = decoded;
       } catch {
         // skip

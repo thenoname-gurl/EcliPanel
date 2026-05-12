@@ -71,18 +71,25 @@ export async function apiFetch(
     }
   }
 
+  const method = String(options.method ?? 'GET').toUpperCase();
+
   if (typeof window !== 'undefined') {
     try {
       const token = localStorage.getItem('token');
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrfToken = localStorage.getItem('csrfToken');
+        if (csrfToken) {
+          headers['x-csrf-token'] = csrfToken;
+        }
+      }
     } catch (err) {
       console.warn('[apiFetch] localStorage access blocked', err);
     }
   }
-
-  const method = String(options.method ?? 'GET').toUpperCase();
 
   async function execute(attempt: number): Promise<any> {
     const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -153,6 +160,12 @@ export async function apiFetch(
       } catch {
         data = text
       }
+
+      try {
+        if (data && typeof data === 'object' && data.csrfToken) {
+          localStorage.setItem('csrfToken', data.csrfToken);
+        }
+      } catch {}
 
       try {
         if (url.includes('/auth/login') || url.includes('/auth/session') || url.includes('/auth/2fa/verify-login')) {

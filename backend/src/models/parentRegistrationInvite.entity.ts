@@ -34,4 +34,7 @@ export class ParentRegistrationInvite {
 
   @Column({ nullable: true, type: 'datetime' })
   expiresAt?: Date;
+
+  @Column({ default: false })
+  inheritBilling: boolean;
 }

@@ -9,7 +9,7 @@ import { hashPassword, comparePassword, isLegacyPasswordHash } from '../utils/pa
 import { validatePassword } from '../utils/passwordValidation';
 import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
-import { hasPermissionSync } from '../middleware/authorize';
+import { hasPermissionSync, authorize } from '../middleware/authorize';
 import { UserLog } from '../models/userLog.entity';
 import { ParentLinkRequest } from '../models/parentLinkRequest.entity';
 import { ParentRegistrationInvite } from '../models/parentRegistrationInvite.entity';
@@ -289,16 +289,18 @@ export async function userRoutes(app: any, prefix = '') {
       }
       body.parentId = parentRegistrationInvite.parentId;
 
-      const parentUser = await userRepo.findOneBy({ id: parentRegistrationInvite.parentId });
-      if (parentUser) {
-        if (!body.phone && parentUser.phone) body.phone = parentUser.phone;
-        if (!body.address && parentUser.address) body.address = parentUser.address;
-        if (!body.address2 && parentUser.address2) body.address2 = parentUser.address2;
-        if (!body.billingCompany && parentUser.billingCompany) body.billingCompany = parentUser.billingCompany;
-        if (!body.billingCity && parentUser.billingCity) body.billingCity = parentUser.billingCity;
-        if (!body.billingState && parentUser.billingState) body.billingState = parentUser.billingState;
-        if (!body.billingZip && parentUser.billingZip) body.billingZip = parentUser.billingZip;
-        if (!body.billingCountry && parentUser.billingCountry) body.billingCountry = parentUser.billingCountry;
+      if (parentRegistrationInvite.inheritBilling) {
+        const parentUser = await userRepo.findOneBy({ id: parentRegistrationInvite.parentId });
+        if (parentUser) {
+          if (!body.phone && parentUser.phone) body.phone = parentUser.phone;
+          if (!body.address && parentUser.address) body.address = parentUser.address;
+          if (!body.address2 && parentUser.address2) body.address2 = parentUser.address2;
+          if (!body.billingCompany && parentUser.billingCompany) body.billingCompany = parentUser.billingCompany;
+          if (!body.billingCity && parentUser.billingCity) body.billingCity = parentUser.billingCity;
+          if (!body.billingState && parentUser.billingState) body.billingState = parentUser.billingState;
+          if (!body.billingZip && parentUser.billingZip) body.billingZip = parentUser.billingZip;
+          if (!body.billingCountry && parentUser.billingCountry) body.billingCountry = parentUser.billingCountry;
+        }
       }
 
       if (!body.address) {
@@ -647,12 +649,14 @@ export async function userRoutes(app: any, prefix = '') {
 
     const body = (ctx.body as any) || {};
     const childEmail = typeof body.childEmail === 'string' ? body.childEmail.trim().toLowerCase() : undefined;
+    const inheritBilling = body.inheritBilling === true;
     const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
     const invite = inviteRepo.create({
       parentId: requester.id,
       childEmail: childEmail || null,
       token: crypto.randomBytes(10).toString('hex').toUpperCase(),
       used: false,
+      inheritBilling,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -670,12 +674,13 @@ export async function userRoutes(app: any, prefix = '') {
         link: inviteLink,
         createdAt: invite.createdAt.toISOString(),
         used: invite.used,
+        inheritBilling: invite.inheritBilling,
       },
     };
   }, {
-    beforeHandle: authenticate,
-    body: t.Optional(t.Object({ childEmail: t.Optional(t.String()) })),
-    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Union([t.String(), t.Null()]), link: t.String(), createdAt: t.String(), used: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    beforeHandle: [authenticate, authorize('users:write')],
+    body: t.Optional(t.Object({ childEmail: t.Optional(t.String()), inheritBilling: t.Optional(t.Boolean()) })),
+    response: { 200: t.Object({ success: t.Boolean(), invite: t.Object({ id: t.Number(), token: t.String(), childEmail: t.Union([t.String(), t.Null()]), link: t.String(), createdAt: t.String(), used: t.Boolean(), inheritBilling: t.Boolean() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Create a parent registration invite for a child account', tags: ['Users'] }
   });
 
@@ -702,11 +707,12 @@ export async function userRoutes(app: any, prefix = '') {
         used: invite.used,
         usedAt: invite.usedAt ? invite.usedAt.toISOString() : null,
         expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null,
+        inheritBilling: invite.inheritBilling,
       })),
     };
   }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean(), invites: t.Array(t.Object({ id: t.Number(), token: t.String(), childEmail: t.Union([t.String(), t.Null()]), link: t.String(), createdAt: t.String(), used: t.Boolean(), usedAt: t.Optional(t.Union([t.String(), t.Null()])), expiresAt: t.Optional(t.Union([t.String(), t.Null()])) })) }), 401: t.Object({ error: t.String() }) },
+    beforeHandle: [authenticate, authorize('users:write')],
+    response: { 200: t.Object({ success: t.Boolean(), invites: t.Array(t.Object({ id: t.Number(), token: t.String(), childEmail: t.Union([t.String(), t.Null()]), link: t.String(), createdAt: t.String(), used: t.Boolean(), usedAt: t.Optional(t.Union([t.String(), t.Null()])), expiresAt: t.Optional(t.Union([t.String(), t.Null()])), inheritBilling: t.Boolean() })) }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'List parent registration invites for the current parent', tags: ['Users'] }
   });
 
