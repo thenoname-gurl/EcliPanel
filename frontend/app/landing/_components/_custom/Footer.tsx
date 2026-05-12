@@ -61,7 +61,7 @@ export function Footer() {
   ];
 
   return (
-    <div className="flex flex-col mt-20 sm:mt-40 px-5 sm:px-8 lg:px-5 relative **:font-flink">
+    <div className="flex flex-col mt-20 sm:mt-40 px-5 sm:px-8 lg:px-5 relative **:font-flink w-full">
       <div className="flex flex-col sm:flex-row sm:justify-between gap-10 sm:gap-8 mb-16 sm:mb-32 lg:mb-55">
         <motion.div
           className="flex flex-col gap-3 max-w-xs"
@@ -142,7 +142,12 @@ export function Footer() {
           pauseOnHover={false}
           disabled={false}
         />
+        {/* Bottom fade */}
         <div className="absolute bottom-0 left-0 w-full h-50 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
+        {/* Left fade */}
+        <div className="absolute top-0 left-0 h-full w-[15%] bg-linear-to-r from-[#0a0a0f] to-transparent z-20" />
+        {/* Right fade */}
+        <div className="absolute top-0 right-0 h-full w-[15%] bg-linear-to-l from-[#0a0a0f] to-transparent z-20" />
       </span>
 
       <motion.span
@@ -154,7 +159,7 @@ export function Footer() {
       />
 
       <motion.div
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 text-white/70 relative z-100 bg-[#0a0a0f] h-full py-8 sm:py-10"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 text-white/70 relative z-100 bg-py-8 sm:py-10 -mx-5 sm:-mx-8 lg:-mx-5 px-5 sm:px-8 lg:px-5 bg-[#0a0a0f]"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}

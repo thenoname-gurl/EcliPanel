@@ -33,7 +33,7 @@ export type Contributor = {
   login: string;
   avatarUrl: string;
   profileUrl: string;
-  source?: 'github' | 'manual';
+  source?: "github" | "manual";
   userId?: number;
   displayName?: string;
   title?: string | null;
@@ -130,6 +130,8 @@ export function ContributorsClient() {
         const snapshot = await apiFetch(API_ENDPOINTS.contributorsPublic, {
           retries: 1,
         });
+
+        console.log(snapshot);
         if (!mounted) return;
         setData(snapshot);
       } catch (err: any) {
