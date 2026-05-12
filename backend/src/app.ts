@@ -297,7 +297,7 @@ const app = new Elysia()
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'x-sftp-password', 'x-path'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'x-sftp-password', 'x-path', 'x-csrf-token'],
     exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())
@@ -322,7 +322,7 @@ app.onError((ctx: any) => {
 
     if (status === 404) {
     const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-    return new Response(JSON.stringify({ error: 'Route not found' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
+    return new Response(JSON.stringify({ error: 'Route not found' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }
 
   const log = (app as any).log || console;
@@ -349,11 +349,11 @@ app.onError((ctx: any) => {
     }
 
     const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }
 
   const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-  return new Response(JSON.stringify({ error: ctx.error?.message ?? 'Request error' }), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
+    return new Response(JSON.stringify({ error: ctx.error?.message ?? 'Request error' }), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
 });
 
 declare module 'elysia' {
@@ -469,7 +469,7 @@ app.onRequest(async (ctx: any) => {
         'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Allow-Headers':
-          'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+          'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
         'Access-Control-Expose-Headers':
           'Content-Type, Content-Length, Cache-Control',
       },

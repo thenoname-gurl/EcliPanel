@@ -2906,9 +2906,11 @@ export async function adminRoutes(app: any, prefix = '') {
     rec.status = status;
     rec.approvedBy = adminUser.id;
 
+    const userRepo = AppDataSource.getRepository(User);
+    const targetUser = await userRepo.findOneBy({ id: rec.userId });
+    const panelUrl = process.env.PANEL_URL || 'https://ecli.app';
+
     if (status === 'approved') {
-      const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
-      const targetUser = await userRepo.findOneBy({ id: rec.userId });
       if (targetUser) {
         targetUser.deletionRequested = true;
         targetUser.deletionApproved = false;
@@ -2919,6 +2921,36 @@ export async function adminRoutes(app: any, prefix = '') {
       rec.status = 'pending_deletion';
       rec.approvedAt = new Date();
       rec.scheduledDeletionAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+      if (targetUser?.email) {
+        sendMail({
+          to: targetUser.email,
+          template: 'deletion-approved',
+          vars: {
+            title: 'Account Deletion Approved',
+            message: 'Your account deletion request has been approved. Your account will be permanently deleted in 14 days. If you change your mind, you can log in and cancel the deletion before it is processed.',
+            action_url: `${panelUrl}/login`,
+            action_text: 'Log in to Cancel',
+            details: `Scheduled deletion: ${rec.scheduledDeletionAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\nOnce deleted, your account and data cannot be recovered.`,
+          },
+        }).catch((e: any) => console.error('[adminHandler] failed to send approval email', e));
+      }
+    }
+
+    if (status === 'rejected') {
+      if (targetUser?.email) {
+        sendMail({
+          to: targetUser.email,
+          template: 'deletion-rejected',
+          vars: {
+            title: 'Account Deletion Request Declined',
+            message: 'Your account deletion request has been reviewed and declined. If you believe this decision was made in error or if you have any questions, please contact our support team.',
+            action_url: `${panelUrl}/contact`,
+            action_text: 'Contact Support',
+            details: 'For assistance, please reply to this email or contact our support team through the panel.',
+          },
+        }).catch((e: any) => console.error('[adminHandler] failed to send rejection email', e));
+      }
     }
 
     await delRepo.save(rec);

@@ -6,6 +6,7 @@ import { User } from '../models/user.entity';
 import { DeletedUserRetention } from '../models/deletedUserRetention.entity';
 import { Order } from '../models/order.entity';
 import { getMailboxAccountForUser, removeMailboxAccount } from '../services/mailcowService';
+import { sendMail } from '../services/mailService';
 
 export async function executeDeletionRequest(req: DeletionRequest, now = new Date()) {
   const reqRepo = AppDataSource.getRepository(DeletionRequest);
@@ -49,6 +50,17 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
   } catch (err: any) {
     console.warn('[deletionExecutionJob] failed to remove Mailcow mailbox account for user', user.id, err?.message || err);
   }
+
+  const panelUrl = process.env.PANEL_URL || 'https://ecli.app';
+  sendMail({
+    to: user.email,
+    template: 'deletion-deleted',
+    vars: {
+      title: 'Account Deleted',
+      message: 'Your EclipseSystems account has been permanently deleted as requested.',
+      details: `Your account and associated data have been removed from our systems.\n\nCertain information has been retained for legal and audit purposes as required by applicable law.\n\nIf you did not request this deletion, please contact our support team immediately at ${panelUrl}/contact.`,
+    },
+  }).catch((e: any) => console.error('[deletionExecutionJob] failed to send deletion email', e));
 
   user.firstName = 'Deleted';
   user.middleName = undefined;
