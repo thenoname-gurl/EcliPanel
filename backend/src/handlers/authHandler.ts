@@ -563,6 +563,17 @@ export async function authRoutes(app: any, prefix = '') {
       return { error: 'token and password are required' };
     }
 
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:password-reset-confirm:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.PASSWORD_RESET_CONFIRM_RATE_IP || 10), Number(process.env.PASSWORD_RESET_CONFIRM_WINDOW_IP || 3600));
+      if (!rl.allowed) {
+        ctx.set.status = 429;
+        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
+        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+      }
+    } catch {}
+
     const pwResult = validatePassword(password);
     if (!pwResult.valid) {
       ctx.set.status = 400;
@@ -753,6 +764,17 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Missing code' };
     }
+
+    try {
+      const keyUser = `rate:auth:verify-email:user:${user.id}`;
+      const rl = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.VERIFY_EMAIL_RATE_USER || 5), Number(process.env.VERIFY_EMAIL_WINDOW_USER || 300));
+      if (!rl.allowed) {
+        ctx.set.status = 429;
+        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
+        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+      }
+    } catch {}
+
     const expected = await redisGet(`email-verify:code:${user.id}`);
     if (!expected || expected !== String(code).trim()) {
       ctx.log?.warn({ userId: user.id, provided: code, expected }, 'email verification failed');
