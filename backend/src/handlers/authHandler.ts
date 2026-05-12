@@ -15,6 +15,7 @@ import { redisSet, redisGet, redisDel, redisDelByPrefix, withRedisCache } from '
 import { sendMail } from '../services/mailService';
 import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicyService';
 import { validatePassword } from '../utils/passwordValidation';
+import { storeCsrfToken } from '../middleware/csrf';
 import crypto from 'crypto';
 const speakeasy = require('speakeasy');
 
@@ -244,11 +245,34 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Invalid credentials' };
     }
+
+    const lockoutKey = `lockout:login:user:${user.id}`;
+    try {
+      const locked = await require('../config/redis').redisGet(lockoutKey);
+      if (locked) {
+        ctx.set.status = 429;
+        return { error: 'Account temporarily locked due to too many failed attempts. Try again later.' };
+      }
+    } catch {}
+
     const valid = await comparePassword(password, user.passwordHash);
     if (!valid) {
+      try {
+        const failKey = `lockout:login:fail:user:${user.id}`;
+        const attempts = await require('../config/redis').consumeRateLimit(failKey, 5, 900);
+        if (!attempts.allowed) {
+          await require('../config/redis').redisSet(lockoutKey, '1', 900);
+          await require('../config/redis').redisDel(failKey);
+        }
+      } catch {}
       ctx.set.status = 401;
       return { error: 'Invalid credentials' };
     }
+
+    try {
+      await require('../config/redis').redisDel(`lockout:login:fail:user:${user.id}`);
+      await require('../config/redis').redisDel(lockoutKey);
+    } catch {}
 
     if (user.twoFactorEnabled) {
       const tfaSession = uuidv4();
@@ -287,8 +311,10 @@ export async function authRoutes(app: any, prefix = '') {
 
     ctx.log?.info?.({ userId: user.id, token: token.slice(0, 8) + '...' }, 'login succeeded, returning token');
     setAuthCookie(ctx, token);
+    const csrfToken = await storeCsrfToken(sessionId);
     return {
       token,
+      csrfToken,
       user: {
         id: user.id,
         email: user.email,
@@ -328,7 +354,7 @@ export async function authRoutes(app: any, prefix = '') {
   }, {
     body: t.Object({ email: t.String({ format: 'email', maxLength: 254 }), password: t.String({ minLength: 1, maxLength: 128 }) }),
     response: {
-      200: t.Object({ token: t.Optional(t.String()), twoFactorRequired: t.Optional(t.Boolean()), tempToken: t.Optional(t.String()) }),
+      200: t.Object({ token: t.Optional(t.String()), csrfToken: t.Optional(t.String()), twoFactorRequired: t.Optional(t.Boolean()), tempToken: t.Optional(t.String()) }),
       400: t.Object({ error: t.String() }),
       401: t.Object({ error: t.String() }),
       500: t.Object({ error: t.String() })
@@ -390,6 +416,13 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/auth/2fa/verify-login', async (ctx: any) => {
     try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:2fa:verify:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, 10, 60);
+      if (!rl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
+    } catch (e) {/* meow */}
+
+    try {
       const body = ctx.body || {};
       const { tempToken, token, backupCode, emailCode } = body as any;
       const payload = await verifyTempToken(tempToken, 'verify-login', ctx);
@@ -423,6 +456,8 @@ export async function authRoutes(app: any, prefix = '') {
         const hashes = user.twoFactorRecoveryCodes || [];
         const h = require('crypto').createHash('sha256').update(String(backupCode)).digest('hex');
         if (!hashes.includes(h)) {
+          const bakKey = `rate:auth:2fa:backup:user:${payload.userId}`;
+          try { const bRl = await require('../config/redis').consumeRateLimit(bakKey, 5, 3600); if (!bRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: bRl.retryAfterSeconds }; } } catch {}
           ctx.set.status = 400;
           return { error: 'Invalid backup code' };
         }
@@ -431,6 +466,8 @@ export async function authRoutes(app: any, prefix = '') {
       }
 
       if (token) {
+        const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
+        try { const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
         const speakeasy = require('speakeasy');
         const ok = speakeasy.totp.verify({ secret: user.twoFactorSecret || '', encoding: 'base32', token: String(token).trim(), window: 1 });
         if (!ok) {
@@ -450,8 +487,8 @@ export async function authRoutes(app: any, prefix = '') {
       try { setAuthCookie(ctx, finalToken); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for 2fa verify-login'); }
       const logRepo = AppDataSource.getRepository(UserLog);
       await logRepo.save(logRepo.create({ userId: user.id, action: 'login_2fa', timestamp: new Date() }));
-      // token returned in body; frontend will store it. no cookie set here.
-      return { token: finalToken };
+      const csrfToken = await storeCsrfToken(sessionId);
+      return { token: finalToken, csrfToken };
     } catch (err) {
       ctx.log?.error?.({ err }, 'Error in 2fa verify-login');
       ctx.set.status = 500;
@@ -460,7 +497,7 @@ export async function authRoutes(app: any, prefix = '') {
   }, {
     body: t.Object({ tempToken: t.String(), token: t.Optional(t.String()), backupCode: t.Optional(t.String()), emailCode: t.Optional(t.String()) }),
     response: {
-      200: t.Object({ token: t.String() }),
+      200: t.Object({ token: t.String(), csrfToken: t.Optional(t.String()) }),
       400: t.Object({ error: t.String() }),
       401: t.Object({ error: t.String() }),
       404: t.Object({ error: t.String() }),
@@ -937,7 +974,8 @@ export async function authRoutes(app: any, prefix = '') {
       await userRepo.save(user);
       const token = app.jwt.sign({ userId: user.id, sessionId });
       try { setAuthCookie(ctx, token); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for passkey auth'); }
-      return { token };
+      const csrfToken = await storeCsrfToken(sessionId);
+      return { token, csrfToken };
     } else {
       ctx.set.status = 401;
       return { error: 'Authentication failed' };
@@ -1019,6 +1057,13 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/auth/2fa/verify', async (ctx: any) => {
     const user = ctx.user as User;
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:2fa:enable:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, 5, 300);
+      if (!rl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
+    } catch (e) {/* meow */}
+
     const body = ctx.body || {};
     const { token, secret } = body as any;
     if (!token || !secret) {
@@ -1058,6 +1103,13 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/auth/2fa/disable', async (ctx: any) => {
     const user = ctx.user as User;
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:2fa:disable:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, 5, 300);
+      if (!rl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
+    } catch (e) {/* meow */}
+
     const body = ctx.body || {};
     const { token } = body as any;
     if (!token) {

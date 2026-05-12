@@ -25,6 +25,7 @@ import path from 'path';
 import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
+import { csrfProtection } from './middleware/csrf';
 
 function getSafeUploadPath(base: string, relPath: string) {
   const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/,'');
@@ -484,6 +485,7 @@ app.onRequest((ctx: any) => {
       try {
         const decoded = (app as any).jwt.verify(rawToken) as any;
         (ctx as any).user = decoded;
+        (ctx as any).jwtPayload = decoded;
       } catch {
         // skip
       }
@@ -491,6 +493,9 @@ app.onRequest((ctx: any) => {
   } catch {
     // skip
   }
+
+  const csrfResult = await csrfProtection(ctx);
+  if (csrfResult) return csrfResult;
 });
 
 
