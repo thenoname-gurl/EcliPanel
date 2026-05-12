@@ -564,7 +564,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
     </Dialog>
 
     <Dialog open={createServerOpen} onOpenChange={(open) => !open && setCreateServerOpen(false)}>
-      <DialogContent className="border-border bg-card sm:max-w-lg">
+      <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("createDialog.title")}</DialogTitle>
         </DialogHeader>

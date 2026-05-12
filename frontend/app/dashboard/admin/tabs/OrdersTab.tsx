@@ -510,7 +510,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     </div>
 
     <Dialog open={issueOrderOpen} onOpenChange={(open) => !open && setIssueOrderOpen(false)}>
-      <DialogContent className="border-border bg-card sm:max-w-md">
+      <DialogContent className="border-border bg-card sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("issueDialog.title")}</DialogTitle>
         </DialogHeader>
@@ -571,7 +571,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     </Dialog>
 
     <Dialog open={applyPlanOpen} onOpenChange={(open) => !open && setApplyPlanOpen(false)}>
-      <DialogContent className="border-border bg-card sm:max-w-sm">
+      <DialogContent className="border-border bg-card sm:max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t("applyPlanDialog.title", { id: applyPlanUserId })}</DialogTitle>
         </DialogHeader>
@@ -623,7 +623,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     </Dialog>
 
     <Dialog open={editOrderOpen} onOpenChange={(open) => !open && setEditOrderOpen(false)}>
-      <DialogContent className="border-border bg-card sm:max-w-md">
+      <DialogContent className="border-border bg-card sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{editOrderTarget ? t("editDialog.editOrderId", { id: editOrderTarget.id }) : t("editDialog.editOrder")}</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">{t("editDialog.description")}</DialogDescription>
