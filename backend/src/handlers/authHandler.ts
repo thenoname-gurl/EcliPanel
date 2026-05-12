@@ -718,6 +718,17 @@ export async function authRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/auth/verify-email', async (ctx: any) => {
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:verify-email:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.VERIFY_EMAIL_LINK_RATE_IP || 20), Number(process.env.VERIFY_EMAIL_LINK_WINDOW_IP || 300));
+      if (!rl.allowed) {
+        ctx.set.status = 429;
+        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
+        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+      }
+    } catch {}
+
     const { token } = ctx.query as any;
     if (!token) {
       ctx.set.status = 400;
@@ -831,6 +842,17 @@ export async function authRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/auth/restore-email', async (ctx: any) => {
+    try {
+      const ip = (ctx.ip || '').toString();
+      const key = `rate:auth:restore-email:ip:${ip}`;
+      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.RESTORE_EMAIL_RATE_IP || 20), Number(process.env.RESTORE_EMAIL_WINDOW_IP || 300));
+      if (!rl.allowed) {
+        ctx.set.status = 429;
+        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
+        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+      }
+    } catch {}
+
     const { token } = ctx.query as any;
     if (!token) {
       ctx.set.status = 400;

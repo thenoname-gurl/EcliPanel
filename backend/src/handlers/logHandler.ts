@@ -15,6 +15,23 @@ import { hasPermissionSync } from '../middleware/authorize';
  * D: Basketball
 */
 
+function stripHtml(value: any): any {
+  if (typeof value === 'string') {
+    return value.replace(/<[^>]*>/g, '');
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripHtml);
+  }
+  if (value && typeof value === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      cleaned[k] = stripHtml(v);
+    }
+    return cleaned;
+  }
+  return value;
+}
+
 export async function createActivityLog(opts: {
   userId?: number;
   action: string;
@@ -30,7 +47,7 @@ export async function createActivityLog(opts: {
     action: opts.action,
     targetId: opts.targetId,
     targetType: opts.targetType,
-    metadata: opts.metadata || {},
+    metadata: stripHtml(opts.metadata || {}),
     ipAddress: opts.ipAddress,
     timestamp: new Date(),
     isRead: false,
