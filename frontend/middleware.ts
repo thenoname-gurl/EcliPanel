@@ -563,6 +563,9 @@ const SHORT_URL_RESERVED_ROOT_PATHS = new Set([
   'wings',
   'docs',
   'admin',
+  'changelogs',
+  'changelog',
+  'contributors',
 ])
 
 function getShortUrlPath(pathname: string): { prefix: 'a' | 'root'; code: string } | null {

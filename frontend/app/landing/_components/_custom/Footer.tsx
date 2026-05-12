@@ -45,7 +45,7 @@ export function Footer() {
           h: "https://github.com/thenoname-gurl/EcliPanel",
         },
         { l: t("footer.links.contributors"), h: "/contributors" },
-        { l: t("footer.links.changelog"), h: "/changelog" },
+        { l: t("footer.links.changelog"), h: "/changelogs" },
       ],
     },
     {
@@ -129,7 +129,7 @@ export function Footer() {
         </div>
       </div>
 
-      <span className="text-[22vw] sm:text-[18vw] lg:text-[15vw] font-bold text-center absolute -bottom-7 z-2 right-[50%] translate-x-[50%] w-full overflow-hidden max-w-full">
+      <span className="text-[22vw] sm:text-[18vw] lg:text-[15vw] font-bold text-center absolute -bottom-7 z-2 left-1/2 -translate-x-1/2 w-[120vw] max-w-none whitespace-nowrap">
         <ShinyText
           text="EclipseSystems"
           speed={2}
@@ -143,8 +143,8 @@ export function Footer() {
           disabled={false}
         />
         <div className="absolute bottom-0 left-0 w-full h-50 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
-        <div className="absolute top-0 left-0 h-full w-[15%] bg-linear-to-r from-[#0a0a0f] to-transparent z-20" />
-        <div className="absolute top-0 right-0 h-full w-[15%] bg-linear-to-l from-[#0a0a0f] to-transparent z-20" />
+        <div className="absolute top-0 left-0 h-full w-[30%] bg-linear-to-r from-[#0a0a0f] via-[#0a0a0f]/60 to-transparent z-20" />
+        <div className="absolute top-0 right-0 h-full w-[30%] bg-linear-to-l from-[#0a0a0f] via-[#0a0a0f]/60 to-transparent z-20" />
       </span>
 
       <motion.span
