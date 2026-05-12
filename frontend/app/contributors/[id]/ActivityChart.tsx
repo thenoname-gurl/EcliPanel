@@ -123,7 +123,6 @@ export function ActivityChart({
             </linearGradient>
           </defs>
 
-          {/* Horizontal guide lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
             const y = PADDING_Y + ratio * (HEIGHT - PADDING_Y * 2);
 
@@ -140,7 +139,6 @@ export function ActivityChart({
             );
           })}
 
-          {/* Area */}
           <motion.path
             d={areaPath}
             fill={`url(#${areaGradientId})`}
@@ -149,7 +147,6 @@ export function ActivityChart({
             transition={{ duration: 0.7, ease: "easeOut" }}
           />
 
-          {/* Line */}
           <motion.path
             d={linePath}
             fill="none"
@@ -162,7 +159,6 @@ export function ActivityChart({
             transition={{ duration: 1.2, ease: "easeOut" }}
           />
 
-          {/* Hover points */}
           {points.map((point, index) => (
             <circle
               key={`${point.date}-${index}`}
