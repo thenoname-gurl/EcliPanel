@@ -454,6 +454,23 @@
     "activityChartLabel": "Активность",
     "activityChartAriaLabel": "График активности участника"
   },
+  "changelogsPage": {
+    "title": "Изменения",
+    "subtitle": "Отслеживайте все коммиты и пул-реквесты проекта.",
+    "repoCta": "Репозиторий",
+    "filterAll": "Всё",
+    "filterCommits": "Коммиты",
+    "filterPullRequests": "Pull Requests",
+    "stats": {
+      "commits": "Коммиты",
+      "pullRequests": "Pull Requests",
+      "contributors": "Участников",
+      "stars": "Звёзды"
+    },
+    "loading": "Загрузка изменений...",
+    "error": "Не удалось загрузить изменения.",
+    "noEntries": "Активности пока нет."
+  },
   "notFound": {
     "brand": "Eclipse Systems",
     "nav": {

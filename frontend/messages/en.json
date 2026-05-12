@@ -461,6 +461,23 @@
     "activityChartLabel": "Activity",
     "activityChartAriaLabel": "Contributor activity line chart"
   },
+  "changelogsPage": {
+    "title": "Changelog",
+    "subtitle": "Track every commit and pull request across the project.",
+    "repoCta": "View Repository",
+    "filterAll": "All Activity",
+    "filterCommits": "Commits",
+    "filterPullRequests": "Pull Requests",
+    "stats": {
+      "commits": "Commits",
+      "pullRequests": "Pull Requests",
+      "contributors": "Contributors",
+      "stars": "Stars"
+    },
+    "loading": "Loading changelog...",
+    "error": "Failed to load changelog.",
+    "noEntries": "No activity yet."
+  },
   "notFound": {
     "brand": "Eclipse Systems",
     "nav": {
