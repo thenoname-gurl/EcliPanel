@@ -82,7 +82,8 @@ export function ContributorClient() {
   const [data, setData] = useState<ContributorsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { id } = useParams<{ id: string }>();
+  let { id } = useParams<{ id: string }>();
+  id = id.replace("%20", " ");
   const router = useRouter();
 
   useEffect(() => {
