@@ -6,6 +6,7 @@ import { OutboundEmail } from '../models/outboundEmail.entity';
 import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword, isLegacyPasswordHash } from '../utils/password';
+import { validatePassword } from '../utils/passwordValidation';
 import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
@@ -474,19 +475,19 @@ export async function userRoutes(app: any, prefix = '') {
   }, {
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     body: t.Object({
-      email: t.String({ format: 'email' }),
-      password: t.String({ minLength: 8 }),
-      firstName: t.Optional(t.String()),
-      middleName: t.Optional(t.String()),
-      lastName: t.Optional(t.String()),
-      address: t.Optional(t.String()),
-      address2: t.Optional(t.String()),
-      billingCompany: t.Optional(t.String()),
-      billingCity: t.Optional(t.String()),
-      billingState: t.Optional(t.String()),
-      billingZip: t.Optional(t.String()),
-      billingCountry: t.Optional(t.String()),
-      phone: t.Optional(t.String()),
+      email: t.String({ format: 'email', maxLength: 254 }),
+      password: t.String({ minLength: 8, maxLength: 128 }),
+      firstName: t.Optional(t.String({ maxLength: 64 })),
+      middleName: t.Optional(t.String({ maxLength: 64 })),
+      lastName: t.Optional(t.String({ maxLength: 64 })),
+      address: t.Optional(t.String({ maxLength: 256 })),
+      address2: t.Optional(t.String({ maxLength: 256 })),
+      billingCompany: t.Optional(t.String({ maxLength: 128 })),
+      billingCity: t.Optional(t.String({ maxLength: 128 })),
+      billingState: t.Optional(t.String({ maxLength: 64 })),
+      billingZip: t.Optional(t.String({ maxLength: 20 })),
+      billingCountry: t.Optional(t.String({ maxLength: 64 })),
+      phone: t.Optional(t.String({ maxLength: 32 })),
       dateOfBirth: t.String(),
       parentId: t.Optional(t.Number()),
       parentRegistrationToken: t.Optional(t.String()),
@@ -2169,9 +2170,10 @@ export async function userRoutes(app: any, prefix = '') {
     const payload = ctx.body as any;
     const isAdmin = hasPermissionSync(ctx, 'users:write');
     if (payload.password) {
-      if (typeof payload.password !== 'string' || payload.password.length < 8) {
+      const pwResult = validatePassword(payload.password);
+      if (!pwResult.valid) {
         ctx.set.status = 400;
-        return { error: 'Password must be at least 8 characters' };
+        return { error: pwResult.errors.join(' ') };
       }
 
       const submittedCurrentPassword = typeof payload.currentPassword === 'string' ? payload.currentPassword : undefined;
@@ -2292,6 +2294,19 @@ export async function userRoutes(app: any, prefix = '') {
         if (oldNormalized !== newNormalized) {
           addressChanges[key] = { before: oldValue ?? null, after: newValue ?? null };
         }
+      }
+    }
+
+    const FIELD_MAX_LENGTHS: Record<string, number> = {
+      firstName: 64, lastName: 64, middleName: 64, displayName: 64,
+      email: 254, address: 256, address2: 256,
+      billingCompany: 128, billingCity: 128, billingState: 64,
+      billingZip: 20, phone: 32,
+    };
+    for (const [field, max] of Object.entries(FIELD_MAX_LENGTHS)) {
+      if (typeof payload[field] === 'string' && payload[field].length > max) {
+        ctx.set.status = 400;
+        return { error: `${field} must be at most ${max} characters.` };
       }
     }
 

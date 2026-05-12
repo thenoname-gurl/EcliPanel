@@ -14,6 +14,7 @@ import { isFeatureEnabled } from '../utils/featureToggles';
 import { redisSet, redisGet, redisDel, redisDelByPrefix, withRedisCache } from '../config/redis';
 import { sendMail } from '../services/mailService';
 import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicyService';
+import { validatePassword } from '../utils/passwordValidation';
 import crypto from 'crypto';
 const speakeasy = require('speakeasy');
 
@@ -325,7 +326,7 @@ export async function authRoutes(app: any, prefix = '') {
       }
     };
   }, {
-    body: t.Object({ email: t.String({ format: 'email' }), password: t.String({ minLength: 1 }) }),
+    body: t.Object({ email: t.String({ format: 'email', maxLength: 254 }), password: t.String({ minLength: 1, maxLength: 128 }) }),
     response: {
       200: t.Object({ token: t.Optional(t.String()), twoFactorRequired: t.Optional(t.Boolean()), tempToken: t.Optional(t.String()) }),
       400: t.Object({ error: t.String() }),
@@ -525,6 +526,12 @@ export async function authRoutes(app: any, prefix = '') {
       return { error: 'token and password are required' };
     }
 
+    const pwResult = validatePassword(password);
+    if (!pwResult.valid) {
+      ctx.set.status = 400;
+      return { error: pwResult.errors.join(' ') };
+    }
+
     const userId = await redisGet(`password-reset:${token}`);
     if (!userId) {
       ctx.set.status = 400;
@@ -538,7 +545,7 @@ export async function authRoutes(app: any, prefix = '') {
       return { error: 'Invalid token' };
     }
 
-    user.passwordHash = await hashPassword(String(password));
+    user.passwordHash = await hashPassword(password);
     user.sessions = [];
     await userRepo.save(user);
     await redisDel(`password-reset:${token}`);
@@ -546,6 +553,7 @@ export async function authRoutes(app: any, prefix = '') {
 
     return { success: true };
   }, {
+    body: t.Object({ token: t.String(), password: t.String({ minLength: 8, maxLength: 128 }) }),
     response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
     detail: { summary: 'Confirm password reset', tags: ['Auth'] }
   });

@@ -6,6 +6,9 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
+import { getPasswordChecks, getPasswordStrength, getPasswordStrengthLabel, isPasswordValid, PASSWORD_MAX } from "@/lib/password-validation"
+import { CheckCircle2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export default function ResetPasswordPage() {
   const t = useTranslations("resetPasswordPage")
@@ -16,6 +19,10 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  const passwordChecks = getPasswordChecks(password)
+  const pwStrength = getPasswordStrength(password)
+  const strengthInfo = getPasswordStrengthLabel(pwStrength)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,6 +35,10 @@ export default function ResetPasswordPage() {
     }
     if (password !== confirm) {
       setError(t("errors.noMatch"))
+      return
+    }
+    if (!isPasswordValid(password)) {
+      setError("Password must be 8-128 characters with uppercase, lowercase, number, and symbol.")
       return
     }
 
@@ -61,16 +72,37 @@ export default function ResetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
+            maxLength={PASSWORD_MAX}
             required
-            className="w-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground" 
+            className="w-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
+          {password && (
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+              {passwordChecks.map((check) => (
+                <div
+                  key={check.label}
+                  className={cn(
+                    "flex items-center gap-1.5 text-[11px] transition-colors duration-200",
+                    check.met ? "text-emerald-500" : "text-muted-foreground/60"
+                  )}
+                >
+                  {check.met ? (
+                    <CheckCircle2 className="h-3 w-3 shrink-0" />
+                  ) : (
+                    <div className="h-3 w-3 rounded-full border border-current shrink-0" />
+                  )}
+                  {check.label}
+                </div>
+              ))}
+            </div>
+          )}
           <input
             type="password"
             placeholder={t("confirmPassword")}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
-            className="w-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground" 
+            className="w-full rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
           <button
             type="submit"

@@ -14,6 +14,7 @@ import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from "@/lib/editor-settings"
 import { LEGAL_DOCUMENTS } from "@/lib/legal-docs"
 import { cn } from "@/lib/utils"
 import { getBadgeColorClass } from "@/lib/badge-colors"
+import { isPasswordValid, PASSWORD_MAX, FIELD_MAX_LENGTHS } from "@/lib/password-validation"
 import {
   User,
   Mail,
@@ -118,6 +119,7 @@ function FormInput({
   error,
   hint,
   disabled,
+  maxLength,
 }: {
   label: string
   type?: string
@@ -129,6 +131,7 @@ function FormInput({
   error?: string
   hint?: string
   disabled?: boolean
+  maxLength?: number
 }) {
   return (
     <div className={cn("flex flex-col gap-1.5 min-w-0", className)}>
@@ -143,6 +146,7 @@ function FormInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
+          maxLength={maxLength}
           className={cn(
             "w-full rounded-lg border bg-secondary/30 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 disabled:opacity-50 disabled:cursor-not-allowed",
             Icon ? "pl-10" : "px-3",
@@ -1181,8 +1185,8 @@ export default function SettingsPage() {
       setPasswordError(t("security.errors.enterNewPassword"))
       return
     }
-    if (newPassword.length < 8) {
-      setPasswordError(t("security.errors.passwordMinLength"))
+    if (!isPasswordValid(newPassword)) {
+      setPasswordError("Password must be 8-128 characters with uppercase, lowercase, number, and symbol.")
       return
     }
     if (newPassword !== confirmPassword) {
@@ -1890,6 +1894,7 @@ export default function SettingsPage() {
                     placeholder={t("profile.displayNamePlaceholder")}
                     icon={User}
                     hint={t("profile.displayNameHint")}
+                    maxLength={FIELD_MAX_LENGTHS.displayName}
                   />
                   <FormInput
                     label={t("profile.emailAddress")}
@@ -1898,6 +1903,7 @@ export default function SettingsPage() {
                     onChange={(v) => setForm({ ...form, email: v })}
                     icon={Mail}
                     hint={t("profile.emailHint")}
+                    maxLength={FIELD_MAX_LENGTHS.email}
                   />
                 </div>
               </SettingsCard>
@@ -1913,17 +1919,20 @@ export default function SettingsPage() {
                     label={t("profile.firstName")}
                     value={form.firstName}
                     onChange={(v) => setForm({ ...form, firstName: v })}
+                    maxLength={FIELD_MAX_LENGTHS.firstName}
                   />
                   <FormInput
                     label={t("profile.middleName")}
                     value={form.middleName}
                     onChange={(v) => setForm({ ...form, middleName: v })}
                     placeholder={t("profile.optional")}
+                    maxLength={FIELD_MAX_LENGTHS.middleName}
                   />
                   <FormInput
                     label={t("profile.lastName")}
                     value={form.lastName}
                     onChange={(v) => setForm({ ...form, lastName: v })}
+                    maxLength={FIELD_MAX_LENGTHS.lastName}
                   />
                   {(() => {
                     const hasDob = user?.dateOfBirth != null && String(user?.dateOfBirth).trim() !== '';
@@ -2268,6 +2277,7 @@ export default function SettingsPage() {
                         onChange={setNewPassword}
                         placeholder={t("security.newPasswordPlaceholder")}
                         hint={t("security.newPasswordHint")}
+                        maxLength={PASSWORD_MAX}
                       />
                       <button
                         type="button"
