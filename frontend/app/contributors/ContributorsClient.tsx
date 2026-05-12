@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { apiFetch } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/panel-config";
@@ -116,6 +117,7 @@ function formatCompactDate(value: string) {
 }
 
 export function ContributorsClient() {
+  const t = useTranslations("contributorsPage");
   const [data, setData] = useState<ContributorsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export function ContributorsClient() {
         setData(snapshot);
       } catch (err: any) {
         if (!mounted) return;
-        setError(err?.message || "Failed to load contributors");
+        setError(err?.message || t("loadError"));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -151,18 +153,18 @@ export function ContributorsClient() {
 
   const statLabels = data
     ? [
-        `${data.totalContributors} contributors`,
-        `${data.totalTrackedCommits} tracked commits`,
-        `${data.totalTrackedPullRequests} tracked pull requests`,
-        `${data.totalMergedPullRequests} merged pull requests`,
-        `Last synced ${formatDate(data.generatedAt)}`,
+        t("stats.contributors", { count: data.totalContributors }),
+        t("stats.trackedCommits", { count: data.totalTrackedCommits }),
+        t("stats.trackedPullRequests", { count: data.totalTrackedPullRequests }),
+        t("stats.mergedPullRequests", { count: data.totalMergedPullRequests }),
+        t("stats.lastSynced", { date: formatDate(data.generatedAt) }),
       ]
     : [
-        "Loading contributors...",
-        "Fetching commit history...",
-        "Fetching pull requests...",
-        "Fetching merge stats...",
-        "Syncing from GitHub...",
+        t("loadingContributors"),
+        t("loadingCommitHistory"),
+        t("loadingPullRequests"),
+        t("loadingMergeStats"),
+        t("loadingSyncing"),
       ];
 
   return (
@@ -170,7 +172,7 @@ export function ContributorsClient() {
       <Menu
         customCTA={{
           href: "https://github.com/thenoname-gurl/EcliPanel",
-          label: "View Repository",
+          label: t("hero.repoCta"),
           newPage: true,
         }}
         customMenu={[]}
@@ -229,7 +231,7 @@ export function ContributorsClient() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              No contributors have been synced yet.
+              {t("noContributorsYet")}
             </motion.div>
           ) : null}
 

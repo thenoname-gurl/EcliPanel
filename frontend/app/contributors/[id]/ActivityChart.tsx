@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useMemo, useId } from "react";
+import { useTranslations } from "next-intl";
 import { ContributorCommitHistoryPoint } from "../ContributorsClient";
 
 export function ActivityChart({
@@ -14,6 +15,7 @@ export function ActivityChart({
   const PADDING_Y = 24;
 
   const gradientId = useId().replace(/:/g, "");
+  const t = useTranslations("contributorsPage");
   const lineGradientId = `activity-line-${gradientId}`;
   const areaGradientId = `activity-area-${gradientId}`;
 
@@ -107,7 +109,7 @@ export function ActivityChart({
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="w-full h-auto overflow-visible"
           role="img"
-          aria-label="Contributor commit activity line chart"
+          aria-label={t("activityChartAriaLabel")}
         >
           <defs>
             <linearGradient id={lineGradientId} x1="0" y1="0" x2="1" y2="0">
@@ -189,7 +191,7 @@ export function ActivityChart({
 
         <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
           <span className="text-[10px] uppercase tracking-widest text-white/30">
-            Commit activity
+            {t("activityChartLabel")}
           </span>
 
           <span className="font-mono text-xs text-white/50">

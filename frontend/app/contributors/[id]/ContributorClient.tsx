@@ -2,6 +2,7 @@
 import { apiFetch } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/panel-config";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { ContributorsSnapshot } from "../ContributorsClient";
@@ -99,7 +100,7 @@ export function ContributorClient() {
         setData(snapshot);
       } catch (err: any) {
         if (!mounted) return;
-        setError(err?.message || "Failed to load contributors");
+        setError(err?.message || t("loadError"));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -110,6 +111,7 @@ export function ContributorClient() {
     };
   }, []);
 
+  const t = useTranslations("contributorsPage");
   const sortedContributors = useMemo(() => data?.contributors ?? [], [data]);
   const contributor = useMemo(
     () => sortedContributors.find((c) => c.login === id) ?? null,
@@ -131,7 +133,7 @@ export function ContributorClient() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
         >
-          Loading...
+          {t("loading")}
         </motion.div>
       </main>
     );
@@ -203,7 +205,7 @@ export function ContributorClient() {
               className="text-white/70 text-base sm:text-lg lg:text-xl"
               variants={fadeUp}
             >
-              Last commit at: {formatDate(contributor.lastCommitAt)}
+              {t("lastCommitAt")}: {contributor.lastCommitAt ? formatDate(contributor.lastCommitAt) : t("noCommitsTrackedYet")}
             </motion.p>
           </motion.span>
         </motion.div>
@@ -221,7 +223,7 @@ export function ContributorClient() {
             }}
           >
             <p className="text-white/70 font-mono text-sm sm:text-base">
-              Contributions
+              {t("stats.contributions")}
             </p>
             <p className="font-bold text-2xl sm:text-3xl">
               {contributor.contributions}
@@ -237,7 +239,7 @@ export function ContributorClient() {
             }}
           >
             <p className="text-white/70 font-mono text-sm sm:text-base">
-              Pull Requests
+              {t("stats.pullRequests")}
             </p>
             <p className="font-bold text-2xl sm:text-3xl">
               {contributor.pullRequests}
@@ -253,7 +255,7 @@ export function ContributorClient() {
             }}
           >
             <p className="text-white/70 font-mono text-sm sm:text-base">
-              Merged Pull Requests
+              {t("stats.mergedPullRequests")}
             </p>
             <p className="font-bold text-2xl sm:text-3xl">
               {contributor.mergedPullRequests}
@@ -269,7 +271,7 @@ export function ContributorClient() {
             className="font-mono text-xl sm:text-2xl lg:text-3xl text-white/70"
             variants={fadeUp}
           >
-            Activity
+            {t("activityTitle")}
           </motion.span>
           <motion.div
             variants={scaleIn}
@@ -289,7 +291,7 @@ export function ContributorClient() {
             className="text-white/70 font-mono text-xl sm:text-2xl lg:text-3xl"
             variants={fadeUp}
           >
-            Recent Commits
+            {t("recentActivityTitle")}
           </motion.p>
           <motion.div
             className="flex flex-col gap-2 sm:gap-3"
