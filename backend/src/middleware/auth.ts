@@ -89,19 +89,6 @@ export async function authenticate(ctx: any) {
         'userRoles.role.parentRole.permissions',
       ],
     });
-    const debugInfo = {
-      userId: decoded.userId,
-      sessionId: decoded.sessionId,
-      userFound: !!user,
-      userSessions: user?.sessions,
-      jwtPayload: decoded
-    };
-
-    //if (ctx.log && typeof ctx.log.info === 'function') {
-    //  ctx.log.info(debugInfo, '[authenticate] session debug');
-    //} else {
-    //  console.log('[authenticate] session debug', debugInfo);
-    //}
     
     if (!user) {
       ctx.set.status = 401;
