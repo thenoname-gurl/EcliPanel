@@ -9,7 +9,7 @@ import { Node } from '../models/node.entity';
 import { Organisation } from '../models/organisation.entity';
 import { WingsApiService } from '../services/wingsApiService';
 import { authenticate } from '../middleware/auth';
-import { hasPermissionSync } from '../middleware/authorize';
+import { hasPermissionSync, authorize } from '../middleware/authorize';
 import { sendMail } from '../services/mailService';
 import { createAdminBroadcastJob } from '../services/adminBroadcastService';
 import { UserLog } from '../models/userLog.entity';
@@ -1277,7 +1277,7 @@ export async function adminRoutes(app: any, prefix = '') {
       avgTicketResponseSampleCountGlobal: responseDurationsAll.length,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Any(),
       401: t.Object({ error: t.String() }),
@@ -1318,7 +1318,7 @@ export async function adminRoutes(app: any, prefix = '') {
       createdAt: url.createdAt?.toISOString(),
     }));
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Object({
         id: t.Number(),
@@ -1386,7 +1386,7 @@ export async function adminRoutes(app: any, prefix = '') {
       createdAt: entity.createdAt?.toISOString(),
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({
         id: t.Number(),
@@ -1461,7 +1461,7 @@ export async function adminRoutes(app: any, prefix = '') {
       createdAt: entity.createdAt?.toISOString(),
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({
         id: t.Number(),
@@ -1495,7 +1495,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await repo.delete({ id: entity.id });
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({ success: t.Boolean() }),
       401: t.Object({ error: t.String() }),
@@ -1697,7 +1697,7 @@ export async function adminRoutes(app: any, prefix = '') {
       series,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ days: t.Optional(t.Number()) }),
       response: {
@@ -1725,7 +1725,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const result = await repo.createQueryBuilder().delete().from(SocData).execute();
     return { success: true, deleted: Number(result.affected || 0) };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
       401: t.Object({ error: t.String() }),
@@ -1739,7 +1739,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (adminErr !== true) return adminErr;
     return getSlowQueries(100);
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
@@ -1754,7 +1754,7 @@ export async function adminRoutes(app: any, prefix = '') {
     clearSlowQueries();
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({ success: t.Boolean() }),
       401: t.Object({ error: t.String() }),
@@ -1815,7 +1815,7 @@ export async function adminRoutes(app: any, prefix = '') {
       recipients: 0,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({ subject: t.String(), message: t.String(), force: t.Optional(t.Boolean()), test: t.Optional(t.Boolean()) }),
       response: { 200: t.Object({ success: t.Boolean(), recipients: t.Optional(t.Number()), status: t.Optional(t.String()), message: t.Optional(t.String()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -1877,7 +1877,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { users: result, total, page: p, per };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
       response: {
@@ -1902,7 +1902,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'Failed to create export job' };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: { 200: t.Object({ success: t.Boolean(), jobId: t.String() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
@@ -1918,7 +1918,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
     return { job };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: { 200: t.Object({ job: t.Any() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -1939,7 +1939,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { jobs, meta: { runnerCron: '*/1 * * * *', nextRunAt, lastRunAt } };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ limit: t.Optional(t.String()), status: t.Optional(t.String()) }),
       response: {
@@ -1966,7 +1966,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'Failed to read archive' };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
@@ -2002,7 +2002,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true, shareUrl, sharePath, expiresAt: shareLinkExpiresAt, downloadsRemaining: 1 };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Optional(t.Object({ expiresHours: t.Optional(t.Number()) })),
@@ -2316,7 +2316,7 @@ export async function adminRoutes(app: any, prefix = '') {
     try { await redisDel('public:contributors:v2'); } catch { }
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({
@@ -2392,7 +2392,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true, user };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -2417,7 +2417,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const children = await userRepo.find({ where: { parentId }, order: { id: 'ASC' } });
     return { success: true, children };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -2455,7 +2455,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true, user: target };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ removePortal: t.Optional(t.Boolean()) }),
@@ -2491,7 +2491,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true, user: target };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ clearLimits: t.Optional(t.Boolean()) }),
@@ -2522,7 +2522,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await userRepo.remove(user);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({ success: t.Boolean() }),
       400: t.Object({ error: t.String() }),
@@ -2615,7 +2615,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }));
     return { tickets: result, total, page: p, per };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()), priority: t.Optional(t.String()) }),
       response: {
@@ -2710,7 +2710,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const saved = await ticketRepo.save(ticket);
     return { success: true, ticket: saved };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ status: t.Optional(t.String()), adminReply: t.Optional(t.String()) }),
@@ -2745,7 +2745,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({ ids: t.Array(t.Number()), archived: t.Boolean() }),
       response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -2776,7 +2776,7 @@ export async function adminRoutes(app: any, prefix = '') {
     });
     return result;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
@@ -2812,7 +2812,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await verRepo.save(rec);
     return { success: true, rec };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ status: t.String() }),
@@ -2850,7 +2850,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await verRepo.save(rec);
     return { success: true, rec };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -2878,7 +2878,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const result = records.map((r) => ({ ...r, user: userMap[r.userId] ?? null }));
     return result;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
@@ -2923,7 +2923,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await delRepo.save(rec);
     return { success: true, rec };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ status: t.String() }),
@@ -2959,7 +2959,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const updated = await executeDeletionRequest(rec, new Date());
     return { success: true, rec: updated };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -3003,7 +3003,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await delRepo.save(rec);
     return { success: true, rec };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -3024,7 +3024,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const nodes = await nodeRepo.find();
     return nodes;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
@@ -3079,7 +3079,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { organisations: result, total, page: p, per };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
       response: {
@@ -3136,7 +3136,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await orgRepo.save(org);
     return { success: true, org };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({
@@ -3204,7 +3204,7 @@ export async function adminRoutes(app: any, prefix = '') {
     ctx.set.status = 201;
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ userId: t.Any(), orgRole: t.Optional(t.String()) }),
@@ -3243,7 +3243,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await orgMemberRepo.remove(membership);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String(), userId: t.String() }),
       response: {
@@ -3278,7 +3278,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -3399,7 +3399,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const servers = filtered.slice(start, start + per);
     return { servers, total, page: p, per };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
       response: {
@@ -3459,7 +3459,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { reports };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -3541,7 +3541,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: msg };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ action: t.Enum({ start: 'start', stop: 'stop', restart: 'restart', kill: 'kill' }) }),
@@ -3602,7 +3602,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: msg };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -3693,7 +3693,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }
     return { success: true, server: cfg };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({
@@ -3745,7 +3745,7 @@ export async function adminRoutes(app: any, prefix = '') {
     ctx.set.status = 404;
     return { error: 'Server not found on any node' };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -3854,7 +3854,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: e.message };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({
         nodeId: t.Any(),
@@ -4012,7 +4012,7 @@ export async function adminRoutes(app: any, prefix = '') {
       message: 'Sync to Wings has been queued and will complete in the background. Check your activity notifications for updates.',
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     detail: { summary: 'Synchronize all server configs to Wings (admin)', tags: ['Admin'] },
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
   });
@@ -4124,7 +4124,7 @@ export async function adminRoutes(app: any, prefix = '') {
     ctx.set.status = 404;
     return { error: 'Server not found on any node' };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Optional(t.Object({ reason: t.Optional(t.String()), dmca: t.Optional(t.Boolean()) })),
@@ -4180,7 +4180,7 @@ export async function adminRoutes(app: any, prefix = '') {
     ctx.set.status = 404;
     return { error: 'Server not found on any node' };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -4273,7 +4273,7 @@ export async function adminRoutes(app: any, prefix = '') {
       mode: 'temporary_cpu_cap',
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Optional(t.Object({
@@ -4322,7 +4322,7 @@ export async function adminRoutes(app: any, prefix = '') {
       totalAgents: agents.length,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Any(),
@@ -4438,7 +4438,7 @@ export async function adminRoutes(app: any, prefix = '') {
       agents,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Any(),
@@ -4512,7 +4512,7 @@ export async function adminRoutes(app: any, prefix = '') {
       reviewedAt: saved.reviewedAt,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Any(),
@@ -4592,7 +4592,7 @@ export async function adminRoutes(app: any, prefix = '') {
       status: nextStatus,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Any(),
@@ -4631,7 +4631,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true, deleted: Number(result.affected || 0) };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
@@ -4680,7 +4680,7 @@ export async function adminRoutes(app: any, prefix = '') {
       requested: ids.length,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Object({ success: t.Boolean(), deleted: t.Number(), requested: t.Number() }),
@@ -4974,7 +4974,7 @@ export async function adminRoutes(app: any, prefix = '') {
       emailError,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       response: {
         200: t.Any(),
@@ -5045,7 +5045,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { success: true, created, skipped, errors };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({ success: t.Boolean(), created: t.Number(), skipped: t.Number(), errors: t.Array(t.String()) }),
       401: t.Object({ error: t.String() }),
@@ -5146,7 +5146,7 @@ export async function adminRoutes(app: any, prefix = '') {
     out.contributor = buildContributorSummary(user);
     return out;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -5191,7 +5191,7 @@ export async function adminRoutes(app: any, prefix = '') {
     try { await redisDel('public:contributors:v2'); } catch { }
     return { success: true, contributor: buildContributorSummary(user) };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({
@@ -5282,7 +5282,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await userRepo.save(user);
     return { success: true, document: newDoc };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ file: t.File({ type: 'application/pdf' }), name: t.Optional(t.String()), description: t.Optional(t.String()) }),
@@ -5590,7 +5590,7 @@ export async function adminRoutes(app: any, prefix = '') {
       emailSentTo: process.env.ADMIN_EMAIL || out.email || user.email || null,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -5613,7 +5613,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const logs = await userLogRepo.find({ where: { userId, action: 'update-address' }, order: { timestamp: 'DESC' }, take: 10 });
     return { success: true, logs };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: { 200: t.Object({ success: t.Boolean(), logs: t.Array(t.Any()) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -5634,7 +5634,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await repo.remove(link);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String(), linkId: t.String() }),
       response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -5657,7 +5657,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await repo.save(link);
     return { success: true, link };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String(), linkId: t.String() }),
       body: t.Object({ limits: t.Optional(t.Any()) }),
@@ -5768,7 +5768,7 @@ export async function adminRoutes(app: any, prefix = '') {
     }));
     return { logs, total, page: p, per: perNum };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({
         userId: t.Optional(t.Any()),
@@ -5828,7 +5828,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return { items, total, page: p, per: perNum };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ userId: t.Optional(t.Any()), page: t.Optional(t.String()), per: t.Optional(t.String()), status: t.Optional(t.String()), q: t.Optional(t.String()) }),
       response: {
@@ -5857,7 +5857,7 @@ export async function adminRoutes(app: any, prefix = '') {
     await logRepo.remove(entry);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -5895,7 +5895,7 @@ export async function adminRoutes(app: any, prefix = '') {
       suspended: u.suspended,
     }));
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
@@ -6001,7 +6001,7 @@ isSuspicious: true if fraudScore >= 50`;
       return { error: `AI fraud scan failed (${status ?? 'network'}): ${detail}` };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -6087,7 +6087,7 @@ isSuspicious: true if fraudScore >= 50`;
 
     return { success: true, flagged: results.length, results };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({ success: t.Boolean(), flagged: t.Number(), results: t.Array(t.Any()) }),
       401: t.Object({ error: t.String() }),
@@ -6118,7 +6118,7 @@ isSuspicious: true if fraudScore >= 50`;
     await userRepo.save(user);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ action: t.String() }),
@@ -6156,7 +6156,7 @@ isSuspicious: true if fraudScore >= 50`;
       return { error: 'Failed to dismiss alerts' };
     }
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({ ids: t.Array(t.Number()) }),
       response: {
@@ -6248,7 +6248,7 @@ isSuspicious: true if fraudScore >= 50`;
       featureToggles,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({
         registrationEnabled: t.Boolean(),
@@ -6329,7 +6329,7 @@ isSuspicious: true if fraudScore >= 50`;
       byCountry: normalizedCountryStats,
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Object({
         totalUsers: t.Number(),
@@ -6409,7 +6409,7 @@ isSuspicious: true if fraudScore >= 50`;
       },
     };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({
         registrationEnabled: t.Optional(t.Boolean()),
@@ -6440,7 +6440,7 @@ isSuspicious: true if fraudScore >= 50`;
     const mounts = await AppDataSource.getRepository(Mount).find({ order: { name: 'ASC' } });
     return mounts;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     response: {
       200: t.Array(t.Any()),
       401: t.Object({ error: t.String() }),
@@ -6463,7 +6463,7 @@ isSuspicious: true if fraudScore >= 50`;
     ctx.set.status = 201;
     return mount;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({
         name: t.String(),
@@ -6502,7 +6502,7 @@ isSuspicious: true if fraudScore >= 50`;
     await repo.save(mount);
     return mount;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({
@@ -6538,7 +6538,7 @@ isSuspicious: true if fraudScore >= 50`;
     await repo.remove(mount);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -6576,7 +6576,7 @@ isSuspicious: true if fraudScore >= 50`;
     ctx.set.status = 201;
     return link;
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ mountId: t.Any() }),
@@ -6605,7 +6605,7 @@ isSuspicious: true if fraudScore >= 50`;
     await smRepo.remove(link);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String(), mountId: t.String() }),
       response: {
@@ -6643,7 +6643,7 @@ isSuspicious: true if fraudScore >= 50`;
     const orders = await qb.skip((p - 1) * per).take(per).getMany();
     return { orders, total, page: p, per };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ userId: t.Optional(t.Any()), page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
       response: {
@@ -6687,7 +6687,7 @@ isSuspicious: true if fraudScore >= 50`;
     await orderRepo.save(order);
     return { success: true, order };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({
         userId: t.Any(),
@@ -6735,7 +6735,7 @@ isSuspicious: true if fraudScore >= 50`;
     await orderRepo.save(order);
     return { success: true, order };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ status: t.Optional(t.String()), notes: t.Optional(t.String()), expiresAt: t.Optional(t.String()), description: t.Optional(t.String()), amount: t.Optional(t.Number()), planId: t.Optional(t.Any()), items: t.Optional(t.String()), userId: t.Optional(t.Any()) }),
@@ -6762,7 +6762,7 @@ isSuspicious: true if fraudScore >= 50`;
     await orderRepo.remove(order);
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -6896,7 +6896,7 @@ isSuspicious: true if fraudScore >= 50`;
 
     return { users, organisations, servers, orders };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       query: t.Object({ q: t.Optional(t.String()) }),
       response: {
@@ -6925,7 +6925,7 @@ isSuspicious: true if fraudScore >= 50`;
     const plan = await planRepo.findOneBy({ id: order.planId! });
     return { plan: plan || null, order };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -6964,7 +6964,7 @@ isSuspicious: true if fraudScore >= 50`;
 
     return { success: true };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
@@ -7054,7 +7054,7 @@ isSuspicious: true if fraudScore >= 50`;
 
     return { success: true, user: { id: user.id, portalType: user.portalType, limits: user.limits }, order };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({ planId: t.Any(), temporary: t.Optional(t.Boolean()), expiresAt: t.Optional(t.String()), notes: t.Optional(t.String()), orgId: t.Optional(t.Any()) }),
@@ -7136,7 +7136,7 @@ isSuspicious: true if fraudScore >= 50`;
 
     return { success: true, assigned };
   }, {
-    beforeHandle: authenticate,
+    beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       body: t.Object({ portalType: t.Optional(t.String()) }),
       response: { 200: t.Object({ success: t.Boolean(), assigned: t.Number() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }

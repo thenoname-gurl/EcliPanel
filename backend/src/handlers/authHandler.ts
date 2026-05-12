@@ -1695,4 +1695,30 @@ export async function authRoutes(app: any, prefix = '') {
       operationId: 'getAuthSession',
     }
   });
+
+  app.get(prefix + '/auth/csrf-token', async (ctx: any) => {
+    const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
+    const sessionId = decoded?.sessionId;
+    if (!sessionId) {
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
+    const { redisGet } = require('../config/redis');
+    const existing = await redisGet(`csrf:${sessionId}`);
+    if (existing) {
+      return { csrfToken: existing };
+    }
+    const { storeCsrfToken } = require('../middleware/csrf');
+    const token = await storeCsrfToken(sessionId);
+    return { csrfToken: token };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Object({ csrfToken: t.String() }), 401: t.Object({ error: t.String() }) },
+    detail: {
+      summary: 'Get CSRF token',
+      description: 'Returns the current CSRF token for the authenticated session, generating one if needed.',
+      tags: ['Auth'],
+      operationId: 'getAuthCsrfToken',
+    }
+  });
 }
