@@ -2098,8 +2098,84 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'User not found' };
     }
 
-    const { role, portalType, suspended, limits, nodeId, demoUsed, demoExpiresAt, demoOriginalPortalType, demoLimits, supportBanned, supportBanReason, badges, dateOfBirth, parentId } = ctx.body as any;
+    const {
+      firstName,
+      middleName,
+      lastName,
+      displayName,
+      email,
+      address,
+      address2,
+      phone,
+      billingCompany,
+      billingCity,
+      billingState,
+      billingZip,
+      billingCountry,
+      avatarUrl,
+      role,
+      portalType,
+      suspended,
+      limits,
+      nodeId,
+      demoUsed,
+      demoExpiresAt,
+      demoOriginalPortalType,
+      demoLimits,
+      supportBanned,
+      supportBanReason,
+      badges,
+      dateOfBirth,
+      parentId,
+      emailVerified,
+      idVerified,
+      studentVerified,
+      studentVerifiedAt,
+      fraudFlag,
+      fraudReason,
+      guideShown,
+    } = ctx.body as any;
     const nodeRepo = AppDataSource.getRepository(Node);
+    const asTrimmedString = (value: any) => {
+      if (value === undefined || value === null) return null;
+      const text = String(value).trim();
+      return text.length ? text : null;
+    };
+    const setRequiredTextField = (key: keyof User, value: any, label: string) => {
+      if (value === undefined) return true;
+      const text = asTrimmedString(value);
+      if (!text) {
+        ctx.set.status = 400;
+        return { error: `Invalid ${label}` };
+      }
+      (user as any)[key] = text;
+      return true;
+    };
+    const setOptionalTextField = (key: keyof User, value: any) => {
+      if (value === undefined) return;
+      (user as any)[key] = asTrimmedString(value) as any;
+    };
+
+    const firstNameErr = setRequiredTextField('firstName', firstName, 'first name');
+    if (firstNameErr !== true) return firstNameErr;
+    const lastNameErr = setRequiredTextField('lastName', lastName, 'last name');
+    if (lastNameErr !== true) return lastNameErr;
+    const emailErr = setRequiredTextField('email', email, 'email');
+    if (emailErr !== true) return emailErr;
+    const addressErr = setRequiredTextField('address', address, 'address');
+    if (addressErr !== true) return addressErr;
+
+    setOptionalTextField('middleName', middleName);
+    setOptionalTextField('displayName', displayName);
+    setOptionalTextField('address2', address2);
+    setOptionalTextField('phone', phone);
+    setOptionalTextField('billingCompany', billingCompany);
+    setOptionalTextField('billingCity', billingCity);
+    setOptionalTextField('billingState', billingState);
+    setOptionalTextField('billingZip', billingZip);
+    setOptionalTextField('billingCountry', billingCountry);
+    setOptionalTextField('avatarUrl', avatarUrl);
+
     if (role !== undefined) user.role = role;
     if (portalType !== undefined) user.portalType = portalType;
     if (suspended !== undefined) user.suspended = suspended;
@@ -2108,6 +2184,13 @@ export async function adminRoutes(app: any, prefix = '') {
     if (demoExpiresAt !== undefined) user.demoExpiresAt = demoExpiresAt ? new Date(demoExpiresAt) : undefined;
     if (demoOriginalPortalType !== undefined) user.demoOriginalPortalType = demoOriginalPortalType;
     if (demoLimits !== undefined) user.demoLimits = demoLimits;
+    if (emailVerified !== undefined) user.emailVerified = !!emailVerified;
+    if (idVerified !== undefined) user.idVerified = !!idVerified;
+    if (studentVerified !== undefined) user.studentVerified = !!studentVerified;
+    if (studentVerifiedAt !== undefined) user.studentVerifiedAt = studentVerifiedAt ? new Date(studentVerifiedAt) : undefined;
+    if (fraudFlag !== undefined) user.fraudFlag = !!fraudFlag;
+    if (fraudReason !== undefined) user.fraudReason = asTrimmedString(fraudReason) || undefined;
+    if (guideShown !== undefined) user.guideShown = !!guideShown;
     if (limits !== undefined) {
       if (limits && typeof limits === 'object') {
         const outLimits: any = { ...limits };
@@ -2170,22 +2253,39 @@ export async function adminRoutes(app: any, prefix = '') {
     }
 
     if (dateOfBirth !== undefined) {
-      const dob = new Date(String(dateOfBirth));
-      if (isNaN(dob.getTime())) {
-        ctx.set.status = 400;
-        return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      if (dateOfBirth === null || dateOfBirth === '') {
+        user.dateOfBirth = undefined as any;
+      } else {
+        const dob = new Date(String(dateOfBirth));
+        if (isNaN(dob.getTime())) {
+          ctx.set.status = 400;
+          return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+        }
+        const updatedAge = getAgeFromDate(dob);
+        const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
+        if (updatedAge !== null && updatedAge < minimumAge) {
+          user.suspended = true;
+          user.fraudFlag = true;
+          user.fraudReason = `Underage account (<${minimumAge} years)`;
+        }
+        user.dateOfBirth = dob;
       }
-      const updatedAge = getAgeFromDate(dob);
-      const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
-      if (updatedAge !== null && updatedAge < minimumAge) {
-        user.suspended = true;
-        user.fraudFlag = true;
-        user.fraudReason = `Underage account (<${minimumAge} years)`;
-      }
-      user.dateOfBirth = dob;
     }
     if (parentId !== undefined) {
-      user.parentId = parentId != null ? Number(parentId) : null;
+      if (parentId === null || parentId === '') {
+        user.parentId = null;
+      } else {
+        const nextParentId = Number(parentId);
+        if (!Number.isInteger(nextParentId) || nextParentId <= 0) {
+          ctx.set.status = 400;
+          return { error: 'Invalid parent user id' };
+        }
+        if (nextParentId === user.id) {
+          ctx.set.status = 400;
+          return { error: 'A user cannot be their own parent' };
+        }
+        user.parentId = nextParentId;
+      }
     }
     if (supportBanned !== undefined) user.supportBanned = !!supportBanned;
     if (supportBanReason !== undefined) user.supportBanReason = supportBanReason;
@@ -2218,6 +2318,20 @@ export async function adminRoutes(app: any, prefix = '') {
     schema: {
       params: t.Object({ id: t.String() }),
       body: t.Object({
+        firstName: t.Optional(t.Any()),
+        middleName: t.Optional(t.Any()),
+        lastName: t.Optional(t.Any()),
+        displayName: t.Optional(t.Any()),
+        email: t.Optional(t.Any()),
+        address: t.Optional(t.Any()),
+        address2: t.Optional(t.Any()),
+        phone: t.Optional(t.Any()),
+        billingCompany: t.Optional(t.Any()),
+        billingCity: t.Optional(t.Any()),
+        billingState: t.Optional(t.Any()),
+        billingZip: t.Optional(t.Any()),
+        billingCountry: t.Optional(t.Any()),
+        avatarUrl: t.Optional(t.Any()),
         role: t.Optional(t.String()),
         portalType: t.Optional(t.String()),
         suspended: t.Optional(t.Boolean()),
@@ -2228,8 +2342,15 @@ export async function adminRoutes(app: any, prefix = '') {
         demoOriginalPortalType: t.Optional(t.String()),
         demoLimits: t.Optional(t.Any()),
         badges: t.Optional(t.Array(t.String())),
-        dateOfBirth: t.Optional(t.String()),
+        dateOfBirth: t.Optional(t.Any()),
         parentId: t.Optional(t.Any()),
+        emailVerified: t.Optional(t.Boolean()),
+        idVerified: t.Optional(t.Boolean()),
+        studentVerified: t.Optional(t.Boolean()),
+        studentVerifiedAt: t.Optional(t.Any()),
+        fraudFlag: t.Optional(t.Boolean()),
+        fraudReason: t.Optional(t.Any()),
+        guideShown: t.Optional(t.Boolean()),
       }),
       response: {
         200: t.Object({ success: t.Boolean() }),
@@ -2240,6 +2361,46 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Modify a user record (admin)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/users/:id/unlink-child', async (ctx) => {
+    const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
+    if (adminErr !== true) return adminErr;
+
+    const userRepo = AppDataSource.getRepository(User);
+    const logRepo = AppDataSource.getRepository(UserLog);
+    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+    if (!user) {
+      ctx.set.status = 404;
+      return { error: 'User not found' };
+    }
+
+    const previousParentId = user.parentId ?? null;
+    user.parentId = null;
+    await userRepo.save(user);
+
+    await logRepo.save(logRepo.create({
+      userId: ctx.user?.id,
+      action: 'admin-unlink-child',
+      targetId: String(user.id),
+      targetType: 'user',
+      timestamp: new Date(),
+      metadata: { previousParentId },
+    } as any));
+
+    return { success: true, user };
+  }, {
+    beforeHandle: authenticate,
+    schema: {
+      params: t.Object({ id: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean(), user: t.Any() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Unlink a child account from its parent (admin only)', tags: ['Admin'] },
   });
 
   app.get(prefix + '/admin/users/:id/children', async (ctx) => {
