@@ -98,6 +98,18 @@ export default function ServersTab({ ctx }: { ctx: any }) {
     esError,
     reinstallServerFromDialog,
     esReinstalling,
+    esDedicatedIps,
+    esDedicatedIpInput,
+    setEsDedicatedIpInput,
+    esDedicatedIpType,
+    setEsDedicatedIpType,
+    esDedicatedIpFqdn,
+    setEsDedicatedIpFqdn,
+    esDedicatedIpLoading,
+    esDedicatedIpError,
+    esDedicatedIpSuccess,
+    assignDedicatedIp,
+    removeDedicatedIp,
     saveEditServer,
     esLoading,
     createServerOpen,
@@ -546,6 +558,52 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                 <input placeholder={t("editDialog.fields.displayFqdn")} value={esAllocFqdn} onChange={(e) => setEsAllocFqdn(e.target.value)} className="flex-1 min-w-[160px] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                 <Button size="sm" variant="outline" className="border-border h-9" onClick={() => { const port = Number(esAllocPort); if (!esAllocIp || !port) return; setEsAllocations((prev: any[]) => [...prev, { ip: esAllocIp, port, fqdn: esAllocFqdn.trim(), is_default: prev.length === 0 }]); setEsAllocPort(""); setEsAllocFqdn("") }}><Plus className="h-3.5 w-3.5 mr-1" /> {t("actions.add")}</Button>
               </div>
+            </div>
+
+            <div className="col-span-2 flex flex-col gap-2 border-t border-border pt-3 mt-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dedicated IPs</label>
+              <div className="space-y-1.5">
+                {esDedicatedIps.length === 0 && <p className="text-xs text-muted-foreground italic">No dedicated IPs assigned</p>}
+                {esDedicatedIps.map((d: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-mono text-sm text-foreground">{d.ip}</span>
+                      <span className="ml-2 text-[10px] font-semibold uppercase text-purple-400">{d.type}</span>
+                      {d.fqdn && <span className="ml-2 text-xs text-muted-foreground">→ {d.fqdn}</span>}
+                    </div>
+                    <Globe className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                    <button onClick={() => removeDedicatedIp(d.ip)} disabled={esDedicatedIpLoading} title="Remove dedicated IP" className="text-muted-foreground hover:text-destructive transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 flex-wrap items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground">IP Address</label>
+                  <input placeholder="e.g. 166.88.225.39" value={esDedicatedIpInput} onChange={(e) => setEsDedicatedIpInput(e.target.value)}
+                    className="w-40 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground">Type</label>
+                  <select value={esDedicatedIpType} onChange={(e) => setEsDedicatedIpType(e.target.value as "ipv4" | "ipv6")}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                    <option value="ipv4">IPv4</option>
+                    <option value="ipv6">IPv6</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground">FQDN (optional)</label>
+                  <input placeholder="e.g. server.example.com" value={esDedicatedIpFqdn} onChange={(e) => setEsDedicatedIpFqdn(e.target.value)}
+                    className="w-48 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                </div>
+                <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-9" onClick={assignDedicatedIp} disabled={esDedicatedIpLoading || !esDedicatedIpInput.trim()}>
+                  {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                  Assign
+                </Button>
+              </div>
+              {esDedicatedIpError && <p className="text-xs text-destructive">{esDedicatedIpError}</p>}
+              {esDedicatedIpSuccess && <p className="text-xs text-green-400">{esDedicatedIpSuccess}</p>}
             </div>
           </div>
           {esError && <p className="text-xs text-destructive">{esError}</p>}

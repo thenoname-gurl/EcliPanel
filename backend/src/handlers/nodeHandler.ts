@@ -6,10 +6,12 @@ import { In, MoreThanOrEqual, Not } from 'typeorm';
 import { User } from '../models/user.entity';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
+import { ServerConfig } from '../models/serverConfig.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
 import { isValidIpv6Cidr } from '../utils/ipv6';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { withRedisCache } from '../config/redis';
+import { WingsApiService } from '../services/wingsApiService';
 import { t } from 'elysia';
 import { sanitizeError } from '../utils/sanitizeError';
 
@@ -418,5 +420,131 @@ export async function nodeRoutes(app: any, prefix = '') {
     beforeHandle: [authenticate, authorize('nodes:map')],
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'Map server to node (admin only)', tags: ['Nodes'] }
+  });
+
+  app.post(prefix + '/nodes/:id/mass-allocation-change', async (ctx: any) => {
+    const adminErr = requireAdminCtx(ctx);
+    if (adminErr !== true) return adminErr;
+    const nodeId = Number(ctx.params.id);
+    if (!Number.isFinite(nodeId)) {
+      ctx.set.status = 400;
+      return { error: 'Invalid node id' };
+    }
+    const nodeRepo = AppDataSource.getRepository(Node);
+    const node = await nodeRepo.findOneBy({ id: nodeId });
+    if (!node) {
+      ctx.set.status = 404;
+      return { error: 'Node not found' };
+    }
+
+    const { oldIp, newIp } = ctx.body as any;
+    if (!oldIp || !newIp) {
+      ctx.set.status = 400;
+      return { error: 'oldIp and newIp are required' };
+    }
+    const oldIpNorm = String(oldIp).trim();
+    const newIpNorm = String(newIp).trim();
+    if (!oldIpNorm || !newIpNorm) {
+      ctx.set.status = 400;
+      return { error: 'oldIp and newIp must be non-empty strings' };
+    }
+    if (oldIpNorm === newIpNorm) {
+      ctx.set.status = 400;
+      return { error: 'oldIp and newIp must be different' };
+    }
+
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const configs = await cfgRepo.find({ where: { nodeId } });
+
+    const updatedServers: Array<{ uuid: string; name: string | null }> = [];
+    const errors: Array<{ uuid: string; error: string }> = [];
+
+    for (const cfg of configs) {
+      const alloc = cfg.allocations as Record<string, any> | null;
+      if (!alloc) continue;
+
+      let changed = false;
+
+      if (alloc.default?.ip === oldIpNorm) {
+        alloc.default.ip = newIpNorm;
+        changed = true;
+      }
+
+      if (alloc.mappings && typeof alloc.mappings === 'object') {
+        const keys = Object.keys(alloc.mappings);
+        for (const ipKey of keys) {
+          if (ipKey === oldIpNorm) {
+            alloc.mappings[newIpNorm] = alloc.mappings[ipKey];
+            delete alloc.mappings[ipKey];
+            changed = true;
+          }
+        }
+      }
+
+      if (alloc.dedicatedIps && Array.isArray(alloc.dedicatedIps)) {
+        for (const dip of alloc.dedicatedIps) {
+          if (dip.ip === oldIpNorm) {
+            dip.ip = newIpNorm;
+            changed = true;
+          }
+        }
+      }
+
+      if (alloc.fqdns && typeof alloc.fqdns === 'object') {
+        const fqKeys = Object.keys(alloc.fqdns);
+        for (const fqKey of fqKeys) {
+          const prefixMatch = fqKey.startsWith(oldIpNorm + ':') || fqKey === oldIpNorm;
+          if (prefixMatch) {
+            const newKey = fqKey.replace(oldIpNorm, newIpNorm);
+            alloc.fqdns[newKey] = alloc.fqdns[fqKey];
+            delete alloc.fqdns[fqKey];
+            changed = true;
+          }
+        }
+      }
+
+      if (alloc.owners && typeof alloc.owners === 'object') {
+        const ownerKeys = Object.keys(alloc.owners);
+        for (const ownerKey of ownerKeys) {
+          if (ownerKey === oldIpNorm) {
+            alloc.owners[newIpNorm] = alloc.owners[ownerKey];
+            delete alloc.owners[ownerKey];
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        cfg.allocations = alloc;
+        try {
+          await cfgRepo.save(cfg);
+          const base = (node as any).backendWingsUrl || node.url;
+          const svc = new WingsApiService(base, node.token);
+          await svc.syncServer(cfg.uuid, { allocations: alloc }).catch(() => {});
+          updatedServers.push({ uuid: cfg.uuid, name: cfg.name });
+        } catch (e: any) {
+          errors.push({ uuid: cfg.uuid, error: e?.message || 'Failed to save or sync' });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      totalServersOnNode: configs.length,
+      updatedCount: updatedServers.length,
+      errorCount: errors.length,
+      updatedServers,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }, {
+    beforeHandle: [authenticate, authorize('admin:servers:manage')],
+    response: {
+      200: t.Any(),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'Mass change IP allocations for all servers on a node', tags: ['Nodes'] }
   });
 }
