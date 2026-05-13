@@ -61,7 +61,7 @@ export function Footer() {
   ];
 
   return (
-    <div className="flex flex-col mt-20 sm:mt-40 px-5 sm:px-8 lg:px-5 relative **:font-flink w-full">
+    <div className="flex flex-col mt-20 sm:mt-40 px-5 sm:px-8 lg:px-5 relative **:font-flink w-full overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:justify-between gap-10 sm:gap-8 mb-16 sm:mb-32 lg:mb-55">
         <motion.div
           className="flex flex-col gap-3 max-w-xs"
@@ -129,7 +129,7 @@ export function Footer() {
         </div>
       </div>
 
-      <span className="text-[22vw] sm:text-[18vw] lg:text-[15vw] font-bold text-center absolute -bottom-7 z-2 left-1/2 -translate-x-1/2 w-[120vw] max-w-none whitespace-nowrap">
+      <span className="text-[21vw] sm:text-[17vw] lg:text-[14vw] font-bold text-center absolute -bottom-7 z-2 left-1/2 -translate-x-1/2 w-[120vw] max-w-none whitespace-nowrap">
         <ShinyText
           text="EclipseSystems"
           speed={2}
