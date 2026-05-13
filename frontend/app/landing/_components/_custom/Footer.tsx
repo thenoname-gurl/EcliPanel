@@ -92,7 +92,7 @@ export function Footer() {
           </a>
         </motion.div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-12 lg:gap-20">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-12 lg:gap-20 relative z-10">
           {columns.map((col, colIdx) => (
             <motion.div
               key={col.title}
@@ -129,7 +129,7 @@ export function Footer() {
         </div>
       </div>
 
-      <span className="text-[21vw] sm:text-[17vw] lg:text-[14vw] font-bold text-center absolute -bottom-7 z-2 left-1/2 -translate-x-1/2 w-[120vw] max-w-none whitespace-nowrap">
+      <span className="text-[21vw] sm:text-[17vw] lg:text-[14vw] font-bold text-center absolute -bottom-7 left-1/2 -translate-x-1/2 w-[120vw] max-w-none whitespace-nowrap z-0">
         <ShinyText
           text="EclipseSystems"
           speed={2}
