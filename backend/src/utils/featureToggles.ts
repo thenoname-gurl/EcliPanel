@@ -12,6 +12,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   ticketing: true,
   applications: true,
   oauth: true,
+  dedicatedIps: true,
 };
 
 export async function getPanelFeatureToggles(): Promise<Record<string, boolean>> {

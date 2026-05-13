@@ -134,6 +134,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
     csError,
     submitCreateServer,
     csLoading,
+    panelSettings,
   } = ctx
 
   return (
@@ -560,6 +561,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               </div>
             </div>
 
+            {panelSettings?.featureToggles?.dedicatedIps !== false && (
             <div className="col-span-2 flex flex-col gap-2 border-t border-border pt-3 mt-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dedicated IPs</label>
               <div className="space-y-1.5">
@@ -605,6 +607,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               {esDedicatedIpError && <p className="text-xs text-destructive">{esDedicatedIpError}</p>}
               {esDedicatedIpSuccess && <p className="text-xs text-green-400">{esDedicatedIpSuccess}</p>}
             </div>
+            )}
           </div>
           {esError && <p className="text-xs text-destructive">{esError}</p>}
         </div>
