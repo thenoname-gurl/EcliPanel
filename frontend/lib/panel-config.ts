@@ -140,6 +140,8 @@ export const API_ENDPOINTS = {
   nodeHeartbeatsAll: "/api/nodes/heartbeats",
   nodeHeartbeats: "/api/nodes/:id/heartbeats",
   nodeMassAllocationChange: "/api/nodes/:id/mass-allocation-change",
+  nodeRebootAllServers: "/api/nodes/:id/reboot-all-servers",
+  nodeRebootStatus: "/api/nodes/:id/reboot-status/:operationId",
   serverDetail: "/api/servers/:id",
   serverDelete: "/api/servers/:id",
   serverPower: "/api/servers/:id/power",
