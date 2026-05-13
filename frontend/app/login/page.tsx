@@ -516,410 +516,323 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full bg-background overflow-auto">
-      {/* Side gradient glow — left */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
-      {/* Side gradient glow — right (subtle secondary) */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_right,_var(--tw-gradient-stops))] from-secondary/[0.08] via-transparent to-transparent pointer-events-none" />
+    // <div className="min-h-[100dvh] w-full bg-background overflow-auto">
+    //   {/* Side gradient glow — left */}
+    //   <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
+    //   {/* Side gradient glow — right (subtle secondary) */}
+    //   <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_right,_var(--tw-gradient-stops))] from-secondary/[0.08] via-transparent to-transparent pointer-events-none" />
 
-      <div className="relative flex min-h-[100dvh] w-full items-start sm:items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-[520px]">
-          {/* Logo/Brand */}
-          <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5 shadow-lg shadow-primary/5">
-              <Shield className="h-7 w-7 text-primary" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-              {t("welcomeBack")}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
-              {t("subtitle")}
-            </p>
-          </div>
+    //   <div className="relative flex min-h-[100dvh] w-full items-start sm:items-center justify-center px-4 py-8 sm:py-12">
+    //     <div className="w-full max-w-[520px]">
+    //       {/* Logo/Brand */}
+    //       <div className="mb-8 text-center">
+    //         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5 shadow-lg shadow-primary/5">
+    //           <Shield className="h-7 w-7 text-primary" />
+    //         </div>
+    //         <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+    //           {t("welcomeBack")}
+    //         </h1>
+    //         <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
+    //           {t("subtitle")}
+    //         </p>
+    //       </div>
 
-          {/* Main Card */}
-          <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-2xl shadow-black/5 overflow-hidden">
-            <div className="p-4 sm:p-8 space-y-5">
-              {/* Alerts */}
-              <div className="space-y-3">
-                {domainOk === false && !dismissedDomainWarning && (
-                  <AlertBanner
-                    variant="warning"
-                    title={t("verifyDomain")}
-                    onDismiss={() => {
-                      try {
-                        localStorage.setItem("domainWarningDismissed", "1");
-                      } catch {}
-                      setDismissedDomainWarning(true);
-                    }}
-                  >
-                    <p>
-                      {t.rich("domainWarning", {
-                        domain: (chunks: ReactNode) => (
-                          <span className="font-medium">{chunks}</span>
-                        ),
-                        link: (chunks: ReactNode) => (
-                          <a
-                            href="https://ecli.app"
-                            className="underline font-medium"
-                          >
-                            {chunks}
-                          </a>
-                        ),
-                      })}
-                    </p>
-                  </AlertBanner>
-                )}
+    //       {/* Main Card */}
+    //       <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-2xl shadow-black/5 overflow-hidden">
+    //         <div className="p-4 sm:p-8 space-y-5">
+    //           {/* Alerts */}
+    //           <div className="space-y-3">
+    //             {domainOk === false && !dismissedDomainWarning && (
+    //               <AlertBanner
+    //                 variant="warning"
+    //                 title={t("verifyDomain")}
+    //                 onDismiss={() => {
+    //                   try {
+    //                     localStorage.setItem("domainWarningDismissed", "1");
+    //                   } catch {}
+    //                   setDismissedDomainWarning(true);
+    //                 }}
+    //               >
+    //                 <p>
+    //                   {t.rich("domainWarning", {
+    //                     domain: (chunks: ReactNode) => (
+    //                       <span className="font-medium">{chunks}</span>
+    //                     ),
+    //                     link: (chunks: ReactNode) => (
+    //                       <a
+    //                         href="https://ecli.app"
+    //                         className="underline font-medium"
+    //                       >
+    //                         {chunks}
+    //                       </a>
+    //                     ),
+    //                   })}
+    //                 </p>
+    //               </AlertBanner>
+    //             )}
 
-                {backendReady === false && (
-                  <AlertBanner
-                    variant="error"
-                    title={t("backendUnavailableTitle")}
-                  >
-                    <div className="space-y-3">
-                      <p>{t("backendUnavailableMessage")}</p>
-                      {backendStatusMessage && (
-                        <p className="text-xs text-muted-foreground">
-                          {backendStatusMessage}
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={checkBackend}
-                        disabled={backendChecking}
-                        className={cn(
-                          "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
-                          "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
-                          "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                        )}
-                      >
-                        {backendChecking ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          t("retry")
-                        )}
-                      </button>
-                    </div>
-                  </AlertBanner>
-                )}
+    //             {backendReady === false && (
+    //               <AlertBanner
+    //                 variant="error"
+    //                 title={t("backendUnavailableTitle")}
+    //               >
+    //                 <div className="space-y-3">
+    //                   <p>{t("backendUnavailableMessage")}</p>
+    //                   {backendStatusMessage && (
+    //                     <p className="text-xs text-muted-foreground">
+    //                       {backendStatusMessage}
+    //                     </p>
+    //                   )}
+    //                   <button
+    //                     type="button"
+    //                     onClick={checkBackend}
+    //                     disabled={backendChecking}
+    //                     className={cn(
+    //                       "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
+    //                       "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
+    //                       "focus:outline-none focus:ring-2 focus:ring-primary/20",
+    //                     )}
+    //                   >
+    //                     {backendChecking ? (
+    //                       <Loader2 className="h-4 w-4 animate-spin" />
+    //                     ) : (
+    //                       t("retry")
+    //                     )}
+    //                   </button>
+    //                 </div>
+    //               </AlertBanner>
+    //             )}
 
-                {error && (
-                  <AlertBanner variant="error" title={t("somethingWentWrong")}>
-                    {error}
-                  </AlertBanner>
-                )}
-              </div>
+    //             {error && (
+    //               <AlertBanner variant="error" title={t("somethingWentWrong")}>
+    //                 {error}
+    //               </AlertBanner>
+    //             )}
+    //           </div>
 
-              {/* Two-Factor Authentication */}
-              {tempToken ? (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
-                      <KeyRound className="h-6 w-6 text-primary" />
-                    </div>
-                    <h2 className="text-lg font-semibold text-foreground">
-                      {t("twoFactorTitle")}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {t("twoFactorSubtitle")}
-                    </p>
-                  </div>
+    //           {/* Two-Factor Authentication */}
+    //           {tempToken ? (
+    //             <div className="space-y-4">
+    //               <div className="text-center">
+    //                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
+    //                   <KeyRound className="h-6 w-6 text-primary" />
+    //                 </div>
+    //                 <h2 className="text-lg font-semibold text-foreground">
+    //                   {t("twoFactorTitle")}
+    //                 </h2>
+    //                 <p className="text-sm text-muted-foreground mt-1">
+    //                   {t("twoFactorSubtitle")}
+    //                 </p>
+    //               </div>
 
-                  <div className="space-y-2">
-                    <TwoFactorMethodButton
-                      icon={Smartphone}
-                      label={t("methodAuthenticator")}
-                      description={t("methodAuthenticatorDesc")}
-                      selected={otpMethod === "totp"}
-                      onClick={() => {
-                        setOtpMethod("totp");
-                        setEmailSent(false);
-                      }}
-                    />
-                    <TwoFactorMethodButton
-                      icon={MailCheck}
-                      label={t("methodEmail")}
-                      description={t("methodEmailDesc")}
-                      selected={otpMethod === "email"}
-                      onClick={() => {
-                        setOtpMethod("email");
-                        setEmailSent(false);
-                      }}
-                    />
-                    <TwoFactorMethodButton
-                      icon={KeyRound}
-                      label={t("methodBackup")}
-                      description={t("methodBackupDesc")}
-                      selected={otpMethod === "backup"}
-                      onClick={() => {
-                        setOtpMethod("backup");
-                        setEmailSent(false);
-                      }}
-                    />
-                  </div>
+    //               <div className="space-y-2">
+    //                 <TwoFactorMethodButton
+    //                   icon={Smartphone}
+    //                   label={t("methodAuthenticator")}
+    //                   description={t("methodAuthenticatorDesc")}
+    //                   selected={otpMethod === "totp"}
+    //                   onClick={() => {
+    //                     setOtpMethod("totp");
+    //                     setEmailSent(false);
+    //                   }}
+    //                 />
+    //                 <TwoFactorMethodButton
+    //                   icon={MailCheck}
+    //                   label={t("methodEmail")}
+    //                   description={t("methodEmailDesc")}
+    //                   selected={otpMethod === "email"}
+    //                   onClick={() => {
+    //                     setOtpMethod("email");
+    //                     setEmailSent(false);
+    //                   }}
+    //                 />
+    //                 <TwoFactorMethodButton
+    //                   icon={KeyRound}
+    //                   label={t("methodBackup")}
+    //                   description={t("methodBackupDesc")}
+    //                   selected={otpMethod === "backup"}
+    //                   onClick={() => {
+    //                     setOtpMethod("backup");
+    //                     setEmailSent(false);
+    //                   }}
+    //                 />
+    //               </div>
 
-                  {otpMethod && (
-                    <div className="pt-2 space-y-3">
-                      {otpMethod === "totp" && (
-                        <InputField
-                          icon={Smartphone}
-                          name="totp"
-                          placeholder={t("authenticatorCodePlaceholder")}
-                          label={t("authenticatorCode")}
-                          value={twoFactorCode}
-                          onChange={(e) => setTwoFactorCode(e.target.value)}
-                          autoComplete="one-time-code"
-                        />
-                      )}
+    //               {otpMethod && (
+    //                 <div className="pt-2 space-y-3">
+    //                   {otpMethod === "totp" && (
+    //                     <InputField
+    //                       icon={Smartphone}
+    //                       name="totp"
+    //                       placeholder={t("authenticatorCodePlaceholder")}
+    //                       label={t("authenticatorCode")}
+    //                       value={twoFactorCode}
+    //                       onChange={(e) => setTwoFactorCode(e.target.value)}
+    //                       autoComplete="one-time-code"
+    //                     />
+    //                   )}
 
-                      {otpMethod === "backup" && (
-                        <InputField
-                          icon={KeyRound}
-                          name="backup"
-                          placeholder={t("backupCodePlaceholder")}
-                          label={t("backupCode")}
-                          value={backupCode}
-                          onChange={(e) => setBackupCode(e.target.value)}
-                        />
-                      )}
+    //                   {otpMethod === "backup" && (
+    //                     <InputField
+    //                       icon={KeyRound}
+    //                       name="backup"
+    //                       placeholder={t("backupCodePlaceholder")}
+    //                       label={t("backupCode")}
+    //                       value={backupCode}
+    //                       onChange={(e) => setBackupCode(e.target.value)}
+    //                     />
+    //                   )}
 
-                      {otpMethod === "email" && (
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <div className="flex-1">
-                              <InputField
-                                icon={MailCheck}
-                                name="emailCode"
-                                placeholder={t("emailCodePlaceholder")}
-                                label={t("emailCode")}
-                                value={emailCode}
-                                onChange={(e) => setEmailCode(e.target.value)}
-                                autoComplete="one-time-code"
-                              />
-                            </div>
-                            <div className="flex items-end">
-                              <button
-                                type="button"
-                                onClick={sendEmailCode}
-                                disabled={
-                                  sendingEmail || backendReady === false
-                                }
-                                className={cn(
-                                  "h-[46px] px-4 rounded-xl border text-sm font-medium transition-all",
-                                  "border-border/60 bg-secondary/30 text-foreground",
-                                  "hover:bg-secondary/60 hover:border-muted-foreground/40",
-                                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                                  "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                                )}
-                              >
-                                {sendingEmail ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : emailSent ? (
-                                  t("resend")
-                                ) : (
-                                  t("send")
-                                )}
-                              </button>
-                            </div>
-                          </div>
+    //                   {otpMethod === "email" && (
+    //                     <div className="space-y-2">
+    //                       <div className="flex gap-2">
+    //                         <div className="flex-1">
+    //                           <InputField
+    //                             icon={MailCheck}
+    //                             name="emailCode"
+    //                             placeholder={t("emailCodePlaceholder")}
+    //                             label={t("emailCode")}
+    //                             value={emailCode}
+    //                             onChange={(e) => setEmailCode(e.target.value)}
+    //                             autoComplete="one-time-code"
+    //                           />
+    //                         </div>
+    //                         <div className="flex items-end">
+    //                           <button
+    //                             type="button"
+    //                             onClick={sendEmailCode}
+    //                             disabled={
+    //                               sendingEmail || backendReady === false
+    //                             }
+    //                             className={cn(
+    //                               "h-[46px] px-4 rounded-xl border text-sm font-medium transition-all",
+    //                               "border-border/60 bg-secondary/30 text-foreground",
+    //                               "hover:bg-secondary/60 hover:border-muted-foreground/40",
+    //                               "disabled:opacity-50 disabled:cursor-not-allowed",
+    //                               "focus:outline-none focus:ring-2 focus:ring-primary/20",
+    //                             )}
+    //                           >
+    //                             {sendingEmail ? (
+    //                               <Loader2 className="h-4 w-4 animate-spin" />
+    //                             ) : emailSent ? (
+    //                               t("resend")
+    //                             ) : (
+    //                               t("send")
+    //                             )}
+    //                           </button>
+    //                         </div>
+    //                       </div>
 
-                          {emailSent && (
-                            <p className="text-xs text-success/80">
-                              {t("emailCodeSent")}
-                            </p>
-                          )}
-                        </div>
-                      )}
+    //                       {emailSent && (
+    //                         <p className="text-xs text-success/80">
+    //                           {t("emailCodeSent")}
+    //                         </p>
+    //                       )}
+    //                     </div>
+    //                   )}
 
-                      <div className="flex gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={verify2fa}
-                          disabled={loading || backendReady === false}
-                          className={cn(
-                            "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
-                            "bg-primary text-primary-foreground",
-                            "hover:bg-primary/90 active:scale-[0.98]",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                            "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
-                          )}
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              {t("verifying")}
-                            </>
-                          ) : (
-                            <>
-                              {t("verify")}
-                              <ChevronRight className="h-4 w-4" />
-                            </>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelTwoFactor}
-                          className={cn(
-                            "px-5 py-3 rounded-xl border text-sm font-medium transition-all",
-                            "border-border/60 bg-secondary/30 text-foreground",
-                            "hover:bg-secondary/60 active:scale-[0.98]",
-                            "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                          )}
-                        >
-                          {t("cancel")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Login Form */
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <SectionDivider label={t("credentials")} icon={Lock} />
+    //                   <div className="flex gap-3 pt-2">
+    //                     <button
+    //                       type="button"
+    //                       onClick={verify2fa}
+    //                       disabled={loading || backendReady === false}
+    //                       className={cn(
+    //                         "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
+    //                         "bg-primary text-primary-foreground",
+    //                         "hover:bg-primary/90 active:scale-[0.98]",
+    //                         "disabled:opacity-50 disabled:cursor-not-allowed",
+    //                         "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
+    //                       )}
+    //                     >
+    //                       {loading ? (
+    //                         <>
+    //                           <Loader2 className="h-4 w-4 animate-spin" />
+    //                           {t("verifying")}
+    //                         </>
+    //                       ) : (
+    //                         <>
+    //                           {t("verify")}
+    //                           <ChevronRight className="h-4 w-4" />
+    //                         </>
+    //                       )}
+    //                     </button>
+    //                     <button
+    //                       type="button"
+    //                       onClick={cancelTwoFactor}
+    //                       className={cn(
+    //                         "px-5 py-3 rounded-xl border text-sm font-medium transition-all",
+    //                         "border-border/60 bg-secondary/30 text-foreground",
+    //                         "hover:bg-secondary/60 active:scale-[0.98]",
+    //                         "focus:outline-none focus:ring-2 focus:ring-primary/20",
+    //                       )}
+    //                     >
+    //                       {t("cancel")}
+    //                     </button>
+    //                   </div>
+    //                 </div>
+    //               )}
+    //             </div>
+    //           ) : (
+    //             /* Login Form */
+    //             <form onSubmit={handleSubmit} className="space-y-5">
+    //               <SectionDivider label={t("credentials")} icon={Lock} />
 
-                  <InputField
-                    icon={Mail}
-                    name="email"
-                    type="email"
-                    placeholder={t("emailPlaceholder")}
-                    label={t("emailAddress")}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
+    //               <InputField
+    //                 icon={Mail}
+    //                 name="email"
+    //                 type="email"
+    //                 placeholder={t("emailPlaceholder")}
+    //                 label={t("emailAddress")}
+    //                 value={email}
+    //                 onChange={(e) => setEmail(e.target.value)}
+    //                 required
+    //                 autoComplete="email"
+    //               />
 
-                  <InputField
-                    icon={Lock}
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder={t("passwordPlaceholder")}
-                    label={t("password")}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    rightElement={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
-                        aria-label={
-                          showPassword ? t("hidePassword") : t("showPassword")
-                        }
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    }
-                  />
+    //               <InputField
+    //                 icon={Lock}
+    //                 name="password"
+    //                 type={showPassword ? "text" : "password"}
+    //                 placeholder={t("passwordPlaceholder")}
+    //                 label={t("password")}
+    //                 value={password}
+    //                 onChange={(e) => setPassword(e.target.value)}
+    //                 required
+    //                 autoComplete="current-password"
+    //                 rightElement={
+    //                   <button
+    //                     type="button"
+    //                     onClick={() => setShowPassword(!showPassword)}
+    //                     className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+    //                     aria-label={
+    //                       showPassword ? t("hidePassword") : t("showPassword")
+    //                     }
+    //                   >
+    //                     {showPassword ? (
+    //                       <EyeOff className="h-4 w-4" />
+    //                     ) : (
+    //                       <Eye className="h-4 w-4" />
+    //                     )}
+    //                   </button>
+    //                 }
+    //               />
 
-                  <div className="flex items-center justify-end">
-                    <Link
-                      href="/forgot-password"
-                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                    >
-                      {t("forgotPassword")}
-                    </Link>
-                  </div>
+    //               <div className="flex items-center justify-end">
+    //                 <Link
+    //                   href="/forgot-password"
 
-                  <button
-                    type="submit"
-                    disabled={
-                      loading || passkeyLoading || backendReady === false
-                    }
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
-                      "bg-primary text-primary-foreground",
-                      "hover:bg-primary/90 active:scale-[0.98]",
-                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
-                      "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
-                    )}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {t("signingIn")}
-                      </>
-                    ) : (
-                      <>
-                        {t("signIn")}
-                        <ChevronRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
+    //             </Link>
+    //           </p>
+    //         </div>
+    //       </div>
 
-                  <SectionDivider label={t("orContinueWith")} />
-
-                  <button
-                    type="button"
-                    onClick={handlePasskey}
-                    disabled={
-                      loading || passkeyLoading || backendReady === false
-                    }
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-medium transition-all",
-                      "border border-border/60 bg-secondary/30",
-                      "hover:bg-secondary/60 hover:border-muted-foreground/40 active:scale-[0.98]",
-                      "disabled:opacity-50 disabled:cursor-not-allowed",
-                      "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                    )}
-                  >
-                    {passkeyLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {t("waitingPasskey")}
-                      </>
-                    ) : (
-                      <>
-                        <Fingerprint className="h-4 w-4" />
-                        {t("signInWithPasskey")}
-                      </>
-                    )}
-                  </button>
-
-                  {/* Terms */}
-                  <div className="rounded-xl bg-secondary/10 border border-border/40 p-4">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {t.rich("termsNotice", {
-                        legal: (chunks: ReactNode) => (
-                          <a
-                            href="/legal"
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {chunks}
-                          </a>
-                        ),
-                      })}
-                    </p>
-                  </div>
-                </form>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-border/40 bg-secondary/10 px-4 sm:px-8 py-4">
-              <p className="text-center text-sm text-muted-foreground">
-                {t("noAccount")}{" "}
-                <Link
-                  href={`/register${redirectQuery}`}
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  {t("createAccount")}
-                </Link>
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom text */}
-          <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
-            {t("securityNote")}
-          </p>
-        </div>
-      </div>
-    </div>
+    //       {/* Bottom text */}
+    //       <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
+    //         {t("securityNote")}
+    //       </p>
+    //     </div>
+    //   </div>
+    // </div>
+    <div></div>
   );
 }
