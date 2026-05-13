@@ -24,6 +24,7 @@ import { createExportJob, getExportJob, listExportJobs } from '../services/expor
 import { ExportJob } from '../models/exportJob.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } from './remoteHandler';
+import { requireFeature } from '../middleware/featureToggle';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
@@ -3802,6 +3803,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/admin/servers/:id/dedicated-ip', async (ctx) => {
+    const featureErr = await requireFeature(ctx, 'dedicatedIps');
+    if (featureErr !== true) return featureErr;
     const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;
@@ -3911,6 +3914,8 @@ export async function adminRoutes(app: any, prefix = '') {
   });
 
   app.delete(prefix + '/admin/servers/:id/dedicated-ip', async (ctx) => {
+    const featureErr = await requireFeature(ctx, 'dedicatedIps');
+    if (featureErr !== true) return featureErr;
     const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
     if (adminErr !== true) return adminErr;
     const serverId = ctx.params.id as string;

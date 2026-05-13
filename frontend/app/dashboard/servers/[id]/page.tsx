@@ -1981,7 +1981,14 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
   const [ipRequestType, setIpRequestType] = useState<'ipv4' | 'ipv6'>('ipv6')
   const [ipRequestReason, setIpRequestReason] = useState("")
   const [ipRequestError, setIpRequestError] = useState<string | null>(null)
+  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean> | null>(null)
   const pageSize = 25
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.panelSettings).then(data => {
+      if (data?.featureToggles) setFeatureToggles(data.featureToggles)
+    }).catch(() => {})
+  }, [])
 
   const ipv6Allocation = useMemo(
     () =>
@@ -2137,7 +2144,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
         icon={Network}
         action={
           <div className="flex items-center gap-2">
-            {!hasIpv6Allocation && (
+            {!hasIpv6Allocation && featureToggles?.dedicatedIps !== false && (
               <Button size="sm" onClick={() => setIpRequestOpen(true)} disabled={requesting}>
                 {requesting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
@@ -2177,6 +2184,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           IPv6 assigned: <span className="font-mono">{assignedIpv6}</span>
         </div>
       ) : null}
+      {featureToggles?.dedicatedIps !== false && (
       <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
@@ -2228,6 +2236,8 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
+      {featureToggles?.dedicatedIps !== false && (
       <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
@@ -2279,8 +2289,9 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
 
-      {dedicatedIps.length > 0 && (
+      {featureToggles?.dedicatedIps !== false && dedicatedIps.length > 0 && (
         <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500 whitespace-nowrap">

@@ -1593,6 +1593,7 @@ export default function AdminPanel() {
       applications: true,
       oauth: true,
       tunnels: true,
+      dedicatedIps: true,
     },
   })
   const [settingsSaving, setSettingsSaving] = useState(false)
@@ -1731,6 +1732,7 @@ export default function AdminPanel() {
                 ticketing: true,
                 applications: true,
                 tunnels: true,
+                dedicatedIps: true,
                 ...(data.featureToggles || {}),
               },
             })
@@ -4304,6 +4306,7 @@ remote: ${panelUrl}`
                     csError,
                     submitCreateServer,
                     csLoading,
+                    panelSettings,
                   }}
                 />
               ) : null}
