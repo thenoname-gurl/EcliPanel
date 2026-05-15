@@ -634,30 +634,36 @@ export default function AccountActivity() {
                                   label={t("details.action")}
                                   value={item.action || t("log.unknown")}
                                 />
-                                <InfoItem
-                                  icon={Box}
-                                  label={t("details.targetType")}
-                                  value={item.targetType || "-"}
-                                />
-                                <InfoItem
-                                  icon={Hash}
-                                  label={t("details.targetId")}
-                                  value={item.targetId?.toString() || "-"}
-                                  mono
-                                  copyable
-                                />
+                                {item.targetType ? (
+                                  <InfoItem
+                                    icon={Box}
+                                    label={t("details.targetType")}
+                                    value={item.targetType}
+                                  />
+                                ) : null}
+                                {item.targetId ? (
+                                  <InfoItem
+                                    icon={Hash}
+                                    label={t("details.targetId")}
+                                    value={item.targetId.toString()}
+                                    mono
+                                    copyable
+                                  />
+                                ) : null}
                                 <InfoItem
                                   icon={Clock}
                                   label={t("details.timestamp")}
                                   value={item.timestamp ? new Date(item.timestamp).toLocaleString() : "-"}
                                 />
-                                <InfoItem
-                                  icon={Globe}
-                                  label={t("details.ipAddress")}
-                                  value={item.ipAddress || "-"}
-                                  mono
-                                  copyable
-                                />
+                                {item.ipAddress ? (
+                                  <InfoItem
+                                    icon={Globe}
+                                    label={t("details.ipAddress")}
+                                    value={item.ipAddress}
+                                    mono
+                                    copyable
+                                  />
+                                ) : null}
                                 <InfoItem
                                   icon={User}
                                   label={t("details.userId")}
@@ -740,10 +746,16 @@ export default function AccountActivity() {
                 {/* Quick Info Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0">
                   <InfoItem icon={Activity} label={t("details.action")} value={selectedLog.action ? getActionLabel(selectedLog.action) : t("log.unknown")} />
-                  <InfoItem icon={Box} label={t("details.targetType")} value={selectedLog.targetType || "-"} />
-                  <InfoItem icon={Hash} label={t("details.targetId")} value={selectedLog.targetId?.toString() || "-"} mono copyable />
+                  {selectedLog.targetType ? (
+                    <InfoItem icon={Box} label={t("details.targetType")} value={selectedLog.targetType} />
+                  ) : null}
+                  {selectedLog.targetId ? (
+                    <InfoItem icon={Hash} label={t("details.targetId")} value={selectedLog.targetId.toString()} mono copyable />
+                  ) : null}
                   <InfoItem icon={Clock} label={t("details.timestamp")} value={selectedLog.timestamp ? new Date(selectedLog.timestamp).toLocaleString() : "-"} />
-                  <InfoItem icon={Globe} label={t("details.ipAddress")} value={selectedLog.ipAddress || "-"} mono copyable />
+                  {selectedLog.ipAddress ? (
+                    <InfoItem icon={Globe} label={t("details.ipAddress")} value={selectedLog.ipAddress} mono copyable />
+                  ) : null}
                   <InfoItem icon={User} label={t("details.userId")} value={selectedLog.userId?.toString() || "-"} mono />
                 </div>
 
