@@ -254,7 +254,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-black">
       <div className="flex min-h-screen flex-col md:flex-row">
-        <div className="absolute md:relative md:flex-1 items-center justify-center overflow-hidden">
+        <div className="hidden md:block md:flex-1 items-center justify-center overflow-hidden">
           <PixelBlast
             variant="square"
             color="#B85A96"
@@ -556,7 +556,7 @@ export default function LoginPage() {
                   {passkeyLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {t("loading")}
+                      {t("waitingPasskey")}
                     </>
                   ) : (
                     <>
@@ -570,6 +570,8 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      <div className="absolute bottom-0 left-0 w-full h-16 sm:h-20 lg:h-23 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
     </div>
   );
 }
