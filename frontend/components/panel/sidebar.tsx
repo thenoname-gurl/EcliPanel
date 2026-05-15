@@ -368,11 +368,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) return
     setIsLoggingOut(true)
-    try {
-      await logout()
-    } finally {
-      setIsLoggingOut(false)
-    }
+    await logout()
   }, [logout, isLoggingOut])
 
   const handleMobileNavigate = useCallback(() => {

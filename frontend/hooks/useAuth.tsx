@@ -327,17 +327,14 @@ export const AuthProvider = ({
     if (typeof window !== "undefined") {
       localStorage.removeItem("token")
       localStorage.removeItem("csrfToken")
+      window.location.assign("/login")
+      return
     }
 
     setUser(null)
     guideCheckPerformed.current = false
     setAuthState("unauthenticated")
-
-    if (typeof window !== "undefined") {
-      window.location.assign("/login")
-    } else {
-      router.push("/login")
-    }
+    router.push("/login")
   }, [router])
 
   const selectOrganisation = useCallback(async (orgId: number | string): Promise<void> => {
