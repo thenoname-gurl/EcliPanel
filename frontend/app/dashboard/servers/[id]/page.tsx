@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api-client"
+import { getActivityActionLabel } from "@/lib/activity-action-labels"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { formatBytes } from "./serverTabHelpers"
 import { StatCard, LoadingState, MiniStat, CardGrid } from "./serverTabShared"
@@ -3168,6 +3169,8 @@ function ActivityTab({ serverId }: { serverId: string }) {
     "server:power:stop": t("activity.actions.stoppedServer"),
     "server:power:restart": t("activity.actions.restartedServer"),
     "server:power:kill": t("activity.actions.killedServer"),
+    "server:kvm:enable": t("activity.actions.enabledKvm"),
+    "server:kvm:disable": t("activity.actions.disabledKvm"),
     "server:console:command": t("activity.actions.ranCommand"),
     "server:file:write": t("activity.actions.modifiedFile"),
     "server:file:delete": t("activity.actions.deletedFiles"),
@@ -3176,6 +3179,8 @@ function ActivityTab({ serverId }: { serverId: string }) {
     "server:subuser:accept_invite": t("activity.actions.acceptedSubuserInvite"),
     "server:subuser:remove": t("activity.actions.removedSubuser"),
     "server:subuser:reject_invite": t("activity.actions.rejectedSubuserInvite"),
+    "server:suspend": t("activity.actions.serverSuspend"),
+    "server:unsuspend": t("activity.actions.serverUnsuspend"),
   }
 
   return (
@@ -3194,7 +3199,7 @@ function ActivityTab({ serverId }: { serverId: string }) {
               <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="text-sm text-foreground truncate">
-                  {actionLabels[log.action] || log.action}
+                  {getActivityActionLabel(log.action, actionLabels)}
                 </p>
                 {log.metadata?.command && (
                   <p className="text-xs font-mono text-muted-foreground mt-1 break-all">
