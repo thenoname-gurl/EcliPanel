@@ -1,6 +1,7 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
+import { FeedbackSettingsCard } from "@/components/panel/feedback-settings-card"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
@@ -2230,6 +2231,8 @@ export default function SettingsPage() {
                   {t("profile.showGuideAgain")}
                 </button>
               </div>
+
+              <FeedbackSettingsCard />
             </div>
           )}
 

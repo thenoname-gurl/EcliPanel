@@ -1199,7 +1199,9 @@
       "plans": "Планы",
       "orders": "Заказы",
       "settings": "Настройки",
-      "tunnels": "Туннели"
+      "tunnels": "Туннели",
+      "rollouts": "Роллауты",
+      "feedback": "Отзывы"
     },
     "tunnelsTab": {
       "header": {

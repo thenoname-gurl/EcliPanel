@@ -229,6 +229,16 @@ const MetricsTab = dynamic(() => import("./tabs/MetricsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading metrics tab...</div>,
 })
 
+const RolloutsTab = dynamic(() => import("./tabs/RolloutsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading rollouts tab...</div>,
+})
+
+const FeedbackTab = dynamic(() => import("./tabs/FeedbackTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading feedback tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: var(--foreground); margin: 0; padding: 0; }
     .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
@@ -923,6 +933,8 @@ export default function AdminPanel() {
     { value: 'orders', label: t('tabs.orders'), permissions: ['orders:view', 'orders:issue', 'orders:update', 'orders:delete'] },
     { value: 'shorturls', label: t('tabs.shortUrls'), permissions: ['admin.shorturl.add', 'admin.shorturl.remove', 'admin.shorturl.edit.own', 'admin.shorturl.edit.any'] },
     { value: 'settings', label: t('tabs.settings'), permissions: ['admin:settings', 'admin:geoblock:view'] },
+    { value: 'rollouts', label: t('tabs.rollouts'), permissions: ['admin:access'] },
+    { value: 'feedback', label: t('tabs.feedback'), permissions: ['admin:access'] },
   ]
 
   const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => hasAnyPermission(tab.permissions)))
@@ -6072,6 +6084,14 @@ remote: ${panelUrl}`
                   }}
                 />
               ) : null}
+            </TabsContent>
+            {/* ═════════════════ ROLLOUTS ════════════════════════════════════ */}
+            <TabsContent value="rollouts" className="mt-4">
+              {activeTab === "rollouts" ? <RolloutsTab /> : null}
+            </TabsContent>
+            {/* ═════════════════ FEEDBACK ════════════════════════════════════ */}
+            <TabsContent value="feedback" className="mt-4">
+              {activeTab === "feedback" ? <FeedbackTab /> : null}
             </TabsContent>
             {/* ═════════════════ DATABASE HOSTS ══════════════════════════════ */}
             <TabsContent value="databases" className="mt-4">
