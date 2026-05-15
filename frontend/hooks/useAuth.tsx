@@ -7,6 +7,16 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { THEMES, applyTheme } from "@/lib/themes"
 import { Loader2 } from "lucide-react"
 import { locales, type AppLocale } from "@/i18n/config"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 
 export interface User {
   id: number
@@ -169,6 +179,8 @@ export const AuthProvider = ({
   const router = useRouter()
   const pathname = usePathname()
   
+  const [profilePromptOpen, setProfilePromptOpen] = useState(false)
+  const [profilePromptType, setProfilePromptType] = useState<'age' | 'profile' | 'both'>('profile')
   const guideCheckPerformed = useRef(false)
   const ageVerificationPrompted = useRef(false)
   const isCheckingGuide = useRef(false)
@@ -376,19 +388,14 @@ export const AuthProvider = ({
     if ((ageRequired || profileRequired) && !onSettingsPage && !ageVerificationPrompted.current) {
       ageVerificationPrompted.current = true
 
-      if (typeof window !== "undefined") {
-        const promptMessage = ageRequired && profileRequired
-          ? "Your account needs a date of birth plus required profile information (legal name, phone, billing address). Go to Settings now to update them?"
-          : ageRequired
-          ? "Your account needs a date of birth for age verification. Go to Settings now to update it?"
-          : "Your account needs required profile information (legal name, phone, billing address). Go to Settings now to update it?"
-
-        const shouldGoToSettings = window.confirm(promptMessage)
-
-        if (shouldGoToSettings) {
-          router.push("/dashboard/settings?tab=profile&ageVerification=1")
-        }
+      if (ageRequired && profileRequired) {
+        setProfilePromptType('both')
+      } else if (ageRequired) {
+        setProfilePromptType('age')
+      } else {
+        setProfilePromptType('profile')
       }
+      setProfilePromptOpen(true)
     }
   }, [authState, user, pathname, router])
 
@@ -428,6 +435,35 @@ export const AuthProvider = ({
           {children}
         </div>
       </div>
+
+      <AlertDialog open={profilePromptOpen} onOpenChange={setProfilePromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {profilePromptType === 'both'
+                ? 'Complete Your Profile'
+                : profilePromptType === 'age'
+                  ? 'Age Verification Needed'
+                  : 'Complete Your Profile'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {profilePromptType === 'both'
+                ? 'Your account needs a date of birth plus required profile information (legal name, phone, billing address). Go to Settings now to update them?'
+                : profilePromptType === 'age'
+                  ? 'Your account needs a date of birth for age verification. Go to Settings now to update it?'
+                  : 'Your account needs required profile information (legal name, phone, billing address). Go to Settings now to update it?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProfilePromptOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push("/dashboard/settings?tab=profile&ageVerification=1")}>
+              Go to Settings
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthContext.Provider>
   )
 }
