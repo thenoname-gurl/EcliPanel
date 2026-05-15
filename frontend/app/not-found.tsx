@@ -1,257 +1,146 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { useTranslations } from "next-intl"
+import { useRouter } from "next/navigation"
+import { useEffect, useRef } from "react"
+import { useAuth } from "@/hooks/useAuth"
 
-function BinaryStrip() {
-  const [binary, setBinary] = useState("")
-
-  useEffect(() => {
-    const chars = "01"
-    let str = ""
-    for (let i = 0; i < 200; i++) {
-      str += chars[Math.floor(Math.random() * chars.length)]
-    }
-    setBinary(str)
-  }, [])
-
-  return (
-    <div className="overflow-hidden py-4 text-[10px] font-mono text-purple-500/30 select-none">
-      {binary}
-    </div>
-  )
-}
-
-function TerminalBlock({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-purple-500/20 bg-black/60 p-3 sm:p-4 font-mono text-xs sm:text-sm backdrop-blur-sm overflow-x-auto">
-      <div className="mb-3 flex items-center gap-2">
-        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-red-500 flex-shrink-0" />
-        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-yellow-500 flex-shrink-0" />
-        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-green-500 flex-shrink-0" />
-        <span className="ml-2 text-xs text-purple-400/60 whitespace-nowrap">Terminal</span>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function TypingText({ text }: { text: string }) {
-  const [displayed, setDisplayed] = useState("")
-  const [done, setDone] = useState(false)
-
-  useEffect(() => {
-    let i = 0
-    setDisplayed("")
-    setDone(false)
-    const interval = setInterval(() => {
-      i++
-      setDisplayed(text.slice(0, i))
-      if (i >= text.length) {
-        clearInterval(interval)
-        setDone(true)
-      }
-    }, 50)
-    return () => clearInterval(interval)
-  }, [text])
-
-  return (
-    <span>
-      {displayed}
-      <span
-        style={{ animation: "blink 1s step-end infinite" }}
-        className={done ? "inline" : "hidden"}
-      >_</span>
-    </span>
-  )
-}
-
-function GlitchText({ text }: { text: string }) {
-  const [glitched, setGlitched] = useState(text)
-
-  useEffect(() => {
-    const glitchChars = "!@#$%^&*()_+-=[]{}|;:',.<>?/~`"
-    const interval = setInterval(() => {
-      const arr = text.split("")
-      const numGlitches = Math.floor(Math.random() * 3) + 1
-      for (let i = 0; i < numGlitches; i++) {
-        const idx = Math.floor(Math.random() * arr.length)
-        if (arr[idx] !== " ") {
-          arr[idx] = glitchChars[Math.floor(Math.random() * glitchChars.length)]
-        }
-      }
-      setGlitched(arr.join(""))
-      setTimeout(() => setGlitched(text), 100)
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [text])
-
-  return <span>{glitched}</span>
-}
+const chars = ".,-~:;=!*#$@"
 
 export default function NotFound() {
-  const [path, setPath] = useState("")
-  const t = useTranslations("notFound")
+  const { isLoggedIn } = useAuth()
+  const router = useRouter()
+  const canvasRef = useRef<HTMLPreElement>(null)
+  const A = useRef(0)
+  const B = useRef(0)
+  const frameRef = useRef<number>(0)
 
   useEffect(() => {
-    setPath(window.location.pathname)
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    A.current = 0
+    B.current = 0
+
+    const cvs = canvas as HTMLPreElement
+
+    function render() {
+      const fontSize = Math.max(8, Math.min(14, window.innerWidth / 80))
+      const charWidth = fontSize * 0.6
+      const charHeight = fontSize * 1.2
+      const width = Math.floor(window.innerWidth / charWidth)
+      const height = Math.floor(window.innerHeight / charHeight)
+
+      cvs.style.fontSize = fontSize + "px"
+      cvs.style.lineHeight = charHeight + "px"
+      cvs.style.letterSpacing = "0px"
+
+      const b = new Array(width * height).fill(" ")
+      const z = new Array(width * height).fill(0)
+      const sinA = Math.sin(A.current)
+      const cosA = Math.cos(A.current)
+      const sinB = Math.sin(B.current)
+      const cosB = Math.cos(B.current)
+      const chipRadius = 2.5
+      const waveHeight = 0.4
+      const K2 = 5
+      const K1 = Math.min(width, height * 2) * K2 * 0.15
+
+      for (let u = -1; u <= 1; u += 0.03) {
+        for (let v = -1; v <= 1; v += 0.03) {
+          if (u * u + v * v > 1) continue
+
+          const x0 = u * chipRadius
+          const y0 = v * chipRadius * 0.7
+          const z0 = waveHeight * (u * u - v * v)
+          const x1 = x0
+          const y1 = y0 * cosA - z0 * sinA
+          const z1 = y0 * sinA + z0 * cosA
+          const x2 = x1 * cosB + z1 * sinB
+          const y2 = y1
+          const z2 = -x1 * sinB + z1 * cosB + K2
+          const ooz = 1 / z2
+          const xp = Math.floor(width / 2 + K1 * ooz * x2)
+          const yp = Math.floor(height / 2 - K1 * ooz * y2)
+          const nx0 = (-2 * waveHeight * u) / chipRadius
+          const ny0 = (2 * waveHeight * v) / (chipRadius * 0.7)
+          const nz0 = 1
+          const nLen = Math.sqrt(nx0 * nx0 + ny0 * ny0 + nz0 * nz0)
+          const nx = nx0 / nLen
+          const ny = ny0 / nLen
+          const nz = nz0 / nLen
+          const ny1 = ny * cosA - nz * sinA
+          const nz1 = ny * sinA + nz * cosA
+          const nx2 = nx * cosB + nz1 * sinB
+          const nz2 = -nx * sinB + nz1 * cosB
+          const L = nx2 * 0.5 + ny1 * 0.5 + nz2 * 0.7
+
+          if (L > -0.3) {
+            const idx = xp + yp * width
+            if (xp >= 0 && xp < width && yp >= 0 && yp < height && ooz > z[idx]) {
+              z[idx] = ooz
+              const luminanceIdx = Math.floor((L + 0.3) * 8)
+              b[idx] = chars[Math.max(0, Math.min(luminanceIdx, chars.length - 1))]
+            }
+          }
+        }
+      }
+
+      let output = ""
+      for (let j = 0; j < height; j++) {
+        for (let i = 0; i < width; i++) {
+          output += b[i + j * width]
+        }
+        if (j < height - 1) output += "\n"
+      }
+
+      cvs.textContent = output
+
+      A.current += 0.018
+      B.current += 0.012
+
+      frameRef.current = requestAnimationFrame(render)
+    }
+
+    frameRef.current = requestAnimationFrame(render)
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current)
+    }
   }, [])
 
   return (
-    <main className="relative min-h-screen bg-[#0a0a0a] text-white">
-      <div className="pointer-events-none fixed inset-0 z-50 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.1)_0px,rgba(0,0,0,0.1)_1px,transparent_1px,transparent_2px)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(168,85,247,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(168,85,247,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.15),transparent_50%)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(147,51,234,0.1),transparent_50%)]" />
-
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-10">
-        <header className="mb-8 flex items-center justify-between border-b border-purple-500/20 pb-4 flex-wrap sm:flex-nowrap gap-2">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center">
-              <img src="/assets/icons/logo.png" alt="Eclipse Systems" className="h-6 w-6 sm:h-8 sm:w-8 object-contain" />
-            </div>
-            <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
-              {t("brand")}
-            </span>
-          </div>
-          <nav className="hidden gap-6 font-mono text-xs sm:text-sm text-purple-400/70 md:flex">
-            <Link href="/" className="transition-colors hover:text-purple-300">{t("nav.home")}</Link>
-            <Link href="/#features" className="transition-colors hover:text-purple-300">{t("nav.features")}</Link>
-            <Link href="/#pricing" className="transition-colors hover:text-purple-300">{t("nav.pricing")}</Link>
-            <Link href="/#contact" className="transition-colors hover:text-purple-300">{t("nav.contact")}</Link>
-          </nav>
-        </header>
-
-        <section className="mb-8 text-center">
-          <h1 className="mb-4 font-mono text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter">
-            <span className="bg-gradient-to-r from-red-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-              <GlitchText text="404" />
-            </span>
-          </h1>
-          <p className="mx-auto mb-2 max-w-xl font-mono text-lg sm:text-xl md:text-2xl text-purple-400/80 px-4">
-            <span className="text-pink-400">{t("hero.errorLabel")}</span> {t("hero.title")}
-          </p>
-          <p className="mx-auto mb-6 max-w-md font-mono text-xs sm:text-sm text-purple-400/50 px-4">
-            {t("hero.subtitle")}
-          </p>
-        </section>
-
-        <section className="mb-8">
-          <TerminalBlock>
-            <div className="text-purple-400">
-              <p className="text-gray-500">eclipse@systems ~ % curl {path || "/unknown"}</p>
-              <p className="mt-2">
-                <span className="text-red-400">{t("terminal.error404")}</span> <TypingText text={t("terminal.notFoundDimension")} />
-              </p>
-              <p className="mt-1"><span className="text-pink-400">{t("terminal.path")}</span> <span className="text-red-400/80">{path || "/unknown"}</span></p>
-              <p><span className="text-pink-400">{t("terminal.lookup")}</span> <span className="text-yellow-400">{t("terminal.failed")}</span></p>
-              <p><span className="text-pink-400">{t("terminal.suggestion")}</span> {t("terminal.returnCoordinates")}</p>
-            </div>
-          </TerminalBlock>
-        </section>
-
-        <BinaryStrip />
-
-        <section className="mb-8">
-          <h2 className="mb-4 sm:mb-6 font-mono text-xl sm:text-2xl md:text-3xl font-bold text-purple-400">{t("details.title")}</h2>
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-            <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
-              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400">{t("details.causesTitle")}</h3>
-              <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
-                {t("details.causesSubtitle")}
-              </p>
-              <ul className="space-y-2 font-mono text-sm text-pink-400">
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause1")}</li>
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause2")}</li>
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause3")}</li>
-                <li className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">{t("details.cause4")}</li>
-              </ul>
-            </div>
-
-            <div className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-6 backdrop-blur-sm">
-              <h3 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl font-bold text-purple-400">{t("details.quickNavTitle")}</h3>
-              <p className="mb-4 font-mono text-xs sm:text-sm text-purple-400/60">
-                {t("details.quickNavSubtitle")}
-              </p>
-              <ul className="space-y-2 font-mono text-sm">
-                <li>
-                  <Link href="/" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    {t("details.homePage")}
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboard" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    {t("details.dashboard")}
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/login" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    {t("details.login")}
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/register" className="block rounded border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-pink-400 transition-all hover:border-purple-500/40 hover:bg-purple-500/10">
-                    {t("details.register")}
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <BinaryStrip />
-
-        <section className="mb-8">
-          <TerminalBlock>
-            <div className="text-purple-400">
-              <p className="text-gray-500">eclipse@systems ~ % ./recover --path {path || "/unknown"}</p>
-              <p className="mt-2"><span className="text-yellow-400">{t("recovery.warn")}</span> {t("recovery.noRoute")}</p>
-              <p><span className="text-pink-400">{t("recovery.scanning")}</span> {t("recovery.sitemap")}</p>
-              <p><span className="text-pink-400">{t("recovery.fallback")}</span> <span className="text-emerald-400">{t("recovery.redirect")}</span></p>
-              <p className="mt-2 text-gray-500">{t("recovery.recommendation")}</p>
-            </div>
-          </TerminalBlock>
-        </section>
-
-        <BinaryStrip />
-
-        {/* CTA */}
-        <section className="mb-8 text-center">
-          <h2 className="mb-3 sm:mb-4 font-mono text-lg sm:text-xl md:text-2xl font-bold text-purple-400">{t("cta.title")}</h2>
-          <p className="mb-4 sm:mb-6 font-mono text-xs sm:text-sm text-purple-400/60 px-2">
-            {t("cta.subtitle")}
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              href="/"
-              className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-            >
-              {t("cta.home")}
-            </Link>
-            <Link
-              href="/dashboard"
-              className="rounded border border-purple-500/30 px-6 py-2.5 font-mono font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
-            >
-              {t("cta.dashboard")}
-            </Link>
-          </div>
-        </section>
-
-        {/* FOOTER */}
-        <footer className="rounded-lg border border-purple-500/20 bg-black/40 p-6 backdrop-blur-sm">
-          <p className="font-mono text-xs text-purple-400/50">
-            {t("footer.lost")} {" "}
-            <a href="mailto:contact@ecli.app" className="text-pink-400 hover:underline">
-              contact@ecli.app
-            </a>{" "}
-            {t("footer.orReturn")} {" "}
-            <Link href="/" className="text-pink-400 hover:underline">
-              {t("footer.home")}
-            </Link>.
-          </p>
-        </footer>
+    <div className="relative h-screen overflow-hidden bg-black">
+      <div className="pointer-events-none absolute inset-0 z-50 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.1)_0px,rgba(0,0,0,0.1)_1px,transparent_1px,transparent_2px)]" />
+      <pre ref={canvasRef} id="canvas" className="absolute inset-0 flex items-center justify-center text-white font-mono whitespace-pre" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.08),transparent_60%)]" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="font-mono text-2xl font-bold tracking-tighter text-white sm:text-4xl md:text-5xl">
+          404
+        </p>
+        <p className="max-w-md font-mono text-sm text-zinc-400 sm:text-base">
+          Are you sure you are where you want to be?
+        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2 font-mono text-sm text-zinc-500">
+          <span>maybe return to</span>
+          <Link
+            href={isLoggedIn ? "/dashboard" : "/"}
+            className="text-purple-400 underline underline-offset-4 transition-colors hover:text-purple-300"
+          >
+            reality
+          </Link>
+          <span>or go back into</span>
+          <button
+            onClick={() => router.back()}
+            className="text-purple-400 underline underline-offset-4 transition-colors hover:text-purple-300"
+          >
+            outer space
+          </button>
+        </div>
+        <p className="mt-2 max-w-md font-mono text-xs text-zinc-600">
+          The page you are looking for does not exist, has been moved, or is currently lost in the void between universes
+        </p>
       </div>
-    </main>
+    </div>
   )
 }
