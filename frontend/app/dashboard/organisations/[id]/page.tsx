@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
 import { getActivityActionLabel } from "@/lib/activity-action-labels"
+import { ActivityFeed } from "@/components/activity/activity-feed"
+import {
+  orgGuessType,
+  orgTypeIcons,
+  orgTypeColors,
+  orgTypeBadgeColors,
+} from "@/components/activity/helpers"
 import {
   Users,
   Receipt,
@@ -27,6 +34,7 @@ import {
   Activity,
   Edit,
   Globe,
+  Shield,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -57,6 +65,8 @@ export default function OrganisationDetail() {
   const [nodesLoading, setNodesLoading] = useState(false)
   const [activity, setActivity] = useState<any[]>([])
   const [activityLoading, setActivityLoading] = useState(false)
+  const [activityPage, setActivityPage] = useState(1)
+  const [activityHasMore, setActivityHasMore] = useState(false)
 
   const [subdomains, setSubdomains] = useState<any[]>([])
   const [subdomainsLoading, setSubdomainsLoading] = useState(false)
@@ -210,13 +220,20 @@ export default function OrganisationDetail() {
     }
   }, [id])
 
-  const loadActivity = useCallback(async () => {
+  const loadActivity = useCallback(async (pageNumber = 1) => {
     setActivityLoading(true)
+    const limit = 50
+    const offset = (pageNumber - 1) * limit
     try {
-      const data = await apiFetch(API_ENDPOINTS.organisationActivity.replace(":id", orgId))
-      setActivity(Array.isArray(data) ? data : [])
+      const url = `${API_ENDPOINTS.organisationActivity.replace(":id", orgId)}?limit=${limit}&offset=${offset}`
+      const data = await apiFetch(url)
+      const items = Array.isArray(data) ? data : []
+      setActivity(items)
+      setActivityHasMore(items.length === limit)
+      setActivityPage(pageNumber)
     } catch {
       setActivity([])
+      setActivityHasMore(false)
     } finally {
       setActivityLoading(false)
     }
@@ -1080,71 +1097,43 @@ export default function OrganisationDetail() {
 
             {/* Activity Tab */}
             <TabsContent value="activity" className="mt-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                  <p className="text-sm font-medium text-foreground">{t('activity.title')}</p>
-                  <Button size="sm" variant="outline" onClick={loadActivity} disabled={activityLoading}>
-                    {activityLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
-                  </Button>
-                </div>
-                {activityLoading ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">{t('activity.loading')}</div>
-                ) : activity.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">{t('activity.none')}</div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {activity.map((log: any) => {
-                      const actionLabels: Record<string, string> = {
-                        "org:create": t('activity.actions.orgCreate'),
-                        "org:add_user": t('activity.actions.orgAddUser'),
-                        "org:remove_member": t('activity.actions.orgRemoveMember'),
-                        "org:change_role": t('activity.actions.orgChangeRole'),
-                        "org:invite": t('activity.actions.orgInvite'),
-                        "org:resend_invite": t('activity.actions.orgResendInvite'),
-                        "org:revoke_invite": t('activity.actions.orgRevokeInvite'),
-                        "org:accept_invite": t('activity.actions.orgAcceptInvite'),
-                        "server:create": t('activity.actions.serverCreate'),
-                        "server:delete": t('activity.actions.serverDelete'),
-                        "server:update": t('activity.actions.serverUpdate'),
-                        "server:suspend": t('activity.actions.serverSuspend'),
-                        "server:unsuspend": t('activity.actions.serverUnsuspend'),
-                      }
-                      const label = getActivityActionLabel(log.action, actionLabels)
-                      const meta = log.metadata || {}
-                      return (
-                        <div key={log.id} className="px-4 py-3 hover:bg-secondary/20 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Activity className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <span className="text-sm font-medium text-foreground">{label}</span>
-                              {meta.email && (
-                                <Badge variant="outline" className="text-[10px] shrink-0">{meta.email}</Badge>
-                              )}
-                              {meta.newRole && (
-                                <Badge variant="outline" className="text-[10px] shrink-0">→ {meta.newRole}</Badge>
-                              )}
-                              {meta.command && (
-                                <code className="text-[10px] bg-secondary/50 rounded px-1.5 py-0.5 text-muted-foreground truncate max-w-[200px]">{meta.command}</code>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {log.ipAddress && (
-                                <span className="text-[10px] text-muted-foreground font-mono">{log.ipAddress}</span>
-                              )}
-                              <span className="text-[10px] text-muted-foreground">
-                                {log.timestamp ? new Date(log.timestamp).toLocaleString() : ""}
-                              </span>
-                            </div>
-                          </div>
-                          {log.details && (
-                            <p className="mt-1 text-xs text-muted-foreground pl-5">{log.details}</p>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+              <ActivityFeed
+                logs={activity}
+                loading={activityLoading}
+                getActionLabel={(action) => getActivityActionLabel(action, {
+                  "org:create": t('activity.actions.orgCreate'),
+                  "org:add_user": t('activity.actions.orgAddUser'),
+                  "org:remove_member": t('activity.actions.orgRemoveMember'),
+                  "org:change_role": t('activity.actions.orgChangeRole'),
+                  "org:invite": t('activity.actions.orgInvite'),
+                  "org:resend_invite": t('activity.actions.orgResendInvite'),
+                  "org:revoke_invite": t('activity.actions.orgRevokeInvite'),
+                  "org:accept_invite": t('activity.actions.orgAcceptInvite'),
+                  "server:create": t('activity.actions.serverCreate'),
+                  "server:delete": t('activity.actions.serverDelete'),
+                  "server:update": t('activity.actions.serverUpdate'),
+                  "server:suspend": t('activity.actions.serverSuspend'),
+                  "server:unsuspend": t('activity.actions.serverUnsuspend'),
+                })}
+                guessTypeFn={orgGuessType}
+                typeIconsMap={orgTypeIcons}
+                typeColorsMap={orgTypeColors}
+                typeBadgeColorsMap={orgTypeBadgeColors}
+                page={activityPage}
+                hasMore={activityHasMore}
+                onPrevPage={() => loadActivity(Math.max(1, activityPage - 1))}
+                onNextPage={() => loadActivity(activityPage + 1)}
+                onRefresh={() => loadActivity(activityPage)}
+                refreshing={activityLoading}
+                translate={t}
+                filterOptions={[
+                  { key: "member", label: t("filters.member"), icon: UserPlus },
+                  { key: "server", label: t("filters.server"), icon: Server },
+                  { key: "billing", label: t("filters.billing"), icon: Receipt },
+                  { key: "security", label: t("filters.security"), icon: Shield },
+                  { key: "support", label: t("filters.support"), icon: Activity },
+                ]}
+              />
             </TabsContent>
           </Tabs>
         </div>

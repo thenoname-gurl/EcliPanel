@@ -26,6 +26,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api-client"
 import { getActivityActionLabel } from "@/lib/activity-action-labels"
+import { ActivityFeed } from "@/components/activity/activity-feed"
+import {
+  serverGuessType,
+  serverTypeIcons,
+  serverTypeColors,
+  serverTypeBadgeColors,
+} from "@/components/activity/helpers"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { formatBytes } from "./serverTabHelpers"
 import { StatCard, LoadingState, MiniStat, CardGrid } from "./serverTabShared"
@@ -3154,83 +3161,73 @@ function ActivityTab({ serverId }: { serverId: string }) {
   const t = useTranslations("serverDetailPage")
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
 
-  useEffect(() => {
-    apiFetch(`/api/servers/${serverId}/activity?limit=100`)
-      .then((data) => setLogs(Array.isArray(data) ? data : []))
-      .catch(() => setLogs([]))
-      .finally(() => setLoading(false))
-  }, [serverId])
-
-  if (loading) return <LoadingState />
-
-  const actionLabels: Record<string, string> = {
-    "server:power:start": t("activity.actions.startedServer"),
-    "server:power:stop": t("activity.actions.stoppedServer"),
-    "server:power:restart": t("activity.actions.restartedServer"),
-    "server:power:kill": t("activity.actions.killedServer"),
-    "server:kvm:enable": t("activity.actions.enabledKvm"),
-    "server:kvm:disable": t("activity.actions.disabledKvm"),
-    "server:console:command": t("activity.actions.ranCommand"),
-    "server:file:write": t("activity.actions.modifiedFile"),
-    "server:file:delete": t("activity.actions.deletedFiles"),
-    "server:reinstall": t("activity.actions.reinstalledServer"),
-    "server:subuser:add": t("activity.actions.addedSubuser"),
-    "server:subuser:accept_invite": t("activity.actions.acceptedSubuserInvite"),
-    "server:subuser:remove": t("activity.actions.removedSubuser"),
-    "server:subuser:reject_invite": t("activity.actions.rejectedSubuserInvite"),
-    "server:suspend": t("activity.actions.serverSuspend"),
-    "server:unsuspend": t("activity.actions.serverUnsuspend"),
+  const loadLogs = async (pageNumber = 1) => {
+    setLoading(true)
+    const limit = 50
+    const offset = (pageNumber - 1) * limit
+    try {
+      const data = await apiFetch(`/api/servers/${serverId}/activity?limit=${limit}&offset=${offset}`)
+      const items = Array.isArray(data) ? data : []
+      setLogs(items)
+      setHasMore(items.length === limit)
+      setPage(pageNumber)
+    } catch {
+      setLogs([])
+      setHasMore(false)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
-      <SectionHeader title={t("activity.title")} icon={Activity} />
+  useEffect(() => {
+    loadLogs(1)
+  }, [serverId])
 
-      {logs.length === 0 ? (
-        <EmptyState icon={Activity} message={t("activity.empty")} />
-      ) : (
-        <div className="space-y-2 min-w-0">
-          {logs.map((log) => (
-            <div
-              key={log.id}
-              className="flex items-start gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
-            >
-              <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <p className="text-sm text-foreground truncate">
-                  {getActivityActionLabel(log.action, actionLabels)}
-                </p>
-                {log.metadata?.command && (
-                  <p className="text-xs font-mono text-muted-foreground mt-1 break-all">
-                    $ {log.metadata.command}
-                  </p>
-                )}
-                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Avatar className="h-4 w-4 flex-shrink-0">
-                      {log.user?.avatarUrl ? (
-                        <AvatarImage src={log.user.avatarUrl} alt={log.user?.displayName || log.user?.email || "User"} />
-                      ) : (
-                        <AvatarFallback>
-                          {getUserAvatarInitials(
-                            log.user?.displayName || log.user?.email || t("activity.user", { id: log.userId })
-                          )}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <span className="truncate">
-                      {log.user?.displayName || log.user?.email || t("activity.user", { id: log.userId })}
-                    </span>
-                  </div>
-                  {log.ipAddress && <span className="hidden sm:inline">• {log.ipAddress}</span>}
-                  <span>• {new Date(log.timestamp).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+  return (
+    <div className="p-3 sm:p-4 md:p-6 min-w-0 overflow-hidden">
+      <ActivityFeed
+        logs={logs}
+        loading={loading}
+        getActionLabel={(action) => getActivityActionLabel(action, {
+          "server:power:start": t("activity.actions.startedServer"),
+          "server:power:stop": t("activity.actions.stoppedServer"),
+          "server:power:restart": t("activity.actions.restartedServer"),
+          "server:power:kill": t("activity.actions.killedServer"),
+          "server:kvm:enable": t("activity.actions.enabledKvm"),
+          "server:kvm:disable": t("activity.actions.disabledKvm"),
+          "server:console:command": t("activity.actions.ranCommand"),
+          "server:file:write": t("activity.actions.modifiedFile"),
+          "server:file:delete": t("activity.actions.deletedFiles"),
+          "server:reinstall": t("activity.actions.reinstalledServer"),
+          "server:subuser:add": t("activity.actions.addedSubuser"),
+          "server:subuser:accept_invite": t("activity.actions.acceptedSubuserInvite"),
+          "server:subuser:remove": t("activity.actions.removedSubuser"),
+          "server:subuser:reject_invite": t("activity.actions.rejectedSubuserInvite"),
+          "server:suspend": t("activity.actions.serverSuspend"),
+          "server:unsuspend": t("activity.actions.serverUnsuspend"),
+        })}
+        guessTypeFn={serverGuessType}
+        typeIconsMap={serverTypeIcons}
+        typeColorsMap={serverTypeColors}
+        typeBadgeColorsMap={serverTypeBadgeColors}
+        page={page}
+        hasMore={hasMore}
+        onPrevPage={() => loadLogs(Math.max(1, page - 1))}
+        onNextPage={() => loadLogs(page + 1)}
+        onRefresh={() => loadLogs(page)}
+        refreshing={loading}
+        translate={t}
+        filterOptions={[
+          { key: "power", label: t("filters.power"), icon: Power },
+          { key: "console", label: t("filters.console"), icon: Terminal },
+          { key: "file", label: t("filters.file"), icon: Folder },
+          { key: "subuser", label: t("filters.subuser"), icon: Users },
+          { key: "settings", label: t("filters.settings"), icon: Settings },
+        ]}
+      />
     </div>
   )
 }
