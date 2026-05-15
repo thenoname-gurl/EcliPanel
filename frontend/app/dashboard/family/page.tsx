@@ -20,7 +20,6 @@ import {
   Loader2,
   UserPlus,
   Server,
-  Building2,
   Receipt,
   Copy,
   Trash2,
@@ -231,7 +230,6 @@ function ChildCard({
   child,
   servers,
   orders,
-  orgs,
   dobEdit,
   savingDob,
   onDobChange,
@@ -240,7 +238,6 @@ function ChildCard({
   child: any
   servers: any[]
   orders: any[]
-  orgs: any[]
   dobEdit: string
   savingDob: boolean
   onDobChange: (value: string) => void
@@ -269,20 +266,6 @@ function ChildCard({
           <p className="text-xs text-muted-foreground mt-0.5 truncate">{child.email}</p>
         </div>
 
-        {/* Quick-stat pills – hidden on very small screens */}
-        <div className="hidden sm:flex items-center gap-3 shrink-0">
-          {[
-            { label: t("childCard.servers"), value: servers.length },
-            { label: t("childCard.orders"),  value: orders.length  },
-            { label: t("childCard.orgs"),    value: orgs.length    },
-          ].map(({ label, value }) => (
-            <div key={label} className="text-center">
-              <p className="text-xs font-bold text-foreground">{value}</p>
-              <p className="text-[10px] text-muted-foreground">{label}</p>
-            </div>
-          ))}
-        </div>
-
         <div className="flex items-center gap-2 shrink-0">
           <Badge
             className={cn(
@@ -300,50 +283,9 @@ function ChildCard({
         </div>
       </button>
 
-      {/* Mobile quick-stats bar */}
-      <div className="sm:hidden grid grid-cols-3 divide-x divide-border border-t border-border/50">
-        {[
-          { label: "Servers", value: servers.length },
-          { label: "Orders",  value: orders.length  },
-          { label: "Orgs",    value: orgs.length    },
-        ].map(({ label, value }) => (
-          <div key={label} className="flex flex-col items-center py-2">
-            <p className="text-sm font-bold text-foreground">{value}</p>
-            <p className="text-[10px] text-muted-foreground">{label}</p>
-          </div>
-        ))}
-      </div>
-
       {/* ── Expanded body ── */}
       {expanded && (
         <div className="border-t border-border/50 p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
-
-          {/* Info grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: t("childCard.age"),    value: childAge != null ? t("childCard.ageValue", { age: childAge }) : t("common.unknown") },
-              { label: t("childCard.plan"),   value: child.portalType || t("childCard.freePlan") },
-              { label: t("childCard.status"), value: child.suspended ? t("childCard.statuses.suspended") : t("childCard.statuses.active") },
-              {
-                label: t("childCard.resources"),
-                value: child.limits
-                  ? `${child.limits.memory ?? "–"} MB / ${child.limits.cpu ?? "–"}%`
-                  : t("childCard.default")
-              },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="rounded-lg border border-border/50 bg-secondary/20 p-3"
-              >
-                <p className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
-                  {label}
-                </p>
-                <p className="text-sm font-semibold text-foreground mt-1 truncate">
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
 
           {/* Date of birth */}
           <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-3">
@@ -400,36 +342,6 @@ function ChildCard({
                     +{servers.length - 5} more
                   </p>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* Organisations */}
-          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-2.5">
-            <div className="flex items-center gap-2">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-4 w-4 text-primary" />
-              </div>
-              <p className="text-sm font-medium text-foreground flex-1">{t("childCard.organisations")}</p>
-              <Badge variant="outline" className="text-[10px]">{orgs.length}</Badge>
-            </div>
-            {orgs.length === 0 ? (
-              <p className="text-xs text-muted-foreground pl-12">{t("childCard.noOrganisations")}</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {orgs.map((org: any) => (
-                  <div
-                    key={org.id}
-                    className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
-                  >
-                    <p className="text-xs font-medium text-foreground truncate">
-                      {org.name || t("common.unknown")}
-                    </p>
-                    <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
-                      {org.role}
-                    </Badge>
-                  </div>
-                ))}
               </div>
             )}
           </div>
@@ -518,7 +430,6 @@ export default function FamilyPage() {
 
   const [childServers, setChildServers] = useState<Record<number, any[]>>({})
   const [childOrders,  setChildOrders]  = useState<Record<number, any[]>>({})
-  const [childOrgs,    setChildOrgs]    = useState<Record<number, any[]>>({})
 
   // ── derived ────────────────────────────────────────────────────────────────
 
@@ -532,38 +443,38 @@ export default function FamilyPage() {
   const isAdult = useMemo(() => {
     if (!user) return false
     if (hasKnownAge) return computedAge >= 18
-    return user.isChildAccount !== true
+    return false
   }, [user, computedAge, hasKnownAge])
 
-  const isLinkedChild  = useMemo(() => user != null && user.parentId != null && !isAdult, [user, isAdult])
-  const canViewChildren = useMemo(() => user != null && hasKnownAge && computedAge >= 18, [user, hasKnownAge, computedAge])
-  const isParent        = canViewChildren
+  const hasParentId = user?.parentId != null
 
-  const isChild = useMemo(() => {
+  const isChildUser = useMemo(() => {
     if (!user) return false
-    if (user.parentId != null && !isAdult) return true
+    if (hasParentId) return true
     if (hasKnownAge) return computedAge < 18
     return user.isChildAccount === true
-  }, [user, hasKnownAge, computedAge, isAdult])
+  }, [user, hasParentId, hasKnownAge, computedAge])
+
+  const isLinkedChild = hasParentId
 
   const canRequestParent = useMemo(
-    () => user != null && user.parentId == null && isChild,
-    [user, isChild]
+    () => user != null && user.parentId == null && isChildUser,
+    [user, isChildUser]
   )
-  const showParentInfo = useMemo(
-    () => user != null && user.parentId != null && !isParent,
-    [user, isParent]
-  )
+
+  const showParentInfo = hasParentId
 
   const age = typeof user?.age === "number" ? user.age : getAgeFromDob(user?.dateOfBirth)
 
-  const accountRole = isParent
+  const accountRole = isAdult
     ? t("roles.parent")
     : isLinkedChild
     ? t("roles.linkedChild")
-    : isChild
+    : isChildUser
     ? t("roles.child")
     : t("roles.unknown")
+
+  const [canAccessParentSections, setCanAccessParentSections] = useState(false)
 
   const requestStatusLabels = {
     accepted: t("requestStatuses.accepted"),
@@ -594,20 +505,18 @@ export default function FamilyPage() {
       setRequests(Array.isArray(rd?.requests) ? rd.requests : [])
 
       let childrenArray: any[] = []
-      if (canViewChildren) {
-        try {
-          const d = await apiFetch(API_ENDPOINTS.usersMeChildren)
-          childrenArray = Array.isArray(d?.children) ? d.children : []
-          setChildren(childrenArray)
-        } catch { setChildren([]) }
-      } else { setChildren([]) }
+      try {
+        const d = await apiFetch(API_ENDPOINTS.usersMeChildren)
+        childrenArray = Array.isArray(d?.children) ? d.children : []
+        setChildren(childrenArray)
+      } catch { setChildren([]) }
 
-      if (isParent) {
-        try {
-          const d = await apiFetch(API_ENDPOINTS.parentRegistrationInvites)
-          setInvites(Array.isArray(d?.invites) ? d.invites : [])
-        } catch { setInvites([]) }
-      }
+      if (childrenArray.length > 0) setCanAccessParentSections(true)
+
+      try {
+        const d = await apiFetch(API_ENDPOINTS.parentRegistrationInvites)
+        setInvites(Array.isArray(d?.invites) ? d.invites : [])
+      } catch { setInvites([]) }
 
       const nd: Record<number, string> = {}
       childrenArray.forEach((c: any) => {
@@ -615,16 +524,14 @@ export default function FamilyPage() {
       })
       setChildDobEdits((p) => ({ ...nd, ...p }))
 
-      if (isParent && childrenArray.length) {
+      if (childrenArray.length) {
         const ns: Record<number, any[]> = {}
         const no: Record<number, any[]> = {}
-        const ng: Record<number, any[]> = {}
         await Promise.all(childrenArray.map(async (c: any) => {
-          try { const d = await apiFetch(API_ENDPOINTS.childServers.replace(":childId", String(c.id)));        ns[c.id] = Array.isArray(d?.servers)       ? d.servers       : [] } catch { ns[c.id] = [] }
-          try { const d = await apiFetch(API_ENDPOINTS.childOrders.replace(":childId", String(c.id)));         no[c.id] = Array.isArray(d?.orders)        ? d.orders        : [] } catch { no[c.id] = [] }
-          try { const d = await apiFetch(API_ENDPOINTS.childOrganisations.replace(":childId", String(c.id))); ng[c.id] = Array.isArray(d?.organisations) ? d.organisations : [] } catch { ng[c.id] = [] }
+          try { const d = await apiFetch(API_ENDPOINTS.childServers.replace(":childId", String(c.id))); ns[c.id] = Array.isArray(d?.servers) ? d.servers : [] } catch { ns[c.id] = [] }
+          try { const d = await apiFetch(API_ENDPOINTS.childOrders.replace(":childId", String(c.id)));  no[c.id] = Array.isArray(d?.orders)  ? d.orders  : [] } catch { no[c.id] = [] }
         }))
-        setChildServers(ns); setChildOrders(no); setChildOrgs(ng)
+        setChildServers(ns); setChildOrders(no)
       }
     } catch (e: any) {
       setFormError(e?.message || t("messages.unableToLoadFamilyData"))
@@ -770,9 +677,9 @@ export default function FamilyPage() {
             <div
               className={cn(
                 "rounded-xl border p-4 md:p-5 min-w-0 overflow-hidden shadow-sm",
-                isParent
+                isAdult
                   ? "border-green-500/20 bg-green-500/5"
-                  : isChild
+                  : isChildUser
                   ? "border-primary/20 bg-primary/5"
                   : "border-border bg-card/50"
               )}
@@ -781,16 +688,16 @@ export default function FamilyPage() {
                 <div
                   className={cn(
                     "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                    isParent
+                    isAdult
                       ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                      : isChild
+                      : isChildUser
                       ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {isParent ? <ShieldCheck className="h-6 w-6" />
+                  {isAdult ? <ShieldCheck className="h-6 w-6" />
                     : isLinkedChild ? <Link2 className="h-6 w-6" />
-                    : isChild ? <Baby className="h-6 w-6" />
+                    : isChildUser ? <Baby className="h-6 w-6" />
                     : <Users className="h-6 w-6" />}
                 </div>
 
@@ -802,9 +709,9 @@ export default function FamilyPage() {
                     <Badge
                       className={cn(
                         "text-[10px] border-0 px-2",
-                        isParent
+                        isAdult
                           ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                          : isChild
+                          : isChildUser
                           ? "bg-primary/10 text-primary"
                           : "bg-muted text-muted-foreground"
                       )}
@@ -813,11 +720,11 @@ export default function FamilyPage() {
                     </Badge>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {isParent
+                    {isAdult
                       ? t("accountStatus.managingChildren", { count: children.length })
                       : isLinkedChild
                       ? t("accountStatus.linkedChild", { age: age ?? t("common.unknown") })
-                      : isChild
+                      : isChildUser
                       ? t("accountStatus.childAgeLabel", { age: age ?? t("common.unknown"), dob: user.dateOfBirth ?? t("accountStatus.setDobHint") })
                       : t("accountStatus.unlockFamilyFeatures")}
                   </p>
@@ -1042,7 +949,7 @@ export default function FamilyPage() {
           )}
 
           {/* ── Parent-only ───────────────────────────────────────────────── */}
-          {!loading && isParent && (
+          {!loading && (isAdult || canAccessParentSections) && (
             <>
               {/* Create invite */}
               <SettingsCard className="animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -1193,7 +1100,6 @@ export default function FamilyPage() {
                         child={child}
                         servers={childServers[child.id] || []}
                         orders={childOrders[child.id]  || []}
-                        orgs={childOrgs[child.id]      || []}
                         dobEdit={childDobEdits[child.id]   || ""}
                         savingDob={!!savingChildDob[child.id]}
                         onDobChange={(value) =>
@@ -1216,18 +1122,18 @@ export default function FamilyPage() {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0">
                 <SettingRow icon={Mail} title={t("summary.email")} description={user.email} />
-                <SettingRow
-                  icon={Users}
-                  title={t("summary.accountRole")}
-                  description={accountRole}
-                  action={
-                    isParent
-                      ? <CheckCircle className="h-4 w-4 text-green-500" />
-                      : isChild
-                      ? <Baby className="h-4 w-4 text-primary" />
-                      : <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  }
-                />
+                  <SettingRow
+                    icon={Users}
+                    title={t("summary.accountRole")}
+                    description={accountRole}
+                    action={
+                      isAdult
+                        ? <CheckCircle className="h-4 w-4 text-green-500" />
+                        : isChildUser
+                        ? <Baby className="h-4 w-4 text-primary" />
+                        : <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                    }
+                  />
                 <SettingRow
                   icon={ShieldCheck}
                   title={t("summary.age")}
@@ -1236,9 +1142,9 @@ export default function FamilyPage() {
                 <SettingRow
                   icon={Link2}
                   title={t("summary.linkedChildren")}
-                  description={isParent ? t("summary.linkedCount", { count: children.length }) : t("summary.na")}
+                  description={isAdult || canAccessParentSections ? t("summary.linkedCount", { count: children.length }) : t("summary.na")}
                   action={
-                    isParent && children.length > 0
+                    (isAdult || canAccessParentSections) && children.length > 0
                       ? <CheckCircle className="h-4 w-4 text-green-500" />
                       : undefined
                   }
