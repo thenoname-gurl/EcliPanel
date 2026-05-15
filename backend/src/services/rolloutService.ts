@@ -77,9 +77,9 @@ export async function getRolloutTreatment(
     return { inRollout: false, treatment: null };
   }
 
-  const isOverridden = await userHasOverride(rollout.id, userId);
-  if (isOverridden) {
-    return { inRollout: true, treatment: rollout.treatment };
+  const override = await getOverride(rollout.id, userId);
+  if (override) {
+    return { inRollout: true, treatment: override.treatment ?? rollout.treatment };
   }
 
   const bucket = getBucket(userId, rolloutKey);
@@ -100,33 +100,32 @@ export async function getUserRollouts(
 
   const overrideRepo = AppDataSource.getRepository(RolloutUserOverride);
   const overrides = await overrideRepo.find({ where: { userId: Number(userId) } });
-  const overriddenRolloutIds = new Set(overrides.map((o) => o.rolloutId));
+  const overrideMap = new Map(overrides.map((o) => [o.rolloutId, o]));
 
   const result: Record<string, any> = {};
   for (const rollout of rollouts) {
-    const isOverridden = overriddenRolloutIds.has(rollout.id);
+    const override = overrideMap.get(rollout.id);
     let inRollout: boolean;
+    let treatment: string | null;
 
-    if (isOverridden) {
+    if (override) {
       inRollout = true;
+      treatment = override.treatment ?? rollout.treatment;
     } else {
       const bucket = getBucket(userId, rollout.key);
       inRollout = bucket >= rollout.hashRangeStart && bucket <= rollout.hashRangeEnd;
+      treatment = inRollout ? rollout.treatment : null;
     }
 
-    result[rollout.key] = {
-      inRollout,
-      treatment: inRollout ? rollout.treatment : null,
-    };
+    result[rollout.key] = { inRollout, treatment };
   }
 
   return result;
 }
 
-async function userHasOverride(rolloutId: number, userId: number | string): Promise<boolean> {
+async function getOverride(rolloutId: number, userId: number | string): Promise<RolloutUserOverride | null> {
   const repo = AppDataSource.getRepository(RolloutUserOverride);
-  const count = await repo.count({ where: { rolloutId, userId: Number(userId) } });
-  return count > 0;
+  return repo.findOneBy({ rolloutId, userId: Number(userId) });
 }
 
 export async function getAllRollouts(): Promise<Rollout[]> {
@@ -159,11 +158,17 @@ export async function getOverridesForRollout(rolloutId: number): Promise<Rollout
   return repo.find({ where: { rolloutId }, order: { createdAt: 'DESC' } });
 }
 
-export async function addRolloutOverride(rolloutId: number, userId: number): Promise<RolloutUserOverride> {
+export async function addRolloutOverride(rolloutId: number, userId: number, treatment?: string | null): Promise<RolloutUserOverride> {
   const repo = AppDataSource.getRepository(RolloutUserOverride);
   const existing = await repo.findOneBy({ rolloutId, userId });
-  if (existing) return existing;
-  const override = repo.create({ rolloutId, userId });
+  if (existing) {
+    if (treatment !== undefined) {
+      existing.treatment = treatment || null;
+      return repo.save(existing);
+    }
+    return existing;
+  }
+  const override = repo.create({ rolloutId, userId, treatment: treatment || null });
   return repo.save(override);
 }
 

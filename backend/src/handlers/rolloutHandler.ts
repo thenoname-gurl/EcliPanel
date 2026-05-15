@@ -27,7 +27,7 @@ export async function rolloutRoutes(app: any, prefix = '') {
         hashRangeEnd: r.hashRangeEnd,
         treatment: r.treatment,
         overrideCount: overrides.length,
-        overrides: overrides.map((o) => ({ id: o.id, userId: o.userId, createdAt: o.createdAt })),
+        overrides: overrides.map((o) => ({ id: o.id, userId: o.userId, treatment: o.treatment, createdAt: o.createdAt })),
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       };
@@ -128,7 +128,7 @@ export async function rolloutRoutes(app: any, prefix = '') {
       return { error: 'Invalid rollout ID' };
     }
     const overrides = await getOverridesForRollout(id);
-    return overrides.map((o) => ({ id: o.id, userId: o.userId, createdAt: o.createdAt }));
+    return overrides.map((o) => ({ id: o.id, userId: o.userId, treatment: o.treatment, createdAt: o.createdAt }));
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     detail: { tags: ['Admin'], summary: 'List user overrides for a rollout' },
@@ -146,10 +146,11 @@ export async function rolloutRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Valid userId is required' };
     }
+    const treatment = body?.treatment !== undefined ? String(body.treatment).trim() || null : undefined;
     try {
-      const override = await addRolloutOverride(id, userId);
+      const override = await addRolloutOverride(id, userId, treatment);
       ctx.set.status = 201;
-      return { id: override.id, userId: override.userId, createdAt: override.createdAt };
+      return { id: override.id, userId: override.userId, treatment: override.treatment, createdAt: override.createdAt };
     } catch (err: any) {
       ctx.set.status = 400;
       return { error: err.message || 'Failed to add override' };
