@@ -12,7 +12,7 @@ export async function planRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/plans', async (ctx) => {
     const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
-    const plans = await planRepo().find({ order: { price: 'ASC' } });
+    const plans = await planRepo().find({ where: { hiddenFromBilling: false }, order: { price: 'ASC' } });
     return plans;
   }, {
     detail: { summary: 'List all plans', tags: ['Plans'] },

@@ -32,7 +32,7 @@ export default function BillingPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
-  const [activePlan, setActivePlan] = useState<{ plan: any; order: any } | null>(null)
+  const [activePlans, setActivePlans] = useState<Array<{ plan: any; order: any }>>([])
   const [latestOrder, setLatestOrder] = useState<any | null>(null)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState<string | null>(null)
@@ -52,15 +52,16 @@ export default function BillingPage() {
     return portalMarkerByTier[String(tier).toLowerCase()] ?? t("portal.free")
   }
 
+  const primaryPlan = activePlans.length > 0 ? activePlans[0] : null
   const userPlanType = (currentUser?.portalType ?? currentUser?.tier ?? 'free').toString().toLowerCase()
-  const activeTierRaw = (activePlan?.plan?.type ?? userPlanType).toString().toLowerCase()
+  const activeTierRaw = (primaryPlan?.plan?.type ?? userPlanType).toString().toLowerCase()
   const activeTierEffective = (activeTierRaw === 'educational' ? 'paid' : activeTierRaw) as keyof typeof PORTALS
   const activeTierLabel = activeTierRaw === 'educational' ? 'educational' : activeTierRaw
   const currentPlan = PORTALS[activeTierEffective] ?? PORTALS.free
 
   const userPlanLabel = userPlanType === 'enterprise' ? t("portal.enterprise") : getPortalMarker(userPlanType)
-  const activePlanTitle = activePlan?.plan?.name ?? userPlanLabel
-  const activePlanType = activePlan?.plan?.type ?? userPlanType
+  const activePlanTitle = primaryPlan?.plan?.name ?? userPlanLabel
+  const activePlanType = primaryPlan?.plan?.type ?? userPlanType
   const normalizedCurrency = sanitizeCurrencyCode(billingCurrency)
   const taxRate = resolveTaxRate(billingTaxRules, currentUser?.billingCountry)
   const formatPrice = (amount: number, includeTax = false) => {
@@ -68,21 +69,21 @@ export default function BillingPage() {
     return formatMoney(applyTax(amount, taxRate).total, normalizedCurrency)
   }
 
-  const activePlanPrice = activePlan
-    ? activePlan.plan.type === 'enterprise'
-      ? activePlan.order?.amount
-        ? formatPrice(Number(activePlan.order.amount), true)
+  const activePlanPrice = primaryPlan
+    ? primaryPlan.plan.type === 'enterprise'
+      ? primaryPlan.order?.amount
+        ? formatPrice(Number(primaryPlan.order.amount), true)
         : t("pricing.priceVaries")
-      : formatPrice(Number(activePlan.plan.price ?? 0), true)
+      : formatPrice(Number(primaryPlan.plan.price ?? 0), true)
     : currentPlan.id === 'free'
       ? formatPrice(0, true)
       : currentPlan.id === 'paid'
         ? formatPrice(12, true)
         : t("pricing.custom")
-  const activeBaseMonthly = activePlan
-    ? activePlan.plan.type === 'enterprise'
-      ? (activePlan.order?.amount != null ? Number(activePlan.order.amount) : null)
-      : Number(activePlan.plan.price ?? 0)
+  const activeBaseMonthly = primaryPlan
+    ? primaryPlan.plan.type === 'enterprise'
+      ? (primaryPlan.order?.amount != null ? Number(primaryPlan.order.amount) : null)
+      : Number(primaryPlan.plan.price ?? 0)
     : currentPlan.id === 'free'
       ? 0
       : currentPlan.id === 'paid'
@@ -90,7 +91,7 @@ export default function BillingPage() {
         : null
   const activeTaxBreakdown = activeBaseMonthly != null ? applyTax(activeBaseMonthly, taxRate) : null
 
-  const activePlanExpires = activePlan?.order?.expiresAt || null
+  const activePlanExpires = primaryPlan?.order?.expiresAt || null
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.panelSettings)
@@ -119,15 +120,17 @@ export default function BillingPage() {
           setLatestOrder(sortedOrders[0])
 
           const activeOrders = sortedOrders.filter((o: any) => o.status === 'active' && o.planId)
-          const planOrder = activeOrders[0] || sortedOrders[0]
-          if (planOrder?.planId) {
-            try {
-              const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(planOrder.planId)))
-              setActivePlan({ plan, order: planOrder })
-            } catch {
-              // skip
-            }
-          }
+          const resolved = await Promise.all(
+            activeOrders.map(async (order: any) => {
+              try {
+                const plan = await apiFetch(API_ENDPOINTS.planDetail.replace(":id", String(order.planId)))
+                return { plan, order }
+              } catch {
+                return null
+              }
+            })
+          )
+          setActivePlans(resolved.filter(Boolean))
         } else {
           setLatestOrder(null)
         }
@@ -167,9 +170,7 @@ export default function BillingPage() {
       icon: portalConfig?.icon,
       price: tier === 'enterprise' ? null : Number(plan?.price ?? 0),
       hiddenFromBilling: Boolean(plan?.hiddenFromBilling),
-      isActive:
-        !!activePlan &&
-        (Number(activePlan.plan?.id) === Number(plan.id) || String(activePlan.plan?.type ?? "") === tier),
+      isActive: activePlans.some(ap => Number(ap.plan?.id) === Number(plan.id)),
     }
   })
 
@@ -287,7 +288,7 @@ export default function BillingPage() {
               value={activePlanPrice}
               icon={DollarSign}
               subtitle={
-                activePlan?.plan?.type === 'enterprise' && !activePlan?.order?.amount
+                primaryPlan?.plan?.type === 'enterprise' && !primaryPlan?.order?.amount
                   ? t("stats.priceFromOrder")
                   : taxRate > 0
                     ? t("stats.includesTax", { taxRate: taxRate.toString(), country: currentUser?.billingCountry || t("stats.yourBillingCountry") })
@@ -297,9 +298,9 @@ export default function BillingPage() {
             <StatCard title={t("stats.totalInvoices")} value={ordersLoading ? '...' : String(orders.length)} icon={Receipt} />
             <StatCard
               title={t("stats.planExpires")}
-              value={activePlan?.order?.expiresAt ? new Date(activePlan.order.expiresAt).toLocaleDateString() : t("common.na")}
+              value={activePlanExpires ? new Date(activePlanExpires).toLocaleDateString() : t("common.na")}
               icon={Calendar}
-              subtitle={activePlan ? undefined : t("stats.managedViaSales")}
+              subtitle={primaryPlan ? undefined : t("stats.managedViaSales")}
             />
           </div>
 
@@ -330,11 +331,11 @@ export default function BillingPage() {
           </div>
 
           {/* Live Active Plan Details */}
-          {activePlan && (
+          {activePlans.length > 0 && (
             <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
               <SectionHeader
-                title={t("activeSubscription.title")}
-                description={activePlan.plan.description || t("activeSubscription.descriptionFallback")}
+                title={activePlans.length === 1 ? t("activeSubscription.title") : t("activeSubscription.title") + ` (${activePlans.length})`}
+                description={activePlans.length === 1 ? (activePlans[0].plan.description || t("activeSubscription.descriptionFallback")) : t("activeSubscription.descriptionFallback")}
                 action={
                   <a
                     href="mailto:sales@ecli.app"
@@ -344,48 +345,53 @@ export default function BillingPage() {
                   </a>
                 }
               />
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-start gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-semibold text-foreground">{activePlanTitle}</h3>
-                    <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(activePlanType)}</Badge>
+              <div className="mt-4 flex flex-col gap-6">
+                {activePlans.map(({ plan, order }) => (
+                  <div key={plan.id} className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-semibold text-foreground">{plan.name}</h3>
+                        <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(plan.type)}</Badge>
+                      </div>
+                      {plan.features?.list && Array.isArray(plan.features.list) && (
+                        <ul className="mt-3 flex flex-col gap-1.5">
+                          {plan.features.list.map((f: string) => (
+                            <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Check className="h-3.5 w-3.5 text-success shrink-0" />
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-2xl font-bold text-primary">
+                        {plan.type === 'enterprise'
+                          ? (order?.amount ? formatPrice(Number(order.amount), true) : t("pricing.priceVaries"))
+                          : `${formatPrice(Number(plan.price ?? 0), true)}${t("common.perMonth")}`}
+                      </p>
+                      {order?.expiresAt && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t("activeSubscription.renews")} {new Date(order.expiresAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {activePlan.plan.features?.list && Array.isArray(activePlan.plan.features.list) && (
-                    <ul className="mt-3 flex flex-col gap-1.5">
-                      {activePlan.plan.features.list.map((f: string) => (
-                        <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Check className="h-3.5 w-3.5 text-success shrink-0" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
-                    <p>{t("activeSubscription.configuredLimits")}</p>
-                    <ul className="mt-1 space-y-1">
-                      <li>{t("activeSubscription.memory")}: <span className="text-foreground font-medium">{activePlan.plan.memory ?? currentUser?.limits?.memory ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.disk")}: <span className="text-foreground font-medium">{activePlan.plan.disk ?? currentUser?.limits?.disk ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.cpu")}: <span className="text-foreground font-medium">{activePlan.plan.cpu ?? currentUser?.limits?.cpu ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.serverLimit")}: <span className="text-foreground font-medium">{activePlan.plan.serverLimit ?? currentUser?.limits?.serverLimit ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.ports")}: <span className="text-foreground font-medium">{activePlan.plan.portCount ?? currentUser?.limits?.portsPerServer ?? currentUser?.limits?.portCount ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.tunnelPorts")}: <span className="text-foreground font-medium">{activePlan.plan.tunnelPortCount ?? currentUser?.limits?.tunnelPortCount ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.emailDailyLimit")}: <span className="text-foreground font-medium">{activePlan.plan.emailSendDailyLimit ?? currentUser?.limits?.emailSendDailyLimit ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.emailQueueLimit")}: <span className="text-foreground font-medium">{activePlan.plan.emailSendQueueLimit ?? currentUser?.limits?.emailSendQueueLimit ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.databases")}: <span className="text-foreground font-medium">{activePlan.plan.databases ?? currentUser?.limits?.databases ?? t("common.unlimited")}</span></li>
-                      <li>{t("activeSubscription.backups")}: <span className="text-foreground font-medium">{activePlan.plan.backups ?? currentUser?.limits?.backups ?? t("common.unlimited")}</span></li>
-                    </ul>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-2xl font-bold text-primary">
-                    {activePlanPrice}
-                    {activePlanType !== 'enterprise' && <span className="text-sm font-normal text-muted-foreground">{t("common.perMonth")}</span>}
-                  </p>
-                  {activePlanExpires && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("activeSubscription.renews")} {new Date(activePlanExpires).toLocaleDateString()}
-                    </p>
-                  )}
+                ))}
+                <div className="border-t border-border pt-4 text-sm text-muted-foreground">
+                  <p>{t("activeSubscription.configuredLimits")}</p>
+                  <ul className="mt-1 space-y-1">
+                    <li>{t("activeSubscription.memory")}: <span className="text-foreground font-medium">{currentUser?.limits?.memory ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.disk")}: <span className="text-foreground font-medium">{currentUser?.limits?.disk ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.cpu")}: <span className="text-foreground font-medium">{currentUser?.limits?.cpu ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.serverLimit")}: <span className="text-foreground font-medium">{currentUser?.limits?.serverLimit ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.ports")}: <span className="text-foreground font-medium">{currentUser?.limits?.portsPerServer ?? currentUser?.limits?.portCount ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.tunnelPorts")}: <span className="text-foreground font-medium">{currentUser?.limits?.tunnelPortCount ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.emailDailyLimit")}: <span className="text-foreground font-medium">{currentUser?.limits?.emailSendDailyLimit ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.emailQueueLimit")}: <span className="text-foreground font-medium">{currentUser?.limits?.emailSendQueueLimit ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.databases")}: <span className="text-foreground font-medium">{currentUser?.limits?.databases ?? t("common.unlimited")}</span></li>
+                    <li>{t("activeSubscription.backups")}: <span className="text-foreground font-medium">{currentUser?.limits?.backups ?? t("common.unlimited")}</span></li>
+                  </ul>
                 </div>
               </div>
             </div>
