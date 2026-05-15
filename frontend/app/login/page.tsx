@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import {
-  AlertTriangle,
-  Info,
   Mail,
   Lock,
   Loader2,
@@ -11,7 +9,6 @@ import {
   EyeOff,
   ChevronRight,
   Shield,
-  CheckCircle2,
   Fingerprint,
   KeyRound,
   Smartphone,
@@ -24,277 +21,49 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiFetch } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/panel-config";
 import { cn } from "@/lib/utils";
-
-function bufferToBase64url(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let str = "";
-  for (const b of bytes) str += String.fromCharCode(b);
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-function base64urlToBuffer(b64: string): ArrayBuffer {
-  const padded = b64
-    .replace(/-/g, "+")
-    .replace(/_/g, "/")
-    .padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=");
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-/* ─── Reusable Input ─── */
-function InputField({
-  icon: Icon,
-  label,
-  name,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  required,
-  className,
-  rightElement,
-  autoComplete,
-}: {
-  icon?: any;
-  label?: string;
-  name: string;
-  type?: string;
-  placeholder: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  required?: boolean;
-  className?: string;
-  rightElement?: React.ReactNode;
-  autoComplete?: string;
-}) {
-  const [focused, setFocused] = useState(false);
-
-  return (
-    <div className={cn("space-y-1.5", className)}>
-      {label && (
-        <label
-          htmlFor={name}
-          className="block text-[13px] font-medium text-foreground/80"
-        >
-          {label}
-          {required && <span className="text-destructive ml-0.5">*</span>}
-        </label>
-      )}
-      <div className="relative group">
-        {Icon && (
-          <div
-            className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-150",
-              focused ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-          </div>
-        )}
-        <input
-          id={name}
-          name={name}
-          type={type}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          required={required}
-          autoComplete={autoComplete}
-          aria-required={required}
-          className={cn(
-            "w-full rounded-xl border bg-background py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all duration-150",
-            "border-border/60",
-            "focus:border-primary focus:ring-2 focus:ring-primary/20",
-            "hover:border-muted-foreground/40",
-            Icon ? "pl-10 pr-3" : "px-3.5",
-            rightElement && "pr-11",
-          )}
-        />
-        {rightElement && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {rightElement}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Alert Banner ─── */
-function AlertBanner({
-  variant = "info",
-  title,
-  children,
-  onDismiss,
-  dismissLabel = "Dismiss",
-}: {
-  variant?: "info" | "warning" | "error" | "success";
-  title?: string;
-  children: React.ReactNode;
-  onDismiss?: () => void;
-  dismissLabel?: string;
-}) {
-  const styles = {
-    info: {
-      container: "border-blue-500/20 bg-blue-500/5",
-      icon: "text-blue-400",
-      title: "text-blue-300",
-      text: "text-blue-200/70",
-      IconComponent: Info,
-    },
-    warning: {
-      container: "border-yellow-500/20 bg-yellow-500/5",
-      icon: "text-yellow-400",
-      title: "text-yellow-300",
-      text: "text-yellow-200/70",
-      IconComponent: AlertTriangle,
-    },
-    error: {
-      container: "border-destructive/20 bg-destructive/5",
-      icon: "text-destructive",
-      title: "text-destructive",
-      text: "text-destructive/70",
-      IconComponent: AlertTriangle,
-    },
-    success: {
-      container: "border-green-500/20 bg-green-500/5",
-      icon: "text-green-400",
-      title: "text-green-300",
-      text: "text-green-200/70",
-      IconComponent: CheckCircle2,
-    },
-  };
-
-  const style = styles[variant];
-  const IconComp = style.IconComponent;
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border p-3.5 sm:p-4 animate-in fade-in slide-in-from-top-2 duration-300",
-        style.container,
-      )}
-    >
-      <div className="flex gap-3">
-        <IconComp className={cn("h-5 w-5 shrink-0 mt-0.5", style.icon)} />
-        <div className="flex-1 min-w-0 space-y-1">
-          {title && (
-            <p className={cn("text-sm font-semibold", style.title)}>{title}</p>
-          )}
-          <div className={cn("text-sm leading-relaxed", style.text)}>
-            {children}
-          </div>
-          {onDismiss && (
-            <button
-              onClick={onDismiss}
-              className={cn(
-                "mt-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors",
-                "border-current/20 hover:bg-white/5",
-              )}
-            >
-              {dismissLabel}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Section Divider ─── */
-function SectionDivider({ label, icon: Icon }: { label: string; icon?: any }) {
-  return (
-    <div className="flex items-center gap-3 pt-2 pb-1">
-      <div className="h-px flex-1 bg-border/50" />
-      <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-        {Icon && <Icon className="h-3 w-3" />}
-        {label}
-      </span>
-      <div className="h-px flex-1 bg-border/50" />
-    </div>
-  );
-}
-
-/* ─── Two Factor Method Button ─── */
-function TwoFactorMethodButton({
-  icon: Icon,
-  label,
-  description,
-  selected,
-  onClick,
-}: {
-  icon: any;
-  label: string;
-  description: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-start gap-3 p-3.5 rounded-xl border transition-all text-left",
-        selected
-          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-          : "border-border/60 hover:border-muted-foreground/40 hover:bg-secondary/30",
-      )}
-    >
-      <div
-        className={cn(
-          "p-2 rounded-lg",
-          selected
-            ? "bg-primary/20 text-primary"
-            : "bg-secondary text-muted-foreground",
-        )}
-      >
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p
-          className={cn(
-            "text-sm font-medium",
-            selected ? "text-primary" : "text-foreground",
-          )}
-        >
-          {label}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-      </div>
-      {selected && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
-    </button>
-  );
-}
+import { base64urlToBuffer, bufferToBase64url } from "./utils";
+import { TwoFactorMethodButton } from "./_components/TwoFactorMethodButton";
+import { InputField } from "./_components/InputField";
+import { AlertBanner } from "./_components/AlertBanner";
+import { SectionDivider } from "./_components/SectionDivider";
 
 type OtpMethod = "totp" | "email" | "backup";
 
 export default function LoginPage() {
   const { login, refreshUser } = useAuth();
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("login");
+
   const rawRedirect = searchParams.get("redirect");
+
   const redirectTo =
     rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/dashboard";
-  const redirectQuery = `?redirect=${encodeURIComponent(redirectTo)}`;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
+
   const [tempToken, setTempToken] = useState<string | null>(null);
+
+  const [otpMethod, setOtpMethod] = useState<OtpMethod | null>(null);
+
+  const [domainOk, setDomainOk] = useState<boolean | null>(null);
+
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [backupCode, setBackupCode] = useState("");
   const [emailCode, setEmailCode] = useState("");
+
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [otpMethod, setOtpMethod] = useState<OtpMethod | null>(null);
-  const [domainOk, setDomainOk] = useState<boolean | null>(null);
+
   const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(
     () => {
       try {
@@ -307,16 +76,21 @@ export default function LoginPage() {
       }
     },
   );
+
   const [backendReady, setBackendReady] = useState<boolean | null>(null);
+
   const [backendStatusMessage, setBackendStatusMessage] = useState<
     string | null
   >(null);
+
   const [backendChecking, setBackendChecking] = useState(false);
 
   useEffect(() => {
     try {
       if (typeof window === "undefined") return;
+
       const host = window.location.hostname || "";
+
       setDomainOk(host.endsWith("ecli.app"));
     } catch {
       setDomainOk(null);
@@ -325,12 +99,16 @@ export default function LoginPage() {
 
   const checkBackend = useCallback(async (): Promise<void> => {
     if (typeof window === "undefined") return;
+
     setBackendChecking(true);
 
     const controller = new AbortController();
+
     let timeoutId: number | null = null;
+
     try {
       timeoutId = window.setTimeout(() => controller.abort(), 3000);
+
       const res = await fetch(API_ENDPOINTS.health, {
         method: "GET",
         cache: "no-store",
@@ -338,22 +116,18 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        let message = t("backendUnavailableMessage");
-        try {
-          const json = await res.json();
-          if (json?.status) {
-            message = `${message} (${json.status})`;
-          }
-        } catch {}
         setBackendReady(false);
-        setBackendStatusMessage(message);
+        setBackendStatusMessage(t("backendUnavailableMessage"));
+
         return;
       }
 
       const data = await res.json();
+
       if (data?.status !== "ok") {
         setBackendReady(false);
         setBackendStatusMessage(t("backendUnavailableMessage"));
+
         return;
       }
 
@@ -366,26 +140,29 @@ export default function LoginPage() {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
+
       setBackendChecking(false);
     }
   }, [t]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     checkBackend();
   }, [checkBackend]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setError(null);
     setLoading(true);
+
     try {
       const res: any = await login(email, password);
-      if (res && res.twoFactorRequired) {
+
+      if (res?.twoFactorRequired) {
         setTempToken(res.tempToken);
-        setError(null);
         return;
       }
+
       router.replace(redirectTo);
     } catch (err: any) {
       setError(err.message || t("loginFailed"));
@@ -396,37 +173,52 @@ export default function LoginPage() {
 
   const sendEmailCode = async () => {
     if (!tempToken) return;
+
     setSendingEmail(true);
+
     try {
       await apiFetch(API_ENDPOINTS.twoFactorSendEmail, {
         method: "POST",
         body: JSON.stringify({ tempToken }),
       });
+
       setError(null);
       setEmailSent(true);
     } catch (e: any) {
       setError(e.message || t("failedToSendEmailCode"));
     }
+
     setSendingEmail(false);
   };
 
   const verify2fa = async () => {
-    if (!tempToken) return setError(t("missingTemporarySession"));
+    if (!tempToken) {
+      setError(t("missingTemporarySession"));
+      return;
+    }
+
     setLoading(true);
+
     try {
       const body: any = { tempToken };
-      if (otpMethod === "totp" && twoFactorCode) body.token = twoFactorCode;
-      if (otpMethod === "backup" && backupCode) body.backupCode = backupCode;
-      if (otpMethod === "email" && emailCode) body.emailCode = emailCode;
-      if (!body.token && !body.backupCode && !body.emailCode) {
-        setError(t("enterCodeSelectedMethod"));
-        setLoading(false);
-        return;
+
+      if (otpMethod === "totp" && twoFactorCode) {
+        body.token = twoFactorCode;
       }
+
+      if (otpMethod === "backup" && backupCode) {
+        body.backupCode = backupCode;
+      }
+
+      if (otpMethod === "email" && emailCode) {
+        body.emailCode = emailCode;
+      }
+
       const data: any = await apiFetch(API_ENDPOINTS.twoFactorVerifyLogin, {
         method: "POST",
         body: JSON.stringify(body),
       });
+
       if (data.token) {
         await refreshUser();
         router.replace(redirectTo);
@@ -445,8 +237,10 @@ export default function LoginPage() {
       setError(t("enterEmailBeforePasskey"));
       return;
     }
+
     setError(null);
     setPasskeyLoading(true);
+
     try {
       const opts = await apiFetch(API_ENDPOINTS.passkeyAuthChallenge, {
         method: "POST",
@@ -465,7 +259,10 @@ export default function LoginPage() {
       const credential = (await navigator.credentials.get({
         publicKey,
       })) as PublicKeyCredential | null;
-      if (!credential) throw new Error(t("passkeyCancelled"));
+
+      if (!credential) {
+        throw new Error(t("passkeyCancelled"));
+      }
 
       const assertionResponse =
         credential.response as AuthenticatorAssertionResponse;
@@ -488,16 +285,18 @@ export default function LoginPage() {
 
       const data = await apiFetch(API_ENDPOINTS.passkeyAuthenticate, {
         method: "POST",
-        body: JSON.stringify({ email, authenticationResponse }),
+        body: JSON.stringify({
+          email,
+          authenticationResponse,
+        }),
       });
 
-      if (data && data.token) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("token", data.token);
-        }
+      if (data?.token && typeof window !== "undefined") {
+        localStorage.setItem("token", data.token);
       }
 
       await refreshUser();
+
       router.push(redirectTo);
     } catch (err: any) {
       setError(err.message || t("passkeyFailed"));
@@ -516,323 +315,314 @@ export default function LoginPage() {
   };
 
   return (
-    // <div className="min-h-[100dvh] w-full bg-background overflow-auto">
-    //   {/* Side gradient glow — left */}
-    //   <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
-    //   {/* Side gradient glow — right (subtle secondary) */}
-    //   <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_right,_var(--tw-gradient-stops))] from-secondary/[0.08] via-transparent to-transparent pointer-events-none" />
+    <div className="min-h-screen bg-black">
+      <div className="flex min-h-screen">
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="w-full max-w-md">
+            <div className="p-6 sm:p-8 space-y-5">
+              <div className="space-y-3">
+                {domainOk === false && !dismissedDomainWarning && (
+                  <AlertBanner
+                    variant="warning"
+                    title={t("verifyDomain")}
+                    onDismiss={() => {
+                      try {
+                        localStorage.setItem("domainWarningDismissed", "1");
+                      } catch {}
 
-    //   <div className="relative flex min-h-[100dvh] w-full items-start sm:items-center justify-center px-4 py-8 sm:py-12">
-    //     <div className="w-full max-w-[520px]">
-    //       {/* Logo/Brand */}
-    //       <div className="mb-8 text-center">
-    //         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5 shadow-lg shadow-primary/5">
-    //           <Shield className="h-7 w-7 text-primary" />
-    //         </div>
-    //         <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-    //           {t("welcomeBack")}
-    //         </h1>
-    //         <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
-    //           {t("subtitle")}
-    //         </p>
-    //       </div>
+                      setDismissedDomainWarning(true);
+                    }}
+                  >
+                    <p>
+                      {t.rich("domainWarning", {
+                        domain: (chunks: ReactNode) => (
+                          <span className="font-medium">{chunks}</span>
+                        ),
+                        link: (chunks: ReactNode) => (
+                          <a
+                            href="https://ecli.app"
+                            className="underline font-medium"
+                          >
+                            {chunks}
+                          </a>
+                        ),
+                      })}
+                    </p>
+                  </AlertBanner>
+                )}
 
-    //       {/* Main Card */}
-    //       <div className="rounded-2xl sm:rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md shadow-2xl shadow-black/5 overflow-hidden">
-    //         <div className="p-4 sm:p-8 space-y-5">
-    //           {/* Alerts */}
-    //           <div className="space-y-3">
-    //             {domainOk === false && !dismissedDomainWarning && (
-    //               <AlertBanner
-    //                 variant="warning"
-    //                 title={t("verifyDomain")}
-    //                 onDismiss={() => {
-    //                   try {
-    //                     localStorage.setItem("domainWarningDismissed", "1");
-    //                   } catch {}
-    //                   setDismissedDomainWarning(true);
-    //                 }}
-    //               >
-    //                 <p>
-    //                   {t.rich("domainWarning", {
-    //                     domain: (chunks: ReactNode) => (
-    //                       <span className="font-medium">{chunks}</span>
-    //                     ),
-    //                     link: (chunks: ReactNode) => (
-    //                       <a
-    //                         href="https://ecli.app"
-    //                         className="underline font-medium"
-    //                       >
-    //                         {chunks}
-    //                       </a>
-    //                     ),
-    //                   })}
-    //                 </p>
-    //               </AlertBanner>
-    //             )}
+                {backendReady === false && (
+                  <AlertBanner
+                    variant="error"
+                    title={t("backendUnavailableTitle")}
+                  >
+                    <div className="space-y-3">
+                      <p>{t("backendUnavailableMessage")}</p>
 
-    //             {backendReady === false && (
-    //               <AlertBanner
-    //                 variant="error"
-    //                 title={t("backendUnavailableTitle")}
-    //               >
-    //                 <div className="space-y-3">
-    //                   <p>{t("backendUnavailableMessage")}</p>
-    //                   {backendStatusMessage && (
-    //                     <p className="text-xs text-muted-foreground">
-    //                       {backendStatusMessage}
-    //                     </p>
-    //                   )}
-    //                   <button
-    //                     type="button"
-    //                     onClick={checkBackend}
-    //                     disabled={backendChecking}
-    //                     className={cn(
-    //                       "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
-    //                       "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
-    //                       "focus:outline-none focus:ring-2 focus:ring-primary/20",
-    //                     )}
-    //                   >
-    //                     {backendChecking ? (
-    //                       <Loader2 className="h-4 w-4 animate-spin" />
-    //                     ) : (
-    //                       t("retry")
-    //                     )}
-    //                   </button>
-    //                 </div>
-    //               </AlertBanner>
-    //             )}
+                      {backendStatusMessage && (
+                        <p className="text-xs text-muted-foreground">
+                          {backendStatusMessage}
+                        </p>
+                      )}
 
-    //             {error && (
-    //               <AlertBanner variant="error" title={t("somethingWentWrong")}>
-    //                 {error}
-    //               </AlertBanner>
-    //             )}
-    //           </div>
+                      <button
+                        type="button"
+                        onClick={checkBackend}
+                        disabled={backendChecking}
+                        className={cn(
+                          "inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm font-medium transition-all",
+                          "hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
+                      >
+                        {backendChecking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          t("retry")
+                        )}
+                      </button>
+                    </div>
+                  </AlertBanner>
+                )}
 
-    //           {/* Two-Factor Authentication */}
-    //           {tempToken ? (
-    //             <div className="space-y-4">
-    //               <div className="text-center">
-    //                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
-    //                   <KeyRound className="h-6 w-6 text-primary" />
-    //                 </div>
-    //                 <h2 className="text-lg font-semibold text-foreground">
-    //                   {t("twoFactorTitle")}
-    //                 </h2>
-    //                 <p className="text-sm text-muted-foreground mt-1">
-    //                   {t("twoFactorSubtitle")}
-    //                 </p>
-    //               </div>
+                {error && (
+                  <AlertBanner variant="error" title={t("somethingWentWrong")}>
+                    {error}
+                  </AlertBanner>
+                )}
+              </div>
 
-    //               <div className="space-y-2">
-    //                 <TwoFactorMethodButton
-    //                   icon={Smartphone}
-    //                   label={t("methodAuthenticator")}
-    //                   description={t("methodAuthenticatorDesc")}
-    //                   selected={otpMethod === "totp"}
-    //                   onClick={() => {
-    //                     setOtpMethod("totp");
-    //                     setEmailSent(false);
-    //                   }}
-    //                 />
-    //                 <TwoFactorMethodButton
-    //                   icon={MailCheck}
-    //                   label={t("methodEmail")}
-    //                   description={t("methodEmailDesc")}
-    //                   selected={otpMethod === "email"}
-    //                   onClick={() => {
-    //                     setOtpMethod("email");
-    //                     setEmailSent(false);
-    //                   }}
-    //                 />
-    //                 <TwoFactorMethodButton
-    //                   icon={KeyRound}
-    //                   label={t("methodBackup")}
-    //                   description={t("methodBackupDesc")}
-    //                   selected={otpMethod === "backup"}
-    //                   onClick={() => {
-    //                     setOtpMethod("backup");
-    //                     setEmailSent(false);
-    //                   }}
-    //                 />
-    //               </div>
+              {tempToken ? (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
+                      <KeyRound className="h-6 w-6 text-primary" />
+                    </div>
 
-    //               {otpMethod && (
-    //                 <div className="pt-2 space-y-3">
-    //                   {otpMethod === "totp" && (
-    //                     <InputField
-    //                       icon={Smartphone}
-    //                       name="totp"
-    //                       placeholder={t("authenticatorCodePlaceholder")}
-    //                       label={t("authenticatorCode")}
-    //                       value={twoFactorCode}
-    //                       onChange={(e) => setTwoFactorCode(e.target.value)}
-    //                       autoComplete="one-time-code"
-    //                     />
-    //                   )}
+                    <h2 className="text-lg font-semibold text-foreground">
+                      {t("twoFactorTitle")}
+                    </h2>
 
-    //                   {otpMethod === "backup" && (
-    //                     <InputField
-    //                       icon={KeyRound}
-    //                       name="backup"
-    //                       placeholder={t("backupCodePlaceholder")}
-    //                       label={t("backupCode")}
-    //                       value={backupCode}
-    //                       onChange={(e) => setBackupCode(e.target.value)}
-    //                     />
-    //                   )}
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {t("twoFactorSubtitle")}
+                    </p>
+                  </div>
 
-    //                   {otpMethod === "email" && (
-    //                     <div className="space-y-2">
-    //                       <div className="flex gap-2">
-    //                         <div className="flex-1">
-    //                           <InputField
-    //                             icon={MailCheck}
-    //                             name="emailCode"
-    //                             placeholder={t("emailCodePlaceholder")}
-    //                             label={t("emailCode")}
-    //                             value={emailCode}
-    //                             onChange={(e) => setEmailCode(e.target.value)}
-    //                             autoComplete="one-time-code"
-    //                           />
-    //                         </div>
-    //                         <div className="flex items-end">
-    //                           <button
-    //                             type="button"
-    //                             onClick={sendEmailCode}
-    //                             disabled={
-    //                               sendingEmail || backendReady === false
-    //                             }
-    //                             className={cn(
-    //                               "h-[46px] px-4 rounded-xl border text-sm font-medium transition-all",
-    //                               "border-border/60 bg-secondary/30 text-foreground",
-    //                               "hover:bg-secondary/60 hover:border-muted-foreground/40",
-    //                               "disabled:opacity-50 disabled:cursor-not-allowed",
-    //                               "focus:outline-none focus:ring-2 focus:ring-primary/20",
-    //                             )}
-    //                           >
-    //                             {sendingEmail ? (
-    //                               <Loader2 className="h-4 w-4 animate-spin" />
-    //                             ) : emailSent ? (
-    //                               t("resend")
-    //                             ) : (
-    //                               t("send")
-    //                             )}
-    //                           </button>
-    //                         </div>
-    //                       </div>
+                  <div className="space-y-2">
+                    <TwoFactorMethodButton
+                      icon={Smartphone}
+                      label={t("methodAuthenticator")}
+                      description={t("methodAuthenticatorDesc")}
+                      selected={otpMethod === "totp"}
+                      onClick={() => {
+                        setOtpMethod("totp");
+                        setEmailSent(false);
+                      }}
+                    />
 
-    //                       {emailSent && (
-    //                         <p className="text-xs text-success/80">
-    //                           {t("emailCodeSent")}
-    //                         </p>
-    //                       )}
-    //                     </div>
-    //                   )}
+                    <TwoFactorMethodButton
+                      icon={MailCheck}
+                      label={t("methodEmail")}
+                      description={t("methodEmailDesc")}
+                      selected={otpMethod === "email"}
+                      onClick={() => {
+                        setOtpMethod("email");
+                        setEmailSent(false);
+                      }}
+                    />
 
-    //                   <div className="flex gap-3 pt-2">
-    //                     <button
-    //                       type="button"
-    //                       onClick={verify2fa}
-    //                       disabled={loading || backendReady === false}
-    //                       className={cn(
-    //                         "flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-semibold transition-all",
-    //                         "bg-primary text-primary-foreground",
-    //                         "hover:bg-primary/90 active:scale-[0.98]",
-    //                         "disabled:opacity-50 disabled:cursor-not-allowed",
-    //                         "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
-    //                       )}
-    //                     >
-    //                       {loading ? (
-    //                         <>
-    //                           <Loader2 className="h-4 w-4 animate-spin" />
-    //                           {t("verifying")}
-    //                         </>
-    //                       ) : (
-    //                         <>
-    //                           {t("verify")}
-    //                           <ChevronRight className="h-4 w-4" />
-    //                         </>
-    //                       )}
-    //                     </button>
-    //                     <button
-    //                       type="button"
-    //                       onClick={cancelTwoFactor}
-    //                       className={cn(
-    //                         "px-5 py-3 rounded-xl border text-sm font-medium transition-all",
-    //                         "border-border/60 bg-secondary/30 text-foreground",
-    //                         "hover:bg-secondary/60 active:scale-[0.98]",
-    //                         "focus:outline-none focus:ring-2 focus:ring-primary/20",
-    //                       )}
-    //                     >
-    //                       {t("cancel")}
-    //                     </button>
-    //                   </div>
-    //                 </div>
-    //               )}
-    //             </div>
-    //           ) : (
-    //             /* Login Form */
-    //             <form onSubmit={handleSubmit} className="space-y-5">
-    //               <SectionDivider label={t("credentials")} icon={Lock} />
+                    <TwoFactorMethodButton
+                      icon={KeyRound}
+                      label={t("methodBackup")}
+                      description={t("methodBackupDesc")}
+                      selected={otpMethod === "backup"}
+                      onClick={() => {
+                        setOtpMethod("backup");
+                        setEmailSent(false);
+                      }}
+                    />
+                  </div>
 
-    //               <InputField
-    //                 icon={Mail}
-    //                 name="email"
-    //                 type="email"
-    //                 placeholder={t("emailPlaceholder")}
-    //                 label={t("emailAddress")}
-    //                 value={email}
-    //                 onChange={(e) => setEmail(e.target.value)}
-    //                 required
-    //                 autoComplete="email"
-    //               />
+                  {otpMethod && (
+                    <div className="pt-2 space-y-3">
+                      {otpMethod === "totp" && (
+                        <InputField
+                          icon={Smartphone}
+                          name="totp"
+                          placeholder={t("authenticatorCodePlaceholder")}
+                          label={t("authenticatorCode")}
+                          value={twoFactorCode}
+                          onChange={(e) => setTwoFactorCode(e.target.value)}
+                        />
+                      )}
 
-    //               <InputField
-    //                 icon={Lock}
-    //                 name="password"
-    //                 type={showPassword ? "text" : "password"}
-    //                 placeholder={t("passwordPlaceholder")}
-    //                 label={t("password")}
-    //                 value={password}
-    //                 onChange={(e) => setPassword(e.target.value)}
-    //                 required
-    //                 autoComplete="current-password"
-    //                 rightElement={
-    //                   <button
-    //                     type="button"
-    //                     onClick={() => setShowPassword(!showPassword)}
-    //                     className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
-    //                     aria-label={
-    //                       showPassword ? t("hidePassword") : t("showPassword")
-    //                     }
-    //                   >
-    //                     {showPassword ? (
-    //                       <EyeOff className="h-4 w-4" />
-    //                     ) : (
-    //                       <Eye className="h-4 w-4" />
-    //                     )}
-    //                   </button>
-    //                 }
-    //               />
+                      {otpMethod === "backup" && (
+                        <InputField
+                          icon={KeyRound}
+                          name="backup"
+                          placeholder={t("backupCodePlaceholder")}
+                          label={t("backupCode")}
+                          value={backupCode}
+                          onChange={(e) => setBackupCode(e.target.value)}
+                        />
+                      )}
 
-    //               <div className="flex items-center justify-end">
-    //                 <Link
-    //                   href="/forgot-password"
+                      {otpMethod === "email" && (
+                        <div className="space-y-2">
+                          <InputField
+                            icon={MailCheck}
+                            name="emailCode"
+                            placeholder={t("emailCodePlaceholder")}
+                            label={t("emailCode")}
+                            value={emailCode}
+                            onChange={(e) => setEmailCode(e.target.value)}
+                          />
 
-    //             </Link>
-    //           </p>
-    //         </div>
-    //       </div>
+                          <button
+                            type="button"
+                            onClick={sendEmailCode}
+                            disabled={sendingEmail}
+                            className="w-full rounded-xl border border-border/60 bg-secondary/30 py-3 text-sm font-medium transition-all hover:bg-secondary/60"
+                          >
+                            {sendingEmail ? (
+                              <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                            ) : emailSent ? (
+                              t("resend")
+                            ) : (
+                              t("send")
+                            )}
+                          </button>
+                        </div>
+                      )}
 
-    //       {/* Bottom text */}
-    //       <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
-    //         {t("securityNote")}
-    //       </p>
-    //     </div>
-    //   </div>
-    // </div>
-    <div></div>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={verify2fa}
+                          disabled={loading}
+                          className="flex-1 rounded-xl bg-primary text-primary-foreground py-3 text-sm font-semibold transition-all hover:bg-primary/90"
+                        >
+                          {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                          ) : (
+                            t("verify")
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={cancelTwoFactor}
+                          className="rounded-xl border border-border/60 bg-secondary/30 px-5 py-3 text-sm font-medium hover:bg-secondary/60"
+                        >
+                          {t("cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* <SectionDivider label={t("credentials")} icon={Lock} /> */}
+
+                  <InputField
+                    icon={Mail}
+                    name="email"
+                    type="email"
+                    placeholder={t("emailPlaceholder")}
+                    label={t("emailAddress")}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+
+                  <InputField
+                    icon={Lock}
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder={t("passwordPlaceholder")}
+                    label={t("password")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    }
+                  />
+
+                  <div className="flex items-center justify-between text-sm">
+                    <Link
+                      href="/forgot-password"
+                      className="text-primary hover:underline"
+                    >
+                      {t("forgotPassword")}
+                    </Link>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || backendReady === false}
+                    className={cn(
+                      "w-full py-2.5 flex items-center justify-center rounded-full text-[18px] font-flink border border-white/40transition-colors duration-200 cursor-pointer",
+                      "text-black bg-white",
+                      "hover:bg-white/70 active:scale-[0.98]",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                    )}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t("signingIn")}
+                      </>
+                    ) : (
+                      <>
+                        {t("signIn")}
+                        <ChevronRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <SectionDivider label={t("orContinueWith")} icon={Shield} />
+
+                  <button
+                    type="button"
+                    onClick={handlePasskey}
+                    disabled={passkeyLoading || backendReady === false}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 rounded-xl py-3 px-5 text-sm font-medium transition-all",
+                      "border border-border/60 bg-secondary/30 text-foreground",
+                      "hover:bg-secondary/60 hover:border-muted-foreground/40",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                    )}
+                  >
+                    {passkeyLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t("loading")}
+                      </>
+                    ) : (
+                      <>
+                        <Fingerprint className="h-4 w-4" />
+                        {t("continueWithPasskey")}
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
