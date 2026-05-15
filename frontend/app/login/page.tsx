@@ -254,7 +254,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-black">
       <div className="flex min-h-screen flex-col md:flex-row">
-        <div className="absolute md:relative md:flex-1 items-center justify-center overflow-hidden">
+        <div className="hidden md:block md:flex-1 items-center justify-center overflow-hidden">
           <PixelBlast
             variant="square"
             color="#B85A96"
