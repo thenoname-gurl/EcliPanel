@@ -1065,6 +1065,7 @@ export default function SettingsPage() {
   }, [searchParams])
 
   const [activeTheme, setActiveTheme] = useState("Eclipse Purple")
+  const [themeTransitioning, setThemeTransitioning] = useState(false)
   const [settingsLocale, setSettingsLocale] = useState<AppLocale>(
     isSupportedLocale(locale) ? locale : defaultLocale
   )
@@ -1556,13 +1557,16 @@ export default function SettingsPage() {
   }, [user?.settings])
 
   const updateTheme = async (themeName: string) => {
-    if (themeName === activeTheme) return
+    if (themeName === activeTheme || themeTransitioning) return
 
     const newThemeObj = THEMES.find((t) => t.name === themeName)
     if (!newThemeObj) return
 
+    setThemeTransitioning(true)
     setActiveTheme(themeName)
     await applyTheme(newThemeObj, { animate: true })
+    await new Promise((r) => setTimeout(r, 1000))
+    setThemeTransitioning(false)
     await saveUserSettings({ theme: { name: themeName } })
   }
 
@@ -2763,7 +2767,7 @@ export default function SettingsPage() {
                       <button
                         key={theme.name}
                         onClick={() => updateTheme(theme.name)}
-                        disabled={isActive}
+                        disabled={isActive || themeTransitioning}
                         className={cn(
                           "relative flex flex-col items-center gap-3 rounded-xl border p-4 transition-all active:scale-[0.97] min-w-0 disabled:pointer-events-none",
                           isActive
