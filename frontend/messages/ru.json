@@ -4269,6 +4269,61 @@
         "updatedProfile": "Обновлены данные профиля"
       }
     },
+    "stats": {
+      "currentPage": "Текущая страница",
+      "today": "Сегодня",
+      "logins": "Входы",
+      "serverEvents": "События сервера",
+      "onThisPage": "На этой странице",
+      "page": "Страница {page}"
+    },
+    "filters": {
+      "title": "Фильтр событий",
+      "clear": "Очистить",
+      "all": "Все",
+      "power": "Питание",
+      "console": "Консоль",
+      "file": "Файлы",
+      "subuser": "Субпользователи",
+      "settings": "Настройки"
+    },
+    "log": {
+      "title": "Журнал активности",
+      "shown": "{count} показано",
+      "unknownAction": "Неизвестное действие",
+      "unknown": "Неизвестно"
+    },
+    "states": {
+      "loadingActivity": "Загрузка активности…",
+      "noActivityTitle": "Активность не найдена",
+      "noActivityMessage": "Активность для этого сервера пока не зафиксирована.",
+      "noActivityForFilter": "События {filter} не зафиксированы."
+    },
+    "details": {
+      "eventDetails": "Детали события",
+      "action": "Действие",
+      "targetType": "Тип цели",
+      "targetId": "ID цели",
+      "timestamp": "Время",
+      "ipAddress": "IP-адрес",
+      "userId": "ID пользователя",
+      "metadata": "Метаданные",
+      "allProperties": "Все свойства",
+      "rawJson": "Сырой JSON"
+    },
+    "footer": {
+      "pageEvents": "Страница {page} • {count} событий"
+    },
+    "pagination": {
+      "prev": "Назад",
+      "next": "Вперёд"
+    },
+    "time": {
+      "justNow": "Только что",
+      "minutesAgo": "{count}м назад",
+      "hoursAgo": "{count}ч назад",
+      "daysAgo": "{count}д назад"
+    },
     "subusers": {
       "title": "Субпользователи",
       "addSubuser": "Добавить субпользователя",
@@ -4936,6 +4991,61 @@
         "serverSuspend": "Заблокирован сервер",
         "serverUnsuspend": "Разблокирован сервер"
       }
+    },
+    "stats": {
+      "currentPage": "Текущая страница",
+      "today": "Сегодня",
+      "logins": "Участники",
+      "serverEvents": "События сервера",
+      "onThisPage": "На этой странице",
+      "page": "Страница {page}"
+    },
+    "filters": {
+      "title": "Фильтр событий",
+      "clear": "Очистить",
+      "all": "Все",
+      "member": "Участники",
+      "server": "Серверы",
+      "billing": "Платежи",
+      "security": "Безопасность",
+      "support": "Поддержка"
+    },
+    "log": {
+      "title": "Журнал активности",
+      "shown": "{count} показано",
+      "unknownAction": "Неизвестное действие",
+      "unknown": "Неизвестно"
+    },
+    "states": {
+      "loadingActivity": "Загрузка активности…",
+      "noActivityTitle": "Активность не найдена",
+      "noActivityMessage": "Активность для этой организации пока не зафиксирована.",
+      "noActivityForFilter": "События {filter} не зафиксированы."
+    },
+    "details": {
+      "eventDetails": "Детали события",
+      "action": "Действие",
+      "targetType": "Тип цели",
+      "targetId": "ID цели",
+      "timestamp": "Время",
+      "ipAddress": "IP-адрес",
+      "userId": "ID пользователя",
+      "metadata": "Метаданные",
+      "allProperties": "Все свойства",
+      "rawJson": "Сырой JSON"
+    },
+    "footer": {
+      "pageEvents": "Страница {page} • {count} событий"
+    },
+    "pagination": {
+      "prev": "Назад",
+      "next": "Вперёд"
+    },
+    "time": {
+      "justNow": "Только что",
+      "minutesAgo": "{count}м назад",
+      "hoursAgo": "{count}ч назад",
+      "daysAgo": "{count}д назад"
     },
     "actions": {
       "uploading": "Загрузка…",

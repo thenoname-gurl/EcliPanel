@@ -4331,6 +4331,61 @@
         "updatedProfile": "Updated profile settings"
       }
     },
+    "stats": {
+      "currentPage": "Current Page",
+      "today": "Today",
+      "logins": "Logins",
+      "serverEvents": "Server Events",
+      "onThisPage": "On this page",
+      "page": "Page {page}"
+    },
+    "filters": {
+      "title": "Filter Events",
+      "clear": "Clear",
+      "all": "All",
+      "power": "Power",
+      "console": "Console",
+      "file": "File",
+      "subuser": "Subuser",
+      "settings": "Settings"
+    },
+    "log": {
+      "title": "Activity Log",
+      "shown": "{count} shown",
+      "unknownAction": "Unknown action",
+      "unknown": "Unknown"
+    },
+    "states": {
+      "loadingActivity": "Loading activity…",
+      "noActivityTitle": "No Activity Found",
+      "noActivityMessage": "No activity recorded for this server yet.",
+      "noActivityForFilter": "No {filter} events recorded yet."
+    },
+    "details": {
+      "eventDetails": "Event Details",
+      "action": "Action",
+      "targetType": "Target Type",
+      "targetId": "Target ID",
+      "timestamp": "Timestamp",
+      "ipAddress": "IP Address",
+      "userId": "User ID",
+      "metadata": "Metadata",
+      "allProperties": "All Properties",
+      "rawJson": "Raw JSON"
+    },
+    "footer": {
+      "pageEvents": "Page {page} • {count} events"
+    },
+    "pagination": {
+      "prev": "Prev",
+      "next": "Next"
+    },
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    },
     "subusers": {
       "title": "Subusers",
       "addSubuser": "Add Subuser",
@@ -4998,6 +5053,61 @@
         "serverSuspend": "Suspended server",
         "serverUnsuspend": "Unsuspended server"
       }
+    },
+    "stats": {
+      "currentPage": "Current Page",
+      "today": "Today",
+      "logins": "Membership",
+      "serverEvents": "Server Events",
+      "onThisPage": "On this page",
+      "page": "Page {page}"
+    },
+    "filters": {
+      "title": "Filter Events",
+      "clear": "Clear",
+      "all": "All",
+      "member": "Members",
+      "server": "Servers",
+      "billing": "Billing",
+      "security": "Security",
+      "support": "Support"
+    },
+    "log": {
+      "title": "Activity Log",
+      "shown": "{count} shown",
+      "unknownAction": "Unknown action",
+      "unknown": "Unknown"
+    },
+    "states": {
+      "loadingActivity": "Loading activity…",
+      "noActivityTitle": "No Activity Found",
+      "noActivityMessage": "No activity recorded for this organisation yet.",
+      "noActivityForFilter": "No {filter} events recorded yet."
+    },
+    "details": {
+      "eventDetails": "Event Details",
+      "action": "Action",
+      "targetType": "Target Type",
+      "targetId": "Target ID",
+      "timestamp": "Timestamp",
+      "ipAddress": "IP Address",
+      "userId": "User ID",
+      "metadata": "Metadata",
+      "allProperties": "All Properties",
+      "rawJson": "Raw JSON"
+    },
+    "footer": {
+      "pageEvents": "Page {page} • {count} events"
+    },
+    "pagination": {
+      "prev": "Prev",
+      "next": "Next"
+    },
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
     },
     "actions": {
       "uploading": "Uploading…",
