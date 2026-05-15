@@ -1207,7 +1207,9 @@
       "plans": "Plans",
       "orders": "Orders",
       "settings": "Settings",
-      "tunnels": "Tunnels"
+      "tunnels": "Tunnels",
+      "rollouts": "Rollouts",
+      "feedback": "Feedback"
     },
     "shortUrls": {
       "overview": {

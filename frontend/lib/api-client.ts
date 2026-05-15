@@ -2,6 +2,32 @@ import { API_ENDPOINTS } from "./panel-config";
 
 const DEFAULT_API_TIMEOUT = 10000
 const DEFAULT_API_RETRIES = 2
+let refreshingCsrf: Promise<string | null> | null = null
+
+async function refreshCsrfToken(): Promise<string | null> {
+  if (refreshingCsrf) return refreshingCsrf
+  refreshingCsrf = (async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return null
+      const res = await fetch('/api/auth/csrf-token', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      if (data?.csrfToken) {
+        localStorage.setItem('csrfToken', data.csrfToken)
+        return data.csrfToken
+      }
+      return null
+    } catch {
+      return null
+    } finally {
+      refreshingCsrf = null
+    }
+  })()
+  return refreshingCsrf
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -142,6 +168,14 @@ export async function apiFetch(
               .join('; ');
           } else if (!hasMessage) {
             msg = JSON.stringify(json);
+          }
+
+          if (res.status === 403 && attempt <= 2 && (msg.toLowerCase().includes('csrf') || msg.toLowerCase().includes('token'))) {
+            const fresh = await refreshCsrfToken()
+            if (fresh) {
+              headers['x-csrf-token'] = fresh
+              return execute(attempt + 1)
+            }
           }
         } catch {}
         throw new Error(msg || `HTTP error ${res.status}`);

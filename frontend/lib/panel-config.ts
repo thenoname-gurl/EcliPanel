@@ -267,6 +267,17 @@ export const API_ENDPOINTS = {
   adminDeletionExpedite: "/api/admin/deletions/:id/expedite",
   adminDeletionCancel: "/api/admin/deletions/:id/cancel",
 
+  // Rollouts
+  adminRollouts: "/api/admin/rollouts",
+  adminRolloutDetail: "/api/admin/rollouts/:id",
+  myRollouts: "/api/rollouts",
+
+  // Feedback
+  feedbackSubmit: "/api/feedback",
+  feedbackCheck: "/api/feedback/check",
+  adminFeedback: "/api/admin/feedback",
+  adminFeedbackDelete: "/api/admin/feedback/:id",
+
   // SOC
   socOverview: "/api/soc/overview",
   socPlans: "/api/soc/plans",

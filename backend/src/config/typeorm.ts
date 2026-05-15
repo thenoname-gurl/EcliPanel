@@ -150,5 +150,8 @@ export const AppDataSource = new DataSource({
     require('../models/shortUrl.entity').ShortUrl,
     require('../models/tunnelAllocation.entity').TunnelAllocation,
     require('../models/githubContributor.entity').GithubContributor,
+    require('../models/rollout.entity').Rollout,
+    require('../models/rolloutUserOverride.entity').RolloutUserOverride,
+    require('../models/feedback.entity').Feedback,
   ],
 });

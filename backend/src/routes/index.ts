@@ -25,6 +25,8 @@ import { serverSubuserRoutes } from '../handlers/serverSubuserHandler';
 import { wsProxyRoutes } from '../handlers/wsProxyHandler';
 import { tunnelRoutes } from '../handlers/tunnelHandler';
 import { sshKeyRoutes } from '../handlers/sshKeyHandler';
+import { rolloutRoutes } from '../handlers/rolloutHandler';
+import { feedbackRoutes } from '../handlers/feedbackHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
@@ -108,6 +110,8 @@ export function registerRoutes(app: any) {
     tunnelRoutes(app, '/api');
     sshKeyRoutes(app, '/api');
     serverSubuserRoutes(app, '/api');
+    rolloutRoutes(app, '/api');
+    feedbackRoutes(app, '/api');
     publicRoutes(app, '');
     applicationRoutes(app, '/api');
 }
