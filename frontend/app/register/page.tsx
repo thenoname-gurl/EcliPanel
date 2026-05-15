@@ -1100,6 +1100,8 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      <div className="absolute -bottom-40 left-0 w-full h-16 sm:h-20 lg:h-23 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
     </div>
   );
 }
