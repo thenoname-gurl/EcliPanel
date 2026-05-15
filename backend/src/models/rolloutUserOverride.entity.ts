@@ -13,6 +13,9 @@ export class RolloutUserOverride {
   @Column()
   userId: number;
 
+  @Column({ length: 32, nullable: true })
+  treatment: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }
