@@ -167,6 +167,94 @@ function InfoItem({ icon: Icon, label, value, mono, copyable }: {
   )
 }
 
+function JsonBlock({ label, data }: { label: string; data: unknown }) {
+  const [open, setOpen] = useState(true)
+  const isComplex = typeof data === 'object' && data !== null
+
+  if (!isComplex) {
+    return (
+      <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden">
+        <p className="text-[10px] sm:text-xs text-muted-foreground truncate mb-1">{label}</p>
+        <p className="font-mono text-[10px] sm:text-xs text-foreground break-all">
+          {data !== null ? String(data) : "-"}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-secondary/20 min-w-0 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 w-full p-2.5 sm:p-3 hover:bg-secondary/40 transition-colors text-left"
+      >
+        <span className="text-muted-foreground text-[8px] w-2.5">{open ? '▼' : '▶'}</span>
+        <p className="text-[10px] sm:text-xs text-muted-foreground truncate flex-1">{label}</p>
+        <span className="text-[10px] text-muted-foreground font-mono">
+          {Array.isArray(data) ? `[${data.length}]` : `{${Object.keys(data).length}}`}
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-border/40">
+          <EntryList value={data} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EntryList({ value }: { value: object }) {
+  const entries = Array.isArray(value)
+    ? value.map((v, i) => [String(i), v] as [string, unknown])
+    : Object.entries(value)
+
+  return (
+    <div className="divide-y divide-border/40 font-mono text-[10px] sm:text-xs">
+      {entries.map(([key, val]) => (
+        <Entry key={key} k={key} v={val} />
+      ))}
+    </div>
+  )
+}
+
+function Entry({ k, v }: { k: string; v: unknown }) {
+  const [open, setOpen] = useState(false)
+  const isComplex = typeof v === 'object' && v !== null
+  const isArray = Array.isArray(v)
+  const entries = isComplex
+    ? (isArray ? v.map((x, i) => [String(i), x]) : Object.entries(v)) as [string, unknown][]
+    : []
+
+  if (!isComplex) {
+    return (
+      <div className="flex items-start gap-1.5 px-2.5 sm:px-3 py-1 hover:bg-secondary/20">
+        <span className="text-muted-foreground shrink-0">"{k}":</span>
+        <span className="text-foreground break-all">
+          {v === null ? <span className="text-muted-foreground italic">null</span> : typeof v === 'string' ? `"${v}"` : String(v)}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 w-full px-2.5 sm:px-3 py-1 hover:bg-secondary/30 transition-colors text-left"
+      >
+        <span className="text-muted-foreground text-[8px] w-2.5">{open ? '▼' : '▶'}</span>
+        <span className="text-muted-foreground shrink-0">"{k}":</span>
+        <span className="text-muted-foreground">{isArray ? `[${v.length}]` : `{${v.length}}`}</span>
+      </button>
+      {open && entries.length > 0 && (
+        <div className="ml-4 border-l border-border/40">
+          <EntryList value={v} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EmptyState({ icon: Icon = AlertCircle, title, message }: {
   icon?: any
   title?: string
@@ -581,12 +669,10 @@ export default function AccountActivity() {
                               {item.metadata && Object.keys(item.metadata).length > 0 && (
                                 <div className="pt-2 border-t border-border min-w-0 overflow-hidden">
                                   <p className="text-xs text-muted-foreground mb-2">{t("details.metadata")}</p>
-                                  <div className="rounded-md border border-border bg-background overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                      <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
-                                        {JSON.stringify(item.metadata, null, 2)}
-                                      </pre>
-                                    </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 min-w-0">
+                                    {Object.entries(item.metadata).map(([key, value]) => (
+                                      <JsonBlock key={key} label={key} data={value} />
+                                    ))}
                                   </div>
                                 </div>
                               )}
@@ -661,32 +747,31 @@ export default function AccountActivity() {
                   <InfoItem icon={User} label={t("details.userId")} value={selectedLog.userId?.toString() || "-"} mono />
                 </div>
 
-                {/* All Properties */}
-                <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">{t("details.allProperties")}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                    {Object.entries(selectedLog).map(([key, value]) => (
-                      <div key={key} className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-2.5 min-w-0 overflow-hidden">
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{key}</p>
-                        <p className="mt-1 font-mono text-[10px] sm:text-xs text-foreground break-all line-clamp-2">
-                          {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? "-")}
-                        </p>
-                      </div>
-                    ))}
+                {/* Metadata Fields */}
+                {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
+                  <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{t("details.metadata")}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 min-w-0">
+                      {Object.entries(selectedLog.metadata).map(([key, value]) => (
+                        <JsonBlock key={key} label={key} data={value} />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Raw JSON */}
-                <div className="pt-3 border-t border-border min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">{t("details.rawJson")}</p>
-                  <div className="rounded-md border border-border bg-background overflow-hidden">
+                {/* Raw Data */}
+                <details className="pt-3 border-t border-border min-w-0 overflow-hidden group">
+                  <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none list-none flex items-center gap-1.5 before:content-['▶'] before:text-[10px] before:transition-transform group-open:before:rotate-90">
+                    {t("details.rawJson")}
+                  </summary>
+                  <div className="mt-2 rounded-md border border-border bg-background overflow-hidden">
                     <div className="overflow-x-auto">
                       <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
                         {JSON.stringify(selectedLog, null, 2)}
                       </pre>
                     </div>
                   </div>
-                </div>
+                </details>
               </div>
             </div>
           )}
