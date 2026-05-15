@@ -35,7 +35,7 @@ export function InputField({
       {label && (
         <label
           htmlFor={name}
-          className="block text-[13px] font-medium text-foreground/80"
+          className="block text-xl font-medium text-foreground/80"
         >
           {label}
           {required && <span className="text-destructive ml-0.5">*</span>}
@@ -67,10 +67,9 @@ export function InputField({
           autoComplete={autoComplete}
           aria-required={required}
           className={cn(
-            "w-full rounded-xl border bg-background py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all duration-150",
-            "border-border/60",
-            "focus:border-primary focus:ring-2 focus:ring-primary/20",
-            "hover:border-muted-foreground/40",
+            "w-full border bg-black md:transparent py-3 text-[18px] text-white placeholder:text-muted-foreground/80 font-mono outline-none transition-all duration-150",
+            "border-white/20",
+            "focus:ring-2 focus:ring-white/50",
             Icon ? "pl-10 pr-3" : "px-3.5",
             rightElement && "pr-11",
           )}
