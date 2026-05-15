@@ -4043,7 +4043,13 @@
       "cpu": "CPU",
       "memory": "Memory",
       "disk": "Disk",
-      "net": "Net ↑↓"
+      "net": "Net ↑↓",
+      "currentPage": "Current Page",
+      "today": "Today",
+      "logins": "Logins",
+      "serverEvents": "Server Events",
+      "onThisPage": "On this page",
+      "page": "Page {page}"
     },
     "firewall": {
       "description": "Manage extra forwarded ports for KVM VMs using VM_PORTS.",
@@ -4130,7 +4136,11 @@
       "disabled": "disabled",
       "unknown": "unknown",
       "accessRevokedTitle": "Access revoked",
-      "accessRevokedDescription": "Your access to this server has been removed. Reloading will update your permissions."
+      "accessRevokedDescription": "Your access to this server has been removed. Reloading will update your permissions.",
+      "loadingActivity": "Loading activity…",
+      "noActivityTitle": "No Activity Found",
+      "noActivityMessage": "No activity recorded for this server yet.",
+      "noActivityForFilter": "No {filter} events recorded yet."
     },
     "actions": {
       "start": "Start",
@@ -4331,14 +4341,6 @@
         "updatedProfile": "Updated profile settings"
       }
     },
-    "stats": {
-      "currentPage": "Current Page",
-      "today": "Today",
-      "logins": "Logins",
-      "serverEvents": "Server Events",
-      "onThisPage": "On this page",
-      "page": "Page {page}"
-    },
     "filters": {
       "title": "Filter Events",
       "clear": "Clear",
@@ -4354,12 +4356,6 @@
       "shown": "{count} shown",
       "unknownAction": "Unknown action",
       "unknown": "Unknown"
-    },
-    "states": {
-      "loadingActivity": "Loading activity…",
-      "noActivityTitle": "No Activity Found",
-      "noActivityMessage": "No activity recorded for this server yet.",
-      "noActivityForFilter": "No {filter} events recorded yet."
     },
     "details": {
       "eventDetails": "Event Details",
@@ -4971,7 +4967,11 @@
     "states": {
       "invalidOrganisation": "Invalid organisation.",
       "loading": "Loading...",
-      "organisationNotFound": "Organisation not found."
+      "organisationNotFound": "Organisation not found.",
+      "loadingActivity": "Loading activity…",
+      "noActivityTitle": "No Activity Found",
+      "noActivityMessage": "No activity recorded for this organisation yet.",
+      "noActivityForFilter": "No {filter} events recorded yet."
     },
     "members": {
       "count": "{count} members",
@@ -5057,7 +5057,7 @@
     "stats": {
       "currentPage": "Current Page",
       "today": "Today",
-      "logins": "Membership",
+      "logins": "Logins",
       "serverEvents": "Server Events",
       "onThisPage": "On this page",
       "page": "Page {page}"
@@ -5077,12 +5077,6 @@
       "shown": "{count} shown",
       "unknownAction": "Unknown action",
       "unknown": "Unknown"
-    },
-    "states": {
-      "loadingActivity": "Loading activity…",
-      "noActivityTitle": "No Activity Found",
-      "noActivityMessage": "No activity recorded for this organisation yet.",
-      "noActivityForFilter": "No {filter} events recorded yet."
     },
     "details": {
       "eventDetails": "Event Details",
