@@ -556,7 +556,7 @@ export default function LoginPage() {
                   {passkeyLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {t("loading")}
+                      {t("waitingPasskey")}
                     </>
                   ) : (
                     <>
@@ -570,6 +570,8 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      <div className="absolute bottom-0 left-0 w-full h-16 sm:h-20 lg:h-23 bg-linear-to-b from-transparent to-[#0a0a0f] z-20" />
     </div>
   );
 }
