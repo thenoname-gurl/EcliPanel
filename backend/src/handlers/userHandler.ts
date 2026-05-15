@@ -657,12 +657,6 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
 
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users may create parent registration invites.' };
-    }
-
     const body = (ctx.body as any) || {};
     const childEmail = typeof body.childEmail === 'string' ? body.childEmail.trim().toLowerCase() : undefined;
     const inheritBilling = body.inheritBilling === true;
@@ -797,12 +791,6 @@ export async function userRoutes(app: any, prefix = '') {
       return { error: 'Not logged in' };
     }
 
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users may accept child link requests.' };
-    }
-
     const requestId = Number(ctx.params['id']);
     if (!Number.isInteger(requestId) || requestId <= 0) {
       ctx.set.status = 400;
@@ -872,11 +860,6 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users may update child account details.' };
-    }
 
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
@@ -929,12 +912,6 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users can view child accounts.' };
-    }
-
     const userRepo = AppDataSource.getRepository(User);
     const children = await userRepo.find({ where: { parentId: requester.id }, order: { id: 'ASC' } });
     return { success: true, children: await Promise.all(children.map((child) => safeUser(child))) };
@@ -974,12 +951,6 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users can view child servers.' };
-    }
-
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
@@ -1010,19 +981,13 @@ export async function userRoutes(app: any, prefix = '') {
         name: server.name || server.uuid,
         status: server.dmca ? 'dmca' : server.hibernated ? 'hibernated' : server.suspended ? 'suspended' : 'active',
         template: server.dockerImage || server.startup || 'Unknown',
-        memory: server.memory,
-        disk: server.disk,
-        cpu: server.cpu,
-        maxDatabases: server.maxDatabases,
-        maxBackups: server.maxBackups,
-        nodeId: server.nodeId,
         nodeName: nodeMap.get(server.nodeId)?.name || null,
       })),
     };
   }, {
     beforeHandle: authenticate,
     response: {
-      200: t.Object({ success: t.Boolean(), servers: t.Array(t.Object({ uuid: t.String(), name: t.String(), status: t.String(), template: t.String(), memory: t.Number(), disk: t.Number(), cpu: t.Number(), maxDatabases: t.Number(), maxBackups: t.Number(), nodeId: t.Number(), nodeName: t.Optional(t.String()) })) }),
+      200: t.Object({ success: t.Boolean(), servers: t.Array(t.Object({ uuid: t.String(), name: t.String(), status: t.String(), template: t.String(), nodeName: t.Optional(t.String()) })) }),
       400: t.Object({ error: t.String() }),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),
@@ -1037,12 +1002,6 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users can view child billing history.' };
-    }
-
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
@@ -1075,12 +1034,6 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users can view child organisations.' };
-    }
-
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
@@ -1126,11 +1079,7 @@ export async function userRoutes(app: any, prefix = '') {
       ctx.set.status = 401;
       return { error: 'Not logged in' };
     }
-    const parentAge = getAgeFromDate(requester.dateOfBirth);
-    if (parentAge === null || !isAdultByCountry(parentAge, requester.billingCountry)) {
-      ctx.set.status = 403;
-      return { error: 'parent_access_required', message: 'Only adult users may assign child accounts.' };
-    }
+
 
     const payload = ctx.body as any;
     const childUserId = Number(payload?.childUserId);
