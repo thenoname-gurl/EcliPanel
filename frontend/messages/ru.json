@@ -4043,7 +4043,13 @@
       "cpu": "CPU",
       "memory": "Память",
       "disk": "Диск",
-      "net": "Сеть ↑↓"
+      "net": "Сеть ↑↓",
+      "currentPage": "Текущая страница",
+      "today": "Сегодня",
+      "logins": "Входы",
+      "serverEvents": "События сервера",
+      "onThisPage": "На этой странице",
+      "page": "Страница {page}"
     },
     "firewall": {
       "description": "Управляйте дополнительными пробросами портов для KVM ВМ через VM_PORTS.",
@@ -4130,7 +4136,11 @@
       "disabled": "отключено",
       "unknown": "неизвестно",
       "accessRevokedTitle": "Доступ отозван",
-      "accessRevokedDescription": "Ваш доступ к этому серверу был удалён. Обновите страницу, чтобы проверить текущие права."
+      "accessRevokedDescription": "Ваш доступ к этому серверу был удалён. Обновите страницу, чтобы проверить текущие права.",
+      "loadingActivity": "Загрузка активности…",
+      "noActivityTitle": "Активность не найдена",
+      "noActivityMessage": "Активность для этого сервера пока не зафиксирована.",
+      "noActivityForFilter": "События {filter} не зафиксированы."
     },
     "actions": {
       "start": "Запустить",
@@ -4331,14 +4341,6 @@
         "updatedProfile": "Обновлены данные профиля"
       }
     },
-    "stats": {
-      "currentPage": "Текущая страница",
-      "today": "Сегодня",
-      "logins": "Входы",
-      "serverEvents": "События сервера",
-      "onThisPage": "На этой странице",
-      "page": "Страница {page}"
-    },
     "filters": {
       "title": "Фильтр событий",
       "clear": "Очистить",
@@ -4354,12 +4356,6 @@
       "shown": "{count} показано",
       "unknownAction": "Неизвестное действие",
       "unknown": "Неизвестно"
-    },
-    "states": {
-      "loadingActivity": "Загрузка активности…",
-      "noActivityTitle": "Активность не найдена",
-      "noActivityMessage": "Активность для этого сервера пока не зафиксирована.",
-      "noActivityForFilter": "События {filter} не зафиксированы."
     },
     "details": {
       "eventDetails": "Детали события",
@@ -4971,7 +4967,11 @@
     "states": {
       "invalidOrganisation": "Неверная организация.",
       "loading": "Загрузка...",
-      "organisationNotFound": "Организация не найдена."
+      "organisationNotFound": "Организация не найдена.",
+      "loadingActivity": "Загрузка активности…",
+      "noActivityTitle": "Активность не найдена",
+      "noActivityMessage": "Активность для этой организации пока не зафиксирована.",
+      "noActivityForFilter": "События {filter} не зафиксированы."
     },
     "members": {
       "count": "Участников: {count}",
@@ -5077,12 +5077,6 @@
       "shown": "{count} показано",
       "unknownAction": "Неизвестное действие",
       "unknown": "Неизвестно"
-    },
-    "states": {
-      "loadingActivity": "Загрузка активности…",
-      "noActivityTitle": "Активность не найдена",
-      "noActivityMessage": "Активность для этой организации пока не зафиксирована.",
-      "noActivityForFilter": "События {filter} не зафиксированы."
     },
     "details": {
       "eventDetails": "Детали события",
