@@ -131,7 +131,23 @@ function isValidPort(port: any): port is number {
   return Number.isInteger(num) && num > 0 && num <= 65535;
 }
 
-function buildAllocationMappings(alloc: any): Record<string, number[]> {
+function parsePortList(raw: any): Set<number> {
+  const ports = new Set<number>();
+  if (raw == null) return ports;
+  const values = Array.isArray(raw) ? raw : String(raw).split(/[\s,]+/);
+  for (const value of values) {
+    const port = Number(String(value).trim());
+    if (Number.isInteger(port) && port > 0 && port <= 65535) {
+      ports.add(port);
+    }
+  }
+  return ports;
+}
+
+function buildAllocationMappings(
+  alloc: any,
+  nodeOverrides?: { portRangeEnd?: number; ipv6ExcludedPorts?: string }
+): Record<string, number[]> {
   const mappings: Record<string, number[]> = {};
 
   for (const [ip, ports] of Object.entries(alloc.mappings || {})) {
@@ -141,6 +157,31 @@ function buildAllocationMappings(alloc: any): Record<string, number[]> {
     const validPorts = portList.map((p: any) => Number(p)).filter(isValidPort);
     if (validPorts.length > 0) {
       mappings[normalizedIp] = validPorts;
+    }
+  }
+
+  const dedicatedIps = alloc.dedicatedIps;
+  if (Array.isArray(dedicatedIps) && dedicatedIps.length > 0) {
+    const excludedPorts = nodeOverrides?.ipv6ExcludedPorts
+      ? parsePortList(nodeOverrides.ipv6ExcludedPorts)
+      : new Set<number>();
+    const maxPort = nodeOverrides?.portRangeEnd ?? 65535;
+
+    for (const di of dedicatedIps) {
+      if (!di.ip) continue;
+      const normalizedIp = normalizeAllocationIp(String(di.ip));
+      if (normalizedIp.includes(':')) continue;
+      const allPorts: number[] = [];
+      for (let p = 1; p <= maxPort; p++) {
+        if (!excludedPorts.has(p)) {
+          allPorts.push(p);
+        }
+      }
+      if (allPorts.length > 0) {
+        const existing = new Set(mappings[normalizedIp] || []);
+        for (const p of allPorts) existing.add(p);
+        mappings[normalizedIp] = [...existing].sort((a, b) => a - b);
+      }
     }
   }
 
@@ -196,7 +237,7 @@ function buildAllocationDefault(alloc: any): { ip: string; port: number } | null
   return null;
 }
 
-function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]): object {
+function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[], nodeOverrides?: { portRangeEnd?: number; ipv6ExcludedPorts?: string }): object {
   const eggProc = egg?.processConfig || {};
   const cfgProc = cfg.processConfig || {};
   const proc = { ...eggProc, ...cfgProc };
@@ -205,7 +246,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
   const fileDenylist = egg?.fileDenylist ?? [];
   const alloc = cfg.allocations || {};
 
-  const mappings = buildAllocationMappings(alloc);
+  const mappings = buildAllocationMappings(alloc, nodeOverrides);
   const fqdns = buildAllocationFqdns(alloc, mappings);
   const defaultAlloc = buildAllocationDefault(alloc);
 
@@ -350,8 +391,9 @@ export async function remoteRoutes(app: any, prefix: string) {
       }
     }
 
+    const nodeOverrides = { portRangeEnd: node.portRangeEnd, ipv6ExcludedPorts: node.ipv6ExcludedPorts };
     return {
-      data: configs.map(cfg => buildServerObject(cfg, eggMap[cfg.eggId ?? -1] ?? null, mountMap[cfg.uuid])),
+      data: configs.map(cfg => buildServerObject(cfg, eggMap[cfg.eggId ?? -1] ?? null, mountMap[cfg.uuid], nodeOverrides)),
       meta: {
         current_page: pageNum + 1,
         last_page: totalPages,
@@ -393,7 +435,8 @@ export async function remoteRoutes(app: any, prefix: string) {
       : [];
 
     try {
-      const obj = buildServerObject(cfg, egg, mounts);
+      const nodeOverrides = { portRangeEnd: node.portRangeEnd, ipv6ExcludedPorts: node.ipv6ExcludedPorts };
+      const obj = buildServerObject(cfg, egg, mounts, nodeOverrides);
       return obj;
     } catch (err: any) {
       (app as any).log?.error?.({ err, uuid, nodeId: node.id }, 'Failed to build server object for Wings');
@@ -527,7 +570,8 @@ export async function remoteRoutes(app: any, prefix: string) {
       : [];
 
     ctx.set.status = 200;
-    return buildServerObject(cfg, egg, mounts);
+    const nodeOverrides = { portRangeEnd: node.portRangeEnd, ipv6ExcludedPorts: node.ipv6ExcludedPorts };
+    return buildServerObject(cfg, egg, mounts, nodeOverrides);
   }, {
     beforeHandle: authenticateWings,
     detail: { summary: 'Sync server config (Wings callback)', tags: ['Remote'] },

@@ -24,6 +24,7 @@ import { createExportJob, getExportJob, listExportJobs } from '../services/expor
 import { ExportJob } from '../models/exportJob.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } from './remoteHandler';
+import { requireFeature } from '../middleware/featureToggle';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
@@ -49,6 +50,7 @@ import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
 import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import { isValidIpv6, isIpv6InSubnet, parseIpv6, formatIpv6 } from '../utils/ipv6';
 import { createActivityLog } from './logHandler';
 
 function getAgeFromDate(date?: Date | string | null): number | null {
@@ -3697,6 +3699,8 @@ export async function adminRoutes(app: any, prefix = '') {
     if (environment !== undefined) cfg.environment = environment;
     if (eggId !== undefined) cfg.eggId = Number(eggId);
     if (allocations !== undefined) {
+      const existingAlloc = cfg.allocations as any || {};
+      const existingDedicatedIps = Array.isArray(existingAlloc.dedicatedIps) ? existingAlloc.dedicatedIps : [];
       if (Array.isArray(allocations) && allocations.length > 0) {
         const defAlloc = allocations.find((a: any) => a.is_default) || allocations[0];
         const mappings: Record<string, number[]> = {};
@@ -3711,9 +3715,16 @@ export async function adminRoutes(app: any, prefix = '') {
           mappings[ip].push(Number(a.port));
           if (a.fqdn) fqdns[allocationKey(ip, Number(a.port))] = String(a.fqdn);
         }
-        cfg.allocations = { default: { ip: String(defAlloc.ip), port: Number(defAlloc.port) }, mappings, ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}) } as any;
+        cfg.allocations = {
+          default: { ip: String(defAlloc.ip), port: Number(defAlloc.port) },
+          mappings,
+          ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}),
+          ...(existingDedicatedIps.length > 0 ? { dedicatedIps: existingDedicatedIps } : {}),
+        } as any;
       } else {
-        cfg.allocations = null as any;
+        cfg.allocations = existingDedicatedIps.length > 0
+          ? { dedicatedIps: existingDedicatedIps } as any
+          : null as any;
       }
     }
     if (autoSyncOnEggChange !== undefined) cfg.autoSyncOnEggChange = Boolean(autoSyncOnEggChange);
@@ -3789,6 +3800,186 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Delete a server from any node', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/servers/:id/dedicated-ip', async (ctx) => {
+    const featureErr = await requireFeature(ctx, 'dedicatedIps');
+    if (featureErr !== true) return featureErr;
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+    if (adminErr !== true) return adminErr;
+    const serverId = ctx.params.id as string;
+    const { ip, type, fqdn } = ctx.body as any;
+
+    if (!ip || !type) {
+      ctx.set.status = 400;
+      return { error: 'ip and type are required' };
+    }
+    if (type !== 'ipv4' && type !== 'ipv6') {
+      ctx.set.status = 400;
+      return { error: 'type must be ipv4 or ipv6' };
+    }
+
+    if (type === 'ipv4' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(String(ip))) {
+      ctx.set.status = 400;
+      return { error: 'Invalid IPv4 address format' };
+    }
+    if (type === 'ipv6' && !isValidIpv6(String(ip))) {
+      ctx.set.status = 400;
+      return { error: 'Invalid IPv6 address format' };
+    }
+
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    if (!cfg.kvmPassthroughEnabled) {
+      ctx.set.status = 400;
+      return { error: 'Dedicated IP assignment is only supported for KVM servers.' };
+    }
+
+    const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
+    if (!node) {
+      ctx.set.status = 400;
+      return { error: 'Server node not found' };
+    }
+
+    const alloc = (cfg.allocations as any) || { mappings: {}, owners: {}, dedicatedIps: [] };
+    alloc.mappings = alloc.mappings || {};
+    alloc.owners = alloc.owners || {};
+    alloc.dedicatedIps = Array.isArray(alloc.dedicatedIps) ? alloc.dedicatedIps : [];
+
+    const normalizedIp = String(ip).trim();
+
+    if (alloc.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
+      ctx.set.status = 400;
+      return { error: 'This IP is already assigned as a dedicated IP to this server.' };
+    }
+
+    const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+    for (const c of nodeConfigs) {
+      const a = c.allocations as any;
+      if (!a) continue;
+      if (a.dedicatedIps && Array.isArray(a.dedicatedIps)) {
+        if (a.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
+          ctx.set.status = 400;
+          return { error: 'This IP is already in use as a dedicated IP on this node.' };
+        }
+      }
+      if (a.mappings && Object.keys(a.mappings).some((mip) => mip === normalizedIp)) {
+        ctx.set.status = 400;
+        return { error: 'This IP is already in use in allocations on this node.' };
+      }
+    }
+
+    alloc.dedicatedIps.push({ ip: normalizedIp, type, ...(fqdn ? { fqdn: String(fqdn).trim() } : {}) });
+
+    cfg.allocations = alloc;
+    await cfgRepo.save(cfg);
+
+    const base = (node as any).backendWingsUrl || node.url;
+    const svc = new WingsApiService(base, node.token);
+    await svc.syncServer(serverId, { allocations: alloc }).catch(() => {});
+
+    await createActivityLog({
+      userId: ctx.user?.id ?? 0,
+      action: 'server:dedicated-ip:assign',
+      targetId: serverId,
+      targetType: 'server',
+      metadata: { ip: normalizedIp, type, fqdn: fqdn || null },
+      ipAddress: ctx.ip,
+    });
+
+    return { success: true, ip: normalizedIp, type };
+  }, {
+    beforeHandle: [authenticate, authorize('admin:access')],
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        ip: t.String(),
+        type: t.String(),
+        fqdn: t.Optional(t.String()),
+      }),
+      response: {
+        200: t.Object({ success: t.Boolean(), ip: t.String(), type: t.String() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Assign a dedicated IP to a KVM server', tags: ['Admin'] },
+  });
+
+  app.delete(prefix + '/admin/servers/:id/dedicated-ip', async (ctx) => {
+    const featureErr = await requireFeature(ctx, 'dedicatedIps');
+    if (featureErr !== true) return featureErr;
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+    if (adminErr !== true) return adminErr;
+    const serverId = ctx.params.id as string;
+    const { ip } = ctx.body as any;
+
+    if (!ip) {
+      ctx.set.status = 400;
+      return { error: 'ip is required' };
+    }
+
+    const cfgRepo = AppDataSource.getRepository(ServerConfig);
+    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return { error: 'Server not found' };
+    }
+
+    const alloc = (cfg.allocations as any) || {};
+    const dedicatedIps = Array.isArray(alloc.dedicatedIps) ? alloc.dedicatedIps : [];
+    const idx = dedicatedIps.findIndex((d: any) => d.ip === String(ip).trim());
+    if (idx === -1) {
+      ctx.set.status = 404;
+      return { error: 'Dedicated IP not found on this server.' };
+    }
+
+    dedicatedIps.splice(idx, 1);
+    alloc.dedicatedIps = dedicatedIps;
+
+    if (alloc.mappings) delete alloc.mappings[String(ip).trim()];
+
+    cfg.allocations = alloc;
+    await cfgRepo.save(cfg);
+
+    const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
+    if (node) {
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
+      await svc.syncServer(serverId, { allocations: alloc }).catch(() => {});
+    }
+
+    await createActivityLog({
+      userId: ctx.user?.id ?? 0,
+      action: 'server:dedicated-ip:deassign',
+      targetId: serverId,
+      targetType: 'server',
+      metadata: { ip: String(ip).trim() },
+      ipAddress: ctx.ip,
+    });
+
+    return { success: true, removed: String(ip).trim() };
+  }, {
+    beforeHandle: [authenticate, authorize('admin:access')],
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ ip: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean(), removed: t.String() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Remove a dedicated IP from a KVM server', tags: ['Admin'] },
   });
 
   app.post(prefix + '/admin/servers', async (ctx) => {

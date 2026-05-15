@@ -352,16 +352,21 @@ export default function ApplicationsPage() {
   const [mySubmissions, setMySubmissions] = useState<ApplicationSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean> | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [formsRes, publicFormsRes, myRes] = await Promise.all([
+      const [settingsRes, formsRes, publicFormsRes, myRes] = await Promise.all([
+        apiFetch(API_ENDPOINTS.panelSettings).catch(() => null),
         apiFetch(API_ENDPOINTS.applicationsForms),
         apiFetch(API_ENDPOINTS.publicApplicationsForms),
         apiFetch(API_ENDPOINTS.applicationsMy),
       ])
+
+      const ft = settingsRes?.featureToggles || null
+      setFeatureToggles(ft)
 
       const merged: ApplicationForm[] = []
       const seen = new Set<number>()
@@ -372,6 +377,12 @@ export default function ApplicationsPage() {
           if (!Number.isFinite(id) || seen.has(id)) continue
           seen.add(id)
           merged.push(row as ApplicationForm)
+        }
+      }
+
+      if (ft?.dedicatedIps === false) {
+        for (let i = merged.length - 1; i >= 0; i--) {
+          if ((merged[i] as any).slug === 'ip-request') merged.splice(i, 1)
         }
       }
 
