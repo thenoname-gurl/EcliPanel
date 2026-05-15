@@ -3,6 +3,7 @@ import { isIP } from 'net';
 import { AppDataSource } from '../config/typeorm';
 import { MailMessage } from '../models/mailMessage.entity';
 import { User } from '../models/user.entity';
+import { Notification } from '../models/notification.entity';
 import { getMailboxAccountForUser } from '../services/mailcowService';
 
 function headerValueToString(value: any): string | undefined {
@@ -502,6 +503,23 @@ export async function createMailboxMessageForUser(user: User, params: {
 
   try {
     await repo.save(entity);
+    try {
+      const notificationRepo = AppDataSource.getRepository(Notification);
+      const excerpt = (entity.body || '').toString().slice(0, 300);
+      const baseUrl = String(process.env.PANEL_URL || 'https://ecli.app').replace(/\/+$/, '');
+      const url = baseUrl ? `${baseUrl}/dashboard/mailbox?messageId=${encodeURIComponent(String(messageId))}` : `/dashboard/mailbox?messageId=${encodeURIComponent(String(messageId))}`;
+      const notification = notificationRepo.create({
+        userId: user.id,
+        type: 'mailbox',
+        title: entity.subject || 'New mailbox message',
+        body: excerpt || entity.subject || 'You have a new mailbox message',
+        url,
+        read: false,
+      });
+      await notificationRepo.save(notification).catch(() => null);
+    } catch (err: any) {
+      console.warn('[mailboxMessage] failed to create notification for user', user.id, err?.message || err);
+    }
   } catch (err: any) {
     console.warn('[mailboxMessage] failed to create mailbox message for user', user.id, err?.message || err);
   }
