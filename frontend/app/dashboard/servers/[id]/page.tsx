@@ -1981,7 +1981,14 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
   const [ipRequestType, setIpRequestType] = useState<'ipv4' | 'ipv6'>('ipv6')
   const [ipRequestReason, setIpRequestReason] = useState("")
   const [ipRequestError, setIpRequestError] = useState<string | null>(null)
+  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean> | null>(null)
   const pageSize = 25
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.panelSettings).then(data => {
+      if (data?.featureToggles) setFeatureToggles(data.featureToggles)
+    }).catch(() => {})
+  }, [])
 
   const ipv6Allocation = useMemo(
     () =>
@@ -1996,12 +2003,25 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
     setAssignedIpv6(String(ipv6Allocation?.ip || ""))
   }, [ipv6Allocation])
 
-  useEffect(() => {
-    apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
-      .then((data) => setAllocations(Array.isArray(data) ? data : []))
-      .catch(() => setAllocations([]))
-      .finally(() => setLoading(false))
+  const [excludedPorts, setExcludedPorts] = useState<string | null>(null)
+  const [dedicatedIps, setDedicatedIps] = useState<any[]>([])
+
+  const refreshAllocations = useCallback(async () => {
+    const data = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
+    if (Array.isArray(data)) {
+      setAllocations(data)
+      setExcludedPorts(null)
+      setDedicatedIps([])
+    } else {
+      setAllocations(Array.isArray(data.allocations) ? data.allocations : [])
+      setExcludedPorts(data.excludedPorts || null)
+      setDedicatedIps(Array.isArray(data.allocations) ? data.allocations.filter((a: any) => a.is_dedicated) : [])
+    }
   }, [serverId])
+
+  useEffect(() => {
+    refreshAllocations().catch(() => { setAllocations([]); setExcludedPorts(null); setDedicatedIps([]) }).finally(() => setLoading(false))
+  }, [refreshAllocations])
 
   useEffect(() => {
     setAllocationPage(1)
@@ -2025,7 +2045,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
   )
 
   const hasSecondaryAllocations = useMemo(
-    () => allocations.some((alloc) => !alloc.is_default && !alloc.ipv6),
+    () => allocations.some((alloc) => !alloc.is_default && !alloc.ipv6 && !alloc.is_dedicated),
     [allocations]
   )
 
@@ -2050,8 +2070,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
         method: "POST",
         body: JSON.stringify({ count: 1 }),
       })
-      const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
-      setAllocations(Array.isArray(refreshed) ? refreshed : [])
+      await refreshAllocations()
       return result
     } catch (e: any) {
       setRequestError(e?.message || t("network.requestFailed"))
@@ -2091,8 +2110,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       await apiFetch(`${API_ENDPOINTS.serverAllocations.replace(":id", serverId)}/secondary`, {
         method: "DELETE",
       })
-      const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
-      setAllocations(Array.isArray(refreshed) ? refreshed : [])
+      await refreshAllocations()
     } catch (e: any) {
       setRequestError(e?.message || t("network.failed"))
     } finally {
@@ -2109,8 +2127,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
         method: "DELETE",
         body: JSON.stringify({ ip, port }),
       })
-      const refreshed = await apiFetch(API_ENDPOINTS.serverAllocations.replace(":id", serverId))
-      setAllocations(Array.isArray(refreshed) ? refreshed : [])
+      await refreshAllocations()
     } catch (e: any) {
       alert(e?.message || t("network.failed"))
     } finally {
@@ -2127,7 +2144,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
         icon={Network}
         action={
           <div className="flex items-center gap-2">
-            {!hasIpv6Allocation && (
+            {!hasIpv6Allocation && featureToggles?.dedicatedIps !== false && (
               <Button size="sm" onClick={() => setIpRequestOpen(true)} disabled={requesting}>
                 {requesting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
@@ -2167,6 +2184,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           IPv6 assigned: <span className="font-mono">{assignedIpv6}</span>
         </div>
       ) : null}
+      {featureToggles?.dedicatedIps !== false && (
       <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
@@ -2218,6 +2236,8 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
+      {featureToggles?.dedicatedIps !== false && (
       <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
           <DialogHeader>
@@ -2269,6 +2289,28 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
+
+      {featureToggles?.dedicatedIps !== false && dedicatedIps.length > 0 && (
+        <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500 whitespace-nowrap">
+              Dedicated IP
+            </Badge>
+            <span className="text-xs text-muted-foreground">This server has dedicated IPs assigned</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {dedicatedIps.map((di: any, i: number) => (
+              <div key={i} className="flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2.5 py-1">
+                <span className="font-mono text-xs text-foreground">{di.ip}</span>
+                {di.fqdn && (
+                  <span className="text-[10px] text-muted-foreground">({di.fqdn})</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {ipv6Allocation && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
@@ -2289,6 +2331,15 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       {requestError && (
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive break-words">
           {requestError}
+        </div>
+      )}
+
+      {excludedPorts && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            <span className="font-medium">Unavailable ports:</span> The following ports on this node are excluded and cannot be assigned:{" "}
+            <span className="font-mono text-[11px]">{excludedPorts}</span>
+          </p>
         </div>
       )}
 
@@ -2347,6 +2398,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           {pagedAllocations.map((alloc: any, i: number) => {
             const key = `${alloc.ip}:${alloc.port}`
             const isIpv6AllocationRow = Boolean(alloc.ipv6) || (String(alloc.ip ?? "").includes(":") && Number(alloc.port) === 0)
+            const isDedicatedRow = Boolean(alloc.is_dedicated)
             return (
               <div
                 key={i}
@@ -2368,6 +2420,25 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                         : "IPv6 allocation is ready for firewall forwarding."}
                     </p>
                   </div>
+                ) : isDedicatedRow ? (
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="font-mono text-sm text-foreground truncate min-w-0 break-all">
+                        {alloc.ip}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap border-violet-500/30 text-violet-500">
+                        Dedicated IP
+                      </Badge>
+                    </div>
+                    {alloc.fqdn && alloc.fqdn !== alloc.ip && (
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
+                        {alloc.fqdn}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      All ports available for assignment via Firewall
+                    </p>
+                  </div>
                 ) : (
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -2385,7 +2456,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                     )}
                   </div>
                 )}
-                {!alloc.is_default && !isIpv6AllocationRow && (
+                {!alloc.is_default && !isIpv6AllocationRow && !isDedicatedRow && (
                   <Button
                     size="sm"
                     variant="outline"

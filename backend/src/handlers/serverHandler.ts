@@ -883,6 +883,13 @@ export async function serverRoutes(app: any, prefix = '') {
       );
       if (cfg && norm && norm.configuration) {
         norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
+        const dbAlloc = cfg.allocations as any;
+        if (dbAlloc?.dedicatedIps) {
+          norm.configuration.allocations = {
+            ...(norm.configuration.allocations || {}),
+            dedicatedIps: dbAlloc.dedicatedIps,
+          };
+        }
       }
       return {
         ...norm,
@@ -916,6 +923,15 @@ export async function serverRoutes(app: any, prefix = '') {
             normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
             cfg,
           );
+          if (norm?.configuration) {
+            const dbAlloc = cfg.allocations as any;
+            if (dbAlloc?.dedicatedIps) {
+              norm.configuration.allocations = {
+                ...(norm.configuration.allocations || {}),
+                dedicatedIps: dbAlloc.dedicatedIps,
+              };
+            }
+          }
           return {
             ...norm,
             node: nodeName,

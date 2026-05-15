@@ -23,6 +23,8 @@ import {
   RefreshCw,
   Copy,
   Server,
+  ArrowLeftRight,
+  AlertTriangle,
 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
@@ -130,6 +132,18 @@ export default function InfraNodesPage() {
   const [nodeServerLimit, setNodeServerLimit] = useState("")
   const [nodeLoading, setNodeLoading] = useState(false)
 
+  // Mass allocation change
+  const [massAllocNode, setMassAllocNode] = useState<Node | null>(null)
+  const [massAllocOldIp, setMassAllocOldIp] = useState("")
+  const [massAllocNewIp, setMassAllocNewIp] = useState("")
+  const [massAllocLoading, setMassAllocLoading] = useState(false)
+  const [massAllocResult, setMassAllocResult] = useState<any>(null)
+
+  // Reboot all servers
+  const [rebootNode, setRebootNode] = useState<Node | null>(null)
+  const [rebootLoading, setRebootLoading] = useState(false)
+  const [rebootResult, setRebootResult] = useState<any>(null)
+
   // ── Load data ──
   const loadNodes = useCallback(async () => {
     setLoading(true)
@@ -224,6 +238,75 @@ export default function InfraNodesPage() {
     setNodeCpu(node.cpu != null ? String(node.cpu) : "")
     setNodeServerLimit(node.serverLimit != null ? String(node.serverLimit) : "")
     setGeneratedToken(null)
+  }
+
+  function openMassAlloc(node: Node) {
+    setMassAllocNode(node)
+    setMassAllocOldIp(node.defaultIp || "")
+    setMassAllocNewIp("")
+    setMassAllocResult(null)
+  }
+
+  async function submitMassAlloc() {
+    if (!massAllocNode || !massAllocOldIp.trim() || !massAllocNewIp.trim()) return
+    setMassAllocLoading(true)
+    setMassAllocResult(null)
+    try {
+      const res = await apiFetch(
+        `${API_ENDPOINTS.nodes}/${massAllocNode.id}/mass-allocation-change`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            oldIp: massAllocOldIp.trim(),
+            newIp: massAllocNewIp.trim(),
+          }),
+        }
+      )
+      setMassAllocResult(res)
+    } catch (e: any) {
+      setMassAllocResult({ error: e?.message || "Request failed" })
+    } finally {
+      setMassAllocLoading(false)
+    }
+  }
+
+  async function submitReboot() {
+    if (!rebootNode) return
+    setRebootLoading(true)
+    setRebootResult({ status: "starting", progress: 0, message: "Starting..." })
+    try {
+      const res = await apiFetch(
+        `${API_ENDPOINTS.nodes}/${rebootNode.id}/reboot-all-servers`,
+        { method: "POST" }
+      )
+      const opId = res.operationId
+      if (res.status === "completed") {
+        setRebootResult(res)
+        setRebootLoading(false)
+        return
+      }
+
+      const poll = async () => {
+        try {
+          const status = await apiFetch(
+            `${API_ENDPOINTS.nodes}/${rebootNode!.id}/reboot-status/${opId}`
+          )
+          setRebootResult(status)
+          if (status.status === "running") {
+            setTimeout(poll, 2000)
+          } else {
+            setRebootLoading(false)
+          }
+        } catch {
+          setRebootLoading(false)
+          setRebootResult((prev: any) => ({ ...prev, status: "failed", message: "Status check failed" }))
+        }
+      }
+      setTimeout(poll, 2000)
+    } catch (e: any) {
+      setRebootResult({ status: "failed", error: e?.message || "Request failed" })
+      setRebootLoading(false)
+    }
   }
 
   async function saveNode() {
@@ -381,7 +464,23 @@ export default function InfraNodesPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-2 pt-1 border-t border-border/50">
+                    <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-border/50">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openMassAlloc(node)}
+                        className="border-border h-7 px-2 text-xs gap-1"
+                      >
+                        <ArrowLeftRight className="h-3 w-3" /> Re-IP
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setRebootNode(node); setRebootResult(null) }}
+                        className="border-border h-7 px-2 text-xs gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" /> Reboot
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -752,6 +851,241 @@ export default function InfraNodesPage() {
             >
               {nodeLoading ? t("actions.saving") : nodeDialog === "new" ? t("actions.addNode") : t("actions.saveChanges")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Mass Allocation Change Dialog ════════════════════════════════ */}
+      <Dialog open={massAllocNode !== null} onOpenChange={(open) => {
+        if (!open) { setMassAllocNode(null); setMassAllocResult(null) }
+      }}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+              Mass Re-IP &mdash; {massAllocNode?.name || ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          {!massAllocResult ? (
+            <div className="flex flex-col gap-4 py-2">
+              <p className="text-xs text-muted-foreground">
+                Change the IP address for <strong>all servers</strong> on this node
+                from the old IP to a new IP. This updates every allocation, dedicated IP,
+                and FQDN reference across every server.
+              </p>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Old IP</label>
+                <input
+                  value={massAllocOldIp}
+                  onChange={(e) => setMassAllocOldIp(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  placeholder="0.0.0.0"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New IP</label>
+                <input
+                  value={massAllocNewIp}
+                  onChange={(e) => setMassAllocNewIp(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  placeholder="192.168.100.10"
+                />
+              </div>
+
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-300">
+                  This will immediately update and sync all affected servers with Wings.
+                  Servers may briefly restart or experience a network interruption.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 py-2">
+
+              {massAllocResult.error ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                  <p className="text-xs font-medium text-destructive">Error: {massAllocResult.error}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                    <p className="text-sm font-medium text-green-400">Completed successfully</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Updated</p>
+                      <p className="text-xl font-bold text-foreground">{massAllocResult.updatedCount || 0}</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Errors</p>
+                      <p className="text-xl font-bold text-foreground">{massAllocResult.errorCount || 0}</p>
+                    </div>
+                  </div>
+                  {massAllocResult.updatedServers?.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs font-medium text-muted-foreground">Updated servers:</p>
+                      <div className="max-h-32 overflow-y-auto rounded-lg border border-border bg-secondary/20 p-2">
+                        {massAllocResult.updatedServers.map((s: any) => (
+                          <p key={s.uuid} className="text-xs font-mono text-foreground truncate">
+                            {s.name || s.uuid}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {massAllocResult.errors?.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs font-medium text-destructive">Errors:</p>
+                      <div className="max-h-24 overflow-y-auto rounded-lg border border-destructive/30 bg-destructive/5 p-2">
+                        {massAllocResult.errors.map((e: any) => (
+                          <p key={e.uuid} className="text-xs font-mono text-destructive truncate">
+                            {e.uuid}: {e.error}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMassAllocNode(null); setMassAllocResult(null) }} className="border-border">
+              {massAllocResult ? "Close" : "Cancel"}
+            </Button>
+            {!massAllocResult && (
+              <Button
+                onClick={submitMassAlloc}
+                disabled={massAllocLoading || !massAllocOldIp.trim() || !massAllocNewIp.trim()}
+                className="bg-warning text-warning-foreground hover:bg-warning/90"
+              >
+                {massAllocLoading ? "Re-IPing..." : "Execute Re-IP"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Reboot All Servers Dialog ═══════════════════════════════════════ */}
+      <Dialog open={rebootNode !== null} onOpenChange={(open) => {
+        if (!open) { setRebootNode(null); setRebootResult(null) }
+      }}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              Reboot All Servers &mdash; {rebootNode?.name || ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          {!rebootResult ? (
+            <div className="flex flex-col gap-4 py-2">
+              <p className="text-xs text-muted-foreground">
+                This will <strong>stop, wait, and restart</strong> every currently running server
+                on this node. The process:
+              </p>
+              <ol className="list-decimal pl-4 text-xs text-muted-foreground space-y-1">
+                <li>Send <strong>stop</strong> to all running servers (in parallel)</li>
+                <li>Wait <strong>10 seconds</strong> for graceful shutdown</li>
+                <li>Send <strong>kill</strong> to any server still running</li>
+                <li>Send <strong>start</strong> to all servers (in parallel)</li>
+              </ol>
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-300">
+                  All servers on this node will briefly go offline. This operation
+                  may take 15&ndash;30 seconds to complete.
+                </p>
+              </div>
+            </div>
+          ) : rebootResult.status === "running" || rebootResult.status === "starting" ? (
+            <div className="flex flex-col gap-4 py-4 items-center">
+              <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">{rebootResult.message || "Rebooting..."}</p>
+                <p className="text-xs text-muted-foreground mt-1">Progress: {rebootResult.progress || 0}%</p>
+              </div>
+              <div className="w-full bg-secondary/50 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${rebootResult.progress || 0}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {rebootResult.totalServers} total on node &middot; {rebootResult.onlineCount} running
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 py-2">
+              {rebootResult.status === "failed" ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                  <p className="text-xs font-medium text-destructive">
+                    {rebootResult.error || rebootResult.message || "Failed"}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                    <p className="text-sm font-medium text-green-400">
+                      Rebooted {rebootResult.servers?.length || 0} server{(rebootResult.servers?.length || 0) !== 1 ? "s" : ""}
+                    </p>
+                    <p className="text-xs text-green-400/70 mt-1">
+                      {rebootResult.totalServers} total on node &middot;{" "}
+                      {rebootResult.onlineCount} were running &middot;{" "}
+                      {rebootResult.killedCount || 0} had to be killed
+                    </p>
+                  </div>
+
+                  {rebootResult.servers?.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs font-medium text-muted-foreground">Per-server results:</p>
+                      <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-secondary/20 p-2 space-y-1">
+                        {rebootResult.servers.map((s: any) => (
+                          <div key={s.uuid} className="flex items-center gap-2 text-xs">
+                            <span className="font-mono text-foreground truncate flex-1">
+                              {s.name || s.uuid}
+                            </span>
+                            <span className={s.stop === "stopped" ? "text-green-400" : "text-destructive"} title={`Stop: ${s.stop}`}>
+                              {s.stop === "stopped" ? "\u2713" : "\u2717"}
+                            </span>
+                            {s.kill && (
+                              <span className="text-yellow-400" title="Had to be killed">\u26a0</span>
+                            )}
+                            <span className={s.start === "started" ? "text-green-400" : "text-destructive"} title={`Start: ${s.start}`}>
+                              {s.start === "started" ? "\u2713" : "\u2717"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRebootNode(null); setRebootResult(null) }} className="border-border">
+              {rebootResult ? "Close" : "Cancel"}
+            </Button>
+            {!rebootResult && (
+              <Button
+                onClick={submitReboot}
+                disabled={rebootLoading}
+                className="bg-warning text-warning-foreground hover:bg-warning/90 gap-1.5"
+              >
+                {rebootLoading ? (
+                  <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Starting...</>
+                ) : (
+                  "Reboot All Servers"
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

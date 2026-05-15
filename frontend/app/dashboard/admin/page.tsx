@@ -1518,6 +1518,14 @@ export default function AdminPanel() {
   const [esAbuseReportsLoading, setEsAbuseReportsLoading] = useState(false)
   const [esAbuseReportsError, setEsAbuseReportsError] = useState("")
 
+  const [esDedicatedIps, setEsDedicatedIps] = useState<Array<{ ip: string; type: string; fqdn?: string }>>([])
+  const [esDedicatedIpInput, setEsDedicatedIpInput] = useState("")
+  const [esDedicatedIpType, setEsDedicatedIpType] = useState<"ipv4" | "ipv6">("ipv4")
+  const [esDedicatedIpFqdn, setEsDedicatedIpFqdn] = useState("")
+  const [esDedicatedIpLoading, setEsDedicatedIpLoading] = useState(false)
+  const [esDedicatedIpError, setEsDedicatedIpError] = useState("")
+  const [esDedicatedIpSuccess, setEsDedicatedIpSuccess] = useState("")
+
   const canManageServerMounts = !!user && (hasPermission(user, 'admin.mounts.add/remove') || hasPermission(user, 'admin:servers:manage'))
 
   // ── Create Server dialog ──
@@ -1585,6 +1593,7 @@ export default function AdminPanel() {
       applications: true,
       oauth: true,
       tunnels: true,
+      dedicatedIps: true,
     },
   })
   const [settingsSaving, setSettingsSaving] = useState(false)
@@ -1723,6 +1732,7 @@ export default function AdminPanel() {
                 ticketing: true,
                 applications: true,
                 tunnels: true,
+                dedicatedIps: true,
                 ...(data.featureToggles || {}),
               },
             })
@@ -2567,6 +2577,14 @@ export default function AdminPanel() {
       })
       .catch(() => { })
 
+    const rawAlloc = (mergedAny as any)?.configuration?.allocations || (mergedAny as any)?.allocations || {}
+    setEsDedicatedIps(Array.isArray(rawAlloc.dedicatedIps) ? rawAlloc.dedicatedIps : [])
+    setEsDedicatedIpInput("")
+    setEsDedicatedIpType("ipv4")
+    setEsDedicatedIpFqdn("")
+    setEsDedicatedIpError("")
+    setEsDedicatedIpSuccess("")
+
     await loadEditServerAbuseReports(mergedServer.uuid || srv.uuid)
 
     if (canManageServerMounts) {
@@ -2703,6 +2721,50 @@ export default function AdminPanel() {
       setEsError(e.message || "Failed to save")
     } finally {
       setEsLoading(false)
+    }
+  }
+
+  async function assignDedicatedIp() {
+    if (!editServerDialog) return
+    setEsDedicatedIpLoading(true)
+    setEsDedicatedIpError("")
+    setEsDedicatedIpSuccess("")
+    try {
+      await apiFetch(API_ENDPOINTS.adminServerDedicatedIp.replace(":id", editServerDialog.uuid), {
+        method: "POST",
+        body: JSON.stringify({
+          ip: esDedicatedIpInput.trim(),
+          type: esDedicatedIpType,
+          fqdn: esDedicatedIpFqdn.trim() || undefined,
+        }),
+      })
+      setEsDedicatedIps((prev) => [...prev, { ip: esDedicatedIpInput.trim(), type: esDedicatedIpType, ...(esDedicatedIpFqdn.trim() ? { fqdn: esDedicatedIpFqdn.trim() } : {}) }])
+      setEsDedicatedIpInput("")
+      setEsDedicatedIpFqdn("")
+      setEsDedicatedIpSuccess(`Dedicated IP ${esDedicatedIpInput.trim()} assigned`)
+    } catch (e: any) {
+      setEsDedicatedIpError(e.message || "Failed to assign dedicated IP")
+    } finally {
+      setEsDedicatedIpLoading(false)
+    }
+  }
+
+  async function removeDedicatedIp(ip: string) {
+    if (!editServerDialog) return
+    setEsDedicatedIpLoading(true)
+    setEsDedicatedIpError("")
+    setEsDedicatedIpSuccess("")
+    try {
+      await apiFetch(API_ENDPOINTS.adminServerDedicatedIp.replace(":id", editServerDialog.uuid), {
+        method: "DELETE",
+        body: JSON.stringify({ ip }),
+      })
+      setEsDedicatedIps((prev) => prev.filter((d) => d.ip !== ip))
+      setEsDedicatedIpSuccess(`Dedicated IP ${ip} removed`)
+    } catch (e: any) {
+      setEsDedicatedIpError(e.message || "Failed to remove dedicated IP")
+    } finally {
+      setEsDedicatedIpLoading(false)
     }
   }
 
@@ -4208,6 +4270,18 @@ remote: ${panelUrl}`
                     esError,
                     reinstallServerFromDialog,
                     esReinstalling,
+                    esDedicatedIps,
+                    esDedicatedIpInput,
+                    setEsDedicatedIpInput,
+                    esDedicatedIpType,
+                    setEsDedicatedIpType,
+                    esDedicatedIpFqdn,
+                    setEsDedicatedIpFqdn,
+                    esDedicatedIpLoading,
+                    esDedicatedIpError,
+                    esDedicatedIpSuccess,
+                    assignDedicatedIp,
+                    removeDedicatedIp,
                     saveEditServer,
                     esLoading,
                     createServerOpen,
@@ -4232,6 +4306,7 @@ remote: ${panelUrl}`
                     csError,
                     submitCreateServer,
                     csLoading,
+                    panelSettings,
                   }}
                 />
               ) : null}
@@ -6656,6 +6731,51 @@ remote: ${panelUrl}`
                     setEsAllocPort(""); setEsAllocFqdn("")
                   }}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
                 </div>
+              </div>
+              <div className="col-span-2 flex flex-col gap-2 border-t border-border pt-3 mt-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dedicated IPs</label>
+                <div className="space-y-1.5">
+                  {esDedicatedIps.length === 0 && <p className="text-xs text-muted-foreground italic">No dedicated IPs assigned</p>}
+                  {esDedicatedIps.map((d, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-md border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-mono text-sm text-foreground">{d.ip}</span>
+                        <span className="ml-2 text-[10px] font-semibold uppercase text-purple-400">{d.type}</span>
+                        {d.fqdn && <span className="ml-2 text-xs text-muted-foreground">→ {d.fqdn}</span>}
+                      </div>
+                      <Globe className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                      <button onClick={() => removeDedicatedIp(d.ip)} disabled={esDedicatedIpLoading} title="Remove dedicated IP" className="text-muted-foreground hover:text-destructive transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 flex-wrap items-end">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground">IP Address</label>
+                    <input placeholder="e.g. 166.88.225.39" value={esDedicatedIpInput} onChange={(e) => setEsDedicatedIpInput(e.target.value)}
+                      className="w-40 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground">Type</label>
+                    <select value={esDedicatedIpType} onChange={(e) => setEsDedicatedIpType(e.target.value as "ipv4" | "ipv6")}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                      <option value="ipv4">IPv4</option>
+                      <option value="ipv6">IPv6</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground">FQDN (optional)</label>
+                    <input placeholder="e.g. server.example.com" value={esDedicatedIpFqdn} onChange={(e) => setEsDedicatedIpFqdn(e.target.value)}
+                      className="w-48 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                  </div>
+                  <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-9" onClick={assignDedicatedIp} disabled={esDedicatedIpLoading || !esDedicatedIpInput.trim()}>
+                    {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                    Assign
+                  </Button>
+                </div>
+                {esDedicatedIpError && <p className="text-xs text-destructive">{esDedicatedIpError}</p>}
+                {esDedicatedIpSuccess && <p className="text-xs text-green-400">{esDedicatedIpSuccess}</p>}
               </div>
               {canManageServerMounts && (
                 <div className="col-span-2 flex flex-col gap-3">

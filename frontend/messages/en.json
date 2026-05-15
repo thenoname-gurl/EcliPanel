@@ -2324,6 +2324,10 @@
         "label": "Tunnels",
         "note": "Public tunnel dashboard and forwarding controls"
       },
+      "dedicatedIps": {
+        "label": "Dedicated IPs",
+        "note": "Assign dedicated public IPs to KVM servers"
+      },
       "captcha": {
         "label": "Classic Captcha",
         "note": "Image-based bot protection"
