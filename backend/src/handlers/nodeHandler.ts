@@ -133,7 +133,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.post(prefix + '/nodes', async (ctx: any) => {
     const adminErr = await authorize('nodes:create')(ctx);
     if (adminErr !== undefined) return adminErr;
-    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl } = ctx.body as any;
+    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
       return { error: 'name, url and token are required' };
@@ -181,6 +181,26 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
+    if (portRangeStart !== undefined) {
+      const parsed = Number(portRangeStart);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+        ctx.set.status = 400;
+        return { error: 'portRangeStart must be an integer between 1 and 65535' };
+      }
+      node.portRangeStart = parsed;
+    }
+    if (portRangeEnd !== undefined) {
+      const parsed = Number(portRangeEnd);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+        ctx.set.status = 400;
+        return { error: 'portRangeEnd must be an integer between 1 and 65535' };
+      }
+      node.portRangeEnd = parsed;
+    }
+    if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
+      ctx.set.status = 400;
+      return { error: 'portRangeStart must be less than or equal to portRangeEnd' };
+    }
     await nodeRepo().save(node);
     refreshAllSftpProxies().catch(() => { });
     return { success: true, node };
@@ -225,8 +245,34 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (orgId !== undefined) {
       node.organisation = orgId ? { id: Number(orgId) } as any : undefined as any;
     }
-    if (portRangeStart !== undefined) node.portRangeStart = portRangeStart !== null ? Number(portRangeStart) : undefined as any;
-    if (portRangeEnd !== undefined) node.portRangeEnd = portRangeEnd !== null ? Number(portRangeEnd) : undefined as any;
+    if (portRangeStart !== undefined) {
+      if (portRangeStart !== null) {
+        const parsed = Number(portRangeStart);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+          ctx.set.status = 400;
+          return { error: 'portRangeStart must be an integer between 1 and 65535' };
+        }
+        node.portRangeStart = parsed;
+      } else {
+        node.portRangeStart = undefined as any;
+      }
+    }
+    if (portRangeEnd !== undefined) {
+      if (portRangeEnd !== null) {
+        const parsed = Number(portRangeEnd);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+          ctx.set.status = 400;
+          return { error: 'portRangeEnd must be an integer between 1 and 65535' };
+        }
+        node.portRangeEnd = parsed;
+      } else {
+        node.portRangeEnd = undefined as any;
+      }
+    }
+    if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
+      ctx.set.status = 400;
+      return { error: 'portRangeStart must be less than or equal to portRangeEnd' };
+    }
     if (defaultIp !== undefined) node.defaultIp = defaultIp || undefined as any;
     if (ipv6Subnet !== undefined) {
       if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {

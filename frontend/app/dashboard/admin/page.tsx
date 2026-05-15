@@ -229,6 +229,16 @@ const MetricsTab = dynamic(() => import("./tabs/MetricsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading metrics tab...</div>,
 })
 
+const RolloutsTab = dynamic(() => import("./tabs/RolloutsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading rollouts tab...</div>,
+})
+
+const FeedbackTab = dynamic(() => import("./tabs/FeedbackTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading feedback tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: var(--foreground); margin: 0; padding: 0; }
     .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
@@ -923,6 +933,8 @@ export default function AdminPanel() {
     { value: 'orders', label: t('tabs.orders'), permissions: ['orders:view', 'orders:issue', 'orders:update', 'orders:delete'] },
     { value: 'shorturls', label: t('tabs.shortUrls'), permissions: ['admin.shorturl.add', 'admin.shorturl.remove', 'admin.shorturl.edit.own', 'admin.shorturl.edit.any'] },
     { value: 'settings', label: t('tabs.settings'), permissions: ['admin:settings', 'admin:geoblock:view'] },
+    { value: 'rollouts', label: t('tabs.rollouts'), permissions: ['admin:access'] },
+    { value: 'feedback', label: t('tabs.feedback'), permissions: ['admin:access'] },
   ]
 
   const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => hasAnyPermission(tab.permissions)))
@@ -1280,8 +1292,8 @@ export default function AdminPanel() {
   const [eoLoading, setEoLoading] = useState(false)
   const [eoError, setEoError] = useState("")
 
-  // ── User current plan ──
-  const [userCurrentPlan, setUserCurrentPlan] = useState<{ plan: any; order: any } | null>(null)
+  // ── User current plans ──
+  const [userCurrentPlans, setUserCurrentPlans] = useState<Array<{ plan: any; order: any }>>([])
   const [userPlanLoading, setUserPlanLoading] = useState(false)
   const [cancelPlanLoading, setCancelPlanLoading] = useState(false)
 
@@ -2224,24 +2236,22 @@ export default function AdminPanel() {
         ? (user as any).settings.gambling.badges
         : []
     setEditBadgesText((badges as any[]).map((badge) => String(badge || "").trim()).filter(Boolean).join(", "))
-    // Fetch current plan
-    setUserCurrentPlan(null)
+    // Fetch current plans
+    setUserCurrentPlans([])
     setUserPlanLoading(true)
     apiFetch(API_ENDPOINTS.adminUserCurrentPlan.replace(":id", String(user.id)))
-      .then((data) => setUserCurrentPlan(data))
-      .catch(() => setUserCurrentPlan(null))
+      .then((data) => setUserCurrentPlans(Array.isArray(data?.plans) ? data.plans : []))
+      .catch(() => setUserCurrentPlans([]))
       .finally(() => setUserPlanLoading(false))
   }
 
   async function cancelUserPlan() {
     if (!editUserDialog) return
-    if (!(await confirmAsync(`Cancel ${editUserDialog.firstName}'s active plan? They will revert to Free tier.`))) return
+    if (!(await confirmAsync(`Cancel ${editUserDialog.firstName}'s active plans?`))) return
     setCancelPlanLoading(true)
     try {
       await apiFetch(API_ENDPOINTS.adminUserCancelPlan.replace(":id", String(editUserDialog.id)), { method: "POST" })
-      setUserCurrentPlan({ plan: null, order: null })
-      setEditTier("free")
-      setUsers((prev) => prev.map((u) => u.id === editUserDialog.id ? { ...u, portalType: "free", limits: null } : u))
+      setUserCurrentPlans([])
     } catch (e: any) {
       alert("Failed to cancel plan: " + (e.message || "error"))
     } finally {
@@ -3186,12 +3196,11 @@ export default function AdminPanel() {
         if (plan.serverLimit) limits.serverLimit = plan.serverLimit
         if (plan.databases) limits.databases = plan.databases
         if (plan.backups) limits.backups = plan.backups
-        setUsers((prev) => prev.map((u) => u.id === applyPlanUserId ? { ...u, portalType: plan.type, limits } : u))
+        setUsers((prev) => prev.map((u) => u.id === applyPlanUserId ? { ...u, limits } : u))
         // Refresh current plan display if user edit dialog is open for the same user
         if (editUserDialog?.id === applyPlanUserId) {
-          setEditTier(plan.type)
           apiFetch(API_ENDPOINTS.adminUserCurrentPlan.replace(":id", String(applyPlanUserId)))
-            .then((data) => setUserCurrentPlan(data))
+            .then((data) => setUserCurrentPlans(Array.isArray(data?.plans) ? data.plans : []))
             .catch(() => { })
         }
       }
@@ -6073,6 +6082,14 @@ remote: ${panelUrl}`
                 />
               ) : null}
             </TabsContent>
+            {/* ═════════════════ ROLLOUTS ════════════════════════════════════ */}
+            <TabsContent value="rollouts" className="mt-4">
+              {activeTab === "rollouts" ? <RolloutsTab /> : null}
+            </TabsContent>
+            {/* ═════════════════ FEEDBACK ════════════════════════════════════ */}
+            <TabsContent value="feedback" className="mt-4">
+              {activeTab === "feedback" ? <FeedbackTab /> : null}
+            </TabsContent>
             {/* ═════════════════ DATABASE HOSTS ══════════════════════════════ */}
             <TabsContent value="databases" className="mt-4">
               {activeTab === "databases" ? (
@@ -6195,36 +6212,56 @@ remote: ${panelUrl}`
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
-            {/* Current Plan */}
+            {/* Current Plans */}
             <div className="rounded-lg border border-border bg-secondary/20 p-3">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Plan</p>
-                {userCurrentPlan?.plan && (
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Active Plans ({userCurrentPlans.length})
+                </p>
+                {userCurrentPlans.length > 0 && (
                   <button
                     onClick={cancelUserPlan}
                     disabled={cancelPlanLoading}
                     className="text-xs text-destructive hover:underline disabled:opacity-50"
                   >
-                    {cancelPlanLoading ? "Cancelling…" : "Cancel Plan"}
+                    {cancelPlanLoading ? "Cancelling…" : "Cancel All"}
                   </button>
                 )}
               </div>
               {userPlanLoading ? (
                 <p className="text-xs text-muted-foreground">Loading…</p>
-              ) : userCurrentPlan?.plan ? (
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-sm font-medium text-foreground">{userCurrentPlan.plan.name}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">({userCurrentPlan.plan.type})</span>
-                    {userCurrentPlan.plan.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{userCurrentPlan.plan.description}</p>
-                    )}
-                    {userCurrentPlan.order?.expiresAt && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Expires: {new Date(userCurrentPlan.order.expiresAt).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
+              ) : userCurrentPlans.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {userCurrentPlans.map(({ plan, order }) => (
+                    <div key={plan.id} className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-sm font-medium text-foreground">{plan.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">({plan.type})</span>
+                        {plan.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
+                        )}
+                        {order?.expiresAt && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Expires: {new Date(order.expiresAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const uid = editUserDialog?.id
+                      setEditUserDialog(null)
+                      if (uid) openApplyPlan(uid)
+                    }}
+                    className="mt-1 text-xs text-primary hover:underline self-start"
+                  >
+                    + Apply Plan
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">No active plan assigned</p>
                   <button
                     onClick={() => {
                       const uid = editUserDialog?.id
@@ -6233,11 +6270,9 @@ remote: ${panelUrl}`
                     }}
                     className="text-xs text-primary hover:underline whitespace-nowrap"
                   >
-                    Change
+                    Apply Plan
                   </button>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No active plan assigned</p>
               )}
             </div>
             <div className="border-t border-border pt-3">

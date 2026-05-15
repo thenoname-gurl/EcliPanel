@@ -7145,47 +7145,40 @@ isSuspicious: true if fraudScore >= 50`;
     const orderRepo = AppDataSource.getRepository(Order);
     const planRepo = AppDataSource.getRepository(Plan);
     const orders = await orderRepo.find({ where: { userId, status: 'active' }, order: { createdAt: 'DESC' } });
-    const order = orders.find(o => o.planId != null) || null;
-    if (!order) return { plan: null, order: null };
-    const plan = await planRepo.findOneBy({ id: order.planId! });
-    return { plan: plan || null, order };
+    const planOrders = orders.filter(o => o.planId != null);
+    const plans = [];
+    for (const order of planOrders) {
+      const plan = await planRepo.findOneBy({ id: order.planId! });
+      if (plan) plans.push({ plan, order });
+    }
+    return { plans, orders: planOrders };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
       params: t.Object({ id: t.String() }),
       response: {
-        200: t.Object({ plan: t.Any(), order: t.Any() }),
+        200: t.Object({ plans: t.Array(t.Any()), orders: t.Array(t.Any()) }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
       },
     },
-    detail: { summary: 'Get current plan for user', tags: ['Admin'] },
+    detail: { summary: 'Get current plans for user', tags: ['Admin'] },
   });
 
   app.post(prefix + '/admin/users/:id/cancel-plan', async (ctx) => {
     const adminErr = requireAdminPermission(ctx, 'users:write');
     if (adminErr !== true) return adminErr;
     const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
     const orderRepo = AppDataSource.getRepository(Order);
 
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: 'User not found' };
-    }
-
     const orders = await orderRepo.find({ where: { userId, status: 'active' }, order: { createdAt: 'DESC' } });
-    const order = orders.find(o => o.planId != null);
-    if (order) {
-      order.status = 'cancelled';
-      await orderRepo.save(order);
+    if (orders.length > 0) {
+      for (const order of orders) {
+        order.status = 'cancelled';
+      }
+      await orderRepo.save(orders);
     }
-
-    user.portalType = 'free';
-    (user as any).limits = null;
-    await userRepo.save(user);
 
     return { success: true };
   }, {
@@ -7245,8 +7238,15 @@ isSuspicious: true if fraudScore >= 50`;
       if (plan.serverLimit != null) limits.serverLimit = plan.serverLimit;
     }
 
-    user.limits = Object.keys(limits).length ? limits : null;
-    user.portalType = plan.type;
+    const existingLimits = (user as any).limits || {};
+    if (Object.keys(limits).length) {
+      for (const key of Object.keys(limits)) {
+        if ((existingLimits[key] ?? 0) < limits[key]) {
+          existingLimits[key] = limits[key];
+        }
+      }
+      user.limits = existingLimits;
+    }
     await userRepo.save(user);
 
     if (orgId) {

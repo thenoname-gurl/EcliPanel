@@ -1374,7 +1374,11 @@ export async function serverRoutes(app: any, prefix = '') {
 
     let autoAllocation: Record<string, any> | null = null;
     let assignedIpv6: string | null = null;
-    if (node.portRangeStart && node.portRangeEnd) {
+    if (node.portRangeStart != null && node.portRangeEnd != null) {
+      if (node.portRangeStart > node.portRangeEnd) {
+        ctx.set.status = 500;
+        return { error: 'Node port range is misconfigured (start > end). Contact an administrator.' };
+      }
       const bindIp = node.defaultIp || '0.0.0.0';
       const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
       const nodeConfigs = await cfgRepo().find({
@@ -1386,9 +1390,23 @@ export async function serverRoutes(app: any, prefix = '') {
       for (const c of nodeConfigs) {
         const alloc = c.allocations as any;
         if (!alloc) continue;
-        if (alloc.default?.port) takenPorts.add(Number(alloc.default.port));
+        if (alloc.default?.port) {
+          const p = Number(alloc.default.port);
+          if (p >= 1 && p <= 65535) takenPorts.add(p);
+        }
         for (const ports of Object.values(alloc.mappings ?? {}) as number[][]) {
-          for (const p of ports) takenPorts.add(Number(p));
+          for (const p of ports) {
+            const pn = Number(p);
+            if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
+          }
+        }
+        if (alloc.owners) {
+          for (const k of Object.keys(alloc.owners)) {
+            const idx = k.lastIndexOf(':');
+            const pstr = idx >= 0 ? k.slice(idx + 1) : '';
+            const pnum = Number(pstr);
+            if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
+          }
         }
       }
 
@@ -1404,8 +1422,12 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       if (!autoAllocation) {
+        const rangeSize = node.portRangeEnd - node.portRangeStart + 1;
+        const takenCount = takenPorts.size;
+        const excludedCount = excludedIpv6Ports.size;
+        const takenInRange = [...takenPorts].filter(p => p >= node.portRangeStart && p <= node.portRangeEnd).length;
         ctx.set.status = 503;
-        return { error: 'No free ports available on this node. Contact an administrator.' };
+        return { error: `No free ports available on this node (range ${node.portRangeStart}-${node.portRangeEnd}, ${rangeSize} total, ${takenInRange} taken in range, ${takenCount} taken overall, ${excludedCount} excluded). Contact an administrator.` };
       }
     }
 
@@ -3392,9 +3414,13 @@ export async function serverRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'Node does not support additional allocations' };
     }
-    if (!requestIpv6 && (!node.portRangeStart || !node.portRangeEnd)) {
+    if (!requestIpv6 && (node.portRangeStart == null || node.portRangeEnd == null)) {
       ctx.set.status = 400;
       return { error: 'Node does not support additional allocations' };
+    }
+    if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
+      ctx.set.status = 500;
+      return { error: 'Node port range is misconfigured (start > end). Contact an administrator.' };
     }
 
     const excludedPorts = parsePortList(node.ipv6ExcludedPorts);
@@ -3403,16 +3429,22 @@ export async function serverRoutes(app: any, prefix = '') {
     for (const c of nodeConfigs) {
       const a = c.allocations as any;
       if (!a) continue;
-      if (a.default?.port) takenPorts.add(Number(a.default.port));
+      if (a.default?.port) {
+        const p = Number(a.default.port);
+        if (p >= 1 && p <= 65535) takenPorts.add(p);
+      }
       for (const ports of Object.values(a.mappings ?? {}) as number[][]) {
-        for (const p of ports) takenPorts.add(Number(p));
+        for (const p of ports) {
+          const pn = Number(p);
+          if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
+        }
       }
       if (a.owners) {
         for (const k of Object.keys(a.owners || {})) {
           const idx = k.lastIndexOf(':');
           const pstr = idx >= 0 ? k.slice(idx + 1) : '';
           const pnum = Number(pstr);
-          if (!Number.isNaN(pnum)) takenPorts.add(pnum);
+          if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
         }
       }
     }
