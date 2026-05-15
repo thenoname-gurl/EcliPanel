@@ -20,7 +20,6 @@ import {
   ChevronUp,
   Hash,
   Box,
-  Calendar,
   LogIn,
   RefreshCw,
 } from "lucide-react"
@@ -35,15 +34,6 @@ import {
   EmptyState,
   LoadingState,
 } from "./helpers"
-
-export interface ActivityStat {
-  key: string
-  label: string
-  icon: any
-  iconColor: string
-  value: number | string
-  subtext?: string
-}
 
 export interface ActivityFilterOption {
   key: string
@@ -60,7 +50,6 @@ export interface ActivityFeedProps {
   typeColorsMap?: Record<string, string>
   typeBadgeColorsMap?: Record<string, string>
 
-  statsCards?: ActivityStat[]
   filterOptions?: ActivityFilterOption[]
 
   page?: number
@@ -83,7 +72,6 @@ export function ActivityFeed({
   typeIconsMap = typeIcons,
   typeColorsMap = typeColors,
   typeBadgeColorsMap = typeBadgeColors,
-  statsCards,
   filterOptions,
   page = 1,
   hasMore = false,
@@ -116,48 +104,6 @@ export function ActivityFeed({
     })
   }
 
-  const defaultStats: ActivityStat[] = [
-    {
-      key: "onPage",
-      label: t("stats.currentPage"),
-      icon: Calendar,
-      iconColor: "text-primary",
-      value: displayLogs.length,
-      subtext: t("stats.page", { page }),
-    },
-    {
-      key: "today",
-      label: t("stats.today"),
-      icon: Clock,
-      iconColor: "text-blue-400",
-      value: logs.filter(l => {
-        if (!l.timestamp) return false
-        const d = new Date(l.timestamp)
-        const now = new Date()
-        return d.toDateString() === now.toDateString()
-      }).length,
-      subtext: t("stats.onThisPage"),
-    },
-    {
-      key: "logins",
-      label: t("stats.logins"),
-      icon: LogIn,
-      iconColor: "text-green-400",
-      value: logs.filter(l => guessTypeFn(l.action ?? "") === "login").length,
-      subtext: t("stats.onThisPage"),
-    },
-    {
-      key: "serverEvents",
-      label: t("stats.serverEvents"),
-      icon: Server,
-      iconColor: "text-purple-400",
-      value: logs.filter(l => guessTypeFn(l.action ?? "") === "server").length,
-      subtext: t("stats.onThisPage"),
-    },
-  ]
-
-  const stats = statsCards ?? defaultStats
-
   const defaultFilterOptions: ActivityFilterOption[] = [
     { key: "server", label: t("filters.server"), icon: Server },
     { key: "login", label: t("filters.login"), icon: LogIn },
@@ -171,22 +117,6 @@ export function ActivityFeed({
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 w-full min-w-0">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 min-w-0">
-        {stats.map((stat) => (
-          <div key={stat.key} className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <stat.icon className={cn("h-4 w-4 flex-shrink-0", stat.iconColor)} />
-              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{stat.label}</span>
-            </div>
-            <p className="text-lg sm:text-2xl font-bold text-foreground">{stat.value}</p>
-            {stat.subtext && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">{stat.subtext}</p>
-            )}
-          </div>
-        ))}
-      </div>
-
       {/* Filters */}
       <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
         <div className="flex items-center gap-2 mb-3 min-w-0">
