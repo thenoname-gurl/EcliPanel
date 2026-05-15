@@ -298,7 +298,7 @@ export async function authRoutes(app: any, prefix = '') {
 
     try {
       const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: user.id, action: 'login', timestamp: new Date() }));
+      await logRepo.save(logRepo.create({ userId: user.id, action: 'login', ipAddress: ctx.ip, timestamp: new Date() }));
     } catch (err) {
       ctx.log?.warn?.({ err }, '[DEBUG:login] failed to log login event');
     }
@@ -486,7 +486,7 @@ export async function authRoutes(app: any, prefix = '') {
       const finalToken = app.jwt.sign({ userId: user.id, sessionId });
       try { setAuthCookie(ctx, finalToken); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for 2fa verify-login'); }
       const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: user.id, action: 'login_2fa', timestamp: new Date() }));
+      await logRepo.save(logRepo.create({ userId: user.id, action: 'login_2fa', ipAddress: ctx.ip, timestamp: new Date() }));
       const csrfToken = await storeCsrfToken(sessionId);
       return { token: finalToken, csrfToken };
     } catch (err) {
@@ -619,7 +619,7 @@ export async function authRoutes(app: any, prefix = '') {
       const userRepo = AppDataSource.getRepository(User);
       await userRepo.save(user);
       const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: user.id, action: 'logout', timestamp: new Date() }));
+      await logRepo.save(logRepo.create({ userId: user.id, action: 'logout', ipAddress: ctx.ip, timestamp: new Date() }));
     }
     await invalidateAuthSessionCache(user.id);
     try { clearAuthCookie(ctx); } catch { }
