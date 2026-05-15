@@ -73,7 +73,7 @@ export function Hero() {
             </button>
           </Link>
           <Link href="#features">
-            <button className="bg-white/40 px-5 sm:px-6 py-2 rounded-full text-base sm:text-[18px] font-flink transition-colors hover:bg-white/65 cursor-pointer duration-200 text-white">
+            <button className="bg-white/40 px-5 sm:px-6 py-2 rounded-full text-base sm:text-[18px] font-flink transition-colors hover:bg-white/65 cursor-pointer duration-200 text-white hover:text-black">
               {t("nav.features")}
             </button>
           </Link>
