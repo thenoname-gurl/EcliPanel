@@ -12,6 +12,7 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
+import { getActivityActionLabel } from "@/lib/activity-action-labels"
 import {
   Users,
   Receipt,
@@ -1095,9 +1096,12 @@ export default function OrganisationDetail() {
                     {activity.map((log: any) => {
                       const actionLabels: Record<string, string> = {
                         "org:create": t('activity.actions.orgCreate'),
+                        "org:add_user": t('activity.actions.orgAddUser'),
                         "org:remove_member": t('activity.actions.orgRemoveMember'),
                         "org:change_role": t('activity.actions.orgChangeRole'),
                         "org:invite": t('activity.actions.orgInvite'),
+                        "org:resend_invite": t('activity.actions.orgResendInvite'),
+                        "org:revoke_invite": t('activity.actions.orgRevokeInvite'),
                         "org:accept_invite": t('activity.actions.orgAcceptInvite'),
                         "server:create": t('activity.actions.serverCreate'),
                         "server:delete": t('activity.actions.serverDelete'),
@@ -1105,7 +1109,7 @@ export default function OrganisationDetail() {
                         "server:suspend": t('activity.actions.serverSuspend'),
                         "server:unsuspend": t('activity.actions.serverUnsuspend'),
                       }
-                      const label = actionLabels[log.action] || log.action
+                      const label = getActivityActionLabel(log.action, actionLabels)
                       const meta = log.metadata || {}
                       return (
                         <div key={log.id} className="px-4 py-3 hover:bg-secondary/20 transition-colors">
