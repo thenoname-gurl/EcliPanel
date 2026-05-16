@@ -19,18 +19,16 @@ export function TwoFactorMethodButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-start gap-3 p-3.5 rounded-xl border transition-all text-left",
+        "w-full flex items-start gap-3 p-3.5 cursor-pointer rounded-md border transition-all text-left",
         selected
-          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-          : "border-border/60 hover:border-muted-foreground/40 hover:bg-secondary/30",
+          ? "border-white bg-white/8 ring-2 ring-primary/20"
+          : "border-white/20 hover:border-white/15 hover:bg-white/8",
       )}
     >
       <div
         className={cn(
           "p-2 rounded-lg",
-          selected
-            ? "bg-primary/20 text-primary"
-            : "bg-secondary text-muted-foreground",
+          selected ? "bg-primary/20" : "bg-secondary text-muted-foreground",
         )}
       >
         <Icon className="h-4 w-4" />
@@ -39,14 +37,16 @@ export function TwoFactorMethodButton({
       <div className="flex-1 min-w-0">
         <p
           className={cn(
-            "text-sm font-medium",
-            selected ? "text-primary" : "text-foreground",
+            "text-[18px] font-mono",
+            selected ? "text-white" : "text-white/70",
           )}
         >
           {label}
         </p>
 
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        <p className="text-[15px] font-mono text-white/50 mt-0.5">
+          {description}
+        </p>
       </div>
 
       {selected && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
