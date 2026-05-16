@@ -794,13 +794,22 @@ export function tunnelRoutes(app: any, prefix: string): void {
   app.post(
     `${prefix}/tunnel/devices`,
     async (ctx: any) => {
-      const authError = await requireAdmin(ctx);
-      if (authError) return authError;
+      const authResult = await authenticate(ctx);
+      if (authResult && (authResult as any).error) {
+        const status = ctx.set?.status || 401;
+        return errorResponse((authResult as any).error, status);
+      }
+
+      const isAdminUser_ = isAdminUser(ctx.user) || (ctx.apiKey && ctx.apiKey.type === 'admin');
 
       const body = (ctx.body as Record<string, unknown>) || {};
       const name = getStringField(body, ['name', 'name'], 'agent');
       const requestedKind = getStringField(body, ['kind', 'kind']);
       const kind: 'client' | 'server' = requestedKind === 'server' ? 'server' : 'client';
+
+      if (kind === 'server' && !isAdminUser_) {
+        return errorResponse('forbidden', 403);
+      }
 
       const deviceCode = uuidv4();
       const userCode = generateUserCode();
@@ -808,12 +817,16 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
       let ownerUser: User | undefined = undefined;
       if (kind === 'client') {
-        ownerUser = ctx.user;
-        const ownerUserId = getNumberField(body, ['owner_user_id', 'ownerUserId']);
-        if (ownerUserId) {
-          const userRepo = AppDataSource.getRepository(User);
-          ownerUser = await userRepo.findOne({ where: { id: ownerUserId } });
-          if (!ownerUser) return errorResponse('owner_user_not_found', 404);
+        if (isAdminUser_) {
+          ownerUser = ctx.user;
+          const ownerUserId = getNumberField(body, ['owner_user_id', 'ownerUserId']);
+          if (ownerUserId) {
+            const userRepo = AppDataSource.getRepository(User);
+            ownerUser = await userRepo.findOne({ where: { id: ownerUserId } });
+            if (!ownerUser) return errorResponse('owner_user_not_found', 404);
+          }
+        } else {
+          ownerUser = ctx.user;
         }
       }
 

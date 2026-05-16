@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { FeatureGuard } from "@/components/panel/feature-guard"
@@ -26,6 +27,7 @@ import {
   AlertCircle,
   Download,
   ChevronDown,
+  Zap,
   X,
 } from "lucide-react"
 
@@ -161,6 +163,29 @@ export default function TunnelsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [clientSetup, setClientSetup] = useState<{
+    token: string
+    name: string
+  } | null>(null)
+  const [generating, setGenerating] = useState(false)
+
+  const generateClientSetup = async () => {
+    setGenerating(true)
+    setError(null)
+    try {
+      const res = await apiFetch(API_ENDPOINTS.tunnelDevicesCreate, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "my-agent", kind: "client" }),
+      })
+      if (!res?.access_token) throw new Error("Failed to create device")
+      setClientSetup({ token: res.access_token, name: res.name || "my-agent" })
+    } catch (err: any) {
+      setError(err?.message || "Failed to generate setup")
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -374,6 +399,62 @@ export default function TunnelsPage() {
                       {t("downloads.downloadServer")}
                     </a>
                   </div>
+                  )}
+                </div>
+              </SectionCard>
+
+              {/* ── Quick Setup (one-liner generation) ────────────────────────── */}
+              <SectionCard>
+                <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
+                  <IconBox color="bg-primary/10">
+                    <Zap className="h-4 w-4 text-primary" />
+                  </IconBox>
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">{t("downloads.quickSetup")}</h2>
+                    <p className="text-xs text-muted-foreground">{t("downloads.quickSetupDescription")}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  {clientSetup ? (
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          <p className="text-sm font-medium text-foreground">
+                            Device <code className="text-xs bg-muted/50 px-1 rounded">{clientSetup.name}</code> created
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Run this on the machine you want to tunnel from:
+                      </p>
+                      <CommandSnippet cmd={`curl -fsSL "${deployScriptUrl}" | bash -s -- run --token ${clientSetup.token} --backend ${backendUrl}`} />
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="default" onClick={() => { setClientSetup(null); load() }}>
+                          Done
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(`curl -fsSL "${deployScriptUrl}" | bash -s -- run --token ${clientSetup.token} --backend ${backendUrl}`)}>
+                          <Copy className="mr-1.5 h-3.5 w-3.5" />
+                          Copy
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-muted-foreground">
+                        Create a tunnel device and get a ready-to-paste one-liner for your terminal.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={generateClientSetup}
+                        disabled={generating}
+                      >
+                        {generating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-1.5 h-3.5 w-3.5" />}
+                        {t("downloads.generateOneLiner")}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </SectionCard>

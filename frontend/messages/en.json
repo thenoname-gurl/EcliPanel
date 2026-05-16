@@ -4521,7 +4521,10 @@
       "deployOneLiner": "Quick setup (one-liner)",
       "deployOneLinerDesc": "Auto-installs and runs the tunnel agent:",
       "deployOneLinerOpen": "Expose a local port immediately:",
-      "deployOneLinerRun": "Run a persistent tunnel agent:"
+      "deployOneLinerRun": "Run a persistent tunnel agent:",
+      "quickSetup": "Quick Setup",
+      "quickSetupDescription": "Generate a ready-to-paste one-liner to run the tunnel agent on any machine.",
+      "generateOneLiner": "Generate One-Liner"
     },
     "rollout": {
       "title": "Tunnels feature is rolling out",
