@@ -31,6 +31,9 @@ export class TunnelAllocation {
   @Column({ length: 32, default: 'pending' })
   status: string;
 
+  @Column({ type: 'datetime', nullable: true })
+  closedAt?: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

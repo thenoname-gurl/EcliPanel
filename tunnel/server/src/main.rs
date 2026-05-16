@@ -9,11 +9,13 @@ use std::{
     io,
     net::SocketAddr,
     path::{Path, PathBuf},
+    pin::Pin,
     sync::Arc,
+    task::{Context, Poll},
     time::Duration,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::{oneshot, Mutex},
 };
@@ -28,26 +30,168 @@ use anyhow::Result;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
+const MAX_FRAME_SIZE: usize = 65536;
+
 // ---------------------------------------------------------------------------
 // Type aliases
 // ---------------------------------------------------------------------------
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsSink = futures_util::stream::SplitSink<WsStream, Message>;
-type SharedConnections = Arc<Mutex<HashMap<String, Arc<Mutex<TcpStream>>>>>;
+type SharedConnections =
+    Arc<Mutex<HashMap<String, Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>>>>;
 type ListenerControl = Arc<Mutex<HashMap<u64, oneshot::Sender<()>>>>;
 type ConnectionAllocationMap = Arc<Mutex<HashMap<String, u64>>>;
+
+// ---------------------------------------------------------------------------
+// TLS helper structs
+// ---------------------------------------------------------------------------
+
+struct PrependReader<R> {
+    prefix: Option<Vec<u8>>,
+    inner: R,
+}
+
+impl<R: AsyncRead + Unpin> AsyncRead for PrependReader<R> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        if let Some(prefix) = &mut self.prefix {
+            if !prefix.is_empty() {
+                let to_copy = std::cmp::min(buf.remaining(), prefix.len());
+                buf.put_slice(&prefix[..to_copy]);
+                prefix.drain(..to_copy);
+                return Poll::Ready(Ok(()));
+            }
+            self.prefix = None;
+        }
+        Pin::new(&mut self.inner).poll_read(cx, buf)
+    }
+}
+
+struct CombinedStream<R, W> {
+    reader: R,
+    writer: W,
+}
+
+impl<R: AsyncRead + Unpin, W: Unpin> AsyncRead for CombinedStream<R, W> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.reader).poll_read(cx, buf)
+    }
+}
+
+impl<R: Unpin, W: AsyncWrite + Unpin> AsyncWrite for CombinedStream<R, W> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.writer).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.writer).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.writer).poll_shutdown(cx)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TLS config
+// ---------------------------------------------------------------------------
+
+pub fn build_acceptor_from_pem(cert_pem: &str, key_pem: &str) -> Option<tokio_rustls::TlsAcceptor> {
+    let certs: Vec<rustls::pki_types::CertificateDer<'static>> =
+        match rustls_pemfile::certs(&mut cert_pem.as_bytes())
+            .collect::<std::result::Result<Vec<_>, _>>()
+        {
+            Ok(c) => c,
+            Err(err) => {
+                warn!(%err, "failed to parse PEM cert");
+                return None;
+            }
+        };
+    let key = match rustls_pemfile::private_key(&mut key_pem.as_bytes()) {
+        Ok(Some(k)) => k,
+        Ok(None) => {
+            warn!("no private key found in PEM");
+            return None;
+        }
+        Err(err) => {
+            warn!(%err, "failed to parse PEM key");
+            return None;
+        }
+    };
+    let config = match rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+    {
+        Ok(c) => Arc::new(c),
+        Err(err) => {
+            warn!(%err, "failed to build TLS config");
+            return None;
+        }
+    };
+    Some(tokio_rustls::TlsAcceptor::from(config))
+}
+
+fn build_self_signed_acceptor(hostname: &str) -> tokio_rustls::TlsAcceptor {
+    use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, IsCa};
+    let key_pair = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)
+        .expect("failed to generate key pair");
+    let mut params = CertificateParams::new(vec![hostname.to_string()])
+        .expect("invalid cert params");
+    params.distinguished_name = DistinguishedName::new();
+    params.distinguished_name.push(DnType::CommonName, hostname);
+    params.distinguished_name.push(DnType::OrganizationName, "EclipseSystems");
+    params.distinguished_name.push(DnType::OrganizationalUnitName, "Misiu LLC");
+    params.is_ca = IsCa::ExplicitNoCa;
+    let cert = params.self_signed(&key_pair)
+        .expect("failed to self-sign cert");
+    let (cert_pem, key_pem) = (cert.pem(), key_pair.serialize_pem());
+
+    let certs: Vec<rustls::pki_types::CertificateDer<'static>> =
+        rustls_pemfile::certs(&mut cert_pem.as_bytes())
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .expect("failed to parse generated cert");
+    let key = rustls_pemfile::private_key(&mut key_pem.as_bytes())
+        .expect("failed to parse generated key")
+        .expect("no key in generated pem");
+    let config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+        .expect("failed to build TLS config");
+    tokio_rustls::TlsAcceptor::from(Arc::new(config))
+}
 
 // ---------------------------------------------------------------------------
 // Systemd helpers
 // ---------------------------------------------------------------------------
 
-fn build_systemd_service(exe: &PathBuf, backend: &str, token: &str) -> String {
+fn build_systemd_service(exe: &PathBuf, backend: &str, token: &str, fqdn: Option<&str>) -> String {
     let exec = exe.display();
     let workdir = exe
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .display();
+    let fqdn_flag = fqdn
+        .filter(|s| !s.is_empty())
+        .map(|s| format!(" --fqdn {s}"))
+        .unwrap_or_default();
     format!(
         r#"[Unit]
 Description=EcliPanel Tunnel Server
@@ -55,7 +199,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={exec} run --backend {backend} --token {token}
+ExecStart={exec} run --backend {backend} --token {token}{fqdn_flag}
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory={workdir}
@@ -66,11 +210,11 @@ WantedBy=default.target
     )
 }
 
-fn write_systemd_service(exe: &PathBuf, backend: &str, token: &str) -> io::Result<PathBuf> {
+fn write_systemd_service(exe: &PathBuf, backend: &str, token: &str, fqdn: Option<&str>) -> io::Result<PathBuf> {
     let mut path = PathBuf::from("/etc/systemd/system");
     fs::create_dir_all(&path)?;
     path.push("eclipanel-tunnel.service");
-    fs::write(&path, build_systemd_service(exe, backend, token))?;
+    fs::write(&path, build_systemd_service(exe, backend, token, fqdn))?;
     Ok(path)
 }
 
@@ -92,21 +236,25 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Enroll this agent with the backend and obtain a token.
     Enroll {
         #[arg(long, default_value = "server-agent")]
         name: String,
         #[arg(long, default_value = "https://backend.ecli.app")]
         backend: String,
     },
-    /// Run the tunnel using a previously obtained token.
     Run {
         #[arg(long)]
         token: String,
         #[arg(long, default_value = "https://backend.ecli.app")]
         backend: String,
-        #[arg(long, default_value_t = 5)]
+        #[arg(long, default_value_t = 1)]
         reconnect_delay: u64,
+        #[arg(long, help = "FQDN of this tunnel server (used for self-signed TLS cert CN)")]
+        fqdn: Option<String>,
+        #[arg(long, help = "Path to TLS certificate (PEM) — auto-loads ~/.ecli/tunnel/cert.pem if omitted")]
+        cert: Option<String>,
+        #[arg(long, help = "Path to TLS private key (PEM)")]
+        key: Option<String>,
     },
 }
 
@@ -213,7 +361,7 @@ async fn main() {
         if args.verbose {
             "info".to_string()
         } else {
-            "warn".to_string()
+            "info".to_string()
         }
     });
     tracing_subscriber::fmt()
@@ -228,7 +376,10 @@ async fn main() {
             token,
             backend,
             reconnect_delay,
-        } => run(token, backend, reconnect_delay).await,
+            fqdn,
+            cert,
+            key,
+        } => run(token, backend, reconnect_delay, fqdn, cert, key).await,
     }
 }
 
@@ -305,7 +456,7 @@ async fn enroll(name: String, backend: String) {
 
                 match std::env::current_exe() {
                     Ok(exe) => {
-                        match write_systemd_service(&exe, backend, &payload.access_token) {
+                        match write_systemd_service(&exe, backend, &payload.access_token, None) {
                             Ok(path) => {
                                 println!(
                                     "\nGenerated systemd service file: {}",
@@ -328,7 +479,6 @@ async fn enroll(name: String, backend: String) {
                 return;
             }
 
-            // 428 Precondition Required == still waiting for user
             Ok(r) if r.status().as_u16() == 428 => {
                 print!(".");
             }
@@ -351,17 +501,67 @@ async fn enroll(name: String, backend: String) {
 // Run / reconnect loop
 // ---------------------------------------------------------------------------
 
-async fn run(token: String, backend: String, reconnect_delay: u64) {
+fn tunnel_cache_dir() -> PathBuf {
+    let mut p = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    p.push(".ecli/tunnel");
+    p
+}
+
+async fn run(
+    token: String,
+    backend: String,
+    reconnect_delay: u64,
+    fqdn: Option<String>,
+    cert_path: Option<String>,
+    key_path: Option<String>,
+) {
     let backend = backend.trim_end_matches('/');
     let ws_url = backend
         .replace("https://", "wss://")
         .replace("http://", "ws://")
         + "/api/tunnel/ws";
 
+    // Priority: --cert/--key > ~/.ecli/tunnel/{cert,key}.pem > self-signed
+    let cache = tunnel_cache_dir();
+    let tls_acceptor = cert_path
+        .zip(key_path)
+        .and_then(|(cp, kp)| {
+            match (fs::read_to_string(&cp), fs::read_to_string(&kp)) {
+                (Ok(c), Ok(k)) => build_acceptor_from_pem(&c, &k),
+                _ => { warn!("failed to read --cert/--key"); None }
+            }
+        })
+        .or_else(|| {
+            let cert = cache.join("cert.pem");
+            let key = cache.join("key.pem");
+            match (fs::read_to_string(&cert), fs::read_to_string(&key)) {
+                (Ok(c), Ok(k)) => {
+                    info!("loaded cert from {cert:?}");
+                    build_acceptor_from_pem(&c, &k)
+                }
+                _ => None
+            }
+        })
+        .or_else(|| {
+            let hostname = fqdn.clone().unwrap_or_else(|| {
+                gethostname::gethostname()
+                    .into_string()
+                    .unwrap_or_else(|_| "localhost".to_string())
+            });
+            info!(%hostname, "no cert found, using self-signed");
+            Some(build_self_signed_acceptor(&hostname))
+        });
+
+    if tls_acceptor.is_some() {
+        info!("opportunistic TLS enabled");
+    } else {
+        info!("running without TLS");
+    }
+
     loop {
         info!(%ws_url, "connecting to backend");
 
-        match try_connect_and_serve(&token, &ws_url).await {
+        match try_connect_and_serve(&token, &ws_url, &tls_acceptor).await {
             Ok(()) => info!("WebSocket session ended cleanly"),
             Err(err) => error!(%err, "WebSocket session error"),
         }
@@ -385,14 +585,18 @@ async fn run(token: String, backend: String, reconnect_delay: u64) {
 async fn try_connect_and_serve(
     token: &str,
     ws_url: &str,
+    tls_acceptor: &Option<tokio_rustls::TlsAcceptor>,
 ) -> Result<()> {
     let mut request = ws_url.into_client_request()?;
     request
         .headers_mut()
         .insert("authorization", format!("Bearer {token}").parse()?);
 
+    info!("establishing WebSocket connection...");
+    let connect_start = std::time::Instant::now();
     let (ws_stream, _response) = connect_async(request).await?;
-    info!("WebSocket connected");
+    let connect_duration = connect_start.elapsed();
+    info!(elapsed_ms = connect_duration.as_millis(), "server agent connected to backend");
 
     let (write, mut read) = ws_stream.split();
     let write: Arc<Mutex<WsSink>> = Arc::new(Mutex::new(write));
@@ -400,7 +604,6 @@ async fn try_connect_and_serve(
     let listeners: ListenerControl = Arc::new(Mutex::new(HashMap::new()));
     let connection_allocations: ConnectionAllocationMap =
         Arc::new(Mutex::new(HashMap::new()));
-
     while let Some(msg) = read.next().await {
         match msg? {
             Message::Text(txt) => {
@@ -410,6 +613,7 @@ async fn try_connect_and_serve(
                     tunnels.clone(),
                     listeners.clone(),
                     connection_allocations.clone(),
+                    tls_acceptor,
                 )
                 .await;
             }
@@ -437,6 +641,7 @@ async fn handle_text_message(
     tunnels: SharedConnections,
     listeners: ListenerControl,
     connection_allocations: ConnectionAllocationMap,
+    tls_acceptor: &Option<tokio_rustls::TlsAcceptor>,
 ) {
     let msg: serde_json::Value = match serde_json::from_str(txt) {
         Ok(v) => v,
@@ -447,7 +652,6 @@ async fn handle_text_message(
     };
 
     match msg.get("type").and_then(|v| v.as_str()) {
-        // ── bind ────────────────────────────────────────────────────────────
         Some("bind") => match serde_json::from_value::<BindMessage>(msg) {
             Ok(bind) => {
                 info!(
@@ -463,12 +667,12 @@ async fn handle_text_message(
                     tunnels,
                     listeners,
                     connection_allocations,
+                    tls_acceptor.clone(),
                 ));
             }
             Err(err) => error!(%err, "failed to parse bind message"),
         },
 
-        // ── unbind ──────────────────────────────────────────────────────────
         Some("unbind") => {
             if let Some(allocation_id) =
                 msg.get("allocationId").and_then(|v| v.as_u64())
@@ -484,7 +688,6 @@ async fn handle_text_message(
             }
         }
 
-        // ── connection.data ─────────────────────────────────────────────────
         Some("connection.data") => {
             let connection_id = match msg
                 .get("connectionId")
@@ -507,7 +710,8 @@ async fn handle_text_message(
                 }
             };
 
-            // Drop the lock before awaiting the write.
+            info!(%connection_id, size = bytes.len(), "received connection.data from backend, writing to tunnel TCP");
+
             let conn = {
                 let tunnels = tunnels.lock().await;
                 tunnels.get(&connection_id).cloned()
@@ -517,10 +721,12 @@ async fn handle_text_message(
                 if let Err(err) = conn.lock().await.write_all(&bytes).await {
                     error!(%err, %connection_id, "write to local connection failed");
                 }
+                info!(%connection_id, size = bytes.len(), "wrote data to tunnel TCP");
+            } else {
+                warn!(%connection_id, "no tunnel found for connection.data");
             }
         }
 
-        // ── connection.close ────────────────────────────────────────────────
         Some("connection.close") => {
             if let Some(connection_id) =
                 msg.get("connectionId").and_then(|v| v.as_str())
@@ -555,6 +761,7 @@ async fn bind_listener(
     tunnels: SharedConnections,
     listeners: ListenerControl,
     connection_allocations: ConnectionAllocationMap,
+    tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
 ) {
     let addr: SocketAddr = format!("0.0.0.0:{}", bind.port)
         .parse()
@@ -581,17 +788,90 @@ async fn bind_listener(
             result = listener.accept() => {
                 match result {
                     Ok((stream, peer)) => {
+                        let (mut read_half, write_half) = stream.into_split();
+
+                        // Read first 5 bytes to detect TLS ClientHello (0x16 0x03 ...)
+                        let mut peek_buf = vec![0u8; 5];
+                        let n = (&mut read_half).read(&mut peek_buf).await
+                            .unwrap_or(0);
+                        peek_buf.truncate(n);
+
+                        let is_tls = n >= 2 && peek_buf[0] == 0x16 && peek_buf[1] == 0x03;
                         let connection_id = Uuid::new_v4().to_string();
-                        info!(%connection_id, %peer, "accepted connection");
-                        tokio::spawn(handle_incoming_connection(
-                            bind.allocation_id,
-                            connection_id,
-                            stream,
-                            peer,
-                            write.clone(),
-                            tunnels.clone(),
-                            connection_allocations.clone(),
-                        ));
+
+                        if is_tls {
+                            if let Some(ref acceptor) = tls_acceptor {
+                                let prepended = PrependReader {
+                                    prefix: Some(peek_buf),
+                                    inner: read_half,
+                                };
+                                let combined = CombinedStream {
+                                    reader: prepended,
+                                    writer: write_half,
+                                };
+                                match acceptor.accept(combined).await {
+                                    Ok(tls_stream) => {
+                                        info!(%connection_id, %peer, "accepted TLS connection");
+                                        let (tls_read, tls_write) = tokio::io::split(tls_stream);
+                                        tunnels.lock().await.insert(
+                                            connection_id.clone(),
+                                            Arc::new(Mutex::new(Box::new(tls_write))),
+                                        );
+                                        tokio::spawn(handle_incoming_connection(
+                                            bind.allocation_id,
+                                            connection_id,
+                                            BufReader::new(tls_read),
+                                            peer,
+                                            write.clone(),
+                                            tunnels.clone(),
+                                            connection_allocations.clone(),
+                                        ));
+                                    }
+                                    Err(err) => {
+                                        error!(%err, %connection_id, "TLS handshake failed");
+                                    }
+                                }
+                            } else {
+                                // TLS detected but no acceptor — treat as plain
+                                info!(%connection_id, %peer, "TLS data but TLS not configured, forwarding as plain");
+                                let prepended = PrependReader {
+                                    prefix: Some(peek_buf),
+                                    inner: read_half,
+                                };
+                                tunnels.lock().await.insert(
+                                    connection_id.clone(),
+                                    Arc::new(Mutex::new(Box::new(write_half))),
+                                );
+                                tokio::spawn(handle_incoming_connection(
+                                    bind.allocation_id,
+                                    connection_id,
+                                    BufReader::new(prepended),
+                                    peer,
+                                    write.clone(),
+                                    tunnels.clone(),
+                                    connection_allocations.clone(),
+                                ));
+                            }
+                        } else {
+                            let prepended = PrependReader {
+                                prefix: Some(peek_buf),
+                                inner: read_half,
+                            };
+                            tunnels.lock().await.insert(
+                                connection_id.clone(),
+                                Arc::new(Mutex::new(Box::new(write_half))),
+                            );
+                            info!(%connection_id, %peer, "accepted plain connection");
+                            tokio::spawn(handle_incoming_connection(
+                                bind.allocation_id,
+                                connection_id,
+                                BufReader::new(prepended),
+                                peer,
+                                write.clone(),
+                                tunnels.clone(),
+                                connection_allocations.clone(),
+                            ));
+                        }
                     }
                     Err(err) => {
                         error!(%err, "accept error");
@@ -620,12 +900,10 @@ async fn handle_unbind(
     listeners: ListenerControl,
     connection_allocations: ConnectionAllocationMap,
 ) {
-    // Signal the listener task to stop.
     if let Some(tx) = listeners.lock().await.remove(&allocation_id) {
         let _ = tx.send(());
     }
 
-    // Collect every connection belonging to this allocation.
     let removed: Vec<String> = {
         let mut allocs = connection_allocations.lock().await;
         let ids: Vec<String> = allocs
@@ -638,7 +916,6 @@ async fn handle_unbind(
         ids
     };
 
-    // Close each connection and notify the backend.
     for connection_id in &removed {
         tunnels.lock().await.remove(connection_id);
         if let Err(err) = send_ws(
@@ -653,29 +930,25 @@ async fn handle_unbind(
 }
 
 // ---------------------------------------------------------------------------
-// Per-connection handler
+// Per-connection handler (for internet user connections)
 // ---------------------------------------------------------------------------
 
-async fn handle_incoming_connection(
+async fn handle_incoming_connection<R>(
     allocation_id: u64,
     connection_id: String,
-    stream: TcpStream,
+    mut reader: tokio::io::BufReader<R>,
     peer: SocketAddr,
     write: Arc<Mutex<WsSink>>,
     tunnels: SharedConnections,
     connection_allocations: ConnectionAllocationMap,
-) {
-    let stream = Arc::new(Mutex::new(stream));
-    tunnels
-        .lock()
-        .await
-        .insert(connection_id.clone(), stream.clone());
+) where
+    R: AsyncRead + Unpin + Send + 'static,
+{
     connection_allocations
         .lock()
         .await
         .insert(connection_id.clone(), allocation_id);
 
-    // Notify backend that a new TCP connection has arrived.
     if let Err(err) = send_ws(
         &write,
         OutgoingMessage::connection_open(allocation_id, &connection_id, peer),
@@ -687,34 +960,48 @@ async fn handle_incoming_connection(
         return;
     }
 
-    // Forward bytes from the local TCP socket to the backend over WebSocket.
-    let mut buf = vec![0u8; 8192];
+    info!(%connection_id, %peer, "WebSocket relay started");
+
+    // Forward TCP → WebSocket.  Read data from the incoming connection
+    // and send it to the client via the backend's WebSocket channel.
+    let mut buf = vec![0u8; MAX_FRAME_SIZE];
     loop {
-        let n = {
-            let mut locked = stream.lock().await;
-            match locked.read(&mut buf).await {
-                Ok(0) => break,
-                Ok(n) => n,
-                Err(err) => {
-                    error!(%err, %connection_id, "read error");
-                    break;
-                }
+        let n = match reader.read(&mut buf).await {
+            Ok(0) => {
+                info!(%connection_id, "TCP connection closed by peer");
+                break;
+            }
+            Ok(n) => n,
+            Err(err) => {
+                error!(%err, %connection_id, "read error");
+                break;
             }
         };
 
-        let encoded = BASE64.encode(&buf[..n]);
+        // If the tunnel was removed (connection.close from client) while we
+        // were blocked on read, discard the data and stop reading.
+        if tunnels.lock().await.get(&connection_id).is_none() {
+            info!(%connection_id, size = n, "tunnel gone, discarding data");
+            break;
+        }
+
+        info!(%connection_id, size = n, "read from TCP, forwarding as connection.data");
+        let data_b64 = BASE64.encode(&buf[..n]);
         if let Err(err) = send_ws(
             &write,
-            OutgoingMessage::connection_data(&connection_id, encoded),
+            OutgoingMessage::connection_data(&connection_id, data_b64),
         )
         .await
         {
-            error!(%err, %connection_id, "failed to send connection.data");
+            error!(%err, %connection_id, "failed to forward data");
             break;
         }
+        info!(%connection_id, size = n, "forwarded connection.data to backend");
     }
 
-    cleanup(&connection_id, &write, &tunnels, &connection_allocations).await;
+    if tunnels.lock().await.get(&connection_id).is_some() {
+        cleanup(&connection_id, &write, &tunnels, &connection_allocations).await;
+    }
 }
 
 // ---------------------------------------------------------------------------

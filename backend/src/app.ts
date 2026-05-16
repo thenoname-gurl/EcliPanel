@@ -20,6 +20,7 @@ import { scheduleOutboundEmailRunner } from './jobs/outboundEmailRunner';
 import { scheduleAdminBroadcastJobRunner } from './jobs/adminBroadcastJobRunner';
 import { scheduleSunsetPolicyJob } from './jobs/sunsetPolicyJob';
 import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
+import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
 import cron from 'node-cron';
 import path from 'path';
 import { promises as fsp } from 'fs';
@@ -511,6 +512,7 @@ export async function initApp() {
   try { scheduleOutboundEmailRunner(); } catch (e) { console.error('Failed to schedule outbound email runner:', e); }
   try { scheduleAdminBroadcastJobRunner(); } catch (e) { console.error('Failed to schedule admin broadcast job runner:', e); }
   try { scheduleSunsetPolicyJob(); } catch (e) { console.error('Failed to schedule sunset policy job:', e); }
+  try { scheduleTunnelCleanupJob(); } catch (e) { console.error('Failed to schedule tunnel cleanup job:', e); }
   try { scheduleGithubContributorsJob(); } catch (e) { console.error('Failed to schedule GitHub contributors job:', e); }
   try { const { scheduleMailboxPasswordRotation } = require('./services/mailcowService'); scheduleMailboxPasswordRotation(); } catch (e) { console.error('Failed to schedule mailbox password rotation job:', e); }
 }

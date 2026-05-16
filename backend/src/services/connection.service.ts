@@ -6,6 +6,17 @@ import { v4 as uuidv4 } from 'uuid';
 
 const connectionMap = new Map<string, ConnectionMapping>();
 
+// Buffer for connection.data messages that arrive before connection.open's
+// DB queries resolve.  After the mapping is created they are replayed.
+const pendingConnectionData = new Map<
+  string,
+  Array<{
+    msg: Record<string, unknown>;
+    senderAgentId: string;
+    senderKind: string;
+  }>
+>();
+
 export async function handleServerConnectionOpen(
   msg: Record<string, unknown>,
   serverAgentId: string
@@ -77,6 +88,8 @@ export async function handleServerConnectionOpen(
       `[tunnel] Failed to deliver connection.open to client agent ${allocation.clientDevice.deviceCode} for connection ${connectionId}`
     );
   }
+
+  dispatchPendingData(connectionId);
 }
 
 export function handleConnectionData(
@@ -86,7 +99,18 @@ export function handleConnectionData(
 ): void {
   const connectionId = String(msg.connectionId ?? '');
   const mapping = connectionMap.get(connectionId);
-  if (!mapping) return;
+  if (!mapping) {
+    // connection.open might still be processing (async DB).  Queue for later.
+    if (!pendingConnectionData.has(connectionId)) {
+      pendingConnectionData.set(connectionId, []);
+    }
+    pendingConnectionData.get(connectionId)!.push({
+      msg,
+      senderAgentId,
+      senderKind,
+    });
+    return;
+  }
 
   const targetAgentId =
     senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
@@ -97,6 +121,24 @@ export function handleConnectionData(
     connectionId,
     data: msg.data,
   });
+}
+
+function dispatchPendingData(connectionId: string): void {
+  const pending = pendingConnectionData.get(connectionId);
+  if (!pending) return;
+  pendingConnectionData.delete(connectionId);
+  const mapping = connectionMap.get(connectionId);
+  if (!mapping) return;
+  for (const { msg, senderKind } of pending) {
+    const targetAgentId =
+      senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
+    sendAgentMessage(targetAgentId, {
+      type: 'connection.data',
+      allocationId: mapping.allocationId,
+      connectionId,
+      data: msg.data,
+    });
+  }
 }
 
 export function handleConnectionClose(
@@ -118,6 +160,7 @@ export function handleConnectionClose(
   });
 
   connectionMap.delete(connectionId);
+  pendingConnectionData.delete(connectionId);
 }
 
 export function cleanupConnectionsByAgent(agentId: string): void {
@@ -138,6 +181,7 @@ export function cleanupConnectionsByAgent(agentId: string): void {
       });
 
       connectionMap.delete(id);
+      pendingConnectionData.delete(id);
     }
   }
 }
