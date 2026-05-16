@@ -45,7 +45,7 @@ export default function EmailPolicyPage() {
         </section>
 
         <section className="flex flex-col gap-0 mt-40">
-          <h2 className="text-xl font-semibold text-foreground">1. Scope</h2>
+          <h2 className="text-2xl font-semibold text-foreground">1. Scope</h2>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
             This policy applies to all email communications between
             EclipseSystems and our users, customers, partners, and third
@@ -60,7 +60,7 @@ export default function EmailPolicyPage() {
         </section>
 
         <section className="flex flex-col gap-0 mt-15">
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="text-2xl font-semibold text-foreground">
             2. Permitted Email Use
           </h2>
           <ul className="mt-4 space-y-3 text-[16px] leading-7 text-white/70">
@@ -81,7 +81,7 @@ export default function EmailPolicyPage() {
         </section>
 
         <section className="flex flex-col gap-0 mt-15">
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="text-2xl font-semibold text-foreground">
             3. Prohibited Email Behavior
           </h2>
           <ul className="mt-4 space-y-3 text-[16px] leading-7 text-white/70">
@@ -105,7 +105,7 @@ export default function EmailPolicyPage() {
         </section>
 
         <section className="flex flex-col gap-0 mt-15">
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="text-2xl font-semibold text-foreground">
             4. Email Security
           </h2>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
@@ -148,7 +148,7 @@ export default function EmailPolicyPage() {
         </section>
 
         <section className="flex flex-col gap-0 mt-15">
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="text-2xl font-semibold text-foreground">
             5. Retention and Disclosure
           </h2>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
