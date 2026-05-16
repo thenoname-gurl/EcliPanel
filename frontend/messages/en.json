@@ -790,7 +790,7 @@
       "forbidden": "Commercial use reserved"
     },
     "quick": {
-      "title": "# Quick Reference",
+      "title": "Quick Reference",
       "permittedTitle": "Permitted",
       "permitted1": "View, read & inspect source code",
       "permitted2": "Use for personal/educational projects",
@@ -813,7 +813,7 @@
       "attributionSuffix": "with a link to the official repository. This applies to both frontend and backend interfaces."
     },
     "full": {
-      "title": "# Full License Text",
+      "title": "Full License Text",
       "docTitle": "EclipseSystems Community License v1.1",
       "docLine1": "Copyright (c) 2026 EclipseSystems",
       "docLine2": "A project of Misiu LLC",
@@ -866,7 +866,7 @@
       }
     },
     "faq": {
-      "title": "# License FAQ",
+      "title": "License FAQ",
       "q1": "Can I use this for my school project?",
       "a1": "Yes! Educational and academic use is fully permitted under this license.",
       "q2": "Can I modify the code for personal learning?",
@@ -881,7 +881,7 @@
       "a6": "Any violation immediately terminates your license. You must cease all use and destroy all copies of the software."
     },
     "contact": {
-      "title": "# Questions?",
+      "title": "Questions?",
       "heading": "Need Commercial Access?",
       "body": "Interested in using EcliPanel or its assets for your business? We offer commercial licensing and enterprise support. Get in touch to discuss your needs and how we can help you leverage EcliPanel for your commercial projects.",
       "contactCommercial": "contact_commercial()",
