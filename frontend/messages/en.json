@@ -682,7 +682,8 @@
     "backendUnavailableMessage": "The panel backend cannot be reached right now. Please try again later.",
     "loginFailed": "Login failed",
     "missingTemporarySession": "Missing temporary session",
-    "failedToSendEmailCode": "Failed to send email code"
+    "failedToSendEmailCode": "Failed to send email code",
+    "back": "Back"
   },
   "register": {
     "steps": {
