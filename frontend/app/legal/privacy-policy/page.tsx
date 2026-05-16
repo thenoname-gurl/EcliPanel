@@ -18,7 +18,7 @@ export default function PrivacyPolicyPage() {
         customMenu={[
           { label: "AI Policy", href: "/legal/ai-policy" },
           { label: "Terms of Service", href: "/legal/terms-of-service" },
-          { label: "Cookie Policy", href: "/legal/cookie-policy" },
+          { label: "Cookies Policy", href: "/legal/cookies-policy" },
           {
             label: "Email Policy",
             href: "/legal/email-policy",
