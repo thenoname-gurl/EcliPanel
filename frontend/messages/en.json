@@ -4481,7 +4481,8 @@
       "publicEndpoint": "Public endpoint",
       "localTarget": "Local target",
       "status": "Status",
-      "created": "Created"
+      "created": "Created",
+      "connection": "Connection"
     },
     "placeholders": {
       "selectClientDevice": "Select a client device"
@@ -4549,7 +4550,8 @@
       "noAllocationsYet": "No allocations yet",
       "createAllocationHint": "Create a tunnel allocation above to start forwarding traffic.",
       "closed": "Closed",
-      "active": "Active"
+      "active": "Active",
+      "approved": "Approved"
     }
   },
   "infrastructureNodesPage": {

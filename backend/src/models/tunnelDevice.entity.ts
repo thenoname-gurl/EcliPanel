@@ -24,6 +24,9 @@ export class TunnelDevice {
   @Column({ type: 'varchar', length: 16, default: 'free_and_paid' })
   serverType: TunnelServerType;
 
+  @Column({ nullable: true })
+  fqdn?: string;
+
   @Column({ default: false })
   approved: boolean;
 

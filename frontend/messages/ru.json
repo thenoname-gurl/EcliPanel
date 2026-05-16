@@ -4480,7 +4480,8 @@
       "publicEndpoint": "Публичный endpoint",
       "localTarget": "Локальная цель",
       "status": "Статус",
-      "created": "Создано"
+      "created": "Создано",
+      "connection": "Подключение"
     },
     "placeholders": {
       "selectClientDevice": "Выберите клиентское устройство"
@@ -4548,7 +4549,8 @@
       "noAllocationsYet": "Перенаправлений пока нет",
       "createAllocationHint": "Создайте туннельное перенаправление выше, чтобы начать прием трафика.",
       "closed": "Закрыто",
-      "active": "Активно"
+      "active": "Активно",
+      "approved": "Утверждено"
     }
   },
   "infrastructureNodesPage": {

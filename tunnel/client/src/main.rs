@@ -1,10 +1,11 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use clap::{Parser, Subcommand};
 use futures_util::{SinkExt, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::{fs, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashMap, fs, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
-  io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt},
+  io::{AsyncReadExt, AsyncWriteExt},
   net::{TcpStream, UdpSocket},
   sync::Mutex,
 };
@@ -18,6 +19,7 @@ use tracing_subscriber::EnvFilter;
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsSink = futures_util::stream::SplitSink<WsStream, Message>;
+type LocalConnections = Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<Vec<u8>>>>>;
 
 const RECONNECT_DELAY_SECS: u64 = 5;
 const MAX_FRAME_SIZE: usize = 65536;
@@ -242,7 +244,7 @@ async fn main() {
     if args.verbose {
       "info".to_string()
     } else {
-      "warn".to_string()
+      "info".to_string()
     }
   });
   tracing_subscriber::fmt()
@@ -574,6 +576,7 @@ async fn run(
   protocol: String,
 ) {
   let config = resolve_config(token_arg, backend);
+  info!("starting tunnel agent — backend: {}", config.backend);
 
   if let Some(port) = local_port {
     let host = local_host.unwrap_or_else(|| String::from("127.0.0.1"));
@@ -586,6 +589,9 @@ async fn run(
         println!("    Local    {}://{}:{}", scheme, allocation.local_host, allocation.local_port);
         println!("  ─────────────────────────────────────────────────────");
         println!();
+        info!("allocation created: public {}://{}:{} -> local {}://{}:{}",
+          scheme, allocation.host, allocation.port,
+          scheme, allocation.local_host, allocation.local_port);
       }
       Err(err) => {
         error!(%err, "failed to create initial allocation");
@@ -594,6 +600,7 @@ async fn run(
   }
 
   let ws_url = config.backend.replace("http://", "ws://").replace("https://", "wss://") + "/api/tunnel/ws";
+  info!("connecting to backend at {}", ws_url);
 
   loop {
     info!("connecting to tunnel backend...");
@@ -621,127 +628,201 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
     format!("Bearer {}", config.token).parse()?,
   );
 
+  info!("establishing WebSocket connection...");
+  let connect_start = std::time::Instant::now();
   let (ws_stream, _) = connect_async(request).await?;
-  info!("tunnel agent connected");
+  let connect_duration = connect_start.elapsed();
+  info!(elapsed_ms = connect_duration.as_millis(), "tunnel agent connected to backend");
 
   let (write, mut read) = ws_stream.split();
   let write = Arc::new(Mutex::new(write));
   let write_clone = write.clone();
+  let local_connections: LocalConnections = Arc::new(Mutex::new(HashMap::new()));
 
-  let ws_task = tokio::spawn(async move {
-    while let Some(message) = read.next().await {
-      match message {
-        Ok(Message::Text(txt)) => {
-          let msg: serde_json::Value = match serde_json::from_str(&txt) {
-            Ok(value) => value,
-            Err(err) => {
-              error!(%err, "invalid JSON from backend");
-              continue;
-            }
-          };
+  let ws_task = {
+    let local_connections = local_connections.clone();
+    tokio::spawn(async move {
+      while let Some(message) = read.next().await {
+        match message {
+          Ok(Message::Text(txt)) => {
+            let msg: serde_json::Value = match serde_json::from_str(&txt) {
+              Ok(value) => value,
+              Err(err) => {
+                error!(%err, "invalid JSON from backend");
+                continue;
+              }
+            };
 
-          match msg.get("type").and_then(|v| v.as_str()) {
-            Some("connection.open") => {
-              match serde_json::from_value::<ConnectionOpenMessage>(msg) {
-                Ok(open) => {
-                  info!(
-                    connection_id = %open.connection_id,
-                    protocol = ?open.protocol,
-                    public_host = %open.public_host,
-                    public_port = open.public_port,
-                    direct_port = ?open.direct_port,
-                    "forwarding {} -> {}:{}",
-                    open.public_host, open.local_host, open.local_port
-                  );
-                  let write = write_clone.clone();
-                  tokio::spawn(async move {
-                    handle_client_connection(open, write).await;
-                  });
-                }
-                Err(err) => {
-                  error!(%err, "failed to parse connection.open");
+            match msg.get("type").and_then(|v| v.as_str()) {
+              Some("connection.open") => {
+                match serde_json::from_value::<ConnectionOpenMessage>(msg) {
+                  Ok(open) => {
+                    info!(
+                      connection_id = %open.connection_id,
+                      protocol = open.protocol.as_deref().unwrap_or("tcp"),
+                      public_host = %open.public_host,
+                      public_port = open.public_port,
+                      "incoming connection from server agent {}:{} -> local {}:{}",
+                      open.public_host, open.public_port, open.local_host, open.local_port
+                    );
+
+                    let inferred_protocol = match open.protocol.as_deref() {
+                      Some(value) => value,
+                      None => {
+                        if open.direct_port.is_some() && open.direct_port != Some(open.public_port) {
+                          "udp"
+                        } else {
+                          "tcp"
+                        }
+                      }
+                    };
+
+                    if inferred_protocol == "udp" {
+                      let write = write_clone.clone();
+                      tokio::spawn(async move {
+                        handle_client_udp(open, write).await;
+                      });
+                      continue;
+                    }
+
+                    let local_addr: SocketAddr =
+                      match format!("{}:{}", open.local_host, open.local_port).parse() {
+                        Ok(addr) => addr,
+                        Err(err) => {
+                          error!(%err, "invalid local target address");
+                          continue;
+                        }
+                      };
+
+                    let local_stream = match TcpStream::connect(local_addr).await {
+                      Ok(stream) => stream,
+                      Err(err) => {
+                        error!(%err, connection_id = %open.connection_id, "failed to connect local target at {}", local_addr);
+                        continue;
+                      }
+                    };
+
+                    let (mut read_half, mut write_half) = local_stream.into_split();
+                    let (data_tx, mut data_rx) =
+                      tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+
+                    local_connections
+                      .lock()
+                      .await
+                      .insert(open.connection_id.clone(), data_tx);
+                    info!(connection_id = %open.connection_id, "WebSocket relay started");
+
+                    let write = write_clone.clone();
+                    let local_connections = local_connections.clone();
+                    let conn_id = open.connection_id.clone();
+                      tokio::spawn(async move {
+                      let mut buf = vec![0u8; MAX_FRAME_SIZE];
+                      loop {
+                        tokio::select! {
+                          biased;
+                          Some(data) = data_rx.recv() => {
+                            info!(connection_id = %conn_id, size = data.len(), "writing data to local target from backend");
+                            if let Err(err) = write_half.write_all(&data).await {
+                              error!(%err, %conn_id, "write to local target failed");
+                              break;
+                            }
+                            info!(connection_id = %conn_id, size = data.len(), "wrote data to local target");
+                          }
+                          result = read_half.read(&mut buf) => {
+                            match result {
+                              Ok(0) => break,
+                              Ok(n) => {
+                                info!(connection_id = %conn_id, size = n, "read from local target");
+                                let data_b64 = BASE64.encode(&buf[..n]);
+                                let msg = OutgoingMessage {
+                                  type_name: "connection.data",
+                                  allocation_id: None,
+                                  connection_id: Some(conn_id.clone()),
+                                  data: Some(data_b64),
+                                };
+                                if let Ok(payload) = serde_json::to_string(&msg) {
+                                  if write.lock().await.send(Message::Text(payload)).await.is_err() {
+                                    break;
+                                  }
+                                  info!(connection_id = %conn_id, size = n, "forwarded local data to backend");
+                                }
+                              }
+                              Err(err) => {
+                                error!(%err, connection_id = %conn_id, "local read error");
+                                break;
+                              }
+                            }
+                          }
+                        }
+                      }
+
+                      local_connections.lock().await.remove(&conn_id);
+                      let close = OutgoingMessage {
+                        type_name: "connection.close",
+                        allocation_id: None,
+                        connection_id: Some(conn_id),
+                        data: None,
+                      };
+                      if let Ok(payload) = serde_json::to_string(&close) {
+                        write.lock().await.send(Message::Text(payload)).await.ok();
+                      }
+                    });
+                  }
+                  Err(err) => {
+                    error!(%err, "failed to parse connection.open");
+                  }
                 }
               }
+              Some("connection.data") => {
+                let connection_id = match msg.get("connectionId").and_then(|v| v.as_str()) {
+                  Some(id) => id.to_owned(),
+                  None => continue,
+                };
+                let data_b64 = match msg.get("data").and_then(|v| v.as_str()) {
+                  Some(d) => d,
+                  None => continue,
+                };
+                let bytes = match BASE64.decode(data_b64) {
+                  Ok(b) => b,
+                  Err(err) => {
+                    error!(%err, "base64 decode failed");
+                    continue;
+                  }
+                };
+                info!(%connection_id, size = bytes.len(), "received connection.data from backend");
+                let conns = local_connections.lock().await;
+                if let Some(tx) = conns.get(&connection_id) {
+                  if tx.send(bytes).is_err() {
+                    warn!(%connection_id, "local target task ended");
+                  }
+                } else {
+                  warn!(%connection_id, "no local connection found for connection.data");
+                }
+              }
+              Some("connection.close") => {
+                if let Some(connection_id) = msg.get("connectionId").and_then(|v| v.as_str()) {
+                  local_connections.lock().await.remove(connection_id);
+                  info!(%connection_id, "connection closed by remote");
+                }
+              }
+              Some("pong") => {}
+              _ => {}
             }
-            Some("pong") => {}
-            _ => {}
           }
+          Ok(Message::Ping(data)) => {
+            let mut writer = write_clone.lock().await;
+            let _ = writer.send(Message::Pong(data)).await;
+          }
+          _ => {}
         }
-        Ok(Message::Ping(data)) => {
-          let mut writer = write_clone.lock().await;
-          let _ = writer.send(Message::Pong(data)).await;
-        }
-        _ => {}
       }
-    }
-  });
+    })
+  };
 
   tokio::signal::ctrl_c().await?;
   info!("shutting down");
   ws_task.abort();
   Ok(())
-}
-
-async fn handle_client_connection(open: ConnectionOpenMessage, write: Arc<Mutex<WsSink>>) {
-  let inferred_protocol = match open.protocol.as_deref() {
-    Some(value) => value,
-    None => {
-      if open.direct_port.is_some() && open.direct_port != Some(open.public_port) {
-        "udp"
-      } else {
-        "tcp"
-      }
-    }
-  };
-
-  if inferred_protocol == "udp" {
-    handle_client_udp(open, write).await;
-    return;
-  }
-
-  let local_addr: SocketAddr = match format!("{}:{}", open.local_host, open.local_port).parse() {
-    Ok(addr) => addr,
-    Err(err) => {
-      error!(%err, "invalid local target address");
-      return;
-    }
-  };
-
-  let direct_port = open.direct_port.unwrap_or(open.public_port);
-  let server_addr = format!("{}:{}", open.public_host, direct_port);
-  let mut server_stream = match TcpStream::connect(&server_addr).await {
-    Ok(stream) => stream,
-    Err(err) => {
-      error!(%err, "failed to connect server tunnel");
-      return;
-    }
-  };
-
-  let handshake = format!("ECLI-DIRECT {} {}\n", open.connection_id, open.direct_token);
-  if let Err(err) = server_stream.write_all(handshake.as_bytes()).await {
-    error!(%err, "failed to send direct handshake");
-    return;
-  }
-
-  let mut local_stream = match TcpStream::connect(local_addr).await {
-    Ok(stream) => stream,
-    Err(err) => {
-      error!(%err, "failed to connect local target");
-      return;
-    }
-  };
-
-  let _ = copy_bidirectional(&mut server_stream, &mut local_stream).await;
-
-  let close = OutgoingMessage {
-    type_name: "connection.close",
-    allocation_id: None,
-    connection_id: Some(open.connection_id),
-    data: None,
-  };
-  if let Ok(payload) = serde_json::to_string(&close) {
-    write.lock().await.send(Message::Text(payload)).await.ok();
-  }
 }
 
 async fn handle_client_udp(open: ConnectionOpenMessage, write: Arc<Mutex<WsSink>>) {

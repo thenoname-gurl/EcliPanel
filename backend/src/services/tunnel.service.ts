@@ -6,6 +6,7 @@ import { sendAgentMessage } from './agent.service';
 
 const PORT_RANGE_DEFAULT = '20000-29999';
 const MAX_PORT_ATTEMPTS = 500;
+const CLOSED_REUSE_HOURS = 1;
 
 export async function verifyDeviceToken(
   jwt: { verify: (token: string) => unknown },
@@ -42,14 +43,25 @@ export async function allocatePort(): Promise<number> {
 
   const repo = AppDataSource.getRepository(TunnelAllocation);
   const allocations = await repo.find({
-    select: ['port'],
+    select: ['port', 'closedAt'],
     where: [
       { status: 'pending' as AllocationStatus },
       { status: 'active' as AllocationStatus },
+      { status: 'closed' as AllocationStatus },
     ],
   });
 
-  const usedPorts = new Set(allocations.map((a) => a.port));
+  const cutoff = new Date(Date.now() - CLOSED_REUSE_HOURS * 60 * 60 * 1000);
+  const usedPorts = new Set(
+    allocations
+      .filter((a) => {
+        if (a.status === 'closed') {
+          return a.closedAt != null && a.closedAt >= cutoff;
+        }
+        return true;
+      })
+      .map((a) => a.port)
+  );
 
   for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
     const candidate =
@@ -59,6 +71,34 @@ export async function allocatePort(): Promise<number> {
   }
 
   throw new Error('No free tunnel port available');
+}
+
+export async function tryReuseRecentPort(
+  clientDevice: TunnelDevice,
+  localHost: string,
+  localPort: number
+): Promise<TunnelAllocation | null> {
+  const repo = AppDataSource.getRepository(TunnelAllocation);
+  const cutoff = new Date(Date.now() - CLOSED_REUSE_HOURS * 60 * 60 * 1000);
+
+  const recent = await repo.findOne({
+    where: {
+      clientDevice: { id: clientDevice.id },
+      localHost,
+      localPort,
+      status: 'closed' as AllocationStatus,
+    },
+    relations: ['clientDevice', 'serverDevice'],
+    order: { closedAt: 'DESC' },
+  });
+
+  if (!recent || !recent.closedAt || recent.closedAt < cutoff) return null;
+
+  recent.status = 'active';
+  recent.closedAt = undefined;
+  await repo.save(recent);
+
+  return recent;
 }
 
 function normalizePortalType(portalType?: string): string {
@@ -116,7 +156,7 @@ function isServerEligibleForClient(
     return clientOrgIds.includes(serverDevice.organisation.id);
   }
 
-  if (clientPortalType === 'enterprise') {
+  if (clientPortalType === 'enterprise' && serverDevice.organisation?.id) {
     return false;
   }
 
@@ -174,7 +214,10 @@ export async function assignPendingAllocations(
   const repo = AppDataSource.getRepository(TunnelAllocation);
 
   const pending = await repo.find({
-    where: { status: 'pending' as AllocationStatus },
+    where: [
+      { status: 'pending' as AllocationStatus },
+      { status: 'active' as AllocationStatus },
+    ],
     relations: ['clientDevice', 'clientDevice.ownerUser', 'clientDevice.ownerUser.org', 'clientDevice.ownerUser.organisationMemberships', 'clientDevice.organisation', 'serverDevice'],
   });
 
