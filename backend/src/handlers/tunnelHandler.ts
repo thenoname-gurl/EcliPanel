@@ -36,6 +36,7 @@ import {
   handleConnectionClose,
   cleanupConnectionsByAgent,
 } from '../services/connection.service';
+import { getRolloutTreatment } from '../services/rolloutService';
 
 const TUNNEL_WS_SCHEMA = {
   detail: {
@@ -129,6 +130,7 @@ async function requireAdmin(ctx: any): Promise<Response | null> {
     return errorResponse((authResult as any).error, status);
   }
 
+  if (ctx.apiKey && ctx.apiKey.type === 'admin') return null;
   if (!isAdminUser(ctx.user)) {
     return errorResponse('forbidden', 403);
   }
@@ -179,6 +181,18 @@ async function requireAuthOrDevice(
   }
 
   return { device, error: null };
+}
+
+const TUNNEL_ROLLOUT_KEY = 'tunnel_feature';
+
+async function requireTunnelRollout(ctx: any): Promise<true | { error: string }> {
+  if (!ctx.user) return true;
+  const { inRollout } = await getRolloutTreatment(ctx.user.id, TUNNEL_ROLLOUT_KEY);
+  if (!inRollout) {
+    ctx.set.status = 403;
+    return { error: 'Tunnels feature is not yet available to you' };
+  }
+  return true;
 }
 
 export function tunnelRoutes(app: any, prefix: string): void {
@@ -261,6 +275,42 @@ export function tunnelRoutes(app: any, prefix: string): void {
       },
       detail: {
         summary: 'Download the tunnel client binary',
+        tags: ['Tunnels'],
+      },
+    }
+  );
+
+  app.get(
+    `${prefix}/tunnel/deploy.sh`,
+    async (ctx: any) => {
+      const scriptPath = path.resolve(
+        process.cwd(),
+        '..',
+        'tunnel',
+        'deploy.sh'
+      );
+
+      if (!fs.existsSync(scriptPath)) {
+        ctx.set.status = 404;
+        return errorResponse('Deploy script not available', 404);
+      }
+
+      const content = await fs.promises.readFile(scriptPath, 'utf-8');
+      return new Response(content, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/x-shellscript; charset=utf-8',
+          'Content-Length': String(Buffer.byteLength(content)),
+        },
+      });
+    },
+    {
+      response: {
+        200: t.String(),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Download the tunnel deploy shell script',
         tags: ['Tunnels'],
       },
     }
@@ -564,6 +614,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse((authResult as any).error, ctx.set?.status || 401);
       }
 
+      const rolloutCheck = await requireTunnelRollout(ctx);
+      if (rolloutCheck !== true) return rolloutCheck;
+
       await cleanupExpiredEnrollments();
       const repo = AppDataSource.getRepository(TunnelDevice);
       let devices: TunnelDevice[] = [];
@@ -739,10 +792,90 @@ export function tunnelRoutes(app: any, prefix: string): void {
   );
 
   app.post(
+    `${prefix}/tunnel/devices`,
+    async (ctx: any) => {
+      const authError = await requireAdmin(ctx);
+      if (authError) return authError;
+
+      const body = (ctx.body as Record<string, unknown>) || {};
+      const name = getStringField(body, ['name', 'name'], 'agent');
+      const requestedKind = getStringField(body, ['kind', 'kind']);
+      const kind: 'client' | 'server' = requestedKind === 'server' ? 'server' : 'client';
+
+      const deviceCode = uuidv4();
+      const userCode = generateUserCode();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      let ownerUser: User | undefined = undefined;
+      if (kind === 'client') {
+        ownerUser = ctx.user;
+        const ownerUserId = getNumberField(body, ['owner_user_id', 'ownerUserId']);
+        if (ownerUserId) {
+          const userRepo = AppDataSource.getRepository(User);
+          ownerUser = await userRepo.findOne({ where: { id: ownerUserId } });
+          if (!ownerUser) return errorResponse('owner_user_not_found', 404);
+        }
+      }
+
+      const repo = AppDataSource.getRepository(TunnelDevice);
+      const device = repo.create({
+        deviceCode,
+        userCode,
+        name,
+        kind,
+        approved: true,
+        approvedBy: ctx.user,
+        ownerUser,
+        expiresAt,
+        token: app.jwt.sign(
+          { agent: deviceCode, kind, iat: Math.floor(Date.now() / 1000) },
+          { expiresIn: '24h' }
+        ),
+      });
+      await repo.save(device);
+
+      return createJsonResponse({
+        device_code: deviceCode,
+        user_code: userCode,
+        name,
+        kind,
+        access_token: device.token,
+        token_type: 'bearer',
+        expires_in: 86400,
+      });
+    },
+    {
+      response: {
+        200: t.Object({
+          device_code: t.String(),
+          user_code: t.String(),
+          name: t.String(),
+          kind: t.String(),
+          access_token: t.String(),
+          token_type: t.String(),
+          expires_in: t.Number(),
+        }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Create and approve a tunnel device (admin)',
+        tags: ['Tunnels'],
+        description:
+          'Create a tunnel device that is immediately approved. Returns an access token. Admin only.',
+      },
+    }
+  );
+
+  app.post(
     `${prefix}/tunnel/allocations`,
     async (ctx: any) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
+
+      const tunnelRollout = await requireTunnelRollout(ctx);
+      if (tunnelRollout !== true) return tunnelRollout;
 
       let clientDevice = device;
       const body = (ctx.body as Record<string, unknown>) || {};
@@ -900,6 +1033,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
+      const tunnelRollout = await requireTunnelRollout(ctx);
+      if (tunnelRollout !== true) return tunnelRollout;
+
       const repo = AppDataSource.getRepository(TunnelAllocation);
       let allocations: TunnelAllocation[] = [];
       if (device) {
@@ -981,6 +1117,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
+      const tunnelRollout = await requireTunnelRollout(ctx);
+      if (tunnelRollout !== true) return tunnelRollout;
+
       const allocationId = Number(ctx.params.id);
       if (!Number.isFinite(allocationId)) {
         return errorResponse('invalid_id', 400);
@@ -1040,11 +1179,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
-      const allocationId = Number(ctx.params.id);
-      if (!Number.isFinite(allocationId)) {
-        return errorResponse('invalid_id', 400);
-      }
+      const tunnelRollout = await requireTunnelRollout(ctx);
+      if (tunnelRollout !== true) return tunnelRollout;
 
+      const allocationId = Number(ctx.params.id);
       const body = (ctx.body as Record<string, unknown>) || {};
       const localPort = getNumberField(body, ['local_port', 'localPort']);
       if (localPort < 1 || localPort > 65535) {
@@ -1111,6 +1249,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
     async (ctx: any) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
+
+      const tunnelRollout = await requireTunnelRollout(ctx);
+      if (tunnelRollout !== true) return tunnelRollout;
 
       const allocationId = Number(ctx.params.id);
       if (!Number.isFinite(allocationId)) {

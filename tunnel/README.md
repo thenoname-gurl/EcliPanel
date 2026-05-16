@@ -1,118 +1,143 @@
 <p align="center">
   <img src="./tunnel.png" alt="EcliPanel" width="640" />
 </p>
+
 # EcliTunnel
 
-This folder includes two Rust tunnel agents for EcliPanel:
+Expose local services via public tunnel endpoints managed by EcliPanel.
+Data travels directly between agents.
 
-- `tunnel/client` this is the client side agent that requests a public tunnel allocation and forwards local service traffic!
-- `tunnel/server` this is the server side relay agent that accepts inbound traffic on allocated public ports and forwards it to clients..
+## Quick start
 
-## Prerequisites
+Expose a local service with a single command (auto-installs the client):
 
-- Rust and Cargo installed
-- Backend available over HTTPS (Or HTTP) and reachable from the tunnel agents!
-- A public hostname for tunnel endpoints when self-hosting
+```bash
+curl -fsSL https://ecli.app/api/tunnel/deploy.sh | bash -s -- open --port 8080
+```
 
-## Backend configuration for server deployments
+Run a persistent agent that forwards tunnel traffic automatically:
 
-The server agent receives bind instructions from the backend and listens locally on the allocated port. That means:
+```bash
+curl -fsSL https://ecli.app/api/tunnel/deploy.sh | bash -s -- run --port 8080
+```
 
-- The backend should publish a public hostname for tunnels via `TUNNEL_PUBLIC_HOST` if you are self-hosting.
-- The server host must allow inbound TCP traffic on the tunnel allocation port range (default `20000-29999`).
-- The public endpoint will be shown as `<TUNNEL_PUBLIC_HOST>:<port>`.
+## Client vs Server
+
+| Agent | Role | Runs on |
+|-------|------|---------|
+| **Client** | Forwards traffic from public endpoints to your local service | Your development machine, application server, or any host with a local service |
+| **Server** | Accepts inbound internet traffic on allocated ports and relays to clients | A publicly-reachable host with open ports (`20000-29999`) |
 
 ## Client usage
 
-```bash
-cd tunnel/client
-cargo run --release -- enroll --backend https://your-backend.example
-```
-
-After approval, run a persistent client agent and optionally request a public tunnel allocation in the same command:
+### 1. Enroll the agent
 
 ```bash
-cargo run --release -- run --backend https://your-backend.example --local-host 127.0.0.1 --local-port 8080 --protocol tcp
+ecli-tunnel-client enroll --backend https://backend.ecli.app
 ```
 
-If you already created an allocation separately, you can also run the client without flags:
+You'll get a code — enter it in the EcliPanel admin interface to approve the device. The token is saved to `~/.ecli-tunnel-client.json`.
+
+### 2. Open a tunnel
+
+One-shot allocation (creates tunnel and exits):
 
 ```bash
-cargo run --release -- run --backend https://your-backend.example
+ecli-tunnel-client open --local-port 8080 --backend https://backend.ecli.app
 ```
 
-To enable verbose client logging, add the `--verbose` flag:
+Output:
+
+```
+  Tunnel active  ──────────────────────────────────────
+    Public   tcp://tun-1.example.com:21345
+    Local    tcp://127.0.0.1:8080
+  ─────────────────────────────────────────────────────
+```
+
+### 3. Run persistent agent
+
+Stays connected and forwards traffic for all active allocations:
 
 ```bash
-cargo run --release -- --verbose run --backend https://your-backend.example
+ecli-tunnel-client run --local-port 8080 --backend https://backend.ecli.app
 ```
 
-To manage allocations (list, delete, or edit local ports), run:
+Or run without creating an initial allocation (allocation created from the panel):
 
 ```bash
-cargo run --release -- allocations --backend https://your-backend.example
+ecli-tunnel-client run --backend https://backend.ecli.app
 ```
 
-Use `c` to close (keeps history) or `d` to delete allocations.
+### 4. Manage allocations
 
-### What the client does
+```bash
+ecli-tunnel-client allocations --backend https://backend.ecli.app
+```
 
-- Calls `/api/tunnel/device/start` to begin enrollment.
-- Polls `/api/tunnel/device/poll` for approval.
-- Connects to `/api/tunnel/ws` with the approved bearer token.
-- Receives `connection.open` from the backend when the server accepts inbound traffic.
-- Opens a direct TCP connection to the server allocation port and bridges it to the local service.
+Shows an interactive list. Supports `c` (close), `d` (delete), `e` (edit local port).
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--backend` | Backend base URL (default: `https://backend.ecli.app`) |
+| `--token` | Access token (omit to use saved config) |
+| `--local-host` | Local service host (default: `127.0.0.1`) |
+| `--local-port` | Local service port |
+| `--protocol` | `tcp` or `udp` (default: `tcp`) |
+| `--verbose` | Enable verbose logging (use as first arg: `--verbose run ...`) |
 
 ## Server usage
 
-```bash
-cd tunnel/server
-cargo run --release -- enroll --backend https://your-backend.example --jwt-token <admin_jwt>
-```
-
-After approval, run the server agent:
+### 1. Enroll the server agent
 
 ```bash
-cargo run --release -- run --token <access_token> --backend https://your-backend.example
+ecli-tunnel-server enroll --backend https://backend.ecli.app
 ```
 
-### What the server does
-
-- Enrolls as a `server` tunnel device.
-- Connects to `/api/tunnel/ws` with bearer authentication.
-- Receives `bind` events from the backend for each active allocation.
-- Listens on `0.0.0.0:<allocated_port>` for inbound tunnel traffic.
-- For each inbound connection, coordinates a direct client connection on the same port and bridges traffic.
-- Stops listening when the allocation is closed from the panel.
-
-## Direct data path
-
-Tunnel data no longer flows through the backend. The control plane remains on the backend WebSocket, but data travels directly:
-
-```
-internet -> server agent -> client agent -> local service
-```
-
-When a public connection arrives, the server agent notifies the backend, which issues a one-time direct token. The client then connects to the server allocation port, presents the token, and traffic is bridged directly.
-
-## Proper server configuration
-
-1. Use `--backend https://your-backend.example` to point the agent at your backend.
-2. Approve the server device from the backend as a `server` kind agent.
-3. Make sure the server host can access the backend over HTTPS and WSS.
-4. Open the tunnel port range on the server host, because the agent binds allocated ports dynamically.
-5. Set `TUNNEL_PUBLIC_HOST` in backend environment if your public endpoint hostname is custom.
-6. Run the server agent as a long-lived process (systemd, container, or supervisor).
-
-### Example server run command
+### 2. Run the server agent
 
 ```bash
-cd tunnel/server
-cargo run --release -- --backend https://your-backend.example run --token <access_token>
+ecli-tunnel-server run --token <token> --backend https://backend.ecli.app
 ```
 
-### Notes
+The server agent:
+- Connects to the backend WebSocket
+- Listens for `bind` events (backend instructing it to listen on an allocated port)
+- Binds `0.0.0.0:<port>` for each active allocation
+- Relays TCP connections to the client agent via a direct data path
 
-- The server agent does not require additional local service configuration; it binds ports assigned by the backend.
-- The actual public endpoint is determined by the backend public host plus the allocated port.
-- If using your own domain, ensure DNS for `TUNNEL_PUBLIC_HOST` resolves to the server host.
+### Server prerequisites
+
+- The server host must allow inbound TCP traffic on the tunnel port range (`20000-29999` by default)
+- The backend should publish a public hostname via `TUNNEL_PUBLIC_HOST` env var
+- Set `TUNNEL_PUBLIC_HOST` in your backend environment if the public hostname differs from the server host
+
+## Data path
+
+```
+internet → server agent (port 20000-29999) → client agent → local service
+```
+
+The control plane runs over the backend WebSocket (`/api/tunnel/ws`). Data flows directly between agents using a one-time direct token — no traffic passes through the backend.
+
+## Building from source
+
+```bash
+# Build client
+cd tunnel/client && cargo build --release
+
+# Build server  
+cd tunnel/server && cargo build --release
+```
+
+The deploy script at `tunnel/deploy.sh` also handles building automatically.
+
+## Architecture
+
+1. **Client enrollment**: Agent calls `/api/tunnel/device/start`, polls `/api/tunnel/device/poll` for approval.
+2. **WebSocket connection**: Agent connects to `/api/tunnel/ws` with bearer token.
+3. **Allocation**: Backend assigns a public port and sends `bind` to server, `connection.open` to client.
+4. **Direct bridge**: Client connects to server's allocated port with a one-time direct token.
+5. **Traffic relay**: bytes flow directly between server and client agents.

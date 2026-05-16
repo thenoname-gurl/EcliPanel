@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { FeatureGuard } from "@/components/panel/feature-guard"
+import { RolloutGuard } from "@/components/panel/rollout-guard"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import {
   Plus,
   Server,
@@ -129,6 +131,7 @@ const selectCls = inputCls + " appearance-none cursor-pointer pr-8"
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TunnelsPage() {
+  const { user } = useAuth()
   const t = useTranslations("tunnelsPage")
 
   const kindLabel = (kind: string) => {
@@ -140,8 +143,11 @@ export default function TunnelsPage() {
   const backendUrl = typeof window !== "undefined" ? window.location.origin : ""
   const clientBinaryUrl = backendUrl + API_ENDPOINTS.tunnelClientDownload
   const serverBinaryUrl = backendUrl + API_ENDPOINTS.tunnelServerDownload
+  const deployScriptUrl = backendUrl + API_ENDPOINTS.tunnelDeployScript
   const curlClientCmd = `curl -fsSL "${clientBinaryUrl}" -o ecli-tunnel-client && chmod +x ecli-tunnel-client`
   const curlServerCmd = `curl -fsSL "${serverBinaryUrl}" -o ecli-tunnel-server && chmod +x ecli-tunnel-server`
+  const deployOpenCmd = `curl -fsSL "${deployScriptUrl}" | bash -s -- open --port 8080`
+  const deployRunCmd = `curl -fsSL "${deployScriptUrl}" | bash -s -- run --port 8080`
 
   const [devices, setDevices] = useState<any[]>([])
   const [allocations, setAllocations] = useState<any[]>([])
@@ -154,6 +160,7 @@ export default function TunnelsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -168,7 +175,7 @@ export default function TunnelsPage() {
       const firstClient = newDevices.find((d: any) => d.kind === "client" && d.approved)
       setSelectedDeviceId((prev) => prev ?? firstClient?.id ?? null)
     } catch (err) {
-      console.error(err)
+      setError(String(err))
     } finally {
       setLoading(false)
     }
@@ -190,7 +197,7 @@ export default function TunnelsPage() {
       })
       await load()
     } catch (err) {
-      console.error(err)
+      setError(String(err))
     } finally {
       setActionLoading(null)
     }
@@ -222,7 +229,7 @@ export default function TunnelsPage() {
       await apiFetch(`/api/tunnel/allocations/${id}/close`, { method: "POST" })
       await load()
     } catch (err) {
-      console.error(err)
+      setError(String(err))
     } finally {
       setActionLoading(null)
     }
@@ -236,7 +243,7 @@ export default function TunnelsPage() {
       if (managedDevice?.id === id) setManagedDevice(null)
       await load()
     } catch (err) {
-      console.error(err)
+      setError(String(err))
     } finally {
       setActionLoading(null)
     }
@@ -251,7 +258,7 @@ export default function TunnelsPage() {
       }
       await load()
     } catch (err) {
-      console.error(err)
+      setError(String(err))
     } finally {
       setActionLoading(null)
     }
@@ -272,470 +279,514 @@ export default function TunnelsPage() {
 
   return (
     <FeatureGuard feature="tunnels">
-      <PanelHeader title={t("header.title")} description={t("header.description")} />
+      <RolloutGuard rolloutKey="tunnel_feature" fallback={
+        <div className="flex flex-col items-center justify-center py-24 px-6 gap-4 max-w-md mx-auto text-center">
+          <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <Globe className="h-8 w-8 text-muted-foreground/30" />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-foreground">{t("rollout.title")}</p>
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{t("rollout.description")}</p>
+          </div>
+        </div>
+      }>
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
 
-      <ScrollArea className="flex-1 overflow-x-hidden">
-        <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-5xl mx-auto w-full pb-10">
+        <ScrollArea className="flex-1 overflow-x-hidden">
+          <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-5xl mx-auto w-full pb-10">
 
-          {/* ── Downloads ──────────────────────────────────────────────────── */}
-          <SectionCard>
-            <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
-              <IconBox color="bg-primary/10">
-                <Download className="h-4 w-4 text-primary" />
-              </IconBox>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">{t("downloads.title")}</h2>
-                <p className="text-xs text-muted-foreground">{t("downloads.description")}</p>
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 grid gap-4 sm:grid-cols-2">
-              {/* Client */}
-              <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">{t("downloads.client")}</span>
-                  <Badge variant="muted">{t("downloads.clientBadge")}</Badge>
-                </div>
-                <CommandSnippet cmd={curlClientCmd} />
-                <p className="text-xs text-muted-foreground">{t("downloads.clientCurlDesc")}</p>
-                <a
-                  href={API_ENDPOINTS.tunnelClientDownload}
-                  download
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  {t("downloads.downloadClient")}
-                </a>
-              </div>
-
-              {/* Server */}
-              <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">{t("downloads.server")}</span>
-                  <Badge variant="muted">{t("downloads.serverBadge")}</Badge>
-                </div>
-                <CommandSnippet cmd={curlServerCmd} />
-                <p className="text-xs text-muted-foreground">{t("downloads.serverCurlDesc")}</p>
-                <a
-                  href={API_ENDPOINTS.tunnelServerDownload}
-                  download
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/60 px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary/90 active:scale-95 transition-all"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  {t("downloads.downloadServer")}
-                </a>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* ── Create Allocation ───────────────────────────────────────────── */}
-          <SectionCard>
-            <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
-              <IconBox color="bg-primary/10">
-                <Globe className="h-4 w-4 text-primary" />
-              </IconBox>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">{t("sections.createAllocation")}</h2>
-                <p className="text-xs text-muted-foreground">{t("sections.createAllocationDescription")}</p>
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 space-y-4">
-              {/* Inline form error */}
-              {formError && (
-                <div className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
-                  <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-sm text-destructive">{formError}</p>
-                  <button onClick={() => setFormError(null)} className="ml-auto shrink-0 text-destructive/60 hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </button>
+                {error && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                    <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <p className="text-sm text-destructive flex-1">{error}</p>
+                    <button onClick={() => setError(null)} className="shrink-0 text-destructive/60 hover:text-destructive">
+                      <X className="h-4 w-4" />
+                    </button>
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Client Device */}
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("labels.clientDevice")}
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedDeviceId ?? ""}
-                      onChange={(e) => {
-                        setSelectedDeviceId(e.target.value ? Number(e.target.value) : null)
-                        setFormError(null)
-                      }}
-                      className={`${selectCls} ${!selectedDeviceId ? "border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/10" : ""}`}
-                    >
-                      <option value="">{t("placeholders.selectClientDevice")}</option>
-                      {approvedClients.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name || d.user_code} — {d.user_code}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+              {/* ── Downloads ──────────────────────────────────────────────────── */}
+              <SectionCard>
+                <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
+                  <IconBox color="bg-primary/10">
+                    <Download className="h-4 w-4 text-primary" />
+                  </IconBox>
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">{t("downloads.title")}</h2>
+                    <p className="text-xs text-muted-foreground">{t("downloads.description")}</p>
                   </div>
-                  {approvedClients.length === 0 && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {t("states.noApprovedClients")}
-                    </p>
+                </div>
+
+                <div className="p-4 sm:p-5 grid gap-4 sm:grid-cols-2">
+
+                  {/* Deploy one-liner */}
+                  <div className="sm:col-span-2 flex flex-col gap-2.5 rounded-xl border border-border/50 bg-primary/[0.03] p-4">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-semibold text-foreground">{t("downloads.deployOneLiner")}</span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-xs text-muted-foreground">{t("downloads.deployOneLinerOpen")}</p>
+                        <CommandSnippet cmd={deployOpenCmd} />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-xs text-muted-foreground">{t("downloads.deployOneLinerRun")}</p>
+                        <CommandSnippet cmd={deployRunCmd} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground/60">{t("downloads.deployOneLinerDesc")}</p>
+                  </div>
+
+                  {/* Client */}
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground">{t("downloads.client")}</span>
+                      <Badge variant="muted">{t("downloads.clientBadge")}</Badge>
+                    </div>
+                    <CommandSnippet cmd={curlClientCmd} />
+                    <p className="text-xs text-muted-foreground">{t("downloads.clientCurlDesc")}</p>
+                    <a
+                      href={API_ENDPOINTS.tunnelClientDownload}
+                      download
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      {t("downloads.downloadClient")}
+                    </a>
+                  </div>
+
+                  {hasPermission(user, 'admin:access') && (
+                  /* Server */
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground">{t("downloads.server")}</span>
+                      <Badge variant="muted">{t("downloads.serverBadge")}</Badge>
+                    </div>
+                    <CommandSnippet cmd={curlServerCmd} />
+                    <p className="text-xs text-muted-foreground">{t("downloads.serverCurlDesc")}</p>
+                    <a
+                      href={API_ENDPOINTS.tunnelServerDownload}
+                      download
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/60 px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary/90 active:scale-95 transition-all"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      {t("downloads.downloadServer")}
+                    </a>
+                  </div>
                   )}
                 </div>
+              </SectionCard>
 
-                {/* Local Host */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("labels.localHost")}
-                  </label>
-                  <input
-                    value={localHost}
-                    onChange={(e) => setLocalHost(e.target.value)}
-                    placeholder="127.0.0.1"
-                    className={inputCls}
-                  />
-                </div>
-
-                {/* Local Port */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("labels.localPort")}
-                  </label>
-                  <input
-                    type="number"
-                    value={localPort}
-                    onChange={(e) => setLocalPort(Number(e.target.value))}
-                    className={inputCls}
-                    min={1}
-                    max={65535}
-                  />
-                </div>
-
-                {/* Protocol */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("labels.protocol")}
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={protocol}
-                      onChange={(e) => setProtocol(e.target.value)}
-                      className={selectCls}
-                    >
-                      <option value="tcp">{t("labels.protocolTcp")}</option>
-                      <option value="udp">{t("labels.protocolUdp")}</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <div className="flex items-end sm:col-span-2 lg:col-span-1">
-                  <button
-                    onClick={createAllocation}
-                    disabled={actionLoading === "create-allocation"}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-h-[44px]"
-                  >
-                    {actionLoading === "create-allocation" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                    {t("actions.createAllocation")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* ── Devices ─────────────────────────────────────────────────────── */}
-          <SectionCard>
-            {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <IconBox color="bg-secondary/60">
-                  <Server className="h-4 w-4 text-foreground" />
+              {/* ── Create Allocation ───────────────────────────────────────────── */}
+              <SectionCard>
+              <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
+                <IconBox color="bg-primary/10">
+                  <Globe className="h-4 w-4 text-primary" />
                 </IconBox>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">{t("sections.devices")}</h2>
-                    {pendingCount > 0 && (
-                      <Badge variant="warning">
-                        <ShieldCheck className="h-3 w-3" />
-                        {pendingCount} {t('states.pending')}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t("states.devicesRegistered", { count: devices.length })}</p>
+                  <h2 className="text-sm font-semibold text-foreground">{t("sections.createAllocation")}</h2>
+                  <p className="text-xs text-muted-foreground">{t("sections.createAllocationDescription")}</p>
                 </div>
               </div>
 
-              {/* Search */}
-              <div className="relative w-full sm:w-60">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
-                <input
-                  type="text"
-                  placeholder={t("search.devices")}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-xl border border-border/50 bg-muted/30 pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+              <div className="p-4 sm:p-5 space-y-4">
+                {/* Inline form error */}
+                {formError && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                    <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <p className="text-sm text-destructive">{formError}</p>
+                    <button onClick={() => setFormError(null)} className="ml-auto shrink-0 text-destructive/60 hover:text-destructive">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 )}
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* Client Device */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("labels.clientDevice")}
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedDeviceId ?? ""}
+                        onChange={(e) => {
+                          setSelectedDeviceId(e.target.value ? Number(e.target.value) : null)
+                          setFormError(null)
+                        }}
+                        className={`${selectCls} ${!selectedDeviceId ? "border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/10" : ""}`}
+                      >
+                        <option value="">{t("placeholders.selectClientDevice")}</option>
+                        {approvedClients.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name || d.user_code} — {d.user_code}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                    </div>
+                    {approvedClients.length === 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {t("states.noApprovedClients")}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Local Host */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("labels.localHost")}
+                    </label>
+                    <input
+                      value={localHost}
+                      onChange={(e) => setLocalHost(e.target.value)}
+                      placeholder="127.0.0.1"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  {/* Local Port */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("labels.localPort")}
+                    </label>
+                    <input
+                      type="number"
+                      value={localPort}
+                      onChange={(e) => setLocalPort(Number(e.target.value))}
+                      className={inputCls}
+                      min={1}
+                      max={65535}
+                    />
+                  </div>
+
+                  {/* Protocol */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("labels.protocol")}
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={protocol}
+                        onChange={(e) => setProtocol(e.target.value)}
+                        className={selectCls}
+                      >
+                        <option value="tcp">{t("labels.protocolTcp")}</option>
+                        <option value="udp">{t("labels.protocolUdp")}</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                    </div>
+                  </div>
+
+                  {/* Submit */}
+                  <div className="flex items-end sm:col-span-2 lg:col-span-1">
+                    <button
+                      onClick={createAllocation}
+                      disabled={actionLoading === "create-allocation"}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-h-[44px]"
+                    >
+                      {actionLoading === "create-allocation" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      {t("actions.createAllocation")}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Body */}
-            {loading ? (
-              <LoadingState label={t("states.loading")} />
-            ) : filteredDevices.length === 0 ? (
-              <EmptyState
-                icon={Server}
-                title={searchTerm ? t("states.noDevicesMatchSearch") : t("states.noDevicesConnected")}
-                description={searchTerm ? t("states.tryDifferentSearchTerm") : t("states.downloadAgentToGetStarted")}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border/50 text-sm">
-                  <thead>
-                    <tr className="bg-muted/20">
-                      {[t('labels.name'), t('labels.type'), t('labels.userCode'), t('labels.status'), t('labels.lastSeen'), ''].map((h) => (
-                        <th
-                          key={h}
-                          className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${h === '' ? 'text-right' : 'text-left'}`}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {filteredDevices.map((device) => {
-                      const isManaged = managedDevice?.id === device.id
-                      return (
-                        <React.Fragment key={device.id ?? device.user_code}>
-                          <tr className={`group transition-colors ${isManaged ? "bg-primary/5" : "hover:bg-muted/20"}`}>
-                            {/* Name */}
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2.5">
-                                <span
-                                  className={`h-2 w-2 shrink-0 rounded-full ${
-                                    device.approved ? "bg-emerald-500" : "bg-amber-400"
-                                  }`}
-                                />
-                                <span className="font-medium text-foreground truncate max-w-[140px]">
-                                  {device.name || t('states.unnamedDevice')}
-                                </span>
-                              </div>
-                            </td>
-                            {/* Type */}
-                            <td className="px-4 py-3">
-                              <Badge variant="muted">{kindLabel(device.kind)}</Badge>
-                            </td>
-                            {/* Code */}
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1">
-                                <code className="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-xs text-foreground">
-                                  {device.user_code}
-                                </code>
-                                <CopyButton value={device.user_code} titleText={t("actions.copy")} />
-                              </div>
-                            </td>
-                            {/* Status */}
-                            <td className="px-4 py-3">
-                              {device.approved ? (
-                                <Badge variant="success">
-                                  <CheckCircle className="h-3 w-3" /> {t('states.approved')}
-                                </Badge>
-                              ) : (
-                                <Badge variant="warning">
-                                  <ShieldCheck className="h-3 w-3" /> {t('states.pending')}
-                                </Badge>
-                              )}
-                            </td>
-                            {/* Last Seen */}
-                            <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                              {device.lastSeenAt
-                                ? new Date(device.lastSeenAt).toLocaleString()
-                                : t('states.never')}
-                            </td>
-                            {/* Actions */}
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {!device.approved ? (
-                                  <ActionButton
-                                    loading={actionLoading === `approve-${device.user_code}`}
-                                    onClick={() => approve(device.user_code, device.kind)}
-                                    icon={<CheckCircle className="h-3.5 w-3.5" />}
-                                    label={t('actions.approve')}
-                                    variant="default"
+            {/* ── Devices ─────────────────────────────────────────────────────── */}
+            <SectionCard>
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <IconBox color="bg-secondary/60">
+                    <Server className="h-4 w-4 text-foreground" />
+                  </IconBox>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-foreground">{t("sections.devices")}</h2>
+                      {pendingCount > 0 && (
+                        <Badge variant="warning">
+                          <ShieldCheck className="h-3 w-3" />
+                          {pendingCount} {t('states.pending')}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t("states.devicesRegistered", { count: devices.length })}</p>
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div className="relative w-full sm:w-60">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                  <input
+                    type="text"
+                    placeholder={t("search.devices")}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full rounded-xl border border-border/50 bg-muted/30 pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Body */}
+              {loading ? (
+                <LoadingState label={t("states.loading")} />
+              ) : filteredDevices.length === 0 ? (
+                <EmptyState
+                  icon={Server}
+                  title={searchTerm ? t("states.noDevicesMatchSearch") : t("states.noDevicesConnected")}
+                  description={searchTerm ? t("states.tryDifferentSearchTerm") : t("states.downloadAgentToGetStarted")}
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border/50 text-sm">
+                    <thead>
+                      <tr className="bg-muted/20">
+                        {[t('labels.name'), t('labels.type'), t('labels.userCode'), t('labels.status'), t('labels.lastSeen'), ''].map((h) => (
+                          <th
+                            key={h}
+                            className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${h === '' ? 'text-right' : 'text-left'}`}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {filteredDevices.map((device) => {
+                        const isManaged = managedDevice?.id === device.id
+                        return (
+                          <React.Fragment key={device.id ?? device.user_code}>
+                            <tr className={`group transition-colors ${isManaged ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                              {/* Name */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <span
+                                    className={`h-2 w-2 shrink-0 rounded-full ${
+                                      device.approved ? "bg-emerald-500" : "bg-amber-400"
+                                    }`}
                                   />
+                                  <span className="font-medium text-foreground truncate max-w-[140px]">
+                                    {device.name || t('states.unnamedDevice')}
+                                  </span>
+                                </div>
+                              </td>
+                              {/* Type */}
+                              <td className="px-4 py-3">
+                                <Badge variant="muted">{kindLabel(device.kind)}</Badge>
+                              </td>
+                              {/* Code */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-1">
+                                  <code className="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-xs text-foreground">
+                                    {device.user_code}
+                                  </code>
+                                  <CopyButton value={device.user_code} titleText={t("actions.copy")} />
+                                </div>
+                              </td>
+                              {/* Status */}
+                              <td className="px-4 py-3">
+                                {device.approved ? (
+                                  <Badge variant="success">
+                                    <CheckCircle className="h-3 w-3" /> {t('states.approved')}
+                                  </Badge>
                                 ) : (
-                                  <ActionButton
-                                    loading={false}
-                                    onClick={() => setManagedDevice(isManaged ? null : device)}
-                                    icon={<Terminal className="h-3.5 w-3.5" />}
-                                    label={isManaged ? t('actions.close') : t('actions.manage')}
-                                    variant={isManaged ? 'active' : 'default'}
-                                  />
+                                  <Badge variant="warning">
+                                    <ShieldCheck className="h-3 w-3" /> {t('states.pending')}
+                                  </Badge>
                                 )}
-                                <ActionButton
-                                  loading={actionLoading === `delete-${device.id}`}
-                                  onClick={() => deleteDevice(device.id)}
-                                  icon={<Trash2 className="h-3.5 w-3.5" />}
-                                  label=""
-                                  variant="danger"
-                                />
-                              </div>
-                            </td>
-                          </tr>
-
-                          {/* ── Inline Manage Panel ── */}
-                          {isManaged && (
-                            <tr>
-                              <td colSpan={6} className="px-4 pb-4 pt-0">
-                                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                    <InfoTile label={t('labels.deviceCode')} value={device.device_code} mono copyable />
-                                    <InfoTile label={t('labels.userCode')} value={device.user_code} mono copyable />
-                                    <InfoTile label={t('labels.type')} value={kindLabel(device.kind)} />
-                                    <InfoTile
-                                      label={t('labels.status')}
-                                      value={device.approved ? t('states.approved') : t('states.pending')}
-                                      dot={device.approved ? 'emerald' : 'amber'}
-                                    />
-                                  </div>
-                                  <div className="flex flex-wrap gap-2 pt-1 border-t border-border/40">
+                              </td>
+                              {/* Last Seen */}
+                              <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                                {device.lastSeenAt
+                                  ? new Date(device.lastSeenAt).toLocaleString()
+                                  : t('states.never')}
+                              </td>
+                              {/* Actions */}
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {!device.approved ? (
                                     <ActionButton
-                                      loading={actionLoading === `regen-${device.id}`}
-                                      onClick={() => regenerateToken(device.id)}
-                                      icon={<RefreshCw className="h-3.5 w-3.5" />}
-                                      label={t('actions.regenerateToken')}
+                                      loading={actionLoading === `approve-${device.user_code}`}
+                                      onClick={() => approve(device.user_code, device.kind)}
+                                      icon={<CheckCircle className="h-3.5 w-3.5" />}
+                                      label={t('actions.approve')}
                                       variant="default"
                                     />
+                                  ) : (
                                     <ActionButton
-                                      loading={actionLoading === `delete-${device.id}`}
-                                      onClick={() => deleteDevice(device.id)}
-                                      icon={<Trash2 className="h-3.5 w-3.5" />}
-                                      label={t('actions.deleteDevice')}
-                                      variant="danger"
+                                      loading={false}
+                                      onClick={() => setManagedDevice(isManaged ? null : device)}
+                                      icon={<Terminal className="h-3.5 w-3.5" />}
+                                      label={isManaged ? t('actions.close') : t('actions.manage')}
+                                      variant={isManaged ? 'active' : 'default'}
                                     />
-                                  </div>
+                                  )}
+                                  <ActionButton
+                                    loading={actionLoading === `delete-${device.id}`}
+                                    onClick={() => deleteDevice(device.id)}
+                                    icon={<Trash2 className="h-3.5 w-3.5" />}
+                                    label=""
+                                    variant="danger"
+                                  />
                                 </div>
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </SectionCard>
 
-          {/* ── Allocations ──────────────────────────────────────────────────── */}
-          <SectionCard>
-            <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
-              <IconBox color="bg-secondary/60">
-                <Network className="h-4 w-4 text-foreground" />
-              </IconBox>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">{t("sections.allocations")}</h2>
-                <p className="text-xs text-muted-foreground">{t("states.tunnelsAllocated", { count: allocations.length })}</p>
-              </div>
-            </div>
+                            {/* ── Inline Manage Panel ── */}
+                            {isManaged && (
+                              <tr>
+                                <td colSpan={6} className="px-4 pb-4 pt-0">
+                                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                      <InfoTile label={t('labels.deviceCode')} value={device.device_code} mono copyable />
+                                      <InfoTile label={t('labels.userCode')} value={device.user_code} mono copyable />
+                                      <InfoTile label={t('labels.type')} value={kindLabel(device.kind)} />
+                                      <InfoTile
+                                        label={t('labels.status')}
+                                        value={device.approved ? t('states.approved') : t('states.pending')}
+                                        dot={device.approved ? 'emerald' : 'amber'}
+                                      />
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1 border-t border-border/40">
+                                      <ActionButton
+                                        loading={actionLoading === `regen-${device.id}`}
+                                        onClick={() => regenerateToken(device.id)}
+                                        icon={<RefreshCw className="h-3.5 w-3.5" />}
+                                        label={t('actions.regenerateToken')}
+                                        variant="default"
+                                      />
+                                      <ActionButton
+                                        loading={actionLoading === `delete-${device.id}`}
+                                        onClick={() => deleteDevice(device.id)}
+                                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                                        label={t('actions.deleteDevice')}
+                                        variant="danger"
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </SectionCard>
 
-            {loading ? (
-              <LoadingState label={t('states.loading')} />
-            ) : allocations.length === 0 ? (
-              <EmptyState
-                icon={Network}
-                title={t('states.noAllocationsYet')}
-                description={t('states.createAllocationHint')}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border/50 text-sm">
-                  <thead>
-                    <tr className="bg-muted/20">
-                      {[t('labels.publicEndpoint'), t('labels.localTarget'), t('labels.protocol'), t('labels.status'), t('labels.created'), ''].map((h) => (
-                        <th
-                          key={h}
-                          className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${h === '' ? 'text-right' : 'text-left'}`}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {allocations.map((a) => (
-                      <tr key={a.id} className="group hover:bg-muted/20 transition-colors">
-                        {/* Public Endpoint */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                            <span className="font-mono text-xs text-foreground">
-                              {a.host}:{a.port}
-                            </span>
-                            <CopyButton value={`${a.host}:${a.port}`} titleText={t("actions.copy")} />
-                          </div>
-                        </td>
-                        {/* Local Target */}
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {a.localHost}:{a.localPort}
-                          </span>
-                        </td>
-                        {/* Protocol */}
-                        <td className="px-4 py-3">
-                          <Badge variant="muted">{a.protocol?.toUpperCase()}</Badge>
-                        </td>
-                        {/* Status */}
-                        <td className="px-4 py-3">
-                          {a.status === "closed" ? (
-                            <Badge variant="muted">
-                              <XCircle className="h-3 w-3" /> {t('states.closed')}
-                            </Badge>
-                          ) : (
-                            <Badge variant="success">
-                              <CheckCircle className="h-3 w-3" /> {t('states.active')}
-                            </Badge>
-                          )}
-                        </td>
-                        {/* Created */}
-                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                          {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : t("states.noDate")}
-                        </td>
-                        {/* Actions */}
-                        <td className="px-4 py-3 text-right">
-                          {a.status !== "closed" && (
-                            <ActionButton
-                              loading={actionLoading === `close-${a.id}`}
-                              onClick={() => closeAllocation(a.id)}
-                              icon={<XCircle className="h-3.5 w-3.5" />}
-                              label={t('actions.close')}
-                              variant="danger"
-                            />
-                          )}
-                        </td>
+            {/* ── Allocations ──────────────────────────────────────────────────── */}
+            <SectionCard>
+              <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
+                <IconBox color="bg-secondary/60">
+                  <Network className="h-4 w-4 text-foreground" />
+                </IconBox>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">{t("sections.allocations")}</h2>
+                  <p className="text-xs text-muted-foreground">{t("states.tunnelsAllocated", { count: allocations.length })}</p>
+                </div>
+              </div>
+
+              {loading ? (
+                <LoadingState label={t('states.loading')} />
+              ) : allocations.length === 0 ? (
+                <EmptyState
+                  icon={Network}
+                  title={t('states.noAllocationsYet')}
+                  description={t('states.createAllocationHint')}
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border/50 text-sm">
+                    <thead>
+                      <tr className="bg-muted/20">
+                        {[t('labels.publicEndpoint'), t('labels.localTarget'), t('labels.protocol'), t('labels.status'), t('labels.created'), ''].map((h) => (
+                          <th
+                            key={h}
+                            className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${h === '' ? 'text-right' : 'text-left'}`}
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </SectionCard>
-        </div>
-      </ScrollArea>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {allocations.map((a) => (
+                        <tr key={a.id} className="group hover:bg-muted/20 transition-colors">
+                          {/* Public Endpoint */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                              <span className="font-mono text-xs text-foreground">
+                                {a.host}:{a.port}
+                              </span>
+                              <CopyButton value={`${a.host}:${a.port}`} titleText={t("actions.copy")} />
+                            </div>
+                          </td>
+                          {/* Local Target */}
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {a.localHost}:{a.localPort}
+                            </span>
+                          </td>
+                          {/* Protocol */}
+                          <td className="px-4 py-3">
+                            <Badge variant="muted">{a.protocol?.toUpperCase()}</Badge>
+                          </td>
+                          {/* Status */}
+                          <td className="px-4 py-3">
+                            {a.status === "closed" ? (
+                              <Badge variant="muted">
+                                <XCircle className="h-3 w-3" /> {t('states.closed')}
+                              </Badge>
+                            ) : (
+                              <Badge variant="success">
+                                <CheckCircle className="h-3 w-3" /> {t('states.active')}
+                              </Badge>
+                            )}
+                          </td>
+                          {/* Created */}
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : t("states.noDate")}
+                          </td>
+                          {/* Actions */}
+                          <td className="px-4 py-3 text-right">
+                            {a.status !== "closed" && (
+                              <ActionButton
+                                loading={actionLoading === `close-${a.id}`}
+                                onClick={() => closeAllocation(a.id)}
+                                icon={<XCircle className="h-3.5 w-3.5" />}
+                                label={t('actions.close')}
+                                variant="danger"
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </SectionCard>
+          </div>
+        </ScrollArea>
+      </RolloutGuard>
     </FeatureGuard>
   )
 }

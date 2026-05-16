@@ -223,10 +223,12 @@ export const API_ENDPOINTS = {
   tunnelDeviceApprove: "/api/tunnel/device/approve",
   tunnelDeviceDelete: "/api/tunnel/devices/:id/delete",
   tunnelDeviceRegenerateToken: "/api/tunnel/devices/:id/regenerate-token",
+  tunnelDevicesCreate: "/api/tunnel/devices",
   tunnelDeviceStart: "/api/tunnel/device/start",
   tunnelDevicePoll: "/api/tunnel/device/poll",
   tunnelClientDownload: "/api/tunnel/client/download",
   tunnelServerDownload: "/api/tunnel/server/download",
+  tunnelDeployScript: "/api/tunnel/deploy.sh",
 
   // Compute
   instances: "/api/compute/instances",

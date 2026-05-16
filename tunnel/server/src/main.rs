@@ -24,6 +24,7 @@ use tokio_tungstenite::{
     MaybeTlsStream,
     WebSocketStream,
 };
+use anyhow::Result;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -78,10 +79,15 @@ fn write_systemd_service(exe: &PathBuf, backend: &str, token: &str) -> io::Resul
 // ---------------------------------------------------------------------------
 
 #[derive(Parser)]
-#[command(name = "ecli-tunnel-server", about = "Reverse tunnel client")]
+#[command(
+  name = "ecli-tunnel-server",
+  about = "EcliPanel Tunnel Server — accepts inbound traffic on allocated ports and relays to tunnel clients"
+)]
 struct Args {
-    #[command(subcommand)]
-    command: Command,
+  #[command(subcommand)]
+  command: Command,
+  #[arg(long, global = true, help = "Enable verbose logging")]
+  verbose: bool,
 }
 
 #[derive(Subcommand)]
@@ -90,14 +96,14 @@ enum Command {
     Enroll {
         #[arg(long, default_value = "server-agent")]
         name: String,
-        #[arg(long, default_value = "https://ecli.app")]
+        #[arg(long, default_value = "https://backend.ecli.app")]
         backend: String,
     },
     /// Run the tunnel using a previously obtained token.
     Run {
         #[arg(long)]
         token: String,
-        #[arg(long, default_value = "https://ecli.app")]
+        #[arg(long, default_value = "https://backend.ecli.app")]
         backend: String,
         #[arg(long, default_value_t = 5)]
         reconnect_delay: u64,
@@ -200,8 +206,21 @@ impl OutgoingMessage {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
     let args = Args::parse();
+
+    let env_filter = std::env::var("RUST_LOG").ok();
+    let filter = env_filter.unwrap_or_else(|| {
+        if args.verbose {
+            "info".to_string()
+        } else {
+            "warn".to_string()
+        }
+    });
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_new(&filter).unwrap_or_default(),
+        )
+        .init();
 
     match args.command {
         Command::Enroll { name, backend } => enroll(name, backend).await,
@@ -218,20 +237,36 @@ async fn main() {
 // ---------------------------------------------------------------------------
 
 async fn enroll(name: String, backend: String) {
-    let client = Client::new();
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("failed to build HTTP client");
     let backend = backend.trim_end_matches('/');
 
-    let start: StartResponse = client
+    let start = match client
         .post(format!("{backend}/api/tunnel/device/start"))
         .json(&serde_json::json!({ "name": name, "kind": "server" }))
         .send()
         .await
-        .expect("failed to start enrollment")
-        .error_for_status()
-        .expect("server returned error on start")
-        .json()
-        .await
-        .expect("invalid start response");
+    {
+        Ok(resp) => match resp.error_for_status() {
+            Ok(r) => match r.json::<StartResponse>().await {
+                Ok(s) => s,
+                Err(err) => {
+                    error!(%err, "invalid start response");
+                    return;
+                }
+            },
+            Err(err) => {
+                error!(%err, "server returned error on start");
+                return;
+            }
+        },
+        Err(err) => {
+            error!(%err, "failed to start enrollment");
+            return;
+        }
+    };
 
     println!(
         "Open {} and enter code: {}",
@@ -242,31 +277,31 @@ async fn enroll(name: String, backend: String) {
     loop {
         tokio::time::sleep(Duration::from_secs(3)).await;
 
-        let mut poll_url =
-            reqwest::Url::parse(&format!("{backend}/api/tunnel/device/poll"))
-                .expect("invalid backend URL");
-        poll_url
-            .query_pairs_mut()
-            .append_pair("device_code", &start.device_code);
-
         let resp = client
-            .post(poll_url)
+            .post(format!("{backend}/api/tunnel/device/poll"))
             .json(&serde_json::json!({ "device_code": start.device_code }))
             .send()
             .await;
 
         match resp {
             Ok(r) if r.status().is_success() => {
-                let payload: PollResponse =
-                    r.json().await.expect("invalid poll response");
+                let payload: PollResponse = match r.json().await {
+                    Ok(p) => p,
+                    Err(err) => {
+                        error!(%err, "invalid poll response");
+                        return;
+                    }
+                };
 
-                println!("\nApproved!");
-                println!("Token: {}", payload.access_token);
-                println!("\nRun with:");
-                println!(
-                    "  ecli-tunnel-server run --token {} --backend {}",
-                    payload.access_token, backend
-                );
+                println!();
+                println!("  Approved! Token stored below.");
+                println!();
+                println!("  Token: {}", payload.access_token);
+                println!();
+                println!("  Run the server agent:");
+                println!("    ecli-tunnel-server run --token {} \\", payload.access_token);
+                println!("      --backend {}", backend);
+                println!();
 
                 match std::env::current_exe() {
                     Ok(exe) => {
@@ -350,7 +385,7 @@ async fn run(token: String, backend: String, reconnect_delay: u64) {
 async fn try_connect_and_serve(
     token: &str,
     ws_url: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<()> {
     let mut request = ws_url.into_client_request()?;
     request
         .headers_mut()
@@ -704,7 +739,7 @@ async fn cleanup(
 async fn send_ws(
     write: &Arc<Mutex<WsSink>>,
     msg: OutgoingMessage,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<()> {
     let ws_msg = msg.into_ws_message()?;
     write.lock().await.send(ws_msg).await?;
     Ok(())
