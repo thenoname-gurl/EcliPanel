@@ -109,7 +109,7 @@ parse_args() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --backend)      shift; BACKEND="$1" ;;
+      --backend)      shift; BACKEND="$1"; BINARY_ARGS+=(--backend "$1") ;;
       --host)         shift; BINARY_ARGS+=(--local-host "$1") ;;
       --port)         shift; BINARY_ARGS+=(--local-port "$1") ;;
       --token)        shift; BINARY_ARGS+=(--token "$1") ;;
@@ -118,6 +118,7 @@ parse_args() {
       --name)         shift; BINARY_ARGS+=(--name "$1") ;;
       --kind)         shift; BINARY_ARGS+=(--kind "$1") ;;
       --protocol)     shift; BINARY_ARGS+=(--protocol "$1") ;;
+      --domain)       shift; CERT_DOMAIN="$1"; BINARY_ARGS+=(--fqdn "$1") ;;
       --verbose)      BINARY_ARGS+=(--verbose) ;;
       --yes|-y)       YES=1 ;;
       --install|-i)   INSTALL=1 ;;
@@ -198,6 +199,47 @@ server_run() {
   exec "$BIN_PATH" run "${BINARY_ARGS[@]}"
 }
 
+ensure_cert() {
+  local domain="${CERT_DOMAIN:-$(hostname -f 2>/dev/null || hostname)}"
+  local email="${CERT_EMAIL:-noreply@ecli.app}"
+  local le_dir="/etc/letsencrypt/live/$domain"
+  local cache="$BIN_DIR"
+
+  if [[ -f "$cache/cert.pem" ]] && [[ -f "$cache/key.pem" ]]; then
+    ok "certificate found at $cache"
+    return 0
+  fi
+
+  mkdir -p "$cache"
+
+  log "provisioning Lets Encrypt certificate for $domain (need port 80)..."
+
+  if command -v certbot &>/dev/null; then
+    certbot certonly --standalone -d "$domain" --non-interactive --agree-tos -m "$email" || {
+      warn "certbot failed; trying certbot --preferred-challenges http ..."
+      certbot certonly --standalone --preferred-challenges http -d "$domain" --non-interactive --agree-tos -m "$email" || {
+        die "certbot failed — ensure port 80 is reachable for $domain"
+      }
+    }
+    cp "$le_dir/fullchain.pem" "$cache/cert.pem"
+    cp "$le_dir/privkey.pem" "$cache/key.pem"
+  elif command -v acme.sh &>/dev/null; then
+    acme.sh --issue --standalone -d "$domain" --email "$email" || {
+      die "acme.sh failed — ensure port 80 is reachable for $domain"
+    }
+    acme.sh --install-cert -d "$domain" \
+      --fullchain-file "$cache/cert.pem" \
+      --key-file "$cache/key.pem"
+  else
+    die "neither certbot nor acme.sh found — install one first:
+  apt install certbot
+  or
+  curl https://get.acme.sh | sh"
+  fi
+
+  ok "certificate provisioned for $domain → $cache"
+}
+
 server_service() {
   local backend="${BACKEND:-https://backend.ecli.app}"
   local token=""
@@ -206,11 +248,14 @@ server_service() {
     case "$1" in
       --backend) shift; backend="$1" ;;
       --token)   shift; token="$1" ;;
+      --domain)  shift; CERT_DOMAIN="$1" ;;
     esac
     shift
   done
 
   [[ -z "$token" ]] && die "--token is required"
+
+  ensure_cert
 
   download_binary ecli-tunnel-server
 

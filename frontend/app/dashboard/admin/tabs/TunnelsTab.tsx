@@ -48,9 +48,11 @@ export default function TunnelsTab() {
     apiKey: string
     deviceToken: string
     deviceName: string
+    fqdn: string
   } | null>(null)
   const [deploying, setDeploying] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [serverFqdn, setServerFqdn] = useState("")
 
   const deployServerAgent = async () => {
     setDeploying(true)
@@ -66,13 +68,17 @@ export default function TunnelsTab() {
       if (!keyRes?.apiKey) throw new Error("Failed to create API key")
       const apiKey = keyRes.apiKey
 
+      const fqdn = serverFqdn.trim()
+      const body: Record<string, string> = { name: "server-agent", kind: "server" }
+      if (fqdn) body.fqdn = fqdn
+
       const deviceRes = await apiFetch(API_ENDPOINTS.tunnelDevicesCreate, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `ApiKey ${apiKey}`,
         },
-        body: JSON.stringify({ name: "server-agent", kind: "server" }),
+        body: JSON.stringify(body),
       })
       if (!deviceRes?.access_token) throw new Error("Failed to create server device")
 
@@ -80,6 +86,7 @@ export default function TunnelsTab() {
         apiKey,
         deviceToken: deviceRes.access_token,
         deviceName: deviceRes.entry?.name || "server-agent",
+        fqdn,
       })
     } catch (err: any) {
       setError(err?.message || "Failed to deploy server agent")
@@ -186,7 +193,7 @@ export default function TunnelsTab() {
   }
 
   const backendUrl = "https://backend.ecli.app"
-  const deployUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/tunnel/deploy.sh` : 'https://ecli.app/api/tunnel/deploy.sh'
+  const deployUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/tunnel/deploy.sh` : 'https://backend.ecli.app/api/tunnel/deploy.sh'
 
   return (
     <div className="flex flex-col gap-6 max-w-full">
@@ -243,8 +250,19 @@ export default function TunnelsTab() {
               This will create an <strong>admin API key</strong> and an
               approved <strong>server device</strong> in the tunnel system.
               The API key will only be shown once — save it somewhere safe.
-              Proceed?
             </p>
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-foreground mb-1">
+                Tunnel FQDN <span className="text-muted-foreground font-normal">(e.g. n2.ecli.app)</span>
+              </label>
+              <input
+                type="text"
+                value={serverFqdn}
+                onChange={(e) => setServerFqdn(e.target.value)}
+                placeholder="n2.ecli.app"
+                className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 transition-colors"
+              />
+            </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="default" onClick={deployServerAgent} disabled={deploying}>
                 {deploying ? (
@@ -277,11 +295,11 @@ export default function TunnelsTab() {
                 Test-run server agent <span className="text-muted-foreground font-normal">(paste this in terminal)</span>
               </p>
               <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
-                curl -fsSL {deployUrl} | bash -s -- server-run --token {deployResult.deviceToken} --backend {backendUrl}
+                curl -fsSL {deployUrl} | bash -s -- server-run --token {deployResult.deviceToken} --backend {backendUrl}{deployResult.fqdn ? ` --domain ${deployResult.fqdn}` : ''}
               </div>
               <button
                 onClick={() => navigator.clipboard.writeText(
-                  `curl -fsSL ${deployUrl} | bash -s -- server-run --token ${deployResult.deviceToken} --backend ${backendUrl}`
+                  `curl -fsSL ${deployUrl} | bash -s -- server-run --token ${deployResult.deviceToken} --backend ${backendUrl}${deployResult.fqdn ? ` --domain ${deployResult.fqdn}` : ''}`
                 )}
                 className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -296,7 +314,7 @@ export default function TunnelsTab() {
                 Install as systemd service <span className="text-muted-foreground font-normal">(paste this in terminal)</span>
               </p>
               <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
-                curl -fsSL {deployUrl} | bash -s -- server-service --token {deployResult.deviceToken} --backend {backendUrl}
+                curl -fsSL {deployUrl} | bash -s -- server-service --token {deployResult.deviceToken} --backend {backendUrl}{deployResult.fqdn ? ` --domain ${deployResult.fqdn}` : ''}
               </div>
               <div className="mt-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 whitespace-pre-wrap break-all">
                 {`# Or manually:
@@ -307,7 +325,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ecli-tunnel-server run --token ${deployResult.deviceToken} --backend ${backendUrl}
+ExecStart=/usr/local/bin/ecli-tunnel-server run --token ${deployResult.deviceToken} --backend ${backendUrl}${deployResult.fqdn ? ` --fqdn ${deployResult.fqdn}` : ''}
 Restart=always
 RestartSec=10
 User=nobody
@@ -320,7 +338,7 @@ sudo systemctl enable --now eclipanel-tunnel`}
               </div>
               <button
                 onClick={() => navigator.clipboard.writeText(
-                  `curl -fsSL ${deployUrl} | bash -s -- server-service --token ${deployResult.deviceToken} --backend ${backendUrl}`
+                  `curl -fsSL ${deployUrl} | bash -s -- server-service --token ${deployResult.deviceToken} --backend ${backendUrl}${deployResult.fqdn ? ` --domain ${deployResult.fqdn}` : ''}`
                 )}
                 className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -329,7 +347,7 @@ sudo systemctl enable --now eclipanel-tunnel`}
               </button>
             </div>
 
-            <Button size="sm" variant="ghost" onClick={() => { setDeployResult(null); setShowConfirm(false); fetchData() }}>
+            <Button size="sm" variant="ghost" onClick={() => { setDeployResult(null); setShowConfirm(false); setServerFqdn(""); fetchData() }}>
               Done
             </Button>
           </div>

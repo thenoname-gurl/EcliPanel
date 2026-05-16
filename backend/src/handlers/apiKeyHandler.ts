@@ -38,15 +38,19 @@ export async function apiKeyRoutes(app: any, prefix = '') {
   });
 
   app.post(prefix + '/apikeys', async (ctx: any) => {
-    try {
-      const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0,200);
-      const keyIp = `rate:apikey:create:ip:${ip}`;
-      const keyUser = `rate:apikey:create:user:${ctx.user?.id}`;
-      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.APIKEY_CREATE_RATE_IP || 10), Number(process.env.APIKEY_CREATE_WINDOW_IP || 3600));
-      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
-      const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.APIKEY_CREATE_RATE_USER || 5), Number(process.env.APIKEY_CREATE_WINDOW_USER || 86400));
-      if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
+    const actor = ctx.user as any;
+    const isAdmin = actor?.role === '*';
+    if (!isAdmin) {
+      try {
+        const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0,200);
+        const keyIp = `rate:apikey:create:ip:${ip}`;
+        const keyUser = `rate:apikey:create:user:${ctx.user?.id}`;
+        const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.APIKEY_CREATE_RATE_IP || 10), Number(process.env.APIKEY_CREATE_WINDOW_IP || 3600));
+        if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+        const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.APIKEY_CREATE_RATE_USER || 5), Number(process.env.APIKEY_CREATE_WINDOW_USER || 86400));
+        if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
+      } catch (e) {/* meow */}
+    }
 
     const { name, type, permissions, userId, expiresAt } = ctx.body as any;
     if (!name || !type || (type !== 'client' && type !== 'admin')) {
@@ -54,7 +58,6 @@ export async function apiKeyRoutes(app: any, prefix = '') {
       return { error: 'name and valid type required' };
     }
     const key = crypto.randomBytes(32).toString('hex');
-    const actor = ctx.user as any;
 
     let userRef;
     const canManageUsers = actor && hasPermissionSync(ctx, 'users:write');

@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { FeatureGuard } from "@/components/panel/feature-guard"
 import { RolloutGuard } from "@/components/panel/rollout-guard"
-import { useAuth, hasPermission } from "@/hooks/useAuth"
+import { useAuth } from "@/hooks/useAuth"
 import {
   Plus,
   Server,
@@ -25,7 +25,6 @@ import {
   Terminal,
   Network,
   AlertCircle,
-  Download,
   ChevronDown,
   Zap,
   X,
@@ -142,14 +141,8 @@ export default function TunnelsPage() {
     return kind
   }
 
-  const backendUrl = typeof window !== "undefined" ? window.location.origin : ""
-  const clientBinaryUrl = backendUrl + API_ENDPOINTS.tunnelClientDownload
-  const serverBinaryUrl = backendUrl + API_ENDPOINTS.tunnelServerDownload
-  const deployScriptUrl = backendUrl + API_ENDPOINTS.tunnelDeployScript
-  const curlClientCmd = `curl -fsSL "${clientBinaryUrl}" -o ecli-tunnel-client && chmod +x ecli-tunnel-client`
-  const curlServerCmd = `curl -fsSL "${serverBinaryUrl}" -o ecli-tunnel-server && chmod +x ecli-tunnel-server`
-  const deployOpenCmd = `curl -fsSL "${deployScriptUrl}" | bash -s -- open --port 8080`
-  const deployRunCmd = `curl -fsSL "${deployScriptUrl}" | bash -s -- run --port 8080`
+  const backendUrl = "https://backend.ecli.app"
+  const deployScriptUrlBase = typeof window !== "undefined" ? window.location.origin + API_ENDPOINTS.tunnelDeployScript : "https://backend.ecli.app/api/tunnel/deploy.sh"
 
   const [devices, setDevices] = useState<any[]>([])
   const [allocations, setAllocations] = useState<any[]>([])
@@ -330,78 +323,7 @@ export default function TunnelsPage() {
                 </div>
               )}
 
-              {/* ── Downloads ──────────────────────────────────────────────────── */}
-              <SectionCard>
-                <div className="p-4 sm:p-5 border-b border-border/50 flex items-center gap-2">
-                  <IconBox color="bg-primary/10">
-                    <Download className="h-4 w-4 text-primary" />
-                  </IconBox>
-                  <div>
-                    <h2 className="text-sm font-semibold text-foreground">{t("downloads.title")}</h2>
-                    <p className="text-xs text-muted-foreground">{t("downloads.description")}</p>
-                  </div>
-                </div>
 
-                <div className="p-4 sm:p-5 grid gap-4 sm:grid-cols-2">
-
-                  {/* Deploy one-liner */}
-                  <div className="sm:col-span-2 flex flex-col gap-2.5 rounded-xl border border-border/50 bg-primary/[0.03] p-4">
-                    <div className="flex items-center gap-2">
-                      <Terminal className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-semibold text-foreground">{t("downloads.deployOneLiner")}</span>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="flex flex-col gap-1.5">
-                        <p className="text-xs text-muted-foreground">{t("downloads.deployOneLinerOpen")}</p>
-                        <CommandSnippet cmd={deployOpenCmd} />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <p className="text-xs text-muted-foreground">{t("downloads.deployOneLinerRun")}</p>
-                        <CommandSnippet cmd={deployRunCmd} />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground/60">{t("downloads.deployOneLinerDesc")}</p>
-                  </div>
-
-                  {/* Client */}
-                  <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">{t("downloads.client")}</span>
-                      <Badge variant="muted">{t("downloads.clientBadge")}</Badge>
-                    </div>
-                    <CommandSnippet cmd={curlClientCmd} />
-                    <p className="text-xs text-muted-foreground">{t("downloads.clientCurlDesc")}</p>
-                    <a
-                      href={API_ENDPOINTS.tunnelClientDownload}
-                      download
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {t("downloads.downloadClient")}
-                    </a>
-                  </div>
-
-                  {hasPermission(user, 'admin:access') && (
-                  /* Server */
-                  <div className="flex flex-col gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">{t("downloads.server")}</span>
-                      <Badge variant="muted">{t("downloads.serverBadge")}</Badge>
-                    </div>
-                    <CommandSnippet cmd={curlServerCmd} />
-                    <p className="text-xs text-muted-foreground">{t("downloads.serverCurlDesc")}</p>
-                    <a
-                      href={API_ENDPOINTS.tunnelServerDownload}
-                      download
-                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/60 px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary/90 active:scale-95 transition-all"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {t("downloads.downloadServer")}
-                    </a>
-                  </div>
-                  )}
-                </div>
-              </SectionCard>
 
               {/* ── Quick Setup (one-liner generation) ────────────────────────── */}
               <SectionCard>
@@ -429,12 +351,13 @@ export default function TunnelsPage() {
                       <p className="text-xs text-muted-foreground">
                         Run this on the machine you want to tunnel from:
                       </p>
-                      <CommandSnippet cmd={`curl -fsSL "${deployScriptUrl}" | bash -s -- run --token ${clientSetup.token} --backend ${backendUrl}`} />
+                      <CommandSnippet cmd={`curl -fsSL "${deployScriptUrlBase}" | bash -s -- run --token ${clientSetup.token} --backend ${backendUrl}`} />
+                      <p className="text-xs text-muted-foreground/40">Linux · macOS · WSL</p>
                       <div className="flex items-center gap-2">
                         <Button size="sm" variant="default" onClick={() => { setClientSetup(null); load() }}>
                           Done
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(`curl -fsSL "${deployScriptUrl}" | bash -s -- run --token ${clientSetup.token} --backend ${backendUrl}`)}>
+                        <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(`curl -fsSL "${deployScriptUrlBase}" | bash -s -- run --token ${clientSetup.token} --backend ${backendUrl}`)}>
                           <Copy className="mr-1.5 h-3.5 w-3.5" />
                           Copy
                         </Button>
@@ -637,7 +560,7 @@ export default function TunnelsPage() {
                   <table className="min-w-full divide-y divide-border/50 text-sm">
                     <thead>
                       <tr className="bg-muted/20">
-                        {[t('labels.name'), t('labels.type'), t('labels.userCode'), t('labels.status'), t('labels.lastSeen'), ''].map((h) => (
+                        {[t('labels.name'), t('labels.type'), t('labels.userCode'), t('labels.status'), t('labels.connection'), t('labels.lastSeen'), ''].map((h) => (
                           <th
                             key={h}
                             className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${h === '' ? 'text-right' : 'text-left'}`}
@@ -658,7 +581,7 @@ export default function TunnelsPage() {
                                 <div className="flex items-center gap-2.5">
                                   <span
                                     className={`h-2 w-2 shrink-0 rounded-full ${
-                                      device.approved ? "bg-emerald-500" : "bg-amber-400"
+                                      device.online ? "bg-emerald-500" : "bg-muted-foreground/30"
                                     }`}
                                   />
                                   <span className="font-medium text-foreground truncate max-w-[140px]">
@@ -679,7 +602,7 @@ export default function TunnelsPage() {
                                   <CopyButton value={device.user_code} titleText={t("actions.copy")} />
                                 </div>
                               </td>
-                              {/* Status */}
+                              {/* Status (approved/pending) */}
                               <td className="px-4 py-3">
                                 {device.approved ? (
                                   <Badge variant="success">
@@ -688,6 +611,18 @@ export default function TunnelsPage() {
                                 ) : (
                                   <Badge variant="warning">
                                     <ShieldCheck className="h-3 w-3" /> {t('states.pending')}
+                                  </Badge>
+                                )}
+                              </td>
+                              {/* Connection (online/offline) */}
+                              <td className="px-4 py-3">
+                                {device.online ? (
+                                  <Badge variant="success">
+                                    <CheckCircle className="h-3 w-3" /> Online
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="muted">
+                                    Offline
                                   </Badge>
                                 )}
                               </td>
@@ -731,7 +666,7 @@ export default function TunnelsPage() {
                             {/* ── Inline Manage Panel ── */}
                             {isManaged && (
                               <tr>
-                                <td colSpan={6} className="px-4 pb-4 pt-0">
+                                <td colSpan={7} className="px-4 pb-4 pt-0">
                                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                       <InfoTile label={t('labels.deviceCode')} value={device.device_code} mono copyable />
