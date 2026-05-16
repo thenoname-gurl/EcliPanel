@@ -442,6 +442,13 @@ export async function authRoutes(app: any, prefix = '') {
         return { error: 'User not found' };
       }
 
+      if (!token && !backupCode && !emailCode) {
+        const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
+        try { const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
+        ctx.set.status = 400;
+        return { error: '2FA code required' };
+      }
+
       if (emailCode) {
         const expected = await redisGet(`tfa:email:${payload.tfaSession}`);
         if (expected && expected === String(emailCode)) {
