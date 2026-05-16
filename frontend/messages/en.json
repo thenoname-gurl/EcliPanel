@@ -1312,21 +1312,6 @@
         "failedToLoad": "Failed to load tunnels data.",
         "failedToApprove": "Unable to approve device.",
         "failedToClose": "Unable to close allocation."
-      },
-      "downloads": {
-        "title": "Tunnel Binaries",
-        "client": "Client Binary",
-        "server": "Server Binary",
-        "downloadClient": "Download Client",
-        "downloadServer": "Download Server",
-        "curlClient": "Setup Client via curl",
-        "curlServer": "Setup Server via curl",
-        "curlCopy": "Copy curl command",
-        "curlCopied": "Copied!",
-        "description": "Download the latest tunnel binaries or use the curl command to set up on your server.",
-        "clientCurlDesc": "Install the tunnel client on your device:",
-        "serverCurlDesc": "Install the tunnel server on your server:",
-        "adminNote": "Admin: Use these commands to deploy tunnel binaries on managed servers."
       }
     },
     "adminOutboundEmails": {
@@ -4531,7 +4516,15 @@
       "curlCopy": "Copy curl command",
       "curlCopied": "Copied!",
       "clientCurlDesc": "Install the tunnel client on your device:",
-      "serverCurlDesc": "Install the tunnel server on your server:"
+      "serverCurlDesc": "Install the tunnel server on your server:",
+      "deployOneLiner": "Quick setup (one-liner)",
+      "deployOneLinerDesc": "Auto-installs and runs the tunnel agent:",
+      "deployOneLinerOpen": "Expose a local port immediately:",
+      "deployOneLinerRun": "Run a persistent tunnel agent:"
+    },
+    "rollout": {
+      "title": "Tunnels feature is rolling out",
+      "description": "The tunnels feature is being gradually released. Check back soon or reach out to support if you need early access."
     },
     "states": {
       "yes": "Yes",

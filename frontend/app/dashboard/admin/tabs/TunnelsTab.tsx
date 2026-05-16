@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, RefreshCw, X } from "lucide-react"
+import { Check, CheckCircle, Copy, Loader2, RefreshCw, Server, Terminal, X } from "lucide-react"
 
 type TunnelDevice = {
   device_code: string
@@ -44,6 +44,49 @@ export default function TunnelsTab() {
   const [organisations, setOrganisations] = useState<{ id: number; name: string }[]>([])
   const [serverTypeByDevice, setServerTypeByDevice] = useState<Record<string, string>>({})
   const [serverOrgByDevice, setServerOrgByDevice] = useState<Record<string, string>>({})
+  const [deployResult, setDeployResult] = useState<{
+    apiKey: string
+    deviceToken: string
+    deviceName: string
+  } | null>(null)
+  const [deploying, setDeploying] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const deployServerAgent = async () => {
+    setDeploying(true)
+    setError("")
+    setShowConfirm(false)
+
+    try {
+      const keyRes = await apiFetch(API_ENDPOINTS.apiKeys, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "tunnel-server-agent", type: "admin" }),
+      })
+      if (!keyRes?.apiKey) throw new Error("Failed to create API key")
+      const apiKey = keyRes.apiKey
+
+      const deviceRes = await apiFetch(API_ENDPOINTS.tunnelDevicesCreate, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `ApiKey ${apiKey}`,
+        },
+        body: JSON.stringify({ name: "server-agent", kind: "server" }),
+      })
+      if (!deviceRes?.access_token) throw new Error("Failed to create server device")
+
+      setDeployResult({
+        apiKey,
+        deviceToken: deviceRes.access_token,
+        deviceName: deviceRes.entry?.name || "server-agent",
+      })
+    } catch (err: any) {
+      setError(err?.message || "Failed to deploy server agent")
+    } finally {
+      setDeploying(false)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -142,47 +185,11 @@ export default function TunnelsTab() {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
   }
 
-  const backendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const clientBinaryUrl = backendUrl + API_ENDPOINTS.tunnelClientDownload
-  const serverBinaryUrl = backendUrl + API_ENDPOINTS.tunnelServerDownload
-  const curlClientCmd = `curl -fsSL \"${clientBinaryUrl}\" -o ecli-tunnel-client && chmod +x ecli-tunnel-client`
-  const curlServerCmd = `curl -fsSL \"${serverBinaryUrl}\" -o ecli-tunnel-server && chmod +x ecli-tunnel-server`
+  const backendUrl = "https://backend.ecli.app"
+  const deployUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/tunnel/deploy.sh` : 'https://ecli.app/api/tunnel/deploy.sh'
 
   return (
     <div className="flex flex-col gap-6 max-w-full">
-      <section className="mb-6">
-        <h3 className="font-semibold mb-2">{t("downloads.client")}</h3>
-        <div className="flex flex-col gap-2">
-          <a
-            href={API_ENDPOINTS.tunnelClientDownload}
-            className="inline-block px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90"
-            download
-          >
-            {t("downloads.downloadClient")}
-          </a>
-          <div className="mt-2">
-            <span className="font-mono text-xs select-all bg-muted px-2 py-1 rounded">{curlClientCmd}</span>
-            <span className="ml-2 text-xs text-muted-foreground">{t("downloads.curlClient")}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="mb-6">
-        <h3 className="font-semibold mb-2">{t("downloads.server")}</h3>
-        <div className="flex flex-col gap-2">
-          <a
-            href={API_ENDPOINTS.tunnelServerDownload}
-            className="inline-block px-4 py-2 rounded bg-secondary text-foreground hover:bg-secondary/90"
-            download
-          >
-            {t("downloads.downloadServer")}
-          </a>
-          <div className="mt-2">
-            <span className="font-mono text-xs select-all bg-muted px-2 py-1 rounded">{curlServerCmd}</span>
-            <span className="ml-2 text-xs text-muted-foreground">{t("downloads.curlServer")}</span>
-          </div>
-        </div>
-      </section>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-foreground">{t("tunnelsTab.header.title")}</h2>
@@ -205,6 +212,129 @@ export default function TunnelsTab() {
           {error}
         </div>
       ) : null}
+
+      {/* Deploy Server Agent */}
+      <section className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Server className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-semibold text-foreground">Deploy Server Agent</p>
+          </div>
+          {!deployResult && !showConfirm && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowConfirm(true)}
+              disabled={deploying}
+              className="inline-flex items-center gap-2"
+            >
+              {deploying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Terminal className="h-3.5 w-3.5" />}
+              Generate Setup
+            </Button>
+          )}
+        </div>
+
+        {showConfirm && !deployResult ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <p className="text-sm font-medium text-foreground mb-2">
+              Generate Server Agent Setup
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              This will create an <strong>admin API key</strong> and an
+              approved <strong>server device</strong> in the tunnel system.
+              The API key will only be shown once — save it somewhere safe.
+              Proceed?
+            </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="default" onClick={deployServerAgent} disabled={deploying}>
+                {deploying ? (
+                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Creating...</>
+                ) : (
+                  "Yes, Generate Setup"
+                )}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowConfirm(false)} disabled={deploying}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {deployResult ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+                <p className="text-sm font-medium text-foreground">
+                  Server agent <code className="text-xs bg-muted/50 px-1 rounded">{deployResult.deviceName}</code> created
+                </p>
+              </div>
+            </div>
+
+            {/* Test-run one-liner */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-1">
+                Test-run server agent <span className="text-muted-foreground font-normal">(paste this in terminal)</span>
+              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
+                curl -fsSL {deployUrl} | bash -s -- server-run --token {deployResult.deviceToken} --backend {backendUrl}
+              </div>
+              <button
+                onClick={() => navigator.clipboard.writeText(
+                  `curl -fsSL ${deployUrl} | bash -s -- server-run --token ${deployResult.deviceToken} --backend ${backendUrl}`
+                )}
+                className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Copy className="h-3 w-3" />
+                Copy test-run command
+              </button>
+            </div>
+
+            {/* Systemd service one-liner */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-1">
+                Install as systemd service <span className="text-muted-foreground font-normal">(paste this in terminal)</span>
+              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
+                curl -fsSL {deployUrl} | bash -s -- server-service --token {deployResult.deviceToken} --backend {backendUrl}
+              </div>
+              <div className="mt-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 whitespace-pre-wrap break-all">
+                {`# Or manually:
+sudo tee /etc/systemd/system/eclipanel-tunnel.service <<'UNITEOF'
+[Unit]
+Description=EcliPanel Tunnel Server Agent
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ecli-tunnel-server run --token ${deployResult.deviceToken} --backend ${backendUrl}
+Restart=always
+RestartSec=10
+User=nobody
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now eclipanel-tunnel`}
+              </div>
+              <button
+                onClick={() => navigator.clipboard.writeText(
+                  `curl -fsSL ${deployUrl} | bash -s -- server-service --token ${deployResult.deviceToken} --backend ${backendUrl}`
+                )}
+                className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Copy className="h-3 w-3" />
+                Copy service one-liner
+              </button>
+            </div>
+
+            <Button size="sm" variant="ghost" onClick={() => { setDeployResult(null); setShowConfirm(false); fetchData() }}>
+              Done
+            </Button>
+          </div>
+        ) : null}
+      </section>
 
       <section className="rounded-xl border border-border bg-card p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
