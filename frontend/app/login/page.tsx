@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import {
-  Mail,
-  Lock,
   Loader2,
   Eye,
   EyeOff,
@@ -13,6 +11,7 @@ import {
   KeyRound,
   Smartphone,
   MailCheck,
+  ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -348,50 +347,66 @@ export default function LoginPage() {
 
             {tempToken ? (
               <div className="space-y-4">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 mb-3">
-                    <KeyRound className="h-6 w-6 text-primary" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    {t("twoFactorTitle")}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t("twoFactorSubtitle")}
-                  </p>
-                </div>
+                {otpMethod === null && (
+                  <>
+                    <div className="text-center">
+                      <h2 className="text-2xl font-semibold text-foreground">
+                        {t("twoFactorTitle")}
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {t("twoFactorSubtitle")}
+                      </p>
+                    </div>
 
-                <div className="space-y-2">
-                  <TwoFactorMethodButton
-                    icon={Smartphone}
-                    label={t("methodAuthenticator")}
-                    description={t("methodAuthenticatorDesc")}
-                    selected={otpMethod === "totp"}
-                    onClick={() => {
-                      setOtpMethod("totp");
-                      setEmailSent(false);
-                    }}
-                  />
-                  <TwoFactorMethodButton
-                    icon={MailCheck}
-                    label={t("methodEmail")}
-                    description={t("methodEmailDesc")}
-                    selected={otpMethod === "email"}
-                    onClick={() => {
-                      setOtpMethod("email");
-                      setEmailSent(false);
-                    }}
-                  />
-                  <TwoFactorMethodButton
-                    icon={KeyRound}
-                    label={t("methodBackup")}
-                    description={t("methodBackupDesc")}
-                    selected={otpMethod === "backup"}
-                    onClick={() => {
-                      setOtpMethod("backup");
-                      setEmailSent(false);
-                    }}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <TwoFactorMethodButton
+                        icon={Smartphone}
+                        label={t("methodAuthenticator")}
+                        description={t("methodAuthenticatorDesc")}
+                        selected={otpMethod === "totp"}
+                        onClick={() => {
+                          setOtpMethod("totp");
+                          setEmailSent(false);
+                        }}
+                      />
+                      <TwoFactorMethodButton
+                        icon={MailCheck}
+                        label={t("methodEmail")}
+                        description={t("methodEmailDesc")}
+                        selected={otpMethod === "email"}
+                        onClick={() => {
+                          setOtpMethod("email");
+                          setEmailSent(false);
+                        }}
+                      />
+                      <TwoFactorMethodButton
+                        icon={KeyRound}
+                        label={t("methodBackup")}
+                        description={t("methodBackupDesc")}
+                        selected={otpMethod === "backup"}
+                        onClick={() => {
+                          setOtpMethod("backup");
+                          setEmailSent(false);
+                        }}
+                      />
+
+                      <SectionDivider label="Back to login" icon={ArrowLeft} />
+
+                      <button
+                        type="button"
+                        onClick={() => setTempToken(null)}
+                        className={cn(
+                          "w-full min-h-[44px] py-3 flex gap-2 items-center justify-center rounded-md font-mono text-base sm:text-lg border border-white/40 transition-colors duration-200 cursor-pointer",
+                          "text-white",
+                          "hover:bg-white/70 hover:text-black active:scale-[0.98]",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
+                      >
+                        {t("back")}
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 {otpMethod && (
                   <div className="pt-2 space-y-3">
@@ -429,7 +444,12 @@ export default function LoginPage() {
                           type="button"
                           onClick={sendEmailCode}
                           disabled={sendingEmail}
-                          className="w-full min-h-[44px] rounded-xl border border-border/60 bg-secondary/30 py-3 text-sm font-medium transition-all hover:bg-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className={cn(
+                            "w-full min-h-[44px] py-3 flex gap-2 items-center justify-center rounded-md font-mono text-base sm:text-lg border border-white/40 transition-colors duration-200 cursor-pointer",
+                            "text-white",
+                            "hover:bg-white/70 hover:text-black active:scale-[0.98]",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                          )}
                         >
                           {sendingEmail ? (
                             <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -447,7 +467,12 @@ export default function LoginPage() {
                         type="button"
                         onClick={verify2fa}
                         disabled={loading}
-                        className="flex-1 min-h-[44px] rounded-xl bg-primary text-primary-foreground py-3 text-sm font-semibold transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={cn(
+                          "w-full min-h-[44px] py-3 flex gap-2 items-center justify-center rounded-md font-mono text-base sm:text-lg border border-white/40 transition-colors duration-200 cursor-pointer",
+                          "text-black bg-white",
+                          "hover:bg-white/70 hover:text-black active:scale-[0.98]",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
                       >
                         {loading ? (
                           <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -458,11 +483,30 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={cancelTwoFactor}
-                        className="min-h-[44px] rounded-xl border border-border/60 bg-secondary/30 px-5 py-3 text-sm font-medium hover:bg-secondary/60"
+                        className={cn(
+                          "w-full min-h-[44px] py-3 flex gap-2 items-center justify-center rounded-md font-mono text-base sm:text-lg border border-white/40 transition-colors duration-200 cursor-pointer",
+                          "text-white",
+                          "hover:bg-white/70 hover:text-black active:scale-[0.98]",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
                       >
                         {t("cancel")}
                       </button>
                     </div>
+                    {otpMethod !== null && (
+                      <button
+                        type="button"
+                        onClick={() => setOtpMethod(null)}
+                        className={cn(
+                          "w-full min-h-[44px] py-3 flex gap-2 items-center justify-center rounded-md font-mono text-base sm:text-lg border border-white/40 transition-colors duration-200 cursor-pointer",
+                          "text-white",
+                          "hover:bg-white/70 hover:text-black active:scale-[0.98]",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
+                      >
+                        {t("back")}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
