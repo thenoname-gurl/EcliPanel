@@ -573,9 +573,9 @@
       "retryAttempts": "Retry attempts: {count}"
     },
     "sections": {
-      "crashReport": "# Crash Report",
-      "diagnostics": "# Diagnostics",
-      "possibleCauses": "# Possible Causes",
+      "crashReport": "Crash Report",
+      "diagnostics": "Diagnostics",
+      "possibleCauses": "Possible Causes",
       "causesSubtitle": "Blåhaj ate pixelcat, or maybe:",
       "cause1": "→ Server-side rendering failure",
       "cause2": "→ Unhandled promise rejection",
