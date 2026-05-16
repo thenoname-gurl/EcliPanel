@@ -19,6 +19,7 @@ import {
 import {
   verifyDeviceToken,
   allocatePort,
+  tryReuseRecentPort,
   getOnlineServerAgent,
   assignPendingAllocations,
 } from '../services/tunnel.service';
@@ -830,6 +831,8 @@ export function tunnelRoutes(app: any, prefix: string): void {
         }
       }
 
+      const fqdn = getStringField(body, ['fqdn', 'fqdn'], '');
+
       const repo = AppDataSource.getRepository(TunnelDevice);
       const device = repo.create({
         deviceCode,
@@ -845,6 +848,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
           { expiresIn: '24h' }
         ),
       });
+      if (kind === 'server' && fqdn) {
+        device.fqdn = fqdn;
+      }
       await repo.save(device);
 
       return createJsonResponse({
@@ -852,6 +858,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         user_code: userCode,
         name,
         kind,
+        fqdn: device.fqdn || null,
         access_token: device.token,
         token_type: 'bearer',
         expires_in: 86400,
@@ -864,6 +871,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
           user_code: t.String(),
           name: t.String(),
           kind: t.String(),
+          fqdn: t.Nullable(t.String()),
           access_token: t.String(),
           token_type: t.String(),
           expires_in: t.Number(),
@@ -876,7 +884,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         summary: 'Create and approve a tunnel device (admin)',
         tags: ['Tunnels'],
         description:
-          'Create a tunnel device that is immediately approved. Returns an access token. Admin only.',
+          'Create a tunnel device that is immediately approved. Returns an access token. Admin only.\n\nSupply `fqdn` for server devices (e.g. `n2.ecli.app`).',
       },
     }
   );
@@ -940,11 +948,18 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('invalid_local_port', 400);
       }
 
+      const reused = await tryReuseRecentPort(clientDevice, localHost, localPort);
       let port: number;
-      try {
-        port = await allocatePort();
-      } catch {
-        return errorResponse('no_ports_available', 503);
+      let reuseAllocation: TunnelAllocation | null = reused;
+
+      if (reused) {
+        port = reused.port;
+      } else {
+        try {
+          port = await allocatePort();
+        } catch {
+          return errorResponse('no_ports_available', 503);
+        }
       }
 
       const host =
@@ -975,30 +990,48 @@ export function tunnelRoutes(app: any, prefix: string): void {
           return errorResponse('tunnel_port_limit_exceeded', 403);
         }
       }
-      const allocation = repo.create({
-        port,
-        host,
-        protocol,
-        clientDevice,
-        localHost,
-        localPort,
-        status: 'pending',
-      });
-      await repo.save(allocation);
+      let allocation: TunnelAllocation;
 
-      const serverAgent = await getOnlineServerAgent(clientDevice);
-      if (serverAgent) {
-        allocation.serverDevice = serverAgent;
-        allocation.status = 'active';
+      if (reuseAllocation) {
+        allocation = reuseAllocation;
+        const serverAgent = await getOnlineServerAgent(clientDevice);
+        if (serverAgent) {
+          allocation.serverDevice = serverAgent;
+          await repo.save(allocation);
+          sendAgentMessage(serverAgent.deviceCode, {
+            type: 'bind',
+            allocationId: allocation.id,
+            host: allocation.host,
+            port: allocation.port,
+            protocol: allocation.protocol,
+          });
+        }
+      } else {
+        allocation = repo.create({
+          port,
+          host,
+          protocol,
+          clientDevice,
+          localHost,
+          localPort,
+          status: 'pending',
+        });
         await repo.save(allocation);
 
-        sendAgentMessage(serverAgent.deviceCode, {
-          type: 'bind',
-          allocationId: allocation.id,
-          host: allocation.host,
-          port: allocation.port,
-          protocol: allocation.protocol,
-        });
+        const serverAgent = await getOnlineServerAgent(clientDevice);
+        if (serverAgent) {
+          allocation.serverDevice = serverAgent;
+          allocation.status = 'active';
+          await repo.save(allocation);
+
+          sendAgentMessage(serverAgent.deviceCode, {
+            type: 'bind',
+            allocationId: allocation.id,
+            host: allocation.host,
+            port: allocation.port,
+            protocol: allocation.protocol,
+          });
+        }
       }
 
       return createJsonResponse({
@@ -1089,6 +1122,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
           localPort: a.localPort,
           clientDevice: a.clientDevice?.deviceCode ?? null,
           serverDevice: a.serverDevice?.deviceCode ?? null,
+          serverOnline: a.serverDevice ? agentConnections.has(a.serverDevice.deviceCode) : false,
           createdAt: a.createdAt.toISOString(),
           updatedAt: a.updatedAt.toISOString(),
         })),
@@ -1108,6 +1142,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
               localPort: t.Number(),
               clientDevice: t.Nullable(t.String()),
               serverDevice: t.Nullable(t.String()),
+              serverOnline: t.Boolean(),
               createdAt: t.String(),
               updatedAt: t.String(),
             })
@@ -1157,6 +1192,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       allocation.status = 'closed';
+      allocation.closedAt = new Date();
       await repo.save(allocation);
 
       if (allocation.serverDevice) {
