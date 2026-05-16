@@ -44,7 +44,7 @@ export default async function MinimumAgePage() {
         customMenu={[
           { label: "AI Policy", href: "/legal/ai-policy" },
           { label: "Privacy Policy", href: "/legal/privacy-policy" },
-          { label: "Cookie Policy", href: "/legal/cookie-policy" },
+          { label: "Cookies Policy", href: "/legal/cookies-policy" },
           {
             label: "Email Policy",
             href: "/legal/email-policy",
