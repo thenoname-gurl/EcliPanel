@@ -192,8 +192,9 @@ export async function sendMail(options: nodemailer.SendMailOptions & { template?
   }
 
   options.headers = {
-    'X-Mailer': 'EcliPanel Mailer',
     ...(options.headers || {}),
+    'X-Mailer': 'EcliPanel Mailer',
+    'X-Entity-Ref-ID': Math.random().toString(36).slice(2, 10),
   };
 
   if (!options.envelope && fromAddress) {
