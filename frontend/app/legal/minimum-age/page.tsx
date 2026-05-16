@@ -59,7 +59,7 @@ export default async function MinimumAgePage() {
       <div className="space-y-8 max-w-6xl mt-20">
         <section className="text-center shadow-xl shadow-black/5 mt-10">
           <div className="">
-            <p className="text-[6.5rem] leading-30 font-semibold tracking-tight text-foreground sm:text-[5rem] md:text-[6.5rem]">
+            <p className="text-[clamp(2.5rem,8vw,6.5rem)] leading-[1] font-semibold tracking-tight text-foreground">
               Country Minimum Age Requirements
             </p>
             <p className="text-sm leading-7 text-white/70 sm:text-base">
