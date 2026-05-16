@@ -32,7 +32,7 @@ export default function TermsOfServicePage() {
         customCTA={{ label: "Back", href: "/legal" }}
       />
       <div className="space-y-8 max-w-6xl mt-20">
-        <section className="text-center shadow-xl shadow-black/5">
+        <section className="text-center shadow-xl shadow-black/5 mt-10">
           <div className="">
             <p className="text-[6.5rem] leading-30 font-semibold tracking-tight text-foreground">
               Terms of Service
@@ -70,7 +70,7 @@ export default function TermsOfServicePage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             2. Service Level Agreement (SLA)
           </h2>
@@ -98,7 +98,7 @@ export default function TermsOfServicePage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             3. Registration & Eligibility
           </h2>
@@ -149,7 +149,7 @@ export default function TermsOfServicePage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             4. Orders, Pricing & Payments
           </h2>
@@ -172,7 +172,7 @@ export default function TermsOfServicePage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             5. Account Deletion Requests
           </h2>
@@ -200,7 +200,7 @@ export default function TermsOfServicePage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             6. Acceptable Use
           </h2>
@@ -213,7 +213,7 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             7. Customer Content & Backups
           </h2>
@@ -232,7 +232,7 @@ export default function TermsOfServicePage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             8. Domains
           </h2>
@@ -242,7 +242,7 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             9. Changes
           </h2>
@@ -252,7 +252,7 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-0">
+        <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
             10. Contact
           </h2>
