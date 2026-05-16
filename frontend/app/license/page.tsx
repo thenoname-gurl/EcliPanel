@@ -1,16 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  FileText,
-  Scale,
-  ShieldCheck,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { Menu } from "../landing/_components/_custom/Menu";
+import GradualBlurMemo from "../landing/_components/_reacts-bits/GradualBlur";
 
 function BinaryStrip() {
   const [binary, setBinary] = useState("");
@@ -18,33 +12,17 @@ function BinaryStrip() {
   useEffect(() => {
     const chars = "01";
     let str = "";
+
     for (let i = 0; i < 200; i++) {
       str += chars[Math.floor(Math.random() * chars.length)];
     }
+
     setBinary(str);
   }, []);
 
   return (
-    <div className="overflow-hidden py-4 text-[10px] font-mono text-purple-500/30 select-none">
+    <div className="overflow-hidden py-3 sm:py-4 text-[8px] sm:text-[10px] font-mono text-white/20 select-none break-all leading-relaxed">
       {binary}
-    </div>
-  );
-}
-
-function TerminalBlock({ children }: { children: React.ReactNode }) {
-  const t = useTranslations("license");
-
-  return (
-    <div className="rounded-lg border border-purple-500/20 bg-black/60 p-3 sm:p-4 font-mono text-xs sm:text-sm backdrop-blur-sm overflow-x-auto">
-      <div className="mb-3 flex items-center gap-2">
-        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-red-500 flex-shrink-0" />
-        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-yellow-500 flex-shrink-0" />
-        <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-green-500 flex-shrink-0" />
-        <span className="ml-2 text-xs text-purple-400/60 whitespace-nowrap">
-          {t("terminal.windowTitle")}
-        </span>
-      </div>
-      {children}
     </div>
   );
 }
@@ -109,233 +87,177 @@ export default function LicensePage() {
   ];
 
   return (
-    <main className="relative min-h-screen bg-[#0a0a0a] text-white">
-      {/* Background Effects */}
-      <div className="pointer-events-none fixed inset-0 z-50 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.1)_0px,rgba(0,0,0,0.1)_1px,transparent_1px,transparent_2px)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(168,85,247,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(168,85,247,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.15),transparent_50%)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(147,51,234,0.1),transparent_50%)]" />
+    <main className="relative flex w-full justify-center overflow-hidden bg-black px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+      <GradualBlurMemo
+        target="page"
+        position="top"
+        height="13rem"
+        strength={2}
+        divCount={5}
+        curve="bezier"
+        exponential
+        opacity={1}
+      />
 
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-10">
-        {/* Header */}
-        <header className="mb-8 flex items-center justify-between border-b border-purple-500/20 pb-4 flex-wrap sm:flex-nowrap gap-2">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center">
-              <img
-                src="/assets/icons/logo.png"
-                alt="Eclipse Systems"
-                className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
-              />
-            </div>
-            <span className="font-mono text-sm sm:text-xl font-bold tracking-tight text-purple-400">
-              {t("brand")}
-            </span>
-          </div>
-          <nav className="flex gap-4 sm:gap-6 font-mono text-xs sm:text-sm text-purple-400/70">
-            <Link href="/" className="transition-colors hover:text-purple-300">
-              {t("nav.home")}
-            </Link>
-            <Link
-              href="/dashboard"
-              className="transition-colors hover:text-purple-300"
-            >
-              {t("nav.dashboard")}
-            </Link>
-          </nav>
-        </header>
+      <Menu customCTA={{ label: "Home", href: "/" }} />
 
-        {/* Hero Section */}
-        <section className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="rounded-full bg-purple-500/10 p-4 sm:p-6 border border-purple-500/20">
-              <Scale className="h-8 w-8 sm:h-12 sm:w-12 text-purple-400" />
-            </div>
-          </div>
-          <h1 className="mb-4 font-mono text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter">
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+      <div className="relative z-10 mt-35 sm:mt-25 w-full max-w-6xl space-y-8 sm:space-y-10">
+        <section className="text-center">
+          <div>
+            <p className="text-[2.8rem] leading-none font-semibold tracking-tight text-white sm:text-[4.5rem] md:text-[5.5rem] lg:text-[6.5rem]">
               {t("hero.title")}
-            </span>
-          </h1>
-          <p className="mx-auto mb-6 max-w-2xl font-mono text-sm sm:text-base text-purple-400/80 px-4">
+            </p>
+
+            <p className="mt-4 text-xs text-white/60 sm:text-sm md:text-base">
+              Last updated: April 13, 2026.
+            </p>
+          </div>
+
+          <p className="mx-auto mt-6 max-w-3xl px-2 font-mono text-sm leading-relaxed text-white/70 sm:text-base">
             {t("hero.line1Prefix")}{" "}
-            <span className="text-pink-400">{t("hero.line1Highlight")}</span>{" "}
+            <span className="text-indigo-400">{t("hero.line1Highlight")}</span>{" "}
             {t("hero.line1Suffix")}
-            <br className="hidden sm:block" />
+            <br className="hidden md:block" />
             {t("hero.line2Prefix")}{" "}
-            <span className="text-purple-300">{t("hero.line2Highlight")}</span>.
+            <span className="text-[#B85A96]">{t("hero.line2Highlight")}</span>.
           </p>
-          <p className="mx-auto max-w-3xl rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 font-mono text-xs sm:text-sm text-amber-300/90">
+
+          <p className="mx-auto mt-6 max-w-3xl bg-white/10 px-4 py-3 font-mono text-sm leading-relaxed text-white sm:text-base">
             {t("translationNote")}
           </p>
         </section>
 
-        {/* Terminal Summary */}
-        <section className="mb-8">
-          <TerminalBlock>
-            <div className="text-purple-400">
-              <p className="text-gray-500">
-                eclipse@systems ~ % cat LICENSE.md
-              </p>
-              <p className="mt-2">
-                <span className="text-pink-400">
-                  {t("terminal.licenseLabel")}
-                </span>{" "}
+        <section className="font-mono">
+          <div className="overflow-x-auto bg-white/10 p-4 sm:p-6">
+            <p className="text-xs text-gray-500 sm:text-sm">
+              eclipse@systems ~ % cat LICENSE.md
+            </p>
+
+            <div className="mt-3 space-y-1 text-sm sm:text-base">
+              <p className="text-white/70">
+                <span className="text-white">{t("terminal.licenseLabel")}</span>{" "}
                 {t("terminal.licenseValue")}
               </p>
-              <p>
-                <span className="text-pink-400">
+
+              <p className="text-white/70">
+                <span className="text-white">
                   {t("terminal.copyrightLabel")}
                 </span>{" "}
                 {t("terminal.copyrightValue")}
               </p>
-              <p>
-                <span className="text-pink-400">
-                  {t("terminal.stewardLabel")}
-                </span>{" "}
+
+              <p className="text-white/70">
+                <span className="text-white">{t("terminal.stewardLabel")}</span>{" "}
                 {t("terminal.stewardValue")}
               </p>
-              <p className="mt-2">
-                <span className="text-emerald-400">✓</span>{" "}
-                {t("terminal.allowed")}
-              </p>
-              <p>
-                <span className="text-red-400">✗</span>{" "}
-                {t("terminal.forbidden")}
-              </p>
+
+              <p className="pt-2 text-emerald-400">✓ {t("terminal.allowed")}</p>
+
+              <p className="text-white/70">✗ {t("terminal.forbidden")}</p>
             </div>
-          </TerminalBlock>
+          </div>
         </section>
 
         <BinaryStrip />
 
-        {/* Quick Reference */}
-        <section className="mb-8">
-          <h2 className="mb-6 font-mono text-2xl sm:text-3xl font-bold text-purple-400">
+        <section>
+          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">
             {t("quick.title")}
           </h2>
 
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-            {/* Permitted Uses */}
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-6 backdrop-blur-sm">
-              <div className="mb-4 flex items-center gap-3">
-                <CheckCircle2 className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                <h3 className="font-mono text-xl font-bold text-emerald-400">
-                  {t("quick.permittedTitle")}
-                </h3>
-              </div>
-              <ul className="space-y-3 font-mono text-sm text-emerald-400/80">
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-1">→</span>
-                  <span>{t("quick.permitted1")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-1">→</span>
-                  <span>{t("quick.permitted2")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-1">→</span>
-                  <span>{t("quick.permitted3")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-1">→</span>
-                  <span>{t("quick.permitted4")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-1">→</span>
-                  <span>{t("quick.permitted5")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-1">→</span>
-                  <span>{t("quick.permitted6")}</span>
-                </li>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="bg-white/5 p-5 sm:p-6">
+              <h3 className="mb-4 text-xl font-bold">
+                {t("quick.permittedTitle")}
+              </h3>
+
+              <ul className="space-y-3 font-mono text-sm leading-relaxed text-white/70 sm:text-base">
+                {[
+                  t("quick.permitted1"),
+                  t("quick.permitted2"),
+                  t("quick.permitted3"),
+                  t("quick.permitted4"),
+                  t("quick.permitted5"),
+                  t("quick.permitted6"),
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 shrink-0">→</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Prohibited Uses */}
-            <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-6 backdrop-blur-sm">
-              <div className="mb-4 flex items-center gap-3">
-                <XCircle className="h-6 w-6 text-red-400 flex-shrink-0" />
-                <h3 className="font-mono text-xl font-bold text-red-400">
-                  {t("quick.prohibitedTitle")}
-                </h3>
-              </div>
-              <ul className="space-y-3 font-mono text-sm text-red-400/80">
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span>{t("quick.prohibited1")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span>{t("quick.prohibited2")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span>{t("quick.prohibited3")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span>{t("quick.prohibited4")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span>{t("quick.prohibited5")}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span>{t("quick.prohibited6")}</span>
-                </li>
+            <div className="bg-white/5 p-5 sm:p-6">
+              <h3 className="mb-4 text-xl font-bold">
+                {t("quick.prohibitedTitle")}
+              </h3>
+
+              <ul className="space-y-3 font-mono text-sm leading-relaxed text-white/70 sm:text-base">
+                {[
+                  t("quick.prohibited1"),
+                  t("quick.prohibited2"),
+                  t("quick.prohibited3"),
+                  t("quick.prohibited4"),
+                  t("quick.prohibited5"),
+                  t("quick.prohibited6"),
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 shrink-0">→</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
 
-          <div className="mt-6 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4 sm:p-6 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-mono text-sm font-bold text-yellow-400 mb-2">
-                  {t("quick.attributionTitle")}
-                </h4>
-                <p className="font-mono text-xs text-yellow-400/70 leading-relaxed">
-                  {t("quick.attributionPrefix")}{" "}
-                  <span className="text-yellow-300">
-                    {t("quick.attributionName1")}
-                  </span>{" "}
-                  {t("quick.attributionAnd")}
-                  <span className="text-yellow-300">
-                    {" "}
-                    {t("quick.attributionName2")}
-                  </span>
-                  , {t("quick.attributionSuffix")}
-                </p>
-              </div>
-            </div>
+          <div className="mt-6 bg-white/5 p-5 sm:p-6">
+            <h4 className="text-lg font-bold sm:text-xl">
+              {t("quick.attributionTitle")}
+            </h4>
+
+            <p className="mt-4 font-mono text-sm leading-relaxed text-white/70 sm:text-base">
+              {t("quick.attributionPrefix")}{" "}
+              <span className="text-indigo-400">
+                {t("quick.attributionName1")}
+              </span>{" "}
+              {t("quick.attributionAnd")}
+              <span className="text-indigo-400">
+                {" "}
+                {t("quick.attributionName2")}
+              </span>
+              , {t("quick.attributionSuffix")}
+            </p>
           </div>
         </section>
 
         <BinaryStrip />
 
-        {/* Full License Text */}
-        <section className="mb-8">
-          <h2 className="mb-6 font-mono text-2xl sm:text-3xl font-bold text-purple-400">
+        <section>
+          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">
             {t("full.title")}
           </h2>
 
-          <div className="rounded-lg border border-purple-500/20 bg-black/60 p-6 sm:p-8 backdrop-blur-sm font-mono text-xs sm:text-sm leading-relaxed text-purple-400/80 space-y-6 overflow-x-auto">
+          <div className="space-y-8 overflow-x-auto bg-white/5 p-5 font-mono text-sm leading-relaxed sm:p-8 sm:text-base">
             <div>
-              <h3 className="text-pink-400 font-bold text-base mb-3">
+              <h3 className="mb-3 text-lg font-bold sm:text-xl">
                 {t("full.docTitle")}
               </h3>
-              <p className="text-purple-400/60">{t("full.docLine1")}</p>
-              <p className="text-purple-400/60">{t("full.docLine2")}</p>
-              <p className="text-purple-400/60">{t("full.docLine3")}</p>
+
+              <div className="space-y-2 text-white/70">
+                <p>{t("full.docLine1")}</p>
+                <p>{t("full.docLine2")}</p>
+                <p>{t("full.docLine3")}</p>
+              </div>
             </div>
 
             {fullLicenseSections.map((section) => (
               <div key={section.title}>
-                <h4 className="text-purple-300 font-bold mb-2">
+                <h4 className="mb-3 text-lg font-bold text-white sm:text-xl">
                   {section.title}
                 </h4>
-                <p className="text-purple-400/70 whitespace-pre-wrap">
+
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70 sm:text-base">
                   {section.body}
                 </p>
               </div>
@@ -345,21 +267,19 @@ export default function LicensePage() {
 
         <BinaryStrip />
 
-        {/* FAQ Section */}
-        <section className="mb-8">
-          <h2 className="mb-6 font-mono text-2xl sm:text-3xl font-bold text-purple-400">
+        <section>
+          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">
             {t("faq.title")}
           </h2>
+
           <div className="space-y-4">
             {faqEntries.map((faq, i) => (
-              <div
-                key={i}
-                className="rounded-lg border border-purple-500/20 bg-black/40 p-4 sm:p-5 backdrop-blur-sm"
-              >
-                <p className="font-mono text-sm font-bold text-pink-400 mb-2">
+              <div key={i} className="bg-white/5 p-4 sm:p-5">
+                <p className="mb-3 font-mono text-lg font-bold text-white sm:text-xl">
                   Q. {faq.q}
                 </p>
-                <p className="font-mono text-xs sm:text-sm text-purple-400/70">
+
+                <p className="font-mono text-sm leading-relaxed text-white/70 sm:text-base">
                   {faq.a}
                 </p>
               </div>
@@ -369,32 +289,33 @@ export default function LicensePage() {
 
         <BinaryStrip />
 
-        {/* Contact Section */}
-        <section className="mb-8">
-          <h2 className="mb-6 font-mono text-2xl sm:text-3xl font-bold text-purple-400">
+        <section>
+          <h2 className="mb-6 font-mono text-2xl font-bold sm:text-3xl">
             {t("contact.title")}
           </h2>
 
-          <div className="rounded-lg border border-purple-500/20 bg-black/40 p-6 sm:p-8 backdrop-blur-sm text-center">
-            <ShieldCheck className="h-12 w-12 sm:h-16 sm:w-16 text-purple-400 mx-auto mb-4" />
-            <h3 className="font-mono text-lg sm:text-xl font-bold text-purple-400 mb-3">
+          <div className="rounded-lg border border-purple-500/20 bg-black/40 p-5 text-center backdrop-blur-sm sm:p-8">
+            <h3 className="mb-3 font-mono text-xl font-bold sm:text-2xl">
               {t("contact.heading")}
             </h3>
-            <p className="font-mono text-sm text-purple-400/70 mb-6 max-w-2xl mx-auto">
+
+            <p className="mx-auto mb-6 max-w-2xl font-mono text-sm leading-relaxed text-white/70 sm:text-base">
               {t("contact.body")}
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
+
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <a
                 href="mailto:noname@ecli.app"
-                className="rounded border border-purple-500 bg-purple-500/10 px-6 py-2.5 font-mono text-sm font-semibold text-purple-400 transition-all hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                className="w-full rounded bg-white px-6 py-3 text-center font-mono text-sm font-semibold text-black transition-all hover:bg-white/70 sm:w-auto"
               >
                 {t("contact.contactCommercial")}
               </a>
+
               <a
                 href="https://github.com/thenoname-gurl/EcliPanel"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded border border-purple-500/30 px-6 py-2.5 font-mono text-sm font-semibold text-purple-400/70 transition-all hover:border-purple-500/50 hover:text-purple-400"
+                className="w-full rounded border border-white/20 px-6 py-3 text-center font-mono text-sm font-semibold text-white transition-all hover:bg-white/70 hover:text-black sm:w-auto"
               >
                 {t("contact.viewSource")}
               </a>
@@ -404,18 +325,6 @@ export default function LicensePage() {
 
         <BinaryStrip />
       </div>
-
-      <style jsx global>{`
-        @keyframes blink {
-          from,
-          to {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0;
-          }
-        }
-      `}</style>
     </main>
   );
 }
