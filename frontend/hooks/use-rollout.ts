@@ -42,6 +42,14 @@ async function getAllRollouts(): Promise<Record<string, RolloutState>> {
 export function useRollout(key: string): RolloutState {
   const { user } = useAuth()
   const [state, setState] = useState<RolloutState>(() => {
+    try {
+      if (typeof document !== 'undefined') {
+        const c = document.cookie.split(';').map((s) => s.trim()).find((s) => s.startsWith(`rollout_${key}=`));
+        if (c) return { inRollout: true, treatment: null }
+      }
+    } catch {
+      // meow
+    }
     if (!isCacheStale() && cachedRollouts[key]) return cachedRollouts[key]
     return { inRollout: false, treatment: null }
   })
@@ -59,6 +67,42 @@ export function useRollout(key: string): RolloutState {
       cachedRollouts[key] = result
       setState(result)
     })
+  }, [key, user])
+
+  useEffect(() => {
+    if (!user) return
+
+    let mounted = true
+    const doRefresh = async () => {
+      try {
+        lastFetchTime = 0
+        const rollouts = await getAllRollouts()
+        if (!mounted) return
+        const result = rollouts[key] || { inRollout: false, treatment: null }
+        cachedRollouts[key] = result
+        setState(result)
+      } catch {
+        // meow
+      }
+    }
+
+    const onFocus = () => void doRefresh()
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') doRefresh()
+    }
+
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      window.addEventListener('focus', onFocus)
+      document.addEventListener('visibilitychange', onVisibility)
+    }
+
+    return () => {
+      mounted = false
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        window.removeEventListener('focus', onFocus)
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
+    }
   }, [key, user])
 
   return state
@@ -80,6 +124,35 @@ export function useAllRollouts(): Record<string, RolloutState> {
       setRollouts({ ...cachedRollouts })
     } else {
       refresh()
+    }
+  }, [user, refresh])
+
+  useEffect(() => {
+    if (!user) return
+
+    let mounted = true
+    const onFocus = () => {
+      lastFetchTime = 0
+      refresh()
+    }
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        lastFetchTime = 0
+        refresh()
+      }
+    }
+
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      window.addEventListener('focus', onFocus)
+      document.addEventListener('visibilitychange', onVisibility)
+    }
+
+    return () => {
+      mounted = false
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        window.removeEventListener('focus', onFocus)
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
     }
   }, [user, refresh])
 
