@@ -3,33 +3,7 @@ import { User } from '../models/user.entity';
 import { AdminBroadcastJob } from '../models/adminBroadcastJob.entity';
 import { sendMail } from './mailService';
 import { createActivityLog } from '../handlers/logHandler';
-
-function escapeHtml(value: any) {
-  const s = String(value || '');
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function markdownToHtml(md: any) {
-  const src = String(md || '');
-  const lines = src.split('\n');
-  const html = lines.map((line) => {
-    if (/^\s*```/.test(line)) return line;
-    if (/^\s*#{1,6}\s+/.test(line)) {
-      const level = Math.min(6, line.match(/^\s*(#{1,6})\s+/)![1].length);
-      return `<h${level}>${escapeHtml(line.replace(/^\s*#{1,6}\s+/, ''))}</h${level}>`;
-    }
-    if (/^\s*[-*+]\s+/.test(line)) {
-      return `<li>${escapeHtml(line.replace(/^\s*[-*+]\s+/, ''))}</li>`;
-    }
-    return `<p>${escapeHtml(line)}</p>`;
-  }).join('');
-  return html;
-}
+import { escapeHtml, markdownToHtml } from '../utils/markdown';
 
 export async function createAdminBroadcastJob(adminId: number, subject: string, message: string, force: boolean) {
   const repo = AppDataSource.getRepository(AdminBroadcastJob);

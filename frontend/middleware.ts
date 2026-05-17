@@ -1074,6 +1074,43 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   const ip = getIP(req);
 
   if (await isAlreadyVerified(verifiedCookie, ip)) {
+    try {
+      if (req.method === 'GET' && isHtmlRequest(req) && pathname.startsWith('/dashboard/tunnels')) {
+        const sessionUser = await getSessionUser(req);
+        if (sessionUser) {
+          const backendBase = getBackendBaseUrl();
+          if (backendBase) {
+            const r = await fetch(`${backendBase.replace(/\/+$/, '')}/api/rollouts`, {
+              method: 'GET',
+              headers: { cookie: req.headers.get('cookie') || '' },
+              cache: 'no-store',
+            });
+            if (r.ok) {
+              const data = await r.json();
+              const candidates = Object.keys(data || {}).filter((k) => k.includes('tunnel'));
+              if (candidates.length > 0) {
+                const res = NextResponse.next();
+                for (const k of candidates) {
+                  const st = data[k];
+                  if (st && st.inRollout) {
+                    res.cookies.set(`rollout_${k}`, '1', {
+                      path: '/',
+                      maxAge: 60 * 60 * 24,
+                      sameSite: 'lax',
+                      secure: true,
+                    });
+                  }
+                }
+                return res;
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // woof woof
+    }
+
     return NextResponse.next();
   }
 

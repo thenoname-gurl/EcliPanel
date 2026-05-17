@@ -2689,7 +2689,9 @@ export default function SettingsPage() {
                         <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {k.type} • {k.permissions?.length || 0} {t("api.permissions")}
+                            {k.type} • {k.type === "admin" || k.permissions?.includes("*")
+                              ? t("api.fullAccess")
+                              : `${k.permissions?.length || 0} ${t("api.permissions")}`}
                           </p>
                         </div>
                         <button
