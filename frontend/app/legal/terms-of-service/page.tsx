@@ -38,7 +38,7 @@ export default function TermsOfServicePage() {
               Terms of Service
             </p>
             <p className="text-sm leading-7 text-white/70 sm:text-base">
-              Effective Date: April 13th, 2026. These Terms govern your use of
+              Effective Date: May 16th, 2026. These Terms govern your use of
               EclipseSystems, under Misiu LLC.
             </p>
           </div>
@@ -146,6 +146,12 @@ export default function TermsOfServicePage() {
               We may suspend or terminate accounts for suspected abuse, fraud,
               or legal non-compliance.
             </li>
+            <li>
+              EclipseSystems and its authorized administrators may suspend,
+              disable, or terminate accounts, servers, or services at any time,
+              with or without prior notice, and with or without providing a
+              reason, as permitted by law.
+            </li>
           </ul>
         </section>
 
@@ -208,8 +214,12 @@ export default function TermsOfServicePage() {
             You must not use EclipseSystems for illegal content, infringement,
             spam, DDoS attacks, prohibited mining, proxy or anonymizing
             services, or any activity that violates our Acceptable Use Policy.
-            High-risk AI use and email communications are also subject to our
-            separate AI Policy and Email Policy.
+            Hosting external AI models, training systems, or AI inference
+            workloads on ecli.app infrastructure is not permitted. Using the
+            platform's built-in AI Studio, tools, or other external AI services is allowed.
+            <p>
+            High-risk AI use and email communications are also subject to our separate AI Policy and Email Policy.
+            </p>
           </p>
         </section>
 

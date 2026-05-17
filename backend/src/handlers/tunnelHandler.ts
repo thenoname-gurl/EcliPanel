@@ -687,8 +687,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
   app.post(
     `${prefix}/tunnel/devices/:id/delete`,
     async (ctx: any) => {
-      const authError = await requireAdmin(ctx);
-      if (authError) return authError;
+      const authResult = await authenticate(ctx);
+      if (authResult && (authResult as any).error) {
+        const status = ctx.set?.status || 401;
+        return errorResponse((authResult as any).error, status);
+      }
 
       const deviceId = Number(ctx.params.id);
       if (!Number.isFinite(deviceId)) {
@@ -699,6 +702,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const device = await repo.findOne({ where: { id: deviceId } });
       if (!device) {
         return errorResponse('not_found', 404);
+      }
+
+      const isDeviceAdmin = ctx.apiKey && ctx.apiKey.type === 'admin';
+      const canDelete = isDeviceAdmin || (ctx.user && await deviceBelongsToUserOrOrg(device, ctx.user));
+      if (!canDelete) {
+        return errorResponse('forbidden', 403);
       }
 
       const allocRepo = AppDataSource.getRepository(TunnelAllocation);
@@ -1183,7 +1192,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('not_found', 404);
       }
 
-      if (device && allocation.clientDevice?.id !== device.id) {
+      if (device) {
+        if (allocation.clientDevice?.id !== device.id) {
+          return errorResponse('forbidden', 403);
+        }
+      } else if (!ctx.user || !(await deviceBelongsToUserOrOrg(allocation.clientDevice, ctx.user))) {
         return errorResponse('forbidden', 403);
       }
 
@@ -1248,7 +1261,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('not_found', 404);
       }
 
-      if (device && allocation.clientDevice?.id !== device.id) {
+      if (device) {
+        if (allocation.clientDevice?.id !== device.id) {
+          return errorResponse('forbidden', 403);
+        }
+      } else if (!ctx.user || !(await deviceBelongsToUserOrOrg(allocation.clientDevice, ctx.user))) {
         return errorResponse('forbidden', 403);
       }
 
