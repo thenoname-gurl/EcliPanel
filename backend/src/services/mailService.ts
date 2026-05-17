@@ -1,14 +1,10 @@
 import nodemailer from 'nodemailer';
-import path from 'path';
-import { promises as fsp } from 'fs';
+import { render } from '@react-email/render';
 import { convert } from 'html-to-text';
+import React from 'react';
+import { emailTemplates, TemplateName } from '../emails';
 
 let transporter: nodemailer.Transporter;
-
-const templateCache = new Map<string, string>();
-let templateWorker: any = null;
-const workerResponseMap = new Map<string, (val: any) => void>();
-let workerCounter = 0;
 
 function buildDefaultFromAddress() {
   const fromEnv = process.env.SMTP_FROM || process.env.MAIL_FROM;
@@ -97,82 +93,31 @@ export async function initMail() {
   await transporter.verify();
 }
 
-function tryInitWorker() {
-  if (templateWorker) return;
+async function renderReactTemplate(name: string, vars: Record<string, any>) {
+  const templateName = name as TemplateName;
+  const TemplateComponent = emailTemplates[templateName];
+
+  if (!TemplateComponent) {
+    console.warn(`mailService: react template "${name}" not found, falling back to plain text`);
+    let fallback = `Template "${name}" not found.`;
+    for (const k in vars) fallback += `\n${k}: ${vars[k]}`;
+    return fallback;
+  }
+
   try {
-    if (typeof Worker !== 'undefined') {
-      const workerUrl = new URL('./mailTemplateWorker.js', import.meta.url).toString();
-      // @ts-ignore
-      templateWorker = new Worker(workerUrl, { type: 'module' });
-      templateWorker.onmessage = (e: any) => {
-        const m = e.data;
-        const cb = workerResponseMap.get(m.id);
-        if (cb) {
-          workerResponseMap.delete(m.id);
-          if (m.error) cb(Promise.reject(new Error(m.error)) as any);
-          else cb(m.content);
-        }
-      };
-      templateWorker.onerror = (e: any) => {
-        for (const cb of workerResponseMap.values()) cb(Promise.reject(e) as any);
-        workerResponseMap.clear();
-        templateWorker = null;
-      };
-      return;
-    }
-  } catch (e) {
-    templateWorker = null;
+    const element = (TemplateComponent as (props: Record<string, any>) => React.ReactNode)(vars);
+    return await render(element, { pretty: false });
+  } catch (err) {
+    console.error(`mailService: failed to render react template "${name}":`, err);
+    let fallback = `Failed to render template "${name}".`;
+    for (const k in vars) fallback += `\n${k}: ${vars[k]}`;
+    return fallback;
   }
-}
-
-async function renderTemplateAsync(name: string, vars: Record<string, any>) {
-  const file = path.join(__dirname, '../../templates/email', name + '.html');
-  let content = templateCache.get(name);
-  if (!content) {
-    try {
-      content = await fsp.readFile(file, 'utf8');
-      templateCache.set(name, content);
-    } catch (err: any) {
-      console.warn(`mailService: missing template ${name}, falling back to plain text`);
-      let fallback = `${name} template not found.`;
-      for (const k in vars) fallback += `\n${k}: ${vars[k]}`;
-      return fallback;
-    }
-  }
-
-  tryInitWorker();
-  if (templateWorker) {
-    return await new Promise<string>((resolve, reject) => {
-      const id = `t${Date.now().toString(36)}_${workerCounter++}`;
-      const cb = (result: any) => {
-        if (result instanceof Error || (typeof result === 'object' && result && typeof (result as any).then === 'function')) {
-          reject(result);
-        } else resolve(result);
-      };
-      workerResponseMap.set(id, cb as any);
-      try {
-        templateWorker.postMessage({ id, template: content, vars });
-        setTimeout(() => {
-          if (workerResponseMap.has(id)) {
-            workerResponseMap.delete(id);
-            reject(new Error('template worker timeout'));
-          }
-        }, 5000).unref?.();
-      } catch (e) {
-        workerResponseMap.delete(id);
-        reject(e);
-      }
-    });
-  }
-
-  let out = content as string;
-  for (const k in vars) out = out.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), String(vars[k]));
-  return out;
 }
 
 export async function sendMail(options: nodemailer.SendMailOptions & { template?: string; vars?: Record<string, any>; smtp?: { host: string; port: number; secure: boolean; user?: string; pass?: string } }) {
   if (options.template) {
-    options.html = await renderTemplateAsync(options.template, options.vars || {});
+    options.html = await renderReactTemplate(options.template, options.vars || {});
   }
 
   options.from = normalizeFromHeader(options.from);

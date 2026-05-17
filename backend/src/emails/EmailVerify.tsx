@@ -1,0 +1,123 @@
+import { BaseEmail } from './BaseEmail';
+import { Button, Hr, Section } from '@react-email/components';
+
+interface EmailVerifyProps {
+  name: string;
+  verifyUrl: string;
+  code: string;
+}
+
+const headingStyle = {
+  color: '#fff',
+  fontSize: '30px',
+  fontWeight: 'bold',
+  textAlign: 'center' as const,
+  margin: '0',
+  letterSpacing: '-0.5px',
+};
+
+const pStyle = {
+  color: '#ffffffb3',
+  fontSize: '16px',
+  margin: '0 0 16px 0',
+  lineHeight: '1.7',
+};
+
+const btnStyle = {
+  display: 'inline-block',
+  padding: '14px 28px',
+  color: '#fff',
+  fontFamily: '"Courier New", monospace',
+  fontSize: '32px',
+  fontWeight: 'bold',
+  backgroundColor: '#0d0d0d',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+};
+
+const codeStyle = {
+  fontFamily: '"Courier New", monospace',
+  fontSize: '26px',
+  color: '#fff',
+  textAlign: 'center' as const,
+  fontWeight: 'bold',
+  backgroundColor: '#0d0d0d',
+  padding: '14px 28px',
+  margin: '20px 0',
+};
+
+const infoBoxStyle = {
+  backgroundColor: '#161616',
+  padding: '16px',
+  margin: '20px 0',
+};
+
+const footerStyle = {
+  color: '#9ca3af',
+  textAlign: 'center' as const,
+  marginTop: '32px',
+  paddingTop: '24px',
+  lineHeight: '1.5',
+  fontSize: '16px',
+};
+
+const linkStyle = {
+  display: 'inline-block',
+  margin: '0 8px',
+  color: '#9ca3af',
+  textDecoration: 'none',
+  fontSize: '14px',
+};
+
+export function EmailVerify({ name, verifyUrl, code }: EmailVerifyProps) {
+  return (
+    <BaseEmail previewText="Verify your email address">
+      <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
+        <h1 style={headingStyle}>Verify Your Email</h1>
+      </Section>
+
+      <Section style={{ marginBottom: '24px' }}>
+        <p style={pStyle}>Hello {name},</p>
+        <p style={pStyle}>
+          Please verify your email address by clicking the button below or entering the verification code on the panel.
+        </p>
+      </Section>
+
+      <Section style={{ textAlign: 'center', margin: '24px 0' }}>
+        <Button href={verifyUrl} style={btnStyle}>Verify Email</Button>
+      </Section>
+
+      <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
+
+      <Section style={{ marginBottom: '24px' }}>
+        <p style={{ ...pStyle, textAlign: 'center', marginBottom: '12px' }}>
+          <strong>Or use this verification code:</strong>
+        </p>
+      </Section>
+
+      <Section style={codeStyle}>
+        {code}
+      </Section>
+
+      <Section style={infoBoxStyle}>
+        <p style={{ color: '#ffffffb3', fontSize: '14px', margin: 0 }}>
+          <strong>Important:</strong> This code expires in 24 hours. If you did not create an account, you can safely ignore this email.
+        </p>
+      </Section>
+
+      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
+
+      <Section style={footerStyle}>
+        <p style={{ margin: 0 }}>
+          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
+          All rights reserved.
+        </p>
+        <Section style={{ marginTop: '16px' }}>
+          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
+          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
+          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
+        </Section>
+      </Section>
+    </BaseEmail>
+  );
+}

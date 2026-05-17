@@ -14,6 +14,7 @@
     "resolveJsonModule": true,
     "allowJs": false,
     "noImplicitAny": false,
+    "jsx": "react-jsx",
     "types": ["node"]
   },
   "include": ["src", "scripts", "src/types"]
