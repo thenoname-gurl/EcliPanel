@@ -130,7 +130,7 @@ export default async function RootLayout({
   })();`;
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
