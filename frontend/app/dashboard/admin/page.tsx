@@ -900,6 +900,7 @@ export default function AdminPanel() {
   const canUploadUserDocuments = !!user && hasPermission(user, 'admin:users:documents')
   const canTicketWrite = !!user && hasPermission(user, 'tickets:write')
   const canTicketStaff = !!user && hasPermission(user, 'admin:ticket:staff')
+  const canRequestServerSunset = !!user && hasPermission(user, 'admin:servers:manage')
   const canReply = canTicketWrite || canTicketStaff
 
   const hasAnyPermission = (permissions?: string[]): boolean => {
@@ -1390,6 +1391,7 @@ export default function AdminPanel() {
   const [viewUserContributorAvatarUrl, setViewUserContributorAvatarUrl] = useState("")
   const [viewUserContributorTitle, setViewUserContributorTitle] = useState("")
   const [viewUserContributorActivity, setViewUserContributorActivity] = useState<Array<{ date: string; label: string; details?: string; points?: number; url?: string }>>([])
+  const [viewUserSunsetLoading, setViewUserSunsetLoading] = useState(false)
 
   // ── Roles ──
   const [roles, setRoles] = useState<AdminRole[]>([])
@@ -3694,6 +3696,29 @@ remote: ${panelUrl}`
       }
     } catch { setViewUserProfile({ error: true }) }
     finally { setViewUserLoading(false) }
+  }
+
+  async function requestServerSunset(user: AdminUser) {
+    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || `User #${user.id}`
+    const ok = await confirmAsync(
+      `Send a server sunset confirmation email to ${fullName}? This gives the user 48 hours to confirm before their online servers are powered off.`,
+      `Request Server Sunset`
+    )
+    if (!ok) return
+
+    setViewUserSunsetLoading(true)
+    try {
+      const res = await apiFetch(API_ENDPOINTS.adminUserServerSunset.replace(":id", String(user.id)), {
+        method: "POST",
+        body: JSON.stringify({ graceHours: 48 }),
+      })
+      const serverCount = Number(res?.servers || 0)
+      alert(`Sunset notice sent. ${serverCount} server${serverCount === 1 ? "" : "s"} included with a 48h grace period.`)
+    } catch (err: any) {
+      alert(`Failed to send sunset notice: ${err?.message || "unknown error"}`)
+    } finally {
+      setViewUserSunsetLoading(false)
+    }
   }
 
   async function revokeAiLink(linkId: number) {
@@ -7141,6 +7166,22 @@ remote: ${panelUrl}`
                 {viewUserProfile.billingCompany && <div><span className="text-muted-foreground">Company: </span><span className="text-foreground">{redact(viewUserProfile.billingCompany)}</span></div>}
                 {viewUserProfile.phone && <div><span className="text-muted-foreground">Phone: </span><span className="text-foreground">{redact(viewUserProfile.phone)}</span></div>}
               </div>
+
+              {canRequestServerSunset && viewUserDialog && ['free', 'educational'].includes(String(viewUserProfile.portalType || '').toLowerCase()) && (
+                <div className="rounded-lg border border-border bg-secondary/20 p-4 flex flex-col gap-2">
+                  <div className="text-xs text-muted-foreground">
+                    Send a sunset confirmation email with a 48h grace period for this user’s online servers.
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => requestServerSunset(viewUserDialog)}
+                    disabled={viewUserSunsetLoading}
+                    className="w-fit bg-primary text-primary-foreground"
+                  >
+                    {viewUserSunsetLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Sending…</> : <>Request Sunset Notice (48h)</>}
+                  </Button>
+                </div>
+              )}
 
               {/* Contributor Profile */}
               <div className="rounded-lg border border-border bg-secondary/20 p-4 flex flex-col gap-4">

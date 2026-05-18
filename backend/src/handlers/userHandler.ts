@@ -8,6 +8,7 @@ import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword, isLegacyPasswordHash } from '../utils/password';
 import { validatePassword } from '../utils/passwordValidation';
 import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
+import { createActivityLog } from './logHandler';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync, authorize } from '../middleware/authorize';
 import { UserLog } from '../models/userLog.entity';
@@ -551,6 +552,49 @@ export async function userRoutes(app: any, prefix = '') {
     beforeHandle: authenticate,
     response: { 200: userSchema, 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get current user', tags: ['Users'] }
+  });
+
+  app.post(prefix + '/users/me/sunset-confirm', async (ctx: any) => {
+    const requester = ctx.user as User;
+    if (!requester) {
+      ctx.set.status = 401;
+      return { error: 'Not logged in' };
+    }
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: requester.id });
+    if (!user || !user.serverSunsetNoticeSentAt) {
+      ctx.set.status = 400;
+      return { error: 'No pending sunset notice' };
+    }
+
+    user.serverSunsetNoticeSentAt = null;
+    const settings = (user.settings && typeof user.settings === 'object') ? { ...user.settings } : {};
+    delete (settings as any).serverSunsetGraceHours;
+    delete (settings as any).serverSunsetRequestedBy;
+    delete (settings as any).serverSunsetRequestedAt;
+    user.settings = settings;
+    await userRepo.save(user);
+
+    try {
+      const { redisDelByPrefix } = require('../config/redis');
+      await redisDelByPrefix(`auth:session:user:${user.id}:`);
+    } catch {}
+
+    await createActivityLog({
+      userId: user.id,
+      action: 'server:sunset:confirm',
+      targetId: String(user.id),
+      targetType: 'user',
+      metadata: { confirmedAt: new Date().toISOString() },
+      ipAddress: '',
+      notify: false,
+    });
+
+    return { ok: true };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'Confirm sunset notice', tags: ['Users'] }
   });
 
   async function serializeParentLinkRequest(request: ParentLinkRequest, requester: User) {

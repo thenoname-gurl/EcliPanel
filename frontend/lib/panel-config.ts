@@ -360,6 +360,7 @@ export const API_ENDPOINTS = {
 
   // alias for current user
   me: "/api/users/me",
+  sunsetConfirm: "/api/users/me/sunset-confirm",
   userUpdate: "/api/users/:id",
   userFavorites: "/api/users/me/favorites",
   mailboxFavorites: "/api/users/me/mailbox/favorites",
@@ -369,6 +370,7 @@ export const API_ENDPOINTS = {
   adminMetrics: "/api/admin/metrics",
   adminMetricsClear: "/api/admin/metrics/clear",
   adminUsers: "/api/admin/users",
+  adminUserServerSunset: "/api/admin/users/:id/server-sunset",
   adminUserDocuments: "/api/admin/users/:id/documents",
   adminProductUpdates: "/api/admin/product-updates",
   adminOrganisations: "/api/admin/organisations",

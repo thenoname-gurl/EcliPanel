@@ -10,4 +10,6 @@ export interface User {
   idVerified?: boolean;
   deletionRequested?: boolean;
   deletionApproved?: boolean;
+  lastPanelActivityAt?: Date;
+  serverSunsetNoticeSentAt?: Date;
 }

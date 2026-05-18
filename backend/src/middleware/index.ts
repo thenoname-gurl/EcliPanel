@@ -36,6 +36,25 @@ export function setupMiddleware(app: any) {
       await repo.save(record);
     } catch {}
   });
+
+  app.onAfterHandle(async (ctx: any) => {
+    try {
+      const user = ctx.user;
+      if (!user || !user.id) return;
+      if (ctx.apiKey) return;
+
+      const now = new Date();
+      const last = user.lastPanelActivityAt ? new Date(user.lastPanelActivityAt) : null;
+      const minIntervalMs = 5 * 60 * 1000;
+      const shouldUpdateActivity = !(last && now.getTime() - last.getTime() < minIntervalMs);
+      if (!shouldUpdateActivity) return;
+
+      const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
+      await userRepo.update({ id: user.id }, { lastPanelActivityAt: now });
+
+      user.lastPanelActivityAt = now;
+    } catch {}
+  });
 }
 
 export { authenticate };

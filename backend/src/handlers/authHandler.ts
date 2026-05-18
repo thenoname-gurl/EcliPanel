@@ -289,6 +289,13 @@ export async function authRoutes(app: any, prefix = '') {
     user.sessions.push(sessionId);
     if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
     user.lastLoginAt = new Date();
+    user.lastPanelActivityAt = new Date();
+    user.serverSunsetNoticeSentAt = null;
+    if (user.settings && typeof user.settings === 'object') {
+      delete (user.settings as any).serverSunsetGraceHours;
+      delete (user.settings as any).serverSunsetRequestedBy;
+      delete (user.settings as any).serverSunsetRequestedAt;
+    }
     await cancelPendingAutoSunsetDeletionRequest(user);
     await userRepo.save(user);
 
@@ -488,6 +495,13 @@ export async function authRoutes(app: any, prefix = '') {
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
       user.lastLoginAt = new Date();
+      user.lastPanelActivityAt = new Date();
+      user.serverSunsetNoticeSentAt = null;
+      if (user.settings && typeof user.settings === 'object') {
+        delete (user.settings as any).serverSunsetGraceHours;
+        delete (user.settings as any).serverSunsetRequestedBy;
+        delete (user.settings as any).serverSunsetRequestedAt;
+      }
       await cancelPendingAutoSunsetDeletionRequest(user);
       await userRepo.save(user);
       const finalToken = app.jwt.sign({ userId: user.id, sessionId });
@@ -1021,6 +1035,13 @@ export async function authRoutes(app: any, prefix = '') {
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
       user.lastLoginAt = new Date();
+      user.lastPanelActivityAt = new Date();
+      user.serverSunsetNoticeSentAt = null;
+      if (user.settings && typeof user.settings === 'object') {
+        delete (user.settings as any).serverSunsetGraceHours;
+        delete (user.settings as any).serverSunsetRequestedBy;
+        delete (user.settings as any).serverSunsetRequestedAt;
+      }
       await cancelPendingAutoSunsetDeletionRequest(user);
       await userRepo.save(user);
       const token = app.jwt.sign({ userId: user.id, sessionId });
@@ -1733,6 +1754,7 @@ export async function authRoutes(app: any, prefix = '') {
           demoLimits: user.demoLimits || null,
           demoUsed: user.demoUsed === true,
           guideShown: (user as any).guideShown === true,
+          serverSunsetNoticeSentAt: user.serverSunsetNoticeSentAt || null,
         },
       };
     });

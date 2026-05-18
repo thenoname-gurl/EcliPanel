@@ -3,6 +3,7 @@
 import { PanelSidebar } from "@/components/panel/sidebar"
 import { EnforcementBanner } from "@/components/panel/enforcement-banner"
 import { PasswordUpgradeBanner } from "@/components/panel/password-upgrade-banner"
+import { SunsetNoticeBanner } from "@/components/panel/sunset-notice-banner"
 import { FeedbackDialog } from "@/components/panel/feedback-dialog"
 import { Footer } from "@/components/Footer"
 
@@ -59,6 +60,7 @@ export default function DashboardLayout({
 
         <EnforcementBanner />
         <PasswordUpgradeBanner />
+        <SunsetNoticeBanner />
         <FeedbackDialog />
         <div className={"flex-1 min-h-0"}>
           {children}
