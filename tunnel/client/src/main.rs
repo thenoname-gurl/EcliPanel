@@ -24,10 +24,12 @@ type LocalConnections = Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSe
 const RECONNECT_DELAY_SECS: u64 = 5;
 const MAX_FRAME_SIZE: usize = 65536;
 const HTTP_TIMEOUT_SECS: u64 = 30;
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Parser)]
 #[command(
   name = "ecli-tunnel-client",
+  version = VERSION,
   about = "EcliPanel Tunnel Client — exposes local services via public tunnel endpoints",
   long_about = "Connect a local service (HTTP, TCP, or UDP) to a public tunnel endpoint managed by EcliPanel.\n\
     \n\
@@ -35,7 +37,7 @@ const HTTP_TIMEOUT_SECS: u64 = 30;
       ecli-tunnel-client enroll --backend https://backend.ecli.app\n\
     \n\
     Then run the persistent agent that forwards traffic:\n\
-      ecli-tunnel-client run --local-port 8080 --backend https://backend.ecli.app\n\
+      ecli-tunnel-client run --local-port 8080\n\
     \n\
     Or open a one-shot allocation without the persistent agent:\n\
       ecli-tunnel-client open --local-port 8080 --backend https://backend.ecli.app"
@@ -599,7 +601,8 @@ async fn run(
     }
   }
 
-  let ws_url = config.backend.replace("http://", "ws://").replace("https://", "wss://") + "/api/tunnel/ws";
+  let ws_url = config.backend.replace("http://", "ws://").replace("https://", "wss://")
+    + &format!("/api/tunnel/ws?version={VERSION}");
   info!("connecting to backend at {}", ws_url);
 
   loop {
@@ -638,9 +641,13 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
   let write = Arc::new(Mutex::new(write));
   let write_clone = write.clone();
   let local_connections: LocalConnections = Arc::new(Mutex::new(HashMap::new()));
+  let (update_tx, mut update_rx) = tokio::sync::oneshot::channel::<()>();
+  let update_tx = Arc::new(Mutex::new(Some(update_tx)));
 
   let ws_task = {
     let local_connections = local_connections.clone();
+    let backend = config.backend.clone();
+    let update_tx = update_tx.clone();
     tokio::spawn(async move {
       while let Some(message) = read.next().await {
         match message {
@@ -805,6 +812,36 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
                   info!(%connection_id, "connection closed by remote");
                 }
               }
+              Some("connected") => {
+                let device_code = msg.get("deviceCode").and_then(|v| v.as_str()).unwrap_or("unknown");
+                info!(%device_code, "backend confirmed websocket connection");
+
+                if let Some(update_available) = msg.get("updateAvailable").and_then(|v| v.as_bool()) {
+                  let latest = msg.get("latestVersion").and_then(|v| v.as_str()).unwrap_or("unknown");
+                  let current = msg.get("currentVersion").and_then(|v| v.as_str()).unwrap_or("unknown");
+                  if update_available {
+                    warn!(%current, %latest, "update available — downloading and applying update");
+                    match apply_client_update(&backend).await {
+                      Ok(()) => {
+                        info!("update applied successfully — signaling restart");
+                        if let Some(tx) = update_tx.lock().await.take() {
+                          let _ = tx.send(());
+                        }
+                      }
+                      Err(err) => {
+                        error!(%err, "update failed — will retry on next reconnect");
+                      }
+                    }
+                  } else {
+                    info!(%current, "tunnel client is up to date");
+                  }
+                }
+              }
+              Some("error") => {
+                let error_str = msg.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let message_str = msg.get("message").and_then(|v| v.as_str());
+                error!(error = %error_str, message = ?message_str, "backend error");
+              }
               Some("pong") => {}
               _ => {}
             }
@@ -819,9 +856,17 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
     })
   };
 
-  tokio::signal::ctrl_c().await?;
-  info!("shutting down");
-  ws_task.abort();
+  tokio::select! {
+    _ = tokio::signal::ctrl_c() => {
+      info!("shutting down");
+      ws_task.abort();
+    }
+    _ = &mut update_rx => {
+      info!("update triggered, restarting service");
+      ws_task.abort();
+      restart_client_service();
+    }
+  }
   Ok(())
 }
 
@@ -918,6 +963,73 @@ async fn handle_client_udp(open: ConnectionOpenMessage, write: Arc<Mutex<WsSink>
     write_clone.lock().await.send(Message::Text(payload)).await.ok();
   }
 }
+
+// ---------------------------------------------------------------------------
+// Auto-update
+// ---------------------------------------------------------------------------
+
+async fn apply_client_update(backend: &str) -> anyhow::Result<()> {
+  let download_url = format!("{}/api/tunnel/client/download", backend.trim_end_matches('/'));
+  info!(%download_url, "downloading updated binary");
+
+  let client = Client::builder()
+    .timeout(Duration::from_secs(300))
+    .build()?;
+
+  let resp = client.get(&download_url).send().await?;
+  if !resp.status().is_success() {
+    return Err(anyhow::anyhow!("download failed: HTTP {}", resp.status()));
+  }
+
+  let bytes = resp.bytes().await?;
+  info!(size = bytes.len(), "binary downloaded");
+
+  let current_exe = std::env::current_exe()?;
+  let tmp_path = current_exe.with_extension("tmp");
+  fs::write(&tmp_path, &bytes)?;
+
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = fs::metadata(&tmp_path)?.permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&tmp_path, perms)?;
+  }
+
+  fs::rename(&tmp_path, &current_exe)?;
+  info!(path = ?current_exe, "binary updated");
+
+  Ok(())
+}
+
+fn restart_client_service() {
+  use std::os::unix::process::CommandExt;
+  use std::process::Command;
+
+  let status = Command::new("systemctl")
+    .args(["restart", "eclipanel-tunnel-client"])
+    .status();
+
+  match status {
+    Ok(s) if s.success() => {
+      info!("systemctl restart succeeded");
+    }
+    _ => {
+      warn!("systemctl restart failed, attempting exec replacement");
+      let args: Vec<String> = std::env::args().collect();
+      let current_exe = std::env::current_exe()
+        .unwrap_or_else(|_| PathBuf::from("ecli-tunnel-client"));
+      let _ = Command::new(&current_exe)
+        .args(&args[1..])
+        .exec();
+      error!("exec failed, exiting — please restart manually");
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Frame helpers
+// ---------------------------------------------------------------------------
 
 async fn write_frame(writer: &mut tokio::net::tcp::OwnedWriteHalf, data: &[u8]) -> anyhow::Result<()> {
   let len = data.len() as u32;

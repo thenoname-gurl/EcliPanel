@@ -31,6 +31,13 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 const MAX_FRAME_SIZE: usize = 65536;
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SessionEndReason {
+    CleanClose,
+    FatalError,
+}
 
 // ---------------------------------------------------------------------------
 // Type aliases
@@ -225,6 +232,7 @@ fn write_systemd_service(exe: &PathBuf, backend: &str, token: &str, fqdn: Option
 #[derive(Parser)]
 #[command(
   name = "ecli-tunnel-server",
+  version = VERSION,
   about = "EcliPanel Tunnel Server — accepts inbound traffic on allocated ports and relays to tunnel clients"
 )]
 struct Args {
@@ -283,6 +291,13 @@ struct PollResponse {
 // ---------------------------------------------------------------------------
 // WebSocket message types
 // ---------------------------------------------------------------------------
+
+#[derive(Deserialize, Debug)]
+struct ErrorMessage {
+    error: String,
+    #[serde(default)]
+    message: Option<String>,
+}
 
 #[derive(Deserialize, Debug)]
 struct BindMessage {
@@ -519,7 +534,7 @@ async fn run(
     let ws_url = backend
         .replace("https://", "wss://")
         .replace("http://", "ws://")
-        + "/api/tunnel/ws";
+        + &format!("/api/tunnel/ws?version={VERSION}");
 
     // Priority: --cert/--key > ~/.ecli/tunnel/{cert,key}.pem > self-signed
     let cache = tunnel_cache_dir();
@@ -561,8 +576,12 @@ async fn run(
     loop {
         info!(%ws_url, "connecting to backend");
 
-        match try_connect_and_serve(&token, &ws_url, &tls_acceptor).await {
-            Ok(()) => info!("WebSocket session ended cleanly"),
+        match try_connect_and_serve(&token, &ws_url, backend, &tls_acceptor).await {
+            Ok(SessionEndReason::CleanClose) => info!("WebSocket session ended cleanly"),
+            Ok(SessionEndReason::FatalError) => {
+                error!("session ended due to fatal error — stopping reconnect loop");
+                return;
+            }
             Err(err) => error!(%err, "WebSocket session error"),
         }
 
@@ -585,8 +604,9 @@ async fn run(
 async fn try_connect_and_serve(
     token: &str,
     ws_url: &str,
+    backend: &str,
     tls_acceptor: &Option<tokio_rustls::TlsAcceptor>,
-) -> Result<()> {
+) -> Result<SessionEndReason> {
     let mut request = ws_url.into_client_request()?;
     request
         .headers_mut()
@@ -604,6 +624,8 @@ async fn try_connect_and_serve(
     let listeners: ListenerControl = Arc::new(Mutex::new(HashMap::new()));
     let connection_allocations: ConnectionAllocationMap =
         Arc::new(Mutex::new(HashMap::new()));
+    let fatal_error = Arc::new(Mutex::new(false));
+    let update_triggered = Arc::new(Mutex::new(false));
     while let Some(msg) = read.next().await {
         match msg? {
             Message::Text(txt) => {
@@ -614,6 +636,9 @@ async fn try_connect_and_serve(
                     listeners.clone(),
                     connection_allocations.clone(),
                     tls_acceptor,
+                    fatal_error.clone(),
+                    update_triggered.clone(),
+                    backend,
                 )
                 .await;
             }
@@ -628,7 +653,14 @@ async fn try_connect_and_serve(
         }
     }
 
-    Ok(())
+    if *fatal_error.lock().await {
+        Ok(SessionEndReason::FatalError)
+    } else if *update_triggered.lock().await {
+        info!("update triggered, exiting for restart");
+        Ok(SessionEndReason::CleanClose)
+    } else {
+        Ok(SessionEndReason::CleanClose)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -642,6 +674,9 @@ async fn handle_text_message(
     listeners: ListenerControl,
     connection_allocations: ConnectionAllocationMap,
     tls_acceptor: &Option<tokio_rustls::TlsAcceptor>,
+    fatal_error: Arc<Mutex<bool>>,
+    update_triggered: Arc<Mutex<bool>>,
+    backend: &str,
 ) {
     let msg: serde_json::Value = match serde_json::from_str(txt) {
         Ok(v) => v,
@@ -742,7 +777,42 @@ async fn handle_text_message(
         }
 
         Some("connected") => {
-            info!("backend confirmed websocket connection");
+            let device_code = msg.get("deviceCode").and_then(|v| v.as_str()).unwrap_or("unknown");
+            info!(%device_code, "backend confirmed websocket connection");
+
+            if let Some(update_available) = msg.get("updateAvailable").and_then(|v| v.as_bool()) {
+                let latest = msg.get("latestVersion").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let current = msg.get("currentVersion").and_then(|v| v.as_str()).unwrap_or("unknown");
+                if update_available {
+                    warn!(%current, %latest, "update available — downloading and applying update");
+                    match apply_update(backend).await {
+                        Ok(()) => {
+                            info!("update applied successfully — restarting");
+                            *update_triggered.lock().await = true;
+                            restart_service();
+                        }
+                        Err(err) => {
+                            error!(%err, "update failed — will retry on next reconnect");
+                        }
+                    }
+                } else {
+                    info!(%current, "tunnel server is up to date");
+                }
+            }
+        }
+
+        Some("error") => {
+            if let Ok(err_msg) = serde_json::from_value::<ErrorMessage>(msg) {
+                let is_fatal = matches!(err_msg.error.as_str(), "invalid_token" | "missing_token" | "unauthorized" | "forbidden");
+                if is_fatal {
+                    error!(error = %err_msg.error, message = ?err_msg.message, "fatal backend error — will not reconnect");
+                    *fatal_error.lock().await = true;
+                } else {
+                    error!(error = %err_msg.error, message = ?err_msg.message, "backend error");
+                }
+            } else {
+                error!("received error message but failed to parse");
+            }
         }
 
         Some("pong") => {}
@@ -1001,6 +1071,81 @@ async fn handle_incoming_connection<R>(
 
     if tunnels.lock().await.get(&connection_id).is_some() {
         cleanup(&connection_id, &write, &tunnels, &connection_allocations).await;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-update
+// ---------------------------------------------------------------------------
+
+async fn apply_update(backend: &str) -> Result<()> {
+    let download_url = format!("{}/api/tunnel/server/download", backend.trim_end_matches('/'));
+    info!(%download_url, "downloading updated binary");
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(300))
+        .build()?;
+
+    let resp = client.get(&download_url).send().await?;
+    if !resp.status().is_success() {
+        return Err(anyhow::anyhow!("download failed: HTTP {}", resp.status()));
+    }
+
+    let bytes = resp.bytes().await?;
+    info!(size = bytes.len(), "binary downloaded");
+
+    let current_exe = std::env::current_exe()?;
+    let backup_path = current_exe.with_extension("bak");
+
+    // Backup current binary
+    if let Err(err) = fs::copy(&current_exe, &backup_path) {
+        warn!(%err, "failed to backup current binary");
+    }
+
+    // Write new binary
+    let tmp_path = current_exe.with_extension("tmp");
+    fs::write(&tmp_path, &bytes)?;
+
+    // Make executable
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&tmp_path)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&tmp_path, perms)?;
+    }
+
+    // Replace current binary
+    fs::rename(&tmp_path, &current_exe)?;
+    info!(path = ?current_exe, "binary updated");
+
+    Ok(())
+}
+
+fn restart_service() {
+    use std::os::unix::process::CommandExt;
+    use std::process::Command;
+
+    // Try systemctl restart first (systemd-managed)
+    let status = Command::new("systemctl")
+        .args(["restart", "eclipanel-tunnel"])
+        .status();
+
+    match status {
+        Ok(s) if s.success() => {
+            info!("systemctl restart succeeded");
+        }
+        _ => {
+            warn!("systemctl restart failed, attempting exec replacement");
+            // Fallback: exec the new binary with same args
+            let args: Vec<String> = std::env::args().collect();
+            let current_exe = std::env::current_exe()
+                .unwrap_or_else(|_| PathBuf::from("ecli-tunnel-server"));
+            let _ = Command::new(&current_exe)
+                .args(&args[1..])
+                .exec();
+            error!("exec failed, exiting — please restart manually");
+        }
     }
 }
 

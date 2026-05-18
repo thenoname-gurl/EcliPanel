@@ -33,6 +33,9 @@ export class TunnelDevice {
   @Column({ nullable: true })
   token?: string;
 
+  @Column({ nullable: true })
+  clientVersion?: string;
+
   @ManyToOne(() => User, { nullable: true, eager: true })
   approvedBy?: User;
 

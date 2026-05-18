@@ -933,72 +933,7 @@
       "failed": "Failed to accept invite"
     }
   },
-  "wingsPage": {
-    "brand": "Eclipse Systems",
-    "nav": {
-      "home": "[home]",
-      "features": "[features]",
-      "pricing": "[pricing]",
-      "dashboard": "[dashboard]"
-    },
-    "hero": {
-      "title": "Node Status",
-      "prefix": "Public",
-      "highlight": "7-day",
-      "suffix": "node heartbeat metrics"
-    },
-    "terminal": {
-      "window": "WINDOW:",
-      "nodes": "NODES:",
-      "avgUptime": "AVG_UPTIME:",
-      "totalChecks": "TOTAL_CHECKS:"
-    },
-    "states": {
-      "loading": "Loading...",
-      "error": "Error",
-      "updated": "Updated",
-      "lastUpdated": "Last updated"
-    },
-    "errors": {
-      "fetchFailed": "Failed to fetch uptime history"
-    },
-    "overview": {
-      "title": "# Overview",
-      "window": "Window",
-      "nodes": "Nodes",
-      "avgUptime": "Avg Uptime",
-      "totalChecks": "Total Checks"
-    },
-    "actions": {
-      "refresh": "refresh()"
-    },
-    "nodes": {
-      "title": "# Nodes",
-      "empty": "No nodes available",
-      "uptime": "Uptime",
-      "ok": "OK:",
-      "timeout": "Timeout:",
-      "error": "Error:",
-      "avgMs": "Avg ms:"
-    },
-    "api": {
-      "title": "# API Access",
-      "export": "public_export()",
-      "prefix": "Live historical uptime data is available via",
-      "note": "Refresh interval: 60s. Data is paged and computed from heartbeats recorded by the API."
-    },
-    "cta": {
-      "title": "# Want your own nodes?",
-      "subtitle": "Deploy servers on our infrastructure or connect your own nodes.",
-      "register": "./register --now",
-      "dashboard": "go_to_dashboard()"
-    },
-    "footer": {
-      "needHelp": "Need help? Email",
-      "orGoTo": "or go to",
-      "dashboard": "Dashboard"
-    }
-  },
+
   "publicFormPage": {
     "brand": "Eclipse Systems",
     "nav": {
