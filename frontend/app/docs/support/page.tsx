@@ -51,6 +51,7 @@ export default function SupportPage() {
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold text-foreground">Legal and policy references</h2>
             <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
+              <li><b>Sunset policy:</b> How inactive accounts and long-running servers are handled. <Link href="/docs/sunset" className="font-medium text-primary hover:text-primary/80">Read the policy</Link>.</li>
               <li><b>Terms of Service:</b> Rules for use and responsibilities. See the legal center for the full terms.</li>
               <li><b>Privacy policy:</b> How your personal information is used and protected.</li>
               <li><b>Cookies policy:</b> Information about cookies and tracking.</li>

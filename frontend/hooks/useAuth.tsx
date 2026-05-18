@@ -28,6 +28,7 @@ export interface User {
   address?: string
   address2?: string
   phone?: string
+  serverSunsetNoticeSentAt?: string
   billingCompany?: string
   billingCity?: string
   billingState?: string

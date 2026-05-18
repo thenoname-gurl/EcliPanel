@@ -17,6 +17,12 @@ export class User {
   lastLoginAt?: Date;
 
   @Column({ nullable: true, type: 'datetime' })
+  lastPanelActivityAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  serverSunsetNoticeSentAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
   sunsetNoticeSentAt?: Date;
 
   @Column('text')

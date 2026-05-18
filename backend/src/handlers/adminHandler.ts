@@ -53,6 +53,7 @@ import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUns
 import { isValidIpv6, isIpv6InSubnet, parseIpv6, formatIpv6 } from '../utils/ipv6';
 import { createActivityLog } from './logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
+import { requestServerSunsetNoticeForUser } from '../services/serverSunsetPolicyService';
 
 function getAgeFromDate(date?: Date | string | null): number | null {
   if (!date) return null;
@@ -2508,6 +2509,64 @@ export async function adminRoutes(app: any, prefix = '') {
       },
     },
     detail: { summary: 'Require a user to re-verify student status (admin only)', tags: ['Admin'] },
+  });
+
+  app.post(prefix + '/admin/users/:id/server-sunset', async (ctx) => {
+    // Like actually needed thing cuz free and edu plan eat over 91% of node res
+    // And like only 10% of this is actually used by active servers!
+    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+    if (adminErr !== true) return adminErr;
+
+    const userId = Number(ctx.params.id);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      ctx.set.status = 400;
+      return { error: 'Invalid user id' };
+    }
+
+    const body = (ctx.body || {}) as any;
+    const graceHoursRaw = Number(body.graceHours ?? 48);
+    const graceHours = Number.isFinite(graceHoursRaw) ? Math.min(168, Math.max(1, Math.floor(graceHoursRaw))) : 48;
+
+    const result = await requestServerSunsetNoticeForUser({
+      userId,
+      graceHours,
+      requestedBy: ctx.user?.id,
+    });
+
+    if (!result.sent) {
+      const reason = result.reason || 'unknown_error';
+      if (reason === 'user_not_found') {
+        ctx.set.status = 404;
+        return { error: 'User not found' };
+      }
+      ctx.set.status = 400;
+      return { error: `Unable to send sunset notice: ${reason}` };
+    }
+
+    await AppDataSource.getRepository(UserLog).save(AppDataSource.getRepository(UserLog).create({
+      userId: ctx.user?.id,
+      action: 'admin-request-server-sunset',
+      targetId: String(userId),
+      targetType: 'user',
+      timestamp: new Date(),
+      metadata: { graceHours: result.graceHours, servers: result.servers },
+    } as any));
+
+    return { success: true, graceHours: result.graceHours, servers: result.servers };
+  }, {
+    beforeHandle: [authenticate, authorize('admin:access')],
+    schema: {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ graceHours: t.Optional(t.Number()) }),
+      response: {
+        200: t.Object({ success: t.Boolean(), graceHours: t.Number(), servers: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    },
+    detail: { summary: 'Request a server sunset notice for a user (admin only)', tags: ['Admin'] },
   });
 
   app.delete(prefix + '/admin/users/:id', async (ctx) => {
