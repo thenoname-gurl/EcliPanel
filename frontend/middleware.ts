@@ -560,7 +560,6 @@ const SHORT_URL_RESERVED_ROOT_PATHS = new Set([
   'tickets',
   'organisations',
   'tunnel',
-  'wings',
   'docs',
   'admin',
   'changelogs',

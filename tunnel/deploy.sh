@@ -103,6 +103,49 @@ download_binary() {
   ok "downloaded $bin_name to $BIN_PATH"
 }
 
+check_for_updates() {
+  local bin_name="$1"
+  local bin_path="$BIN_DIR/$bin_name"
+  local backend="${BACKEND:-https://backend.ecli.app}"
+
+  if [[ ! -x "$bin_path" ]]; then
+    return 0
+  fi
+
+  local kind
+  case "$bin_name" in
+    ecli-tunnel-server) kind="server" ;;
+    ecli-tunnel-client) kind="client" ;;
+    *) return 0 ;;
+  esac
+
+  local latest_version
+  latest_version=$(curl -fsSL "$backend/api/tunnel/version" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['$kind'])" 2>/dev/null) || {
+    warn "could not fetch version info"
+    return 0
+  }
+
+  local current_version
+  current_version=$("$bin_path" --version 2>/dev/null | awk '{print $NF}') || {
+    warn "could not determine current version"
+    return 0
+  }
+
+  if [[ "$current_version" != "$latest_version" ]]; then
+    log "update available: $current_version → $latest_version"
+    if [[ "${YES:-0}" == "1" ]]; then
+      log "auto-updating $bin_name..."
+      download_binary "$bin_name"
+      ok "updated to $latest_version"
+    else
+      warn "new version $latest_version available (current: $current_version)"
+      log "re-run with --install to update"
+    fi
+  else
+    ok "$bin_name is up to date ($current_version)"
+  fi
+}
+
 parse_args() {
   BINARY_ARGS=()
   COMMAND=""
@@ -340,6 +383,7 @@ main() {
   esac
 
   download_binary ecli-tunnel-client
+  check_for_updates ecli-tunnel-client
   log "running: ecli-tunnel-client $COMMAND ${BINARY_ARGS[*]}"
   exec "$BIN_PATH" "$COMMAND" "${BINARY_ARGS[@]}"
 }

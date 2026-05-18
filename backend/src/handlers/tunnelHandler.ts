@@ -282,6 +282,39 @@ export function tunnelRoutes(app: any, prefix: string): void {
   );
 
   app.get(
+    `${prefix}/tunnel/version`,
+    async () => {
+      const cargoPath = (subdir: string) =>
+        path.resolve(process.cwd(), '..', 'tunnel', subdir, 'Cargo.toml');
+
+      const readVersion = (subdir: string, fallback: string): string => {
+        try {
+          const content = fs.readFileSync(cargoPath(subdir), 'utf8');
+          const match = content.match(/^version\s*=\s*"([^"]+)"/m);
+          return match ? match[1] : fallback;
+        } catch {
+          return fallback;
+        }
+      };
+
+      return {
+        server: readVersion('server', '0.2.0'),
+        client: readVersion('client', '0.2.0'),
+      };
+    },
+    {
+      response: t.Object({
+        server: t.String(),
+        client: t.String(),
+      }),
+      detail: {
+        summary: 'Get latest tunnel binary versions',
+        tags: ['Tunnels'],
+      },
+    }
+  );
+
+  app.get(
     `${prefix}/tunnel/deploy.sh`,
     async (ctx: any) => {
       const scriptPath = path.resolve(
@@ -1417,6 +1450,33 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return;
       }
 
+      const reportedVersion = (ctx.query?.version as string) ?? null;
+      if (reportedVersion) {
+        device.clientVersion = reportedVersion;
+        const repo = AppDataSource.getRepository(TunnelDevice);
+        await repo.save(device).catch(() => {});
+      }
+
+      const readVersion = (subdir: string, fallback: string): string => {
+        try {
+          const content = fs.readFileSync(
+            path.resolve(process.cwd(), '..', 'tunnel', subdir, 'Cargo.toml'),
+            'utf8'
+          );
+          const match = content.match(/^version\s*=\s*"([^"]+)"/m);
+          return match ? match[1] : fallback;
+        } catch {
+          return fallback;
+        }
+      };
+
+      const expectedVersion = device.kind === 'server'
+        ? readVersion('server', '0.2.0')
+        : readVersion('client', '0.2.0');
+      const updateAvailable = reportedVersion
+        ? reportedVersion !== expectedVersion
+        : true;
+
       ws.data = ws.data || {};
       ws.data._ecliDeviceCode = device.deviceCode;
       ws.data._ecliKind = device.kind;
@@ -1434,6 +1494,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
           type: 'connected',
           deviceCode: device.deviceCode,
           kind: device.kind,
+          updateAvailable,
+          latestVersion: expectedVersion,
+          currentVersion: reportedVersion,
         })
       );
     },
