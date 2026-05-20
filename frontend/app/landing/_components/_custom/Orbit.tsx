@@ -324,9 +324,13 @@ export function Network() {
     ];
   }, [infra, t, tunnelsEnabled]);
 
-  const maxValue = useMemo(() => {
-    return Math.max(...stats.map((s) => s.value), 1);
+  const displayStats = useMemo(() => {
+    return stats.filter((s) => s.value > 0);
   }, [stats]);
+
+  const maxValue = useMemo(() => {
+    return Math.max(...displayStats.map((s) => s.value), 1);
+  }, [displayStats]);
 
   return (
     <div id="network" className="my-12 sm:my-20 px-6 sm:px-12 lg:px-40">
@@ -529,7 +533,7 @@ export function Network() {
 
         <div className="flex-1 p-6 sm:p-8 flex flex-col justify-end">
           <div className="flex items-end gap-3 sm:gap-4 h-[260px]">
-            {stats.map((s, i) => (
+            {displayStats.map((s, i) => (
               <BarStat
                 key={s.label}
                 {...s}
