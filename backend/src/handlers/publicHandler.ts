@@ -44,15 +44,17 @@ export async function publicRoutes(app: any, prefix = '') {
 
       const tunnelDeviceRepo = AppDataSource.getRepository(TunnelDevice);
       const tunnelCount = await tunnelDeviceRepo.count({ where: { kind: 'server', approved: true } });
-      const activeWindowMs = 10 * 60 * 1000;
-      const activeSince = new Date(now.getTime() - activeWindowMs);
-      const tunnelActive = await tunnelDeviceRepo.count({
-        where: {
-          kind: 'server',
-          approved: true,
-          lastSeenAt: MoreThanOrEqual(activeSince),
-        },
-      });
+      const { agentConnections } = await import('../services/agent.service');
+      const activeConnectionIds = Array.from(agentConnections.keys());
+      const tunnelActive = activeConnectionIds.length > 0
+        ? await tunnelDeviceRepo.count({
+            where: {
+              kind: 'server',
+              approved: true,
+              deviceCode: In(activeConnectionIds),
+            },
+          })
+        : 0;
       const tunnelInactive = Math.max(0, tunnelCount - tunnelActive);
 
       const nodeIds = nodes.map(n => n.id);
