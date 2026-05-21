@@ -483,9 +483,11 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
     bonusPercent?: number
     bonusExpiresAt?: string | null
   } | null>(null)
+  const [legalConfirmed, setLegalConfirmed] = useState(false)
 
   const rawPlanName = (user as any)?.portalType || user?.tier || "free"
   const planName = ["educational", "edu"].includes(String(rawPlanName).toLowerCase()) ? "educational" : String(rawPlanName).toLowerCase()
+  const isFreePlan = planName === "free"
   const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
 
   useEffect(() => {
@@ -558,6 +560,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
     e.preventDefault()
     if (!name.trim()) { setError(t("errors.serverNameRequired")); return }
     if (!eggId) { setError(t("errors.selectServerType")); return }
+    if (!legalConfirmed) { setError(t("errors.legalAcceptRequired")); return }
     setCreating(true)
     setError(null)
     try {
@@ -624,7 +627,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
       } else {
         setCreateResult({
           createdUuid: createRes?.uuid,
-          genericMessage: t("messages.serverCreated"),
+          genericMessage: t("result.createdMessage", { name: name.trim() }),
         })
       }
       setCreating(false)
@@ -672,7 +675,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
   const canCreate = name.trim() && eggId && !eggsLoading && eggs.length > 0 && !nodesLoading && nodes.length > 0 &&
     (user ? (user.emailVerified && (((user.passkeyCount ?? 0) > 0) || !!user.twoFactorEnabled)) : true)
-  const canSubmit = canCreate && (!hasEulaFeature || eulaAccepted)
+  const canSubmit = canCreate && legalConfirmed && (!hasEulaFeature || eulaAccepted)
 
   return (
     <div
@@ -983,6 +986,24 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             <p className="text-[11px] text-muted-foreground/70 text-center">
               {t("kvm.portHint")}
             </p>
+
+            <div className="rounded-2xl border border-border/40 bg-card/95 p-4">
+              <label className="flex items-start gap-3 text-sm text-foreground">
+                <input
+                  id="new-server-legal"
+                  type="checkbox"
+                  checked={legalConfirmed}
+                  onChange={(e) => setLegalConfirmed(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
+                />
+                <span className="leading-relaxed">
+                  {t("fields.legalConfirmLabel")} <Link href="/legal/terms-of-service" className="font-semibold text-primary hover:underline">{t("fields.termsLink")}</Link>, <Link href="/legal/acceptable-use-policy" className="font-semibold text-primary hover:underline">{t("fields.aupLink")}</Link>, <Link href="/docs/sunset" className="font-semibold text-primary hover:underline">{t("fields.sunsetLink")}</Link>.
+                </span>
+              </label>
+              <p className={`mt-3 text-xs ${isFreePlan ? "text-amber-400" : "text-muted-foreground"}`}>
+                {isFreePlan ? t("fields.freePlanWarning") : t("fields.planWarning")}
+              </p>
+            </div>
           </div>
 
           {/* Footer */}

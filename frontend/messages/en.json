@@ -3588,6 +3588,12 @@
         },
         "searchTemplates": "Search templates...",
         "searchNodes": "Search nodes...",
+        "legalConfirmLabel": "I have read and agree to the",
+        "termsLink": "Terms of Service",
+        "aupLink": "Acceptable Use Policy",
+        "sunsetLink": "Sunset policy",
+        "freePlanWarning": "Free servers may be sunset after inactivity or tier changes. Keep backups and consider upgrading for long-term retention.",
+        "planWarning": "Review our policies before deploying.",
         "nodeTypes": {
           "freeAndPaid": "Public Node",
           "enterprise": "Enterprise Node",
@@ -3640,13 +3646,15 @@
         "acceptEula": "I accept the Minecraft EULA."
       },
       "messages": {
-        "serverCreated": "Server created successfully."
+        "serverCreated": "Server created successfully.",
+        "createdMessage": "Server \"{name}\" created successfully."
       },
       "errors": {
         "serverNameRequired": "Server name is required.",
         "selectServerType": "Please select a server type.",
         "failedCreate": "Failed to create server.",
-        "eulaAcceptRequired": "Please accept the Minecraft EULA before creating this server."
+        "eulaAcceptRequired": "Please accept the Minecraft EULA before creating this server.",
+        "legalAcceptRequired": "Please confirm that you have read and agree to the Terms of Service, Acceptable Use Policy, and sunset policy before creating this server."
       },
       "actions": {
         "cancel": "Cancel",
@@ -3668,6 +3676,13 @@
         "blackjackRound": "Blackjack round",
         "roundSummary": "You {playerScore} ({playerCards}) · Dealer {dealerScore} ({dealerCards})",
         "standTarget": "Your stand target: {value}",
+        "confirmTitle": "Before you deploy",
+        "confirmDescription": "Your server launch must follow our Terms of Service and Acceptable Use Policy. Please review the rules before deploying.",
+        "termsLink": "Terms of Service",
+        "aupLink": "Acceptable Use Policy",
+        "sunsetLink": "Free plan sunset policy",
+        "sunsetNotice": "Sunset policy details are available in our docs for all server types.",
+        "freeSunsetNotice": "Free servers may be sunset after inactivity or tier changes. Keep backups and consider upgrading for long-term retention.",
         "bonusTitle": "24h bonus (+{percent}% cap)",
         "bonusActivated": "Activated until {until}",
         "bonusAlreadyActive": "Already active until {until}",
