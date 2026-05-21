@@ -3629,13 +3629,24 @@
         "enable": "Enable KVM Virtualization",
         "portHint": "A port will be auto-assigned from the node's allocation pool."
       },
+      "minecraftNotice": {
+        "title": "Minecraft template detected",
+        "description": "This egg exposes Minecraft-specific support flags. Review the settings below before deployment.",
+        "items": {
+          "eula": "Requires Minecraft EULA acceptance.",
+          "javaVersion": "Supports a Java version configuration for the selected template.",
+          "pidLimit": "May use PID/process limit settings for better stability."
+        },
+        "acceptEula": "I accept the Minecraft EULA."
+      },
       "messages": {
         "serverCreated": "Server created successfully."
       },
       "errors": {
         "serverNameRequired": "Server name is required.",
         "selectServerType": "Please select a server type.",
-        "failedCreate": "Failed to create server."
+        "failedCreate": "Failed to create server.",
+        "eulaAcceptRequired": "Please accept the Minecraft EULA before creating this server."
       },
       "actions": {
         "cancel": "Cancel",

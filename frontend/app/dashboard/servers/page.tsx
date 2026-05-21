@@ -466,6 +466,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const [startup, setStartup] = useState<string>("")
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([])
   const [blackjackStandAt, setBlackjackStandAt] = useState<number>(17)
+  const [eulaAccepted, setEulaAccepted] = useState(false)
   const [createResult, setCreateResult] = useState<{
     createdUuid?: string
     genericMessage?: string
@@ -549,6 +550,10 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
     }
   }, [eggId, eggs])
 
+  useEffect(() => {
+    setEulaAccepted(false)
+  }, [eggId])
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) { setError(t("errors.serverNameRequired")); return }
@@ -560,6 +565,12 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
       const defaultStartup = sel ? sel.startup || "" : ""
       const finalStartup = defaultStartup
       const finalKvm = (sel && (sel.requiresKvm || sel.requires_kvm)) ? true : (isAdmin ? kvmPassthroughEnabled : undefined)
+
+      if (hasEulaFeature && !eulaAccepted) {
+          setError(t("errors.eulaAcceptRequired"))
+          setCreating(false)
+          return
+        }
 
       const envObject: Record<string, string> = {}
 
@@ -579,6 +590,10 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
         if (row.key.trim()) {
           envObject[row.key.trim()] = row.value
         }
+      }
+
+      if (hasEulaFeature) {
+        envObject.EULA = "true"
       }
 
       const createPayload: Record<string, any> = {
@@ -646,10 +661,18 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
     if (maxCpu !== null) setCpu((prev) => Math.min(prev, maxCpu))
   }, [maxMemory, maxDisk, maxCpu])
 
+  const selectedEgg = eggs.find((e) => String(e.id) === String(eggId)) as any
+  const selectedEggFeatures = Array.isArray(selectedEgg?.features)
+    ? selectedEgg.features.map((feature: any) => String(feature).toLowerCase())
+    : []
+  const hasEulaFeature = selectedEggFeatures.includes('eula')
+  const hasJavaVersionFeature = selectedEggFeatures.includes('java_version')
+  const hasPidLimitFeature = selectedEggFeatures.includes('pid_limit')
+  const isMinecraftTemplate = hasEulaFeature || hasJavaVersionFeature || hasPidLimitFeature
+
   const canCreate = name.trim() && eggId && !eggsLoading && eggs.length > 0 && !nodesLoading && nodes.length > 0 &&
     (user ? (user.emailVerified && (((user.passkeyCount ?? 0) > 0) || !!user.twoFactorEnabled)) : true)
-
-  const selectedEgg = eggs.find((e) => String(e.id) === String(eggId)) as any
+  const canSubmit = canCreate && (!hasEulaFeature || eulaAccepted)
 
   return (
     <div
@@ -719,6 +742,29 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.template")}</label>
               <TemplateSelector eggs={eggs} value={eggId} onChange={setEggId} loading={eggsLoading} />
             </div>
+
+            {isMinecraftTemplate && (
+              <div className="rounded-2xl border border-border/40 bg-card/95 p-4 shadow-sm shadow-black/5 text-sm text-foreground">
+                <p className="font-semibold text-foreground">{t("minecraftNotice.title")}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{t("minecraftNotice.description")}</p>
+                <ul className="mt-3 list-disc list-inside space-y-1 text-xs text-muted-foreground">
+                  {hasEulaFeature && <li>{t("minecraftNotice.items.eula")}</li>}
+                  {hasJavaVersionFeature && <li>{t("minecraftNotice.items.javaVersion")}</li>}
+                  {hasPidLimitFeature && <li>{t("minecraftNotice.items.pidLimit")}</li>}
+                </ul>
+                {hasEulaFeature && (
+                  <label className="mt-3 flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={eulaAccepted}
+                      onChange={(e) => setEulaAccepted(e.target.checked)}
+                      className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
+                    />
+                    <span>{t("minecraftNotice.acceptEula")}</span>
+                  </label>
+                )}
+              </div>
+            )}
 
             {/* Node Selection */}
             <div className="space-y-2">
@@ -951,7 +997,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             <button
               type="submit"
               data-guide-id="new-server-deploy"
-              disabled={creating || !canCreate}
+              disabled={creating || !canSubmit}
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all min-h-[44px]"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}

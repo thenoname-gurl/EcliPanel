@@ -89,12 +89,12 @@ export async function eggRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/admin/eggs', async (ctx) => {
     if (!requireAdminCtx(ctx)) return;
-    const { name, description, dockerImage, startup, envVars, configFiles, visible, allowedPortals, rootless, requiresKvm } = ctx.body as any;
+    const { name, description, dockerImage, startup, envVars, configFiles, features, visible, allowedPortals, rootless, requiresKvm } = ctx.body as any;
     if (!name || !dockerImage || !startup) {
       ctx.set.status = 400;
       return { error: 'name, dockerImage and startup are required' };
     }
-    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, visible: visible ?? true, allowedPortals, rootless: !!rootless, requiresKvm: !!requiresKvm });
+    const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, features, visible: visible ?? true, allowedPortals, rootless: !!rootless, requiresKvm: !!requiresKvm });
     await repo().save(egg);
     ctx.set.status = 201;
 
@@ -124,6 +124,7 @@ export async function eggRoutes(app: any, prefix = '') {
         startup: t.String(),
         envVars: t.Optional(t.Any()),
         configFiles: t.Optional(t.Any()),
+        features: t.Optional(t.Array(t.String())),
         visible: t.Optional(t.Boolean()),
         allowedPortals: t.Optional(t.Array(t.String())),
       }),

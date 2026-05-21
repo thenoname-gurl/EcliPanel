@@ -475,7 +475,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Features <span className="normal-case text-muted-foreground/60">(comma-separated)</span></label>
-                  <input value={eggFeatures} onChange={(e) => setEggFeatures(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" placeholder="eula" />
+                  <input value={eggFeatures} onChange={(e) => setEggFeatures(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" placeholder="eula, java_version, pid_limit" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Update URL</label>

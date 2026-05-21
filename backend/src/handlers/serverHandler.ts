@@ -1456,11 +1456,14 @@ export async function serverRoutes(app: any, prefix = '') {
       )
       : '');
 
+    const hasInstallScript = Boolean(egg.installScript && (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint));
     const wingsPayload = {
       uuid: serverUuid,
-      start_on_completion: false,
+      start_on_completion: hasInstallScript,
       skip_scripts: false,
     };
+
+    const hasEulaFeature = Array.isArray(egg.features) && egg.features.some((feature: any) => String(feature).toLowerCase() === 'eula');
 
     await nodeSvc.mapServer(serverUuid, node.id);
     await saveServerConfig({
@@ -1484,6 +1487,14 @@ export async function serverRoutes(app: any, prefix = '') {
 
     try {
       const res = await svc.createServer(wingsPayload);
+
+      if (hasEulaFeature) {
+        try {
+          await svc.writeFile(serverUuid, 'eula.txt', 'EULA=true');
+        } catch (fileErr: any) {
+          console.error(`[serverHandler:create-server] failed to write eula.txt ${fileErr}`);
+        }
+      }
 
       await createActivityLog({
         userId: ownerId,

@@ -4076,9 +4076,10 @@ export async function adminRoutes(app: any, prefix = '') {
     let dockerImage = 'ghcr.io/pterodactyl/yolks:nodejs_18';
     let startup = 'node index.js';
     let envObject: Record<string, string> = {};
+    let egg: Egg | null = null;
 
     if (eggId) {
-      const egg = await AppDataSource.getRepository(Egg).findOneBy({ id: Number(eggId) });
+      egg = await AppDataSource.getRepository(Egg).findOneBy({ id: Number(eggId) });
       if (egg) {
         dockerImage = egg.dockerImage || dockerImage;
         startup = egg.startup || startup;
@@ -4094,9 +4095,10 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
+    const hasInstallScript = Boolean(egg?.installScript && (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint));
     const wingsPayload = {
       uuid: serverUuid,
-      start_on_completion: false,
+      start_on_completion: hasInstallScript,
       skip_scripts: false,
       environment: envObject,
       build: {
