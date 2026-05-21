@@ -4072,6 +4072,11 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'Node not found' };
     }
 
+    if ((node as any).deploymentsDisabled) {
+      ctx.set.status = 403;
+      return { error: (node as any).deploymentNotice || 'This node is temporarily unavailable for deployments' };
+    }
+
     const serverUuid = uuidv4();
     let dockerImage = 'ghcr.io/pterodactyl/yolks:nodejs_18';
     let startup = 'node index.js';

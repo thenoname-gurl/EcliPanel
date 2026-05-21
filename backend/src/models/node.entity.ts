@@ -86,4 +86,10 @@ export class Node {
 
   @Column({ nullable: true })
   sftpProxyPort?: number;
+
+  @Column({ default: false })
+  deploymentsDisabled: boolean;
+
+  @Column({ nullable: true, type: 'text' })
+  deploymentNotice?: string;
 }

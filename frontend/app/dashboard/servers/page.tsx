@@ -325,7 +325,7 @@ function NodeSelector({
   onChange,
   loading,
 }: {
-  nodes: { id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number }[]
+  nodes: { id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number; deploymentsDisabled?: boolean; deploymentNotice?: string | null }[]
   value: string
   onChange: (id: string) => void
   loading?: boolean
@@ -413,11 +413,13 @@ function NodeSelector({
                 <div className="p-2 space-y-1">
                   {filtered.map((node) => {
                     const isSelected = String(node.id) === String(value)
+                    const disabled = Boolean(node.deploymentsDisabled)
                     return (
                       <button
                         key={node.id}
                         type="button"
-                        onClick={() => handleSelect(String(node.id))}
+                        onClick={() => !disabled && handleSelect(String(node.id))}
+                        disabled={disabled}
                         className={`w-full rounded-xl px-3 py-3 text-left transition-all flex items-center gap-3 ${
                           isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50 border border-transparent"
                         }`}
@@ -427,8 +429,13 @@ function NodeSelector({
                           {node.nodeType && (
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{getNodeTypeLabel(node.nodeType, t, true)}</p>
                           )}
+                          {disabled && (
+                            <p className="text-xs text-amber-400 truncate mt-0.5">{node.deploymentNotice || "Deployments temporarily disabled"}</p>
+                          )}
                         </div>
-                        {isSelected && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
+                        {disabled ? (
+                          <span className="text-[10px] uppercase tracking-wide text-amber-400">Disabled</span>
+                        ) : isSelected ? <Check className="h-4 w-4 text-primary flex-shrink-0" /> : null}
                       </button>
                     )
                   })}
@@ -453,7 +460,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const [eggs, setEggs] = useState<{ id: number; name: string; description?: string; icon?: string }[]>([])
   const [eggsLoading, setEggsLoading] = useState(true)
   const [nodeId, setNodeId] = useState<number | null>(null)
-  const [nodes, setNodes] = useState<{ id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number }[]>([])
+  const [nodes, setNodes] = useState<{ id: number; name: string; nodeType?: string; memory?: number; disk?: number; cpu?: number; deploymentsDisabled?: boolean; deploymentNotice?: string | null }[]>([])
   const [nodesLoading, setNodesLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -520,7 +527,8 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
       .then((data) => {
         const list = Array.isArray(data) ? data : []
         setNodes(list)
-        if (list.length > 0) setNodeId(list[0].id)
+        const availableNode = list.find((node) => !node.deploymentsDisabled) || list[0]
+        if (availableNode) setNodeId(availableNode.id)
       })
       .catch(() => {})
       .finally(() => setNodesLoading(false))
@@ -561,6 +569,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
     if (!name.trim()) { setError(t("errors.serverNameRequired")); return }
     if (!eggId) { setError(t("errors.selectServerType")); return }
     if (!legalConfirmed) { setError(t("errors.legalAcceptRequired")); return }
+    if (selectedNodeDisabled) { setError(selectedNode?.deploymentNotice || "This node is temporarily unavailable for deployments"); return }
     setCreating(true)
     setError(null)
     try {
@@ -638,6 +647,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   }
 
   const selectedNode = nodes.find((n) => n.id === nodeId)
+  const selectedNodeDisabled = Boolean(selectedNode?.deploymentsDisabled)
   const isEnterpriseNode = selectedNode?.nodeType?.toLowerCase().includes("enterprise") ?? false
   const nodeMemory = selectedNode?.memory ?? null
   const nodeDisk = selectedNode?.disk ?? null
@@ -674,6 +684,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const isMinecraftTemplate = hasEulaFeature || hasJavaVersionFeature || hasPidLimitFeature
 
   const canCreate = name.trim() && eggId && !eggsLoading && eggs.length > 0 && !nodesLoading && nodes.length > 0 &&
+    !selectedNodeDisabled &&
     (user ? (user.emailVerified && (((user.passkeyCount ?? 0) > 0) || !!user.twoFactorEnabled)) : true)
   const canSubmit = canCreate && legalConfirmed && (!hasEulaFeature || eulaAccepted)
 

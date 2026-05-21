@@ -74,6 +74,10 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     setEditNodeIpv6ExcludedPorts,
     editNodeIpv6ReservedCount,
     setEditNodeIpv6ReservedCount,
+    editNodeDeploymentsDisabled,
+    setEditNodeDeploymentsDisabled,
+    editNodeDeploymentNotice,
+    setEditNodeDeploymentNotice,
     saveEditNode,
     editNodeLoading,
     heartbeatDialogNode,
@@ -136,10 +140,17 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                     <h3 className="font-medium text-foreground">{node.name}</h3>
                     <p className="mt-0.5 font-mono text-xs text-muted-foreground">{redact(node.url)}</p>
                     {node.organisation && <p className="mt-1 text-xs text-muted-foreground">{t("fields.org")}: {redact(node.organisation.name)}</p>}
+                    {node.deploymentsDisabled && (
+                      <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                        <p className="font-medium uppercase tracking-wide">Deployments paused</p>
+                        <p className="mt-1 text-amber-200/90">{node.deploymentNotice || "This node is temporarily unavailable for new deployments."}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs">#{node.id}</Badge>
                     <Badge variant="outline" className={`text-xs ${typeColors[node.nodeType] || typeColors.free}`}>{typeLabel[node.nodeType] || node.nodeType}</Badge>
+                    {node.deploymentsDisabled && <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">Disabled</Badge>}
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => openEditNode(node)} className="border-border h-7 px-2 text-xs gap-1"><Edit className="h-3 w-3" /> {t("actions.classify")}</Button>
                       <Button size="sm" variant="outline" onClick={() => viewNodeConfig(node)} className="border-border h-7 px-2 text-xs gap-1" title={t("actions.viewWingsConfig")}><FileCode className="h-3 w-3" /></Button>
@@ -378,6 +389,31 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
               <input type="number" min="0" value={editNodeIpv6ReservedCount} onChange={(e) => setEditNodeIpv6ReservedCount(e.target.value)}
                 className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
+            <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-secondary/20 p-3">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Deployments</label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="node-deployments-disabled"
+                  type="checkbox"
+                  checked={editNodeDeploymentsDisabled}
+                  onChange={(e) => setEditNodeDeploymentsDisabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
+                />
+                <label htmlFor="node-deployments-disabled" className="text-sm text-foreground">
+                  Temporarily disable deployments on this node
+                </label>
+              </div>
+              <input
+                type="text"
+                value={editNodeDeploymentNotice}
+                onChange={(e) => setEditNodeDeploymentNotice(e.target.value)}
+                placeholder="e.g. Maintenance or out of stock"
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Shown to users when the node is unavailable for new deployments.
+              </p>
             </div>
           </div>
         </div>

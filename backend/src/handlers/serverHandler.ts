@@ -463,6 +463,9 @@ export async function serverRoutes(app: any, prefix = '') {
     if (portalType === 'enterprise' && assignedNodeId) {
       const n = await nodeRepo().findOneBy({ id: assignedNodeId });
       if (!n) throw new Error('Assigned enterprise node not found');
+      if ((n as any).deploymentsDisabled) {
+        throw new Error((n as any).deploymentNotice || 'This node is temporarily unavailable for deployments');
+      }
       if (unhealthyNodeIds.includes(n.id)) {
         throw new Error('Assigned node is currently unavailable');
       }
@@ -486,6 +489,10 @@ export async function serverRoutes(app: any, prefix = '') {
             throw new Error('Node not available for your portal tier');
           }
         }
+      }
+
+      if ((n as any).deploymentsDisabled) {
+        throw new Error((n as any).deploymentNotice || 'This node is temporarily unavailable for deployments');
       }
 
       if (unhealthyNodeIds.includes(n.id)) {
@@ -518,13 +525,14 @@ export async function serverRoutes(app: any, prefix = '') {
       if (unhealthyNodeIds.length) {
         where.id = Not(In(unhealthyNodeIds));
       }
+      where.deploymentsDisabled = false;
       const n = await nodeRepo().findOne({ where });
       if (n) return n;
     }
 
     const fallback = unhealthyNodeIds.length
-      ? await nodeRepo().findOne({ where: { id: Not(In(unhealthyNodeIds)) } })
-      : await nodeRepo().findOneBy({});
+      ? await nodeRepo().findOne({ where: { id: Not(In(unhealthyNodeIds)), deploymentsDisabled: false } })
+      : await nodeRepo().findOneBy({ deploymentsDisabled: false });
     if (!fallback) throw new Error('No nodes available');
     return fallback;
   }
@@ -1370,6 +1378,11 @@ export async function serverRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: `Requested CPU (${cpu}%) exceeds the maximum allowed (${effectiveCpuLimit}%).` };
       }
+    }
+
+    if ((node as any).deploymentsDisabled) {
+      ctx.set.status = 403;
+      return { error: (node as any).deploymentNotice || 'This node is temporarily unavailable for deployments' };
     }
 
     let autoAllocation: Record<string, any> | null = null;
