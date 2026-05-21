@@ -627,7 +627,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
       } else {
         setCreateResult({
           createdUuid: createRes?.uuid,
-          genericMessage: t("result.createdMessage", { name: name.trim() }),
+          genericMessage: t("messages.createdMessage", { name: name.trim() }),
         })
       }
       setCreating(false)
