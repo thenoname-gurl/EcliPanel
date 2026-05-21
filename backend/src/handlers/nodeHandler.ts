@@ -87,12 +87,13 @@ export async function nodeRoutes(app: any, prefix = '') {
 
       const unhealthyNodeIds = await getUnhealthyNodeIds();
       const baseOptions: any = { relations: ['organisation'] };
+      const deploymentFilter = { deploymentsDisabled: false } as any;
 
       if (portalType === 'enterprise') {
         const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
         const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
         if (orgIds.length === 0) return [];
-        baseOptions.where = { organisation: { id: In(orgIds) } } as any;
+        baseOptions.where = { organisation: { id: In(orgIds) }, ...deploymentFilter } as any;
         if (unhealthyNodeIds.length) {
           baseOptions.where.id = Not(In(unhealthyNodeIds));
         }
@@ -101,7 +102,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       }
 
       const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
-      baseOptions.where = { nodeType: In(types) };
+      baseOptions.where = { nodeType: In(types), ...deploymentFilter };
       if (unhealthyNodeIds.length) {
         baseOptions.where.id = Not(In(unhealthyNodeIds));
       }
@@ -133,7 +134,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.post(prefix + '/nodes', async (ctx: any) => {
     const adminErr = await authorize('nodes:create')(ctx);
     if (adminErr !== undefined) return adminErr;
-    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd } = ctx.body as any;
+    const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
       return { error: 'name, url and token are required' };
@@ -201,6 +202,8 @@ export async function nodeRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'portRangeStart must be less than or equal to portRangeEnd' };
     }
+    if (deploymentsDisabled !== undefined) node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
+    if (deploymentNotice !== undefined) node.deploymentNotice = deploymentNotice || undefined as any;
     await nodeRepo().save(node);
     refreshAllSftpProxies().catch(() => { });
     return { success: true, node };
@@ -214,7 +217,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const adminErr = await authorize('nodes:*')(ctx);
     if (adminErr !== undefined) return adminErr;
     const { id } = ctx.params as any;
-    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl } = ctx.body as any;
+    const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice } = ctx.body as any;
 
     const node = await resolveNode(id);
     if (!node) {
@@ -314,6 +317,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (sftpPort !== undefined) node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined as any;
     if (sftpProxyPort !== undefined) node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined as any;
     if (backendWingsUrl !== undefined) node.backendWingsUrl = backendWingsUrl || undefined as any;
+    if (deploymentsDisabled !== undefined) node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
+    if (deploymentNotice !== undefined) node.deploymentNotice = deploymentNotice || undefined as any;
     await nodeRepo().save(node);
     nodeService.invalidateNode(node.id);
     refreshAllSftpProxies().catch(() => { });

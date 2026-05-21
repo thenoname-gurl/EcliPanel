@@ -389,6 +389,8 @@ interface AdminNode {
   name: string
   url: string
   nodeType: string
+  deploymentsDisabled?: boolean
+  deploymentNotice?: string | null
   organisation?: { id: number; name: string }
 }
 
@@ -1225,6 +1227,8 @@ export default function AdminPanel() {
   const [editNodeIpv6Subnet, setEditNodeIpv6Subnet] = useState("")
   const [editNodeIpv6ExcludedPorts, setEditNodeIpv6ExcludedPorts] = useState("")
   const [editNodeIpv6ReservedCount, setEditNodeIpv6ReservedCount] = useState("0")
+  const [editNodeDeploymentsDisabled, setEditNodeDeploymentsDisabled] = useState(false)
+  const [editNodeDeploymentNotice, setEditNodeDeploymentNotice] = useState("")
   const [editNodeLoading, setEditNodeLoading] = useState(false)
 
   // ── Plans state ──
@@ -2884,7 +2888,8 @@ export default function AdminPanel() {
   }
 
   function openCreateServer() {
-    setCsNodeId(nodes.length === 1 ? String(nodes[0].id) : "")
+    const defaultNode = nodes.find((n: any) => !n.deploymentsDisabled) || nodes[0]
+    setCsNodeId(defaultNode ? String(defaultNode.id) : "")
     setCsUserId("")
     setCsEggId(eggs.length === 1 ? String(eggs[0].id) : undefined)
     setCsName("")
@@ -2898,6 +2903,11 @@ export default function AdminPanel() {
 
   async function submitCreateServer() {
     if (!csNodeId) { setCsError("Please select a node."); return }
+    const selectedNode = nodes.find((n: any) => String(n.id) === String(csNodeId)) as any
+    if (selectedNode?.deploymentsDisabled) {
+      setCsError(selectedNode.deploymentNotice || "This node is temporarily unavailable for deployments")
+      return
+    }
     setCsLoading(true); setCsError("")
     try {
       await apiFetch(API_ENDPOINTS.adminCreateServer, {
@@ -2934,6 +2944,8 @@ export default function AdminPanel() {
     setEditNodeIpv6Subnet((node as any).ipv6Subnet || "")
     setEditNodeIpv6ExcludedPorts((node as any).ipv6ExcludedPorts || "")
     setEditNodeIpv6ReservedCount((node as any).ipv6ReservedCount != null ? String((node as any).ipv6ReservedCount) : "0")
+    setEditNodeDeploymentsDisabled(Boolean((node as any).deploymentsDisabled))
+    setEditNodeDeploymentNotice((node as any).deploymentNotice || "")
   }
 
   async function saveEditNode() {
@@ -2950,6 +2962,8 @@ export default function AdminPanel() {
           ipv6Subnet: editNodeIpv6Subnet || null,
           ipv6ExcludedPorts: editNodeIpv6ExcludedPorts || null,
           ipv6ReservedCount: editNodeIpv6ReservedCount !== "" ? Number(editNodeIpv6ReservedCount) : null,
+          deploymentsDisabled: editNodeDeploymentsDisabled,
+          deploymentNotice: editNodeDeploymentNotice || null,
         }),
       })
       const updatedNode = result?.node ?? result
@@ -2957,6 +2971,8 @@ export default function AdminPanel() {
         ...n,
         ...updatedNode,
         ipv6ReservedCount: editNodeIpv6ReservedCount !== "" ? Number(editNodeIpv6ReservedCount) : undefined,
+        deploymentsDisabled: editNodeDeploymentsDisabled,
+        deploymentNotice: editNodeDeploymentNotice || undefined,
       } as any : n))
       setEditNodeDialog(null)
     } finally {
@@ -5660,6 +5676,10 @@ remote: ${panelUrl}`
                     setEditNodePortEnd,
                     editNodeDefaultIp,
                     setEditNodeDefaultIp,
+                    editNodeDeploymentsDisabled,
+                    setEditNodeDeploymentsDisabled,
+                    editNodeDeploymentNotice,
+                    setEditNodeDeploymentNotice,
                     saveEditNode,
                     editNodeLoading,
                     heartbeatDialogNode,
@@ -6357,7 +6377,7 @@ remote: ${panelUrl}`
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing ZIP</label>
                   <input value={editBillingZip} onChange={(e) => setEditBillingZip(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
-                <div className="flex flex-col gap-1.5 col-span-2">
+                <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing Country</label>
                   <input value={editBillingCountry} onChange={(e) => setEditBillingCountry(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
@@ -6927,8 +6947,17 @@ remote: ${panelUrl}`
                 <select value={csNodeId} onChange={(e) => setCsNodeId(e.target.value)}
                   className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                   <option value="">Select node…</option>
-                  {nodes.map((n) => <option key={n.id} value={String(n.id)}>{n.name} ({n.nodeType})</option>)}
+                  {nodes.map((n) => (
+                    <option key={n.id} value={String(n.id)} disabled={Boolean((n as any).deploymentsDisabled)}>
+                      {n.name} ({n.nodeType}){(n as any).deploymentsDisabled ? ` — ${((n as any).deploymentNotice || 'deployments disabled')}` : ''}
+                    </option>
+                  ))}
                 </select>
+                {csNodeId && nodes.find((n) => String(n.id) === String(csNodeId) && (n as any).deploymentsDisabled) && (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                    {(nodes.find((n) => String(n.id) === String(csNodeId)) as any)?.deploymentNotice || 'This node is temporarily unavailable for deployments.'}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Egg (optional)</label>

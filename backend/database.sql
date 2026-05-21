@@ -161,7 +161,9 @@ CREATE TABLE `node` (
   `token` varchar(255) NOT NULL,
   `organisationId` int,
   `rootUser` varchar(255),
-  `rootPassword` varchar(255)
+  `rootPassword` varchar(255),
+  `deploymentsDisabled` tinyint(1) NOT NULL DEFAULT 0,
+  `deploymentNotice` text
 );
 
 CREATE TABLE `server_mapping` (
