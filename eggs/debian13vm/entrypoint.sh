@@ -19,6 +19,31 @@ BALLOON_AGGRESSIVE="${BALLOON_AGGRESSIVE:-0}"
 BALLOON_RECLAIM_STEP="${BALLOON_RECLAIM_STEP:-10}"
 BALLOON_HOST_RECOVERY="${BALLOON_HOST_RECOVERY:-90}"
 
+to_bytes() {
+    numfmt --from=iec "$1" 2>/dev/null
+}
+
+maybe_grow_disk() {
+    local image=$1
+    local target=$2
+
+    if [ ! -f "$image" ]; then
+        return 0
+    fi
+
+    local current_bytes
+    current_bytes=$(qemu-img info "$image" 2>/dev/null | awk -F'[()]' '/virtual size:/ {print $2}' | awk '{print $1}')
+    local target_bytes
+    target_bytes=$(to_bytes "$target")
+
+    if [ -n "$current_bytes" ] && [ -n "$target_bytes" ] && [ "$target_bytes" -gt "$current_bytes" ]; then
+        echo "[*] Growing VM disk from ${current_bytes} bytes to ${target_bytes} bytes..."
+        qemu-img resize "$image" "$target"
+    else
+        echo "[*] VM disk already at or above requested size."
+    fi
+}
+
 echo "══════════════════════════════════════════════"
 echo " EclipseSystems QEMU - Debian 13 (Trixie) VM  "
 echo "══════════════════════════════════════════════"
@@ -78,6 +103,8 @@ if [ "$USE_CLOUD_IMAGE" = "1" ] && [ -f "$CLOUD_IMAGE_FILE" ]; then
         echo "[*] Creating VM disk from cloud image..."
         cp "$CLOUD_IMAGE_FILE" "$DISK_IMAGE"
         qemu-img resize "$DISK_IMAGE" "$VM_DISK_SIZE"
+    else
+        maybe_grow_disk "$DISK_IMAGE" "$VM_DISK_SIZE"
     fi
 
     SEED_DIR="/tmp/cloud-init"
