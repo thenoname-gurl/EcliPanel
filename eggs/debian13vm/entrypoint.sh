@@ -123,7 +123,7 @@ METADATA
         BALLOON_PACKAGE="  - qemu-guest-agent"
     fi
 
-    cat > "$SEED_DIR/user-data" <<USERDATA
+    cat > "$SEED_DIR/user-data" <<'USERDATA'
 #cloud-config
 hostname: debian
 fqdn: debian.local
@@ -132,17 +132,27 @@ manage_etc_hosts: true
 users:
   - name: root
     lock_passwd: false
-    hashed_passwd: ${PASS_HASH}
+    hashed_passwd: PASS_HASH_PLACEHOLDER
     shell: /bin/bash
   - name: debian
     lock_passwd: false
-    hashed_passwd: ${PASS_HASH}
+    hashed_passwd: PASS_HASH_PLACEHOLDER
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: sudo
 
 ssh_pwauth: true
 disable_root: false
+
+bootcmd:
+  - mkdir -p /etc/systemd/system/serial-getty@ttyS0.service.d
+  - |
+    cat > /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf << 'EOF'
+    [Service]
+    ExecStart=
+    ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+    EOF
+  - systemctl daemon-reload
 
 runcmd:
   - systemctl enable ssh
@@ -167,10 +177,14 @@ packages:
   - nano
   - htop
   - cloud-guest-utils
-${BALLOON_PACKAGE}
+BALLOON_PACKAGE_PLACEHOLDER
 
-final_message: "Debian 13 VM is ready! SSH available."
+final_message: "Debian 13 VM is ready! SSH available. Serial console auto-login enabled for root."
 USERDATA
+
+    # Replace placeholders
+    sed -i "s|PASS_HASH_PLACEHOLDER|${PASS_HASH}|g" "$SEED_DIR/user-data"
+    sed -i "s|BALLOON_PACKAGE_PLACEHOLDER|${BALLOON_PACKAGE}|g" "$SEED_DIR/user-data"
 
     if command -v cloud-localds &> /dev/null; then
         cloud-localds "$SEED_DIR/seed.iso" "$SEED_DIR/user-data" "$SEED_DIR/meta-data"
@@ -187,6 +201,7 @@ USERDATA
     echo "[*] Starting Debian 13 VM..."
     echo "[*] SSH: ssh root@<node-ip> -p ${VM_SSH_PORT}"
     echo "[*] Password: ${ROOT_PASSWORD}"
+    echo "[*] Serial console: auto-login as root enabled"
     echo "[*] First boot takes 2-3 minutes for cloud-init"
     echo ""
 
