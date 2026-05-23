@@ -806,16 +806,24 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   ws!.send(JSON.stringify({ event: "send stats", args: [] }))
                   break
                   
-                case "console output":
+                 case "console output":
                   for (const line of msg.args || []) {
                     const raw = typeof line === "string" ? line : JSON.stringify(line)
                     const processed = processConsoleOutput(raw)
-                    if (processed.trim() || processed.includes('\n')) {
-                      term.write(processed)
-                      if (!processed.endsWith('\n') && !processed.endsWith('\r')) {
+                    const plain = stripAnsiText(processed)
+                    const daemonMatch = plain.match(/^\[Daemon\]:\s*/)
+                    let output = processed
+                    if (daemonMatch) {
+                      const msgText = plain.slice(daemonMatch[0].length)
+                      const translated = translateDaemonText(msgText, t)
+                      output = processed.replace(msgText, translated)
+                    }
+                    if (output.trim() || output.includes('\n')) {
+                      term.write(output)
+                      if (!output.endsWith('\n') && !output.endsWith('\r')) {
                         term.write('\r\n')
                       }
-                      addToOutput(stripAnsiText(processed))
+                      addToOutput(stripAnsiText(output))
                     }
                   }
                   break
