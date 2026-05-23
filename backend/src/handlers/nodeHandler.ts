@@ -52,7 +52,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.get(prefix + '/nodes', async (ctx: any) => {
     const adminErr = requireAdminCtx(ctx);
     if (adminErr !== true) return adminErr;
-    const nodes = await nodeRepo().find({ relations: ['organisation'] });
+    const nodes = await nodeRepo().find({ relations: {"organisation":true} });
     const safe = nodes.map(({ rootUser, rootPassword, token, ...rest }) => rest);
     return safe;
   }, {
@@ -81,12 +81,12 @@ export async function nodeRoutes(app: any, prefix = '') {
     const cacheKey = `nodes:available:${user.id}:${portalType}:${isAdmin ? 'admin' : 'user'}:v1`;
     return withRedisCache(cacheKey, 10, async () => {
       if (isAdmin) {
-        const nodes = await nodeRepo().find({ relations: ['organisation'] });
+        const nodes = await nodeRepo().find({ relations: {"organisation":true} });
         return sanitizeNodes(nodes);
       }
 
       const unhealthyNodeIds = await getUnhealthyNodeIds();
-      const baseOptions: any = { relations: ['organisation'] };
+      const baseOptions: any = { relations: {"organisation":true} };
       const deploymentFilter = { deploymentsDisabled: false } as any;
 
       if (portalType === 'enterprise') {
@@ -322,7 +322,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     await nodeRepo().save(node);
     nodeService.invalidateNode(node.id);
     refreshAllSftpProxies().catch(() => { });
-    const updated = await nodeRepo().findOne({ where: { id: Number(id) }, relations: ['organisation'] });
+    const updated = await nodeRepo().findOne({ where: { id: Number(id) }, relations: {"organisation":true} });
     return { success: true, node: updated };
   }, {
     beforeHandle: authenticate,

@@ -19,7 +19,7 @@ export async function roleRoutes(app: any, prefix = '') {
       parentRole: parentRoleId ? { id: Number(parentRoleId) } : undefined,
     } as any) as any;
     await roleRepo.save(role);
-    const saved = await roleRepo.findOne({ where: { id: role.id }, relations: ['permissions', 'parentRole', 'parentRole.permissions'] });
+    const saved = await roleRepo.findOne({ where: { id: role.id }, relations: {"permissions":true,"parentRole":{"permissions":true}} });
     return { success: true, role: saved || role };
   }, {beforeHandle: [authenticate, authorize('roles:create')],
     response: { 200: t.Object({ success: t.Boolean(), role: t.Any() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -27,7 +27,7 @@ export async function roleRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/roles', async (ctx: any) => {
-    const roles = await roleRepo.find({ relations: ['permissions', 'parentRole', 'parentRole.permissions'] });
+    const roles = await roleRepo.find({ relations: {"permissions":true,"parentRole":{"permissions":true}} });
     return roles;
   }, {beforeHandle: [authenticate, authorize('roles:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -35,7 +35,7 @@ export async function roleRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/roles/:id', async (ctx: any) => {
-    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['permissions', 'parentRole', 'parentRole.permissions'] });
+    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: {"permissions":true,"parentRole":{"permissions":true}} });
     if (!role) {
       ctx.set.status = 404;
       return { error: 'Role not found' };
@@ -47,7 +47,7 @@ export async function roleRoutes(app: any, prefix = '') {
   });
 
   app.get(prefix + '/roles/:id/permissions', async (ctx: any) => {
-    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: ['permissions'] });
+    const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: {"permissions":true} });
     if (!role) {
       ctx.set.status = 404;
       return { error: 'Role not found' };
@@ -133,7 +133,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const userRoleRepo = AppDataSource.getRepository(require('../models/userRole.entity').UserRole);
     const urs = await userRoleRepo.find({
       where: { user: { id: Number(ctx.params['id']) } },
-      relations: ['role'],
+      relations: {"role":true},
     });
     return urs;
   }, {beforeHandle: [authenticate, authorize('roles:read')],

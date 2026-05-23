@@ -9,7 +9,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(ApiKey);
 
   app.get(prefix + '/apikeys', async (ctx: any) => {
-    const keys = await repo.find({ relations: ['user'] });
+    const keys = await repo.find({ relations: {"user":true} });
     return keys.map(k => ({ ...k, key: undefined }));
   }, { beforeHandle: [authenticate, authorize('apikeys:read')],
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() })},
@@ -92,7 +92,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
     });
     await repo.save(ent);
-    const saved = await repo.findOne({ where: { id: ent.id }, relations: ['user'] });
+    const saved = await repo.findOne({ where: { id: ent.id }, relations: {"user":true} });
     return { success: true, apiKey: key, id: ent.id, entry: saved };
   }, { beforeHandle: [authenticate, authorize('apikeys:create')],
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -110,7 +110,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/apikeys/:id', async (ctx: any) => {
     const id = Number(ctx.params.id);
-    const key = await repo.findOne({ where: { id }, relations: ['user'] });
+    const key = await repo.findOne({ where: { id }, relations: {"user":true} });
     if (!key) {
       ctx.set.status = 404;
       return { error: 'not found' };

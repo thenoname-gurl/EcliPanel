@@ -473,7 +473,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     if (preferredNodeId) {
-      const n = await nodeRepo().findOne({ where: { id: preferredNodeId }, relations: ['organisation'] });
+      const n = await nodeRepo().findOne({ where: { id: preferredNodeId }, relations: {"organisation":true} });
       if (!n) throw new Error('Specified node not found');
 
       if (!isAdmin) {
@@ -3715,7 +3715,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
 
     const mappingRepo = AppDataSource.getRepository(ServerMapping);
-    const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+    const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
     const unhealthyNodeIds = await getUnhealthyNodeIds();
     const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
 
@@ -3822,7 +3822,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     try {
       const mappingRepo = AppDataSource.getRepository(ServerMapping);
-      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
       const unhealthyNodeIds = await getUnhealthyNodeIds();
       const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
 
@@ -3883,7 +3883,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { id } = ctx.params as any;
     try {
       const mappingRepo = AppDataSource.getRepository(ServerMapping);
-      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
       if (!mapping) {
         ctx.set.status = 404;
         return { error: 'No node mapping for server' };
@@ -3999,7 +3999,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     try {
       const mappingRepo = AppDataSource.getRepository(ServerMapping);
-      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: ['node'] });
+      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
       if (!mapping) {
         ctx.set.status = 404;
         return { error: 'No node mapping for server' };

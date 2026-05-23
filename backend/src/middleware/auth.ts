@@ -45,7 +45,7 @@ export async function authenticate(ctx: any) {
   if (auth?.startsWith('ApiKey ')) {
     const key = auth.slice('ApiKey '.length);
     const repo = AppDataSource.getRepository(ApiKey);
-    const entry = await repo.findOne({ where: { key }, relations: ['user'] });
+    const entry = await repo.findOne({ where: { key }, relations: {"user":true} });
     if (!entry || (entry.expiresAt && new Date(entry.expiresAt) < new Date())) {
       ctx.set.status = 401;
       return { error: 'Invalid API key' };
@@ -80,14 +80,7 @@ export async function authenticate(ctx: any) {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOne({
       where: { id: decoded.userId },
-      relations: [
-        'org',
-        'userRoles',
-        'userRoles.role',
-        'userRoles.role.permissions',
-        'userRoles.role.parentRole',
-        'userRoles.role.parentRole.permissions',
-      ],
+      relations: {"org":true,"userRoles":{"role":{"permissions":true,"parentRole":{"permissions":true}}}},
     });
     
     if (!user) {
@@ -142,7 +135,7 @@ export async function authenticate(ctx: any) {
     return;
   } catch (e: any) {
     const apiKeyRepo = AppDataSource.getRepository(ApiKey);
-    const entry = await apiKeyRepo.findOne({ where: { key: rawToken }, relations: ['user'] });
+    const entry = await apiKeyRepo.findOne({ where: { key: rawToken }, relations: {"user":true} });
     if (entry) {
       if (entry.expiresAt && new Date(entry.expiresAt) < new Date()) {
         ctx.set.status = 401;
@@ -158,7 +151,7 @@ export async function authenticate(ctx: any) {
   const tokenRepo = AppDataSource.getRepository(OAuthToken);
   const oauthToken = await tokenRepo.findOne({
     where: { accessToken: rawToken, revoked: false },
-    relations: ['user', 'user.organisationMemberships', 'user.organisationMemberships.organisation', 'app'],
+    relations: {"user":{"organisationMemberships":{"organisation":true}},"app":true},
   });
   if (!oauthToken || new Date() > oauthToken.accessTokenExpiresAt) {
     ctx.set.status = 401;

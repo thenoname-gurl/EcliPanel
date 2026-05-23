@@ -29,7 +29,7 @@ export async function handleServerConnectionOpen(
   const repo = AppDataSource.getRepository(TunnelAllocation);
   const allocation = await repo.findOne({
     where: { id: allocationId },
-    relations: ['clientDevice', 'serverDevice'],
+    relations: {"clientDevice":true,"serverDevice":true},
   });
 
   if (

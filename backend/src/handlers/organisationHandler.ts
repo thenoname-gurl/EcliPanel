@@ -63,7 +63,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   }
 
   async function listMembersForOrg(organisationId: number) {
-    const memberships = await memberRepo.find({ where: { organisationId }, relations: ['user'] });
+    const memberships = await memberRepo.find({ where: { organisationId }, relations: {"user":true} });
     return (Array.isArray(memberships) ? memberships : [])
       .map((m: any) => {
         const user = m?.user;
@@ -126,7 +126,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   app.get(prefix + '/organisations', async (ctx: any) => {
     const user = ctx.user as User;
     return withRedisCache(`organisations:list:${user.id}:v1`, 20, async () => {
-      const memberships = await memberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+      const memberships = await memberRepo.find({ where: { userId: user.id }, relations: {"organisation":true} });
       const orgs: Organisation[] = memberships.map((m: any) => m.organisation).filter(Boolean);
       const roleByOrgId = new Map<number, string>();
       for (const m of memberships) roleByOrgId.set(m.organisationId, m.orgRole || 'member');
@@ -817,7 +817,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Organisation not found' };
     }
-    const inv = await inviteRepo.findOne({ where: { id: Number(ctx.params['inviteId']) }, relations: ['organisation'] });
+    const inv = await inviteRepo.findOne({ where: { id: Number(ctx.params['inviteId']) }, relations: {"organisation":true} });
     if (!inv || inv.organisation.id !== org.id) {
       ctx.set.status = 404;
       return { error: 'Invite not found' };
@@ -853,7 +853,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'Organisation not found' };
     }
-    const inv = await inviteRepo.findOne({ where: { id: Number(ctx.params['inviteId']) }, relations: ['organisation'] });
+    const inv = await inviteRepo.findOne({ where: { id: Number(ctx.params['inviteId']) }, relations: {"organisation":true} });
     if (!inv || inv.organisation.id !== org.id) {
       ctx.set.status = 404;
       return { error: 'Invite not found' };
@@ -904,7 +904,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/organisations/accept-invite', async (ctx: any) => {
     const { token } = ctx.body as any;
-    const inv = await inviteRepo.findOne({ where: { token }, relations: ['organisation'] });
+    const inv = await inviteRepo.findOne({ where: { token }, relations: {"organisation":true} });
     if (!inv || inv.accepted) {
       ctx.set.status = 400;
       return { error: 'Invalid invite' };
@@ -936,7 +936,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Unauthorized' };
     }
     return withRedisCache(`organisations:invites:${user.id}:v1`, 10, async () => {
-      const invites = await inviteRepo.find({ where: { email: user.email, accepted: false }, relations: ['organisation'], order: { createdAt: 'ASC' } });
+      const invites = await inviteRepo.find({ where: { email: user.email, accepted: false }, relations: {"organisation":true}, order: { createdAt: 'ASC' } });
       return invites.map((invite) => ({
         id: invite.id,
         organisationId: invite.organisation?.id || null,
@@ -959,7 +959,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Unauthorized' };
     }
     const inviteId = Number(ctx.params['inviteId']);
-    const inv = await inviteRepo.findOne({ where: { id: inviteId, accepted: false }, relations: ['organisation'] });
+    const inv = await inviteRepo.findOne({ where: { id: inviteId, accepted: false }, relations: {"organisation":true} });
     if (!inv) {
       ctx.set.status = 404;
       return { error: 'Invite not found' };
@@ -1033,7 +1033,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
     try {
       const mappingRepo = AppDataSource.getRepository(require('../models/serverMapping.entity').ServerMapping);
-      const mappings = await mappingRepo.find({ relations: ['node'] });
+      const mappings = await mappingRepo.find({ relations: {"node":true} });
       const uuids = mappings.filter((m: any) => m.node?.organisation?.id === org.id).map((m: any) => m.uuid);
       if (uuids.length > 0) {
         const subuserRepo = AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser);

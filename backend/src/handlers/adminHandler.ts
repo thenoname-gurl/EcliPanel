@@ -5373,7 +5373,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
     const modelUserRepo = AppDataSource.getRepository(AIModelUser);
-    const aiLinks = await modelUserRepo.find({ where: { user: { id: userId } }, relations: ['model'] });
+    const aiLinks = await modelUserRepo.find({ where: { user: { id: userId } }, relations: {"model":true} });
 
     const servers: any[] = [];
     const nodes = await AppDataSource.getRepository(Node).find();
@@ -5425,7 +5425,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const Order = require('../models/order.entity').Order;
     const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
-    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
+    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: {"organisation":true} });
     const orgs = membershipRows
       .filter((m: any) => !!m.organisation)
       .map((m: any) => ({
@@ -5622,14 +5622,14 @@ export async function adminRoutes(app: any, prefix = '') {
     const organisationRepo = AppDataSource.getRepository(Organisation);
     const aiModelUserRepo = AppDataSource.getRepository(require('../models/aiModelUser.entity').AIModelUser);
 
-    const aiLinks = await aiModelUserRepo.find({ where: { user: { id: userId } }, relations: ['model'] });
+    const aiLinks = await aiModelUserRepo.find({ where: { user: { id: userId } }, relations: {"model":true} });
     const passkeys = await passkeyRepo.find({ where: { user: { id: userId } } });
     const apiKeys = await apiKeyRepo.find({ where: { user: { id: userId } } });
     const idVerifications = await idVerificationRepo.find({ where: { userId } });
     const tickets = await ticketRepo.find({ where: { userId } });
     const userLogs = await userLogRepo.find({ where: { userId }, order: { timestamp: 'DESC' }, take: 10 });
-    const organisationsOwned = await organisationRepo.find({ where: { ownerId: userId }, relations: ['invites'] });
-    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
+    const organisationsOwned = await organisationRepo.find({ where: { ownerId: userId }, relations: {"invites":true} });
+    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: {"organisation":true} });
     const organisations = membershipRows
       .filter((m: any) => !!m.organisation)
       .map((m: any) => ({

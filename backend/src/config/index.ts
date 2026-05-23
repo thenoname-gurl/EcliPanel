@@ -1,5 +1,6 @@
 import { connectRedis } from './redis';
 import { AppDataSource } from './typeorm';
+import { IsNull } from 'typeorm';
 import { initMail } from '../services/mailService';
 import { startRetentionJobs } from '../services/retentionService';
 import { WingsSocketService } from '../services/wingsSocketService';
@@ -78,7 +79,7 @@ export async function setupConfig(app: any) {
   try {
     const userRepo = AppDataSource.getRepository(User);
     const orgMemberRepo = AppDataSource.getRepository(OrganisationMember);
-    const users = await userRepo.find({ relations: ['org'] });
+    const users = await userRepo.find({ relations: {"org":true} });
     for (const user of users) {
       const org: any = (user as any).org;
       if (!org?.id) continue;
@@ -89,7 +90,7 @@ export async function setupConfig(app: any) {
       await orgMemberRepo.save(link);
     }
 
-    const nullCreatedAtCount = await userRepo.count({ where: { createdAt: null as any } as any });
+    const nullCreatedAtCount = await userRepo.count({ where: { createdAt: IsNull() } });
     if (nullCreatedAtCount > 0) {
       app.log?.info({ count: nullCreatedAtCount }, 'Backfilling missing user createdAt values');
       await userRepo.createQueryBuilder()

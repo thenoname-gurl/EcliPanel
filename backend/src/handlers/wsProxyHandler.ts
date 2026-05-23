@@ -223,7 +223,7 @@ class WingsProxySession {
 
       const user = await AppDataSource.getRepository(User).findOne({
         where: { id: decoded.userId },
-        relations: ['org', 'userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+        relations: {"org":true,"userRoles":{"role":{"permissions":true}}},
       });
 
       if (!user) return null;

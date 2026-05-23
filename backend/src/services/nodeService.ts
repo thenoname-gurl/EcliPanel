@@ -9,7 +9,7 @@ export class NodeService {
 
   async getServiceForServer(uuid: string): Promise<WingsApiService> {
     const repo = AppDataSource.getRepository(ServerMapping);
-    const mapping = await repo.findOne({ where: { uuid }, relations: ['node'] });
+    const mapping = await repo.findOne({ where: { uuid }, relations: {"node":true} });
     if (!mapping) throw new Error('No node mapping for server');
     return this.getServiceForNode(mapping.node.id);
   }

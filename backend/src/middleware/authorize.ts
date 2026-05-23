@@ -63,7 +63,7 @@ export async function getUserPermissions(ctx: any): Promise<string[]> {
   const userRepo = AppDataSource.getRepository(User);
   const u = await userRepo.findOne({
     where: { id: user.id },
-    relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+    relations: {"userRoles":{"role":{"permissions":true}}},
   });
   if (u && Array.isArray(u.userRoles)) {
     for (const ur of u.userRoles) {
@@ -80,7 +80,7 @@ export async function getUserPermissions(ctx: any): Promise<string[]> {
   if (perms.length === 0) {
     try {
       const roleRepo = AppDataSource.getRepository(require('../models/role.entity').Role);
-      const def = await roleRepo.findOne({ where: { name: 'default' }, relations: ['permissions'] });
+      const def = await roleRepo.findOne({ where: { name: 'default' }, relations: {"permissions":true} });
       if (def && Array.isArray(def.permissions)) {
         def.permissions.forEach((p: any) => perms.push(p.value));
       }
