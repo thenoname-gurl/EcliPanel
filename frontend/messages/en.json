@@ -933,7 +933,6 @@
       "failed": "Failed to accept invite"
     }
   },
-
   "publicFormPage": {
     "brand": "Eclipse Systems",
     "nav": {
@@ -3764,6 +3763,36 @@
         "daemon": "Daemon",
         "error": "Error",
         "authError": "Auth Error"
+      },
+      "statusValues": {
+        "offline": "Offline",
+        "starting": "Starting",
+        "running": "Running",
+        "stopping": "Stopping",
+        "stopped": "Stopped",
+        "connecting": "Connecting",
+        "connecting_dots": "Connecting...",
+        "connected": "Connected",
+        "disconnected": "Disconnected"
+      },
+      "daemonMessages": {
+        "crashedState": "Detected server process in a crashed state!",
+        "exitCode": "Exit code: {code}",
+        "outOfMemory": "Out of memory: {value}",
+        "updatingConfig": "Updating process configuration files...",
+        "settingPermissions": "Ensuring file permissions are set correctly, this could take a few seconds...",
+        "pullingImage": "Pulling Docker container image, this could take a few minutes to complete...",
+        "finishedPulling": "Finished pulling Docker container image",
+        "diskLimit": "Server is exceeding the assigned disk space limit, stopping process now.",
+        "throttling": "Server is outputting console data too quickly -- throttling...",
+        "crashDisabled": "Aborting automatic restart, crash detection is disabled for this instance.",
+        "crashTooFrequent": "Aborting automatic restart, last crash occurred less than {timeout} seconds ago."
+      },
+      "installMessages": {
+        "pullingFrom": "Pulling from {image}",
+        "digest": "Digest: {digest}",
+        "status": "Status: {status}",
+        "finishedPulling": "Finished pulling Docker container image"
       }
     }
   },

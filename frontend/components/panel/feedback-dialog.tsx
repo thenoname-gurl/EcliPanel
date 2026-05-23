@@ -44,6 +44,8 @@ export function FeedbackDialog() {
     const dismissedAt = sessionStorage.getItem(DISMISSED_KEY)
     if (dismissedAt && Date.now() - Number(dismissedAt) < DISMISS_COOLDOWN) return
 
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('guide') === 'true') return
+
     try {
       const data = await apiFetch("/api/feedback/check")
       if (data?.shouldPrompt) {
