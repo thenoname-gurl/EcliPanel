@@ -542,9 +542,38 @@ export async function aiRoutes(app: any, prefix = '') {
     }
   }, { beforeHandle: authenticate, response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }, detail: { summary: 'Recent AI endpoint cooldowns (24h)', tags: ['AI','Admin'] } });
 
+  function isValidEndpointUrl(url: any): boolean {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  function validateModelEndpoints(body: any): string | null {
+    const { endpoint, endpoints } = body || {};
+    if (endpoint && !isValidEndpointUrl(endpoint)) return 'Invalid endpoint URL';
+    if (Array.isArray(endpoints)) {
+      for (let i = 0; i < endpoints.length; i++) {
+        const ep = endpoints[i];
+        if (!ep) continue;
+        const url = ep.endpoint || ep.url;
+        if (url && !isValidEndpointUrl(url)) return `Invalid endpoint URL at index ${i}`;
+      }
+    }
+    return null;
+  }
+
   app.post(prefix + '/admin/ai/models', async (ctx: any) => {
     const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
+    const err = validateModelEndpoints(ctx.body);
+    if (err) {
+      ctx.set.status = 400;
+      return { error: err };
+    }
     const { name, config, limits, tags, endpoint, apiKey, endpoints } = (ctx.body as any) || {};
     const model = modelRepo.create({ name, config, limits, tags, endpoint, apiKey, endpoints });
     await modelRepo.save(model);
@@ -561,6 +590,11 @@ export async function aiRoutes(app: any, prefix = '') {
     if (!model) {
       ctx.set.status = 404;
       return { error: 'Model not found' };
+    }
+    const err = validateModelEndpoints(ctx.body);
+    if (err) {
+      ctx.set.status = 400;
+      return { error: err };
     }
     const { name, config, limits, tags, endpoint, apiKey, endpoints } = (ctx.body as any) || {};
     Object.assign(model, { name, config, limits, tags, endpoint, apiKey, endpoints });

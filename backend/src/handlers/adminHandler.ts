@@ -71,8 +71,14 @@ function getAgeFromDate(date?: Date | string | null): number | null {
 }
 
 function getSafeRelativeFilePath(base: string, relPath: string): string | null {
-  const normalised = path.normalize(String(relPath || '')).replace(/^([/\\])+/, '').replace(/^(\.{2}(\/|\\|$))+/, '');
-  const fullPath = path.join(base, normalised);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(String(relPath || ''));
+  } catch {
+    return null;
+  }
+  const normalized = path.normalize(decoded).replace(/^[/\\]+/, '');
+  const fullPath = path.join(base, normalized);
   const relative = path.relative(base, fullPath);
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
   return fullPath;

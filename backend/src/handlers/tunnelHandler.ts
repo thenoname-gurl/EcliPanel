@@ -84,11 +84,15 @@ async function canManageOrganisation(user: User, organisationId: number): Promis
   return !!membership && ['admin', 'owner'].includes(membership.orgRole);
 }
 
+function isValidHostname(h: string): boolean {
+  return /^[a-zA-Z0-9.:\-[\]]+$/.test(h) && !h.startsWith('.') && !h.includes('..');
+}
+
 function getRequestBaseUrl(ctx: any): string {
   const headers = ctx?.headers || {};
   const host = (headers['x-forwarded-host'] || headers['host'] || headers['Host']) as string | undefined;
   const proto = (headers['x-forwarded-proto'] || headers['x-forwarded-protocol'] || headers['x-forwarded-scheme']) as string | undefined;
-  if (host && proto) {
+  if (host && proto && isValidHostname(String(host))) {
     const scheme = proto.toString().split(',')[0].trim();
     return `${scheme}://${host}`;
   }
