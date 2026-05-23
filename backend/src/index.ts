@@ -31,7 +31,7 @@ const HOST = process.env.HOST || '0.0.0.0';
     });
 
     await initApp();
-    await app.listen({ port: Number(PORT), host: String(HOST) });
+    await (app as any).listen({ port: Number(PORT), host: String(HOST) });
     app.log.info(`Server listening at ${HOST}:${PORT}`);
   } catch (err) {
     if (app && (app as any).log && typeof (app as any).log.error === 'function') {

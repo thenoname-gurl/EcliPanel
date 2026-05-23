@@ -3,7 +3,6 @@ import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { comparePassword, hashPassword, isLegacyPasswordHash } from '../utils/password';
 import { getGeoBlockLevel, canPerformIdVerification } from '../utils/eu';
-import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
@@ -273,7 +272,7 @@ export async function authRoutes(app: any, prefix = '') {
     } catch {}
 
     if (user.twoFactorEnabled) {
-      const tfaSession = uuidv4();
+      const tfaSession = crypto.randomUUID();
       await redisSet(`tfa:session:${tfaSession}`, String(user.id), 300);
       const tempToken = ctx.app?.jwt?.sign
         ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
@@ -282,7 +281,7 @@ export async function authRoutes(app: any, prefix = '') {
       return { twoFactorRequired: true, tempToken };
     }
 
-    const sessionId = uuidv4();
+    const sessionId = crypto.randomUUID();
     user.sessions = Array.isArray(user.sessions) ? user.sessions : [];
     user.sessions.push(sessionId);
     if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
@@ -490,7 +489,7 @@ export async function authRoutes(app: any, prefix = '') {
         }
       }
 
-      const sessionId = uuidv4();
+      const sessionId = crypto.randomUUID();
       user.sessions = user.sessions || [];
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
@@ -558,7 +557,7 @@ export async function authRoutes(app: any, prefix = '') {
       return { success: true };
     }
 
-    const token = uuidv4();
+    const token = crypto.randomUUID();
     await redisSet(`password-reset:${token}`, String(user.id), 3600);
     const url = `${getPanelUrl(ctx)}/reset-password/${token}`;
 
@@ -670,7 +669,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   async function sendVerificationEmail(user: User) {
     const code = randomInt(0, 1000000).toString().padStart(6, '0');
-    const token = uuidv4();
+    const token = crypto.randomUUID();
 
     await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
     await redisSet(`email-verify:code:${user.id}`, code, 86400);
@@ -1038,7 +1037,7 @@ export async function authRoutes(app: any, prefix = '') {
       requestOrigin,
     });
     if (ver.verified) {
-      const sessionId = uuidv4();
+      const sessionId = crypto.randomUUID();
       user.sessions = user.sessions || [];
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);

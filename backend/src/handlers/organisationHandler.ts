@@ -9,7 +9,6 @@ import { requireFeature } from '../middleware/featureToggle';
 import { User } from '../models/user.entity';
 import { createMailboxMessageForUser } from '../utils/mailboxMessage';
 import { getMailboxAccountForUser } from '../services/mailcowService';
-import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
@@ -767,7 +766,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       return { error: 'Invite already sent' };
     }
 
-    const token = uuidv4();
+    const token = crypto.randomUUID();
     const inv = inviteRepo.create({ organisation: org, email, token, accepted: false, createdAt: new Date() });
     await inviteRepo.save(inv);
     await createActivityLog({ userId: inviter.id, action: 'org:invite', targetId: String(org.id), targetType: 'organisation', metadata: { invitedEmail: email }, ipAddress: ctx.ip });
@@ -1131,7 +1130,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     const uploadDir = path.join(process.cwd(), 'uploads');
     fs.mkdirSync(uploadDir, { recursive: true });
     const filepath = path.join(uploadDir, filename);
-    fs.writeFileSync(filepath, out);
+    await Bun.write(filepath, out);
 
     const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
       const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;

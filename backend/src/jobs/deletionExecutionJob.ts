@@ -1,5 +1,4 @@
-import cron from 'node-cron';
-import { v4 as uuidv4 } from 'uuid';
+import { schedule } from '../utils/cron';
 import { AppDataSource } from '../config/typeorm';
 import { DeletionRequest } from '../models/deletionRequest.entity';
 import { User } from '../models/user.entity';
@@ -75,7 +74,7 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
   user.billingZip = undefined;
   user.billingCountry = undefined;
   user.avatarUrl = undefined;
-  user.passwordHash = uuidv4();
+  user.passwordHash = crypto.randomUUID();
   user.email = `deleted+${user.id}+${Date.now()}@deleted.local`;
   user.sessions = [];
   user.suspended = true;
@@ -118,7 +117,7 @@ export async function runDeletionExecutionJob() {
 
 export function scheduleDeletionExecutionJob() {
   runDeletionExecutionJob().catch((e) => console.error('[deletionExecutionJob] initial run failed', e));
-  cron.schedule('0 * * * *', async () => {
+  schedule('0 * * * *', async () => {
     await runDeletionExecutionJob().catch((e) => console.error('[deletionExecutionJob] run failed', e));
   });
 }

@@ -54,7 +54,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     const repo = AppDataSource.getRepository(IDVerification);
 
     const uploadDir = path.join(process.cwd(), 'uploads', 'id-docs');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    if (Bun.file(uploadDir).size === 0) fs.mkdirSync(uploadDir, { recursive: true });
 
     let idDocumentUrl: string | undefined;
     let selfieUrl: string | undefined;
@@ -88,7 +88,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
           return { error: `${entry.field} must not be empty` };
         }
         const encrypted = encryptBufferToString(buffer);
-        fs.writeFileSync(filepath, encrypted, 'utf8');
+        await Bun.write(filepath, encrypted);
 
         const url = `/uploads/id-docs/${filename}`;
         if (entry.field === 'idDocument') idDocumentUrl = url;

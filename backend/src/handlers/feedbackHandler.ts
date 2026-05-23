@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { getRolloutTreatment } from '../services/rolloutService';
+import { In } from 'typeorm';
 
 const ROLLOUT_KEY = 'feedback_prompt';
 
@@ -147,7 +148,7 @@ export async function feedbackRoutes(app: any, prefix = '') {
 
     const userIds = [...new Set(rows.map((r) => r.userId))];
     const users = userIds.length > 0
-      ? await userRepo.findByIds(userIds)
+      ? await userRepo.findBy({ id: In(userIds) })
       : [];
     const userMap = new Map(users.map((u) => [u.id, u]));
 

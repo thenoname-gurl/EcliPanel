@@ -1,7 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
-import cron from 'node-cron';
+import { schedule } from '../utils/cron';
 
 export async function runStudentReverifyJob() {
   const jobId = Date.now();
@@ -52,7 +52,7 @@ export async function scheduleStudentReverifyJob() {
 
   await runStudentReverifyJob().catch((e) => {console.log('Error running student reverify job', e)});
   try {
-    cron.schedule('0 0 * * *', async () => {
+    schedule('0 0 * * *', async () => {
       await runStudentReverifyJob().catch((e) => {console.log('Error running student reverify job', e)});
     });
   } catch (e) {

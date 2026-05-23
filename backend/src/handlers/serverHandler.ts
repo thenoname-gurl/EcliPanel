@@ -9,7 +9,6 @@ import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
 import { Node } from '../models/node.entity';
 import { Egg } from '../models/egg.entity';
-import { v4 as uuidv4 } from 'uuid';
 import { saveServerConfig, removeServerConfig, signWingsJwt, mergeDuplicateServerConfigs } from './remoteHandler';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Mount } from '../models/mount.entity';
@@ -1391,7 +1390,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
       const nodeConfigs = await cfgRepo().find({
         where: { nodeId: node.id },
-        select: ['allocations'],
+        select: { allocations: true },
       });
 
       const takenPorts = new Set<number>();
@@ -1439,7 +1438,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    const serverUuid = uuidv4();
+    const serverUuid = crypto.randomUUID();
 
     const envObject: Record<string, string> = {};
     for (const entry of (egg.envVars || []) as any[]) {
@@ -1706,7 +1705,7 @@ export async function serverRoutes(app: any, prefix = '') {
           return { error: 'This IPv6 address is reserved and cannot be assigned.' };
         }
         const usedAddresses = new Set<string>();
-        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
         for (const c of nodeConfigs) {
           const entry = c.allocations as any;
           if (!entry) continue;
@@ -1724,7 +1723,7 @@ export async function serverRoutes(app: any, prefix = '') {
         candidateIpv6 = normalized;
       } else {
         const used = new Set<string>();
-        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
         for (const c of nodeConfigs) {
           const entry = c.allocations as any;
           if (!entry) continue;
@@ -2945,7 +2944,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const backupRepo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       const ownerId = cfg?.userId || user?.id;
-      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: ['uuid'] }) : [];
+      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: { uuid: true } }) : [];
       const serverUuids = ownedServers.map((s: any) => s.uuid);
       const existingBackups = serverUuids.length > 0 ? await backupRepo.count({ where: { serverUuid: In(serverUuids) } }) : 0;
       if (existingBackups >= accountBackupsLimit) {
@@ -2955,7 +2954,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
     const body = ctx.body || {};
     const adapter = 'wings';
-    const uuid = body.uuid || uuidv4();
+    const uuid = body.uuid || crypto.randomUUID();
     const ignore = typeof body.ignore === 'string' ? body.ignore : '';
 
     try {
@@ -3182,7 +3181,7 @@ export async function serverRoutes(app: any, prefix = '') {
       return { error: 'Server not found' };
     }
     const schedule = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: body.name || '',
       cron_minute: body.cron_minute || '*',
       cron_hour: body.cron_hour || '*',
@@ -3268,7 +3267,7 @@ export async function serverRoutes(app: any, prefix = '') {
           iat: now,
           nbf: now,
           exp: now + 600,
-          jti: uuidv4(),
+          jti: crypto.randomUUID(),
         }, targetNode.token);
 
         payload.url = targetUrl;
@@ -4348,16 +4347,16 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const normalizeUuid = (value: any) => {
-      if (!value) return uuidv4().replace(/-/g, '');
+      if (!value) return crypto.randomUUID().replace(/-/g, '');
       const s = String(value).toLowerCase().replace(/-/g, '');
       if (/^[0-9a-f]{32}$/.test(s)) return s;
-      return uuidv4().replace(/-/g, '');
+      return crypto.randomUUID().replace(/-/g, '');
     };
 
     const now = Math.floor(Date.now() / 1000);
-    const safeUserUuid = normalizeUuid(user?.uuid || user?.id || uuidv4());
+    const safeUserUuid = normalizeUuid(user?.uuid || user?.id || crypto.randomUUID());
     const safeServerUuid = normalizeUuid(id);
-    const jti = normalizeUuid(uuidv4());
+    const jti = normalizeUuid(crypto.randomUUID());
 
     console.debug('wings jwt payload lengths', {
       user_uuid: safeUserUuid.length,

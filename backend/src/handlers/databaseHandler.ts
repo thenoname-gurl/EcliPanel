@@ -177,7 +177,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const accountDatabaseLimit = user?.limits && typeof user.limits.databases === 'number' ? user.limits.databases : 0;
     if (accountDatabaseLimit > 0) {
       const ownerId = cfg.userId || user?.id;
-      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: ['uuid'] }) : [];
+      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: { uuid: true } }) : [];
       const serverUuids = ownedServers.map((s: any) => s.uuid);
       const existingAccountDbs = serverUuids.length > 0 ? await dbRepo().count({ where: { serverUuid: In(serverUuids) } }) : 0;
       if (existingAccountDbs >= accountDatabaseLimit) {
