@@ -15,6 +15,67 @@ import { hasPermissionSync } from '../middleware/authorize';
  * D: Basketball
 */
 
+function formatMetadataForEmail(meta: Record<string, any>, action: string): { message: string; details: string } {
+  const { changes, actor, where: target, ipAddress, ...rest } = meta || {};
+
+  const actionLabel = action.replace(/[:_-]/g, ' ').replace(/\b\w/g, (s: string) => s.toUpperCase());
+  const actorName = actor?.name ? `${actor.name}` : '';
+  let message = `Event: ${actionLabel}`;
+  if (actorName) message += ` by ${actorName}`;
+  if (target) message += ` on ${target}`;
+
+  const lines: string[] = [];
+
+  if (changes && typeof changes === 'object') {
+    const entries = Object.entries(changes).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    if (entries.length > 0) {
+      lines.push('Changes:');
+      for (const [key, val] of entries) {
+        let formatted = val;
+        if (typeof val === 'number') {
+          if (['memory', 'disk', 'swap'].includes(key)) {
+            formatted = val >= 1024 ? `${(val / 1024).toFixed(1)} GB` : `${val} MB`;
+          } else if (key === 'cpu') {
+            formatted = `${val} core${val !== 1 ? 's' : ''}`;
+          } else if (key === 'ioWeight') {
+            formatted = String(val);
+          }
+        } else if (typeof val === 'boolean') {
+          formatted = val ? 'Yes' : 'No';
+        }
+        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase());
+        lines.push(`  \u2022 ${label}: ${formatted}`);
+      }
+    }
+  }
+
+  if (ipAddress) {
+    if (lines.length > 0) lines.push('');
+    lines.push(`IP Address: ${ipAddress}`);
+  }
+
+  if (actor) {
+    if (lines.length > 0 && !changes) lines.push('');
+    if (actor.email) lines.push(`Email: ${actor.email}`);
+    if (actor.role && actor.role !== '*') lines.push(`Role: ${actor.role}`);
+  }
+
+  const remaining = Object.entries(rest).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  if (remaining.length > 0) {
+    if (lines.length > 0) lines.push('');
+    for (const [key, val] of remaining) {
+      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase());
+      if (typeof val === 'object') {
+        lines.push(`${label}: ${JSON.stringify(val)}`);
+      } else {
+        lines.push(`${label}: ${val}`);
+      }
+    }
+  }
+
+  return { message, details: lines.join('\n') };
+}
+
 function stripHtml(value: any): any {
   if (typeof value === 'string') {
     let result = '';
@@ -119,8 +180,9 @@ export async function createActivityLog(opts: {
 
       const title = notifKey === 'serverErrors' ? 'Server Error' : notifKey === 'serverLifecycle' ? 'Server Event' : notifKey === 'serverActivity' ? 'Server Activity' : notifKey === 'billing' ? 'Billing Notification' : notifKey === 'security' ? 'Security Alert' : notifKey === 'productUpdates' ? 'Product Update' : notifKey === 'tickets' ? 'Ticket Update' : 'Notification';
 
-      const message = `Event: ${entry.action}`;
-      const details = entry.metadata ? JSON.stringify(entry.metadata, null, 2) : '';
+      const formatted = entry.metadata ? formatMetadataForEmail(entry.metadata, entry.action) : null;
+      const message = formatted?.message || `Event: ${entry.action}`;
+      const details = formatted?.details || '';
 
       try {
         await sendMail({
