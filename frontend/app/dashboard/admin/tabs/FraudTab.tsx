@@ -42,10 +42,14 @@ export default function FraudTab({ ctx }: { ctx: any }) {
             onClick={async () => {
               setFraudScanningAll(true)
               try {
-                const res = await apiFetch(API_ENDPOINTS.adminFraudScanAll, { method: "POST" })
-                alert(t("alerts.scanComplete", { count: res.flagged }))
-                const data = await apiFetch(API_ENDPOINTS.adminFraudAlerts)
-                setFraudAlerts(data || [])
+                await apiFetch(API_ENDPOINTS.adminFraudScanAll, { method: "POST" })
+                alert(t("alerts.scanStarted"))
+                setTimeout(async () => {
+                  try {
+                    const data = await apiFetch(API_ENDPOINTS.adminFraudAlerts)
+                    setFraudAlerts(data || [])
+                  } catch {}
+                }, 5000)
               } catch (e: any) {
                 alert(t("alerts.scanFailed", { reason: e.message }))
               } finally {

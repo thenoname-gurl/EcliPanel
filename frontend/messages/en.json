@@ -1807,6 +1807,7 @@
       "detected": "Detected"
     },
     "alerts": {
+      "scanStarted": "Global fraud scan initiated — results will be available shortly. Refresh the tab to see updates.",
       "scanComplete": "Scan complete — {count} user(s) flagged",
       "scanFailed": "Scan failed: {reason}",
       "confirmDismissSelected": "Dismiss {count} selected fraud alert(s)?",
@@ -3485,7 +3486,10 @@
       "rejectedSubuserInvite": "Rejected server subuser invite",
       "serverSuspend": "Suspended server",
       "serverUnsuspend": "Unsuspended server",
-      "updatedProfile": "Updated profile settings"
+      "updatedProfile": "Updated profile settings",
+      "fraudScanStarted": "Fraud scan started",
+      "fraudScanCompleted": "Fraud scan completed",
+      "fraudScanError": "Fraud scan failed"
     }
   },
   "serversPage": {

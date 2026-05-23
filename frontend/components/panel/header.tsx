@@ -70,10 +70,14 @@ function formatNotificationAction(action: string, tHeader: (key: string) => stri
     "update-profile": tHeader("actionLabels.updatedProfile"),
     "server:suspend": tHeader("actionLabels.serverSuspend"),
     "server:unsuspend": tHeader("actionLabels.serverUnsuspend"),
+    "admin:fraud-scan:started": tHeader("actionLabels.fraudScanStarted"),
+    "admin:fraud-scan:completed": tHeader("actionLabels.fraudScanCompleted"),
+    "admin:fraud-scan:error": tHeader("actionLabels.fraudScanError"),
   }
 
   const normalized = action.toLowerCase()
-  if (actionLabels[normalized]) return actionLabels[normalized]
+  const normalizedAction = normalized.split(/\s[—–\-]\s/)[0]
+  if (actionLabels[normalizedAction]) return actionLabels[normalizedAction]
 
   const prefix = "activity.actions."
   if (normalized.startsWith(prefix)) {
