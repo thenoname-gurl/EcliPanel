@@ -18,6 +18,8 @@ export async function authenticate(ctx: any) {
     return h[name.toLowerCase()] || h[name];
   };
 
+  const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
+
   const getCookieToken = () => {
     const cookieName = process.env.JWT_COOKIE_NAME || 'token';
     if (ctx.cookie && ctx.cookie[cookieName]) {
@@ -48,16 +50,16 @@ export async function authenticate(ctx: any) {
     const entry = await repo.findOne({ where: { key }, relations: {"user":true} });
     if (!entry || (entry.expiresAt && new Date(entry.expiresAt) < new Date())) {
       ctx.set.status = 401;
-      return { error: ctx.t('auth.apiKeyInvalid') };
+      return { error: t('auth.apiKeyInvalid', 'Invalid API key') };
     }
     ctx.apiKey = entry;
     if (entry.user) ctx.user = entry.user;
     return;
   }
 
-  if (!auth) {
+    if (!auth) {
     ctx.set.status = 401;
-    return { error: ctx.t('auth.missingToken') };
+    return { error: t('auth.missingToken', 'Missing auth token') };
   }
 
   let rawToken = '';
@@ -69,7 +71,7 @@ export async function authenticate(ctx: any) {
   }
   if (!rawToken) {
     ctx.set.status = 401;
-    return { error: ctx.t('auth.invalidTokenFormat') };
+    return { error: t('auth.invalidTokenFormat', 'Invalid token format') };
   }
 
   try {
@@ -85,21 +87,21 @@ export async function authenticate(ctx: any) {
     
     if (!user) {
       ctx.set.status = 401;
-      return { error: ctx.t('user.notFound') };
+      return { error: t('user.notFound', 'User not found') };
     }
     if (!user.sessions || !user.sessions.includes(decoded.sessionId)) {
       ctx.set.status = 401;
-      return { error: ctx.t('validation.invalidSession') };
+      return { error: t('validation.invalidSession', 'Invalid session') };
     }
 
     if (user.suspended) {
       ctx.set.status = 403;
-      return { error: ctx.t('user.accountSuspended') };
+      return { error: t('user.accountSuspended', 'Account suspended') };
     }
 
     if (user.pendingDeletionUntil && new Date(user.pendingDeletionUntil) > new Date()) {
       ctx.set.status = 403;
-      return { error: ctx.t('user.accountIsPendingDeletionAndCurrentlyFrozen') };
+      return { error: t('user.accountIsPendingDeletionAndCurrentlyFrozen', 'Account pending deletion') };
     }
 
     ctx.user = user;
@@ -129,7 +131,7 @@ export async function authenticate(ctx: any) {
     if (entry) {
       if (entry.expiresAt && new Date(entry.expiresAt) < new Date()) {
         ctx.set.status = 401;
-        return { error: ctx.t('auth.apiKeyInvalid') };
+        return { error: t('auth.apiKeyInvalid', 'Invalid API key') };
       }
       ctx.apiKey = entry;
       if (entry.user) ctx.user = entry.user;
@@ -145,7 +147,7 @@ export async function authenticate(ctx: any) {
   });
   if (!oauthToken || new Date() > oauthToken.accessTokenExpiresAt) {
     ctx.set.status = 401;
-    return { error: ctx.t('auth.invalidToken') };
+    return { error: t('auth.invalidToken', 'Invalid token') };
   }
   ctx.oauthToken = oauthToken;
   if (oauthToken.user) ctx.user = oauthToken.user;
