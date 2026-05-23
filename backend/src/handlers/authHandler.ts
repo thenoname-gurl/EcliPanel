@@ -14,7 +14,7 @@ import { sendMail } from '../services/mailService';
 import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicyService';
 import { validatePassword } from '../utils/passwordValidation';
 import { storeCsrfToken } from '../middleware/csrf';
-import crypto from 'crypto';
+import { randomHex, randomInt, sha256Hex } from '../utils/bunCrypto';
 const speakeasy = require('speakeasy');
 
 // I fixed it :D
@@ -62,12 +62,7 @@ function getFrontendHost(ctx: any): string {
 }
 
 async function randomToken(bytes = 32) {
-  return new Promise<string>((resolve, reject) => {
-    require('crypto').randomBytes(bytes, (err, buf) => {
-      if (err) reject(err);
-      else resolve(buf.toString('hex'));
-    });
-  });
+  return Promise.resolve(randomHex(bytes));
 }
 
 async function verifyTempToken(token: string, logSource: string, ctx: any) {
@@ -403,7 +398,7 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 404;
       return { error: 'User not found' };
     }
-    const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    const code = randomInt(0, 1000000).toString().padStart(6, '0');
     await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
     try {
       await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@ecli.app', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code } });
@@ -471,7 +466,7 @@ export async function authRoutes(app: any, prefix = '') {
 
       if (backupCode) {
         const hashes = user.twoFactorRecoveryCodes || [];
-        const h = require('crypto').createHash('sha256').update(String(backupCode)).digest('hex');
+        const h = sha256Hex(String(backupCode));
         if (!hashes.includes(h)) {
           const bakKey = `rate:auth:2fa:backup:user:${payload.userId}`;
           try { const bRl = await require('../config/redis').consumeRateLimit(bakKey, 5, 3600); if (!bRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: bRl.retryAfterSeconds }; } } catch {}
@@ -674,7 +669,7 @@ export async function authRoutes(app: any, prefix = '') {
 
 
   async function sendVerificationEmail(user: User) {
-    const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    const code = randomInt(0, 1000000).toString().padStart(6, '0');
     const token = uuidv4();
 
     await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
@@ -901,7 +896,7 @@ export async function authRoutes(app: any, prefix = '') {
 
     let payload: any;
     try {
-      const jsonString = typeof data === 'string' ? data : data?.toString?.('utf8') || '';
+      const jsonString = String(data);
       payload = JSON.parse(jsonString);
     } catch (e) {
       ctx.set.status = 400;
@@ -1168,7 +1163,7 @@ export async function authRoutes(app: any, prefix = '') {
     for (let i = 0; i < 10; i++) {
       const c = await randomToken(6);
       codes.push(c);
-      hashes.push(require('crypto').createHash('sha256').update(c).digest('hex'));
+      hashes.push(sha256Hex(c));
     }
     user.twoFactorRecoveryCodes = hashes;
     await userRepo.save(user);

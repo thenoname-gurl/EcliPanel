@@ -7,7 +7,7 @@ import {
 import { AppDataSource } from '../config/typeorm';
 import { Passkey } from '../models/passkey.entity';
 import base64url from 'base64url';
-import crypto from 'crypto';
+import { sha256Bytes } from '../utils/bunCrypto';
 import { isoBase64URL, decodeAttestationObject, parseAuthenticatorData } from '@simplewebauthn/server/helpers';
 
 const rpName = 'Ecli Panel';
@@ -85,11 +85,11 @@ export class PasskeyService {
       const buf = Buffer.from(parsed.rpIdHash);
       if (Array.isArray(rpID)) {
         rpID.forEach((id) => {
-          const h = crypto.createHash('sha256').update(id).digest();
+          const h = Buffer.from(sha256Bytes(id));
           console.log(`  expected rpIdHash for ${id}:`, h.toString('hex'), 'match:', h.equals(buf));
         });
       } else {
-        const h = crypto.createHash('sha256').update(rpID).digest();
+        const h = Buffer.from(sha256Bytes(rpID));
         console.log('  expected rpIdHash for', rpID, ':', h.toString('hex'), 'match:', h.equals(buf));
       }
     } catch (e) {

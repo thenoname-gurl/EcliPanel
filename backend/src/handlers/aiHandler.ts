@@ -5,7 +5,6 @@ import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
-import axios from 'axios';
 import { redisClient } from '../config/redis';
 import { createActivityLog } from './logHandler';
 import { AIUsage } from '../models/aiUsage.entity';
@@ -13,6 +12,7 @@ import { User } from '../models/user.entity';
 import { t } from 'elysia';
 import { In } from 'typeorm';
 import { sanitizeError } from '../utils/sanitizeError';
+import { httpRequest } from '../utils/http';
 
 // I swear I hate this route handler, 
 // its a dumping ground ngl
@@ -83,7 +83,7 @@ export async function aiRoutes(app: any, prefix = '') {
       const url = `${ep.base.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}`;
       const hdrs = { ...(headers || {}), Authorization: `Bearer ${ep.apiKey || ''}`, 'Content-Type': 'application/json' } as any;
       try {
-        const res = await axios.request({ method: method as any, url, data, headers: hdrs, timeout: timeoutMs });
+        const res = await httpRequest(url, { method: method as any, body: data, headers: hdrs, timeoutMs });
         return res;
       } catch (e: any) {
         const status = e.response?.status;
@@ -470,16 +470,12 @@ export async function aiRoutes(app: any, prefix = '') {
       if (ep.apiKey) headers.authorization = `Bearer ${ep.apiKey}`;
       delete headers.host;
       try {
-        const res2 = await axios({
+        const res2 = await fetch(url, {
           method: ctx.method as any,
-          url,
           headers,
-          data: ctx.raw,
-          responseType: 'stream',
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
+          body: ['GET', 'HEAD'].includes(String(ctx.method || '').toUpperCase()) ? undefined : ctx.raw,
         });
-        const response = new Response(res2.data, { status: res2.status, headers: res2.headers as any });
+        const response = new Response(res2.body, { status: res2.status, headers: res2.headers as any });
         return response;
       } catch (e: any) {
         const status = e.response?.status;

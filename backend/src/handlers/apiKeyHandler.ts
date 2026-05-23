@@ -2,7 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { ApiKey } from '../models/apiKey.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
-import crypto from 'crypto';
+import { randomHex } from '../utils/bunCrypto';
 import { t } from 'elysia';
 
 export async function apiKeyRoutes(app: any, prefix = '') {
@@ -57,7 +57,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       return { error: 'name and valid type required' };
     }
-    const key = crypto.randomBytes(32).toString('hex');
+    const key = randomHex(32);
 
     let userRef;
     const canManageUsers = actor && hasPermissionSync(ctx, 'users:write');

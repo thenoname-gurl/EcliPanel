@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import { randomBytes } from '../utils/bunCrypto';
 import { AppDataSource } from '../config/typeorm';
 import { MailboxAccount } from '../models/mailboxAccount.entity';
 import { User } from '../models/user.entity';
@@ -127,7 +127,7 @@ function normalizeLocalPart(email: string) {
 }
 
 function randomPassword() {
-  return crypto.randomBytes(16).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+  return Buffer.from(randomBytes(16)).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
 }
 
 function resolveMailboxDomain() {

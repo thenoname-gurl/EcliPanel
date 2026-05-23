@@ -1,5 +1,3 @@
-import axios from 'axios';
-import https from 'https';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
@@ -7,8 +5,7 @@ import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 const INTERVAL_MS    = 30_000; 
 const PING_TIMEOUT   =  8_000; 
 const RETENTION_DAYS =      7; 
-
-const allowInvalidCerts = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
+const ALLOW_INVALID_CERTS = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
 
 export class NodeHeartbeatService {
   private pingInterval:   ReturnType<typeof setInterval> | null = null;
@@ -39,21 +36,28 @@ export class NodeHeartbeatService {
   }
 
   private async pingNode(node: Node) {
-    const baseUrl  = ((node as any).backendWingsUrl || node.url).replace(/\/\/+$/, '');
-    const endpoint = `${baseUrl}/api/system`;
+    const raw     = ((node as any).backendWingsUrl || node.url).replace(/\/+$/, '');
+    const baseUrl = raw.endsWith('/api') ? raw.slice(0, -4) : raw;
+    const endpoint = `${baseUrl}/api/servers`;
 
     let responseMs: number | undefined;
     let status = 'ok';
     const start = Date.now();
 
     try {
-      const cfg: any = {
-        timeout: PING_TIMEOUT,
-        headers: { Authorization: `Bearer ${node.token}` },
-        validateStatus: (s: number) => s < 600,
-      };
-      if (allowInvalidCerts) cfg.httpsAgent = new https.Agent({ rejectUnauthorized: false });
-      await axios.get(endpoint, cfg);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT);
+      try {
+        const fetchOpts: RequestInit & { tls?: { rejectUnauthorized: boolean } } = {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${node.token}` },
+          signal: controller.signal,
+        };
+        if (ALLOW_INVALID_CERTS) fetchOpts.tls = { rejectUnauthorized: false };
+        await fetch(endpoint, fetchOpts);
+      } finally {
+        clearTimeout(timeout);
+      }
       responseMs = Date.now() - start;
     } catch (e: any) {
       if (

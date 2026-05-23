@@ -1,10 +1,10 @@
 import { redisGet, redisSet } from '../config/redis';
-import crypto from 'crypto';
+import { randomHex, timingSafeEqual } from '../utils/bunCrypto';
 
 export const CSRF_HEADER = 'x-csrf-token';
 
 export function generateCsrfToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return randomHex(32);
 }
 
 export function csrfTokenKey(sessionId: string): string {
@@ -21,8 +21,8 @@ export async function validateCsrfToken(sessionId: string, token: string): Promi
   if (!sessionId || !token) return false;
   try {
     const expected = await redisGet(csrfTokenKey(sessionId));
-    if (!expected) return false;
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+    if (!expected) return false; 
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
   } catch {
     return false;
   }

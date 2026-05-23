@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import { randomHex, timingSafeEqual } from './bunCrypto';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -21,6 +21,12 @@ const TTS_SPEED = (() => {
   return Number.isFinite(raw) && raw >= 80 && raw <= 600 ? raw : 150;
 })();
 
+function hmacSha256Hex(secret: string | undefined, payload: string): string {
+  const hasher = new Bun.CryptoHasher('sha256', secret as string);
+  hasher.update(payload);
+  return hasher.digest('hex');
+}
+
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -30,10 +36,10 @@ function randomFloat(min: number, max: number) {
 }
 
 export function generateInvisibleCaptcha() {
-  const nonce = crypto.randomBytes(8).toString('hex');
+  const nonce = randomHex(8);
   const created = Date.now();
   const payload = `${nonce}|${created}`;
-  const signature = crypto.createHmac('sha256', CAPTCHAS_INVISIBLE_SECRET).update(payload).digest('hex');
+  const signature = hmacSha256Hex(CAPTCHAS_INVISIBLE_SECRET, payload);
   const token = Buffer.from(`${payload}|${signature}`).toString('base64');
   return { token, created };
 }
@@ -59,9 +65,9 @@ export function validateInvisibleCaptcha(token: string, elapsedMs: number | unde
   if (created + INVISIBLE_TTL_MS < Date.now()) return false;
 
   const payload = `${nonce}|${created}`;
-  const expectedSignature = crypto.createHmac('sha256', CAPTCHAS_INVISIBLE_SECRET).update(payload).digest('hex');
+  const expectedSignature = hmacSha256Hex(CAPTCHAS_INVISIBLE_SECRET, payload);
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
+    if (!timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
       return false;
     }
   } catch {
@@ -675,12 +681,12 @@ export async function generateCaptcha() {
 
   const expires = Date.now() + TTL_MS;
   const payload = `${answer}|${expires}`;
-  const signature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  const signature = hmacSha256Hex(SECRET, payload);
   const token = Buffer.from(`${payload}|${signature}`).toString('base64');
 
   const width = 220;
   const height = 90;
-  const captchaId = crypto.randomBytes(4).toString('hex');
+  const captchaId = randomHex(4);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`;
   svg += `<defs>`;
@@ -801,10 +807,10 @@ export function validateCaptcha(token: string, answer: number | string): boolean
   if (!Number.isFinite(expires) || expires < Date.now()) return false;
 
   const payload = `${expectedAnswer}|${expires}`;
-  const expectedSignature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  const expectedSignature = hmacSha256Hex(SECRET, payload);
 
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
+    if (!timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
       return false;
     }
   } catch {

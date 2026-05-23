@@ -8,7 +8,7 @@ import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { In, Not } from 'typeorm';
 import * as mariadb from 'mariadb';
-import crypto from 'crypto';
+import { randomHex } from '../utils/bunCrypto';
 import { sanitizeError } from '../utils/sanitizeError';
 
 function hostRepo() { return AppDataSource.getRepository(DatabaseHost); }
@@ -25,7 +25,7 @@ async function rootConn(host: DatabaseHost) {
 }
 
 function randStr(len: number) {
-  return crypto.randomBytes(len).toString('hex').slice(0, len);
+  return randomHex(len).slice(0, len);
 }
 
 function uuidSlug(uuid: string) {

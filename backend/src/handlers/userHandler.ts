@@ -29,7 +29,7 @@ import { resizeImage } from '../workers/imageWorker';
 import { WingsApiService } from '../services/wingsApiService';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { t } from 'elysia';
-import crypto from 'crypto';
+import { randomHex, randomInt } from '../utils/bunCrypto';
 import { Plan } from '../models/plan.entity';
 import { Order } from '../models/order.entity';
 import { Node } from '../models/node.entity';
@@ -169,7 +169,7 @@ function getAgeFromDate(date?: Date | string | null): number | null {
 }
 
 function generateParentLinkCode(): string {
-  return crypto.randomBytes(3).toString('hex').toUpperCase();
+  return randomHex(3).toUpperCase();
 }
 
 function getRequesterIp(ctx: any): string {
@@ -222,7 +222,7 @@ async function enforceOutboundEmailRateLimit(ctx: any, scope: string, userId: nu
 }
 
 async function sendVerificationEmailToUser(user: User) {
-  const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+  const code = randomInt(0, 1000000).toString().padStart(6, '0');
   const token = uuidv4();
 
   await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
@@ -428,7 +428,7 @@ export async function userRoutes(app: any, prefix = '') {
     await logRepo.save(logRepo.create({ userId: user.id, action: 'register', timestamp: new Date() }));
 
     try {
-      const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+      const code = randomInt(0, 1000000).toString().padStart(6, '0');
       const token = uuidv4();
       await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
       await redisSet(`email-verify:code:${user.id}`, code, 86400);
@@ -719,7 +719,7 @@ export async function userRoutes(app: any, prefix = '') {
     const invite = inviteRepo.create({
       parentId: requester.id,
       childEmail: childEmail || null,
-      token: crypto.randomBytes(10).toString('hex').toUpperCase(),
+      token: randomHex(10).toUpperCase(),
       used: false,
       inheritBilling,
       createdAt: new Date(),
