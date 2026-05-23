@@ -144,7 +144,7 @@ export function schedule(expr: string, fn: () => void): { stop: () => void } {
     const now = new Date();
     const next = nextRun(expr, now);
     if (!next) {
-      console.error('cron: unsupported expression (redacted)');
+      console.error(`cron: unsupported expression "${expr}"`);
       return;
     }
     const delay = next.getTime() - now.getTime();
