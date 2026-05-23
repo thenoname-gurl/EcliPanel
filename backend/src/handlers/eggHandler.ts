@@ -291,6 +291,16 @@ export async function eggRoutes(app: any, prefix = '') {
 
     if (body?.url) {
       try {
+        const parsedUrl = new URL(body.url as string);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          ctx.set.status = 400;
+          return { error: 'URL must use http or https scheme' };
+        }
+      } catch {
+        ctx.set.status = 400;
+        return { error: 'Invalid URL' };
+      }
+      try {
         const response = await fetch(body.url as string);
         if (!response.ok) {
           ctx.set.status = 400;

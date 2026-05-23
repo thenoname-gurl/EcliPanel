@@ -63,8 +63,13 @@ function getFrontendHost(ctx: any): string {
   return 'localhost';
 }
 
-function randomToken(bytes = 32) {
-  return require('crypto').randomBytes(bytes).toString('hex');
+async function randomToken(bytes = 32) {
+  return new Promise<string>((resolve, reject) => {
+    require('crypto').randomBytes(bytes, (err, buf) => {
+      if (err) reject(err);
+      else resolve(buf.toString('hex'));
+    });
+  });
 }
 
 async function verifyTempToken(token: string, logSource: string, ctx: any) {
@@ -480,8 +485,10 @@ export async function authRoutes(app: any, prefix = '') {
       }
 
       if (token) {
-        const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
-        try { const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
+        const totpSoftKey = `rate:auth:2fa:totp:soft:user:${payload.userId}`;
+        try { const tRl = await require('../config/redis').consumeRateLimit(totpSoftKey, 3, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
+        const totpHardKey = `rate:auth:2fa:totp:hard:user:${payload.userId}`;
+        try { const hRl = await require('../config/redis').consumeRateLimit(totpHardKey, 10, 3600); if (!hRl.allowed) { ctx.set.status = 429; return { error: 'Account temporarily locked due to too many 2FA attempts. Try again later.', retryAfter: hRl.retryAfterSeconds }; } } catch {}
         const speakeasy = require('speakeasy');
         const ok = speakeasy.totp.verify({ secret: user.twoFactorSecret || '', encoding: 'base32', token: String(token).trim(), window: 1 });
         if (!ok) {
@@ -543,6 +550,14 @@ export async function authRoutes(app: any, prefix = '') {
       const ip = (ctx.ip || '').toString();
       const key = `rate:auth:password-reset:ip:${ip}`; const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.PASSWORD_RESET_RATE_IP || 6), Number(process.env.PASSWORD_RESET_WINDOW_IP || 3600)); if (!rl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
     } catch (e) {/* meow */}
+    try {
+      const emailLower = String(email).toLowerCase().trim();
+      if (emailLower) {
+        const emailKey = `rate:auth:password-reset:email:${emailLower}`;
+        const eRl = await require('../config/redis').consumeRateLimit(emailKey, Number(process.env.PASSWORD_RESET_RATE_EMAIL || 3), Number(process.env.PASSWORD_RESET_WINDOW_EMAIL || 3600));
+        if (!eRl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(eRl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: eRl.retryAfterSeconds }; }
+      }
+    } catch {}
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ email });
@@ -611,7 +626,7 @@ export async function authRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(userId) });
     if (!user) {
       ctx.set.status = 400;
-      return { error: 'Invalid token' };
+      return { error: 'Invalid or expired token' };
     }
 
     user.passwordHash = await hashPassword(password);
@@ -1153,7 +1168,7 @@ export async function authRoutes(app: any, prefix = '') {
     const codes: string[] = [];
     const hashes: string[] = [];
     for (let i = 0; i < 10; i++) {
-      const c = randomToken(6);
+      const c = await randomToken(6);
       codes.push(c);
       hashes.push(require('crypto').createHash('sha256').update(c).digest('hex'));
     }
@@ -1197,7 +1212,11 @@ export async function authRoutes(app: any, prefix = '') {
     user.twoFactorEnabled = false;
     user.twoFactorSecret = undefined;
     user.twoFactorRecoveryCodes = undefined;
+    user.sessions = [];
     await userRepo.save(user);
+    try {
+      await require('../config/redis').redisDelByPrefix(`csrf:${(ctx.jwtPayload as any)?.sessionId}`);
+    } catch {}
     ctx.log.info({ userId: user.id, twoFactorEnabled: user.twoFactorEnabled }, 'User 2FA disabled');
     return { success: true };
   }, {
@@ -1238,7 +1257,7 @@ export async function authRoutes(app: any, prefix = '') {
   // and I will hope whatever I did will work..
   app.get(prefix + '/auth/github/start', async (ctx: any) => {
     const user = ctx.user;
-    const state = randomToken(16);
+    const state = await randomToken(16);
     await redisSet(`github-student-state:${state}`, String(user.id), 600);
     const clientId = process.env.GITHUB_CLIENT_ID;
     if (!clientId) {
@@ -1363,7 +1382,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/auth/hackclub/start', async (ctx: any) => {
     const user = ctx.user;
-    const state = randomToken(16);
+    const state = await randomToken(16);
     await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
     const clientId = process.env.HACKCLUB_CLIENT_ID;
     const redirectUri = process.env.HACKCLUB_REDIRECT_URI

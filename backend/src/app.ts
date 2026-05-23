@@ -354,8 +354,10 @@ app.onError((ctx: any) => {
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
   }
 
+  (app as any).log?.warn?.({ err: ctx.error, url: ctx.request.url, status }, 'Request error');
+
   const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-    return new Response(JSON.stringify({ error: ctx.error?.message ?? 'Request error' }), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
+    return new Response(JSON.stringify({ error: 'Request error' }), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token', 'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control' } });
 });
 
 declare module 'elysia' {
@@ -421,7 +423,7 @@ app.onRequest(async (ctx: any) => {
     }
   }
 
-  const ip: string =
+  const effectiveIP: string =
     cfIPv6 ||
     cfIP ||
     xForwardedFor ||
@@ -429,21 +431,21 @@ app.onRequest(async (ctx: any) => {
     remoteAddr ||
     'unknown';
 
-  try { (ctx as any).ip = ip; } catch { /* skip */ }
-  try { (ctx.request as any).ip = ip; } catch { /* skip */ }
+  try { (ctx as any).ip = effectiveIP; } catch { /* skip */ }
+  try { (ctx.request as any).ip = effectiveIP; } catch { /* skip */ }
   try {
-    (ctx as any).clientIP = ip;
+    (ctx as any).clientIP = effectiveIP;
   } catch {
     /* skip */
   }
   try {
     (ctx as any).store = (ctx as any).store || {};
-    (ctx as any).store.clientIP = ip;
+    (ctx as any).store.clientIP = effectiveIP;
   } catch {
     /* skip */
   }
 
-  if (ip === 'unknown') {
+  if (effectiveIP === 'unknown') {
     console.warn('[IP Resolution Failed]', {
       cfIPv6: getHeader('cf-connecting-ipv6'),
       cfIP: getHeader('cf-connecting-ip'),
@@ -452,14 +454,13 @@ app.onRequest(async (ctx: any) => {
     });
   }
 
+  const _rateLimitIP = remoteAddr || effectiveIP;
   const now = Date.now();
-  let bucket = _rateBuckets.get(ip);
-  if (!bucket || now > bucket.resetAt) {
-    bucket = { count: 1, resetAt: now + 60_000 };
-    _rateBuckets.set(ip, bucket);
-  } else {
-    bucket.count++;
-  }
+  const existing = _rateBuckets.get(_rateLimitIP);
+  const bucket = (existing && now <= existing.resetAt)
+    ? (existing.count++, existing)
+    : { count: 1, resetAt: now + 60_000 };
+  _rateBuckets.set(_rateLimitIP, bucket);
 
   if (bucket.count > 500) {
     const origin =

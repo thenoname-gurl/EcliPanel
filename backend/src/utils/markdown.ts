@@ -8,6 +8,8 @@ export function escapeHtml(value: any) {
     .replace(/'/g, '&#39;');
 }
 
+const ALLOWED_URI_SCHEMES = /^(https?|mailto):/i;
+
 export function markdownToHtml(md: any) {
   if (!md) return '';
   let src = String(md);
@@ -16,8 +18,14 @@ export function markdownToHtml(md: any) {
   });
 
   let out = escapeHtml(src);
-  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;"/>');
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, url) => {
+    const safeUrl = ALLOWED_URI_SCHEMES.test(url) ? url.replace(/&/g, '&amp;') : '';
+    return `<img src="${safeUrl}" alt="${alt}" style="max-width:100%;height:auto;"/>`;
+  });
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, url) => {
+    const safeUrl = ALLOWED_URI_SCHEMES.test(url) ? url.replace(/&/g, '&amp;') : '';
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');

@@ -2036,13 +2036,20 @@ export async function userRoutes(app: any, prefix = '') {
           : null;
     const authMetadata = await extractMailboxAuthMetadata(body.headers || null, rawHeadersValue || undefined);
 
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '');
+    const sanitizeHtml = (s: string) => s
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/javascript\s*:/gi, '');
+
     const saved = messageRepo.create({
       userId: user.id,
       fromAddress: String(body.from || body.fromAddress || 'unknown').trim(),
       toAddress: parsed.address,
-      subject: String(body.subject || 'No subject').trim(),
-      body: String(body.text || body.body || '').trim() || '',
-      html: body.html ? String(body.html) : null,
+      subject: stripHtml(String(body.subject || 'No subject').trim()),
+      body: stripHtml(String(body.text || body.body || '').trim()) || '',
+      html: body.html ? sanitizeHtml(String(body.html)) : null,
       headers: body.headers ? JSON.stringify(body.headers) : null,
       rawHeaders: rawHeadersValue || undefined,
       senderIp: authMetadata.senderIp || undefined,
@@ -2340,6 +2347,23 @@ export async function userRoutes(app: any, prefix = '') {
       'address', 'address2', 'billingCompany', 'billingCity', 'billingState', 'billingZip', 'billingCountry', 'settings'];
     const ADMIN_ONLY_FIELDS = ['role', 'portalType', 'nodeId', 'limits', 'settings', 'emailVerified', 'idVerified', 'suspended', 'fraudFlag', 'fraudReason', 'parentId'];
     const allowed = isAdmin ? [...USER_FIELDS, ...ADMIN_ONLY_FIELDS] : USER_FIELDS;
+
+    if ('settings' in payload && !isAdmin) {
+      const incoming = payload.settings;
+      if (incoming && typeof incoming === 'object') {
+        const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'locale', 'editor', 'notifications', 'emailPreferences', 'serverFavorites', 'guideShown']);
+        const sanitized: Record<string, any> = {};
+        for (const k of Object.keys(incoming)) {
+          if (ALLOWED_SETTINGS_KEYS.has(k)) {
+            sanitized[k] = (incoming as any)[k];
+          }
+        }
+        payload.settings = { ...(user.settings && typeof user.settings === 'object' ? user.settings : {}), ...sanitized };
+      } else if (incoming === null || incoming === undefined) {
+        delete payload.settings;
+      }
+    }
+
     for (const key of allowed) {
       if (key === 'email') continue;
       if (key in payload) (user as any)[key] = payload[key];

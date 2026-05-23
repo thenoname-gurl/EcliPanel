@@ -74,7 +74,7 @@ export async function authenticate(ctx: any) {
 
   try {
     const secret = process.env.JWT_SECRET;
-    const decoded = jwtLib.verify(rawToken, secret) as any;
+    const decoded = jwtLib.verify(rawToken, secret, { algorithms: ['HS256'] }) as any;
     ctx.jwtPayload = decoded;
 
     const userRepo = AppDataSource.getRepository(User);
