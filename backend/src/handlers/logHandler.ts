@@ -17,13 +17,14 @@ import { hasPermissionSync } from '../middleware/authorize';
 
 function stripHtml(value: any): any {
   if (typeof value === 'string') {
-    let current = value;
-    let previous: string;
-    do {
-      previous = current;
-      current = current.replace(/<[^>]*>/g, '');
-    } while (current !== previous);
-    return current;
+    let result = '';
+    let last = 0;
+    for (const m of value.matchAll(/<[^>]*>/g)) {
+      result += Bun.escapeHTML(value.slice(last, m.index));
+      last = m.index + m[0].length;
+    }
+    result += Bun.escapeHTML(value.slice(last));
+    return result;
   }
   if (Array.isArray(value)) {
     return value.map(stripHtml);

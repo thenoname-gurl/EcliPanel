@@ -2042,42 +2042,35 @@ export async function userRoutes(app: any, prefix = '') {
       'img', 'sup', 'sub',
     ]);
 
-    const removeDangerousTags = (s: string) => {
-      let prev: string;
-      let r = s;
-      do {
-        prev = r;
-        r = r
-          .replace(/<\/?script[^>]*>/gi, '')
-          .replace(/<\/?style[^>]*>/gi, '')
-          .replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, '')
-          .replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, '')
-          .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|`[^`]*`|[^\s>]+)/gi, '')
-          .replace(/javascript\s*:/gi, '');
-      } while (r !== prev);
-      return r;
-    };
-
     const stripHtml = (s: string) => {
-      let prev: string;
-      let r = removeDangerousTags(s);
-      do {
-        prev = r;
-        r = r.replace(/<[^>]*>/g, '');
-      } while (r !== prev);
-      return r;
+      let result = '';
+      let last = 0;
+      for (const m of s.matchAll(/<[^>]*>/g)) {
+        result += Bun.escapeHTML(s.slice(last, m.index));
+        last = m.index + m[0].length;
+      }
+      result += Bun.escapeHTML(s.slice(last));
+      return result;
     };
 
     const sanitizeHtml = (input: string) => {
-      let s = removeDangerousTags(input);
-      let prev: string;
-      do {
-        prev = s;
-        s = s.replace(/<\/?(\w+)[^>]*>/g, (m, tag) =>
-          ALLOWED_HTML_TAGS.has(tag.toLowerCase()) ? m : ''
-        );
-      } while (s !== prev);
-      return s;
+      const SELF_CLOSING = new Set(['br', 'hr', 'img', 'input']);
+      let result = '';
+      let last = 0;
+      for (const m of input.matchAll(/<\/?(\w+)[^>]*\/?\s*/gi)) {
+        result += Bun.escapeHTML(input.slice(last, m.index));
+        const fullTag = m[0];
+        const tagName = m[1].toLowerCase();
+        const isClosing = fullTag.startsWith('</');
+        if (ALLOWED_HTML_TAGS.has(tagName) && !isClosing) {
+          result += `<${tagName}>`;
+        } else if (ALLOWED_HTML_TAGS.has(tagName) && isClosing) {
+          result += `</${tagName}>`;
+        }
+        last = m.index + fullTag.length;
+      }
+      result += Bun.escapeHTML(input.slice(last));
+      return result;
     };
 
     const saved = messageRepo.create({

@@ -275,7 +275,7 @@ async function synthesizeSpeechToFile(text: string): Promise<Buffer> {
 }
 
 async function decodeAudioBufferToFloat32(audioBuf: Buffer, targetRate = SAMPLE_RATE): Promise<Float32Array> {
-  const ffmpeg: any = Bun.spawn(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 's16le', '-acodec', 'pcm_s16le', '-ar', String(targetRate), '-ac', '1', 'pipe:1']);
+  const ffmpeg: any = Bun.spawn(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 's16le', '-acodec', 'pcm_s16le', '-ar', String(targetRate), '-ac', '1', 'pipe:1'], { stdin: 'pipe' });
   const stdin: any = ffmpeg.stdin;
   stdin.write(audioBuf);
   stdin.end();
