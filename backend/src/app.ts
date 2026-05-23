@@ -302,6 +302,13 @@ const app = new Elysia()
   }))
   .use(helmet())
   .use(jwt({ secret: process.env.JWT_SECRET}))
+  .onRequest(async (ctx: any) => {
+    try {
+      if (typeof ctx.t !== 'function') {
+        ctx.t = (key: string, _vars?: Record<string, string | number>) => String(key);
+      }
+    } catch {}
+  })
   .use(i18n);
 
 const _jwtSecret = process.env.JWT_SECRET;
