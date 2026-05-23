@@ -52,7 +52,6 @@
     "pg": "latest",
     "pqclean": "latest",
     "react": "^19.2.6",
-    "redis": "latest",
     "reflect-metadata": "latest",
     "sharp": "latest",
     "speakeasy": "latest",
