@@ -2,7 +2,6 @@ import { randomBytes } from '../utils/bunCrypto';
 import { AppDataSource } from '../config/typeorm';
 import { MailboxAccount } from '../models/mailboxAccount.entity';
 import { User } from '../models/user.entity';
-import { v4 as uuidv4 } from 'uuid';
 
 const MAILCOW_API_URL = String(process.env.MAILCOW_API_URL || '').replace(/\/+$/, '');
 const MAILCOW_API_KEY = String(process.env.MAILCOW_API_KEY || '');
@@ -351,9 +350,9 @@ export async function rotateAllMailboxPasswords() {
 
 export function scheduleMailboxPasswordRotation(cronExpr?: string) {
   try {
-    const cron = require('node-cron');
+    const { schedule } = require('../utils/cron');
     const expr = String(cronExpr || process.env.MAILBOX_PASSWORD_ROTATION_CRON || '0 3 1 * *');
-    cron.schedule(expr, async () => {
+    schedule(expr, async () => {
       console.info('[mailcowService] starting scheduled mailbox password rotation');
       await rotateAllMailboxPasswords().catch((e) => console.error('[mailcowService] scheduled rotation failed', e));
     });
@@ -373,7 +372,7 @@ export async function ensureMailboxAccountForUser(user: User) {
 
   let account = await accountRepo.findOneBy({ userId: user.id });
 
-  const canonicalUuid = account?.uuid || uuidv4();
+  const canonicalUuid = account?.uuid || crypto.randomUUID();
   const canonicalLocalPart = canonicalUuid;
   const canonicalEmail = buildMailboxAddress(canonicalLocalPart, domain);
 

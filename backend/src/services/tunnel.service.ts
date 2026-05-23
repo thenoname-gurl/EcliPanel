@@ -43,7 +43,7 @@ export async function allocatePort(): Promise<number> {
 
   const repo = AppDataSource.getRepository(TunnelAllocation);
   const allocations = await repo.find({
-    select: ['port', 'closedAt'],
+    select: { port: true, closedAt: true },
     where: [
       { status: 'pending' as AllocationStatus },
       { status: 'active' as AllocationStatus },

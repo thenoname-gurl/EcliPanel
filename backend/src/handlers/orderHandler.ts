@@ -8,7 +8,6 @@ import { requireFeature } from '../middleware/featureToggle';
 import { t } from 'elysia';
 import PDFDocument from 'pdfkit';
 import stream from 'stream';
-import fs from 'fs';
 import path from 'path';
 import { generateInvoicePdf } from '../workers/pdfWorker';
 
@@ -16,9 +15,10 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
   try {
     const userRepo = AppDataSource.getRepository(User as any);
     const u = await userRepo.findOneBy({ id: order.userId }).catch(() => null);
-    const defaultLogo = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+    const defaultLogo = path.resolve(import.meta.dir, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
     const logoPath = process.env.INVOICE_LOGO_PATH
       ? path.resolve(process.env.INVOICE_LOGO_PATH)
+
       : defaultLogo;
     const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
     const issuedFrom = {
@@ -40,9 +40,9 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       doc.on('data', (d: Uint8Array) => bufs.push(d));
       doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-      const defaultLogo = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+      const defaultLogo = path.resolve(import.meta.dir, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
       const logoPath = process.env.INVOICE_LOGO_PATH ? path.resolve(process.env.INVOICE_LOGO_PATH) : defaultLogo;
-      if (fs.existsSync(logoPath)) {
+      if (Bun.file(logoPath).size !== -1) {
         try { doc.image(logoPath, 50, 45, { width: 90 }); } catch (e) { /* skip */ }
       }
       const companyName = process.env.COMPANY_NAME || 'EclipseSystems';

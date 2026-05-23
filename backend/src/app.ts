@@ -1,5 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysia/jwt';
 import cors from '@elysia/cors';
@@ -22,9 +20,7 @@ import { scheduleSunsetPolicyJob } from './jobs/sunsetPolicyJob';
 import { scheduleServerSunsetPolicyJob } from './jobs/serverSunsetPolicyJob';
 import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
 import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
-import cron from 'node-cron';
 import path from 'path';
-import { promises as fsp } from 'fs';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
 import { csrfProtection } from './middleware/csrf';
@@ -571,7 +567,7 @@ app.get('/uploads/id-docs/*', async (ctx: any) => {
     '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf',
   };
   try {
-    let buf: any = await fsp.readFile(filepath);
+    let buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
     try {
       buf = decryptBuffer(buf);
     } catch {
@@ -632,7 +628,7 @@ app.get('/uploads/mailbox/*', async (ctx: any) => {
   };
 
   try {
-    let buf: any = await fsp.readFile(filepath);
+    let buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
     try {
       buf = decryptBuffer(buf);
     } catch {
@@ -690,7 +686,7 @@ app.get('/uploads/user-documents/*', async (ctx: any) => {
   };
 
   try {
-    let buf: any = await fsp.readFile(filepath);
+    let buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
     try {
       buf = decryptBuffer(buf);
     } catch {
@@ -726,7 +722,7 @@ app.get('/uploads/*', async (ctx: any) => {
     '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
   };
   try {
-    const buf: any = await fsp.readFile(filepath);
+    const buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
     return new Response((new Uint8Array(buf as any)) as any, {
       status: 200,
       headers: {

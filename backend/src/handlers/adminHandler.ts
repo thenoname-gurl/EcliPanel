@@ -18,7 +18,6 @@ import { AIModel } from '../models/aiModel.entity';
 import { Egg } from '../models/egg.entity';
 import { nodeService } from '../services/nodeService';
 import { getConfiguredFraudModels, runFraudScanForUser } from '../services/fraudService';
-import { v4 as uuidv4 } from 'uuid';
 import { t } from 'elysia';
 import { createExportJob, getExportJob, listExportJobs } from '../services/exportJobService';
 import { ExportJob } from '../models/exportJob.entity';
@@ -1974,7 +1973,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
     if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: 'Job not completed or no archive available' }; }
     try {
-      const data = await fsp.readFile(job.resultPath);
+      const data = await Bun.file(job.resultPath).arrayBuffer();
       return new Response(data, { status: 200, headers: { 'Content-Type': 'application/gzip', 'Content-Disposition': `attachment; filename="export-${job.userId}.tar.gz"` } });
     } catch (e) {
       ctx.set.status = 500;
@@ -2000,7 +1999,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const expiresHoursRaw = Number((ctx.body as any)?.expiresHours ?? 24);
     const expiresHours = Number.isFinite(expiresHoursRaw) ? Math.min(Math.max(1, Math.floor(expiresHoursRaw)), 24 * 30) : 24;
-    const shareToken = `${uuidv4().replace(/-/g, '')}${uuidv4().replace(/-/g, '')}`;
+    const shareToken = `${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`;
     const shareLinkExpiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
 
     const repo = AppDataSource.getRepository(ExportJob);
@@ -2055,7 +2054,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     let data: any;
     try {
-      data = await fsp.readFile(job.resultPath);
+      data = await Bun.file(job.resultPath).arrayBuffer();
     } catch {
       ctx.set.status = 404;
       return { error: 'Archive file not found' };
@@ -2666,7 +2665,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const tickets = await qb.skip((p - 1) * per).take(per).getMany();
 
     const userIds = [...new Set(tickets.map((t: any) => t.userId))];
-    const users = userIds.length ? await userRepo.findByIds(userIds) : [];
+    const users = userIds.length ? await userRepo.findBy({ id: In(userIds) }) : [];
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -2823,7 +2822,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const records = await verRepo.find({ order: { id: 'DESC' } });
     const userIds = [...new Set(records.map((r) => r.userId))];
-    const users = await userRepo.findByIds(userIds);
+    const users = await userRepo.findBy({ id: In(userIds) });
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -2932,7 +2931,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const records = await delRepo.find({ order: { requestedAt: 'DESC' } });
     const userIds = [...new Set(records.map((r) => r.userId))];
-    const users = await userRepo.findByIds(userIds);
+    const users = await userRepo.findBy({ id: In(userIds) });
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -3147,7 +3146,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const orgs = await qb.skip((p - 1) * per).take(per).getMany();
 
     const ownerIds = [...new Set(orgs.map((o: any) => o.ownerId))];
-    const owners = ownerIds.length ? await userRepo.findByIds(ownerIds) : [];
+    const owners = ownerIds.length ? await userRepo.findBy({ id: In(ownerIds) }) : [];
     const ownerMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of owners) ownerMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -3916,7 +3915,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'This IP is already assigned as a dedicated IP to this server.' };
     }
 
-    const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+    const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
     for (const c of nodeConfigs) {
       const a = c.allocations as any;
       if (!a) continue;
@@ -4075,7 +4074,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: (node as any).deploymentNotice || 'This node is temporarily unavailable for deployments' };
     }
 
-    const serverUuid = uuidv4();
+    const serverUuid = crypto.randomUUID();
     let dockerImage = 'ghcr.io/pterodactyl/yolks:nodejs_18';
     let startup = 'node index.js';
     let envObject: Record<string, string> = {};
@@ -5541,7 +5540,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const { encryptBuffer } = require('../utils/crypto');
       return encryptBuffer(buffer);
     });
-    fs.writeFileSync(filepath, encrypted);
+    await Bun.write(filepath, encrypted);
 
     const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
       const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
@@ -5560,7 +5559,7 @@ export async function adminRoutes(app: any, prefix = '') {
       : { agreed: Array.isArray(currentDocs?.agreed) ? currentDocs.agreed : [], admin: Array.isArray(currentDocs?.admin) ? currentDocs.admin : [] };
 
     const newDoc = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: String(name || originalName),
       description: description ? String(description) : undefined,
       filename,
@@ -5770,7 +5769,7 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
-    const dataExportDir = path.join(os.tmpdir(), `data-export-${Date.now()}-${uuidv4()}`);
+    const dataExportDir = path.join(os.tmpdir(), `data-export-${Date.now()}-${crypto.randomUUID()}`);
     await fsp.mkdir(dataExportDir, { recursive: true });
 
     const metadataPath = path.join(dataExportDir, 'user-export.json');
@@ -5791,15 +5790,15 @@ export async function adminRoutes(app: any, prefix = '') {
       serverFiles: serverFilesMap,
       exportedAt: new Date().toISOString(),
     };
-    await fsp.writeFile(metadataPath, JSON.stringify(payload, null, 2), 'utf8');
+    await Bun.write(metadataPath, JSON.stringify(payload, null, 2));
 
     for (const [serverUuid, logs] of Object.entries(serverLogs)) {
       const logFile = path.join(dataExportDir, `server-${serverUuid}-logs.txt`);
-      await fsp.writeFile(logFile, logs.join('\n'), 'utf8');
+      await Bun.write(logFile, logs.join('\n'));
     }
     for (const [serverUuid, backups] of Object.entries(serverBackups)) {
       const backupFile = path.join(dataExportDir, `server-${serverUuid}-backups.json`);
-      await fsp.writeFile(backupFile, JSON.stringify(backups, null, 2), 'utf8');
+      await Bun.write(backupFile, JSON.stringify(backups, null, 2));
     }
 
     for (const s of servers) {
@@ -5822,14 +5821,12 @@ export async function adminRoutes(app: any, prefix = '') {
           const res = await svc.downloadFile(serverUuid, file.path);
           const rawData = res.data;
           await fsp.mkdir(path.dirname(target), { recursive: true });
-          if (rawData instanceof Buffer) {
-            await fsp.writeFile(target, rawData);
-          } else if (rawData instanceof ArrayBuffer) {
-            await fsp.writeFile(target, Buffer.from(rawData));
+          if (rawData instanceof Buffer || rawData instanceof ArrayBuffer) {
+            await Bun.write(target, rawData);
           } else if (typeof rawData === 'string') {
-            await fsp.writeFile(target, rawData, 'utf8');
+            await Bun.write(target, rawData);
           } else {
-            await fsp.writeFile(target, JSON.stringify(rawData), 'utf8');
+            await Bun.write(target, JSON.stringify(rawData));
           }
         } catch (e) {
           // skip
@@ -6199,12 +6196,12 @@ export async function adminRoutes(app: any, prefix = '') {
     const userRepo = AppDataSource.getRepository(User);
     const alerts = await userRepo.find({
       where: { fraudFlag: true },
-      select: [
-        'id', 'firstName', 'lastName', 'email', 'fraudReason',
-        'fraudDetectedAt', 'address', 'address2', 'billingCity',
-        'billingState', 'billingZip', 'billingCountry', 'billingCompany',
-        'phone', 'suspended',
-      ],
+      select: {
+        id: true, firstName: true, lastName: true, email: true, fraudReason: true,
+        fraudDetectedAt: true, address: true, address2: true, billingCity: true,
+        billingState: true, billingZip: true, billingCountry: true, billingCompany: true,
+        phone: true, suspended: true,
+      },
       order: { fraudDetectedAt: 'DESC' },
     });
     return alerts;
@@ -6394,7 +6391,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const adminErr = requireAdminPermission(ctx, 'admin:geoblock:view');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
-    const users = await userRepo.find({ select: ['billingCountry'] });
+    const users = await userRepo.find({ select: { billingCountry: true } });
     const rules = await getGeoBlockRules();
     const { decrypt, isEncryptedString } = require('../utils/crypto');
 

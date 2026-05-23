@@ -235,8 +235,8 @@ export async function processPendingOutboundEmails() {
 export function scheduleOutboundEmailRunner() {
   processPendingOutboundEmails().catch((e) => console.error('[outboundEmailRunner] Initial run failed', e));
   try {
-    const cron = require('node-cron');
-    cron.schedule('*/1 * * * *', async () => {
+    const { schedule } = require('../utils/cron');
+    schedule('*/1 * * * *', async () => {
       await processPendingOutboundEmails().catch((e) => console.error('[outboundEmailRunner] Cron run failed', e));
     });
   } catch (e) {

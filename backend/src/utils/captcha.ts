@@ -2,7 +2,6 @@ import { randomHex, timingSafeEqual } from './bunCrypto';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { spawn } from 'child_process';
 
 const SECRET = process.env.CAPTCHA_SECRET!;
 const CAPTCHAS_INVISIBLE_SECRET = process.env.CAPTCHA_INVISIBLE_SECRET;
@@ -258,89 +257,45 @@ async function synthesizeSpeechToFile(text: string): Promise<Buffer> {
   const outPath = path.join(tmpDir, `speech-${Date.now()}-${Math.random().toString(16).slice(2)}.wav`);
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      const espeak = spawn('espeak', [
-        '-v', TTS_VOICE,
-        '-s', String(TTS_SPEED),
-        '-w', outPath,
-        text
-      ]);
+    const espeak = Bun.spawn(['espeak', '-v', TTS_VOICE, '-s', String(TTS_SPEED), '-w', outPath, text]);
+    const espeakCode = await espeak.exited;
+    if (espeakCode !== 0) {
+      const stderr = await new Response(espeak.stderr).text();
+      throw new Error(`espeak exited with code ${espeakCode}: ${stderr}. Is espeak installed? Run: sudo apt-get install espeak`);
+    }
 
-      const stderrChunks: Buffer[] = [];
-      espeak.stderr.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)));
-
-      espeak.on('error', (err) => {
-        reject(new Error(`espeak spawn failed: ${err.message}. Is espeak installed? Run: sudo apt-get install espeak`));
-      });
-
-      espeak.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`espeak exited with code ${code}: ${Buffer.concat(stderrChunks).toString()}`));
-        } else {
-          resolve();
-        }
-      });
-    });
-
-    const stat = await fs.stat(outPath).catch(() => null);
-    if (!stat || stat.size === 0) {
+    if (!(await Bun.file(outPath).exists())) {
       throw new Error(`espeak produced no output for "${text}"`);
     }
 
-    return await fs.readFile(outPath);
+    return Buffer.from(await Bun.file(outPath).arrayBuffer());
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
 async function decodeAudioBufferToFloat32(audioBuf: Buffer, targetRate = SAMPLE_RATE): Promise<Float32Array> {
-  return await new Promise((resolve, reject) => {
-    const ffmpeg = spawn('ffmpeg', [
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-i',
-      'pipe:0',
-      '-f',
-      's16le',
-      '-acodec',
-      'pcm_s16le',
-      '-ar',
-      String(targetRate),
-      '-ac',
-      '1',
-      'pipe:1',
-    ]);
+  const ffmpeg: any = Bun.spawn(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 's16le', '-acodec', 'pcm_s16le', '-ar', String(targetRate), '-ac', '1', 'pipe:1']);
+  const stdin: any = ffmpeg.stdin;
+  stdin.write(audioBuf);
+  stdin.end();
 
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
+  const ffCode = await ffmpeg.exited;
+  if (ffCode !== 0) {
+    const stderr = await new Response(ffmpeg.stderr).text();
+    throw new Error(`ffmpeg exited with code ${ffCode}: ${stderr}`);
+  }
 
-    ffmpeg.stdout.on('data', (chunk) => stdoutChunks.push(Buffer.from(chunk)));
-    ffmpeg.stderr.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)));
-    ffmpeg.on('error', (err) => reject(new Error(`ffmpeg spawn failed: ${err.message}`)));
+  const raw = Buffer.from(await new Response(ffmpeg.stdout).arrayBuffer());
+  if (raw.length < 2) {
+    throw new Error('ffmpeg produced no output');
+  }
 
-    ffmpeg.on('close', (code) => {
-      if (code !== 0) {
-        return reject(new Error(`ffmpeg exited with code ${code}: ${Buffer.concat(stderrChunks).toString()}`));
-      }
-
-      const raw = Buffer.concat(stdoutChunks);
-      if (raw.length < 2) {
-        return reject(new Error('ffmpeg produced no output'));
-      }
-
-      const samples = new Float32Array(Math.floor(raw.length / 2));
-      for (let i = 0; i < samples.length; i++) {
-        samples[i] = raw.readInt16LE(i * 2) / 0x7fff;
-      }
-
-      resolve(samples);
-    });
-
-    ffmpeg.stdin.on('error', (err) => reject(new Error(`ffmpeg stdin error: ${err.message}`)));
-    ffmpeg.stdin.write(audioBuf);
-    ffmpeg.stdin.end();
-  });
+  const samples = new Float32Array(Math.floor(raw.length / 2));
+  for (let i = 0; i < samples.length; i++) {
+    samples[i] = raw.readInt16LE(i * 2) / 0x7fff;
+  }
+  return samples;
 }
 
 function concatFloat32(buffers: Float32Array[]): Float32Array {

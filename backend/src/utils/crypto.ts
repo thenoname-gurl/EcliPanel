@@ -1,4 +1,3 @@
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCipheriv, createDecipheriv } from 'crypto';
@@ -6,7 +5,6 @@ import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { PqKemKeypair } from './postQuantum';
 
 const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.env');
-dotenv.config({ path: envPath });
 
 // FBI Proof
 // I hope

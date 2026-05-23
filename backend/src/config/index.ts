@@ -150,7 +150,7 @@ export async function setupConfig(app: any) {
   }
 
   const uploadDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  if (Bun.file(uploadDir).size === 0) fs.mkdirSync(uploadDir, { recursive: true });
 
   try {
     const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);

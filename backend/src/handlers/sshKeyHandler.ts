@@ -17,7 +17,7 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     const keys = await sshKeyRepo().find({
       where: { userId: (ctx as any).user.id },
       order: { createdAt: 'ASC' },
-      select: ['id', 'name', 'fingerprint', 'createdAt'],
+      select: { id: true, name: true, fingerprint: true, createdAt: true },
     });
     return keys;
   }, {

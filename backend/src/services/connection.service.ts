@@ -2,7 +2,6 @@ import { AppDataSource } from '../config/typeorm';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
 import { ConnectionMapping } from '../types/tunnels';
 import { sendAgentMessage } from './agent.service';
-import { v4 as uuidv4 } from 'uuid';
 
 const connectionMap = new Map<string, ConnectionMapping>();
 
@@ -24,7 +23,7 @@ export async function handleServerConnectionOpen(
   const allocationId = Number(msg.allocationId);
   if (!Number.isFinite(allocationId)) return;
 
-  const connectionId = String(msg.connectionId ?? uuidv4());
+  const connectionId = String(msg.connectionId ?? crypto.randomUUID());
 
   const repo = AppDataSource.getRepository(TunnelAllocation);
   const allocation = await repo.findOne({
@@ -47,7 +46,7 @@ export async function handleServerConnectionOpen(
     allocationId: allocation.id,
     clientAgentId: allocation.clientDevice.deviceCode,
     serverAgentId,
-    directToken: uuidv4(),
+    directToken: crypto.randomUUID(),
   });
 
   const mapping = connectionMap.get(connectionId);

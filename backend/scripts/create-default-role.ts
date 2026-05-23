@@ -36,7 +36,7 @@ async function run() {
   ];
 
   for (const pval of basicPerms) {
-    let p = await permRepo.findOne({ where: { value: pval, role: { id: def.id } }, relations: ['role'] });
+    let p = await permRepo.findOne({ where: { value: pval, role: { id: def.id } }, relations: { role: true } });
     if (!p) {
       p = permRepo.create({ value: pval, role: def });
       await permRepo.save(p);

@@ -31,7 +31,6 @@
     "base64url": "latest",
     "brace-expansion": "latest",
     "dompurify": "latest",
-    "dotenv": "latest",
     "elysia": "latest",
     "elysia-helmet": "latest",
     "file-type": "latest",
@@ -44,7 +43,6 @@
     "mlkem": "latest",
     "mysql": "latest",
     "mysql2": "^3.22.3",
-    "node-cron": "latest",
     "nodemailer": "latest",
     "pdfkit": "latest",
     "pg": "latest",
@@ -57,7 +55,6 @@
     "ssh2": "latest",
     "tar": "latest",
     "typeorm": "latest",
-    "uuid": "latest",
     "ws": "latest"
   },
   "dependenciesMeta": {
@@ -71,7 +68,6 @@
     "@types/node": "latest",
     "@types/nodemailer": "latest",
     "@types/ssh2": "latest",
-    "@types/uuid": "latest",
     "@types/ws": "latest",
     "typescript": "latest"
   },

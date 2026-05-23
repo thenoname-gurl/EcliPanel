@@ -1,5 +1,5 @@
-import fs from 'fs'
 import path from 'path'
+import fs from 'fs'
 
 let tempDomains = new Set<string>()
 let wildcardDomains: string[] = []
@@ -14,11 +14,11 @@ function loadDomains() {
   loaded = true
 
   const sources: string[] = []
-  const candidate1 = path.resolve(__dirname, '../../resources/temp_email_domains.conf')
-  const candidate2 = path.resolve(__dirname, '../../resources/temp_email_domains.json')
+  const candidate1 = path.resolve(import.meta.dir, '../../resources/temp_email_domains.conf')
+  const candidate2 = path.resolve(import.meta.dir, '../../resources/temp_email_domains.json')
 
-  if (fs.existsSync(candidate1)) sources.push(candidate1)
-  if (fs.existsSync(candidate2)) sources.push(candidate2)
+  if (Bun.file(candidate1).size !== 0) sources.push(candidate1)
+  if (Bun.file(candidate2).size !== 0) sources.push(candidate2)
 
   for (const file of sources) {
     try {

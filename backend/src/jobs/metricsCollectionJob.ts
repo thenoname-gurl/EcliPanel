@@ -1,10 +1,10 @@
 import { collectAndStoreMetrics } from '../services/metricsCollector';
-import cron from 'node-cron';
+import { schedule } from '../utils/cron';
 
 export async function scheduleMetricsCollectionJob() {
   console.log('Starting metrics collection job...');
   await collectAndStoreMetrics();
-  cron.schedule('*/5 * * * * *', async () => {
+  schedule('*/5 * * * * *', async () => {
     await collectAndStoreMetrics();
   });
 }

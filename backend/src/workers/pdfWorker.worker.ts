@@ -1,5 +1,4 @@
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
 
 const COLORS = {
   bg: '#0a0a0a',
@@ -160,7 +159,7 @@ self.addEventListener('message', async (ev: any) => {
 
     let logoRendered = false;
     try {
-      if (logoPath && fs.existsSync(logoPath)) {
+      if (logoPath && Bun.file(logoPath).size !== -1) {
         doc.image(logoPath, M + 15, curY + 36, { height: 40 });
         logoRendered = true;
       }

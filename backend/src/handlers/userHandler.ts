@@ -21,7 +21,6 @@ import { createOutboundEmailRecord, getOutboundEmailUsage, getSendLimitsForUser,
 import { sendMail } from '../services/mailService';
 import { runFraudScanForUser } from '../services/fraudService';
 import { consumeRateLimit, redisSet, redisGet, redisDel } from '../config/redis';
-import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
@@ -223,7 +222,7 @@ async function enforceOutboundEmailRateLimit(ctx: any, scope: string, userId: nu
 
 async function sendVerificationEmailToUser(user: User) {
   const code = randomInt(0, 1000000).toString().padStart(6, '0');
-  const token = uuidv4();
+  const token = crypto.randomUUID();
 
   await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
   await redisSet(`email-verify:code:${user.id}`, code, 86400);
@@ -429,7 +428,7 @@ export async function userRoutes(app: any, prefix = '') {
 
     try {
       const code = randomInt(0, 1000000).toString().padStart(6, '0');
-      const token = uuidv4();
+      const token = crypto.randomUUID();
       await redisSet(`email-verify:token:${token}`, String(user.id), 86400);
       await redisSet(`email-verify:code:${user.id}`, code, 86400);
       const panelUrl = process.env.PANEL_URL || 'https://panel.ecli.app';
@@ -2036,12 +2035,25 @@ export async function userRoutes(app: any, prefix = '') {
           : null;
     const authMetadata = await extractMailboxAuthMetadata(body.headers || null, rawHeadersValue || undefined);
 
+    const ALLOWED_HTML_TAGS = new Set([
+      'a', 'b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li',
+      'blockquote', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'pre', 'code', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      'img', 'sup', 'sub',
+    ]);
+
     const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '');
-    const sanitizeHtml = (s: string) => s
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-      .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      .replace(/javascript\s*:/gi, '');
+    const sanitizeHtml = (input: string) => {
+      let s = input
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
+        .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|`[^`]*`|[^\s>]+)/gi, '')
+        .replace(/javascript\s*:/gi, '');
+      s = s.replace(/<\/?(\w+)[^>]*>/g, (m, tag) =>
+        ALLOWED_HTML_TAGS.has(tag.toLowerCase()) ? m : ''
+      );
+      return s;
+    };
 
     const saved = messageRepo.create({
       userId: user.id,
@@ -2394,7 +2406,7 @@ export async function userRoutes(app: any, prefix = '') {
     if (emailChanged) {
       await sendVerificationEmailToUser(user);
 
-      const restoreToken = uuidv4();
+      const restoreToken = crypto.randomUUID();
       await redisSet(`email-restore:token:${restoreToken}`, JSON.stringify({ userId: user.id, oldEmail, newEmail }), 48 * 3600);
 
       const panelUrl = process.env.PANEL_URL || 'https://panel.ecli.app';
@@ -2490,7 +2502,7 @@ export async function userRoutes(app: any, prefix = '') {
     const uploadDir = path.join(process.cwd(), 'uploads');
     fs.mkdirSync(uploadDir, { recursive: true });
     const filepath = path.join(uploadDir, filename);
-    fs.writeFileSync(filepath, out);
+    await Bun.write(filepath, out);
 
     const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
       const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
