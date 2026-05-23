@@ -3855,7 +3855,7 @@
       },
       "installMessages": {
         "pullingFrom": "Загрузка из {image}",
-        "digest": "Digest: {digest}",
+        "digest": "Хеш: {digest}",
         "status": "Статус: {status}",
         "finishedPulling": "Загрузка Docker образа завершена"
       }
