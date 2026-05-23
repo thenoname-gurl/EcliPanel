@@ -14,6 +14,7 @@ import { withRedisCache } from '../config/redis';
 import { WingsApiService } from '../services/wingsApiService';
 import { t } from 'elysia';
 import { sanitizeError } from '../utils/sanitizeError';
+import { randomHex } from '../utils/bunCrypto';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
 
@@ -405,7 +406,7 @@ export async function nodeRoutes(app: any, prefix = '') {
   app.get(prefix + '/nodes/generate-token', async (ctx: any) => {
     const adminErr = await authorize('nodes:read-creds')(ctx);
     if (adminErr !== undefined) return adminErr;
-    const token = require('crypto').randomBytes(32).toString('hex');
+    const token = randomHex(32);
     return { token };
   }, {
     beforeHandle: authenticate,
@@ -643,7 +644,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       return ['running', 'online', 'up', 'healthy', 'available', 'starting', 'stopping'].includes(state);
     });
 
-    const opId = require('crypto').randomUUID();
+    const opId = crypto.randomUUID();
     const op: any = {
       id: opId,
       nodeId,

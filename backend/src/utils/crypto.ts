@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import crypto from 'crypto';
+import { createCipheriv, createDecipheriv } from 'crypto';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { PqKemKeypair } from './postQuantum';
 
@@ -20,6 +20,22 @@ if (key.length !== 32) {
   console.warn('NODE_ENCRYPTION_KEY must be 32 bytes long');
 }
 
+function sha512(data: Buffer): Uint8Array {
+  const hasher = new Bun.CryptoHasher('sha512');
+  hasher.update(data);
+  return hasher.digest();
+}
+
+function sha256(data: Buffer): Buffer {
+  const hasher = new Bun.CryptoHasher('sha256');
+  hasher.update(data);
+  return Buffer.from(hasher.digest());
+}
+
+function randomBytes(size: number): Buffer {
+  return Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(size)));
+}
+
 function getPqSeed(): Uint8Array | null {
   const seedEnv = process.env.NODE_PQ_ENCRYPTION_SEED?.trim();
   if (seedEnv) {
@@ -34,7 +50,7 @@ function getPqSeed(): Uint8Array | null {
     }
   }
   if (key.length === 32) {
-    return new Uint8Array(crypto.createHash('sha512').update(Buffer.from(key, 'utf8')).digest().slice(0, 64));
+    return sha512(Buffer.from(key, 'utf8')).slice(0, 64);
   }
   return null;
 }
@@ -46,12 +62,12 @@ function getPqKeypair(): PqKemKeypair | null {
 }
 
 function deriveAesKey(sharedSecret: Uint8Array): Buffer {
-  return crypto.createHash('sha256').update(Buffer.from(sharedSecret)).digest();
+  return sha256(Buffer.from(sharedSecret));
 }
 
 function encryptAesPayload(data: Buffer, aesKey: Buffer): Buffer {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(algorithm, aesKey, iv);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(algorithm, aesKey, iv);
   const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([iv, tag, encrypted]);
@@ -61,7 +77,7 @@ function decryptAesPayload(data: Buffer, aesKey: Buffer): Buffer {
   const iv = data.slice(0, 12);
   const tag = data.slice(12, 28);
   const ciphertext = data.slice(28);
-  const decipher = crypto.createDecipheriv(algorithm, aesKey, iv);
+  const decipher = createDecipheriv(algorithm, aesKey, iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
@@ -106,8 +122,8 @@ export function encrypt(text: string): string {
     return `${PQ_PREFIX}${Buffer.from(encapsulated).toString('base64')}:${iv}:${tag}:${ciphertext}`;
   }
 
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(algorithm, Buffer.from(key), iv);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(algorithm, Buffer.from(key), iv);
   let encrypted = cipher.update(text, 'utf8', 'base64');
   encrypted += cipher.final('base64');
   const tag = cipher.getAuthTag();
@@ -153,7 +169,7 @@ export function decrypt(enc: string): string {
   const iv = Buffer.from(parts[0], 'base64');
   const tag = Buffer.from(parts[1], 'base64');
   const data = parts[2];
-  const decipher = crypto.createDecipheriv(algorithm, Buffer.from(key), iv);
+  const decipher = createDecipheriv(algorithm, Buffer.from(key), iv);
   decipher.setAuthTag(tag);
   let decrypted = decipher.update(data, 'base64', 'utf8');
   decrypted += decipher.final('utf8');
@@ -176,8 +192,8 @@ export function encryptBuffer(data: Buffer): Buffer {
     return Buffer.from(`${PQ_PREFIX}${Buffer.from(encapsulated).toString('base64')}:${iv}:${tag}:${ciphertext}`, 'utf8');
   }
 
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(algorithm, Buffer.from(key), iv);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(algorithm, Buffer.from(key), iv);
   const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([iv, tag, encrypted]);
@@ -217,7 +233,7 @@ export function decryptBuffer(data: Buffer): Buffer {
   const iv = data.slice(0, 12);
   const tag = data.slice(12, 28);
   const ciphertext = data.slice(28);
-  const decipher = crypto.createDecipheriv(algorithm, Buffer.from(key), iv);
+  const decipher = createDecipheriv(algorithm, Buffer.from(key), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }

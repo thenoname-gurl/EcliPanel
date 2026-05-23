@@ -1,6 +1,5 @@
-import axios, { AxiosRequestConfig } from 'axios';
-import https from 'https';
 import WebSocket from 'ws';
+import { httpRequest } from '../utils/http';
 
 const REQUEST_TIMEOUT = 10_000;
 
@@ -9,16 +8,11 @@ const allowInvalidCerts = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
 export class WingsApiService {
   private baseUrl: string;
   private token: string;
-  private httpsAgent: https.Agent | undefined;
 
   constructor(baseUrl: string, token: string) {
     const clean = baseUrl.replace(/\/+$/, '');
     this.baseUrl = clean.endsWith('/api') ? clean : clean + '/api';
     this.token = token;
-
-    if (allowInvalidCerts) {
-      this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
-    }
   }
 
   private getAuthHeaders(): Record<string, string> {
@@ -27,53 +21,57 @@ export class WingsApiService {
     };
   }
 
-  private cfg(extra?: AxiosRequestConfig): AxiosRequestConfig {
-    const extraSafe = extra || {};
-    const mergedHeaders = { ...this.getAuthHeaders(), ...(extraSafe.headers || {}) };
-
-    const config: AxiosRequestConfig = {
-      ...extraSafe,
-      headers: mergedHeaders,
-      timeout: REQUEST_TIMEOUT,
-    };
-
-    if (this.httpsAgent) {
-      config.httpsAgent = this.httpsAgent;
+  private buildUrl(path: string, params?: Record<string, any>): string {
+    const p = path.startsWith('/') ? path.slice(1) : path;
+    const url = new URL(p, `${this.baseUrl}/`);
+    for (const [key, value] of Object.entries(params || {})) {
+      if (value === undefined || value === null) continue;
+      url.searchParams.set(key, String(value));
     }
+    return url.toString();
+  }
 
-    return config;
+  private async request<T = any>(path: string, opts: { method?: string; headers?: Record<string, string>; body?: any; params?: Record<string, any>; responseType?: 'json' | 'text' | 'arraybuffer' } = {}) {
+    const headers = { ...this.getAuthHeaders(), ...(opts.headers || {}) };
+    return await httpRequest<T>(this.buildUrl(path, opts.params), {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body,
+      timeoutMs: REQUEST_TIMEOUT,
+      responseType: opts.responseType || 'json',
+    });
   }
 
   async getSystemInfo() {
-    return axios.get(`${this.baseUrl}/system`, this.cfg());
+    return this.request('/system');
   }
 
   async getSystemStats() {
-    return axios.get(`${this.baseUrl}/system/stats`, this.cfg());
+    return this.request('/system/stats');
   }
 
   async getUpdates() {
-    return axios.get(`${this.baseUrl}/update`, this.cfg());
+    return this.request('/update');
   }
 
   async getTransfers() {
-    return axios.get(`${this.baseUrl}/transfers`, this.cfg());
+    return this.request('/transfers');
   }
 
   async getBackups() {
-    return axios.get(`${this.baseUrl}/backups`, this.cfg());
+    return this.request('/backups');
   }
 
   async deauthorizeUser(data: any) {
-    return axios.post(`${this.baseUrl}/deauthorize-user`, data, this.cfg());
+    return this.request('/deauthorize-user', { method: 'POST', body: data });
   }
 
   async getServers() {
-    return axios.get(`${this.baseUrl}/servers`, this.cfg());
+    return this.request('/servers');
   }
 
   async getServer(serverId: string) {
-    return axios.get(`${this.baseUrl}/servers/${serverId}`, this.cfg());
+    return this.request(`/servers/${serverId}`);
   }
 
   async createServer(payload: any) {
@@ -85,11 +83,11 @@ export class WingsApiService {
     if (Object.prototype.hasOwnProperty.call(payload ?? {}, 'skip_scripts')) {
       normalized.skip_scripts = Boolean(payload.skip_scripts);
     }
-    return axios.post(`${this.baseUrl}/servers`, normalized, this.cfg());
+    return this.request('/servers', { method: 'POST', body: normalized });
   }
 
   async powerServer(serverId: string, action: string) {
-    return axios.post(`${this.baseUrl}/servers/${serverId}/power`, { action }, this.cfg());
+    return this.request(`/servers/${serverId}/power`, { method: 'POST', body: { action } });
   }
 
   async toggleKvm(serverId: string, enable: boolean) {
@@ -98,23 +96,17 @@ export class WingsApiService {
 
   async listServerFiles(serverId: string, directory: string = '/') {
     const url = `${this.baseUrl}/servers/${serverId}/files/list-directory`;
-    return axios.get(url, this.cfg({ params: { directory } }));
+    return this.request(`/servers/${serverId}/files/list-directory`, { params: { directory } });
   }
 
   async readFile(serverId: string, path: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/contents`;
-    return axios.get(url, this.cfg({
-      params: { file: path },
-      responseType: 'text',
-    }));
+    return this.request(`/servers/${serverId}/files/contents`, { params: { file: path }, responseType: 'text' });
   }
 
   async downloadFile(serverId: string, path: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/contents`;
-    return axios.get(url, this.cfg({
-      params: { file: path },
-      responseType: 'arraybuffer',
-    }));
+    return this.request(`/servers/${serverId}/files/contents`, { params: { file: path }, responseType: 'arraybuffer' });
   }
 
   async writeFile(serverId: string, filePath: string, content: Uint8Array | ArrayBuffer | Buffer | string) {
@@ -141,17 +133,12 @@ export class WingsApiService {
       contentType = 'text/plain; charset=utf-8';
     }
 
-    return axios.post(url, body, this.cfg({
+    return this.request(`/servers/${serverId}/files/write`, {
+      method: 'POST',
+      body,
       params: { file: filePath },
-      headers: {
-        'Content-Type': contentType,
-      },
-      transformRequest: contentType === 'application/octet-stream'
-        ? [(data: any) => data]
-        : undefined,
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
-    }));
+      headers: { 'Content-Type': contentType },
+    });
   }
 
   async deleteFile(serverId: string, root: string, files: string[]) {
@@ -401,18 +388,15 @@ export class WingsApiService {
     method: 'get' | 'post' | 'put' | 'delete' = 'get',
     data?: any
   ) {
-    const url = `${this.baseUrl}/servers/${serverId}${subpath}`;
-    const config = this.cfg();
-
     switch (method) {
       case 'get':
-        return axios.get(url, config);
+        return this.request(`/servers/${serverId}${subpath}`);
       case 'delete':
-        return data ? axios.delete(url, { ...config, data }) : axios.delete(url, config);
+        return this.request(`/servers/${serverId}${subpath}`, { method: 'DELETE', body: data });
       case 'post':
-        return axios.post(url, data, config);
+        return this.request(`/servers/${serverId}${subpath}`, { method: 'POST', body: data });
       case 'put':
-        return axios.put(url, data, config);
+        return this.request(`/servers/${serverId}${subpath}`, { method: 'PUT', body: data });
       default:
         throw new Error(`Unsupported method: ${method}`);
     }

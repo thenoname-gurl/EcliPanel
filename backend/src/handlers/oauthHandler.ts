@@ -22,7 +22,7 @@
  * FUN FACT I HAVE NEVER EVER TESTED IT PROPERLY..
  * BURN IN HELLLLLLLLL OAUTH 2.0
  */
-import crypto from 'crypto';
+import { randomHex, sha256Base64Url, timingSafeEqual } from '../utils/bunCrypto';
 import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { OAuthApp, OAUTH_SCOPES } from '../models/oauthApp.entity';
@@ -36,12 +36,7 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { consumeRateLimit } from '../config/redis';
 
 async function randomToken(bytes = 32) {
-  return new Promise<string>((resolve, reject) => {
-    crypto.randomBytes(bytes, (err, buf) => {
-      if (err) reject(err);
-      else resolve(buf.toString('hex'));
-    });
-  });
+  return Promise.resolve(randomHex(bytes));
 }
 
 function filterScopes(requested: string[], allowed: string[]): string[] {
@@ -57,20 +52,10 @@ function verifyPkce(
     return timingSafeEqual(verifier, challenge);
   }
   if (method === 'S256') {
-    const hash = crypto
-      .createHash('sha256')
-      .update(verifier)
-      .digest('base64url');
+    const hash = sha256Base64Url(verifier);
     return timingSafeEqual(hash, challenge);
   }
   return false;
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return crypto.timingSafeEqual(ab, bb);
 }
 
 const ACCESS_TOKEN_TTL = 3600;

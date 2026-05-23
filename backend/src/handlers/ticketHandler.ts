@@ -4,7 +4,6 @@ import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
-import axios from 'axios';
 import { requireFeature } from '../middleware/featureToggle';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
@@ -14,6 +13,7 @@ import { PanelSetting } from '../models/panelSetting.entity';
 import { createActivityLog } from './logHandler';
 import { getGeoBlockRulesWithDefaults } from '../utils/eu';
 import { sanitizeError } from '../utils/sanitizeError';
+import { httpRequest } from '../utils/http';
 
 export async function ticketRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(Ticket);
@@ -212,7 +212,7 @@ export async function ticketRoutes(app: any, prefix = '') {
       const url = `${ep.base.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}`;
       const hdrs = { ...(headers || {}), Authorization: `Bearer ${ep.apiKey || ''}`, 'Content-Type': 'application/json' } as any;
       try {
-        const res = await axios.request({ method: method as any, url, data, headers: hdrs, timeout: timeoutMs });
+        const res = await httpRequest(url, { method: method as any, body: data, headers: hdrs, timeoutMs });
         return res;
       } catch (e: any) {
         const status = e.response?.status;

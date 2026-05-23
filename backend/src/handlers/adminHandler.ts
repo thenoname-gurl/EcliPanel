@@ -19,7 +19,6 @@ import { Egg } from '../models/egg.entity';
 import { nodeService } from '../services/nodeService';
 import { getConfiguredFraudModels, runFraudScanForUser } from '../services/fraudService';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 import { t } from 'elysia';
 import { createExportJob, getExportJob, listExportJobs } from '../services/exportJobService';
 import { ExportJob } from '../models/exportJob.entity';
@@ -55,6 +54,7 @@ import { isValidIpv6, isIpv6InSubnet, parseIpv6, formatIpv6 } from '../utils/ipv
 import { createActivityLog } from './logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
 import { requestServerSunsetNoticeForUser } from '../services/serverSunsetPolicyService';
+import { httpRequest } from '../utils/http';
 
 function getAgeFromDate(date?: Date | string | null): number | null {
   if (!date) return null;
@@ -745,9 +745,14 @@ async function callAiModel(
 ): Promise<string> {
   const chatUrl = `${buildBaseUrl(model.endpoint)}/v1/chat/completions`;
 
-  const res = await axios.post(
-    chatUrl,
-    {
+  const res = await httpRequest(chatUrl, {
+    method: 'POST',
+    timeoutMs,
+    headers: {
+      Authorization: `Bearer ${model.apiKey || 'none'}`,
+      'Content-Type': 'application/json',
+    },
+    body: {
       model: (model as any).config?.modelId || model.name,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -756,14 +761,7 @@ async function callAiModel(
       max_tokens: maxTokens,
       temperature: 0.1,
     },
-    {
-      headers: {
-        Authorization: `Bearer ${model.apiKey || 'none'}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: timeoutMs,
-    }
-  );
+  });
 
   const reply = res.data?.choices?.[0]?.message?.content || '';
   return String(reply)

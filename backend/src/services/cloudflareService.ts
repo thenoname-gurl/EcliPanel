@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export class CloudflareService {
   private baseUrl: string;
   private token: string;

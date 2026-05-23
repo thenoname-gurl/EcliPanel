@@ -1,6 +1,6 @@
 import { t } from 'elysia';
 import { In, MoreThan } from 'typeorm';
-import { randomBytes } from 'crypto';
+import { randomHex } from '../utils/bunCrypto';
 import { AppDataSource } from '../config/typeorm';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationFormInvite } from '../models/applicationFormInvite.entity';
@@ -705,7 +705,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     }
 
     const body = (ctx.body || {}) as any;
-    const token = randomBytes(20).toString('hex');
+    const token = randomHex(20);
     const maxUses = body.maxUses != null ? Math.max(1, Number(body.maxUses || 1)) : null;
     const expiresHours = body.expiresHours != null ? Math.max(1, Number(body.expiresHours || 24)) : null;
     const expiresAt = expiresHours ? new Date(Date.now() + expiresHours * 3600_000) : null;
