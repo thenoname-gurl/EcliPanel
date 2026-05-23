@@ -323,9 +323,63 @@ function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
     }
     sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
   } catch (e) {
-    sanitized = (html || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "")
-    if (blockRemoteImages) sanitized = sanitized.replace(/(<img[^>]+src=["'])(https?:\/\/)/gi, "$1")
-    sanitized = sanitized.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ')
+    sanitized = html || ""
+    {
+      let result = "";
+      let last = 0;
+      for (const m of sanitized.matchAll(/<script[\s\S]*?<\/script>/gi)) {
+        result += sanitized.slice(last, m.index);
+        last = m.index + m[0].length;
+      }
+      result += sanitized.slice(last);
+      sanitized = result;
+    }
+    {
+      let result = "";
+      let last = 0;
+      for (const m of sanitized.matchAll(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|`[^`]*`|[^\s>]+)/gi)) {
+        result += sanitized.slice(last, m.index);
+        last = m.index + m[0].length;
+      }
+      result += sanitized.slice(last);
+      sanitized = result;
+    }
+    if (blockRemoteImages) {
+      let result = "";
+      let last = 0;
+      for (const m of sanitized.matchAll(/(<img[^>]+src=["'])(https?:\/\/)/gi)) {
+        result += sanitized.slice(last, m.index) + m[1];
+        last = m.index + m[0].length;
+      }
+      result += sanitized.slice(last);
+      sanitized = result;
+      result = "";
+      last = 0;
+      for (const m of sanitized.matchAll(/(<[^>]+\s(?:src|background)=["'])https?:\/\/[^"']+/gi)) {
+        result += sanitized.slice(last, m.index) + m[1];
+        last = m.index + m[0].length;
+      }
+      result += sanitized.slice(last);
+      sanitized = result;
+      result = "";
+      last = 0;
+      for (const m of sanitized.matchAll(/url\s*\(\s*["']?https?:\/\/[^)"']+["']?\s*\)/gi)) {
+        result += sanitized.slice(last, m.index) + "url()";
+        last = m.index + m[0].length;
+      }
+      result += sanitized.slice(last);
+      sanitized = result;
+    }
+    {
+      let result = "";
+      let last = 0;
+      for (const m of sanitized.matchAll(/<a\s/gi)) {
+        result += sanitized.slice(last, m.index) + '<a target="_blank" rel="noopener noreferrer" ';
+        last = m.index + m[0].length;
+      }
+      result += sanitized.slice(last);
+      sanitized = result;
+    }
   }
 
   const csp = [
