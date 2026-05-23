@@ -329,6 +329,82 @@ function processConsoleOutput(text: string): string {
   return processed
 }
 
+function translateStatusText(text: string, translate: any): string {
+  const key = text.toLowerCase()
+  const dotKey = key.endsWith('...') ? key.slice(0, -3) + '_dots' : key
+  const translated = translate(`terminal.statusValues.${dotKey}`)
+  if (translated && !translated.includes('terminal.statusValues.')) {
+    return translated
+  }
+  return text
+}
+
+function translateDaemonText(text: string, translate: any): string {
+  const trimmed = text.trim()
+  const clean = trimmed.replace(/^[\s-]+|[\s-]+$/g, '').trim()
+
+  const exactMap: Record<string, string> = {
+    'Detected server process in a crashed state!': 'terminal.daemonMessages.crashedState',
+    'Updating process configuration files...': 'terminal.daemonMessages.updatingConfig',
+    'Ensuring file permissions are set correctly, this could take a few seconds...': 'terminal.daemonMessages.settingPermissions',
+    'Pulling Docker container image, this could take a few minutes to complete...': 'terminal.daemonMessages.pullingImage',
+    'Finished pulling Docker container image': 'terminal.daemonMessages.finishedPulling',
+    'Server is exceeding the assigned disk space limit, stopping process now.': 'terminal.daemonMessages.diskLimit',
+    'Server is outputting console data too quickly -- throttling...': 'terminal.daemonMessages.throttling',
+    'Aborting automatic restart, crash detection is disabled for this instance.': 'terminal.daemonMessages.crashDisabled',
+  }
+
+  if (exactMap[clean]) {
+    return trimmed.replace(clean, translate(exactMap[clean]))
+  }
+
+  const exitMatch = clean.match(/^Exit code: (.+)$/i)
+  if (exitMatch) {
+    return trimmed.replace(clean, translate('terminal.daemonMessages.exitCode', { code: exitMatch[1] }))
+  }
+
+  const oomMatch = clean.match(/^Out of memory: (.+)$/i)
+  if (oomMatch) {
+    return trimmed.replace(clean, translate('terminal.daemonMessages.outOfMemory', { value: oomMatch[1] }))
+  }
+
+  const abortMatch = clean.match(/^Aborting automatic restart, last crash occurred less than (\d+) seconds ago\.$/i)
+  if (abortMatch) {
+    return trimmed.replace(clean, translate('terminal.daemonMessages.crashTooFrequent', { timeout: abortMatch[1] }))
+  }
+
+  return text
+}
+
+function translateInstallText(text: string, translate: any): string {
+  const clean = text.trim()
+
+  const exactMap: Record<string, string> = {
+    'Finished pulling Docker container image': 'terminal.installMessages.finishedPulling',
+  }
+
+  if (exactMap[clean]) {
+    return translate(exactMap[clean])
+  }
+
+  const pullingMatch = clean.match(/^Pulling from (.+)$/i)
+  if (pullingMatch) {
+    return translate('terminal.installMessages.pullingFrom', { image: pullingMatch[1] })
+  }
+
+  const digestMatch = clean.match(/^Digest: (.+)$/i)
+  if (digestMatch) {
+    return translate('terminal.installMessages.digest', { digest: digestMatch[1] })
+  }
+
+  const statusMatch = clean.match(/^Status: (.+)$/i)
+  if (statusMatch) {
+    return translate('terminal.installMessages.status', { status: statusMatch[1] })
+  }
+
+  return text
+}
+
 export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const t = useTranslations("serverConsoleTab")
   const termRef = useRef<HTMLDivElement>(null)
@@ -744,10 +820,11 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   }
                   break
                   
-                case "install output":
+                 case "install output":
                   for (const line of msg.args || []) {
                     const processed = processConsoleOutput(String(line))
-                    const text = `[${t("terminal.tags.install")}] ${processed}`
+                    const translated = translateInstallText(processed, t)
+                    const text = `[${t("terminal.tags.install")}] ${translated}`
                     if (text.trim()) {
                       term.writeln(`\x1b[33m${text}\x1b[0m`)
                       addToOutput(stripAnsiText(text))
@@ -755,10 +832,11 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   }
                   break
                   
-                case "status": {
+                 case "status": {
                   const raw = String(msg.args?.[0] || "")
                   const processed = processConsoleOutput(raw)
-                  term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${processed}`)
+                  const translated = translateStatusText(processed, t)
+                  term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${translated}`)
                   setConnectionState(raw)
                   const s = raw.toLowerCase()
                   if (s === "running" || s === "connected") {
@@ -780,10 +858,11 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   break
                 }
                   
-                case "daemon message": {
+                 case "daemon message": {
                   const dmMsg = processConsoleOutput(msg.args?.join(" ") || "")
-                  if (dmMsg.trim()) {
-                    term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${dmMsg}`)
+                  const translated = translateDaemonText(dmMsg, t)
+                  if (translated.trim()) {
+                    term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${translated}`)
                   }
                   break
                 }
