@@ -1458,8 +1458,13 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
+    const DENIED_ENV_KEYS = new Set(['LD_PRELOAD', 'LD_LIBRARY_PATH', 'LD_AUDIT', 'LD_DEBUG', 'LD_ORIGIN_PATH', 'SHELL', 'BASH_ENV', 'BASH_FUNC_mc']);
     const envOverrides: Record<string, string> = body.environment || {};
-    Object.assign(envObject, envOverrides);
+    for (const key of Object.keys(envOverrides)) {
+      if (!DENIED_ENV_KEYS.has(key)) {
+        envObject[key] = envOverrides[key];
+      }
+    }
 
     const requestedStartup = typeof body.startup === 'string' ? body.startup.trim() : '';
     const resolvedStartup = requestedStartup || (typeof egg.startup === 'string'
@@ -4402,7 +4407,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     const incomingProto = (ctx.headers['x-forwarded-proto'] as string) || ctx.protocol || 'https';
     const forwardedHost = (ctx.headers['x-forwarded-host'] as string) || (ctx.headers['host'] as string) || ctx.hostname;
-    const hostSafe = forwardedHost && forwardedHost !== 'undefined' ? forwardedHost : 'localhost';
+    const hostSafe = forwardedHost && forwardedHost !== 'undefined' && typeof forwardedHost === 'string' && /^[a-zA-Z0-9.:\-[\]]+$/.test(forwardedHost.split(':')[0]) ? forwardedHost : 'localhost';
     const backendBase = (process.env.BACKEND_URL || `${incomingProto}://${hostSafe}`).replace(/\/+$/, '');
     const socketScheme = backendBase.startsWith('https') || incomingProto === 'https' ? 'wss' : 'ws';
 

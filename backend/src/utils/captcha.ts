@@ -11,8 +11,15 @@ const INVISIBLE_TTL_MS = 5 * 60 * 1000;
 const INVISIBLE_MIN_TIME_MS = 1500;
 const INVISIBLE_MAX_TIME_MS = 60 * 60 * 1000;
 const SAMPLE_RATE = 22050;
-const TTS_VOICE = process.env.CAPTCHA_TTS_VOICE || 'en';
-const TTS_SPEED = Number(process.env.CAPTCHA_TTS_SPEED || '150');
+const TTS_VOICE = (() => {
+  const v = process.env.CAPTCHA_TTS_VOICE || 'en';
+  return /^[a-zA-Z0-9+.-]+$/.test(v) ? v : 'en';
+})();
+
+const TTS_SPEED = (() => {
+  const raw = Number(process.env.CAPTCHA_TTS_SPEED);
+  return Number.isFinite(raw) && raw >= 80 && raw <= 600 ? raw : 150;
+})();
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
