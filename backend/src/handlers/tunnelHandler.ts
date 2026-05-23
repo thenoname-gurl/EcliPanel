@@ -613,7 +613,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
           kind,
           iat: Math.floor(Date.now() / 1000),
         },
-        { expiresIn: '24h' }
+        { expiresIn: kind === 'server' ? '365d' : '24h' }
       );
 
       await repo.save(device);
@@ -805,20 +805,21 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('not_approved', 400);
       }
 
+      const tokenExpiry = device.kind === 'server' ? '365d' : '24h';
       device.token = app.jwt.sign(
         {
           agent: device.deviceCode,
           kind: device.kind,
           iat: Math.floor(Date.now() / 1000),
         },
-        { expiresIn: '24h' }
+        { expiresIn: tokenExpiry }
       );
       await repo.save(device);
 
       return createJsonResponse({
         access_token: device.token,
         token_type: 'bearer',
-        expires_in: 86400,
+        expires_in: device.kind === 'server' ? 365 * 86400 : 86400,
       });
     },
     {
@@ -890,7 +891,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         expiresAt,
         token: app.jwt.sign(
           { agent: deviceCode, kind, iat: Math.floor(Date.now() / 1000) },
-          { expiresIn: '24h' }
+          { expiresIn: kind === 'server' ? '365d' : '24h' }
         ),
       });
       if (kind === 'server' && fqdn) {
@@ -906,7 +907,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         fqdn: device.fqdn || null,
         access_token: device.token,
         token_type: 'bearer',
-        expires_in: 86400,
+        expires_in: kind === 'server' ? 365 * 86400 : 86400,
       });
     },
     {
