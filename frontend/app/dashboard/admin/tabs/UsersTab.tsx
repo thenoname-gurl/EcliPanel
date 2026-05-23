@@ -41,7 +41,6 @@ export default function UsersTab({ ctx }: { ctx: any }) {
     users,
     openEditUser,
     toggleSuspend,
-    resetDemo,
     startExportJob,
     userExportJobId,
     exportJobs,
@@ -55,7 +54,6 @@ export default function UsersTab({ ctx }: { ctx: any }) {
   const canEditUser = !!user && hasPermission(user, 'admin:user:edit')
   const canSuspendUser = !!user && hasPermission(user, 'users:suspend')
   const canDeleteUser = !!user && hasPermission(user, 'users:delete')
-  const canResetDemo = !!user && hasPermission(user, 'users:write')
   const canRequireStudentReverify = !!user && hasPermission(user, 'users:write')
   const canDeassignStudent = !!user && hasPermission(user, 'admin:student:deassign')
 
@@ -251,11 +249,6 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                             {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
                           </button>
                         )}
-                        {user.demoUsed && canResetDemo && (
-                          <button onClick={() => resetDemo(user)} title={t("actions.resetDemo")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </button>
-                        )}
                         <button onClick={() => startExportJob(user)} title={t("actions.startExportJob")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <FileText className="h-3.5 w-3.5" />
                         </button>
@@ -390,12 +383,6 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                     <MoreHorizontal className="h-3.5 w-3.5" />
                   </button>
                   <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
-                    {user.demoUsed && canResetDemo && (
-                      <button onClick={() => resetDemo(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        {t("actions.resetDemo")}
-                      </button>
-                    )}
                     {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
                       <button onClick={() => deassignStudent(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                         <UserMinus className="h-3.5 w-3.5" />

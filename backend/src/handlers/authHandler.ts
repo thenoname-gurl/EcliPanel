@@ -1,8 +1,6 @@
 import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
-import { AIModel } from '../models/aiModel.entity';
-import { AIModelUser } from '../models/aiModelUser.entity';
 import { comparePassword, hashPassword, isLegacyPasswordHash } from '../utils/password';
 import { getGeoBlockLevel, canPerformIdVerification } from '../utils/eu';
 import { v4 as uuidv4 } from 'uuid';
@@ -1540,113 +1538,6 @@ export async function authRoutes(app: any, prefix = '') {
     }
   });
 
-  app.post(prefix + '/auth/demo', async (ctx: any) => {
-    const user = ctx.user as User | undefined;
-    if (!user) {
-      ctx.set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-
-    if (user.demoUsed) {
-      ctx.set.status = 400;
-      return { error: 'Demo has already been used' };
-    }
-
-    const durationMinutes = Number(ctx.body?.minutes || 30);
-    const now = new Date();
-    const expires = new Date(now.getTime() + durationMinutes * 60 * 1000);
-
-    user.demoOriginalPortalType = user.portalType;
-    user.portalType = 'enterprise';
-    user.demoExpiresAt = expires;
-    user.demoLimits = { tokens: 500, requests: 50 };
-    user.demoUsed = true;
-
-    const existingDemoMembership = await orgMemberRepo.findOne({ where: { userId: user.id }, relations: {"organisation":true} });
-    if (!existingDemoMembership) {
-      const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
-      const demoHandle = `demo-${user.id}`;
-      let demoOrg: any = await orgRepo.findOneBy({ handle: demoHandle });
-      if (!demoOrg) {
-        demoOrg = orgRepo.create({
-          name: `Demo (${user.email})`,
-          handle: demoHandle,
-          ownerId: user.id,
-          portalTier: 'enterprise',
-        } as any);
-        await orgRepo.save(demoOrg);
-      }
-      const link = orgMemberRepo.create({ userId: user.id, organisationId: demoOrg.id, user, organisation: demoOrg, orgRole: 'member', createdAt: new Date() });
-      await orgMemberRepo.save(link);
-    }
-
-    await AppDataSource.getRepository(User).save(user);
-
-    try {
-      const modelRepo = AppDataSource.getRepository(AIModel);
-      const userModelRepo = AppDataSource.getRepository(AIModelUser);
-      const demoTag = 'demo';
-
-      const models = await modelRepo.find();
-      let demoModel = models.find((m) => Array.isArray(m.tags) && m.tags.includes(demoTag));
-
-      if (!demoModel) {
-        const demoModelName = 'openai/gpt-oss-20b';
-        demoModel = await modelRepo.findOneBy({ name: demoModelName });
-      }
-
-      const existing = await userModelRepo.findOne({ where: { user: { id: user.id }, model: { id: demoModel.id } } });
-      if (!existing) {
-        const link = userModelRepo.create({ user, model: demoModel, limits: { tokens: 500, requests: 50 } });
-        await userModelRepo.save(link);
-      }
-    } catch (err) {
-      // skip
-    }
-
-    return { success: true, demoExpiresAt: expires.toISOString(), demoLimits: user.demoLimits };
-  }, {
-    beforeHandle: authenticate,
-    body: t.Object({ minutes: t.Optional(t.Number()) }),
-    response: { 200: t.Object({ success: t.Boolean(), demoExpiresAt: t.String(), demoLimits: t.Optional(t.Any()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: { summary: 'Start a temporary demo mode', description: 'Grants temporary enterprise access with demo limits.', tags: ['Auth'], operationId: 'postAuthDemo' }
-  });
-
-  app.post(prefix + '/auth/demo/finish', async (ctx: any) => {
-    const user = ctx.user as User | undefined;
-    if (!user) {
-      ctx.set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-
-    if (user.demoOriginalPortalType) {
-      user.portalType = user.demoOriginalPortalType;
-      user.demoOriginalPortalType = undefined;
-    }
-    user.demoExpiresAt = undefined;
-    user.demoLimits = undefined;
-
-    const allMemberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: {"organisation":true} });
-    const demoMembership = allMemberships.find((m: any) => String(m.organisation?.handle || '').startsWith('demo-') && m.organisation?.ownerId === user.id);
-    if (demoMembership?.organisation) {
-      try {
-        const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
-        await orgRepo.remove(demoMembership.organisation);
-      } catch (e) {
-        // skip
-      }
-    }
-
-    await AppDataSource.getRepository(User).save(user);
-    await invalidateAuthSessionCache(user.id);
-
-    return { success: true };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }) },
-    detail: { summary: 'Finish demo mode early', description: 'Reverts demo mode back to the original plan.', tags: ['Auth'], operationId: 'postAuthDemoFinish' }
-  });
-
   app.get(prefix + '/auth/session', async (ctx: any) => {
     const user = ctx.user as User | undefined;
     if (!user) {
@@ -1769,9 +1660,6 @@ export async function authRoutes(app: any, prefix = '') {
           usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
           geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
           idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
-          demoExpiresAt: user.demoExpiresAt || null,
-          demoLimits: user.demoLimits || null,
-          demoUsed: user.demoUsed === true,
           guideShown: (user as any).guideShown === true,
           serverSunsetNoticeSentAt: user.serverSunsetNoticeSentAt || null,
         },

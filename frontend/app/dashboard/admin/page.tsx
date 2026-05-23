@@ -332,7 +332,6 @@ interface AdminUser {
   passkeyCount: number
   createdAt?: string
   studentVerified?: boolean
-  demoUsed?: boolean
   settings?: Record<string, any>
   dateOfBirth?: string | null
   parentId?: number | null
@@ -2162,15 +2161,6 @@ export default function AdminPanel() {
       body: JSON.stringify({ suspended: !user.suspended }),
     })
     setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, suspended: !u.suspended } : u)))
-  }
-
-  async function resetDemo(user: AdminUser) {
-    if (!(await confirmAsync(`Reset demo status for ${user.firstName} ${user.lastName}?`))) return
-    await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ demoUsed: false, demoExpiresAt: null, demoOriginalPortalType: null, demoLimits: null }),
-    })
-    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, demoUsed: false, demoExpiresAt: null } : u)))
   }
 
   async function deleteUser(user: AdminUser) {
@@ -4175,7 +4165,6 @@ remote: ${panelUrl}`
                     users,
                     openEditUser,
                     toggleSuspend,
-                    resetDemo,
                     startExportJob,
                     userExportJobId,
                     exportJobs,

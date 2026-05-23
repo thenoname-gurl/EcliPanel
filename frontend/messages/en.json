@@ -389,7 +389,7 @@
       "q1": "How does billing work?",
       "a1": "Charged at the start of each period. Overage alerts fire before you hit limits - no surprise invoices.",
       "q2": "Is there a free trial for Pro?",
-      "a2": "Enterprise demos are available from billing. Pro trials are available via support for up to 3 days.",
+      "a2": "Pro trials are available via support for up to 3 days.",
       "q3": "What happens when a node goes offline?",
       "a3": "Traffic can reroute to healthy nodes quickly when available. Pro and Enterprise deployments may also use replication across zones.",
       "q4": "Can I self-host?",
@@ -1480,7 +1480,6 @@
       "edit": "Edit",
       "suspend": "Suspend",
       "unsuspend": "Unsuspend",
-      "resetDemo": "Reset demo",
       "startExportJob": "Start export job",
       "download": "Download",
       "deassignStudent": "Deassign student",
@@ -2643,8 +2642,8 @@
         "description": "Description",
         "descriptionPlaceholder": "Optional description shown to users",
         "tags": "Tags",
-        "tagsPlaceholder": "comma-separated tags (e.g. demo, core)",
-        "tagsHint": "Tags can be used to mark models for special purposes (e.g. demo).",
+        "tagsPlaceholder": "comma-separated tags (e.g. core, experimental)",
+        "tagsHint": "Tags can be used to mark models for special purposes.",
         "endpointUrl": "Endpoint URL",
         "endpointPlaceholder": "https://api.openai.com",
         "apiKey": "API Key",
@@ -4526,9 +4525,7 @@
       "description": "Manage Wings nodes and networking configuration."
     },
     "states": {
-      "demoActive": "Demo mode is active. Creating, editing, and deleting nodes is disabled.",
       "nodesRegistered": "{count} node(s) registered",
-      "disabledInDemo": "Disabled in demo mode",
       "loadingNodes": "Loading nodes...",
       "noNodesTitle": "No nodes yet",
       "noNodesDescription": "Add your first node to start hosting workloads."
@@ -4542,11 +4539,7 @@
       "saving": "Saving...",
       "saveChanges": "Save Changes"
     },
-    "alerts": {
-      "demoCreateDisabled": "Creating nodes is disabled in demo mode.",
-      "demoEditDisabled": "Editing nodes is disabled in demo mode.",
-      "demoDeleteDisabled": "Deleting nodes is disabled in demo mode."
-    },
+    "alerts": {},
     "confirm": {
       "deleteNode": "Delete node \"{name}\"?"
     },
@@ -5247,30 +5240,6 @@
       "custom": "Custom",
       "customPlan": "Custom Plan",
       "inclTax": "incl. {taxRate}% tax"
-    },
-    "demo": {
-      "title": "Demo Mode",
-      "badge": "Demo",
-      "description": "Demo mode simulates temporary enterprise access with limited resources and provides limited accessibility to AI models such as openai/gpt-oss-20b which can be used in AI Studio, AI Chat or for AI assistant (inline suggestions) features. Intended for testing and evaluation purposes before purchasing enterprise plan.",
-      "expiresAt": "Your demo expires at",
-      "expired": "Your demo has expired. You can no longer start a new demo.",
-      "used": "Demo mode has already been used for this account. Contact support if you believe this is a mistake.",
-      "footnote": "Demo mode is a temporary sandbox. Changes made during demo may not persist after it ends, and infrastructure actions are limited.",
-      "actions": {
-        "finishing": "Finishing…",
-        "starting": "Starting…",
-        "endDemo": "End Demo",
-        "demoUsed": "Demo Used",
-        "startDemo": "Start Demo"
-      },
-      "errors": {
-        "failedStart": "Failed to start demo mode",
-        "failedFinish": "Failed to finish demo mode"
-      },
-      "toast": {
-        "endedTitle": "Demo ended",
-        "endedDescription": "Your demo session has ended and your account is restored."
-      }
     },
     "stats": {
       "currentPlan": "Current Plan",

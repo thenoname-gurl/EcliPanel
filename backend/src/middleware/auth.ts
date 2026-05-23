@@ -102,16 +102,6 @@ export async function authenticate(ctx: any) {
       return { error: 'Account is pending deletion and currently frozen' };
     }
 
-    if (user.demoExpiresAt && new Date(user.demoExpiresAt) < new Date()) {
-      user.demoExpiresAt = undefined;
-      user.demoLimits = undefined;
-      if (user.demoOriginalPortalType) {
-        user.portalType = user.demoOriginalPortalType;
-        user.demoOriginalPortalType = undefined;
-      }
-      await userRepo.save(user);
-    }
-
     ctx.user = user;
     ctx.userPermissions = [];
     const seenRoles = new Set<number>();

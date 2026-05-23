@@ -2136,10 +2136,6 @@ export async function adminRoutes(app: any, prefix = '') {
       suspended,
       limits,
       nodeId,
-      demoUsed,
-      demoExpiresAt,
-      demoOriginalPortalType,
-      demoLimits,
       supportBanned,
       supportBanReason,
       badges,
@@ -2198,10 +2194,6 @@ export async function adminRoutes(app: any, prefix = '') {
     if (portalType !== undefined) user.portalType = portalType;
     if (suspended !== undefined) user.suspended = suspended;
     if (nodeId !== undefined) user.nodeId = nodeId != null ? Number(nodeId) : undefined as any;
-    if (demoUsed !== undefined) user.demoUsed = !!demoUsed;
-    if (demoExpiresAt !== undefined) user.demoExpiresAt = demoExpiresAt ? new Date(demoExpiresAt) : undefined;
-    if (demoOriginalPortalType !== undefined) user.demoOriginalPortalType = demoOriginalPortalType;
-    if (demoLimits !== undefined) user.demoLimits = demoLimits;
     if (emailVerified !== undefined) user.emailVerified = !!emailVerified;
     if (idVerified !== undefined) user.idVerified = !!idVerified;
     if (studentVerified !== undefined) user.studentVerified = !!studentVerified;
@@ -2356,10 +2348,6 @@ export async function adminRoutes(app: any, prefix = '') {
         suspended: t.Optional(t.Boolean()),
         limits: t.Optional(t.Any()),
         nodeId: t.Optional(t.Any()),
-        demoUsed: t.Optional(t.Boolean()),
-        demoExpiresAt: t.Optional(t.String()),
-        demoOriginalPortalType: t.Optional(t.String()),
-        demoLimits: t.Optional(t.Any()),
         badges: t.Optional(t.Array(t.String())),
         dateOfBirth: t.Optional(t.Any()),
         parentId: t.Optional(t.Any()),
