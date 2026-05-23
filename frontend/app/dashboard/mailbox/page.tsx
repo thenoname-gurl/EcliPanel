@@ -327,7 +327,7 @@ function buildIframeSrcdoc(html: string, blockRemoteImages: boolean): string {
     {
       let result = "";
       let last = 0;
-      for (const m of sanitized.matchAll(/<script[\s\S]*?<\/script>/gi)) {
+      for (const m of sanitized.matchAll(/<script\b[\s\S]*?<\/script\b[^>]*>/gi)) {
         result += sanitized.slice(last, m.index);
         last = m.index + m[0].length;
       }
