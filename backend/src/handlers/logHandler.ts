@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { UserLog } from '../models/userLog.entity';
 import { User } from '../models/user.entity';
+import { ServerConfig } from '../models/serverConfig.entity';
 import { sendMail } from '../services/mailService';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
@@ -16,20 +17,122 @@ import { hasPermissionSync } from '../middleware/authorize';
 */
 
 function formatMetadataForEmail(meta: Record<string, any>, action: string): { message: string; details: string } {
-  const { changes, actor, where: target, ipAddress, ...rest } = meta || {};
+  const { changes, actor, where: whereStr, ipAddress, ...rest } = meta || {};
 
-  const actionLabel = action.replace(/[:_-]/g, ' ').replace(/\b\w/g, (s: string) => s.toUpperCase());
-  const actorName = actor?.name ? `${actor.name}` : '';
-  let message = `Event: ${actionLabel}`;
-  if (actorName) message += ` by ${actorName}`;
-  if (target) message += ` on ${target}`;
+  const parts = action.toLowerCase().split(':');
+  const domain = parts[0];
+  const verb = parts[parts.length - 1];
+  const subdomain = parts.length > 2 ? parts.slice(1, -1).join(' ') : (parts.length === 2 ? '' : '');
 
-  const lines: string[] = [];
+  const nameEmail = actor?.email ? `${actor.name || 'Someone'} (${actor.email})` : (actor?.name || 'Someone');
+  const targetId = whereStr ? whereStr.replace(/^server:/, '') : '';
+  const targetLabel = meta?.serverName || meta?.changes?.name || targetId || '';
+
+  let message = '';
+
+  if (domain === 'server') {
+    const t = targetLabel && targetId && targetLabel !== targetId ? `${targetLabel} (${targetId})` : (targetLabel || 'a server');
+    if (verb === 'create') {
+      message = `${t} was created by ${nameEmail}`;
+    } else if (verb === 'delete') {
+      message = `${t} was deleted by ${nameEmail}`;
+    } else if (verb === 'update') {
+      message = `${t} was updated by ${nameEmail}`;
+    } else if (verb === 'suspend') {
+      message = `${t} was suspended by ${nameEmail}`;
+    } else if (verb === 'unsuspend') {
+      message = `${t} was unsuspended by ${nameEmail}`;
+    } else if (verb === 'reinstall') {
+      message = `${t} was reinstalled by ${nameEmail}`;
+    } else if (subdomain === 'power' || parts[1] === 'power') {
+      message = `Power action "${verb}" on ${t} was triggered by ${nameEmail}`;
+    } else if (subdomain === 'console' || parts[1] === 'console') {
+      message = `Console command was executed on ${t} by ${nameEmail}`;
+    } else if (subdomain === 'file' || parts[1] === 'file') {
+      message = `File ${verb} on ${t} by ${nameEmail}`;
+    } else if ((subdomain === 'subuser' || parts[1] === 'subuser') && verb === 'add') {
+      message = `Subuser was added to ${t} by ${nameEmail}`;
+    } else if ((subdomain === 'subuser' || parts[1] === 'subuser') && verb === 'remove') {
+      message = `Subuser was removed from ${t} by ${nameEmail}`;
+    } else if ((subdomain === 'subuser' || parts[1] === 'subuser') && verb === 'update') {
+      message = `Subuser permissions on ${t} were updated by ${nameEmail}`;
+    } else if (subdomain === 'kvm' || parts[1] === 'kvm') {
+      message = `KVM access for ${t} was ${verb} by ${nameEmail}`;
+    } else if (verb === 'assign') {
+      message = `IP was assigned to ${t} by ${nameEmail}`;
+    } else if (verb === 'deassign') {
+      message = `IP was removed from ${t} by ${nameEmail}`;
+    } else {
+      const what = subdomain ? `${subdomain} ${verb}` : verb;
+      message = `${what} on ${t} by ${nameEmail}`;
+    }
+  } else if (domain === 'org' || domain === 'organization') {
+    const orgName = meta?.orgName || meta?.handle || targetId || 'an organization';
+    if (verb === 'create') {
+      message = `${orgName} was created by ${nameEmail}`;
+    } else if (verb === 'invite') {
+      message = `${meta?.invitedEmail || 'A user'} was invited by ${nameEmail}`;
+    } else if (verb === 'accept_invite') {
+      message = `Invitation was accepted by ${nameEmail}`;
+    } else if (verb === 'reject_invite') {
+      message = `Invitation was rejected by ${nameEmail}`;
+    } else if (verb === 'remove_member') {
+      message = `Member was removed from ${orgName} by ${nameEmail}`;
+    } else if (verb === 'change_role') {
+      message = `Member role was changed in ${orgName} by ${nameEmail}`;
+    } else if (verb === 'leave') {
+      message = `${nameEmail} left ${orgName}`;
+    } else if (verb === 'add_user') {
+      message = `User was added to ${orgName} by ${nameEmail}`;
+    } else if (verb === 'resend_invite') {
+      message = `Invitation was resent to ${meta?.invitedEmail || 'a user'} by ${nameEmail}`;
+    } else if (verb === 'revoke_invite') {
+      message = `Invitation for ${meta?.invitedEmail || 'a user'} was revoked by ${nameEmail}`;
+    } else {
+      message = `${orgName} ${verb.replace(/_/g, ' ')} by ${nameEmail}`;
+    }
+  } else if (domain === 'ticket') {
+    if (verb === 'urgent') {
+      message = `Ticket was marked as urgent by ${nameEmail}`;
+    } else if (verb === 'escalate') {
+      message = `Ticket was escalated by ${nameEmail}`;
+    } else if (verb === 'spam') {
+      message = `Ticket was flagged as spam`;
+    } else if (subdomain === 'ai' && verb === 'reply') {
+      message = `AI replied to ticket`;
+    } else if (subdomain === 'ai' && verb === 'set') {
+      message = `AI set response on ticket`;
+    } else if (subdomain === 'ai' && verb === 'close') {
+      message = `Ticket was closed by AI`;
+    } else if (verb === 'close') {
+      message = `Ticket was closed`;
+    } else if (verb === 'human') {
+      message = `Ticket was escalated to human support`;
+    } else {
+      message = `Ticket was updated by ${nameEmail}`;
+    }
+  } else if (domain === 'ai') {
+    message = `AI ${verb} triggered`;
+  } else if (domain === 'billing' || domain === 'bill' || domain === 'invoice') {
+    message = `${verb.replace(/_/g, ' ')} ${action.includes('invoice') ? 'invoice' : 'billing'} event`;
+  } else if (domain === 'security') {
+    message = `Security alert: ${verb.replace(/_/g, ' ')}`;
+  } else {
+    message = action.replace(/[:_-]/g, ' ').replace(/\b\w/g, (s: string) => s.toUpperCase());
+  }
+
+  message = message.charAt(0).toUpperCase() + message.slice(1);
+
+  if (ipAddress) {
+    message += ` from ${ipAddress}`;
+  }
+
+  const detailLines: string[] = [];
 
   if (changes && typeof changes === 'object') {
     const entries = Object.entries(changes).filter(([, v]) => v !== undefined && v !== null && v !== '');
     if (entries.length > 0) {
-      lines.push('Changes:');
+      detailLines.push('Changes:');
       for (const [key, val] of entries) {
         let formatted = val;
         if (typeof val === 'number') {
@@ -44,36 +147,29 @@ function formatMetadataForEmail(meta: Record<string, any>, action: string): { me
           formatted = val ? 'Yes' : 'No';
         }
         const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase());
-        lines.push(`  \u2022 ${label}: ${formatted}`);
+        detailLines.push(`  \u2022 ${label}: ${formatted}`);
       }
     }
   }
 
-  if (ipAddress) {
-    if (lines.length > 0) lines.push('');
-    lines.push(`IP Address: ${ipAddress}`);
-  }
-
-  if (actor) {
-    if (lines.length > 0 && !changes) lines.push('');
-    if (actor.email) lines.push(`Email: ${actor.email}`);
-    if (actor.role && actor.role !== '*') lines.push(`Role: ${actor.role}`);
-  }
-
-  const remaining = Object.entries(rest).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  const skipKeys = new Set(['changes', 'actor', 'where', 'ipAddress', 'orgName', 'handle', 'invitedEmail', 'serverName']);
+  const remaining = Object.entries(rest).filter(([k, v]) => v !== undefined && v !== null && v !== '' && !skipKeys.has(k));
   if (remaining.length > 0) {
-    if (lines.length > 0) lines.push('');
+    if (detailLines.length > 0) detailLines.push('');
     for (const [key, val] of remaining) {
       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase());
       if (typeof val === 'object') {
-        lines.push(`${label}: ${JSON.stringify(val)}`);
+        detailLines.push(`${label}: ${JSON.stringify(val)}`);
       } else {
-        lines.push(`${label}: ${val}`);
+        detailLines.push(`${label}: ${val}`);
       }
     }
   }
 
-  return { message, details: lines.join('\n') };
+  if (detailLines.length > 0) detailLines.push('');
+  detailLines.push('If you or someone you know didn\'t perform this action, reset subuser access, update your account password and sign out from all sessions, or contact support.');
+
+  return { message, details: detailLines.join('\n') };
 }
 
 function stripHtml(value: any): any {
@@ -139,6 +235,11 @@ export async function createActivityLog(opts: {
         }
         if (!meta.where && entry.targetType) meta.where = entry.targetType + (entry.targetId ? `:${entry.targetId}` : '');
         if (entry.ipAddress) meta.ipAddress = entry.ipAddress;
+        if (entry.targetType === 'server' && entry.targetId && !meta.serverName) {
+          const serverRepo = AppDataSource.getRepository(ServerConfig);
+          const server = await serverRepo.findOne({ where: { uuid: entry.targetId }, select: { name: true } });
+          if (server?.name) meta.serverName = server.name;
+        }
         entry.metadata = meta;
         await repo.save(entry);
       } catch (e) {
