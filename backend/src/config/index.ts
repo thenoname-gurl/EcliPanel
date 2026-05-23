@@ -63,6 +63,11 @@ export async function setupConfig(app: any) {
       throw new Error('JWT_SECRET environment variable must be set in production');
     }
     (app.log ?? console).warn('JWT_SECRET is not set — using insecure default. DO NOT deploy to production without setting this.');
+  } else if (jwtSecret.length < 32) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be at least 32 characters long');
+    }
+    (app.log ?? console).warn('JWT_SECRET is too short (less than 32 characters). Use a long random string in production.');
   }
   
   await AppDataSource.initialize().catch((err) => {

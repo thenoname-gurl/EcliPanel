@@ -33,9 +33,15 @@ import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { hashPassword, comparePassword } from '../utils/password';
+import { consumeRateLimit } from '../config/redis';
 
-function randomToken(bytes = 32) {
-  return crypto.randomBytes(bytes).toString('hex');
+async function randomToken(bytes = 32) {
+  return new Promise<string>((resolve, reject) => {
+    crypto.randomBytes(bytes, (err, buf) => {
+      if (err) reject(err);
+      else resolve(buf.toString('hex'));
+    });
+  });
 }
 
 function filterScopes(requested: string[], allowed: string[]): string[] {
@@ -136,7 +142,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     );
 
     const clientId = crypto.randomUUID();
-    const rawSecret = randomToken(40);
+    const rawSecret = await randomToken(40);
     const clientSecretHash = await hashPassword(rawSecret);
 
     const entity = appRepo.create({
@@ -267,7 +273,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       ctx.set.status = 403;
       return { error: 'Forbidden' };
     }
-    const rawSecret = randomToken(40);
+    const rawSecret = await randomToken(40);
     oauthApp.clientSecretHash = await hashPassword(rawSecret);
     await appRepo.save(oauthApp);
     await tokenRepo.update({ app: { id: oauthApp.id } }, { revoked: true });
@@ -401,7 +407,13 @@ export async function oauthRoutes(app: any, prefix = '') {
       return { error: 'redirect_uri_mismatch' };
     }
 
-    const stateParam = state ? `&state=${encodeURIComponent(state)}` : '';
+    const stateValid = !state || /^[a-zA-Z0-9._~-]{0,256}$/.test(String(state));
+    if (!stateValid) {
+      ctx.set.status = 400;
+      return { error: 'invalid_state', error_description: 'State parameter contains invalid characters' };
+    }
+
+    const stateParam = state ? `&state=${encodeURIComponent(String(state))}` : '';
 
     if (!approved) {
       return { redirect: `${redirect_uri}?error=access_denied${stateParam}` };
@@ -415,7 +427,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       (s) => s !== 'admin' || hasPermissionSync(ctx, 'oauth:manage'),
     );
 
-    const code = randomToken(32);
+    const code = await randomToken(32);
     const expiresAt = new Date(Date.now() + AUTH_CODE_TTL * 1000);
 
     const authCode = codeRepo.create({
@@ -440,6 +452,17 @@ export async function oauthRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/oauth/token', async (ctx) => {
     const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
+
+    const ip = String(ctx.ip || 'unknown').slice(0, 200);
+    const rlKey = `rate:oauth:token:ip:${ip}`;
+    try {
+      const rl = await consumeRateLimit(rlKey, 30, 60);
+      if (!rl.allowed) {
+        ctx.set.status = 429;
+        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+      }
+    } catch { /* skip */ }
+
     const body = ctx.body as any;
     const { grant_type } = body;
 
@@ -462,7 +485,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       clientSecret = body.client_secret;
     }
 
-    const requireSecret = grant_type !== 'authorization_code' || !body.code_verifier;
+    const requireSecret = grant_type !== 'authorization_code' || true;
 
     if (!clientId) {
       ctx.set.status = 401;
@@ -534,8 +557,8 @@ export async function oauthRoutes(app: any, prefix = '') {
       authCode.used = true;
       await codeRepo.save(authCode);
 
-      const accessToken = randomToken(40);
-      const refreshToken = randomToken(40);
+      const accessToken = await randomToken(40);
+      const refreshToken = await randomToken(40);
       const now = Date.now();
 
       const tokenEntity = tokenRepo.create({
@@ -567,7 +590,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       const requestedScopes = body.scope ? body.scope.split(' ') : [];
       const grantedScopes = filterScopes(requestedScopes, oauthApp.allowedScopes);
 
-      const accessToken = randomToken(40);
+      const accessToken = await randomToken(40);
       const now = Date.now();
 
       const tokenEntity = tokenRepo.create({
@@ -619,8 +642,8 @@ export async function oauthRoutes(app: any, prefix = '') {
       existing.revoked = true;
       await tokenRepo.save(existing);
 
-      const newAccessToken = randomToken(40);
-      const newRefreshToken = randomToken(40);
+      const newAccessToken = await randomToken(40);
+      const newRefreshToken = await randomToken(40);
       const now = Date.now();
 
       const newToken = tokenRepo.create({

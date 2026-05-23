@@ -830,7 +830,6 @@ export async function remoteRoutes(app: any, prefix: string) {
         browsable: !!body?.browsable,
         streaming: !!body?.streaming,
         parts: body?.parts ?? undefined,
-        raw: body ?? undefined,
         progress: Number(body?.progress ?? body?.percent ?? 0) || 0,
         status: body?.status ?? undefined,
       };
