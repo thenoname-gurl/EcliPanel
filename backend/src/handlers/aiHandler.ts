@@ -96,7 +96,7 @@ export async function aiRoutes(app: any, prefix = '') {
           errs.push({ endpoint: ep.base, reason: 'rate_limited', wait });
           try {
             const entry = { timestamp: new Date().toISOString(), modelId: model?.id, modelName: model?.name, endpoint: ep.base, waitMs: wait };
-            try { await redisClient.lPush('admin:ai:cooldowns', JSON.stringify(entry)); } catch (e) { /* ignore redis push errors */ }
+            try { await redisClient.lpush('admin:ai:cooldowns', JSON.stringify(entry)); } catch (e) { /* ignore redis push errors */ }
             try { await redisClient.expire('admin:ai:cooldowns', 24 * 60 * 60); } catch (e) { /* ignore */ }
             try { await createActivityLog({ userId: 0, action: 'ai:endpoint:cooldown', targetId: String(model?.id || ''), targetType: 'ai-model', metadata: entry, ipAddress: '', notify: false }); } catch (e) { /* ignore */ }
           } catch (e) { /* meow */ }
@@ -520,7 +520,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     try {
-      const rows = await redisClient.lRange('admin:ai:cooldowns', 0, 99);
+      const rows = await redisClient.lrange('admin:ai:cooldowns', 0, 99);
       const parsed = rows.map((r: string) => {
         try { return JSON.parse(r); } catch { return r; }
       });

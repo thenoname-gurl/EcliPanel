@@ -1,24 +1,24 @@
-import { createClient } from 'redis';
+import { RedisClient } from 'bun';
 
-export const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-});
+export const redisClient = new RedisClient(
+  process.env.REDIS_URL || process.env.VALKEY_URL || 'redis://localhost:6379'
+);
 
 const inFlightCache = new Map<string, Promise<any>>();
 
-redisClient.on('error', (err) => console.error('Redis Client Error', err));
+redisClient.onconnect = () => console.info('Redis connected');
+redisClient.onclose = (err) => console.error('Redis connection closed', err);
 
 export async function connectRedis() {
-  if (!redisClient.isOpen) {
+  if (!redisClient.connected) {
     await redisClient.connect();
   }
 }
 
 export async function redisSet(key: string, value: string, ttlSeconds?: number) {
+  await redisClient.set(key, value);
   if (ttlSeconds) {
-    await redisClient.set(key, value, { EX: ttlSeconds });
-  } else {
-    await redisClient.set(key, value);
+    await redisClient.expire(key, ttlSeconds);
   }
 }
 
@@ -33,18 +33,28 @@ export async function redisDel(key: string) {
 export async function redisDelByPrefix(prefix: string) {
   const pattern = `${prefix}*`;
   let batch: string[] = [];
+  let cursor = '0';
 
-  for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-    if (typeof key !== 'string') continue;
-    batch.push(key);
-    if (batch.length >= 200) {
-      await redisClient.del(batch);
-      batch = [];
+  do {
+    const result = await redisClient.send('SCAN', [cursor, 'MATCH', pattern, 'COUNT', '100']);
+    if (!Array.isArray(result) || result.length < 2) break;
+    cursor = String(result[0]);
+    const keys = Array.isArray(result[1]) ? result[1] : [];
+    for (const key of keys) {
+      if (typeof key === 'string') {
+        batch.push(key);
+      } else if (key instanceof Uint8Array) {
+        batch.push(new TextDecoder().decode(key));
+      }
+      if (batch.length >= 200) {
+        await redisClient.send('DEL', batch);
+        batch = [];
+      }
     }
-  }
+  } while (cursor !== '0');
 
   if (batch.length) {
-    await redisClient.del(batch);
+    await redisClient.send('DEL', batch);
   }
 }
 
@@ -76,7 +86,7 @@ export async function withRedisCache<T>(key: string, ttlSeconds: number, loader:
   try {
     const cached = await redisGet(key);
     if (cached != null) {
-      const raw = typeof cached === 'string' ? cached : cached.toString();
+      const raw = typeof cached === 'string' ? cached : new TextDecoder().decode(cached);
       return JSON.parse(raw) as T;
     }
   } catch {
