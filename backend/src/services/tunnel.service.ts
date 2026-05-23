@@ -43,7 +43,7 @@ export async function allocatePort(): Promise<number> {
 
   const repo = AppDataSource.getRepository(TunnelAllocation);
   const allocations = await repo.find({
-    select: { port: true, closedAt: true },
+    select: { port: true, closedAt: true, status: true },
     where: [
       { status: 'pending' as AllocationStatus },
       { status: 'active' as AllocationStatus },
@@ -95,7 +95,7 @@ export async function tryReuseRecentPort(
   if (!recent || !recent.closedAt || recent.closedAt < cutoff) return null;
 
   recent.status = 'active';
-  recent.closedAt = undefined;
+  recent.closedAt = null as any;
   await repo.save(recent);
 
   return recent;
@@ -220,6 +220,20 @@ export async function assignPendingAllocations(
     ],
     relations: {"clientDevice":{"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},"serverDevice":true},
   });
+
+  // rebind allocations which were already assigned to this server
+  const alreadyAssigned = pending.filter(
+    (a) => a.serverDevice?.deviceCode === serverDevice.deviceCode
+  );
+  for (const alloc of alreadyAssigned) {
+    sendAgentMessage(serverDevice.deviceCode, {
+      type: 'bind',
+      allocationId: alloc.id,
+      host: alloc.host,
+      port: alloc.port,
+      protocol: alloc.protocol,
+    });
+  }
 
   const unassigned = pending.filter((a) => !a.serverDevice);
   const assignable = unassigned.filter((alloc) =>
