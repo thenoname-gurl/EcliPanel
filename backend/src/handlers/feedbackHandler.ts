@@ -31,7 +31,7 @@ async function requireRollout(ctx: any): Promise<true | { error: string }> {
   const { inRollout } = await getRolloutTreatment(ctx.user.id, ROLLOUT_KEY);
   if (!inRollout) {
     ctx.set.status = 403;
-    return { error: 'This feature is not available to you' };
+    return { error: ctx.t('common.featureNotAvailable') };
   }
   return true;
 }
@@ -48,7 +48,7 @@ export async function feedbackRoutes(app: any, prefix = '') {
 
     if (!Number.isInteger(rating) || rating < 0 || rating > 5) {
       ctx.set.status = 400;
-      return { error: 'Rating must be an integer between 0 and 5' };
+      return { error: ctx.t('validation.ratingIntegerRequired') };
     }
 
     if (message.length > 0 && countWords(message) > WORD_LIMIT) {
@@ -179,14 +179,14 @@ export async function feedbackRoutes(app: any, prefix = '') {
     const id = Number(ctx.params?.id);
     if (!id || isNaN(id)) {
       ctx.set.status = 400;
-      return { error: 'Invalid feedback ID' };
+      return { error: ctx.t('validation.invalidFeedbackId') };
     }
 
     const repo = AppDataSource.getRepository(Feedback);
     const result = await repo.delete(id);
     if (!result.affected) {
       ctx.set.status = 404;
-      return { error: 'Feedback not found' };
+      return { error: ctx.t('organisation.feedbackNotFound') };
     }
 
     return { success: true };

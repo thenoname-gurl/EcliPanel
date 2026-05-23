@@ -29,7 +29,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
         .getMany();
     } else {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     return keys.map(k => ({ ...k, key: undefined }));
   }, {beforeHandle: authenticate,
@@ -55,7 +55,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
     const { name, type, permissions, userId, expiresAt } = ctx.body as any;
     if (!name || !type || (type !== 'client' && type !== 'admin')) {
       ctx.set.status = 400;
-      return { error: 'name and valid type required' };
+      return { error: ctx.t('validation.nameAndValidTypeRequired') };
     }
     const key = randomHex(32);
 
@@ -64,21 +64,21 @@ export async function apiKeyRoutes(app: any, prefix = '') {
     if (userId) {
       if (!canManageUsers && userId !== actor?.id) {
         ctx.set.status = 403;
-        return { error: 'Not allowed to create keys for other users' };
+        return { error: ctx.t('user.notAllowedToCreateKeysForOtherUsers') };
       }
       userRef = { id: userId };
     } else if (actor) {
       userRef = { id: actor.id };
     } else {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     if (type === 'admin') {
       const actorRole = actor?.role;
       if (actorRole !== '*' && !hasPermissionSync(ctx, '*')) {
         ctx.set.status = 403;
-        return { error: 'Only system administrators with * permission can create admin API keys' };
+        return { error: ctx.t('admin.apiKeyAdminOnly') };
       }
     }
 
@@ -113,7 +113,7 @@ export async function apiKeyRoutes(app: any, prefix = '') {
     const key = await repo.findOne({ where: { id }, relations: {"user":true} });
     if (!key) {
       ctx.set.status = 404;
-      return { error: 'not found' };
+      return { error: ctx.t('common.notFound_1') };
     }
     const caller = ctx.apiKey || ctx.user;
     if (ctx.apiKey) {
@@ -121,14 +121,14 @@ export async function apiKeyRoutes(app: any, prefix = '') {
         return { ...key, key: undefined };
       }
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const user = ctx.user;
     if (user && (hasPermissionSync(ctx, 'apikeys:read') || key.user?.id === user.id)) {
       return { ...key, key: undefined };
     }
     ctx.set.status = 403;
-    return { error: 'Forbidden' };
+    return { error: ctx.t('common.forbidden') };
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Get API key by id', tags: ['API Keys'] }

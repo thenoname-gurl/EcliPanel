@@ -5,6 +5,8 @@ import { helmet } from 'elysia-helmet';
 import jsonwebtoken from 'jsonwebtoken';
 import { registerRoutes } from './routes/index';
 import { setupMiddleware, authenticate } from './middleware';
+import { i18n } from './i18n/plugin';
+import { preloadAll } from './i18n/loader';
 import { hasPermissionSync } from './middleware/authorize';
 import { setupConfig } from './config';
 import { createActivityLog } from './handlers/logHandler';
@@ -299,7 +301,8 @@ const app = new Elysia()
     exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
   }))
   .use(helmet())
-  .use(jwt({ secret: process.env.JWT_SECRET}));
+  .use(jwt({ secret: process.env.JWT_SECRET}))
+  .use(i18n);
 
 const _jwtSecret = process.env.JWT_SECRET;
 (app as any).jwt = {
@@ -499,6 +502,7 @@ app.onRequest(async (ctx: any) => {
 
 
 export async function initApp() {
+  await preloadAll();
   await setupConfig(app);
   setupMiddleware(app);
   registerRoutes(app);

@@ -55,7 +55,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const { name, host, port = 3306, username, password, nodeId, maxDatabases = 0 } = ctx.body as any;
     if (!name || !host || !username || !password) {
       ctx.set.status = 400;
-      return { error: 'name, host, username and password are required' };
+      return { error: ctx.t('validation.nameHostUsernamePasswordRequired') };
     }
     try {
       const conn = await mariadb.createConnection({ host, port, user: username, password });
@@ -80,7 +80,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const h = await hostRepo().findOneBy({ id: Number(id) });
     if (!h) {
       ctx.set.status = 404;
-      return { error: 'Database host not found' };
+      return { error: ctx.t('system.socDatabaseNotFound') };
     }
     const { name, host, port, username, password, nodeId, maxDatabases } = ctx.body as any;
     if (name !== undefined) h.name = name;
@@ -104,7 +104,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const h = await hostRepo().findOneBy({ id: Number(id) });
     if (!h) {
       ctx.set.status = 404;
-      return { error: 'Database host not found' };
+      return { error: ctx.t('system.socDatabaseNotFound') };
     }
     const inUse = await dbRepo().count({ where: { hostId: h.id } });
     if (inUse > 0) {
@@ -125,13 +125,13 @@ export async function databaseRoutes(app: any, prefix = '') {
     const h = await hostRepo().findOneBy({ id: Number(id) });
     if (!h) {
       ctx.set.status = 404;
-      return { error: 'Database host not found' };
+      return { error: ctx.t('system.socDatabaseNotFound') };
     }
     try {
       const conn = await rootConn(h);
       await conn.query('SELECT 1');
       await conn.end();
-      return { success: true, message: 'Connection successful' };
+      return { success: true, message: ctx.t('database.connectionSuccessful') };
     } catch (e: any) {
       ctx.set.status = 400;
       return { error: `Connection failed: ${sanitizeError(e, 'databaseHandler:test-host')}` };
@@ -170,7 +170,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const user = ctx.user;
@@ -203,14 +203,14 @@ export async function databaseRoutes(app: any, prefix = '') {
     }
     if (!host) {
       ctx.set.status = 400;
-      return { error: 'No database host available. Ask an admin to add one.' };
+      return { error: ctx.t('server.noDatabaseHost') };
     }
 
     if (host.maxDatabases > 0) {
       const hostUsed = await dbRepo().count({ where: { hostId: host.id } });
       if (hostUsed >= host.maxDatabases) {
         ctx.set.status = 429;
-        return { error: 'Selected database host is at capacity' };
+        return { error: ctx.t('server.databaseHostAtCapacity') };
       }
     }
 
@@ -264,7 +264,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const db = await dbRepo().findOneBy({ id: Number(dbId), serverUuid: id });
     if (!db) {
       ctx.set.status = 404;
-      return { error: 'Database not found' };
+      return { error: ctx.t('server.databaseNotFound') };
     }
 
     const host = await hostRepo().findOneBy({ id: db.hostId });
@@ -296,7 +296,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const db = await dbRepo().findOneBy({ id: Number(dbId), serverUuid: id });
     if (!db) {
       ctx.set.status = 404;
-      return { error: 'Database not found' };
+      return { error: ctx.t('server.databaseNotFound') };
     }
     const host = await hostRepo().findOneBy({ id: db.hostId });
     return {
@@ -319,7 +319,7 @@ export async function databaseRoutes(app: any, prefix = '') {
     const db = await dbRepo().findOneBy({ id: Number(dbId), serverUuid: id });
     if (!db) {
       ctx.set.status = 404;
-      return { error: 'Database not found' };
+      return { error: ctx.t('server.databaseNotFound') };
     }
     db.label = label;
     await dbRepo().save(db);
@@ -333,10 +333,10 @@ export async function databaseRoutes(app: any, prefix = '') {
 
 function requireDatabasePermission(ctx: any, level: 'read' | 'write'): boolean {
   const user = (ctx as any).user as any;
-  if (!user) { ctx.set.status = 401; (ctx as any).body = { error: 'Unauthorized' }; return false; }
+  if (!user) { ctx.set.status = 401; (ctx as any).body = { error: ctx.t('auth.unauthorized') }; return false; }
   const permission = level === 'write' ? 'databases:write' : 'databases:read';
   if (!hasPermissionSync(ctx, permission)) {
-    ctx.set.status = 403; (ctx as any).body = { error: 'Database access required' };
+    ctx.set.status = 403; (ctx as any).body = { error: ctx.t('validation.databaseAccessRequired') };
     return false;
   }
   return true;

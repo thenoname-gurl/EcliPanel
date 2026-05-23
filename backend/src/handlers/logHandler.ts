@@ -3,6 +3,7 @@ import { UserLog } from '../models/userLog.entity';
 import { User } from '../models/user.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { sendMail } from '../services/mailService';
+import { resolveLocale } from '../i18n/resolve';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 import { hasPermissionSync } from '../middleware/authorize';
@@ -291,7 +292,8 @@ export async function createActivityLog(opts: {
           from: process.env.MAIL_FROM,
           subject: `${title} — Eclipse Systems`,
           template: 'notification',
-          vars: { title, message, details }
+          vars: { title, message, details },
+          locale: resolveLocale({ user: targetUser }),
         });
       } catch (e) {
         console.warn('Failed to send notification email', e?.message || e);
@@ -309,7 +311,7 @@ export async function logRoutes(app: any, prefix = '') {
     const { userId, action, targetId, targetType, metadata, ipAddress } = (ctx.body as any) || {};
     if (!action) {
       ctx.set.status = 400;
-      return { error: 'action is required' };
+      return { error: ctx.t('validation.actionRequired') };
     }
     const logRepo = AppDataSource.getRepository(UserLog);
     const log = logRepo.create({
@@ -348,7 +350,7 @@ export async function logRoutes(app: any, prefix = '') {
     const requester = ctx.user as any;
     if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const { limit = '50', offset = '0', action, targetType, unread } = ctx.query as any;
     const logRepo = AppDataSource.getRepository(UserLog);
@@ -376,7 +378,7 @@ export async function logRoutes(app: any, prefix = '') {
     const requester = ctx.user as any;
     if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const logRepo = AppDataSource.getRepository(UserLog);
     const unread = await logRepo.createQueryBuilder('log')
@@ -396,7 +398,7 @@ export async function logRoutes(app: any, prefix = '') {
     const requester = ctx.user as any;
     if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const logRepo = AppDataSource.getRepository(UserLog);
     await logRepo.createQueryBuilder()
@@ -417,13 +419,13 @@ export async function logRoutes(app: any, prefix = '') {
     const requester = ctx.user as any;
     if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const logRepo = AppDataSource.getRepository(UserLog);
     const log = await logRepo.findOneBy({ id: logId, userId });
     if (!log) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     log.isRead = true;
     await logRepo.save(log);
@@ -512,7 +514,7 @@ export async function logRoutes(app: any, prefix = '') {
     const requester = ctx.user as any;
     if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const { limit = '50', offset = '0', action, targetType } = ctx.query as any;
     const logRepo = AppDataSource.getRepository(UserLog);

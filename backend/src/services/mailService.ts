@@ -3,6 +3,10 @@ import { render } from '@react-email/render';
 import { convert } from 'html-to-text';
 import React from 'react';
 import { emailTemplates, TemplateName } from '../emails';
+import { getMessages } from '../i18n/loader';
+import { resolveLocale } from '../i18n/resolve';
+import { createT } from '../i18n/t';
+import type { Locale } from '../i18n/config';
 
 let transporter: nodemailer.Transporter;
 
@@ -93,7 +97,7 @@ export async function initMail() {
   await transporter.verify();
 }
 
-async function renderReactTemplate(name: string, vars: Record<string, any>) {
+async function renderReactTemplate(name: string, vars: Record<string, any>, locale?: Locale) {
   const templateName = name as TemplateName;
   const TemplateComponent = emailTemplates[templateName];
 
@@ -105,7 +109,9 @@ async function renderReactTemplate(name: string, vars: Record<string, any>) {
   }
 
   try {
-    const element = (TemplateComponent as (props: Record<string, any>) => React.ReactNode)(vars);
+    const resolvedLocale: Locale = locale || resolveLocale({});
+    const t = createT(getMessages(resolvedLocale));
+    const element = (TemplateComponent as (props: Record<string, any>) => React.ReactNode)({ ...vars, t });
     return await render(element, { pretty: false });
   } catch (err) {
     console.error(`mailService: failed to render react template "${name}":`, err);
@@ -115,9 +121,9 @@ async function renderReactTemplate(name: string, vars: Record<string, any>) {
   }
 }
 
-export async function sendMail(options: nodemailer.SendMailOptions & { template?: string; vars?: Record<string, any>; smtp?: { host: string; port: number; secure: boolean; user?: string; pass?: string } }) {
+export async function sendMail(options: nodemailer.SendMailOptions & { template?: string; vars?: Record<string, any>; smtp?: { host: string; port: number; secure: boolean; user?: string; pass?: string }; locale?: Locale }) {
   if (options.template) {
-    options.html = await renderReactTemplate(options.template, options.vars || {});
+    options.html = await renderReactTemplate(options.template, options.vars || {}, options.locale);
   }
 
   options.from = normalizeFromHeader(options.from);

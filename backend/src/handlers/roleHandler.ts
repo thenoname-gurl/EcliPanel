@@ -38,7 +38,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: {"permissions":true,"parentRole":{"permissions":true}} });
     if (!role) {
       ctx.set.status = 404;
-      return { error: 'Role not found' };
+      return { error: ctx.t('common.roleNotFound') };
     }
     return role;
   }, {beforeHandle: [authenticate, authorize('roles:read')],
@@ -50,7 +50,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const role = await roleRepo.findOne({ where: { id: Number(ctx.params['id']) }, relations: {"permissions":true} });
     if (!role) {
       ctx.set.status = 404;
-      return { error: 'Role not found' };
+      return { error: ctx.t('common.roleNotFound') };
     }
     return role.permissions || [];
   }, {beforeHandle: [authenticate, authorize('roles:read')],
@@ -69,7 +69,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const role = await roleRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!role) {
       ctx.set.status = 404;
-      return { error: 'Role not found' };
+      return { error: ctx.t('common.roleNotFound') };
     }
     await roleRepo.remove(role);
     return { success: true };
@@ -82,7 +82,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const role = await roleRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!role) {
       ctx.set.status = 404;
-      return { error: 'Role not found' };
+      return { error: ctx.t('common.roleNotFound') };
     }
     const { value } = ctx.body as { value: string };
     const perm = permRepo.create({ value, role });
@@ -97,7 +97,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const perm = await permRepo.findOneBy({ id: Number(ctx.params['permId']) });
     if (!perm) {
       ctx.set.status = 404;
-      return { error: 'Permission not found' };
+      return { error: ctx.t('common.permissionNotFound') };
     }
     await permRepo.remove(perm);
     return { success: true };
@@ -113,12 +113,12 @@ export async function roleRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(userId) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const role = await roleRepo.findOneBy({ id: Number(roleId) });
     if (!role) {
       ctx.set.status = 404;
-      return { error: 'Role not found' };
+      return { error: ctx.t('common.roleNotFound') };
     }
     const userRoleRepo = AppDataSource.getRepository(require('../models/userRole.entity').UserRole);
     const ur = userRoleRepo.create({ user, role });
@@ -146,7 +146,7 @@ export async function roleRoutes(app: any, prefix = '') {
     const ur = await userRoleRepo.findOneBy({ id: Number(ctx.params['urId']) });
     if (!ur) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     await userRoleRepo.remove(ur);
     return { success: true };

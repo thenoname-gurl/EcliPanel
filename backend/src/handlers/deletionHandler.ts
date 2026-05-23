@@ -18,7 +18,7 @@ export async function deletionRoutes(app: any, prefix = '') {
     const existing = await repo.findOne({ where: [{ userId: user.id, status: 'pending' }, { userId: user.id, status: 'pending_deletion' }] });
     if (existing) {
       ctx.set.status = 400;
-      return { error: 'Request already pending' };
+      return { error: ctx.t('organisation.requestAlreadyPending') };
     }
     const record = repo.create({ userId: user.id, status: 'pending', requestedAt: new Date(), idVerified: user.idVerified });
     await repo.save(record);
@@ -38,18 +38,18 @@ export async function deletionRoutes(app: any, prefix = '') {
     const user = ctx.user;
     if (!hasPermissionSync(ctx, 'deletions:write')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const repo = AppDataSource.getRepository(DeletionRequest);
     const rec = await repo.findOneBy({ id: Number(ctx.params['id']) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     const { status } = ctx.body as any;
     if (status !== 'approved' && status !== 'rejected') {
       ctx.set.status = 400;
-      return { error: 'Invalid status' };
+      return { error: ctx.t('common.invalidStatus') };
     }
     rec.status = status;
     rec.approvedBy = user.id;
@@ -76,12 +76,13 @@ export async function deletionRoutes(app: any, prefix = '') {
           template: 'deletion-approved',
           vars: {
             title: 'Account Deletion Approved',
-            message: 'Your account deletion request has been approved. Your account will be permanently deleted in 14 days. If you change your mind, you can log in and cancel the deletion before it is processed.',
+            message: ctx.t('deletion.approvedMsg'),
             action_url: `${panelUrl}/login`,
             action_text: 'Log in to Cancel',
             details: `Scheduled deletion: ${rec.scheduledDeletionAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\nOnce deleted, your account and data cannot be recovered.`,
           },
-        }).catch((e: any) => console.error('[deletionHandler] failed to send approval email', e));
+          locale: ctx.locale,
+}).catch((e: any) => console.error('[deletionHandler] failed to send approval email', e));
       }
     }
 
@@ -92,12 +93,13 @@ export async function deletionRoutes(app: any, prefix = '') {
           template: 'deletion-rejected',
           vars: {
             title: 'Account Deletion Request Declined',
-            message: 'Your account deletion request has been reviewed and declined. If you believe this decision was made in error or if you have any questions, please contact our support team.',
+            message: ctx.t('deletion.declinedMsg'),
             action_url: `${panelUrl}/contact`,
             action_text: 'Contact Support',
             details: 'For assistance, please reply to this email or contact our support team through the panel.',
           },
-        }).catch((e: any) => console.error('[deletionHandler] failed to send rejection email', e));
+          locale: ctx.locale,
+}).catch((e: any) => console.error('[deletionHandler] failed to send rejection email', e));
       }
     }
 

@@ -39,12 +39,12 @@ export async function csrfProtection(ctx: any) {
   const headerToken = (ctx.request as Request)?.headers?.get(CSRF_HEADER);
   if (!headerToken) {
     ctx.set.status = 403;
-    return { error: 'Missing CSRF token' };
+    return { error: ctx.t('validation.missingCSRFToken') };
   }
 
   const valid = await validateCsrfToken(sessionId, headerToken);
   if (!valid) {
     ctx.set.status = 403;
-    return { error: 'Invalid CSRF token' };
+    return { error: ctx.t('validation.invalidCSRFToken') };
   }
 }

@@ -13,12 +13,12 @@ function requireAdminCtx(ctx: any): boolean {
   if (apiKey?.type === 'admin') return true;
   if (!user) {
     ctx.set.status = 401;
-    ctx.body = { error: 'Unauthorized' };
+    ctx.body = { error: ctx.t('auth.unauthorized') };
     return false;
   }
   if (!hasPermissionSync(ctx, 'eggs:read')) {
     ctx.set.status = 403;
-    ctx.body = { error: 'Egg administration required.' };
+    ctx.body = { error: ctx.t('validation.eggAdminRequired') };
     return false;
   }
   return true;
@@ -46,7 +46,7 @@ export async function eggRoutes(app: any, prefix = '') {
     const egg = await repo().findOneBy({ id: Number(ctx.params.id) });
     if (!egg) {
       ctx.set.status = 404;
-      return { error: 'Egg not found' };
+      return { error: ctx.t('server.eggNotFound') };
     }
     return egg;
   }, {
@@ -92,7 +92,7 @@ export async function eggRoutes(app: any, prefix = '') {
     const { name, description, dockerImage, startup, envVars, configFiles, features, visible, allowedPortals, rootless, requiresKvm } = ctx.body as any;
     if (!name || !dockerImage || !startup) {
       ctx.set.status = 400;
-      return { error: 'name, dockerImage and startup are required' };
+      return { error: ctx.t('validation.nameDockerImageStartupRequired') };
     }
     const egg = repo().create({ name, description, dockerImage, startup, envVars, configFiles, features, visible: visible ?? true, allowedPortals, rootless: !!rootless, requiresKvm: !!requiresKvm });
     await repo().save(egg);
@@ -143,7 +143,7 @@ export async function eggRoutes(app: any, prefix = '') {
     const egg = await repo().findOneBy({ id: Number(ctx.params.id) });
     if (!egg) {
       ctx.set.status = 404;
-      return { error: 'Egg not found' };
+      return { error: ctx.t('server.eggNotFound') };
     }
 
     const {
@@ -210,7 +210,7 @@ export async function eggRoutes(app: any, prefix = '') {
     const egg = await repo().findOneBy({ id: Number(ctx.params.id) });
     if (!egg) {
       ctx.set.status = 404;
-      return { error: 'Egg not found' };
+      return { error: ctx.t('server.eggNotFound') };
     }
     await repo().remove(egg);
     return { success: true };
@@ -294,11 +294,11 @@ export async function eggRoutes(app: any, prefix = '') {
         const parsedUrl = new URL(body.url as string);
         if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
           ctx.set.status = 400;
-          return { error: 'URL must use http or https scheme' };
+          return { error: ctx.t('system.urlSchemeRequired') };
         }
       } catch {
         ctx.set.status = 400;
-        return { error: 'Invalid URL' };
+        return { error: ctx.t('common.invalidUrl') };
       }
       try {
         const response = await fetch(body.url as string);
@@ -315,7 +315,7 @@ export async function eggRoutes(app: any, prefix = '') {
       raw = body.json as Record<string, any>;
     } else {
       ctx.set.status = 400;
-      return { error: 'Provide either json or url in the request body' };
+      return { error: ctx.t('common.provideEitherJsonOrUrlInTheRequestBody') };
     }
 
     const version: string = raw?.meta?.version ?? 'PTDL_v1';
@@ -347,7 +347,7 @@ export async function eggRoutes(app: any, prefix = '') {
 
     if (!dockerImage) {
       ctx.set.status = 400;
-      return { error: 'Egg JSON does not contain a docker image' };
+      return { error: ctx.t('server.eggJSONDoesNotContainADockerImage') };
     }
 
     const startup: string = raw.startup ?? '';

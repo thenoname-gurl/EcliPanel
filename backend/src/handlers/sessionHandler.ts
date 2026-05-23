@@ -10,7 +10,7 @@ export async function sessionRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user || !user.sessions) {
       ctx.set.status = 404;
-      return { error: 'User or session not found' };
+      return { error: ctx.t('session.notFound') };
     }
     user.sessions = user.sessions.filter((s: string) => s !== sessionId);
     await userRepo.save(user);
@@ -28,7 +28,7 @@ export async function sessionRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     user.sessions = [];
     await userRepo.save(user);
@@ -46,7 +46,7 @@ export async function sessionRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     return { sessions: user.sessions || [] };
   }, {

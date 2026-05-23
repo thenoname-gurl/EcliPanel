@@ -105,11 +105,11 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     if (!name) {
       ctx.set.status = 400;
-      return { error: 'name is required' };
+      return { error: ctx.t('validation.nameRequired') };
     }
     if (!redirectUris || !Array.isArray(redirectUris) || redirectUris.length === 0) {
       ctx.set.status = 400;
-      return { error: 'redirectUris must be a non-empty array' };
+      return { error: ctx.t('validation.redirectUrisRequired') };
     }
 
     const validScopes = filterScopes(
@@ -118,7 +118,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     );
     if (validScopes.length === 0) {
       ctx.set.status = 400;
-      return { error: 'No valid scopes provided' };
+      return { error: ctx.t('validation.scopeRequired') };
     }
 
     const allowedGrants = ['authorization_code', 'client_credentials', 'refresh_token'];
@@ -195,7 +195,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { clientId }, relations: {"owner":true} });
     if (!oauthApp || !oauthApp.active) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     return {
       clientId: oauthApp.clientId,
@@ -220,11 +220,11 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const { name, description, logoUrl, redirectUris, allowedScopes, grantTypes, active } =
       ctx.body as any;
@@ -252,11 +252,11 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const rawSecret = await randomToken(40);
     oauthApp.clientSecretHash = await hashPassword(rawSecret);
@@ -280,11 +280,11 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     await appRepo.remove(oauthApp);
     return { success: true };
@@ -316,7 +316,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     }
     if (!redirect_uri) {
       ctx.set.status = 400;
-      return { error: 'redirect_uri required' };
+      return { error: ctx.t('validation.redirectUriRequired') };
     }
 
     const oauthApp = await appRepo.findOne({
@@ -377,7 +377,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     if (!client_id || !redirect_uri) {
       ctx.set.status = 400;
-      return { error: 'client_id and redirect_uri required' };
+      return { error: ctx.t('validation.clientIdAndRedirectUriRequired') };
     }
 
     const oauthApp = await appRepo.findOne({
@@ -395,7 +395,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const stateValid = !state || /^[a-zA-Z0-9._~-]{0,256}$/.test(String(state));
     if (!stateValid) {
       ctx.set.status = 400;
-      return { error: 'invalid_state', error_description: 'State parameter contains invalid characters' };
+      return { error: ctx.t('common.invalidState'), error_description: 'State parameter contains invalid characters' };
     }
 
     const stateParam = state ? `&state=${encodeURIComponent(String(state))}` : '';
@@ -709,12 +709,12 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     if (!oauthToken) {
       ctx.set.status = 403;
-      return { error: 'endpoint_only_for_oauth_tokens' };
+      return { error: ctx.t('auth.endpointOnlyForOauthTokens') };
     }
 
     const scopes = oauthToken.scopes;
