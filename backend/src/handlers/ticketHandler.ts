@@ -1147,7 +1147,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     if (canTicketRead) {
       const ticketUser = await AppDataSource.getRepository(User).findOneBy({ id: ticket.userId });
       if (ticketUser) {
-        const membershipRows = await orgMemberRepo.find({ where: { userId: ticketUser.id }, relations: ['organisation'] });
+        const membershipRows = await orgMemberRepo.find({ where: { userId: ticketUser.id }, relations: {"organisation":true} });
         const orgs = membershipRows
           .filter((m: any) => !!m.organisation)
           .map((m: any) => ({

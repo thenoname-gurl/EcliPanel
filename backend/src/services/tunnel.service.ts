@@ -19,7 +19,7 @@ export async function verifyDeviceToken(
     const repo = AppDataSource.getRepository(TunnelDevice);
     const device = await repo.findOne({
       where: { deviceCode: payload.agent },
-      relations: ['ownerUser', 'ownerUser.org', 'ownerUser.organisationMemberships', 'organisation'],
+      relations: {"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},
     });
 
     if (!device?.approved || device.token !== token) return null;
@@ -88,7 +88,7 @@ export async function tryReuseRecentPort(
       localPort,
       status: 'closed' as AllocationStatus,
     },
-    relations: ['clientDevice', 'serverDevice'],
+    relations: {"clientDevice":true,"serverDevice":true},
     order: { closedAt: 'DESC' },
   });
 
@@ -196,7 +196,7 @@ export async function getOnlineServerAgent(
 
   const servers = await repo.find({
     where: { kind: 'server' as DeviceKind, approved: true },
-    relations: ['ownerUser', 'organisation'],
+    relations: {"ownerUser":true,"organisation":true},
   });
 
   const onlineServers = servers.filter((s) => agentConnections.has(s.deviceCode));
@@ -218,7 +218,7 @@ export async function assignPendingAllocations(
       { status: 'pending' as AllocationStatus },
       { status: 'active' as AllocationStatus },
     ],
-    relations: ['clientDevice', 'clientDevice.ownerUser', 'clientDevice.ownerUser.org', 'clientDevice.ownerUser.organisationMemberships', 'clientDevice.organisation', 'serverDevice'],
+    relations: {"clientDevice":{"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},"serverDevice":true},
   });
 
   const unassigned = pending.filter((a) => !a.serverDevice);

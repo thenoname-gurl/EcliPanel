@@ -16,7 +16,7 @@ export function scheduleTunnelCleanupJob() {
           status: 'closed',
           closedAt: LessThan(cutoff),
         },
-        relations: ['serverDevice'],
+        relations: {"serverDevice":true},
       });
 
       if (expired.length === 0) return;

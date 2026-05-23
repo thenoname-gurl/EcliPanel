@@ -107,7 +107,7 @@ export async function authRoutes(app: any, prefix = '') {
   }
 
   async function getUserOrgMemberships(userId: number) {
-    const memberships = await orgMemberRepo.find({ where: { userId }, relations: ['organisation'] });
+    const memberships = await orgMemberRepo.find({ where: { userId }, relations: {"organisation":true} });
     return (memberships || [])
       .filter((m: any) => !!m.organisation)
       .map((m: any) => ({
@@ -1081,7 +1081,7 @@ export async function authRoutes(app: any, prefix = '') {
   app.get(prefix + '/auth/passkeys', async (ctx: any) => {
     const user = ctx.user;
     const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-    const keys = await passkeyRepo.find({ where: { user: { id: user.id } }, relations: ['user'] });
+    const keys = await passkeyRepo.find({ where: { user: { id: user.id } }, relations: {"user":true} });
     return keys.map((k: any) => ({
       id: k.id,
       name: k.name || `Passkey #${k.id}`,
@@ -1235,7 +1235,7 @@ export async function authRoutes(app: any, prefix = '') {
     const user = ctx.user;
     const { id } = (ctx.params as any);
     const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-    const key = await passkeyRepo.findOne({ where: { id: Number(id), user: { id: user.id } }, relations: ['user'] });
+    const key = await passkeyRepo.findOne({ where: { id: Number(id), user: { id: user.id } }, relations: {"user":true} });
     if (!key) {
       ctx.set.status = 404;
       return { error: 'Passkey not found' };
@@ -1562,7 +1562,7 @@ export async function authRoutes(app: any, prefix = '') {
     user.demoLimits = { tokens: 500, requests: 50 };
     user.demoUsed = true;
 
-    const existingDemoMembership = await orgMemberRepo.findOne({ where: { userId: user.id }, relations: ['organisation'] });
+    const existingDemoMembership = await orgMemberRepo.findOne({ where: { userId: user.id }, relations: {"organisation":true} });
     if (!existingDemoMembership) {
       const orgRepo = AppDataSource.getRepository(require('../models/organisation.entity').Organisation);
       const demoHandle = `demo-${user.id}`;
@@ -1626,7 +1626,7 @@ export async function authRoutes(app: any, prefix = '') {
     user.demoExpiresAt = undefined;
     user.demoLimits = undefined;
 
-    const allMemberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+    const allMemberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: {"organisation":true} });
     const demoMembership = allMemberships.find((m: any) => String(m.organisation?.handle || '').startsWith('demo-') && m.organisation?.ownerId === user.id);
     if (demoMembership?.organisation) {
       try {

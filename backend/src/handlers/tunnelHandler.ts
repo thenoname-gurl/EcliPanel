@@ -521,10 +521,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
       let device: TunnelDevice | null = null;
 
       if (userCode) {
-        device = await repo.findOne({ where: { userCode }, relations: ['ownerUser', 'organisation'] });
+        device = await repo.findOne({ where: { userCode }, relations: {"ownerUser":true,"organisation":true} });
       }
       if (!device && deviceCode) {
-        device = await repo.findOne({ where: { deviceCode }, relations: ['ownerUser', 'organisation'] });
+        device = await repo.findOne({ where: { deviceCode }, relations: {"ownerUser":true,"organisation":true} });
       }
 
       if (!device) {
@@ -660,7 +660,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       let devices: TunnelDevice[] = [];
 
       if (isAdminUser(ctx.user)) {
-        devices = await repo.find({ relations: ['organisation'], order: { createdAt: 'DESC' } });
+        devices = await repo.find({ relations: {"organisation":true}, order: { createdAt: 'DESC' } });
       } else if (ctx.user) {
         const orgIds = await getAccessibleOrganisationIds(ctx.user);
         const qb = repo.createQueryBuilder('device');
@@ -749,7 +749,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
       const allocRepo = AppDataSource.getRepository(TunnelAllocation);
       const allocations = await allocRepo.find({
-        relations: ['clientDevice', 'serverDevice'],
+        relations: {"clientDevice":true,"serverDevice":true},
         where: [
           { clientDevice: { id: deviceId } } as any,
           { serverDevice: { id: deviceId } } as any,
@@ -955,7 +955,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         const deviceRepo = AppDataSource.getRepository(TunnelDevice);
         clientDevice = await deviceRepo.findOne({
           where: { id: clientDeviceId, kind: 'client', approved: true },
-          relations: ['ownerUser', 'ownerUser.org', 'ownerUser.organisationMemberships', 'organisation'],
+          relations: {"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},
         });
         if (!clientDevice) {
           return errorResponse('invalid_client_device', 400);
@@ -1133,7 +1133,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       if (device) {
         allocations = await repo.find({
           where: { clientDevice: { id: device.id } },
-          relations: ['clientDevice', 'serverDevice'],
+          relations: {"clientDevice":true,"serverDevice":true},
           order: { createdAt: 'DESC' },
         });
       } else if (ctx.user) {
@@ -1222,7 +1222,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const allocation = await repo.findOne({
         where: { id: allocationId },
-        relations: ['clientDevice', 'serverDevice'],
+        relations: {"clientDevice":true,"serverDevice":true},
       });
 
       if (!allocation) {
@@ -1291,7 +1291,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const allocation = await repo.findOne({
         where: { id: allocationId },
-        relations: ['clientDevice', 'serverDevice'],
+        relations: {"clientDevice":true,"serverDevice":true},
       });
 
       if (!allocation) {
@@ -1364,7 +1364,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const allocation = await repo.findOne({
         where: { id: allocationId },
-        relations: ['clientDevice', 'serverDevice'],
+        relations: {"clientDevice":true,"serverDevice":true},
       });
 
       if (!allocation) {

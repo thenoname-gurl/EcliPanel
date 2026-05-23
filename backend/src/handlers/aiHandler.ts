@@ -209,14 +209,14 @@ export async function aiRoutes(app: any, prefix = '') {
   app.get(prefix + '/ai/my-models', async (ctx: any) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as any;
-    const links = await modelUserRepo.find({ where: { user: { id: user.id } }, relations: ['model'] });
+    const links = await modelUserRepo.find({ where: { user: { id: user.id } }, relations: {"model":true} });
     const models = links.map((l) => {
       const { apiKey, endpoint, ...safeModel } = l.model || {};
       return { model: safeModel, limits: l.limits };
     });
     const orgIds = await getUserOrgIds(user.id);
     if (orgIds.length > 0) {
-      const orgLinks = await modelOrgRepo.find({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
+      const orgLinks = await modelOrgRepo.find({ where: { organisation: { id: In(orgIds) } } as any, relations: {"model":true} });
       models.push(...orgLinks.map((l) => {
         const { apiKey, endpoint, ...safeModel } = l.model || {};
         return { model: safeModel, limits: l.limits };
@@ -286,10 +286,10 @@ export async function aiRoutes(app: any, prefix = '') {
     if (modelId) {
       model = await modelRepo.findOneBy({ id: Number(modelId) });
     } else {
-      const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: ['model'] });
+      const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: {"model":true} });
       if (userLink) model = userLink.model;
       if (!model && orgIds.length > 0) {
-        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
+        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: {"model":true} });
         if (orgLink) model = orgLink.model;
       }
     }
@@ -342,10 +342,10 @@ export async function aiRoutes(app: any, prefix = '') {
     if (body.modelId) {
       model = await modelRepo.findOneBy({ id: Number(body.modelId) });
     } else {
-      const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: ['model'] });
+      const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: {"model":true} });
       if (userLink) model = userLink.model;
       if (!model && orgIds.length > 0) {
-        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
+        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: {"model":true} });
         if (orgLink) model = orgLink.model;
       }
     }
@@ -398,10 +398,10 @@ export async function aiRoutes(app: any, prefix = '') {
     if (body.modelId) {
       model = await modelRepo.findOneBy({ id: Number(body.modelId) });
     } else {
-      const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: ['model'] });
+      const userLink = await modelUserRepo.findOne({ where: { user: { id: user.id } }, relations: {"model":true} });
       if (userLink) model = userLink.model;
       if (!model && orgIds.length > 0) {
-        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: ['model'] });
+        const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } } as any, relations: {"model":true} });
         if (orgLink) model = orgLink.model;
       }
     }

@@ -184,7 +184,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const isAdmin = hasPermissionSync(ctx, 'admin:oauth');
     const apps = await appRepo.find({
       where: isAdmin ? {} : { owner: { id: user.id } },
-      relations: ['owner'],
+      relations: {"owner":true},
     });
     return apps.map((a) => ({
       id: a.id,
@@ -207,7 +207,7 @@ export async function oauthRoutes(app: any, prefix = '') {
   app.get(prefix + '/oauth/apps/:clientId', async (ctx) => {
     const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const { clientId } = ctx.params as any;
-    const oauthApp = await appRepo.findOne({ where: { clientId }, relations: ['owner'] });
+    const oauthApp = await appRepo.findOne({ where: { clientId }, relations: {"owner":true} });
     if (!oauthApp || !oauthApp.active) {
       ctx.set.status = 404;
       return { error: 'App not found' };
@@ -232,7 +232,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const id = Number(ctx.params['id']);
-    const oauthApp = await appRepo.findOne({ where: { id }, relations: ['owner'] });
+    const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
       return { error: 'App not found' };
@@ -264,7 +264,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const id = Number(ctx.params['id']);
-    const oauthApp = await appRepo.findOne({ where: { id }, relations: ['owner'] });
+    const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
       return { error: 'App not found' };
@@ -292,7 +292,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const f = await requireFeature(ctx, 'oauth'); if (f !== true) return f;
     const user = (ctx as any).user as User;
     const id = Number(ctx.params['id']);
-    const oauthApp = await appRepo.findOne({ where: { id }, relations: ['owner'] });
+    const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
       return { error: 'App not found' };
@@ -336,7 +336,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     const oauthApp = await appRepo.findOne({
       where: { clientId: client_id, active: true },
-      relations: ['owner'],
+      relations: {"owner":true},
     });
     if (!oauthApp) {
       ctx.set.status = 400;
@@ -523,7 +523,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
       const authCode = await codeRepo.findOne({
         where: { code, used: false },
-        relations: ['app', 'user'],
+        relations: {"app":true,"user":true},
       });
 
       if (!authCode) {
@@ -624,7 +624,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
       const existing = await tokenRepo.findOne({
         where: { refreshToken: refresh_token, revoked: false },
-        relations: ['app', 'user'],
+        relations: {"app":true,"user":true},
       });
       if (!existing) {
         ctx.set.status = 400;
@@ -749,7 +749,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     }
     if (scopes.includes('orgs:read')) {
       const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-      const memberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: ['organisation'] });
+      const memberships = await orgMemberRepo.find({ where: { userId: user.id }, relations: {"organisation":true} });
       const orgs = (memberships || [])
         .filter((m: any) => !!m.organisation)
         .map((m: any) => ({
@@ -803,7 +803,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     const tokenEntity = await tokenRepo.findOne({
       where: { accessToken: token },
-      relations: ['app', 'user'],
+      relations: {"app":true,"user":true},
     });
 
     if (

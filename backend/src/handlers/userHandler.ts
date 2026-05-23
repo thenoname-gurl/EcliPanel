@@ -681,7 +681,7 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
-    const existing = await requestRepo.findOne({ where: { childId: requester.id, parentId: parent.id, status: 'pending' }, relations: ['child', 'parent'] });
+    const existing = await requestRepo.findOne({ where: { childId: requester.id, parentId: parent.id, status: 'pending' }, relations: {"child":true,"parent":true} });
     if (existing) {
       return { success: true, request: await serializeParentLinkRequest(existing, requester) };
     }
@@ -831,7 +831,7 @@ export async function userRoutes(app: any, prefix = '') {
       : isMinorByCountry(requesterAge, requester.billingCountry);
     const where = requesterIsMinor ? { childId: requester.id } : { parentId: requester.id };
 
-    const requests = await requestRepo.find({ where, relations: ['child', 'parent'], order: { createdAt: 'DESC' } });
+    const requests = await requestRepo.find({ where, relations: {"child":true,"parent":true}, order: { createdAt: 'DESC' } });
     return { success: true, requests: await Promise.all(requests.map((request) => serializeParentLinkRequest(request, requester))) };
   }, {
     beforeHandle: authenticate,
@@ -861,7 +861,7 @@ export async function userRoutes(app: any, prefix = '') {
 
     const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
     const userRepo = AppDataSource.getRepository(User);
-    const request = await requestRepo.findOne({ where: { id: requestId }, relations: ['child', 'parent'] });
+    const request = await requestRepo.findOne({ where: { id: requestId }, relations: {"child":true,"parent":true} });
     if (!request) {
       ctx.set.status = 404;
       return { error: 'request_not_found', message: 'Parent link request not found.' };
@@ -1107,7 +1107,7 @@ export async function userRoutes(app: any, prefix = '') {
     }
 
     const membershipRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const memberships = await membershipRepo.find({ where: { userId: childId }, relations: ['organisation'], order: { createdAt: 'ASC' } });
+    const memberships = await membershipRepo.find({ where: { userId: childId }, relations: {"organisation":true}, order: { createdAt: 'ASC' } });
     return {
       success: true,
       organisations: memberships.map((membership: any) => ({
