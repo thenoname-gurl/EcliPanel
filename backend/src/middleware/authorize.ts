@@ -103,6 +103,7 @@ export async function hasPermission(ctx: any, required: string): Promise<boolean
 
 export function authorize(required: string) {
   return async (ctx: any) => {
+    const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
     const apiKey = ctx.apiKey;
     const ip = ctx.ip || (ctx.request && ctx.request.ip) || 'unknown';
     const _ctxInfo = { ip, path: ctx.path || ctx.request?.url || 'unknown' };
@@ -112,13 +113,13 @@ export function authorize(required: string) {
       const has = perms.some((p) => permissionMatches(p, required));
       if (has) return;
       ctx.set.status = 403;
-      return { error: ctx.t('sshKey.insufficientPermissionsApiKey') };
+      return { error: t('sshKey.insufficientPermissionsApiKey', 'API key lacks permissions') };
     }
 
     const user = ctx.user as User;
     if (!user) {
       ctx.set.status = 401;
-      return { error: ctx.t('auth.unauthorized') };
+      return { error: t('auth.unauthorized', 'Unauthorized') };
     }
 
     if (user.role === '*' || user.role === 'rootAdmin') {
@@ -143,12 +144,12 @@ export function authorize(required: string) {
     const isServerRelated = serverRelatedPrefixes.some((prefix) => required.startsWith(prefix));
     if (isServerRelated && !hasPermissionSync(ctx, 'admin:access') && !user.dateOfBirth) {
       ctx.set.status = 403;
-      return { error: ctx.t('validation.ageVerificationRequired') };
+      return { error: t('validation.ageVerificationRequired', 'Age verification required') };
     }
 
     if (required === 'transfer:execute' && !hasPermissionSync(ctx, 'admin:access') && !hasPermissionSync(ctx, 'transfer:execute')) {
       ctx.set.status = 403;
-      return { error: ctx.t('common.insufficientPermissions') };
+      return { error: t('common.insufficientPermissions', 'Insufficient permissions') };
     }
 
     const isServerScoped = required.startsWith('servers:') || required.startsWith('files:');
@@ -244,7 +245,7 @@ export function authorize(required: string) {
 
     if (isServerScoped && serverScopeResolved) {
       ctx.set.status = 403;
-      return { error: ctx.t('server.insufficientServerPermissions') };
+      return { error: t('server.insufficientServerPermissions', 'Insufficient server permissions') };
     }
 
     if (required.startsWith('org:') || required.startsWith('organisation:')) {
@@ -266,6 +267,6 @@ export function authorize(required: string) {
     if (has) return;
 
     ctx.set.status = 403;
-    return { error: ctx.t('common.insufficientPermissions') };
+    return { error: t('common.insufficientPermissions', 'Insufficient permissions') };
   };
 }

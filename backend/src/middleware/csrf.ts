@@ -39,12 +39,14 @@ export async function csrfProtection(ctx: any) {
   const headerToken = (ctx.request as Request)?.headers?.get(CSRF_HEADER);
   if (!headerToken) {
     ctx.set.status = 403;
-    return { error: ctx.t('validation.missingCSRFToken') };
+    const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
+    return { error: t('validation.missingCSRFToken', 'Missing CSRF token') };
   }
 
   const valid = await validateCsrfToken(sessionId, headerToken);
   if (!valid) {
     ctx.set.status = 403;
-    return { error: ctx.t('validation.invalidCSRFToken') };
+    const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
+    return { error: t('validation.invalidCSRFToken', 'Invalid CSRF token') };
   }
 }
