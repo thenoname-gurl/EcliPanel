@@ -74,8 +74,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
     const isAdmin = hasPermissionSync(ctx, 'nodes:read');
 
-    const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
-    const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
+    const effectivePortalType = user.portalType;
     const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
 
     const cacheKey = `nodes:available:${user.id}:${portalType}:${isAdmin ? 'admin' : 'user'}:v1`;

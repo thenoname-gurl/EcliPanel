@@ -451,8 +451,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   async function pickNode(ctx: any, user: any, preferredNodeId?: number, assignedNodeId?: number): Promise<Node> {
     const isAdmin = hasPermissionSync(ctx, 'admin:access');
-    const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
-    const effectivePortalType = isDemoActive && (user as any).demoOriginalPortalType ? (user as any).demoOriginalPortalType : user.portalType;
+    const effectivePortalType = user.portalType;
     const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
     const unhealthyNodeIds = await getUnhealthyNodeIds();
 
@@ -1084,10 +1083,6 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     let effectivePortalType = user.portalType;
-    const isDemoActive = user.demoExpiresAt && new Date(user.demoExpiresAt) > new Date();
-    if (isDemoActive && user.demoOriginalPortalType) {
-      effectivePortalType = user.demoOriginalPortalType;
-    }
 
     if (!isAdmin) {
       const passkeyCount = await AppDataSource.getRepository(

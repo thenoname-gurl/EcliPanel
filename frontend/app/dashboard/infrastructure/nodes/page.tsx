@@ -88,8 +88,6 @@ export default function InfraNodesPage() {
   const [orgs, setOrgs] = useState<Organisation[]>([])
   const [loading, setLoading] = useState(true)
   const [generatedToken, setGeneratedToken] = useState<string | null>(null)
-  const demoExpiresAt = (user as any)?.demoExpiresAt as string | undefined
-  const demoActive = !!demoExpiresAt && new Date(demoExpiresAt) > new Date()
   const [editNodeId, setEditNodeId] = useState<string | null>(null)
 
   // ── Create/Edit dialog ──
@@ -192,10 +190,6 @@ export default function InfraNodesPage() {
 
   // ── Open dialogs ──
   function openNew() {
-    if (demoActive) {
-      alert(t("alerts.demoCreateDisabled"));
-      return;
-    }
     setNodeDialog("new")
     setNodeName(""); setNodeUrl(""); setNodeToken("")
     setNodeBackendWingsUrl("")
@@ -310,10 +304,6 @@ export default function InfraNodesPage() {
   }
 
   async function saveNode() {
-    if (demoActive) {
-      alert(t("alerts.demoEditDisabled"));
-      return;
-    }
     setNodeLoading(true)
     try {
       const body: Record<string, any> = {
@@ -363,10 +353,6 @@ export default function InfraNodesPage() {
   }
 
   async function deleteNode(node: Node) {
-    if (demoActive) {
-      alert(t("alerts.demoDeleteDisabled"));
-      return;
-    }
     if (!confirm(t("confirm.deleteNode", { name: node.name }))) return
     await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
@@ -382,14 +368,6 @@ export default function InfraNodesPage() {
           description={t("header.description")}
         />
 
-        {demoActive ? (
-          <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 mx-6">
-            <p className="text-sm font-medium text-warning-foreground">
-              {t("states.demoActive")}
-            </p>
-          </div>
-        ) : null}
-
         <div className="flex flex-col gap-6 p-6">
           {/* Header row */}
           <div className="flex items-center justify-between">
@@ -402,7 +380,7 @@ export default function InfraNodesPage() {
               <Button variant="outline" size="sm" onClick={loadNodes} className="border-border h-9 gap-1.5">
                 <RefreshCw className="h-3.5 w-3.5" /> {t("actions.refresh")}
               </Button>
-              <Button size="sm" onClick={openNew} disabled={demoActive} className="bg-primary text-primary-foreground h-9 gap-1.5" title={demoActive ? t("states.disabledInDemo") : undefined}>
+              <Button size="sm" onClick={openNew} className="bg-primary text-primary-foreground h-9 gap-1.5">
                 <Plus className="h-3.5 w-3.5" /> {t("actions.addNode")}
               </Button>
             </div>
@@ -418,7 +396,7 @@ export default function InfraNodesPage() {
               <HardDrive className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium text-foreground">{t("states.noNodesTitle")}</p>
               <p className="text-xs text-muted-foreground mt-1">{t("states.noNodesDescription")}</p>
-              <Button size="sm" onClick={openNew} disabled={demoActive} className="mt-4 bg-primary text-primary-foreground gap-1.5" title={demoActive ? t("states.disabledInDemo") : undefined}>
+              <Button size="sm" onClick={openNew} className="mt-4 bg-primary text-primary-foreground gap-1.5">
                 <Plus className="h-3.5 w-3.5" /> {t("actions.addNode")}
               </Button>
             </div>

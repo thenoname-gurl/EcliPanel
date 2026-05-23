@@ -27,17 +27,13 @@ const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED ==
 
 export default function BillingPage() {
   const t = useTranslations("billingPage")
-  const { user, refreshUser } = useAuth()
+  const { user } = useAuth()
   const currentUser = user as any
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [activePlans, setActivePlans] = useState<Array<{ plan: any; order: any }>>([])
   const [latestOrder, setLatestOrder] = useState<any | null>(null)
-  const [demoLoading, setDemoLoading] = useState(false)
-  const [demoError, setDemoError] = useState<string | null>(null)
-  const [demoActiveUntil, setDemoActiveUntil] = useState<string | null>(null)
-  const [demoUsed, setDemoUsed] = useState(false)
   const [billingCurrency, setBillingCurrency] = useState("USD")
   const [billingTaxRules, setBillingTaxRules] = useState("")
 
@@ -141,13 +137,6 @@ export default function BillingPage() {
       .finally(() => setOrdersLoading(false))
   }, [user])
 
-  useEffect(() => {
-    if (user) {
-      setDemoActiveUntil(currentUser?.demoExpiresAt || null)
-      setDemoUsed(!!currentUser?.demoUsed)
-    }
-  }, [user, currentUser])
-
   const livePlanCards = plans.map((plan) => {
     const tier = String(plan?.type ?? "").toLowerCase()
     const tierEffective = tier === 'educational' ? 'paid' : tier
@@ -192,47 +181,6 @@ export default function BillingPage() {
   const visibleLivePlanCards = livePlanCards.filter((planCard: any) => !planCard?.hiddenFromBilling)
   const subscriptionCards = livePlanCards.length > 0 ? visibleLivePlanCards : fallbackCards
 
-  const startDemo = async () => {
-    setDemoError(null)
-    setDemoLoading(true)
-    try {
-      const res = await apiFetch(API_ENDPOINTS.authDemo, {
-        method: 'POST',
-        body: JSON.stringify({ minutes: 30 }),
-      })
-      setDemoActiveUntil(res.demoExpiresAt || null)
-      setDemoUsed(true)
-      refreshUser()
-    } catch (err: any) {
-      setDemoError(err.message || t("demo.errors.failedStart"))
-    } finally {
-      setDemoLoading(false)
-    }
-  }
-
-  const finishDemo = async () => {
-    setDemoError(null)
-    setDemoLoading(true)
-    try {
-      await apiFetch(API_ENDPOINTS.authDemoFinish, {
-        method: 'POST',
-      })
-      setDemoActiveUntil(null)
-      refreshUser()
-      toast({ title: t("demo.toast.endedTitle"), description: t("demo.toast.endedDescription") })
-    } catch (err: any) {
-      setDemoError(err.message || t("demo.errors.failedFinish"))
-    } finally {
-      setDemoLoading(false)
-    }
-  }
-
-  const normalizedPortalType = String(currentUser?.portalType || currentUser?.tier || '').toLowerCase()
-  const isEnterprisePortal = normalizedPortalType === 'enterprise'
-  const demoActive = !!demoActiveUntil && new Date(demoActiveUntil) > new Date()
-  const demoExpired = !!demoActiveUntil && new Date(demoActiveUntil) <= new Date()
-  const showDemoPanel = !!user && (demoActive || (!demoUsed && !isEnterprisePortal))
-
   return (
     <FeatureGuard feature="billing">
       <>
@@ -241,41 +189,6 @@ export default function BillingPage() {
       </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
-          {/* Demo */}
-          {showDemoPanel ? (
-            <div className="rounded-xl border border-warning/30 bg-warning/10 p-5 min-w-0 box-border overflow-hidden">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">{t("demo.title")}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {t("demo.description")}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-warning/20 px-3 py-1 text-xs font-semibold text-warning">{t("demo.badge")}</span>
-                </div>
-                {demoActive ? (
-                  <p className="text-sm text-muted-foreground">{t("demo.expiresAt")} <span className="font-medium text-foreground">{new Date(demoActiveUntil!).toLocaleString()}</span>.</p>
-                ) : demoExpired ? (
-                  <p className="text-sm text-muted-foreground">{t("demo.expired")}</p>
-                ) : demoUsed ? (
-                  <p className="text-sm text-muted-foreground">{t("demo.used")}</p>
-                ) : null}
-                {demoError && <p className="text-sm text-destructive">{demoError}</p>}
-                <p className="text-sm text-muted-foreground">
-                  {t("demo.footnote")}
-                </p>
-                <button
-                  onClick={demoActive ? finishDemo : startDemo}
-                  disabled={(demoUsed && !demoActive) || demoLoading}
-                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {demoLoading ? (demoActive ? t("demo.actions.finishing") : t("demo.actions.starting")) : demoActive ? t("demo.actions.endDemo") : demoUsed ? t("demo.actions.demoUsed") : t("demo.actions.startDemo")}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
           {/* Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 max-w-[100vw] w-full box-border">
             <StatCard
