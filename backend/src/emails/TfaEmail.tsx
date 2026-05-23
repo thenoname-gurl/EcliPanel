@@ -1,9 +1,10 @@
 import { BaseEmail } from './BaseEmail';
-import { Hr, Section } from '@react-email/components';
+import { Section } from '@react-email/components';
 
 interface TfaEmailProps {
   name: string;
   code: string;
+  t?: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const headingStyle = {
@@ -39,33 +40,18 @@ const infoBoxStyle = {
   margin: '20px 0',
 };
 
-const footerStyle = {
-  color: '#9ca3af',
-  textAlign: 'center' as const,
-  marginTop: '32px',
-  paddingTop: '24px',
-  lineHeight: '1.5',
-  fontSize: '16px',
-};
+export function TfaEmail({ name, code, t }: TfaEmailProps) {
+  const _t = t || ((key: string) => key);
 
-const linkStyle = {
-  display: 'inline-block',
-  margin: '0 8px',
-  color: '#9ca3af',
-  textDecoration: 'none',
-  fontSize: '14px',
-};
-
-export function TfaEmail({ name, code }: TfaEmailProps) {
   return (
-    <BaseEmail previewText="Your verification code">
+    <BaseEmail previewText={_t('email.tfa.preview')} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
-        <h1 style={headingStyle}>Verify Your Login</h1>
+        <h1 style={headingStyle}>{_t('email.tfa.heading')}</h1>
       </Section>
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>Hello {name},</p>
-        <p style={pStyle}>Use the code below to complete your login.</p>
+        <p style={pStyle}>{_t('email.tfa.greeting', { name })}</p>
+        <p style={pStyle}>{_t('email.tfa.instruction')}</p>
       </Section>
 
       <Section style={codeStyle}>
@@ -74,23 +60,10 @@ export function TfaEmail({ name, code }: TfaEmailProps) {
 
       <Section style={infoBoxStyle}>
         <p style={{ color: '#ffffffb3', fontSize: '14px', margin: 0 }}>
-          <strong>Important:</strong> This code expires shortly. If you did not attempt to log in, you can safely ignore this email.
+          <strong>{_t('email.tfa.important')}:</strong> {_t('email.tfa.expires')}
         </p>
       </Section>
 
-      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
-
-      <Section style={footerStyle}>
-        <p style={{ margin: 0 }}>
-          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
-          All rights reserved.
-        </p>
-        <Section style={{ marginTop: '16px' }}>
-          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
-          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
-          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
-        </Section>
-      </Section>
     </BaseEmail>
   );
 }

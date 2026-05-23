@@ -10,6 +10,7 @@ import { generateCaptcha, generateInvisibleCaptcha } from '../utils/captcha';
 import { isFeatureEnabled } from '../utils/featureToggles';
 import { redisSet, redisGet, redisDel, redisDelByPrefix, withRedisCache } from '../config/redis';
 import { sendMail } from '../services/mailService';
+import { resolveLocale } from '../i18n/resolve';
 import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicyService';
 import { validatePassword } from '../utils/passwordValidation';
 import { storeCsrfToken } from '../middleware/csrf';
@@ -67,7 +68,7 @@ async function randomToken(bytes = 32) {
 async function verifyTempToken(token: string, logSource: string, ctx: any) {
   if (!token) {
     ctx.set.status = 400;
-    return { error: 'Missing tempToken' };
+    return { error: ctx.t('auth.missingTempToken') };
   }
   try {
     const jwt = ctx.app?.jwt || ctx.jwt || (ctx.app && (ctx.app as any).jwt);
@@ -83,7 +84,7 @@ async function verifyTempToken(token: string, logSource: string, ctx: any) {
     const logCtx = ctx.log || ctx.app?.log || console;
     logCtx.warn?.({ err: err.message, token, source: logSource }, 'tempToken verification failed');
     ctx.set.status = 400;
-    return { error: 'Invalid tempToken' };
+    return { error: ctx.t('auth.invalidTempToken') };
   }
 }
 
@@ -223,24 +224,24 @@ export async function authRoutes(app: any, prefix = '') {
     const { email, password } = body as any;
     if (!email || !password) {
       ctx.set.status = 400;
-      return { error: 'Missing email or password' };
+      return { error: ctx.t('auth.missingEmailOrPassword') };
     }
     
     try {
       const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0, 200);
       const keyIp = `rate:auth:login:ip:${ip}`;
       const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.AUTH_LOGIN_RATE_IP || 20), Number(process.env.AUTH_LOGIN_WINDOW_IP || 60));
-      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
+      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: ctx.t('auth.rateLimited'), retryAfter: rlIp.retryAfterSeconds }; }
       const keyEmail = `rate:auth:login:email:${String(email).toLowerCase()}`;
       const rlEmail = await require('../config/redis').consumeRateLimit(keyEmail, Number(process.env.AUTH_LOGIN_RATE_ACCOUNT || 10), Number(process.env.AUTH_LOGIN_WINDOW_ACCOUNT || 600));
-      if (!rlEmail.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlEmail.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlEmail.retryAfterSeconds }; }
+      if (!rlEmail.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlEmail.retryAfterSeconds) }; return { error: ctx.t('auth.rateLimited'), retryAfter: rlEmail.retryAfterSeconds }; }
     } catch (e) {/* meow */}
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ email });
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Invalid credentials' };
+      return { error: ctx.t('auth.invalidCredentials') };
     }
 
     const lockoutKey = `lockout:login:user:${user.id}`;
@@ -248,7 +249,7 @@ export async function authRoutes(app: any, prefix = '') {
       const locked = await require('../config/redis').redisGet(lockoutKey);
       if (locked) {
         ctx.set.status = 429;
-        return { error: 'Account temporarily locked due to too many failed attempts. Try again later.' };
+        return { error: ctx.t('auth.accountLocked') };
       }
     } catch {}
 
@@ -263,7 +264,7 @@ export async function authRoutes(app: any, prefix = '') {
         }
       } catch {}
       ctx.set.status = 401;
-      return { error: 'Invalid credentials' };
+      return { error: ctx.t('auth.invalidCredentials') };
     }
 
     try {
@@ -388,19 +389,21 @@ export async function authRoutes(app: any, prefix = '') {
       ctx.set.status = 400;
       const logCtx = ctx.log || ctx.app?.log || console;
       logCtx.warn?.({ payload, token: tempToken }, 'Invalid tempToken payload in send-email');
-      return { error: 'Invalid tempToken payload' };
+      return { error: ctx.t('auth.invalidTempToken') };
     }
     ctx.log?.info?.({ userId: payload.userId, tfaSession: payload.tfaSession }, 'sending 2FA email');
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: payload.userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const code = randomInt(0, 1000000).toString().padStart(6, '0');
     await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
     try {
-      await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@ecli.app', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code } });
+      await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@ecli.app', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code },
+      locale: ctx.locale,
+      });
     } catch (err) { ctx.log?.error?.({ err }, 'Failed to send TFA email'); }
     return { success: true };
   }, {
@@ -437,20 +440,20 @@ export async function authRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         const logCtx = ctx.log || ctx.app?.log || console;
         logCtx.warn?.({ payload, token: tempToken, source: 'verify-login' }, 'Invalid tempToken payload in verify-login');
-        return { error: 'Invalid tempToken payload' };
+        return { error: ctx.t('validation.invalidTempTokenPayload') };
       }
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ id: payload.userId });
       if (!user) {
         ctx.set.status = 404;
-        return { error: 'User not found' };
+        return { error: ctx.t('user.notFound') };
       }
 
       if (!token && !backupCode && !emailCode) {
         const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
         try { const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
         ctx.set.status = 400;
-        return { error: '2FA code required' };
+        return { error: ctx.t('auth.twoFactorRequired') };
       }
 
       if (emailCode) {
@@ -459,7 +462,7 @@ export async function authRoutes(app: any, prefix = '') {
           await redisDel(`tfa:email:${payload.tfaSession}`);
         } else {
           ctx.set.status = 400;
-          return { error: 'Invalid email code' };
+          return { error: ctx.t('auth.invalidEmailCode') };
         }
       }
 
@@ -470,7 +473,7 @@ export async function authRoutes(app: any, prefix = '') {
           const bakKey = `rate:auth:2fa:backup:user:${payload.userId}`;
           try { const bRl = await require('../config/redis').consumeRateLimit(bakKey, 5, 3600); if (!bRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: bRl.retryAfterSeconds }; } } catch {}
           ctx.set.status = 400;
-          return { error: 'Invalid backup code' };
+          return { error: ctx.t('auth.invalidBackupCode') };
         }
         user.twoFactorRecoveryCodes = hashes.filter((x: string) => x !== h);
         await userRepo.save(user);
@@ -480,12 +483,12 @@ export async function authRoutes(app: any, prefix = '') {
         const totpSoftKey = `rate:auth:2fa:totp:soft:user:${payload.userId}`;
         try { const tRl = await require('../config/redis').consumeRateLimit(totpSoftKey, 3, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
         const totpHardKey = `rate:auth:2fa:totp:hard:user:${payload.userId}`;
-        try { const hRl = await require('../config/redis').consumeRateLimit(totpHardKey, 10, 3600); if (!hRl.allowed) { ctx.set.status = 429; return { error: 'Account temporarily locked due to too many 2FA attempts. Try again later.', retryAfter: hRl.retryAfterSeconds }; } } catch {}
+        try { const hRl = await require('../config/redis').consumeRateLimit(totpHardKey, 10, 3600); if (!hRl.allowed) { ctx.set.status = 429; return { error: ctx.t('auth.accountLocked2fa'), retryAfter: hRl.retryAfterSeconds }; } } catch {}
         const speakeasy = require('speakeasy');
         const ok = speakeasy.totp.verify({ secret: user.twoFactorSecret || '', encoding: 'base32', token: String(token).trim(), window: 1 });
         if (!ok) {
           ctx.set.status = 400;
-          return { error: 'Invalid token' };
+          return { error: ctx.t('auth.invalidToken') };
         }
       }
 
@@ -512,7 +515,7 @@ export async function authRoutes(app: any, prefix = '') {
     } catch (err) {
       ctx.log?.error?.({ err }, 'Error in 2fa verify-login');
       ctx.set.status = 500;
-      return { error: 'Internal server error' };
+      return { error: ctx.t('common.internalError') };
     }
   }, {
     body: t.Object({ tempToken: t.String(), token: t.Optional(t.String()), backupCode: t.Optional(t.String()), emailCode: t.Optional(t.String()) }),
@@ -536,7 +539,7 @@ export async function authRoutes(app: any, prefix = '') {
     const { email } = body as any;
     if (!email) {
       ctx.set.status = 400;
-      return { error: 'Email required' };
+      return { error: ctx.t('auth.emailRequired') };
     }
     try {
       const ip = (ctx.ip || '').toString();
@@ -570,8 +573,9 @@ export async function authRoutes(app: any, prefix = '') {
         vars: {
           name: user.firstName || user.email,
           url,
-          message: 'Click the link below to reset your password. This link is valid for 1 hour.',
+          message: ctx.t('auth.resetLink'),
         },
+        locale: ctx.locale,
       });
     } catch (e) {
       // skip
@@ -588,7 +592,7 @@ export async function authRoutes(app: any, prefix = '') {
     const { token, password } = body as any;
     if (!token || !password) {
       ctx.set.status = 400;
-      return { error: 'token and password are required' };
+      return { error: ctx.t('validation.passwordRequired') };
     }
 
     try {
@@ -611,14 +615,14 @@ export async function authRoutes(app: any, prefix = '') {
     const userId = await redisGet(`password-reset:${token}`);
     if (!userId) {
       ctx.set.status = 400;
-      return { error: 'Invalid or expired token' };
+      return { error: ctx.t('auth.tokenExpired') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(userId) });
     if (!user) {
       ctx.set.status = 400;
-      return { error: 'Invalid or expired token' };
+      return { error: ctx.t('auth.tokenExpired') };
     }
 
     user.passwordHash = await hashPassword(password);
@@ -638,7 +642,7 @@ export async function authRoutes(app: any, prefix = '') {
     const user = ctx.user as User;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
     const sessionId = decoded?.sessionId;
@@ -683,6 +687,7 @@ export async function authRoutes(app: any, prefix = '') {
         subject: 'Verify your email — EcliPanel',
         template: 'email-verify',
         vars: { name: user.firstName || 'User', verifyUrl, code },
+        locale: resolveLocale({ user }),
       });
     } catch (err) {
       console.error('Failed to send verification email:', err);
@@ -693,7 +698,7 @@ export async function authRoutes(app: any, prefix = '') {
     const captchaEnabled = await isFeatureEnabled('captcha');
     if (!captchaEnabled) {
       ctx.set.status = 503;
-      return { error: "Feature 'captcha' is disabled" };
+      return { error: ctx.t('system.captchaDisabled') };
     }
     return generateCaptcha();
   }, {
@@ -711,7 +716,7 @@ export async function authRoutes(app: any, prefix = '') {
     const captchaEnabled = await isFeatureEnabled('captcha');
     if (!captchaEnabled) {
       ctx.set.status = 503;
-      return { error: "Feature 'captcha' is disabled" };
+      return { error: ctx.t('system.captchaDisabled') };
     }
     const { token, audio } = await generateCaptcha();
     return { token, audio };
@@ -730,7 +735,7 @@ export async function authRoutes(app: any, prefix = '') {
     const captchaInvisibleEnabled = await isFeatureEnabled('captchaInvisible');
     if (!captchaInvisibleEnabled) {
       ctx.set.status = 503;
-      return { error: "Feature 'captchaInvisible' is disabled" };
+      return { error: ctx.t('system.captchaInvisibleDisabled') };
     }
     const { token, created } = generateInvisibleCaptcha();
     return { token, created };
@@ -760,19 +765,19 @@ export async function authRoutes(app: any, prefix = '') {
     const { token } = ctx.query as any;
     if (!token) {
       ctx.set.status = 400;
-      return { error: 'Missing token' };
+      return { error: ctx.t('auth.missingToken') };
     }
     const userId = await redisGet(`email-verify:token:${token}`);
     if (!userId) {
       ctx.log?.warn({ token }, 'email verification link used with missing/expired token');
       ctx.set.status = 400;
-      return { error: 'Invalid or expired token' };
+      return { error: ctx.t('auth.tokenExpired') };
     }
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(userId) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     user.emailVerified = true;
     await userRepo.save(user);
@@ -801,7 +806,7 @@ export async function authRoutes(app: any, prefix = '') {
     const { code } = body as any;
     if (!code) {
       ctx.set.status = 400;
-      return { error: 'Missing code' };
+      return { error: ctx.t('auth.missingCode') };
     }
 
     try {
@@ -818,7 +823,7 @@ export async function authRoutes(app: any, prefix = '') {
     if (!expected || expected !== String(code).trim()) {
       ctx.log?.warn({ userId: user.id, provided: code, expected }, 'email verification failed');
       ctx.set.status = 400;
-      return { error: 'Invalid or expired code' };
+      return { error: ctx.t('validation.invalidOrExpiredCode') };
     }
     const userRepo = AppDataSource.getRepository(User);
     user.emailVerified = true;
@@ -843,7 +848,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(prefix + '/auth/resend-verification', async (ctx: any) => {
     const user = ctx.user;
-    if (user.emailVerified) return { success: true, message: 'Already verified' };
+    if (user.emailVerified) return { success: true, message: ctx.t('auth.alreadyVerified') };
     try {
       const ip = (ctx.ip || '').toString();
       const keyIp = `rate:auth:resend-verification:ip:${ip}`;
@@ -884,13 +889,13 @@ export async function authRoutes(app: any, prefix = '') {
     const { token } = ctx.query as any;
     if (!token) {
       ctx.set.status = 400;
-      return { error: 'Missing token' };
+      return { error: ctx.t('auth.missingToken') };
     }
 
     const data = await redisGet(`email-restore:token:${token}`);
     if (!data) {
       ctx.set.status = 400;
-      return { error: 'Invalid or expired token' };
+      return { error: ctx.t('auth.tokenExpired') };
     }
 
     let payload: any;
@@ -899,19 +904,19 @@ export async function authRoutes(app: any, prefix = '') {
       payload = JSON.parse(jsonString);
     } catch (e) {
       ctx.set.status = 400;
-      return { error: 'Invalid restore data' };
+      return { error: ctx.t('server.restoreInvalidData') };
     }
 
     if (!payload.userId || !payload.oldEmail || !payload.newEmail) {
       ctx.set.status = 400;
-      return { error: 'Invalid restore payload' };
+      return { error: ctx.t('server.restoreInvalidPayload') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(payload.userId) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     user.email = payload.oldEmail;
@@ -960,7 +965,7 @@ export async function authRoutes(app: any, prefix = '') {
     const expected = await redisGet(`passkey:reg:${user.id}`);
     if (!expected) {
       ctx.set.status = 400;
-      return { error: 'No challenge' };
+      return { error: ctx.t('system.noChallenge') };
     }
     const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
     const requestHost = getFrontendHost(ctx);
@@ -990,13 +995,13 @@ export async function authRoutes(app: any, prefix = '') {
     const { email } = body as any;
     if (!email) {
       ctx.set.status = 400;
-      return { error: 'Missing email' };
+      return { error: ctx.t('validation.missingEmail') };
     }
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ email });
     if (!user) {
       ctx.set.status = 400;
-      return { error: 'No passkeys available for this account' };
+      return { error: ctx.t('auth.noPasskeys') };
     }
     const frontendHost = getFrontendHost(ctx);
     const opts = await PasskeyService.generateAuthentication(user.id, frontendHost);
@@ -1020,12 +1025,12 @@ export async function authRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ email });
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Authentication failed' };
+      return { error: ctx.t('common.authenticationFailed') };
     }
     const expected = await redisGet(`passkey:auth:${user.id}`);
     if (!expected) {
       ctx.set.status = 400;
-      return { error: 'No challenge' };
+      return { error: ctx.t('system.noChallenge') };
     }
     const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
     const requestHost = getFrontendHost(ctx);
@@ -1057,7 +1062,7 @@ export async function authRoutes(app: any, prefix = '') {
       return { token, csrfToken };
     } else {
       ctx.set.status = 401;
-      return { error: 'Authentication failed' };
+      return { error: ctx.t('common.authenticationFailed') };
     }
   }, {
     body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Any() }),
@@ -1097,13 +1102,13 @@ export async function authRoutes(app: any, prefix = '') {
     const { name } = ctx.body as any;
     if (!name) {
       ctx.set.status = 400;
-      return { error: 'name is required' };
+      return { error: ctx.t('validation.nameRequired') };
     }
     const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
     const passkey = await passkeyRepo.findOne({ where: { id, user: { id: user.id } } });
     if (!passkey) {
       ctx.set.status = 404;
-      return { error: 'Passkey not found' };
+      return { error: ctx.t('auth.passkeyNotFound') };
     }
     passkey.name = String(name).trim();
     await passkeyRepo.save(passkey);
@@ -1147,12 +1152,12 @@ export async function authRoutes(app: any, prefix = '') {
     const { token, secret } = body as any;
     if (!token || !secret) {
       ctx.set.status = 400;
-      return { error: 'Missing token or secret' };
+      return { error: ctx.t('validation.missingTokenOrSecret') };
     }
     const ok = speakeasy.totp.verify({ secret: String(secret), encoding: 'base32', token: String(token).trim(), window: 1 });
     if (!ok) {
       ctx.set.status = 400;
-      return { error: 'Invalid token' };
+      return { error: ctx.t('auth.invalidToken') };
     }
     const userRepo = AppDataSource.getRepository(User);
     user.twoFactorEnabled = true;
@@ -1193,12 +1198,12 @@ export async function authRoutes(app: any, prefix = '') {
     const { token } = body as any;
     if (!token) {
       ctx.set.status = 400;
-      return { error: 'Missing token' };
+      return { error: ctx.t('auth.missingToken') };
     }
     const ok = speakeasy.totp.verify({ secret: user.twoFactorSecret || '', encoding: 'base32', token: String(token).trim(), window: 1 });
     if (!ok) {
       ctx.set.status = 400;
-      return { error: 'Invalid token' };
+      return { error: ctx.t('auth.invalidToken') };
     }
     const userRepo = AppDataSource.getRepository(User);
     user.twoFactorEnabled = false;
@@ -1230,7 +1235,7 @@ export async function authRoutes(app: any, prefix = '') {
     const key = await passkeyRepo.findOne({ where: { id: Number(id), user: { id: user.id } }, relations: {"user":true} });
     if (!key) {
       ctx.set.status = 404;
-      return { error: 'Passkey not found' };
+      return { error: ctx.t('auth.passkeyNotFound') };
     }
     await passkeyRepo.remove(key);
     return { success: true };
@@ -1254,7 +1259,7 @@ export async function authRoutes(app: any, prefix = '') {
     const clientId = process.env.GITHUB_CLIENT_ID;
     if (!clientId) {
       ctx.set.status = 500;
-      return { error: 'GitHub client id not configured' };
+      return { error: ctx.t('system.githubClientIdNotConfigured') };
     }
     const redirect = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read:user+user:email&state=${state}`;
     try {
@@ -1285,12 +1290,12 @@ export async function authRoutes(app: any, prefix = '') {
     const { code, state } = ctx.query as any;
     if (!code || !state) {
       ctx.set.status = 400;
-      return { error: 'Missing code or state' };
+      return { error: ctx.t('validation.missingCodeOrState') };
     }
     const stored = await redisGet(`github-student-state:${state}`);
     if (!stored) {
       ctx.set.status = 400;
-      return { error: 'Invalid or expired state' };
+      return { error: ctx.t('validation.invalidState') };
     }
     const userId = Number(stored);
 
@@ -1298,7 +1303,7 @@ export async function authRoutes(app: any, prefix = '') {
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
       ctx.set.status = 500;
-      return { error: 'GitHub OAuth not configured' };
+      return { error: ctx.t('system.githubOauthNotConfigured') };
     }
     const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
@@ -1310,7 +1315,7 @@ export async function authRoutes(app: any, prefix = '') {
     const accessToken = tokenData.access_token;
     if (!accessToken) {
       ctx.set.status = 400;
-      return { error: 'Failed to obtain access token' };
+      return { error: ctx.t('system.accessTokenFailed') };
     }
 
     const eduRes = await fetch('https://education.github.com/api/user', {
@@ -1381,7 +1386,7 @@ export async function authRoutes(app: any, prefix = '') {
       || `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
     if (!clientId) {
       ctx.set.status = 500;
-      return { error: 'Hack Club client id not configured' };
+      return { error: ctx.t('system.hackclubClientIdNotConfigured') };
     }
     const scope = 'verification_status';
     const authorizationUrl =
@@ -1407,12 +1412,12 @@ export async function authRoutes(app: any, prefix = '') {
     const { code, state } = ctx.query as any;
     if (!code || !state) {
       ctx.set.status = 400;
-      return { error: 'Missing code or state' };
+      return { error: ctx.t('validation.missingCodeOrState') };
     }
     const stored = await redisGet(`hackclub-student-state:${state}`);
     if (!stored) {
       ctx.set.status = 400;
-      return { error: 'Invalid or expired state' };
+      return { error: ctx.t('validation.invalidState') };
     }
     const userId = Number(stored);
 
@@ -1422,7 +1427,7 @@ export async function authRoutes(app: any, prefix = '') {
       || `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
     if (!clientId || !clientSecret) {
       ctx.set.status = 500;
-      return { error: 'Hack Club OAuth not configured' };
+      return { error: ctx.t('system.hackclubOauthNotConfigured') };
     }
 
     const tokenRes = await fetch('https://auth.hackclub.com/oauth/token', {
@@ -1440,7 +1445,7 @@ export async function authRoutes(app: any, prefix = '') {
     const accessToken = tokenData.access_token;
     if (!accessToken) {
       ctx.set.status = 400;
-      return { error: 'Failed to obtain access token' };
+      return { error: ctx.t('system.accessTokenFailed') };
     }
 
     const meRes = await fetch('https://auth.hackclub.com/api/v1/me', {
@@ -1536,7 +1541,7 @@ export async function authRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
     const cacheKey = `auth:session:user:${user.id}:session:${decoded?.sessionId || 'none'}:v1`;
@@ -1675,7 +1680,7 @@ export async function authRoutes(app: any, prefix = '') {
     const sessionId = decoded?.sessionId;
     if (!sessionId) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     const { redisGet } = require('../config/redis');
     const existing = await redisGet(`csrf:${sessionId}`);

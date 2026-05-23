@@ -24,11 +24,11 @@ function requireAdminCtx(ctx: any): true | { error: string } {
   if (apiKey?.type === 'admin') return true;
   if (!user) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (!hasPermissionSync(ctx, 'nodes:read')) {
     ctx.set.status = 403;
-    return { error: 'Node administration required.' };
+    return { error: ctx.t('node.adminRequired') };
   }
   return true;
 }
@@ -70,7 +70,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const user = ctx.user as User;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     const isAdmin = hasPermissionSync(ctx, 'nodes:read');
@@ -121,7 +121,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const node = await resolveNode(ctx.params.id);
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
     const { rootUser, rootPassword, token, ...safe } = node as any;
     return safe;
@@ -137,13 +137,13 @@ export async function nodeRoutes(app: any, prefix = '') {
     const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice } = ctx.body as any;
     if (!name || !url || !token) {
       ctx.set.status = 400;
-      return { error: 'name, url and token are required' };
+      return { error: ctx.t('validation.nameUrlTokenRequired') };
     }
     if (nodeId && typeof nodeId === 'string') {
       const normalized = nodeId.replace(/-/g, '')
       if (!/^[0-9a-f]{32}$/i.test(normalized)) {
         ctx.set.status = 400;
-        return { error: 'nodeId must be a 32-character UUID' };
+        return { error: ctx.t('validation.nodeIdUuidRequired') };
       }
     }
 
@@ -161,7 +161,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (ipv6Subnet !== undefined) {
       if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {
         ctx.set.status = 400;
-        return { error: 'Invalid IPv6 subnet CIDR' };
+        return { error: ctx.t('server.invalidIpv6Subnet') };
       }
       node.ipv6Subnet = ipv6Subnet || undefined as any;
     }
@@ -176,7 +176,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       const parsedReservedCount = Number(ipv6ReservedCount);
       if (!Number.isInteger(parsedReservedCount) || parsedReservedCount < 0 || parsedReservedCount > 10000) {
         ctx.set.status = 400;
-        return { error: 'Invalid ipv6ReservedCount' };
+        return { error: ctx.t('server.invalidLimitsIpv6Reserved') };
       }
       node.ipv6ReservedCount = parsedReservedCount;
     }
@@ -186,7 +186,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       const parsed = Number(portRangeStart);
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
         ctx.set.status = 400;
-        return { error: 'portRangeStart must be an integer between 1 and 65535' };
+        return { error: ctx.t('server.portRangeInvalid') };
       }
       node.portRangeStart = parsed;
     }
@@ -194,13 +194,13 @@ export async function nodeRoutes(app: any, prefix = '') {
       const parsed = Number(portRangeEnd);
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
         ctx.set.status = 400;
-        return { error: 'portRangeEnd must be an integer between 1 and 65535' };
+        return { error: ctx.t('server.portRangeEndInvalid') };
       }
       node.portRangeEnd = parsed;
     }
     if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
       ctx.set.status = 400;
-      return { error: 'portRangeStart must be less than or equal to portRangeEnd' };
+      return { error: ctx.t('server.portRangeOrder') };
     }
     if (deploymentsDisabled !== undefined) node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
     if (deploymentNotice !== undefined) node.deploymentNotice = deploymentNotice || undefined as any;
@@ -222,7 +222,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const node = await resolveNode(id);
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
 
     if (nodeId !== undefined) {
@@ -230,7 +230,7 @@ export async function nodeRoutes(app: any, prefix = '') {
         const normalized = nodeId.replace(/-/g, '')
         if (!/^[0-9a-f]{32}$/i.test(normalized)) {
           ctx.set.status = 400;
-          return { error: 'nodeId must be a 32-character UUID' };
+          return { error: ctx.t('validation.nodeIdUuidRequired') };
         }
       }
       node.nodeId = nodeId || undefined as any;
@@ -253,7 +253,7 @@ export async function nodeRoutes(app: any, prefix = '') {
         const parsed = Number(portRangeStart);
         if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
           ctx.set.status = 400;
-          return { error: 'portRangeStart must be an integer between 1 and 65535' };
+          return { error: ctx.t('server.portRangeInvalid') };
         }
         node.portRangeStart = parsed;
       } else {
@@ -265,7 +265,7 @@ export async function nodeRoutes(app: any, prefix = '') {
         const parsed = Number(portRangeEnd);
         if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
           ctx.set.status = 400;
-          return { error: 'portRangeEnd must be an integer between 1 and 65535' };
+          return { error: ctx.t('server.portRangeEndInvalid') };
         }
         node.portRangeEnd = parsed;
       } else {
@@ -274,13 +274,13 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
     if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
       ctx.set.status = 400;
-      return { error: 'portRangeStart must be less than or equal to portRangeEnd' };
+      return { error: ctx.t('server.portRangeOrder') };
     }
     if (defaultIp !== undefined) node.defaultIp = defaultIp || undefined as any;
     if (ipv6Subnet !== undefined) {
       if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {
         ctx.set.status = 400;
-        return { error: 'Invalid IPv6 subnet CIDR' };
+        return { error: ctx.t('server.invalidIpv6Subnet') };
       }
       node.ipv6Subnet = ipv6Subnet || undefined as any;
     }
@@ -295,7 +295,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       const parsedReservedCount = Number(ipv6ReservedCount);
       if (!Number.isInteger(parsedReservedCount) || parsedReservedCount < 0 || parsedReservedCount > 10000) {
         ctx.set.status = 400;
-        return { error: 'Invalid ipv6ReservedCount' };
+        return { error: ctx.t('server.invalidLimitsIpv6Reserved') };
       }
       node.ipv6ReservedCount = parsedReservedCount;
     }
@@ -336,7 +336,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const node = await resolveNode(ctx.params.id);
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
     nodeService.invalidateNode(node.id);
     await nodeRepo().remove(node);
@@ -451,7 +451,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     const node = await nodeRepo().findOneBy({ id: Number(ctx.params.id) });
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
     return { token: (node as any).token };
   }, {
@@ -479,29 +479,29 @@ export async function nodeRoutes(app: any, prefix = '') {
     const nodeId = Number(ctx.params.id);
     if (!Number.isFinite(nodeId)) {
       ctx.set.status = 400;
-      return { error: 'Invalid node id' };
+      return { error: ctx.t('validation.invalidNodeId') };
     }
     const nodeRepo = AppDataSource.getRepository(Node);
     const node = await nodeRepo.findOneBy({ id: nodeId });
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
 
     const { oldIp, newIp } = ctx.body as any;
     if (!oldIp || !newIp) {
       ctx.set.status = 400;
-      return { error: 'oldIp and newIp are required' };
+      return { error: ctx.t('validation.oldIpAndNewIpRequired') };
     }
     const oldIpNorm = String(oldIp).trim();
     const newIpNorm = String(newIp).trim();
     if (!oldIpNorm || !newIpNorm) {
       ctx.set.status = 400;
-      return { error: 'oldIp and newIp must be non-empty strings' };
+      return { error: ctx.t('validation.oldIpAndNewIpNonEmpty') };
     }
     if (oldIpNorm === newIpNorm) {
       ctx.set.status = 400;
-      return { error: 'oldIp and newIp must be different' };
+      return { error: ctx.t('validation.oldIpAndNewIpDifferent') };
     }
 
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
@@ -615,13 +615,13 @@ export async function nodeRoutes(app: any, prefix = '') {
     const nodeId = Number(ctx.params.id);
     if (!Number.isFinite(nodeId)) {
       ctx.set.status = 400;
-      return { error: 'Invalid node id' };
+      return { error: ctx.t('validation.invalidNodeId') };
     }
     const nodeRepo = AppDataSource.getRepository(Node);
     const node = await nodeRepo.findOneBy({ id: nodeId });
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
 
     const base = (node as any).backendWingsUrl || node.url;
@@ -633,7 +633,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       wingsServers = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
     } catch (e: any) {
       ctx.set.status = 502;
-      return { error: 'Failed to fetch servers from Wings: ' + (e?.message || 'unknown') };
+      return { error: ctx.t('node.fetchServersFailed') + (e?.message || 'unknown') };
     }
 
     const serverUuid = (s: any) => s.configuration?.uuid || s.uuid || s.id;
@@ -651,7 +651,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       nodeName: node.name,
       status: 'running',
       progress: 0,
-      message: 'Operation started',
+      message: ctx.t('node.operationStarted'),
       totalServers: wingsServers.length,
       onlineCount: onlineServers.length,
       servers: [],
@@ -663,8 +663,8 @@ export async function nodeRoutes(app: any, prefix = '') {
     if (onlineServers.length === 0) {
       op.status = 'completed';
       op.progress = 100;
-      op.message = 'No running servers to reboot';
-      return { operationId: opId, status: 'completed', message: 'No running servers to reboot' };
+      op.message = ctx.t('node.noRunningServers');
+      return { operationId: opId, status: 'completed', message: ctx.t('node.noRunningServers') };
     }
 
     (async () => {
@@ -788,11 +788,11 @@ export async function nodeRoutes(app: any, prefix = '') {
     const op = rebootOperations.get(ctx.params.operationId as string);
     if (!op) {
       ctx.set.status = 404;
-      return { error: 'Operation not found or expired' };
+      return { error: ctx.t('node.operationNotFound') };
     }
     if (op.nodeId !== Number(ctx.params.id)) {
       ctx.set.status = 404;
-      return { error: 'Operation does not belong to this node' };
+      return { error: ctx.t('node.operationBelongsToDifferentNode') };
     }
     return {
       operationId: op.id,

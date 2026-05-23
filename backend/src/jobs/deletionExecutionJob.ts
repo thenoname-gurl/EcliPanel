@@ -6,6 +6,7 @@ import { DeletedUserRetention } from '../models/deletedUserRetention.entity';
 import { Order } from '../models/order.entity';
 import { getMailboxAccountForUser, removeMailboxAccount } from '../services/mailcowService';
 import { sendMail } from '../services/mailService';
+import { resolveLocale } from '../i18n/resolve';
 
 export async function executeDeletionRequest(req: DeletionRequest, now = new Date()) {
   const reqRepo = AppDataSource.getRepository(DeletionRequest);
@@ -59,6 +60,7 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
       message: 'Your EclipseSystems account has been permanently deleted as requested.',
       details: `Your account and associated data have been removed from our systems.\n\nCertain information has been retained for legal and audit purposes as required by applicable law.\n\nIf you did not request this deletion, please contact our support team immediately at ${panelUrl}/contact.`,
     },
+    locale: resolveLocale({ user }),
   }).catch((e: any) => console.error('[deletionExecutionJob] failed to send deletion email', e));
 
   user.firstName = 'Deleted';

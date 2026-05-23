@@ -71,7 +71,7 @@ export function registerRoutes(app: any) {
         const enabled = await isFeatureEnabled('dns');
         if (!enabled) {
           ctx.set.status = 503;
-          return { error: "Feature 'dns' is disabled" };
+          return { error: ctx.t('organisation.featureDnsIsDisabled') };
         }
       }
 
@@ -79,7 +79,7 @@ export function registerRoutes(app: any) {
         const enabled = await isFeatureEnabled('oauth');
         if (!enabled) {
           ctx.set.status = 503;
-          return { error: "Feature 'oauth' is disabled" };
+          return { error: ctx.t('auth.featureOauthIsDisabled') };
         }
       }
     });

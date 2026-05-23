@@ -194,7 +194,7 @@ async function requireTunnelRollout(ctx: any): Promise<true | { error: string }>
   const { inRollout } = await getRolloutTreatment(ctx.user.id, TUNNEL_ROLLOUT_KEY);
   if (!inRollout) {
     ctx.set.status = 403;
-    return { error: 'Tunnels feature is not yet available to you' };
+    return { error: ctx.t('system.tunnelsNotAvailable') };
   }
   return true;
 }

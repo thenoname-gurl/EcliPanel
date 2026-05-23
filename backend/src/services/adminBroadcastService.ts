@@ -4,6 +4,7 @@ import { AdminBroadcastJob } from '../models/adminBroadcastJob.entity';
 import { sendMail } from './mailService';
 import { createActivityLog } from '../handlers/logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
+import { resolveLocale } from '../i18n/resolve';
 
 export async function createAdminBroadcastJob(adminId: number, subject: string, message: string, force: boolean) {
   const repo = AppDataSource.getRepository(AdminBroadcastJob);
@@ -63,6 +64,7 @@ export async function processPendingAdminBroadcastJobs() {
               messageHtml: htmlMessage,
               details: escapeHtml(adminDetails ? `${adminDetails} — ${adminUser?.email || ''}` : ''),
             },
+            locale: resolveLocale({ user }),
           });
           sentCount += 1;
         } catch (err: any) {

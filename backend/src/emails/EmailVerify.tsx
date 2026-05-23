@@ -5,6 +5,7 @@ interface EmailVerifyProps {
   name: string;
   verifyUrl: string;
   code: string;
+  t?: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const headingStyle = {
@@ -52,46 +53,29 @@ const infoBoxStyle = {
   margin: '20px 0',
 };
 
-const footerStyle = {
-  color: '#9ca3af',
-  textAlign: 'center' as const,
-  marginTop: '32px',
-  paddingTop: '24px',
-  lineHeight: '1.5',
-  fontSize: '16px',
-};
+export function EmailVerify({ name, verifyUrl, code, t }: EmailVerifyProps) {
+  const _t = t || ((key: string) => key);
 
-const linkStyle = {
-  display: 'inline-block',
-  margin: '0 8px',
-  color: '#9ca3af',
-  textDecoration: 'none',
-  fontSize: '14px',
-};
-
-export function EmailVerify({ name, verifyUrl, code }: EmailVerifyProps) {
   return (
-    <BaseEmail previewText="Verify your email address">
+    <BaseEmail previewText={_t('email.emailVerify.preview')} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
-        <h1 style={headingStyle}>Verify Your Email</h1>
+        <h1 style={headingStyle}>{_t('email.emailVerify.heading')}</h1>
       </Section>
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>Hello {name},</p>
-        <p style={pStyle}>
-          Please verify your email address by clicking the button below or entering the verification code on the panel.
-        </p>
+        <p style={pStyle}>{_t('email.emailVerify.greeting', { name })}</p>
+        <p style={pStyle}>{_t('email.emailVerify.instruction')}</p>
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={verifyUrl} style={btnStyle}>Verify Email</Button>
+        <Button href={verifyUrl} style={btnStyle}>{_t('email.emailVerify.button')}</Button>
       </Section>
 
       <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
 
       <Section style={{ marginBottom: '24px' }}>
         <p style={{ ...pStyle, textAlign: 'center', marginBottom: '12px' }}>
-          <strong>Or use this verification code:</strong>
+          <strong>{_t('email.emailVerify.orUse')}</strong>
         </p>
       </Section>
 
@@ -101,22 +85,8 @@ export function EmailVerify({ name, verifyUrl, code }: EmailVerifyProps) {
 
       <Section style={infoBoxStyle}>
         <p style={{ color: '#ffffffb3', fontSize: '14px', margin: 0 }}>
-          <strong>Important:</strong> This code expires in 24 hours. If you did not create an account, you can safely ignore this email.
+          <strong>{_t('email.emailVerify.important')}:</strong> {_t('email.emailVerify.expires')}
         </p>
-      </Section>
-
-      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
-
-      <Section style={footerStyle}>
-        <p style={{ margin: 0 }}>
-          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
-          All rights reserved.
-        </p>
-        <Section style={{ marginTop: '16px' }}>
-          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
-          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
-          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
-        </Section>
       </Section>
     </BaseEmail>
   );

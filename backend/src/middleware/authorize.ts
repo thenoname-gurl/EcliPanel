@@ -112,13 +112,13 @@ export function authorize(required: string) {
       const has = perms.some((p) => permissionMatches(p, required));
       if (has) return;
       ctx.set.status = 403;
-      return { error: 'Insufficient permissions (api key)' };
+      return { error: ctx.t('sshKey.insufficientPermissionsApiKey') };
     }
 
     const user = ctx.user as User;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     if (user.role === '*' || user.role === 'rootAdmin') {
@@ -143,12 +143,12 @@ export function authorize(required: string) {
     const isServerRelated = serverRelatedPrefixes.some((prefix) => required.startsWith(prefix));
     if (isServerRelated && !hasPermissionSync(ctx, 'admin:access') && !user.dateOfBirth) {
       ctx.set.status = 403;
-      return { error: 'Age verification is required before using server management features.' };
+      return { error: ctx.t('validation.ageVerificationRequired') };
     }
 
     if (required === 'transfer:execute' && !hasPermissionSync(ctx, 'admin:access') && !hasPermissionSync(ctx, 'transfer:execute')) {
       ctx.set.status = 403;
-      return { error: 'Insufficient permissions' };
+      return { error: ctx.t('common.insufficientPermissions') };
     }
 
     const isServerScoped = required.startsWith('servers:') || required.startsWith('files:');
@@ -244,7 +244,7 @@ export function authorize(required: string) {
 
     if (isServerScoped && serverScopeResolved) {
       ctx.set.status = 403;
-      return { error: 'Insufficient server permissions' };
+      return { error: ctx.t('server.insufficientServerPermissions') };
     }
 
     if (required.startsWith('org:') || required.startsWith('organisation:')) {
@@ -266,6 +266,6 @@ export function authorize(required: string) {
     if (has) return;
 
     ctx.set.status = 403;
-    return { error: 'Insufficient permissions' };
+    return { error: ctx.t('common.insufficientPermissions') };
   };
 }

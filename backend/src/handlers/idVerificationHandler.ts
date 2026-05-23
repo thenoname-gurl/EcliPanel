@@ -48,7 +48,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
     if (!(await canPerformIdVerification(user?.billingCountry))) {
       ctx.set.status = 403;
-      return { error: 'ID verification is not available for your country under geo-block policy' };
+      return { error: ctx.t('user.geoBlocked') };
     }
 
     const repo = AppDataSource.getRepository(IDVerification);
@@ -66,7 +66,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
 
       if (!isUploadFile(idDocumentFile) || !isUploadFile(selfieFile)) {
         ctx.set.status = 400;
-        return { error: 'Both ID Document and selfie files are required' };
+        return { error: ctx.t('validation.bothIDDocumentAndSelfieFilesAreRequired') };
       }
 
       const files = [
@@ -97,12 +97,12 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     } catch (err: any) {
       ctx.log.error({ err: err?.message || err }, 'ID verification file upload failed');
       ctx.set.status = 400;
-      return { error: 'Failed to process uploaded files: ' + (err?.message || 'unknown error') };
+      return { error: ctx.t('idVerification.fileUploadError') + (err?.message || 'unknown error') };
     }
 
     if (!idDocumentUrl || !selfieUrl) {
       ctx.set.status = 400;
-      return { error: 'Both idDocument and selfie files are required' };
+      return { error: ctx.t('validation.bothIdDocumentAndSelfieFilesAreRequired') };
     }
 
     let record = repo.create({
@@ -125,27 +125,27 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     const user = ctx.user as User;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     const body = (ctx.body || {}) as any;
     const selfie = Array.isArray(body.selfie) ? body.selfie[0] : body.selfie;
     if (!selfie) {
       ctx.set.status = 400;
-      return { error: 'selfie_required', message: 'A selfie image is required for age verification.' };
+      return { error: ctx.t('user.selfieRequired'), message: 'A selfie image is required for age verification.' };
     }
 
     const settings = user.settings && typeof user.settings === 'object' ? { ...user.settings } : {};
     const attempts = Number(settings.ageVerificationSelfieAttempts ?? 0);
     if (attempts >= 3) {
       ctx.set.status = 403;
-      return { error: 'selfie_attempts_exceeded', message: 'Maximum selfie verification attempts reached.' };
+      return { error: ctx.t('user.selfieAttemptsExceeded'), message: 'Maximum selfie verification attempts reached.' };
     }
 
     const dateOfBirth = body.dateOfBirth ? new Date(String(body.dateOfBirth)) : user.dateOfBirth ? new Date(String(user.dateOfBirth)) : null;
     if (!dateOfBirth || isNaN(dateOfBirth.getTime())) {
       ctx.set.status = 400;
-      return { error: 'date_of_birth_required', message: 'Your date of birth is required for selfie age verification.' };
+      return { error: ctx.t('common.dateOfBirthRequired'), message: 'Your date of birth is required for selfie age verification.' };
     }
     const age = ((): number | null => {
       const now = new Date();
@@ -157,7 +157,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     })();
     if (age === null) {
       ctx.set.status = 400;
-      return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      return { error: ctx.t('common.invalidDateOfBirth'), message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
     }
 
     try {
@@ -166,7 +166,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
       const predictedAge = await estimateAgeFromSelfie(buffer);
       if (predictedAge === null) {
         ctx.set.status = 400;
-        return { error: 'no_face_detected', message: 'Could not detect a face in the selfie. Please try again.' };
+        return { error: ctx.t('common.noFaceDetected'), message: 'Could not detect a face in the selfie. Please try again.' };
       }
 
       const effectiveCountry = typeof body.billingCountry === 'string' ? body.billingCountry : user.billingCountry;
@@ -192,7 +192,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return {
           error: 'minimum_age',
-          message: `Users must be at least ${minimumAge} years old. Attempts left: ${remaining}.`,
+          message: ctx.t('idVerification.minAgeAttempts', { minAge: minimumAge, remaining }),
           attempts: settings.ageVerificationSelfieAttempts,
           remaining,
         };
@@ -209,7 +209,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return {
           error: 'age_mismatch',
-          message: `Estimated age ${predictedAge.toFixed(1)} does not match your DOB age ${age}. Please ensure your face is clearly visible in the selfie and try again.`,
+          message: ctx.t('idVerification.ageMismatch', { predictedAge: predictedAge.toFixed(1), age }),
           attempts: settings.ageVerificationSelfieAttempts,
           remaining,
         };
@@ -237,7 +237,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
       ctx.set.status = 500;
       return {
         error: 'age_verification_failed',
-        message: 'Failed to estimate age from the selfie. Please try again later.',
+        message: ctx.t('idVerification.ageEstimationFailed'),
         details: String(err?.message || err || 'unknown error'),
       };
     }
@@ -258,13 +258,13 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     const requester = ctx.user;
     if (requester?.id !== userId && !hasPermissionSync(ctx, 'idverification:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const repo = AppDataSource.getRepository(IDVerification);
     const record = await repo.findOne({ where: { userId }, order: { id: 'DESC' } });
     if (!record) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     return JSON.parse(JSON.stringify(record));
   }, {
@@ -277,18 +277,18 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     const requester = ctx.user;
     if (!hasPermissionSync(ctx, 'idverification:write')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const repo = AppDataSource.getRepository(IDVerification);
     const rec = await repo.findOneBy({ id: Number(ctx.params['id']) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     const { status } = ctx.body as any;
     if (!['pending', 'verified', 'failed'].includes(status)) {
       ctx.set.status = 400;
-      return { error: 'Invalid status' };
+      return { error: ctx.t('common.invalidStatus') };
     }
     rec.status = status;
     rec.verifiedAt = status === 'verified' ? new Date() : rec.verifiedAt;
@@ -302,6 +302,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
           subject: 'ID verification status updated',
           template: 'verification',
           vars: { name: user.firstName, status: rec.status },
+          locale: ctx.locale,
         });
       }
     } catch {}
@@ -317,13 +318,13 @@ export async function idVerificationRoutes(app: any, prefix = '') {
     const requester = ctx.user;
     if (!hasPermissionSync(ctx, 'idverification:write')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const repo = AppDataSource.getRepository(IDVerification);
     const rec = await repo.findOneBy({ id: Number(ctx.params['id']) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
 
     const uploadDir = process.cwd();

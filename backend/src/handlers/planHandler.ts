@@ -24,7 +24,7 @@ export async function planRoutes(app: any, prefix = '') {
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('plan.notFound') };
     }
     return plan;
   }, {
@@ -51,7 +51,7 @@ export async function planRoutes(app: any, prefix = '') {
     } = ctx.body as any;
     if (!name || !type) {
       ctx.set.status = 400;
-      return { error: 'name and type are required' };
+      return { error: ctx.t('validation.nameAndTypeRequired') };
     }
 
     const plan = planRepo().create({
@@ -85,7 +85,7 @@ export async function planRoutes(app: any, prefix = '') {
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('plan.notFound') };
     }
 
     const {
@@ -125,7 +125,7 @@ export async function planRoutes(app: any, prefix = '') {
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('plan.notFound') };
     }
 
     const force = (ctx.query?.force === 'true' || ctx.query?.force === true || ctx.body?.force === true);
@@ -199,7 +199,7 @@ export async function planRoutes(app: any, prefix = '') {
     const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('plan.notFound') };
     }
     await planRepo().remove(plan);
     return { success: true };

@@ -345,7 +345,7 @@ export async function publicRoutes(app: any, prefix = '') {
 
     if (!code) {
       ctx.set.status = 400;
-      return { error: 'Missing short URL code.' };
+      return { error: ctx.t('system.shortUrlCodeRequired') };
     }
 
     return withRedisCache(`public:short-url:${prefixValue}:${code}:v1`, 60, async () => {
@@ -353,7 +353,7 @@ export async function publicRoutes(app: any, prefix = '') {
       const entry = await repo.findOne({ where: { code, prefix: prefixValue, active: true } });
       if (!entry) {
         ctx.set.status = 404;
-        return { error: 'Short URL not found.' };
+        return { error: ctx.t('system.shortUrlNotFound') };
       }
 
       return { targetUrl: entry.targetUrl };

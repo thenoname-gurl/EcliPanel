@@ -19,6 +19,7 @@ import { deleteMessageFromMailbox, fetchMailboxNow } from '../services/imapFetch
 import { detectMailboxSecurityFlags, extractMailboxAuthMetadata, extractMailboxPriority, resolveReverseDns } from '../utils/mailboxMessage';
 import { createOutboundEmailRecord, getOutboundEmailUsage, getSendLimitsForUser, sendOutboundEmailImmediately } from '../services/outboundEmailService';
 import { sendMail } from '../services/mailService';
+import { resolveLocale } from '../i18n/resolve';
 import { runFraudScanForUser } from '../services/fraudService';
 import { consumeRateLimit, redisSet, redisGet, redisDel } from '../config/redis';
 import path from 'path';
@@ -237,6 +238,7 @@ async function sendVerificationEmailToUser(user: User) {
       subject: 'Verify your email - EcliPanel',
       template: 'email-verify',
       vars: { name: user.firstName || 'User', verifyUrl, code },
+      locale: resolveLocale({ user }),
     });
   } catch (err) {
     console.error('Failed to send verification email:', err);
@@ -264,7 +266,7 @@ export async function userRoutes(app: any, prefix = '') {
         const noticeSetting = await settingRepo.findOneBy({ key: 'registrationNotice' });
         const notice = noticeSetting?.value || 'Registration is currently disabled.';
         ctx.set.status = 503;
-        return { error: 'registration_disabled', message: notice };
+        return { error: ctx.t('common.registrationDisabled'), message: notice };
       }
     } catch { }
 
@@ -281,12 +283,12 @@ export async function userRoutes(app: any, prefix = '') {
       parentRegistrationInvite = await inviteRepo.findOneBy({ token: parentRegistrationToken, used: false });
       if (!parentRegistrationInvite) {
         ctx.set.status = 400;
-        return { error: 'invalid_parent_registration_token', message: 'Parent registration token is invalid or has already been used.' };
+        return { error: ctx.t('auth.invalidParentRegistrationToken'), message: ctx.t('parentLink.tokenInvalid') };
       }
       const normalizedEmail = String(body.email || '').trim().toLowerCase();
       if (parentRegistrationInvite.childEmail && parentRegistrationInvite.childEmail !== normalizedEmail) {
         ctx.set.status = 400;
-        return { error: 'email_mismatch', message: 'The child email does not match the parent registration invite.' };
+        return { error: 'email_mismatch', message: ctx.t('parentLink.emailMismatch') };
       }
       body.parentId = parentRegistrationInvite.parentId;
 
@@ -321,46 +323,46 @@ export async function userRoutes(app: any, prefix = '') {
 
     if (!(await canRegister((ctx.body as any).billingCountry))) {
       ctx.set.status = 403;
-      return { error: 'Registration is not allowed from your country under geo-block policy' };
+      return { error: ctx.t('user.registrationDisabled') };
     }
 
     const dateOfBirth = parseDateOfBirth((body as any).dateOfBirth);
     if (!dateOfBirth) {
       ctx.set.status = 400;
-      return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      return { error: ctx.t('common.invalidDateOfBirth'), message: ctx.t('parentLink.dobFormat') };
     }
     body.dateOfBirth = dateOfBirth;
 
     const normalizedEmail = String(body.email || '').trim().toLowerCase();
     if (normalizedEmail && await isPanelAssignedMailboxEmail(normalizedEmail)) {
       ctx.set.status = 400;
-      return { error: 'registration_email_reserved', message: 'That email is reserved by the panel and cannot be used for registration.' };
+      return { error: ctx.t('auth.registrationEmailReserved'), message: ctx.t('parentLink.emailReserved') };
     }
 
     if (body.parentId != null) {
       const parentId = Number(body.parentId);
       if (!Number.isInteger(parentId) || parentId <= 0) {
         ctx.set.status = 400;
-        return { error: 'invalid_parent_id', message: 'parentId must be a valid user id.' };
+        return { error: ctx.t('user.invalidParentId'), message: ctx.t('parentLink.parentIdRequired') };
       }
       const parent = await userRepo.findOneBy({ id: parentId });
       if (!parent) {
         ctx.set.status = 404;
-        return { error: 'parent_not_found', message: 'Parent account not found.' };
+        return { error: ctx.t('user.parentNotFound'), message: ctx.t('parentLink.parentNotFound') };
       }
       const parentAge = getAgeFromDate(parent.dateOfBirth);
       if (parentAge === null || !isAdultByCountry(parentAge, parent.billingCountry)) {
         ctx.set.status = 403;
-        return { error: 'parent_must_be_adult', message: 'Only an adult user may be assigned as a parent.' };
+        return { error: ctx.t('user.parentMustBeAdult'), message: ctx.t('parentLink.onlyAdultAsParent') };
       }
       if (!dateOfBirth) {
         ctx.set.status = 400;
-        return { error: 'date_of_birth_required', message: 'Child dateOfBirth is required when assigning a parent.' };
+        return { error: ctx.t('common.dateOfBirthRequired'), message: ctx.t('parentLink.childDobRequired') };
       }
       const childAge = getAgeFromDate(dateOfBirth);
       if (childAge === null || !isMinorByCountry(childAge, body.billingCountry)) {
         ctx.set.status = 400;
-        return { error: 'child_must_be_under_18', message: `Child accounts must be under age ${getAdultAgeForCountry(body.billingCountry)}.` };
+        return { error: 'child_must_be_under_18', message: ctx.t('parentLink.childMustBeUnder', { age: getAdultAgeForCountry(body.billingCountry) }) };
       }
       body.parentId = parentId;
     }
@@ -412,7 +414,7 @@ export async function userRoutes(app: any, prefix = '') {
     } catch (err: any) {
       if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
         ctx.set.status = 409;
-        return { error: 'An account with that email address already exists.' };
+        return { error: ctx.t('user.alreadyExists') };
       }
       throw err;
     }
@@ -439,6 +441,7 @@ export async function userRoutes(app: any, prefix = '') {
         subject: 'Verify your email - EcliPanel',
         template: 'email-verify',
         vars: { name: user.firstName || 'User', verifyUrl, code },
+        locale: ctx.locale,
       });
     } catch (err) {
       console.error('Failed to send verification email:', err);
@@ -549,13 +552,13 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: requester.id });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     return await safeUser(user);
   }, {
@@ -568,13 +571,13 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: requester.id });
     if (!user || !user.serverSunsetNoticeSentAt) {
       ctx.set.status = 400;
-      return { error: 'No pending sunset notice' };
+      return { error: ctx.t('common.noPendingSunsetNotice') };
     }
 
     user.serverSunsetNoticeSentAt = null;
@@ -639,17 +642,17 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const childAge = getAgeFromDate(requester.dateOfBirth);
     if (childAge === null || !isMinorByCountry(childAge, requester.billingCountry)) {
       ctx.set.status = 403;
-      return { error: 'child_access_required', message: 'Only underage users may request a parent link.' };
+      return { error: 'child_access_required', message: ctx.t('parentLink.onlyUnderageCanRequest') };
     }
     if (requester.parentId) {
       ctx.set.status = 409;
-      return { error: 'already_linked', message: 'This account is already linked to a parent.' };
+      return { error: 'already_linked', message: ctx.t('parentLink.alreadyLinked') };
     }
 
     const body = (ctx.body as any) || {};
@@ -657,7 +660,7 @@ export async function userRoutes(app: any, prefix = '') {
     const parentId = body.parentId != null ? Number(body.parentId) : undefined;
     if (!parentEmail && (parentId === undefined || parentId === null)) {
       ctx.set.status = 400;
-      return { error: 'parent_required', message: 'parentEmail or parentId is required.' };
+      return { error: 'parent_required', message: ctx.t('parentLink.parentEmailOrIdRequired') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
@@ -667,16 +670,16 @@ export async function userRoutes(app: any, prefix = '') {
 
     if (!parent) {
       ctx.set.status = 404;
-      return { error: 'parent_not_found', message: 'Parent account not found.' };
+      return { error: ctx.t('user.parentNotFound'), message: ctx.t('parentLink.parentNotFound') };
     }
     if (parent.id === requester.id) {
       ctx.set.status = 400;
-      return { error: 'invalid_parent', message: 'You cannot assign yourself as a parent.' };
+      return { error: 'invalid_parent', message: ctx.t('parentLink.cannotSelfAssign') };
     }
     const parentAge = getAgeFromDate(parent.dateOfBirth);
     if (parentAge === null || !isAdultByCountry(parentAge, parent.billingCountry)) {
       ctx.set.status = 403;
-      return { error: 'parent_must_be_adult', message: 'Only adult users may be assigned as parents.' };
+      return { error: ctx.t('user.parentMustBeAdult'), message: ctx.t('parentLink.onlyAdultAsParent2') };
     }
 
     const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
@@ -708,7 +711,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const body = (ctx.body as any) || {};
@@ -752,7 +755,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
@@ -784,28 +787,28 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const inviteId = Number(ctx.params['inviteId']);
     if (!Number.isInteger(inviteId) || inviteId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_invite_id', message: 'Invalid invite id' };
+      return { error: ctx.t('organisation.invalidInviteId'), message: ctx.t('parentLink.invalidInviteId') };
     }
 
     const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
     const invite = await inviteRepo.findOneBy({ id: inviteId });
     if (!invite) {
       ctx.set.status = 404;
-      return { error: 'invite_not_found', message: 'Invite not found.' };
+      return { error: ctx.t('organisation.inviteNotFound_1'), message: ctx.t('parentLink.inviteNotFound') };
     }
     if (invite.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You do not own this invite.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourInvite') };
     }
     if (invite.used) {
       ctx.set.status = 409;
-      return { error: 'invite_already_used', message: 'Cannot revoke an invite that has already been used.' };
+      return { error: ctx.t('organisation.inviteAlreadyUsed'), message: ctx.t('parentLink.cannotRevokeUsed') };
     }
 
     await inviteRepo.delete({ id: inviteId });
@@ -820,7 +823,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
@@ -842,20 +845,20 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const requestId = Number(ctx.params['id']);
     if (!Number.isInteger(requestId) || requestId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_request_id', message: 'Invalid request id' };
+      return { error: ctx.t('common.invalidRequestId'), message: ctx.t('parentLink.invalidRequestId') };
     }
 
     const body = ctx.body as any;
     const code = typeof body.code === 'string' ? body.code.trim() : '';
     if (!code) {
       ctx.set.status = 400;
-      return { error: 'code_required', message: 'A parent link code is required.' };
+      return { error: 'code_required', message: ctx.t('parentLink.codeRequired') };
     }
 
     const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
@@ -863,29 +866,29 @@ export async function userRoutes(app: any, prefix = '') {
     const request = await requestRepo.findOne({ where: { id: requestId }, relations: {"child":true,"parent":true} });
     if (!request) {
       ctx.set.status = 404;
-      return { error: 'request_not_found', message: 'Parent link request not found.' };
+      return { error: 'request_not_found', message: ctx.t('parentLink.requestNotFound') };
     }
     if (request.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You are not the parent for this request.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourRequest') };
     }
     if (request.status !== 'pending') {
       ctx.set.status = 409;
-      return { error: 'request_not_pending', message: 'This request is no longer pending.' };
+      return { error: ctx.t('common.requestNotPending'), message: ctx.t('parentLink.requestNotPending') };
     }
     if (request.code !== code) {
       ctx.set.status = 403;
-      return { error: 'invalid_code', message: 'The provided linking code is incorrect.' };
+      return { error: ctx.t('common.invalidCode'), message: ctx.t('parentLink.incorrectCode') };
     }
 
     const child = await userRepo.findOneBy({ id: request.childId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId && child.parentId !== requester.id) {
       ctx.set.status = 409;
-      return { error: 'child_already_assigned', message: 'This child already has a parent.' };
+      return { error: ctx.t('user.childAlreadyAssigned'), message: ctx.t('parentLink.childAlreadyHasParent') };
     }
 
     child.parentId = requester.id;
@@ -912,38 +915,38 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
     }
 
     const payload = ctx.body as any;
     const dateOfBirth = parseDateOfBirth(payload?.dateOfBirth);
     if (!dateOfBirth) {
       ctx.set.status = 400;
-      return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+      return { error: ctx.t('common.invalidDateOfBirth'), message: ctx.t('parentLink.dobFormat') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const child = await userRepo.findOneBy({ id: childId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You do not manage this child account.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
     }
 
     const childAge = getAgeFromDate(dateOfBirth);
     const effectiveCountry = child.billingCountry || requester.billingCountry;
     if (childAge === null || !isMinorByCountry(childAge, effectiveCountry)) {
       ctx.set.status = 400;
-      return { error: 'child_must_be_underage', message: `Child date of birth must keep the account under the legal age for ${effectiveCountry || 'your country'}.` };
+      return { error: ctx.t('user.childMustBeUnderage'), message: `Child date of birth must keep the account under the legal age for ${effectiveCountry || 'your country'}.` };
     }
 
     child.dateOfBirth = dateOfBirth;
@@ -964,7 +967,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const userRepo = AppDataSource.getRepository(User);
     const children = await userRepo.find({ where: { parentId: requester.id }, order: { id: 'ASC' } });
@@ -979,7 +982,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     if (!requester.parentId) {
@@ -1003,23 +1006,23 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const child = await userRepo.findOneBy({ id: childId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You do not manage this child account.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
     }
 
     const serverRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
@@ -1054,23 +1057,23 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const child = await userRepo.findOneBy({ id: childId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You do not manage this child account.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
     }
 
     const orderRepo = AppDataSource.getRepository(Order);
@@ -1086,23 +1089,23 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const child = await userRepo.findOneBy({ id: childId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You do not manage this child account.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
     }
 
     const membershipRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
@@ -1131,7 +1134,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
 
@@ -1139,27 +1142,27 @@ export async function userRoutes(app: any, prefix = '') {
     const childUserId = Number(payload?.childUserId);
     if (!Number.isInteger(childUserId) || childUserId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'childUserId is required and must be a valid number.' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.childUserIdRequired') };
     }
     if (childUserId === requester.id) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'You cannot assign yourself as a child.' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.cannotSelfChild') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const child = await userRepo.findOneBy({ id: childUserId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId) {
       ctx.set.status = 409;
-      return { error: 'child_already_assigned', message: 'This account already has a parent.' };
+      return { error: ctx.t('user.childAlreadyAssigned'), message: ctx.t('parentLink.alreadyHasParent') };
     }
     const childAge = getAgeFromDate(child.dateOfBirth);
     if (childAge === null || !isMinorByCountry(childAge, child.billingCountry)) {
       ctx.set.status = 400;
-      return { error: 'child_must_be_under_18', message: `Only users under age ${getAdultAgeForCountry(child.billingCountry)} may be assigned as children.` };
+      return { error: 'child_must_be_under_18', message: ctx.t('parentLink.onlyUnderAge', { age: getAdultAgeForCountry(child.billingCountry) }) };
     }
     child.parentId = requester.id;
     await userRepo.save(child);
@@ -1175,22 +1178,22 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const childId = Number(ctx.params['childId']);
     if (!Number.isInteger(childId) || childId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_child_user_id', message: 'Invalid child user id' };
+      return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
     }
     const userRepo = AppDataSource.getRepository(User);
     const child = await userRepo.findOneBy({ id: childId });
     if (!child) {
       ctx.set.status = 404;
-      return { error: 'child_not_found', message: 'Child account not found.' };
+      return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
     }
     if (child.parentId !== requester.id) {
       ctx.set.status = 403;
-      return { error: 'forbidden', message: 'You do not manage this child account.' };
+      return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
     }
     child.parentId = null;
     await userRepo.save(child);
@@ -1234,21 +1237,21 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const isAdmin = hasPermissionSync(ctx, 'users:read');
     const targetUserId = Number(ctx.query?.userId || ctx.query?.user_id || 0) || requester.id;
     if (targetUserId !== requester.id && !isAdmin) {
       ctx.set.status = 403;
-      return { error: 'Insufficient permissions' };
+      return { error: ctx.t('common.insufficientPermissions') };
     }
 
     const targetUserRepo = AppDataSource.getRepository(User);
     const targetUser = await targetUserRepo.findOneBy({ id: targetUserId });
     if (!targetUser) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     let account;
@@ -1312,7 +1315,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const notificationRepo = AppDataSource.getRepository(Notification);
@@ -1351,7 +1354,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1362,7 +1365,7 @@ export async function userRoutes(app: any, prefix = '') {
     const notification = await notificationRepo.findOneBy({ id, userId: requester.id } as any);
     if (!notification) {
       ctx.set.status = 404;
-      return { error: 'Notification not found' };
+      return { error: ctx.t('common.notificationNotFound') };
     }
 
     notification.read = setRead;
@@ -1382,7 +1385,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1390,7 +1393,7 @@ export async function userRoutes(app: any, prefix = '') {
     const notification = await notificationRepo.findOneBy({ id, userId: requester.id } as any);
     if (!notification) {
       ctx.set.status = 404;
-      return { error: 'Notification not found' };
+      return { error: ctx.t('common.notificationNotFound') };
     }
 
     await notificationRepo.remove(notification);
@@ -1409,7 +1412,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     if (isMailcowConfigured()) {
@@ -1595,7 +1598,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const query = ctx.query as any;
@@ -1665,7 +1668,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1675,7 +1678,7 @@ export async function userRoutes(app: any, prefix = '') {
     const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
     if (!message) {
       ctx.set.status = 404;
-      return { error: 'Message not found' };
+      return { error: ctx.t('common.messageNotFound') };
     }
 
     message.favorite = favorite;
@@ -1697,7 +1700,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1707,7 +1710,7 @@ export async function userRoutes(app: any, prefix = '') {
     const sent = await outboundRepo.findOneBy({ id, userId: requester.id } as any);
     if (!sent) {
       ctx.set.status = 404;
-      return { error: 'Sent email not found' };
+      return { error: ctx.t('auth.sentEmailNotFound') };
     }
 
     sent.favorite = favorite;
@@ -1729,7 +1732,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const messageRepo = AppDataSource.getRepository(MailMessage);
@@ -1772,7 +1775,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const { to, cc, bcc, subject, body, html } = ctx.body as any;
@@ -1785,16 +1788,16 @@ export async function userRoutes(app: any, prefix = '') {
     const fromAddress = await resolveOutboundFromAddress(requester);
     if (!fromAddress) {
       ctx.set.status = 400;
-      return { error: 'Unable to determine outgoing sender address for your mailbox' };
+      return { error: ctx.t('mailbox.sendFailed') };
     }
 
     if (!toAddress) {
       ctx.set.status = 400;
-      return { error: 'Recipient email address is required' };
+      return { error: ctx.t('validation.recipientEmailRequired') };
     }
     if (!messageBody && !messageHtml) {
       ctx.set.status = 400;
-      return { error: 'Message body or HTML content is required' };
+      return { error: ctx.t('validation.messageBodyRequired') };
     }
 
     const sendRateLimit = await enforceOutboundEmailRateLimit(ctx, 'mailbox-send', requester.id, 8, 60);
@@ -1803,13 +1806,13 @@ export async function userRoutes(app: any, prefix = '') {
     const limits = await getSendLimitsForUser(requester);
     if (limits.dailyLimit <= 0) {
       ctx.set.status = 403;
-      return { error: 'Email sending is not enabled for your plan' };
+      return { error: ctx.t('system.emailSendingDisabled') };
     }
 
     const usage = await getOutboundEmailUsage(requester.id);
     if (usage.queued >= limits.queueLimit) {
       ctx.set.status = 429;
-      return { error: 'Email send queue is full. Try again later.' };
+      return { error: ctx.t('system.emailQueueFull') };
     }
 
     const sendNow = usage.sentToday < limits.dailyLimit;
@@ -1848,7 +1851,7 @@ export async function userRoutes(app: any, prefix = '') {
         record.attempts = (record.attempts || 0) + 1;
         await AppDataSource.getRepository(OutboundEmail).save(record);
         ctx.set.status = 500;
-        return { error: 'Failed to send email', details: record.failureReason };
+        return { error: ctx.t('admin.sendFailed'), details: record.failureReason };
       }
     }
 
@@ -1884,7 +1887,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1895,7 +1898,7 @@ export async function userRoutes(app: any, prefix = '') {
     const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
     if (!message) {
       ctx.set.status = 404;
-      return { error: 'Message not found' };
+      return { error: ctx.t('common.messageNotFound') };
     }
 
     message.category = category;
@@ -1917,7 +1920,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1928,7 +1931,7 @@ export async function userRoutes(app: any, prefix = '') {
     const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
     if (!message) {
       ctx.set.status = 404;
-      return { error: 'Message not found' };
+      return { error: ctx.t('common.messageNotFound') };
     }
 
     message.read = setRead;
@@ -1948,7 +1951,7 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const id = Number(ctx.params['id']);
@@ -1956,7 +1959,7 @@ export async function userRoutes(app: any, prefix = '') {
     const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
     if (!message) {
       ctx.set.status = 404;
-      return { error: 'Message not found' };
+      return { error: ctx.t('common.messageNotFound') };
     }
 
     let remoteDeleteError: any = null;
@@ -1976,7 +1979,7 @@ export async function userRoutes(app: any, prefix = '') {
 
     if (remoteDeleteError) {
       ctx.set.status = 500;
-      return { error: 'Failed to delete mailbox message remotely' };
+      return { error: ctx.t('mailbox.deleteFailed') };
     }
 
     await messageRepo.remove(message);
@@ -1995,33 +1998,33 @@ export async function userRoutes(app: any, prefix = '') {
     const secret = String(process.env.MAILBOX_INBOUND_SECRET || '');
     if (!secret) {
       ctx.set.status = 503;
-      return { error: 'Mailbox inbound endpoint is not configured' };
+      return { error: ctx.t('mailbox.inboundNotConfigured') };
     }
 
     const incomingSecret = String(ctx.request.headers.get('x-mailbox-inbound-secret') || '');
     if (!incomingSecret || incomingSecret !== secret) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const body = ctx.body as any;
     const rawTo = String(body.to || body.toAddress || body.recipient || '').trim();
     if (!rawTo) {
       ctx.set.status = 400;
-      return { error: 'Missing to address' };
+      return { error: ctx.t('validation.toAddressRequired') };
     }
 
     const toAddresses = rawTo.split(',').map((value: string) => value.trim().toLowerCase()).filter(Boolean);
     const parsed = await resolveMailboxRecipient(toAddresses);
     if (!parsed) {
       ctx.set.status = 404;
-      return { error: 'Mailbox not found' };
+      return { error: ctx.t('mailbox.notFound') };
     }
 
     const user = await AppDataSource.getRepository(User).findOneBy({ id: parsed.userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'Mailbox owner not found' };
+      return { error: ctx.t('mailbox.ownerNotFound') };
     }
 
     const messageRepo = AppDataSource.getRepository(MailMessage);
@@ -2115,18 +2118,18 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     if (!isMailcowConfigured()) {
       ctx.set.status = 503;
-      return { error: 'Mailbox system not configured' };
+      return { error: ctx.t('mailbox.notConfigured') };
     }
 
     const account = await getMailboxAccountForUser(requester.id);
     if (!account) {
       ctx.set.status = 404;
-      return { error: 'Mailbox account not found' };
+      return { error: ctx.t('mailbox.accountNotFound') };
     }
 
     try {
@@ -2135,7 +2138,7 @@ export async function userRoutes(app: any, prefix = '') {
     } catch (err: any) {
       console.warn('Failed on-demand mailbox fetch for', requester.id, err?.message || err);
       ctx.set.status = 500;
-      return { error: 'Failed to refresh mailbox' };
+      return { error: ctx.t('mailbox.refreshFailed') };
     }
   }, {
     beforeHandle: authenticate,
@@ -2149,16 +2152,16 @@ export async function userRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:read')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     return await safeUser(user);
   }, {
@@ -2171,21 +2174,21 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
 
     const payload = ctx.body as any;
     const incomingFavorites = payload?.favorites;
     if (!Array.isArray(incomingFavorites)) {
       ctx.set.status = 400;
-      return { error: 'Invalid favorites list' };
+      return { error: ctx.t('validation.invalidFavorites') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: requester.id });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const normalized = Array.from(new Set(incomingFavorites.map((id: any) => String(id))));
@@ -2216,16 +2219,16 @@ export async function userRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const profileRateLimit = await enforceUserMutationRateLimit(ctx, 'profile-update', requester.id, 6, 60);
     if (profileRateLimit) return profileRateLimit;
@@ -2242,14 +2245,14 @@ export async function userRoutes(app: any, prefix = '') {
       const submittedCurrentPassword = typeof payload.currentPassword === 'string' ? payload.currentPassword : undefined;
       if (!submittedCurrentPassword && !isAdmin) {
         ctx.set.status = 400;
-        return { error: 'Current password is required to change password' };
+        return { error: ctx.t('auth.passwordRequired') };
       }
 
       if (submittedCurrentPassword) {
         const validCurrent = await comparePassword(submittedCurrentPassword, user.passwordHash);
         if (!validCurrent) {
           ctx.set.status = 403;
-          return { error: 'Current password is invalid' };
+          return { error: ctx.t('auth.passwordInvalid') };
         }
       }
 
@@ -2266,7 +2269,7 @@ export async function userRoutes(app: any, prefix = '') {
     if (newEmail && newEmail !== oldEmail) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
         ctx.set.status = 400;
-        return { error: 'Invalid email address' };
+        return { error: ctx.t('validation.invalidEmailAddress') };
       }
       user.email = newEmail;
       user.emailVerified = false;
@@ -2279,13 +2282,13 @@ export async function userRoutes(app: any, prefix = '') {
       const dateOfBirth = parseDateOfBirth(payload.dateOfBirth);
       if (!dateOfBirth) {
         ctx.set.status = 400;
-        return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+        return { error: ctx.t('common.invalidDateOfBirth'), message: ctx.t('parentLink.dobFormat') };
       }
       const existingDob = hasExistingDob ? parseDateOfBirth(user.dateOfBirth) : null;
       if (hasVerifiedDob && existingDob && !isAdmin && requester.id === user.id) {
         if (!existingDob || existingDob.getTime() !== dateOfBirth.getTime()) {
           ctx.set.status = 403;
-          return { error: 'date_of_birth_locked', message: 'Date of birth is locked after identity or selfie verification and can only be updated by an administrator.' };
+          return { error: ctx.t('common.dateOfBirthLocked'), message: ctx.t('parentLink.dobLocked') };
         }
       }
       const updatedAge = getAgeFromDate(dateOfBirth);
@@ -2294,7 +2297,7 @@ export async function userRoutes(app: any, prefix = '') {
       if (updatedAge !== null && updatedAge < minimumAge) {
         if (!isAdmin) {
           ctx.set.status = 400;
-          return { error: 'minimum_age', message: `Users must be at least ${minimumAge} years old.` };
+          return { error: 'minimum_age', message: ctx.t('parentLink.minAge', { minAge: minimumAge }) };
         }
         user.suspended = true;
         user.fraudFlag = true;
@@ -2310,7 +2313,7 @@ export async function userRoutes(app: any, prefix = '') {
       for (const field of forbiddenBillingFields) {
         if (field in payload) {
           ctx.set.status = 403;
-          return { error: 'child_cannot_update_billing', message: 'Child accounts cannot update billing or address information.' };
+          return { error: ctx.t('user.childCannotUpdateBilling'), message: ctx.t('parentLink.childCannotUpdateBilling') };
         }
       }
     }
@@ -2341,7 +2344,7 @@ export async function userRoutes(app: any, prefix = '') {
       if (!normalized) {
         if (field in payload || !existingValue) {
           ctx.set.status = 400;
-          return { error: `${field}_required`, message: `${requiredProfileFieldLabels[field] || field} is required.` };
+          return { error: `${field}_required`, message: ctx.t('parentLink.fieldRequired', { field: requiredProfileFieldLabels[field] || field }) };
         }
       }
     }
@@ -2404,7 +2407,7 @@ export async function userRoutes(app: any, prefix = '') {
     } catch (err: any) {
       if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
         ctx.set.status = 409;
-        return { error: 'An account with that email address already exists.' };
+        return { error: ctx.t('user.alreadyExists') };
       }
       throw err;
     }
@@ -2436,6 +2439,7 @@ export async function userRoutes(app: any, prefix = '') {
           subject: 'Restore your previous email - EcliPanel',
           template: 'email-restore',
           vars: { name: user.firstName || 'User', restoreUrl, newEmail, oldEmail },
+          locale: ctx.locale,
         });
       } catch (err) {
         console.error('Failed to send email restore link to old email:', err);
@@ -2462,16 +2466,16 @@ export async function userRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const avatarRateLimit = await enforceUserMutationRateLimit(ctx, 'avatar-update', requester.id, 4, 120);
     if (avatarRateLimit) return avatarRateLimit;
@@ -2480,14 +2484,14 @@ export async function userRoutes(app: any, prefix = '') {
     const uploadFile = Array.isArray(file) ? file[0] : file;
     if (!uploadFile) {
       ctx.set.status = 400;
-      return { error: 'No file' };
+      return { error: ctx.t('validation.noFile') };
     }
 
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
     const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
     if (!allowed.includes(mime)) {
       ctx.set.status = 400;
-      return { error: 'Invalid image type' };
+      return { error: ctx.t('validation.invalidImageType') };
     }
 
     const ab = await uploadFile.arrayBuffer();
@@ -2551,16 +2555,16 @@ export async function userRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const body = ctx.body as any;
@@ -2584,13 +2588,13 @@ export async function userRoutes(app: any, prefix = '') {
     const requester = ctx.user as User;
     if (!requester) {
       ctx.set.status = 401;
-      return { error: 'Not logged in' };
+      return { error: ctx.t('auth.notLoggedIn') };
     }
     const apiKey = ctx.apiKey;
     const isAdmin = (hasPermissionSync(ctx, 'users:read') || apiKey?.type === 'admin');
     if (!isAdmin && requester.id !== userId) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
     const nodes = await repo.find();

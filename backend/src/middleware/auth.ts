@@ -48,7 +48,7 @@ export async function authenticate(ctx: any) {
     const entry = await repo.findOne({ where: { key }, relations: {"user":true} });
     if (!entry || (entry.expiresAt && new Date(entry.expiresAt) < new Date())) {
       ctx.set.status = 401;
-      return { error: 'Invalid API key' };
+      return { error: ctx.t('auth.apiKeyInvalid') };
     }
     ctx.apiKey = entry;
     if (entry.user) ctx.user = entry.user;
@@ -57,7 +57,7 @@ export async function authenticate(ctx: any) {
 
   if (!auth) {
     ctx.set.status = 401;
-    return { error: 'Missing token' };
+    return { error: ctx.t('auth.missingToken') };
   }
 
   let rawToken = '';
@@ -69,7 +69,7 @@ export async function authenticate(ctx: any) {
   }
   if (!rawToken) {
     ctx.set.status = 401;
-    return { error: 'Invalid token format' };
+    return { error: ctx.t('auth.invalidTokenFormat') };
   }
 
   try {
@@ -85,21 +85,21 @@ export async function authenticate(ctx: any) {
     
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     if (!user.sessions || !user.sessions.includes(decoded.sessionId)) {
       ctx.set.status = 401;
-      return { error: 'Invalid session' };
+      return { error: ctx.t('validation.invalidSession') };
     }
 
     if (user.suspended) {
       ctx.set.status = 403;
-      return { error: 'Account is suspended. Please contact support.' };
+      return { error: ctx.t('user.accountSuspended') };
     }
 
     if (user.pendingDeletionUntil && new Date(user.pendingDeletionUntil) > new Date()) {
       ctx.set.status = 403;
-      return { error: 'Account is pending deletion and currently frozen' };
+      return { error: ctx.t('user.accountIsPendingDeletionAndCurrentlyFrozen') };
     }
 
     ctx.user = user;
@@ -129,7 +129,7 @@ export async function authenticate(ctx: any) {
     if (entry) {
       if (entry.expiresAt && new Date(entry.expiresAt) < new Date()) {
         ctx.set.status = 401;
-        return { error: 'Invalid API key' };
+        return { error: ctx.t('auth.apiKeyInvalid') };
       }
       ctx.apiKey = entry;
       if (entry.user) ctx.user = entry.user;
@@ -145,7 +145,7 @@ export async function authenticate(ctx: any) {
   });
   if (!oauthToken || new Date() > oauthToken.accessTokenExpiresAt) {
     ctx.set.status = 401;
-    return { error: 'Invalid token' };
+    return { error: ctx.t('auth.invalidToken') };
   }
   ctx.oauthToken = oauthToken;
   if (oauthToken.user) ctx.user = oauthToken.user;

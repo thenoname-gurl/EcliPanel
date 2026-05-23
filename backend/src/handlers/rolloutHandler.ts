@@ -41,7 +41,7 @@ export async function rolloutRoutes(app: any, prefix = '') {
     const body = ctx.body as any;
     if (!body?.name || !body?.key) {
       ctx.set.status = 400;
-      return { error: 'name and key are required' };
+      return { error: ctx.t('validation.nameAndKeyRequired') };
     }
 
     const data: any = {
@@ -71,7 +71,7 @@ export async function rolloutRoutes(app: any, prefix = '') {
     const id = Number(ctx.params?.id);
     if (!id || isNaN(id)) {
       ctx.set.status = 400;
-      return { error: 'Invalid rollout ID' };
+      return { error: ctx.t('validation.invalidRolloutId') };
     }
 
     const body = ctx.body as any;
@@ -88,7 +88,7 @@ export async function rolloutRoutes(app: any, prefix = '') {
       const rollout = await updateRollout(id, data);
       if (!rollout) {
         ctx.set.status = 404;
-        return { error: 'Rollout not found' };
+        return { error: ctx.t('rollout.notFound') };
       }
       return rollout;
     } catch (err: any) {
@@ -104,13 +104,13 @@ export async function rolloutRoutes(app: any, prefix = '') {
     const id = Number(ctx.params?.id);
     if (!id || isNaN(id)) {
       ctx.set.status = 400;
-      return { error: 'Invalid rollout ID' };
+      return { error: ctx.t('validation.invalidRolloutId') };
     }
 
     const deleted = await deleteRollout(id);
     if (!deleted) {
       ctx.set.status = 404;
-      return { error: 'Rollout not found' };
+      return { error: ctx.t('rollout.notFound') };
     }
 
     return { success: true };
@@ -125,7 +125,7 @@ export async function rolloutRoutes(app: any, prefix = '') {
     const id = Number(ctx.params?.id);
     if (!id || isNaN(id)) {
       ctx.set.status = 400;
-      return { error: 'Invalid rollout ID' };
+      return { error: ctx.t('validation.invalidRolloutId') };
     }
     const overrides = await getOverridesForRollout(id);
     return overrides.map((o) => ({ id: o.id, userId: o.userId, treatment: o.treatment, createdAt: o.createdAt }));
@@ -138,13 +138,13 @@ export async function rolloutRoutes(app: any, prefix = '') {
     const id = Number(ctx.params?.id);
     if (!id || isNaN(id)) {
       ctx.set.status = 400;
-      return { error: 'Invalid rollout ID' };
+      return { error: ctx.t('validation.invalidRolloutId') };
     }
     const body = ctx.body as any;
     const userId = Number(body?.userId);
     if (!userId || isNaN(userId)) {
       ctx.set.status = 400;
-      return { error: 'Valid userId is required' };
+      return { error: ctx.t('validation.validUserIdRequired') };
     }
     const treatment = body?.treatment !== undefined ? String(body.treatment).trim() || null : undefined;
     try {
@@ -165,16 +165,16 @@ export async function rolloutRoutes(app: any, prefix = '') {
     const userId = Number(ctx.params?.userId);
     if (!id || isNaN(id)) {
       ctx.set.status = 400;
-      return { error: 'Invalid rollout ID' };
+      return { error: ctx.t('validation.invalidRolloutId') };
     }
     if (!userId || isNaN(userId)) {
       ctx.set.status = 400;
-      return { error: 'Invalid userId' };
+      return { error: ctx.t('validation.invalidUserId') };
     }
     const removed = await removeRolloutOverride(id, userId);
     if (!removed) {
       ctx.set.status = 404;
-      return { error: 'Override not found' };
+      return { error: ctx.t('admin.overrideNotFound') };
     }
     return { success: true };
   }, {
