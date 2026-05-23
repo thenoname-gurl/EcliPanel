@@ -19,6 +19,7 @@ import { deleteMessageFromMailbox, fetchMailboxNow } from '../services/imapFetch
 import { detectMailboxSecurityFlags, extractMailboxAuthMetadata, extractMailboxPriority, resolveReverseDns } from '../utils/mailboxMessage';
 import { createOutboundEmailRecord, getOutboundEmailUsage, getSendLimitsForUser, sendOutboundEmailImmediately } from '../services/outboundEmailService';
 import { sendMail } from '../services/mailService';
+import { runFraudScanForUser } from '../services/fraudService';
 import { consumeRateLimit, redisSet, redisGet, redisDel } from '../config/redis';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -489,6 +490,16 @@ export async function userRoutes(app: any, prefix = '') {
     } catch (err) {
       console.error('Failed to auto-assign plan on register:', err);
     }
+
+    void runFraudScanForUser(user)
+      .then((res) => {
+        if (!res.success && 'error' in res && res.error !== 'No AI model configured.') {
+          console.error('[userHandler:registration-fraud-scan]', res.error);
+        }
+      })
+      .catch((err) => {
+        console.error('[userHandler:registration-fraud-scan]', err);
+      });
 
     return { success: true, user: await safeUser(user) };
   }, {
@@ -2342,6 +2353,18 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: 'An account with that email address already exists.' };
       }
       throw err;
+    }
+
+    if (Object.keys(addressChanges).length > 0) {
+      void runFraudScanForUser(user)
+        .then((res) => {
+          if (!res.success && 'error' in res && res.error !== 'No AI model configured.') {
+            console.error('[userHandler:billing-fraud-scan]', res.error);
+          }
+        })
+        .catch((err) => {
+          console.error('[userHandler:billing-fraud-scan]', err);
+        });
     }
 
     if (emailChanged) {

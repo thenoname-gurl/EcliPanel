@@ -59,7 +59,8 @@ export async function processPendingAdminBroadcastJobs() {
             template: 'notification',
             vars: {
               title: job.subject,
-              message: htmlMessage,
+              message: job.message,
+              messageHtml: htmlMessage,
               details: escapeHtml(adminDetails ? `${adminDetails} — ${adminUser?.email || ''}` : ''),
             },
           });

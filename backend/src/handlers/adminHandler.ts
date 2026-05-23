@@ -17,6 +17,7 @@ import { ApiRequestLog } from '../models/apiRequestLog.entity';
 import { AIModel } from '../models/aiModel.entity';
 import { Egg } from '../models/egg.entity';
 import { nodeService } from '../services/nodeService';
+import { getConfiguredFraudModels, runFraudScanForUser } from '../services/fraudService';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { t } from 'elysia';
@@ -1799,7 +1800,12 @@ export async function adminRoutes(app: any, prefix = '') {
           from: process.env.MAIL_FROM,
           subject: `${subject} — Eclipse Systems (TEST)`,
           template: 'notification',
-          vars: { title: subject, message: htmlMessage, details: escapeHtml(detailsStr) }
+          vars: {
+            title: subject,
+            message,
+            messageHtml: htmlMessage,
+            details: escapeHtml(detailsStr),
+          }
         });
         const logRepo = AppDataSource.getRepository(UserLog);
         await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update-test', targetType: 'test', metadata: { subject, recipients: 1 }, timestamp: new Date() } as any));
@@ -6063,143 +6069,21 @@ export async function adminRoutes(app: any, prefix = '') {
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
-      query: t.Object({
-        userId: t.Optional(t.Any()),
-        page: t.Optional(t.Number()),
-        per: t.Optional(t.Number()),
+      querystring: t.Object({
+        userId: t.Optional(t.String()),
+        page: t.Optional(t.String()),
+        per: t.Optional(t.String()),
         type: t.Optional(t.String()),
       }),
       response: {
-        200: t.Union([t.Object({ logs: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }), t.Array(t.Any())]),
+        200: t.Object({ logs: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
       },
     },
-    detail: { summary: 'Fetch audit or request logs', tags: ['Admin'] },
+    detail: { summary: 'Get admin logs', tags: ['Admin'] },
   });
 
-  app.get(prefix + '/admin/outbound-emails', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:outbound-emails');
-    if (adminErr !== true) return adminErr;
-    const { userId, page = '1', per = '50', status, q } = ctx.query as any;
-    const perNum = Math.min(Math.max(Number(per) || 50, 1), 200);
-    const p = Math.max(1, Number(page) || 1);
-    const repo = AppDataSource.getRepository(OutboundEmail);
-
-    let qb = repo.createQueryBuilder('e').leftJoinAndSelect('e.user', 'u').orderBy('e.createdAt', 'DESC');
-    if (userId !== undefined && userId !== null && String(userId).trim() !== '') {
-      qb = qb.where('e.userId = :uid', { uid: Number(userId) });
-    }
-    if (status) {
-      qb = qb.andWhere('e.status = :status', { status: String(status) });
-    }
-    if (q) {
-      const term = `%${String(q).trim()}%`;
-      qb = qb.andWhere(
-        '(e.toAddress LIKE :term OR e.subject LIKE :term OR e.body LIKE :term OR e.fromAddress LIKE :term)',
-        { term }
-      );
-    }
-
-    const total = await qb.getCount();
-    const rows = await qb.skip((p - 1) * perNum).take(perNum).getMany();
-    const items = rows.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      user: r.user ? { id: r.user.id, email: r.user.email, displayName: r.user.displayName, firstName: r.user.firstName, lastName: r.user.lastName } : null,
-      fromAddress: r.fromAddress,
-      toAddress: r.toAddress,
-      subject: r.subject,
-      body: r.body,
-      html: r.html,
-      failureReason: r.failureReason,
-      status: r.status,
-      sentAt: r.sentAt,
-      createdAt: r.createdAt,
-      messageId: r.messageId,
-    }));
-
-    return { items, total, page: p, per: perNum };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ userId: t.Optional(t.Any()), page: t.Optional(t.String()), per: t.Optional(t.String()), status: t.Optional(t.String()), q: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ items: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List outbound emails for admin review', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/logs/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'logs:read');
-    if (adminErr !== true) return adminErr;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const logId = Number(ctx.params.id);
-    if (!logId || Number.isNaN(logId)) {
-      ctx.set.status = 400;
-      return { error: 'Invalid log id' };
-    }
-    const entry = await logRepo.findOneBy({ id: logId });
-    if (!entry) {
-      ctx.set.status = 404;
-      return { error: 'Not found' };
-    }
-    await logRepo.remove(entry);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Delete a user log entry', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/fraud-alerts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const flagged = await userRepo.find({ where: { fraudFlag: true }, order: { fraudDetectedAt: 'DESC' } });
-    return flagged.map((u) => ({
-      id: u.id,
-      firstName: u.firstName,
-      lastName: u.lastName,
-      displayName: u.displayName,
-      email: u.email,
-      address: u.address,
-      address2: u.address2,
-      phone: u.phone,
-      billingCompany: u.billingCompany,
-      billingCity: u.billingCity,
-      billingState: u.billingState,
-      billingZip: u.billingZip,
-      billingCountry: u.billingCountry,
-      fraudReason: u.fraudReason,
-      fraudDetectedAt: u.fraudDetectedAt,
-      suspended: u.suspended,
-    }));
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List users flagged for fraud', tags: ['Admin'] },
-  });
-
-  // Grand Architector decided to add this... 
-  // now you have no excuse to not use it and let the AI do the 
-  // hard work of finding fraudsters for you
   app.post(prefix + '/admin/fraud-scan/:id', async (ctx) => {
     const adminErr = requireAdminPermission(ctx, 'admin:fraud');
     if (adminErr !== true) return adminErr;
@@ -6211,87 +6095,21 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: 'User not found' };
     }
 
-    const modelRepo = AppDataSource.getRepository(AIModel);
-    const models = await modelRepo.find();
-    const model = models[0];
-    if (!model) {
-      ctx.set.status = 400;
-      return { error: 'No AI model configured. Add one in AI Models settings.' };
-    }
-
-    const billingInfo = {
-      legalName: `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim(),
-      email: user.email,
-      address: user.address,
-      address2: user.address2 || null,
-      phone: user.phone || null,
-      company: user.billingCompany || null,
-      city: user.billingCity || null,
-      state: user.billingState || null,
-      zip: user.billingZip || null,
-      country: user.billingCountry || null,
-    };
-
-    const systemPrompt = `You are a fraud detection analyst for a web hosting billing system. Analyze the following user billing information and determine if it looks fraudulent, fake, or suspicious.
-
-Check for:
-- Government buildings, embassies, military bases used as addresses
-- Clearly fake names (e.g. "John Doe", "Test User", "asdf asdf")
-- Mismatched or nonsensical addresses (e.g. "123 Fake Street")
-- Phone numbers that are clearly invalid or placeholder
-- Known fraud patterns in hosting (prepaid VoIP numbers, disposable email patterns)
-- Company names that are obviously fake
-- Addresses that don't exist or are famous landmarks/buildings
-
-Respond with ONLY a JSON object (no markdown, no code fences):
-{"fraudScore": <0-100>, "isSuspicious": <true|false>, "reasons": ["reason1", "reason2"]}
-
-fraudScore: 0 = definitely legitimate, 100 = definitely fraudulent
-isSuspicious: true if fraudScore >= 50`;
-
-    try {
-      const baseUrl = (model.endpoint || '').replace(/\/+$/, '').replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
-      const chatUrl = `${baseUrl}/v1/chat/completions`;
-      const res = await axios.post(
-        chatUrl,
-        {
-          model: model.config?.modelId || model.name,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Analyze this user billing information:\n${JSON.stringify(billingInfo, null, 2)}` },
-          ],
-          max_tokens: 1024,
-        },
-        { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 30000 }
-      );
-
-      const aiReply = res.data?.choices?.[0]?.message?.content || '';
-      let result: any;
-      try {
-        const cleaned = aiReply.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
-        result = JSON.parse(cleaned);
-      } catch {
-        result = { fraudScore: 0, isSuspicious: false, reasons: ['AI response could not be parsed: ' + aiReply.slice(0, 200)] };
+    const result = await runFraudScanForUser(user);
+    if (!result.success) {
+      if ('error' in result) {
+        if (result.error === 'No AI model configured.') {
+          ctx.set.status = 400;
+        } else {
+          ctx.set.status = 500;
+        }
+        return { error: result.error };
       }
-
-      if (result.isSuspicious) {
-        user.fraudFlag = true;
-        user.fraudReason = result.reasons?.join('; ') || 'Suspicious billing information';
-        user.fraudDetectedAt = new Date();
-        await userRepo.save(user);
-      } else if (user.fraudFlag) {
-        user.fraudFlag = false;
-        user.fraudReason = undefined;
-        user.fraudDetectedAt = undefined;
-        await userRepo.save(user);
-      }
-
-      return { success: true, userId: user.id, ...result };
-    } catch (err: any) {
       ctx.set.status = 500;
-      console.error('[adminHandler:ai-fraud-scan]', err);
-      return { error: sanitizeError(err, 'adminHandler:ai-fraud-scan') };
+      return { error: 'Fraud scan failed.' };
     }
+
+    return { success: true, ...result };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
@@ -6311,82 +6129,101 @@ isSuspicious: true if fraudScore >= 50`;
   app.post(prefix + '/admin/fraud-scan-all', async (ctx) => {
     const adminErr = requireAdminPermission(ctx, 'admin:fraud');
     if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const users = await userRepo.find();
-    const modelRepo = AppDataSource.getRepository(AIModel);
-    const models = await modelRepo.find();
-    const model = models[0];
-    if (!model) {
+    const adminUser = ctx.user as any;
+    const adminId = adminUser?.id;
+    const models = await getConfiguredFraudModels();
+    if (models.length === 0) {
       ctx.set.status = 400;
       return { error: 'No AI model configured.' };
     }
 
-    const results: any[] = [];
-    for (const user of users) {
-      const billingInfo = {
-        legalName: `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim(),
-        email: user.email,
-        address: user.address,
-        address2: user.address2 || null,
-        phone: user.phone || null,
-        company: user.billingCompany || null,
-        city: user.billingCity || null,
-        state: user.billingState || null,
-        zip: user.billingZip || null,
-        country: user.billingCountry || null,
-      };
+    await createActivityLog({
+      userId: adminId,
+      action: 'admin:fraud-scan:started',
+      metadata: { startedAt: new Date().toISOString() },
+      notify: false,
+    });
 
+    void (async () => {
+      let flaggedCount = 0;
+      let scannedCount = 0;
+      let errorCount = 0;
       try {
-        const baseUrl = (model.endpoint || '').replace(/\/+$/, '').replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
-        const chatUrl = `${baseUrl}/v1/chat/completions`;
-        const res = await axios.post(
-          chatUrl,
-          {
-            model: model.config?.modelId || model.name,
-            messages: [
-              { role: 'system', content: `You are a fraud detection analyst. Analyze the billing info and respond with ONLY JSON: {"fraudScore": <0-100>, "isSuspicious": <true|false>, "reasons": ["..."]}` },
-              { role: 'user', content: JSON.stringify(billingInfo) },
-            ],
-            max_tokens: 512,
-          },
-          { headers: { Authorization: `Bearer ${model.apiKey || 'none'}`, 'Content-Type': 'application/json' }, timeout: 30000 }
-        );
-        const aiReply = res.data?.choices?.[0]?.message?.content || '';
-        let result: any;
-        try {
-          const cleaned = aiReply.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
-          result = JSON.parse(cleaned);
-        } catch {
-          result = { fraudScore: 0, isSuspicious: false, reasons: [] };
+        const userRepo = AppDataSource.getRepository(User);
+        const users = await userRepo.find();
+        for (let i = 0; i < users.length; i++) {
+          const user = users[i];
+          try {
+            const scan = await runFraudScanForUser(user);
+            scannedCount++;
+            if (!scan.success) {
+              if ('error' in scan && scan.error !== 'No AI model configured.') {
+                errorCount++;
+                console.error('[adminHandler:fraud-scan-all]', scan.error);
+              }
+            } else if (scan.isSuspicious) {
+              flaggedCount++;
+            }
+          } catch (err) {
+            errorCount++;
+            console.error('[adminHandler:fraud-scan-all]', err);
+          }
+          if (i < users.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
         }
-
-        if (result.isSuspicious) {
-          user.fraudFlag = true;
-          user.fraudReason = result.reasons?.join('; ') || 'Suspicious';
-          user.fraudDetectedAt = new Date();
-          await userRepo.save(user);
-          results.push({ userId: user.id, email: user.email, ...result });
-        } else if (user.fraudFlag) {
-          user.fraudFlag = false;
-          user.fraudReason = undefined;
-          user.fraudDetectedAt = undefined;
-          await userRepo.save(user);
-        }
-      } catch {
-        // skip
+        await createActivityLog({
+          userId: adminId,
+          action: `admin:fraud-scan:completed — scanned ${scannedCount}, flagged ${flaggedCount}, errors ${errorCount}`,
+          metadata: { scannedCount, flaggedCount, errorCount },
+          notify: false,
+        });
+      } catch (err: any) {
+        const message = err?.message || String(err);
+        await createActivityLog({
+          userId: adminId,
+          action: `admin:fraud-scan:error — ${message}`,
+          metadata: { error: message },
+          notify: false,
+        });
       }
-    }
+    })();
 
-    return { success: true, flagged: results.length, results };
+    return { success: true, message: 'Fraud scan initiated — results will be available shortly.' };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     response: {
-      200: t.Object({ success: t.Boolean(), flagged: t.Number(), results: t.Array(t.Any()) }),
+      200: t.Object({ success: t.Boolean(), message: t.String() }),
       401: t.Object({ error: t.String() }),
       403: t.Object({ error: t.String() }),
       400: t.Object({ error: t.String() }),
     },
     detail: { summary: 'Run fraud scan on all users', tags: ['Admin'] },
+  });
+
+  app.get(prefix + '/admin/fraud-alerts', async (ctx) => {
+    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+    if (adminErr !== true) return adminErr;
+    const userRepo = AppDataSource.getRepository(User);
+    const alerts = await userRepo.find({
+      where: { fraudFlag: true },
+      select: [
+        'id', 'firstName', 'lastName', 'email', 'fraudReason',
+        'fraudDetectedAt', 'address', 'address2', 'billingCity',
+        'billingState', 'billingZip', 'billingCountry', 'billingCompany',
+        'phone', 'suspended',
+      ],
+      order: { fraudDetectedAt: 'DESC' },
+    });
+    return alerts;
+  }, {
+    beforeHandle: [authenticate, authorize('admin:access')],
+    response: {
+      200: t.Any(),
+      401: t.Object({ error: t.String() }),
+      403: t.Object({ error: t.String() }),
+    },
+    detail: { summary: 'List fraud alerts', tags: ['Admin'] },
   });
 
   app.put(prefix + '/admin/fraud-alerts/:id', async (ctx) => {

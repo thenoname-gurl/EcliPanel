@@ -4,6 +4,7 @@ import { Hr, Section } from '@react-email/components';
 interface NotificationProps {
   title: string;
   message: string;
+  messageHtml?: string;
   details?: string;
 }
 
@@ -20,6 +21,12 @@ const pStyle = {
   color: '#ffffffb3',
   fontSize: '16px',
   margin: '0 0 16px 0',
+  lineHeight: '1.7',
+};
+
+const messageHtmlStyle = {
+  color: '#ffffffb3',
+  fontSize: '16px',
   lineHeight: '1.7',
 };
 
@@ -52,7 +59,7 @@ const linkStyle = {
   fontSize: '14px',
 };
 
-export function Notification({ title, message, details }: NotificationProps) {
+export function Notification({ title, message, messageHtml, details }: NotificationProps) {
   return (
     <BaseEmail previewText={title}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
@@ -60,7 +67,11 @@ export function Notification({ title, message, details }: NotificationProps) {
       </Section>
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>{message}</p>
+        {messageHtml ? (
+          <div style={messageHtmlStyle} dangerouslySetInnerHTML={{ __html: messageHtml }} />
+        ) : (
+          <p style={pStyle}>{message}</p>
+        )}
       </Section>
 
       {details && (
