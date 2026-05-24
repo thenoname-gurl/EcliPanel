@@ -1,0 +1,43 @@
+{
+  "title": "EcliPanel",
+  "groups": [
+    {
+      "name": "General",
+      "pages": [
+        { "name": "Overview", "href": "/docs", "icon": "BookOpen" },
+        {
+          "name": "Getting Started",
+          "href": "/docs/getting-started",
+          "icon": "Sparkles"
+        }
+      ]
+    },
+    {
+      "name": "Servers",
+      "pages": [
+        {
+          "name": "Server Management",
+          "href": "/docs/server-management",
+          "icon": "Server"
+        },
+        { "name": "KVM & Linux", "href": "/docs/kvm", "icon": "Cpu" },
+        {
+          "name": "Deploying Apps",
+          "href": "/docs/deploying-apps",
+          "icon": "Rocket"
+        }
+      ]
+    },
+    {
+      "name": "Policies",
+      "pages": [
+        { "name": "Sunset Policy", "href": "/docs/sunset", "icon": "Clock" },
+        {
+          "name": "Support & Policies",
+          "href": "/docs/support",
+          "icon": "LifeBuoy"
+        }
+      ]
+    }
+  ]
+}
