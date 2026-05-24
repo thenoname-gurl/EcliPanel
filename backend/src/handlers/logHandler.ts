@@ -8,6 +8,7 @@ import { tForUser } from '../i18n';
 import { authenticate } from '../middleware/auth';
 import { t } from 'elysia';
 import { hasPermissionSync } from '../middleware/authorize';
+import type { LogApp, LogContext } from '../types/log';
 
 /*
  * A: Always give your 100%!
@@ -19,22 +20,31 @@ import { hasPermissionSync } from '../middleware/authorize';
  */
 
 function formatMetadataForEmail(
-  meta: Record<string, any>,
+  meta: Record<string, unknown>,
   action: string,
   t: (key: string, params?: Record<string, string | undefined>) => string
 ): { message: string; details: string } {
+  const asRecord = (value: unknown): Record<string, unknown> =>
+    value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const asString = (value: unknown): string =>
+    typeof value === 'string' ? value : value == null ? '' : String(value);
+
   const { changes, actor, where: whereStr, ipAddress, ...rest } = meta || {};
+  const actorObj = asRecord(actor);
+  const changesObj = asRecord(changes);
 
   const parts = action.toLowerCase().split(':');
   const domain = parts[0];
   const verb = parts[parts.length - 1];
   const subdomain = parts.length > 2 ? parts.slice(1, -1).join(' ') : parts.length === 2 ? '' : '';
 
-  const nameEmail = actor?.email
-    ? `${actor.name || 'Someone'} (${actor.email})`
-    : actor?.name || 'Someone';
-  const targetId = whereStr ? whereStr.replace(/^server:/, '') : '';
-  const targetLabel = meta?.serverName || meta?.changes?.name || targetId || '';
+  const actorEmail = asString(actorObj.email);
+  const actorName = asString(actorObj.name) || 'Someone';
+  const nameEmail = actorEmail ? `${actorName} (${actorEmail})` : actorName;
+  const whereVal = asString(whereStr);
+  const targetId = whereVal ? whereVal.replace(/^server:/, '') : '';
+  const targetLabel =
+    asString(meta.serverName) || asString(changesObj.name) || targetId || '';
 
   const server =
     targetLabel && targetId && targetLabel !== targetId
@@ -43,7 +53,7 @@ function formatMetadataForEmail(
   const actorStr = nameEmail;
 
   const n = (key: string, vars?: Record<string, string | undefined>) =>
-    t('notification.' + key, vars as any);
+    t('notification.' + key, vars);
 
   let message = '';
 
@@ -83,11 +93,11 @@ function formatMetadataForEmail(
       message = n('serverGenericAction', { server, actor: actorStr, action: what });
     }
   } else if (domain === 'org' || domain === 'organization') {
-    const orgName = meta?.orgName || meta?.handle || targetId || 'an organization';
+    const orgName = asString(meta.orgName) || asString(meta.handle) || targetId || 'an organization';
     if (verb === 'create') {
       message = n('orgCreated', { org: orgName, actor: actorStr });
     } else if (verb === 'invite') {
-      message = n('orgInvited', { invited: meta?.invitedEmail || 'A user', actor: actorStr });
+      message = n('orgInvited', { invited: asString(meta.invitedEmail) || 'A user', actor: actorStr });
     } else if (verb === 'accept_invite') {
       message = n('orgInviteAccepted', { actor: actorStr });
     } else if (verb === 'reject_invite') {
@@ -101,9 +111,15 @@ function formatMetadataForEmail(
     } else if (verb === 'add_user') {
       message = n('orgUserAdded', { org: orgName, actor: actorStr });
     } else if (verb === 'resend_invite') {
-      message = n('orgInviteResent', { invited: meta?.invitedEmail || 'a user', actor: actorStr });
+      message = n('orgInviteResent', {
+        invited: asString(meta.invitedEmail) || 'a user',
+        actor: actorStr,
+      });
     } else if (verb === 'revoke_invite') {
-      message = n('orgInviteRevoked', { invited: meta?.invitedEmail || 'a user', actor: actorStr });
+      message = n('orgInviteRevoked', {
+        invited: asString(meta.invitedEmail) || 'a user',
+        actor: actorStr,
+      });
     } else {
       message = n('orgGenericAction', {
         org: orgName,
@@ -148,8 +164,8 @@ function formatMetadataForEmail(
 
   message = message.charAt(0).toUpperCase() + message.slice(1);
 
-  if (ipAddress) {
-    message += n('eventFromIp', { ip: ipAddress });
+  if (asString(ipAddress)) {
+    message += n('eventFromIp', { ip: asString(ipAddress) });
   }
 
   const detailLines: string[] = [];
@@ -211,7 +227,7 @@ function formatMetadataForEmail(
   return { message, details: detailLines.join('\n') };
 }
 
-function stripHtml(value: any): any {
+function stripHtml(value: unknown): unknown {
   if (typeof value === 'string') {
     let result = '';
     let last = 0;
@@ -226,7 +242,7 @@ function stripHtml(value: any): any {
     return value.map(stripHtml);
   }
   if (value && typeof value === 'object') {
-    const cleaned: Record<string, any> = {};
+    const cleaned: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
       cleaned[k] = stripHtml(v);
     }
@@ -240,7 +256,7 @@ export async function createActivityLog(opts: {
   action: string;
   targetId?: string;
   targetType?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   ipAddress?: string;
   notify?: boolean;
 }) {
@@ -398,11 +414,17 @@ export async function createActivityLog(opts: {
   return entry;
 }
 
-export async function logRoutes(app: any, prefix = '') {
+function getPagination(query: Record<string, unknown> | undefined) {
+  const { limit = '50', offset = '0' } = query || {};
+  return { limit: Math.min(Number(limit), 200), offset: Number(offset) };
+}
+
+export async function logRoutes(app: LogApp, prefix = '') {
   app.post(
     prefix + '/logs',
-    async (ctx: any) => {
-      const { userId, action, targetId, targetType, metadata, ipAddress } = (ctx.body as any) || {};
+    async (ctx: LogContext) => {
+      const { userId, action, targetId, targetType, metadata, ipAddress } =
+        (ctx.body || {}) as Record<string, unknown>;
       if (!action) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.actionRequired') };
@@ -410,10 +432,12 @@ export async function logRoutes(app: any, prefix = '') {
       const logRepo = AppDataSource.getRepository(UserLog);
       const log = logRepo.create({
         userId: Number(userId) || undefined,
-        action,
+        action: String(action),
         targetId: String(targetId || ''),
         targetType: String(targetType || ''),
-        metadata: metadata || {},
+        metadata: (metadata && typeof metadata === 'object'
+          ? (metadata as Record<string, unknown>)
+          : {}) as Record<string, unknown>,
         ipAddress: String(ipAddress || ''),
         timestamp: new Date(),
         isRead: false,
@@ -447,21 +471,26 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/users/:id/logs',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const userId = Number(ctx.params['id']);
-      const requester = ctx.user as any;
+      const requester = ctx.user as User | null;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
       if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
-      const { limit = '50', offset = '0', action, targetType, unread } = ctx.query as any;
+      const { action, targetType, unread } = (ctx.query || {}) as Record<string, unknown>;
+      const { limit, offset } = getPagination(ctx.query);
       const logRepo = AppDataSource.getRepository(UserLog);
       const qb = logRepo
         .createQueryBuilder('log')
         .where('log.userId = :userId', { userId })
         .orderBy('log.timestamp', 'DESC')
-        .skip(Number(offset))
-        .take(Math.min(Number(limit), 200));
+        .skip(offset)
+        .take(limit);
       if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
       if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
       if (typeof unread !== 'undefined') {
@@ -482,9 +511,13 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/users/:id/logs/unread-count',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const userId = Number(ctx.params['id']);
-      const requester = ctx.user as any;
+      const requester = ctx.user as User | null;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
       if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
@@ -507,9 +540,13 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.patch(
     prefix + '/users/:id/logs/read-all',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const userId = Number(ctx.params['id']);
-      const requester = ctx.user as any;
+      const requester = ctx.user as User | null;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
       if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
@@ -532,10 +569,14 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.patch(
     prefix + '/users/:id/logs/:logId/read',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const userId = Number(ctx.params['id']);
       const logId = Number(ctx.params['logId']);
-      const requester = ctx.user as any;
+      const requester = ctx.user as User | null;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
       if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
@@ -563,17 +604,17 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/logs',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const serverId = ctx.params['id'] as string;
-      const { limit = '50', offset = '0' } = ctx.query as any;
+      const { limit, offset } = getPagination(ctx.query);
       const logRepo = AppDataSource.getRepository(UserLog);
       const logs = await logRepo
         .createQueryBuilder('log')
         .where('log.targetId = :serverId', { serverId })
         .andWhere('log.targetType = :type', { type: 'server' })
         .orderBy('log.timestamp', 'DESC')
-        .skip(Number(offset))
-        .take(Math.min(Number(limit), 200))
+        .skip(offset)
+        .take(limit)
         .getMany();
       return logs;
     },
@@ -586,9 +627,9 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/activity',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const serverId = ctx.params['id'] as string;
-      const { limit = '50', offset = '0' } = ctx.query as any;
+      const { limit, offset } = getPagination(ctx.query);
       const logRepo = AppDataSource.getRepository(UserLog);
       const logs = await logRepo
         .createQueryBuilder('log')
@@ -596,8 +637,8 @@ export async function logRoutes(app: any, prefix = '') {
         .where('log.targetId = :serverId', { serverId })
         .andWhere('log.targetType = :type', { type: 'server' })
         .orderBy('log.timestamp', 'DESC')
-        .skip(Number(offset))
-        .take(Math.min(Number(limit), 200))
+        .skip(offset)
+        .take(limit)
         .getMany();
       return logs;
     },
@@ -610,17 +651,17 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/logs',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const orgId = ctx.params['id'] as string;
-      const { limit = '50', offset = '0' } = ctx.query as any;
+      const { limit, offset } = getPagination(ctx.query);
       const logRepo = AppDataSource.getRepository(UserLog);
       const logs = await logRepo
         .createQueryBuilder('log')
         .where('log.targetId = :orgId', { orgId })
         .andWhere('log.targetType = :type', { type: 'organisation' })
         .orderBy('log.timestamp', 'DESC')
-        .skip(Number(offset))
-        .take(Math.min(Number(limit), 200))
+        .skip(offset)
+        .take(limit)
         .getMany();
       return logs;
     },
@@ -633,17 +674,17 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/activity',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const orgId = ctx.params['id'] as string;
-      const { limit = '50', offset = '0' } = ctx.query as any;
+      const { limit, offset } = getPagination(ctx.query);
       const logRepo = AppDataSource.getRepository(UserLog);
       const logs = await logRepo
         .createQueryBuilder('log')
         .where('log.targetId = :orgId', { orgId })
         .andWhere('log.targetType = :type', { type: 'organisation' })
         .orderBy('log.timestamp', 'DESC')
-        .skip(Number(offset))
-        .take(Math.min(Number(limit), 200))
+        .skip(offset)
+        .take(limit)
         .getMany();
       return logs;
     },
@@ -656,21 +697,26 @@ export async function logRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/users/:id/activity',
-    async (ctx: any) => {
+    async (ctx: LogContext) => {
       const userId = Number(ctx.params['id']);
-      const requester = ctx.user as any;
+      const requester = ctx.user as User | null;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
       if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
-      const { limit = '50', offset = '0', action, targetType } = ctx.query as any;
+      const { action, targetType } = (ctx.query || {}) as Record<string, unknown>;
+      const { limit, offset } = getPagination(ctx.query);
       const logRepo = AppDataSource.getRepository(UserLog);
       const qb = logRepo
         .createQueryBuilder('log')
         .where('log.userId = :userId', { userId })
         .orderBy('log.timestamp', 'DESC')
-        .skip(Number(offset))
-        .take(Math.min(Number(limit), 200));
+        .skip(offset)
+        .take(limit);
       if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
       if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
       const logs = await qb.getMany();

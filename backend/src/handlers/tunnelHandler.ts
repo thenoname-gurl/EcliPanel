@@ -38,6 +38,52 @@ import {
 } from '../services/connection.service';
 import { getRolloutTreatment } from '../services/rolloutService';
 
+type HeadersLike = Record<string, string | string[] | undefined>;
+
+type TunnelApp = {
+  jwt: {
+    verify: (token: string) => unknown;
+    sign?: (payload: Record<string, unknown>, opts?: { expiresIn?: string }) => string;
+  };
+  get?: (...args: unknown[]) => unknown;
+  post?: (...args: unknown[]) => unknown;
+  ws?: (...args: unknown[]) => unknown;
+  [key: string]: unknown;
+};
+
+type TunnelRequestContext = {
+  headers?: HeadersLike;
+  request?: { url?: string };
+  query?: Record<string, unknown> | undefined;
+  params?: Record<string, string> | undefined;
+  body?: unknown;
+  set?: { status?: number };
+  apiKey?: { type?: string } | null;
+  user?: User | null;
+};
+
+type WsLike = WebSocket & { data?: Record<string, unknown> };
+
+function getAuthError(authResult: unknown): string | undefined {
+  if (authResult && typeof authResult === 'object' && 'error' in (authResult as Record<string, unknown>)) {
+    const val = (authResult as Record<string, unknown>)['error'];
+    return typeof val === 'string' ? val : undefined;
+  }
+  return undefined;
+}
+
+function isCtxLike(v: unknown): v is TunnelRequestContext {
+  return typeof v === 'object' && v !== null && (
+    'params' in (v as Record<string, unknown>) ||
+    'query' in (v as Record<string, unknown>) ||
+    'headers' in (v as Record<string, unknown>)
+  );
+}
+
+function isWsLikeObj(v: unknown): v is WsLike {
+  return typeof v === 'object' && v !== null && typeof (v as Record<string, unknown>)['send'] === 'function';
+}
+
 const TUNNEL_WS_SCHEMA = {
   detail: {
     summary: 'Tunnel agent websocket',
@@ -59,9 +105,12 @@ async function getAccessibleOrganisationIds(user: User): Promise<number[]> {
     require('../models/organisationMember.entity').OrganisationMember
   );
   const memberships = await membershipRepo.find({ where: { userId: user.id } });
-  memberships.forEach((membership: any) => {
-    if (['admin', 'owner'].includes(membership.orgRole)) {
-      orgIds.add(membership.organisationId);
+  memberships.forEach(membership => {
+    const m = membership as Record<string, unknown>;
+    const orgRole = typeof m.orgRole === 'string' ? m.orgRole : undefined;
+    const organisationId = typeof m.organisationId === 'number' ? m.organisationId : undefined;
+    if (orgRole && organisationId && ['admin', 'owner'].includes(orgRole)) {
+      orgIds.add(organisationId);
     }
   });
   return Array.from(orgIds);
@@ -90,8 +139,8 @@ function isValidHostname(h: string): boolean {
   return /^[a-zA-Z0-9.:\-[\]]+$/.test(h) && !h.startsWith('.') && !h.includes('..');
 }
 
-function getRequestBaseUrl(ctx: any): string {
-  const headers = ctx?.headers || {};
+function getRequestBaseUrl(ctx: TunnelRequestContext | undefined): string {
+  const headers = (ctx && ctx.headers) || {};
   const host = (headers['x-forwarded-host'] || headers['host'] || headers['Host']) as
     | string
     | undefined;
@@ -111,7 +160,7 @@ function getRequestBaseUrl(ctx: any): string {
   return origin;
 }
 
-function getTunnelFrontendUrl(ctx: any): string {
+function getTunnelFrontendUrl(ctx: TunnelRequestContext | undefined): string {
   const normalize = (value: string | undefined) => {
     if (!value) return '';
     const trimmed = value.trim();
@@ -134,25 +183,27 @@ function getTunnelFrontendUrl(ctx: any): string {
   return 'https://ecli.app';
 }
 
-async function requireAdmin(ctx: any): Promise<Response | null> {
-  const authResult = await authenticate(ctx);
-  if (authResult && (authResult as any).error) {
+async function requireAdmin(ctx: TunnelRequestContext): Promise<Response | null> {
+  const authResult = await authenticate(ctx as unknown as Record<string, unknown>);
+  const err = getAuthError(authResult);
+  if (err) {
     const status = ctx.set?.status || 401;
-    return errorResponse((authResult as any).error, status);
+    return errorResponse(err, status);
   }
 
   if (ctx.apiKey && ctx.apiKey.type === 'admin') return null;
-  if (!isAdminUser(ctx.user)) {
+  if (!isAdminUser(ctx.user as User | null | undefined)) {
     return errorResponse('forbidden', 403);
   }
   return null;
 }
 
-async function requireAuth(ctx: any): Promise<Response | null> {
-  const authResult = await authenticate(ctx);
-  if (authResult && (authResult as any).error) {
+async function requireAuth(ctx: TunnelRequestContext): Promise<Response | null> {
+  const authResult = await authenticate(ctx as unknown as Record<string, unknown>);
+  const err = getAuthError(authResult);
+  if (err) {
     const status = ctx.set?.status || 401;
-    return errorResponse((authResult as any).error, status);
+    return errorResponse(err, status);
   }
 
   if (!ctx.user) {
@@ -173,10 +224,10 @@ async function cleanupExpiredEnrollments(): Promise<void> {
 }
 
 async function requireAuthOrDevice(
-  ctx: any,
-  app: any
+  ctx: TunnelRequestContext,
+  app: TunnelApp
 ): Promise<{ device: TunnelDevice | null; error: Response | null }> {
-  const token = getAuthToken(ctx);
+  const token = getAuthToken(ctx as unknown as Record<string, unknown>);
   let device: TunnelDevice | null = null;
 
   if (token) {
@@ -184,10 +235,11 @@ async function requireAuthOrDevice(
   }
 
   if (!device) {
-    const authResult = await authenticate(ctx);
-    if (authResult && (authResult as any).error) {
+    const authResult = await authenticate(ctx as unknown as Record<string, unknown>);
+    const err = getAuthError(authResult);
+    if (err) {
       const status = ctx.set?.status || 401;
-      return { device: null, error: errorResponse((authResult as any).error, status) };
+      return { device: null, error: errorResponse(err, status) };
     }
   }
 
@@ -196,20 +248,20 @@ async function requireAuthOrDevice(
 
 const TUNNEL_ROLLOUT_KEY = 'tunnel_feature';
 
-async function requireTunnelRollout(ctx: any): Promise<true | { error: string }> {
+async function requireTunnelRollout(ctx: TunnelRequestContext & { user?: User | null; set?: { status?: number }; t?: (s: string) => string }): Promise<true | { error: string }> {
   if (!ctx.user) return true;
-  const { inRollout } = await getRolloutTreatment(ctx.user.id, TUNNEL_ROLLOUT_KEY);
+  const { inRollout } = await getRolloutTreatment(ctx.user!.id, TUNNEL_ROLLOUT_KEY);
   if (!inRollout) {
-    ctx.set.status = 403;
-    return { error: ctx.t('system.tunnelsNotAvailable') };
+    if (ctx.set) ctx.set.status = 403;
+    return { error: ctx.t ? ctx.t('system.tunnelsNotAvailable') : 'tunnels_not_available' };
   }
   return true;
 }
 
-export function tunnelRoutes(app: any, prefix: string): void {
+export function tunnelRoutes(app: TunnelApp, prefix: string): void {
   app.get(
     `${prefix}/tunnel/server/download`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const binaryPath = path.resolve(
         process.cwd(),
         '..',
@@ -251,7 +303,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.get(
     `${prefix}/tunnel/client/download`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const binaryPath = path.resolve(
         process.cwd(),
         '..',
@@ -326,7 +378,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.get(
     `${prefix}/tunnel/deploy.sh`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const scriptPath = path.resolve(process.cwd(), '..', 'tunnel', 'deploy.sh');
 
       if (Bun.file(scriptPath).size === 0) {
@@ -357,7 +409,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/device/start`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       await authenticate(ctx).catch(() => {});
       const body = (ctx.body as Record<string, unknown>) || {};
       const name = getStringField(body, ['name', 'name'], 'agent');
@@ -373,7 +425,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       const repo = AppDataSource.getRepository(TunnelDevice);
-      const deviceData: any = {
+      const deviceData: Partial<TunnelDevice> = {
         deviceCode,
         userCode,
         name,
@@ -394,7 +446,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         }
       }
 
-      const device = repo.create(deviceData);
+      const device = repo.create(deviceData as Record<string, unknown>);
       await repo.save(device);
 
       const baseUrl = getTunnelFrontendUrl(ctx);
@@ -427,7 +479,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/device/poll`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const body = (ctx.body as Record<string, unknown>) || {};
       const deviceCode =
         getStringField(body, ['device_code', 'deviceCode']) ||
@@ -482,7 +534,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/device/approve`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const authError = await requireAuth(ctx);
       if (authError) return authError;
 
@@ -506,7 +558,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       let serverType: TunnelServerType | undefined = undefined;
-      if (requestedServerType && TUNNEL_SERVER_TYPES.includes(requestedServerType as any)) {
+      if (typeof requestedServerType === 'string' && TUNNEL_SERVER_TYPES.includes(requestedServerType as TunnelServerType)) {
         serverType = requestedServerType as TunnelServerType;
       }
 
@@ -648,10 +700,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.get(
     `${prefix}/tunnel/devices`,
-    async (ctx: any) => {
-      const authResult = await authenticate(ctx);
-      if (authResult && (authResult as any).error) {
-        return errorResponse((authResult as any).error, ctx.set?.status || 401);
+    async (ctx: TunnelRequestContext) => {
+      const authResult = await authenticate(ctx as unknown as Record<string, unknown>);
+      const authErr = getAuthError(authResult);
+      if (authErr) {
+        return errorResponse(authErr, ctx.set?.status || 401);
       }
 
       const rolloutCheck = await requireTunnelRollout(ctx);
@@ -728,11 +781,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/devices/:id/delete`,
-    async (ctx: any) => {
-      const authResult = await authenticate(ctx);
-      if (authResult && (authResult as any).error) {
+    async (ctx: TunnelRequestContext) => {
+      const authResult = await authenticate(ctx as unknown as Record<string, unknown>);
+      const authErr = getAuthError(authResult);
+      if (authErr) {
         const status = ctx.set?.status || 401;
-        return errorResponse((authResult as any).error, status);
+        return errorResponse(authErr, status);
       }
 
       const deviceId = Number(ctx.params.id);
@@ -757,8 +811,8 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const allocations = await allocRepo.find({
         relations: { clientDevice: true, serverDevice: true },
         where: [
-          { clientDevice: { id: deviceId } } as any,
-          { serverDevice: { id: deviceId } } as any,
+          { clientDevice: { id: deviceId } } as unknown as Record<string, unknown>,
+          { serverDevice: { id: deviceId } } as unknown as Record<string, unknown>,
         ],
       });
 
@@ -793,7 +847,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/devices/:id/regenerate-token`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const authError = await requireAdmin(ctx);
       if (authError) return authError;
 
@@ -847,11 +901,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/devices`,
-    async (ctx: any) => {
-      const authResult = await authenticate(ctx);
-      if (authResult && (authResult as any).error) {
+    async (ctx: TunnelRequestContext) => {
+      const authResult = await authenticate(ctx as unknown as Record<string, unknown>);
+      const authErr = getAuthError(authResult);
+      if (authErr) {
         const status = ctx.set?.status || 401;
-        return errorResponse((authResult as any).error, status);
+        return errorResponse(authErr, status);
       }
 
       const isAdminUser_ = isAdminUser(ctx.user) || (ctx.apiKey && ctx.apiKey.type === 'admin');
@@ -944,7 +999,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/allocations`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
@@ -1122,7 +1177,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.get(
     `${prefix}/tunnel/allocations`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
@@ -1208,7 +1263,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/allocations/:id/close`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
@@ -1277,7 +1332,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/allocations/:id/edit`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
@@ -1355,7 +1410,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
   app.post(
     `${prefix}/tunnel/allocations/:id/delete`,
-    async (ctx: any) => {
+    async (ctx: TunnelRequestContext) => {
       const { device, error } = await requireAuthOrDevice(ctx, app);
       if (error) return error;
 
@@ -1407,30 +1462,35 @@ export function tunnelRoutes(app: any, prefix: string): void {
     }
   );
 
-  function unwrapWsArgs(args: IArguments | any[]) {
-    const arr = Array.from(args as any[]);
-    let ctx: any = undefined;
-    let ws: any = undefined;
-    let message: any = undefined;
+  function unwrapWsArgs(args: IArguments | unknown[]) {
+    const arr = Array.from(args as unknown[]);
+    let ctx: TunnelRequestContext | undefined = undefined;
+    let ws: WsLike | undefined = undefined;
+    let message: unknown = undefined;
 
     if (arr.length === 1) {
-      ws = arr[0];
-      ctx = ws?.data || {};
+      const maybeWs = arr[0];
+      if (isWsLikeObj(maybeWs)) {
+        ws = maybeWs;
+        ctx = (ws.data as TunnelRequestContext) || {};
+      }
     } else if (arr.length === 2) {
-      if (arr[0]?.params || arr[0]?.query || arr[0]?.headers) {
-        ctx = arr[0];
-        ws = arr[1];
-      } else if (typeof arr[0]?.send === 'function') {
-        ws = arr[0];
-        message = arr[1];
-        ctx = ws?.data || {};
+      const a0 = arr[0];
+      const a1 = arr[1];
+      if (isCtxLike(a0)) {
+        ctx = a0;
+        if (isWsLikeObj(a1)) ws = a1;
+      } else if (isWsLikeObj(a0)) {
+        ws = a0;
+        message = a1;
+        ctx = (ws.data as TunnelRequestContext) || {};
       } else {
-        ctx = arr[0];
-        ws = arr[1];
+        ctx = a0 as TunnelRequestContext;
+        if (isWsLikeObj(a1)) ws = a1;
       }
     } else if (arr.length >= 3) {
-      ctx = arr[0];
-      ws = arr[1];
+      ctx = arr[0] as TunnelRequestContext;
+      ws = isWsLikeObj(arr[1]) ? arr[1] : undefined;
       message = arr[2];
     }
 
@@ -1440,11 +1500,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
   app.ws(`${prefix}/tunnel/ws`, {
     ...TUNNEL_WS_SCHEMA,
 
-    async open(...args: any[]) {
+    async open(...args: unknown[]) {
       const { ctx, ws } = unwrapWsArgs(args);
       if (!ws) return;
 
-      const token = getAuthToken(ctx || {});
+      const token = getAuthToken(ctx as unknown as { headers?: Headers | Record<string, string>; query?: Record<string, string> } ) ;
 
       if (!token) {
         ws.send(JSON.stringify({ type: 'error', error: 'missing_token' }));
@@ -1508,7 +1568,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       );
     },
 
-    message(...args: any[]) {
+    message(...args: unknown[]) {
       const { ws, message } = unwrapWsArgs(args);
       if (!ws) return;
 
@@ -1521,16 +1581,16 @@ export function tunnelRoutes(app: any, prefix: string): void {
         if (ArrayBuffer.isView(value)) {
           return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8');
         }
-        if (value && typeof value === 'object' && 'data' in (value as any)) {
-          return extractText((value as any).data);
+        if (value && typeof value === 'object' && 'data' in (value as Record<string, unknown>)) {
+          return extractText((value as Record<string, unknown>).data);
         }
         return null;
       };
 
-      if (message && typeof message === 'object' && 'type' in (message as any)) {
+      if (message && typeof message === 'object' && 'type' in (message as Record<string, unknown>)) {
         const msg = message as Record<string, unknown>;
-        const deviceCode: string = ws.data?._ecliDeviceCode;
-        const deviceKind: string = ws.data?._ecliKind;
+        const deviceCode = String(ws.data?._ecliDeviceCode ?? '');
+        const deviceKind = String(ws.data?._ecliKind ?? '');
         if (!deviceCode || !deviceKind) return;
 
         switch (msg.type) {
@@ -1564,8 +1624,8 @@ export function tunnelRoutes(app: any, prefix: string): void {
         if (text) {
           console.info('[tunnel] ws message (text):', text);
         } else {
-          const ctor = (message as any)?.constructor?.name ?? 'unknown';
-          const keys = message && typeof message === 'object' ? Object.keys(message as any) : [];
+          const ctor = (message as Record<string, unknown>)?.constructor?.name ?? 'unknown';
+          const keys = message && typeof message === 'object' ? Object.keys(message as Record<string, unknown>) : [];
           console.info('[tunnel] ws message (unparsed):', { type: typeof message, ctor, keys });
         }
       } catch (err) {
@@ -1581,8 +1641,8 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return;
       }
 
-      const deviceCode: string = ws.data?._ecliDeviceCode;
-      const deviceKind: string = ws.data?._ecliKind;
+      const deviceCode = String(ws.data?._ecliDeviceCode ?? '');
+      const deviceKind = String(ws.data?._ecliKind ?? '');
       if (!deviceCode || !deviceKind) return;
 
       switch (msg.type) {
@@ -1594,8 +1654,8 @@ export function tunnelRoutes(app: any, prefix: string): void {
           if (deviceKind === 'server') {
             console.info(
               `[tunnel] received connection.open from ${deviceCode}: ` +
-                `allocationId=${String((msg as any).allocationId ?? '')} ` +
-                `connectionId=${String((msg as any).connectionId ?? '')}`
+                `allocationId=${String(msg['allocationId'] ?? '')} ` +
+                `connectionId=${String(msg['connectionId'] ?? '')}`
             );
             handleServerConnectionOpen(msg, deviceCode).catch(err => {
               console.error('[tunnel] connection.open error:', err);
@@ -1616,11 +1676,11 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
     },
 
-    close(...args: any[]) {
+    close(...args: unknown[]) {
       const { ws, message } = unwrapWsArgs(args);
       if (!ws) return;
 
-      const deviceCode: string = ws.data?._ecliDeviceCode;
+      const deviceCode = String(ws.data?._ecliDeviceCode ?? '');
       const code = typeof message === 'number' ? message : undefined;
       const reason = typeof message === 'string' ? message : '';
 
@@ -1632,12 +1692,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
     },
 
-    error(...args: any[]) {
+    error(...args: unknown[]) {
       const { ws, message } = unwrapWsArgs(args);
       if (!ws) return;
       const error = message instanceof Error ? message : undefined;
 
-      const deviceCode: string = ws.data?._ecliDeviceCode;
+      const deviceCode = String(ws.data?._ecliDeviceCode ?? '');
       console.error(`[tunnel] WebSocket error for ${deviceCode}:`, error || message);
 
       if (deviceCode) {
