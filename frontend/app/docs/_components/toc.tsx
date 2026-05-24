@@ -43,7 +43,7 @@ export function TableOfContents() {
   if (!headings.length) return null;
 
   return (
-    <div className="h-screen w-48 flex flex-col py-10 px-6 border-l border-white/5 bg-[#0D0D0D]">
+    <div className="hidden lg:flex fixed right-0 top-0 h-screen w-48 flex-col py-10 px-6 border-l border-white/5 bg-[#0D0D0D]">
       <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
         On this page
       </p>
