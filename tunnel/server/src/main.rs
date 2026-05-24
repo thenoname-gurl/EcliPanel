@@ -15,9 +15,9 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadBuf},
-    net::{TcpListener, TcpStream},
-    sync::{oneshot, Mutex},
+    io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadBuf},
+    net::{TcpListener, TcpStream, UdpSocket},
+    sync::{mpsc, oneshot, Mutex},
 };
 use tokio_tungstenite::{
     connect_async,
@@ -49,6 +49,7 @@ type SharedConnections =
     Arc<Mutex<HashMap<String, Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>>>>;
 type ListenerControl = Arc<Mutex<HashMap<u64, oneshot::Sender<()>>>>;
 type ConnectionAllocationMap = Arc<Mutex<HashMap<String, u64>>>;
+type UdpDirectTokens = Arc<Mutex<HashMap<String, String>>>;
 
 // ---------------------------------------------------------------------------
 // TLS helper structs
@@ -374,7 +375,7 @@ async fn main() {
     let env_filter = std::env::var("RUST_LOG").ok();
     let filter = env_filter.unwrap_or_else(|| {
         if args.verbose {
-            "info".to_string()
+            "debug".to_string()
         } else {
             "info".to_string()
         }
@@ -624,6 +625,7 @@ async fn try_connect_and_serve(
     let listeners: ListenerControl = Arc::new(Mutex::new(HashMap::new()));
     let connection_allocations: ConnectionAllocationMap =
         Arc::new(Mutex::new(HashMap::new()));
+    let udp_direct_tokens: UdpDirectTokens = Arc::new(Mutex::new(HashMap::new()));
     let fatal_error = Arc::new(Mutex::new(false));
     let update_triggered = Arc::new(Mutex::new(false));
     while let Some(msg) = read.next().await {
@@ -639,6 +641,7 @@ async fn try_connect_and_serve(
                     fatal_error.clone(),
                     update_triggered.clone(),
                     backend,
+                    udp_direct_tokens.clone(),
                 )
                 .await;
             }
@@ -677,6 +680,7 @@ async fn handle_text_message(
     fatal_error: Arc<Mutex<bool>>,
     update_triggered: Arc<Mutex<bool>>,
     backend: &str,
+    udp_direct_tokens: UdpDirectTokens,
 ) {
     let msg: serde_json::Value = match serde_json::from_str(txt) {
         Ok(v) => v,
@@ -703,6 +707,7 @@ async fn handle_text_message(
                     listeners,
                     connection_allocations,
                     tls_acceptor.clone(),
+                    udp_direct_tokens.clone(),
                 ));
             }
             Err(err) => error!(%err, "failed to parse bind message"),
@@ -815,6 +820,14 @@ async fn handle_text_message(
             }
         }
 
+        Some("direct.token") => {
+            let conn_id = msg.get("connectionId").and_then(|v| v.as_str()).map(str::to_owned);
+            let token = msg.get("directToken").and_then(|v| v.as_str()).map(str::to_owned);
+            if let (Some(c), Some(t)) = (conn_id, token) {
+                udp_direct_tokens.lock().await.insert(c, t);
+            }
+        }
+
         Some("pong") => {}
 
         other => warn!(type_ = ?other, "unknown message type"),
@@ -832,7 +845,13 @@ async fn bind_listener(
     listeners: ListenerControl,
     connection_allocations: ConnectionAllocationMap,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
+    udp_direct_tokens: UdpDirectTokens,
 ) {
+    if bind.protocol == "udp" {
+        bind_udp_listener(bind, write, listeners, udp_direct_tokens).await;
+        return;
+    }
+
     let addr: SocketAddr = format!("0.0.0.0:{}", bind.port)
         .parse()
         .expect("invalid bind address");
@@ -858,52 +877,78 @@ async fn bind_listener(
             result = listener.accept() => {
                 match result {
                     Ok((stream, peer)) => {
-                        let (mut read_half, write_half) = stream.into_split();
+                        // spawn directly so the accept loop is not blocked while we wait for TLS
+                        let write = write.clone();
+                        let tunnels = tunnels.clone();
+                        let connection_allocations = connection_allocations.clone();
+                        let allocation_id = bind.allocation_id;
+                        let tls_acceptor = tls_acceptor.clone();
 
-                        // Read first 5 bytes to detect TLS ClientHello (0x16 0x03 ...)
-                        let mut peek_buf = vec![0u8; 5];
-                        let n = (&mut read_half).read(&mut peek_buf).await
-                            .unwrap_or(0);
-                        peek_buf.truncate(n);
+                        tokio::spawn(async move {
+                            let (mut read_half, write_half) = stream.into_split();
 
-                        let is_tls = n >= 2 && peek_buf[0] == 0x16 && peek_buf[1] == 0x03;
-                        let connection_id = Uuid::new_v4().to_string();
+                            // read first 5 bytes for TLS ClientHello
+                            let mut peek_buf = vec![0u8; 5];
+                            let n = read_half.read(&mut peek_buf).await.unwrap_or(0);
+                            peek_buf.truncate(n);
 
-                        if is_tls {
-                            if let Some(ref acceptor) = tls_acceptor {
-                                let prepended = PrependReader {
-                                    prefix: Some(peek_buf),
-                                    inner: read_half,
-                                };
-                                let combined = CombinedStream {
-                                    reader: prepended,
-                                    writer: write_half,
-                                };
-                                match acceptor.accept(combined).await {
-                                    Ok(tls_stream) => {
-                                        info!(%connection_id, %peer, "accepted TLS connection");
-                                        let (tls_read, tls_write) = tokio::io::split(tls_stream);
-                                        tunnels.lock().await.insert(
-                                            connection_id.clone(),
-                                            Arc::new(Mutex::new(Box::new(tls_write))),
-                                        );
-                                        tokio::spawn(handle_incoming_connection(
-                                            bind.allocation_id,
-                                            connection_id,
-                                            BufReader::new(tls_read),
-                                            peer,
-                                            write.clone(),
-                                            tunnels.clone(),
-                                            connection_allocations.clone(),
-                                        ));
+                            let is_tls = n >= 2 && peek_buf[0] == 0x16 && peek_buf[1] == 0x03;
+                            let connection_id = Uuid::new_v4().to_string();
+
+                            if is_tls {
+                                if let Some(ref acceptor) = tls_acceptor {
+                                    let prepended = PrependReader {
+                                        prefix: Some(peek_buf),
+                                        inner: read_half,
+                                    };
+                                    let combined = CombinedStream {
+                                        reader: prepended,
+                                        writer: write_half,
+                                    };
+                                    match acceptor.accept(combined).await {
+                                        Ok(tls_stream) => {
+                                            info!(%connection_id, %peer, "accepted TLS connection");
+                                            let (tls_read, tls_write) = tokio::io::split(tls_stream);
+                                            tunnels.lock().await.insert(
+                                                connection_id.clone(),
+                                                Arc::new(Mutex::new(Box::new(tls_write))),
+                                            );
+                                            handle_incoming_connection(
+                                                allocation_id,
+                                                connection_id,
+                                                BufReader::new(tls_read),
+                                                peer,
+                                                write,
+                                                tunnels,
+                                                connection_allocations,
+                                            ).await;
+                                        }
+                                        Err(err) => {
+                                            error!(%err, %connection_id, "TLS handshake failed");
+                                        }
                                     }
-                                    Err(err) => {
-                                        error!(%err, %connection_id, "TLS handshake failed");
-                                    }
+                                } else {
+                                    // TLS detected but no acceptor, forward as plain
+                                    info!(%connection_id, %peer, "TLS data but TLS not configured, forwarding as plain");
+                                    let prepended = PrependReader {
+                                        prefix: Some(peek_buf),
+                                        inner: read_half,
+                                    };
+                                    tunnels.lock().await.insert(
+                                        connection_id.clone(),
+                                        Arc::new(Mutex::new(Box::new(write_half))),
+                                    );
+                                    handle_incoming_connection(
+                                        allocation_id,
+                                        connection_id,
+                                        BufReader::new(prepended),
+                                        peer,
+                                        write,
+                                        tunnels,
+                                        connection_allocations,
+                                    ).await;
                                 }
                             } else {
-                                // TLS detected but no acceptor — treat as plain
-                                info!(%connection_id, %peer, "TLS data but TLS not configured, forwarding as plain");
                                 let prepended = PrependReader {
                                     prefix: Some(peek_buf),
                                     inner: read_half,
@@ -912,36 +957,18 @@ async fn bind_listener(
                                     connection_id.clone(),
                                     Arc::new(Mutex::new(Box::new(write_half))),
                                 );
-                                tokio::spawn(handle_incoming_connection(
-                                    bind.allocation_id,
+                                info!(%connection_id, %peer, "accepted plain connection");
+                                handle_incoming_connection(
+                                    allocation_id,
                                     connection_id,
                                     BufReader::new(prepended),
                                     peer,
-                                    write.clone(),
-                                    tunnels.clone(),
-                                    connection_allocations.clone(),
-                                ));
+                                    write,
+                                    tunnels,
+                                    connection_allocations,
+                                ).await;
                             }
-                        } else {
-                            let prepended = PrependReader {
-                                prefix: Some(peek_buf),
-                                inner: read_half,
-                            };
-                            tunnels.lock().await.insert(
-                                connection_id.clone(),
-                                Arc::new(Mutex::new(Box::new(write_half))),
-                            );
-                            info!(%connection_id, %peer, "accepted plain connection");
-                            tokio::spawn(handle_incoming_connection(
-                                bind.allocation_id,
-                                connection_id,
-                                BufReader::new(prepended),
-                                peer,
-                                write.clone(),
-                                tunnels.clone(),
-                                connection_allocations.clone(),
-                            ));
-                        }
+                        });
                     }
                     Err(err) => {
                         error!(%err, "accept error");
@@ -1175,4 +1202,210 @@ async fn send_ws(
     let ws_msg = msg.into_ws_message()?;
     write.lock().await.send(ws_msg).await?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// UDP listener (one per UDP allocation)
+// ---------------------------------------------------------------------------
+
+type AddrSessionMap = Arc<Mutex<HashMap<SocketAddr, (String, mpsc::UnboundedSender<Vec<u8>>)>>>;
+type PendingUdpReceivers = Arc<Mutex<HashMap<String, mpsc::UnboundedReceiver<Vec<u8>>>>>;
+
+async fn bind_udp_listener(
+    bind: BindMessage,
+    write: Arc<Mutex<WsSink>>,
+    listeners: ListenerControl,
+    udp_direct_tokens: UdpDirectTokens,
+) {
+    let port = bind.port;
+    let direct_port = port.saturating_add(1);
+    let allocation_id = bind.allocation_id;
+
+    let udp_sock = match UdpSocket::bind(format!("0.0.0.0:{}", port)).await {
+        Ok(s) => Arc::new(s),
+        Err(err) => {
+            error!(%err, port, "failed to bind UDP socket");
+            return;
+        }
+    };
+    info!(port, "UDP socket ready");
+
+    let direct_listener = match TcpListener::bind(format!("0.0.0.0:{}", direct_port)).await {
+        Ok(l) => l,
+        Err(err) => {
+            error!(%err, port = direct_port, "failed to bind ECLI-DIRECT listener");
+            return;
+        }
+    };
+    info!(port = direct_port, "ECLI-DIRECT listener ready");
+
+    let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+    listeners.lock().await.insert(allocation_id, shutdown_tx);
+
+    let addr_sessions: AddrSessionMap = Arc::new(Mutex::new(HashMap::new()));
+    let pending_receivers: PendingUdpReceivers = Arc::new(Mutex::new(HashMap::new()));
+
+    let mut recv_buf = vec![0u8; 65535];
+
+    loop {
+        tokio::select! {
+            result = udp_sock.recv_from(&mut recv_buf) => {
+                match result {
+                    Ok((n, peer)) => {
+                        let data = recv_buf[..n].to_vec();
+                        let mut sessions = addr_sessions.lock().await;
+                        if let Some((_, tx)) = sessions.get(&peer) {
+                            let _ = tx.send(data);
+                        } else {
+                            let connection_id = Uuid::new_v4().to_string();
+                            let (tx, rx) = mpsc::unbounded_channel::<Vec<u8>>();
+                            let _ = tx.send(data);
+                            sessions.insert(peer, (connection_id.clone(), tx));
+                            drop(sessions);
+
+                            pending_receivers.lock().await.insert(connection_id.clone(), rx);
+
+                            let msg = OutgoingMessage {
+                                type_name: "connection.open".into(),
+                                allocation_id: Some(allocation_id),
+                                connection_id: Some(connection_id.clone()),
+                                remote_addr: Some(peer.ip().to_string()),
+                                remote_port: Some(peer.port()),
+                                data: None,
+                            };
+                            if let Ok(ws_msg) = msg.into_ws_message() {
+                                write.lock().await.send(ws_msg).await.ok();
+                            }
+                            info!(%connection_id, %peer, "new UDP session");
+                        }
+                    }
+                    Err(err) => error!(%err, "UDP recv failed"),
+                }
+            }
+
+            result = direct_listener.accept() => {
+                match result {
+                    Ok((stream, _)) => {
+                        let udp_sock = udp_sock.clone();
+                        let addr_sessions = addr_sessions.clone();
+                        let pending_receivers = pending_receivers.clone();
+                        let udp_direct_tokens = udp_direct_tokens.clone();
+                        tokio::spawn(async move {
+                            handle_direct_udp_connection(
+                                stream,
+                                udp_sock,
+                                addr_sessions,
+                                pending_receivers,
+                                udp_direct_tokens,
+                            ).await;
+                        });
+                    }
+                    Err(err) => error!(%err, "ECLI-DIRECT accept error"),
+                }
+            }
+
+            _ = &mut shutdown_rx => {
+                info!(allocation_id, "UDP allocation unbound");
+                break;
+            }
+        }
+    }
+
+    listeners.lock().await.remove(&allocation_id);
+}
+
+async fn handle_direct_udp_connection(
+    stream: TcpStream,
+    udp_sock: Arc<UdpSocket>,
+    addr_sessions: AddrSessionMap,
+    pending_receivers: PendingUdpReceivers,
+    udp_direct_tokens: UdpDirectTokens,
+) {
+    let (read_half, mut write_half) = stream.into_split();
+    let mut buf_reader = BufReader::new(read_half);
+
+    // read handshake: "ECLI-DIRECT {connection_id} {direct_token}\n"
+    let mut line = String::new();
+    match tokio::time::timeout(Duration::from_secs(5), buf_reader.read_line(&mut line)).await {
+        Ok(Ok(_)) => {}
+        Ok(Err(err)) => { error!(%err, "ECLI-DIRECT handshake read failed"); return; }
+        Err(_) => { warn!("ECLI-DIRECT handshake timeout"); return; }
+    }
+
+    let line = line.trim();
+    let parts: Vec<&str> = line.splitn(3, ' ').collect();
+    if parts.len() != 3 || parts[0] != "ECLI-DIRECT" {
+        warn!(handshake = %line, "invalid ECLI-DIRECT handshake");
+        return;
+    }
+    let connection_id = parts[1].to_owned();
+    let token = parts[2].to_owned();
+
+    // wait 2 s for backend to deliver the direct.token
+    let valid = 'check: {
+        for _ in 0..10 {
+            if let Some(stored) = udp_direct_tokens.lock().await.remove(&connection_id) {
+                break 'check stored == token;
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        false
+    };
+
+    if !valid {
+        warn!(%connection_id, "ECLI-DIRECT token invalid or not received");
+        return;
+    }
+
+    let udp_rx = match pending_receivers.lock().await.remove(&connection_id) {
+        Some(rx) => rx,
+        None => { warn!(%connection_id, "no pending UDP receiver for ECLI-DIRECT"); return; }
+    };
+
+    let sender_addr = {
+        let sessions = addr_sessions.lock().await;
+        sessions.iter()
+            .find(|(_, (cid, _))| cid == &connection_id)
+            .map(|(addr, _)| *addr)
+    };
+    let sender_addr = match sender_addr {
+        Some(a) => a,
+        None => { warn!(%connection_id, "no sender addr for ECLI-DIRECT"); return; }
+    };
+
+    info!(%connection_id, %sender_addr, "ECLI-DIRECT UDP relay started");
+
+    let mut tcp_read = buf_reader.into_inner();
+    let mut udp_rx = udp_rx;
+
+    // uplink: datagrams from external UDP client to length-framed TCP to tunnel client
+    let uplink = tokio::spawn(async move {
+        while let Some(data) = udp_rx.recv().await {
+            let len = data.len() as u32;
+            if write_half.write_all(&len.to_be_bytes()).await.is_err() { break; }
+            if write_half.write_all(&data).await.is_err() { break; }
+        }
+    });
+
+    // downlink: length-framed TCP from tunnel client to send UDP to external client
+    let conn_id_log = connection_id.clone();
+    let downlink = tokio::spawn(async move {
+        let mut len_buf = [0u8; 4];
+        loop {
+            if tcp_read.read_exact(&mut len_buf).await.is_err() { break; }
+            let len = u32::from_be_bytes(len_buf) as usize;
+            if len > MAX_FRAME_SIZE { warn!("UDP frame too large: {}", len); break; }
+            let mut data = vec![0u8; len];
+            if tcp_read.read_exact(&mut data).await.is_err() { break; }
+            if let Err(err) = udp_sock.send_to(&data, sender_addr).await {
+                error!(%err, connection_id = %conn_id_log, "UDP sendto failed");
+                break;
+            }
+        }
+    });
+
+    let _ = tokio::join!(uplink, downlink);
+
+    info!(%connection_id, "ECLI-DIRECT UDP relay ended");
+    addr_sessions.lock().await.retain(|_, (cid, _)| cid != &connection_id);
 }
