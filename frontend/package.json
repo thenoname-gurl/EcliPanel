@@ -71,6 +71,7 @@
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "shadcn": "latest",
+    "shiki": "^4.1.0",
     "sonner": "latest",
     "tailwind-merge": "latest",
     "three": "^0.167.1",
