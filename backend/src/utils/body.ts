@@ -80,6 +80,120 @@ export function asTwoFactorVerifyBody(body: unknown): { tempToken: string; code:
   };
 }
 
+export function asTempTokenBody(body: unknown): { tempToken: string } {
+  const safe = safeBody(body, { tempToken: '' });
+  return {
+    tempToken: String(safe.tempToken ?? ''),
+  };
+}
+
+export function asTwoFactorLoginBody(body: unknown): {
+  tempToken: string;
+  token?: string;
+  backupCode?: string;
+  emailCode?: string;
+} {
+  const safe = safeBody(body, { tempToken: '' });
+  return {
+    tempToken: String(safe.tempToken ?? ''),
+    token: safe.token !== undefined ? String(safe.token) : undefined,
+    backupCode: safe.backupCode !== undefined ? String(safe.backupCode) : undefined,
+    emailCode: safe.emailCode !== undefined ? String(safe.emailCode) : undefined,
+  };
+}
+
+export function asEmailBody(body: unknown): { email: string } {
+  const safe = safeBody(body, { email: '' });
+  return {
+    email: String(safe.email ?? ''),
+  };
+}
+
+export function asPasswordResetBody(body: unknown): { token: string; password: string } {
+  const safe = safeBody(body, { token: '', password: '' });
+  return {
+    token: String(safe.token ?? ''),
+    password: String(safe.password ?? ''),
+  };
+}
+
+export function asCodeBody(body: unknown): { code: string } {
+  const safe = safeBody(body, { code: '' });
+  return {
+    code: String(safe.code ?? ''),
+  };
+}
+
+export function asTokenSecretBody(body: unknown): { token: string; secret: string } {
+  const safe = safeBody(body, { token: '', secret: '' });
+  return {
+    token: String(safe.token ?? ''),
+    secret: String(safe.secret ?? ''),
+  };
+}
+
+export function asTokenBody(body: unknown): { token: string } {
+  const safe = safeBody(body, { token: '' });
+  return {
+    token: String(safe.token ?? ''),
+  };
+}
+
+export function asPasskeyRegisterBody(body: unknown): { attestationResponse?: JsonObject } {
+  const safe = safeBody(body);
+  return {
+    attestationResponse: safe.attestationResponse !== undefined && safe.attestationResponse !== null
+      ? safe.attestationResponse as JsonObject
+      : undefined,
+  };
+}
+
+export function asPasskeyLoginBody(body: unknown): {
+  email: string;
+  authenticationResponse?: JsonObject;
+} {
+  const safe = safeBody(body, { email: '' });
+  return {
+    email: String(safe.email ?? ''),
+    authenticationResponse: safe.authenticationResponse !== undefined && safe.authenticationResponse !== null
+      ? safe.authenticationResponse as JsonObject
+      : undefined,
+  };
+}
+
+export function asIdNameBody(body: unknown): { name: string } {
+  const safe = safeBody(body, { name: '' });
+  return {
+    name: String(safe.name ?? ''),
+  };
+}
+
+export function asSendEmailBody(body: unknown): {
+  to: string;
+  cc?: string;
+  bcc?: string;
+  subject: string;
+  body: string;
+  html?: string;
+} {
+  const safe = safeBody(body, { to: '', subject: '', body: '' });
+  return {
+    to: String(safe.to ?? ''),
+    cc: safe.cc !== undefined && safe.cc !== null ? String(safe.cc) : undefined,
+    bcc: safe.bcc !== undefined && safe.bcc !== null ? String(safe.bcc) : undefined,
+    subject: String(safe.subject ?? ''),
+    body: String(safe.body ?? ''),
+    html: safe.html !== undefined && safe.html !== null ? String(safe.html) : undefined,
+  };
+}
+
+export function asGuideShownBody(body: unknown): { shown?: boolean } {
+  const safe = safeBody(body);
+  return {
+    shown: safe.shown !== undefined ? Boolean(safe.shown) : undefined,
+  };
+}
+
 export function getStringField(
   body: unknown,
   field: string,
@@ -126,16 +240,52 @@ export function getBooleanField(
   return defaultValue;
 }
 
-export function getObjectField<T extends JsonObject>(
-  body: unknown,
-  field: string,
-  defaultValue?: T
-): T | undefined {
-  if (typeof body === 'object' && body !== null) {
-    const b = body as Record<string, unknown>;
-    if (field in b && typeof b[field] === 'object' && b[field] !== null) {
-      return b[field] as T;
+export function safeQuery(
+  query: Record<string, string | string[] | undefined> | undefined
+): Record<string, unknown> {
+  if (!query) return {};
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(query)) {
+    if (v !== undefined) {
+      result[k] = Array.isArray(v) ? v[v.length - 1] : v;
     }
   }
-  return defaultValue;
+  return result;
+}
+
+export function getQueryString(
+  query: Record<string, string | string[] | undefined> | undefined,
+  key: string,
+  defaultValue: string = ''
+): string {
+  if (!query) return defaultValue;
+  const v = query[key];
+  if (v === undefined) return defaultValue;
+  return String(Array.isArray(v) ? v[v.length - 1] : v);
+}
+
+export function getQueryNumber(
+  query: Record<string, string | string[] | undefined> | undefined,
+  key: string,
+  defaultValue: number
+): number {
+  if (!query) return defaultValue;
+  const v = query[key];
+  if (v === undefined) return defaultValue;
+  const raw = Array.isArray(v) ? v[v.length - 1] : v;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : defaultValue;
+}
+
+export function getQueryBoolean(
+  query: Record<string, string | string[] | undefined> | undefined,
+  key: string,
+  defaultValue: boolean = false
+): boolean {
+  if (!query) return defaultValue;
+  const v = query[key];
+  if (v === undefined) return defaultValue;
+  const raw = Array.isArray(v) ? v[v.length - 1] : v;
+  const str = String(raw).toLowerCase();
+  return str === 'true' || str === '1' || str === 'yes';
 }

@@ -45,6 +45,8 @@ export interface ErrorResponse {
   code?: string;
 }
 
+export type VerifyTempTokenResult = JwtPayload | { error: string };
+
 export interface SuccessResponse<T = JsonObject> {
   data: T;
   message?: string;

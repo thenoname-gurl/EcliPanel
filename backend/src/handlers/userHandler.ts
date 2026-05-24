@@ -57,6 +57,21 @@ import {
   getAgeFromDate,
   getRequesterIp,
 } from '../utils/user';
+import {
+  asRegisterBody,
+  asSendEmailBody,
+  asGuideShownBody,
+  getStringField,
+  getNumberField,
+  getBooleanField,
+  safeBody,
+  safeQuery,
+  getQueryString,
+  getQueryNumber,
+  getQueryBoolean,
+} from '../utils/body';
+import { getStringParam, getNumberParam } from '../types/handler';
+import type { ValidationErrorBody } from '../middleware/validation';
 
 const userSchema = t.Object({
   id: t.Number(),
@@ -276,12 +291,9 @@ export async function userRoutes(app: any, prefix = '') {
         }
       } catch {}
 
-      const body = ctx.body as Partial<User>;
-      const rawToken =
-        typeof (ctx.body as any).parentRegistrationToken === 'string'
-          ? (ctx.body as any).parentRegistrationToken.trim()
-          : '';
-      const parentRegistrationToken = rawToken || undefined;
+       const body = ctx.body as Partial<User>;
+       const rawToken = getStringField(ctx.body, 'parentRegistrationToken', '').trim();
+       const parentRegistrationToken = rawToken || undefined;
 
       const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
       const userRepo = AppDataSource.getRepository(User);
@@ -338,7 +350,7 @@ export async function userRoutes(app: any, prefix = '') {
         skipAddressFields: !!parentRegistrationInvite,
       });
       if (!valid) {
-        const validation = (ctx as any).body;
+        const validation = ctx.body as unknown as ValidationErrorBody | undefined;
         const found = validation?.found || {};
         const errorMessage =
           Object.entries(found)
@@ -347,12 +359,12 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: errorMessage };
       }
 
-      if (!(await canRegister((ctx.body as any).billingCountry))) {
+      if (!(await canRegister(getStringField(ctx.body, 'billingCountry')))) {
         ctx.set.status = 403;
         return { error: ctx.t('user.registrationDisabled') };
       }
 
-      const dateOfBirth = parseDateOfBirth((body as any).dateOfBirth);
+      const dateOfBirth = parseDateOfBirth(body.dateOfBirth);
       if (!dateOfBirth) {
         ctx.set.status = 400;
         return {
@@ -418,38 +430,24 @@ export async function userRoutes(app: any, prefix = '') {
         body.parentId = parentId;
       }
 
-      const {
-        email,
-        firstName,
-        lastName,
-        displayName,
-        phone,
-        address,
-        address2,
-        billingCompany,
-        billingCity,
-        billingState,
-        billingZip,
-        billingCountry,
-        parentId,
-      } = body as any;
-      const user = userRepo.create({
-        email,
-        firstName,
-        lastName,
-        displayName,
-        phone,
-        address,
-        address2,
-        billingCompany,
-        billingCity,
-        billingState,
-        billingZip,
-        billingCountry,
-        dateOfBirth,
-        parentId,
-      });
-      user.passwordHash = await hashPassword((body as any).password!);
+       const user = userRepo.create({
+         email: body.email,
+         firstName: body.firstName,
+         lastName: body.lastName,
+         displayName: body.displayName,
+         phone: body.phone,
+         address: body.address,
+         address2: body.address2,
+         billingCompany: body.billingCompany,
+         billingCity: body.billingCity,
+         billingState: body.billingState,
+         billingZip: body.billingZip,
+         billingCountry: body.billingCountry,
+         dateOfBirth,
+         parentId: body.parentId,
+       });
+       const password = getStringField(ctx.body, 'password', '');
+       user.passwordHash = await hashPassword(password);
       if (!user.portalType) user.portalType = 'free';
       try {
         await userRepo.save(user);
@@ -467,7 +465,7 @@ export async function userRoutes(app: any, prefix = '') {
               marketing: false,
               news: false,
             };
-            await userRepo.save({ id: user.id, settings } as any);
+            await userRepo.save({ id: user.id, settings });
           }
         } catch (e) {
           /* woof */
@@ -763,10 +761,9 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: 'already_linked', message: ctx.t('parentLink.alreadyLinked') };
       }
 
-      const body = (ctx.body as any) || {};
-      const parentEmail =
-        typeof body.parentEmail === 'string' ? body.parentEmail.trim().toLowerCase() : '';
-      const parentId = body.parentId != null ? Number(body.parentId) : undefined;
+      const body = safeBody(ctx.body);
+      const parentEmail = getStringField(ctx.body, 'parentEmail', '').trim().toLowerCase();
+      const parentId = getNumberField(ctx.body, 'parentId');
       if (!parentEmail && (parentId === undefined || parentId === null)) {
         ctx.set.status = 400;
         return { error: 'parent_required', message: ctx.t('parentLink.parentEmailOrIdRequired') };
@@ -843,10 +840,8 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const body = (ctx.body as any) || {};
-      const childEmail =
-        typeof body.childEmail === 'string' ? body.childEmail.trim().toLowerCase() : undefined;
-      const inheritBilling = body.inheritBilling === true;
+      const childEmail = getStringField(ctx.body, 'childEmail', '').trim().toLowerCase() || undefined;
+      const inheritBilling = getBooleanField(ctx.body, 'inheritBilling', false);
       const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
       const invite = inviteRepo.create({
         parentId: requester.id,
@@ -1083,14 +1078,13 @@ export async function userRoutes(app: any, prefix = '') {
           error: ctx.t('common.invalidRequestId'),
           message: ctx.t('parentLink.invalidRequestId'),
         };
-      }
+       }
 
-      const body = ctx.body as any;
-      const code = typeof body.code === 'string' ? body.code.trim() : '';
-      if (!code) {
-        ctx.set.status = 400;
-        return { error: 'code_required', message: ctx.t('parentLink.codeRequired') };
-      }
+       const code = getStringField(ctx.body, 'code', '').trim();
+       if (!code) {
+         ctx.set.status = 400;
+         return { error: 'code_required', message: ctx.t('parentLink.codeRequired') };
+       }
 
       const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
       const userRepo = AppDataSource.getRepository(User);
@@ -1148,7 +1142,7 @@ export async function userRoutes(app: any, prefix = '') {
           targetType: 'user',
           timestamp: new Date(),
           metadata: { requestId: request.id },
-        } as any)
+        })
       );
 
       return {
@@ -1185,17 +1179,16 @@ export async function userRoutes(app: any, prefix = '') {
       if (!Number.isInteger(childId) || childId <= 0) {
         ctx.set.status = 400;
         return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
-      }
+       }
 
-      const payload = ctx.body as any;
-      const dateOfBirth = parseDateOfBirth(payload?.dateOfBirth);
-      if (!dateOfBirth) {
-        ctx.set.status = 400;
-        return {
-          error: ctx.t('common.invalidDateOfBirth'),
-          message: ctx.t('parentLink.dobFormat'),
-        };
-      }
+       const dateOfBirth = parseDateOfBirth(safeBody(ctx.body).dateOfBirth);
+       if (!dateOfBirth) {
+         ctx.set.status = 400;
+         return {
+           error: ctx.t('common.invalidDateOfBirth'),
+           message: ctx.t('parentLink.dobFormat'),
+         };
+       }
 
       const userRepo = AppDataSource.getRepository(User);
       const child = await userRepo.findOneBy({ id: childId });
@@ -1230,7 +1223,7 @@ export async function userRoutes(app: any, prefix = '') {
           targetType: 'user',
           timestamp: new Date(),
           metadata: { dateOfBirth: child.dateOfBirth?.toISOString().split('T')[0] },
-        } as any)
+        })
       );
 
       return { success: true, child: await safeUser(child) };
@@ -1490,14 +1483,13 @@ export async function userRoutes(app: any, prefix = '') {
     prefix + '/users/me/children',
     async (ctx: any) => {
       const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
+       if (!requester) {
+         ctx.set.status = 401;
+         return { error: ctx.t('auth.notLoggedIn') };
+       }
 
-      const payload = ctx.body as any;
-      const childUserId = Number(payload?.childUserId);
-      if (!Number.isInteger(childUserId) || childUserId <= 0) {
+       const childUserId = getNumberField(ctx.body, 'childUserId', 0);
+       if (!Number.isInteger(childUserId) || childUserId <= 0) {
         ctx.set.status = 400;
         return { error: 'invalid_child_user_id', message: ctx.t('parentLink.childUserIdRequired') };
       }
@@ -1784,12 +1776,12 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const id = Number(ctx.params['id']);
-      const body = ctx.body as any;
-      const setRead = body?.read === undefined ? true : Boolean(body.read);
+       const id = Number(ctx.params['id']);
+       const safe = safeBody(ctx.body);
+       const setRead = safe.read === undefined ? true : Boolean(safe.read);
 
-      const notificationRepo = AppDataSource.getRepository(Notification);
-      const notification = await notificationRepo.findOneBy({ id, userId: requester.id } as any);
+       const notificationRepo = AppDataSource.getRepository(Notification);
+       const notification = await notificationRepo.findOneBy({ id, userId: requester.id });
       if (!notification) {
         ctx.set.status = 404;
         return { error: ctx.t('common.notificationNotFound') };
@@ -1819,9 +1811,9 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const id = Number(ctx.params['id']);
-      const notificationRepo = AppDataSource.getRepository(Notification);
-      const notification = await notificationRepo.findOneBy({ id, userId: requester.id } as any);
+       const id = Number(ctx.params['id']);
+       const notificationRepo = AppDataSource.getRepository(Notification);
+       const notification = await notificationRepo.findOneBy({ id, userId: requester.id });
       if (!notification) {
         ctx.set.status = 404;
         return { error: ctx.t('common.notificationNotFound') };
@@ -1866,13 +1858,12 @@ export async function userRoutes(app: any, prefix = '') {
         }
       }
 
-      const query = (ctx.query as any) || {};
-      const page = Math.max(1, Number(query.page || 1));
-      const limit = Math.min(100, Math.max(1, Number(query.limit || 20)));
-      const searchQuery = String(query.q || '').trim();
-      const unreadOnly = String(query.unread || '').toLowerCase() === 'true';
-      const categoryFilter = String(query.category || '').trim();
-      const favoriteOnly = String(query.favorite || '').toLowerCase() === 'true';
+       const page = getQueryNumber(ctx.query, 'page', 1);
+       const limit = Math.min(100, Math.max(1, getQueryNumber(ctx.query, 'limit', 20)));
+       const searchQuery = getQueryString(ctx.query, 'q', '').trim();
+       const unreadOnly = getQueryBoolean(ctx.query, 'unread', false);
+       const categoryFilter = getQueryString(ctx.query, 'category', '').trim();
+       const favoriteOnly = getQueryBoolean(ctx.query, 'favorite', false);
 
       const messageRepo = AppDataSource.getRepository(MailMessage);
       const qb = messageRepo
@@ -2071,10 +2062,9 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const query = ctx.query as any;
-      const statusFilter = String(query.status || '').trim();
-      const searchQuery = String(query.q || '').trim();
-      const favoriteOnly = String(query.favorite || '').toLowerCase() === 'true';
+      const statusFilter = getQueryString(ctx.query, 'status', '').trim();
+      const searchQuery = getQueryString(ctx.query, 'q', '').trim();
+      const favoriteOnly = getQueryBoolean(ctx.query, 'favorite', false);
 
       const outboundRepo = AppDataSource.getRepository(OutboundEmail);
       const qb = outboundRepo
@@ -2151,11 +2141,11 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const id = Number(ctx.params['id']);
-      const body = ctx.body as any;
-      const favorite = body.favorite === undefined ? true : Boolean(body.favorite);
-      const messageRepo = AppDataSource.getRepository(MailMessage);
-      const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+       const id = Number(ctx.params['id']);
+       const safe = safeBody(ctx.body);
+       const favorite = safe.favorite === undefined ? true : Boolean(safe.favorite);
+       const messageRepo = AppDataSource.getRepository(MailMessage);
+       const message = await messageRepo.findOneBy({ id, userId: requester.id });
       if (!message) {
         ctx.set.status = 404;
         return { error: ctx.t('common.messageNotFound') };
@@ -2187,11 +2177,11 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const id = Number(ctx.params['id']);
-      const body = ctx.body as any;
-      const favorite = body.favorite === undefined ? true : Boolean(body.favorite);
-      const outboundRepo = AppDataSource.getRepository(OutboundEmail);
-      const sent = await outboundRepo.findOneBy({ id, userId: requester.id } as any);
+       const id = Number(ctx.params['id']);
+       const safe = safeBody(ctx.body);
+       const favorite = safe.favorite === undefined ? true : Boolean(safe.favorite);
+       const outboundRepo = AppDataSource.getRepository(OutboundEmail);
+       const sent = await outboundRepo.findOneBy({ id, userId: requester.id });
       if (!sent) {
         ctx.set.status = 404;
         return { error: ctx.t('auth.sentEmailNotFound') };
@@ -2262,18 +2252,18 @@ export async function userRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/mailbox/send',
     async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
+       const requester = ctx.user as User;
+       if (!requester) {
+         ctx.set.status = 401;
+         return { error: ctx.t('auth.notLoggedIn') };
+       }
 
-      const { to, cc, bcc, subject, body, html } = ctx.body as any;
-      const toAddress = String(to || '').trim();
-      const ccValue = cc ? String(cc).trim() : '';
-      const bccValue = bcc ? String(bcc).trim() : '';
-      const messageBody = String(body || '').trim();
-      const messageHtml = html ? String(html) : undefined;
+       const { to, cc, bcc, subject, body: messageBody, html } = asSendEmailBody(ctx.body);
+       const toAddress = String(to || '').trim();
+       const ccValue = cc ? String(cc).trim() : '';
+       const bccValue = bcc ? String(bcc).trim() : '';
+       const messageText = String(messageBody || '').trim();
+       const messageHtml = html ? String(html) : undefined;
 
       const fromAddress = await resolveOutboundFromAddress(requester);
       if (!fromAddress) {
@@ -2281,14 +2271,14 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('mailbox.sendFailed') };
       }
 
-      if (!toAddress) {
-        ctx.set.status = 400;
-        return { error: ctx.t('validation.recipientEmailRequired') };
-      }
-      if (!messageBody && !messageHtml) {
-        ctx.set.status = 400;
-        return { error: ctx.t('validation.messageBodyRequired') };
-      }
+       if (!toAddress) {
+         ctx.set.status = 400;
+         return { error: ctx.t('validation.recipientEmailRequired') };
+       }
+       if (!messageText && !messageHtml) {
+         ctx.set.status = 400;
+         return { error: ctx.t('validation.messageBodyRequired') };
+       }
 
       const sendRateLimit = await enforceOutboundEmailRateLimit(
         ctx,
@@ -2410,12 +2400,11 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const id = Number(ctx.params['id']);
-      const body = ctx.body as any;
-      const category = String(body?.category || '').trim() || null;
+       const id = Number(ctx.params['id']);
+       const category = getStringField(ctx.body, 'category', '').trim() || null;
 
-      const messageRepo = AppDataSource.getRepository(MailMessage);
-      const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+       const messageRepo = AppDataSource.getRepository(MailMessage);
+       const message = await messageRepo.findOneBy({ id, userId: requester.id });
       if (!message) {
         ctx.set.status = 404;
         return { error: ctx.t('common.messageNotFound') };
@@ -2447,12 +2436,12 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const id = Number(ctx.params['id']);
-      const body = ctx.body as any;
-      const setRead = body?.read === undefined ? true : Boolean(body.read);
+       const id = Number(ctx.params['id']);
+       const safe = safeBody(ctx.body);
+       const setRead = safe.read === undefined ? true : Boolean(safe.read);
 
-      const messageRepo = AppDataSource.getRepository(MailMessage);
-      const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+       const messageRepo = AppDataSource.getRepository(MailMessage);
+       const message = await messageRepo.findOneBy({ id, userId: requester.id });
       if (!message) {
         ctx.set.status = 404;
         return { error: ctx.t('common.messageNotFound') };
@@ -2484,7 +2473,7 @@ export async function userRoutes(app: any, prefix = '') {
 
       const id = Number(ctx.params['id']);
       const messageRepo = AppDataSource.getRepository(MailMessage);
-      const message = await messageRepo.findOneBy({ id, userId: requester.id } as any);
+      const message = await messageRepo.findOneBy({ id, userId: requester.id });
       if (!message) {
         ctx.set.status = 404;
         return { error: ctx.t('common.messageNotFound') };
@@ -2772,12 +2761,12 @@ export async function userRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.notLoggedIn') };
       }
 
-      const payload = ctx.body as any;
-      const incomingFavorites = payload?.favorites;
-      if (!Array.isArray(incomingFavorites)) {
-        ctx.set.status = 400;
-        return { error: ctx.t('validation.invalidFavorites') };
-      }
+       const safe = safeBody(ctx.body);
+       const incomingFavorites = safe.favorites;
+       if (!Array.isArray(incomingFavorites)) {
+         ctx.set.status = 400;
+         return { error: ctx.t('validation.invalidFavorites') };
+       }
 
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ id: requester.id });
@@ -2836,37 +2825,38 @@ export async function userRoutes(app: any, prefix = '') {
         6,
         60
       );
-      if (profileRateLimit) return profileRateLimit;
+       if (profileRateLimit) return profileRateLimit;
 
-      const payload = ctx.body as any;
-      const isAdmin = hasPermissionSync(ctx, 'users:write');
-      if (payload.password) {
-        const pwResult = validatePassword(payload.password);
-        if (!pwResult.valid) {
-          ctx.set.status = 400;
-          return { error: pwResult.errors.join(' ') };
-        }
+       const payload = safeBody(ctx.body);
+       const isAdmin = hasPermissionSync(ctx, 'users:write');
+       const passwordValue = typeof payload.password === 'string' ? payload.password : undefined;
+       if (passwordValue) {
+         const pwResult = validatePassword(passwordValue);
+         if (!pwResult.valid) {
+           ctx.set.status = 400;
+           return { error: pwResult.errors.join(' ') };
+         }
 
-        const submittedCurrentPassword =
-          typeof payload.currentPassword === 'string' ? payload.currentPassword : undefined;
-        if (!submittedCurrentPassword && !isAdmin) {
-          ctx.set.status = 400;
-          return { error: ctx.t('auth.passwordRequired') };
-        }
+         const submittedCurrentPassword =
+           typeof payload.currentPassword === 'string' ? payload.currentPassword : undefined;
+         if (!submittedCurrentPassword && !isAdmin) {
+           ctx.set.status = 400;
+           return { error: ctx.t('auth.passwordRequired') };
+         }
 
-        if (submittedCurrentPassword) {
-          const validCurrent = await comparePassword(submittedCurrentPassword, user.passwordHash);
-          if (!validCurrent) {
-            ctx.set.status = 403;
-            return { error: ctx.t('auth.passwordInvalid') };
-          }
-        }
+         if (submittedCurrentPassword) {
+           const validCurrent = await comparePassword(submittedCurrentPassword, user.passwordHash);
+           if (!validCurrent) {
+             ctx.set.status = 403;
+             return { error: ctx.t('auth.passwordInvalid') };
+           }
+         }
 
-        user.passwordHash = await hashPassword(payload.password);
-        user.sessions = [];
-        delete payload.password;
-        delete payload.currentPassword;
-      }
+         user.passwordHash = await hashPassword(passwordValue);
+         user.sessions = [];
+         delete payload.password;
+         delete payload.currentPassword;
+       }
 
       const newEmail = typeof payload.email === 'string' ? payload.email.trim() : undefined;
       const oldEmail = user.email;
@@ -3298,26 +3288,24 @@ export async function userRoutes(app: any, prefix = '') {
         ctx.set.status = 401;
         return { error: ctx.t('auth.notLoggedIn') };
       }
-      if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.forbidden') };
-      }
+       if (requester.id !== user.id && !hasPermissionSync(ctx, 'users:write')) {
+         ctx.set.status = 403;
+         return { error: ctx.t('common.forbidden') };
+       }
 
-      const body = ctx.body;
-      const shown = body !== null && body !== undefined && typeof (body as any).shown === 'boolean'
-        ? (body as any).shown
-        : true;
-      user.guideShown = shown === true;
-      await userRepo.save(user);
+       const { shown } = asGuideShownBody(ctx.body);
+       const guideShown = shown !== undefined ? shown : true;
+       user.guideShown = guideShown;
+       await userRepo.save(user);
 
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(
-        logRepo.create({
-          userId: user.id,
-          action: shown ? 'guide:shown' : 'guide:reset',
-          timestamp: new Date(),
-        })
-      );
+       const logRepo = AppDataSource.getRepository(UserLog);
+       await logRepo.save(
+         logRepo.create({
+           userId: user.id,
+           action: guideShown ? 'guide:shown' : 'guide:reset',
+           timestamp: new Date(),
+         })
+       );
 
       return { success: true, user: await safeUser(user) };
     },
@@ -3350,11 +3338,11 @@ export async function userRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
-      const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
-      const nodes = await repo.find();
-      const results: any[] = [];
-      for (const n of nodes) {
-        const base = (n as any).backendWingsUrl || n.url;
+       const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
+       const nodes = await repo.find();
+       const results: any[] = [];
+       for (const n of nodes) {
+         const base = n.backendWingsUrl || n.url;
         const svc = new WingsApiService(base, n.token);
         const res = await svc.getServers();
 

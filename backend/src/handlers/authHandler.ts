@@ -15,6 +15,7 @@ import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicy
 import { validatePassword } from '../utils/passwordValidation';
 import { storeCsrfToken } from '../middleware/csrf';
 import { randomHex, randomInt, sha256Hex } from '../utils/bunCrypto';
+import type { VerifyTempTokenResult } from '../types/context';
 import {
   getPanelUrl,
   getBackendUrl,
@@ -23,19 +24,83 @@ import {
   isSecureRequest,
 } from '../utils/url';
 import { formatDateOfBirth } from '../utils/user';
+import {
+  safeBody,
+  asLoginBody,
+  asTwoFactorVerifyBody,
+  asTempTokenBody,
+  asTwoFactorLoginBody,
+  asEmailBody,
+  asPasswordResetBody,
+  asCodeBody,
+  asTokenSecretBody,
+  asTokenBody,
+  asPasskeyRegisterBody,
+  asPasskeyLoginBody,
+  asIdNameBody,
+  getStringField,
+  getQueryString,
+} from '../utils/body';
+import { getNumberParam } from '../types/handler';
 import type { BaseHandlerContext } from '../types/handler';
 import type { OrganisationMember } from '../models/organisationMember.entity';
 import type { Plan } from '../models/plan.entity';
+import type { JsonObject } from '../types/common';
+import type { UserOrgMembership } from '../types/auth';
+import type { Passkey } from '../models/passkey.entity';
+import type { Locale } from '../i18n/config';
 const speakeasy = require('speakeasy');
+
+interface AuthRouteApp {
+  jwt: {
+    sign: (payload: JsonObject, options?: { expiresIn?: string | number }) => string;
+  };
+  post: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
+  get: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
+  put: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
+  delete: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
+}
+
+type AuthRouteContext = Omit<BaseHandlerContext, 'locale'> & {
+  user?: User;
+  jwtPayload?: { sessionId?: string };
+  userPermissions?: string[];
+  redirect?: (url: string) => unknown;
+  locale?: Locale;
+};
+
+interface RestoreEmailPayload {
+  userId: number;
+  oldEmail: string;
+  newEmail: string;
+}
+
+type NumericLimits = Record<string, number | undefined>;
+
+interface TempTokenPayload {
+  userId?: number;
+  tfaSession?: string;
+  tfa?: boolean;
+}
+
+function hasTempTokenPayload(payload: unknown): payload is TempTokenPayload {
+  if (typeof payload !== 'object' || payload === null) return false;
+  const candidate = payload as TempTokenPayload;
+  return typeof candidate.userId === 'number' && typeof candidate.tfaSession === 'string';
+}
 
 async function randomToken(bytes = 32) {
   return Promise.resolve(randomHex(bytes));
 }
 
-async function verifyTempToken(token: string, logSource: string, ctx: BaseHandlerContext) {
+function isVerifyError(result: unknown): result is { error: string } {
+  return typeof result === 'object' && result !== null && 'error' in result;
+}
+
+async function verifyTempToken(token: string, logSource: string, ctx: BaseHandlerContext): Promise<VerifyTempTokenResult> {
   if (!token) {
     ctx.set.status = 400;
-    return { error: ctx.t('auth.missingTempToken') } as any;
+    return { error: ctx.t('auth.missingTempToken') };
   }
   try {
     const jwt = ctx.app?.jwt || ctx.jwt;
@@ -44,19 +109,19 @@ async function verifyTempToken(token: string, logSource: string, ctx: BaseHandle
     }
     const res = jwt.verify(token);
     if (res && typeof (res as unknown as Promise<unknown>).then === 'function') {
-      return await res;
+      return await res as VerifyTempTokenResult;
     }
-    return res as any;
+    return res as VerifyTempTokenResult;
   } catch (err: unknown) {
     const logCtx = ctx.log || ctx.app?.log || console;
     const errMessage = err instanceof Error ? err.message : String(err);
     logCtx.warn?.({ err: errMessage, token, source: logSource }, 'tempToken verification failed');
     ctx.set.status = 400;
-    return { error: ctx.t('auth.invalidTempToken') } as any;
+    return { error: ctx.t('auth.invalidTempToken') };
   }
 }
 
-export async function authRoutes(app: any, prefix = '') {
+export async function authRoutes(app: AuthRouteApp, prefix = '') {
   const orgMemberRepo = AppDataSource.getRepository(
     require('../models/organisationMember.entity').OrganisationMember
   );
@@ -69,7 +134,7 @@ export async function authRoutes(app: any, prefix = '') {
     }
   }
 
-  async function getUserOrgMemberships(userId: number) {
+  async function getUserOrgMemberships(userId: number): Promise<UserOrgMembership[]> {
     const memberships = await orgMemberRepo.find({
       where: { userId },
       relations: { organisation: true },
@@ -99,7 +164,14 @@ export async function authRoutes(app: any, prefix = '') {
         forwardedProto === 'https' ||
         ctx.protocol === 'https';
       const sameSite = secure ? 'none' : 'lax';
-      const options: any = {
+      const options: {
+        httpOnly: boolean;
+        secure: boolean;
+        sameSite: 'none' | 'lax';
+        path: string;
+        maxAge: number;
+        domain?: string;
+      } = {
         httpOnly: true,
         secure,
         sameSite,
@@ -114,7 +186,10 @@ export async function authRoutes(app: any, prefix = '') {
           secure,
           forwardedProto,
           protocol: ctx.protocol,
-          options,
+          httpOnly: true,
+          sameSite,
+          path: '/',
+          maxAge,
         },
         'setting auth cookie'
       );
@@ -167,7 +242,15 @@ export async function authRoutes(app: any, prefix = '') {
         forwardedProto === 'https' ||
         ctx.protocol === 'https';
       const sameSite = secure ? 'none' : 'lax';
-      const options: any = {
+      const options: {
+        httpOnly: boolean;
+        secure: boolean;
+        sameSite: 'none' | 'lax';
+        path: string;
+        maxAge: number;
+        expires: Date;
+        domain?: string;
+      } = {
         httpOnly: true,
         secure,
         sameSite,
@@ -177,7 +260,17 @@ export async function authRoutes(app: any, prefix = '') {
       };
       if (domain) options.domain = domain;
       ctx.log?.info?.(
-        { domain, secure, forwardedProto, protocol: ctx.protocol, options },
+        {
+          domain,
+          secure,
+          forwardedProto,
+          protocol: ctx.protocol,
+          httpOnly: true,
+          sameSite,
+          path: '/',
+          maxAge: 0,
+          expires: '1970-01-01T00:00:00.000Z',
+        },
         'clearing auth cookie'
       );
       if (typeof ctx.setCookie === 'function') {
@@ -197,16 +290,17 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/login',
-    async (ctx: any) => {
-      const body = ctx.body || {};
-      const { email, password } = body as any;
+    async (ctx: AuthRouteContext) => {
+      const { email, password } = asLoginBody(ctx.body);
       if (!email || !password) {
         ctx.set.status = 400;
         return { error: ctx.t('auth.missingEmailOrPassword') };
       }
 
       try {
-        const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0, 200);
+        const ip = (ctx.ip || (ctx.request as { ip?: string } | undefined)?.ip || '')
+          .toString()
+          .slice(0, 200);
         const keyIp = `rate:auth:login:ip:${ip}`;
         const rlIp = await require('../config/redis').consumeRateLimit(
           keyIp,
@@ -253,7 +347,7 @@ export async function authRoutes(app: any, prefix = '') {
           ctx.set.status = 429;
           return { error: ctx.t('auth.accountLocked') };
         }
-      } catch {}
+      } catch { }
 
       const valid = await comparePassword(password, user.passwordHash);
       if (!valid) {
@@ -264,7 +358,7 @@ export async function authRoutes(app: any, prefix = '') {
             await require('../config/redis').redisSet(lockoutKey, '1', 900);
             await require('../config/redis').redisDel(failKey);
           }
-        } catch {}
+        } catch { }
         ctx.set.status = 401;
         return { error: ctx.t('auth.invalidCredentials') };
       }
@@ -272,7 +366,7 @@ export async function authRoutes(app: any, prefix = '') {
       try {
         await require('../config/redis').redisDel(`lockout:login:fail:user:${user.id}`);
         await require('../config/redis').redisDel(lockoutKey);
-      } catch {}
+      } catch { }
 
       if (user.twoFactorEnabled) {
         const tfaSession = crypto.randomUUID();
@@ -280,10 +374,10 @@ export async function authRoutes(app: any, prefix = '') {
         const tempToken = ctx.app?.jwt?.sign
           ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
           : require('jsonwebtoken').sign(
-              { userId: user.id, tfaSession, tfa: true },
-              process.env.JWT_SECRET,
-              { expiresIn: '5m' }
-            );
+            { userId: user.id, tfaSession, tfa: true },
+            process.env.JWT_SECRET,
+            { expiresIn: '5m' }
+          );
         ctx.log?.info?.({ userId: user.id, tfaSession }, 'issued 2FA tempToken');
         return { twoFactorRequired: true, tempToken };
       }
@@ -402,9 +496,8 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/2fa/send-email',
-    async (ctx: any) => {
-      const body = ctx.body || {};
-      const { tempToken } = body as any;
+    async (ctx: AuthRouteContext) => {
+      const { tempToken } = asTempTokenBody(ctx.body);
       try {
         const ip = (ctx.ip || '').toString();
         const key = `rate:auth:2fa:ip:${ip}`;
@@ -426,27 +519,40 @@ export async function authRoutes(app: any, prefix = '') {
       }
 
       const payload = await verifyTempToken(tempToken, 'send-email', ctx);
-      if (payload && payload.error) {
+      if (isVerifyError(payload)) {
         return payload;
       }
-      if (!payload?.tfa || !payload?.userId) {
+      if (!hasTempTokenPayload(payload) || !payload.tfa) {
         ctx.set.status = 400;
         const logCtx = ctx.log || ctx.app?.log || console;
-        logCtx.warn?.({ payload, token: tempToken }, 'Invalid tempToken payload in send-email');
+        logCtx.warn?.(
+          {
+            payload: {
+              userId: Number(payload.userId),
+              tfaSession: String(payload.tfaSession),
+              tfa: Boolean(payload.tfa),
+            },
+            token: tempToken,
+          },
+          'Invalid tempToken payload in send-email'
+        );
         return { error: ctx.t('auth.invalidTempToken') };
       }
+      const tempPayload = payload;
+      const tempUserId = Number(tempPayload.userId);
+      const tempSessionId = String(tempPayload.tfaSession);
       ctx.log?.info?.(
-        { userId: payload.userId, tfaSession: payload.tfaSession },
+        { userId: tempUserId, tfaSession: tempSessionId },
         'sending 2FA email'
       );
       const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ id: payload.userId });
+      const user = await userRepo.findOneBy({ id: tempUserId });
       if (!user) {
         ctx.set.status = 404;
         return { error: ctx.t('user.notFound') };
       }
       const code = randomInt(0, 1000000).toString().padStart(6, '0');
-      await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
+      await redisSet(`tfa:email:${tempSessionId}`, code, 300);
       try {
         await sendMail({
           to: user.email,
@@ -479,7 +585,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/2fa/verify-login',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       try {
         const ip = (ctx.ip || '').toString();
         const key = `rate:auth:2fa:verify:ip:${ip}`;
@@ -493,37 +599,46 @@ export async function authRoutes(app: any, prefix = '') {
       }
 
       try {
-        const body = ctx.body || {};
-        const { tempToken, token, backupCode, emailCode } = body as any;
-        const payload = await verifyTempToken(tempToken, 'verify-login', ctx);
-        if (payload && payload.error) {
+        const { tempToken, token, backupCode, emailCode } = asTwoFactorLoginBody(ctx.body);
+         const payload = await verifyTempToken(tempToken, 'verify-login', ctx);
+        if (isVerifyError(payload)) {
           return payload;
         }
-        if (!payload?.tfa || !payload?.userId) {
+        if (!hasTempTokenPayload(payload) || !payload.tfa) {
           ctx.set.status = 400;
           const logCtx = ctx.log || ctx.app?.log || console;
           logCtx.warn?.(
-            { payload, token: tempToken, source: 'verify-login' },
+            {
+              payload: {
+                userId: Number(payload.userId),
+                tfaSession: String(payload.tfaSession),
+                tfa: Boolean(payload.tfa),
+              },
+              token: tempToken,
+              source: 'verify-login',
+            },
             'Invalid tempToken payload in verify-login'
           );
           return { error: ctx.t('validation.invalidTempTokenPayload') };
         }
+        const tempPayload = payload;
+        const tempUserId = Number(tempPayload.userId);
         const userRepo = AppDataSource.getRepository(User);
-        const user = await userRepo.findOneBy({ id: payload.userId });
+        const user = await userRepo.findOneBy({ id: tempUserId });
         if (!user) {
           ctx.set.status = 404;
           return { error: ctx.t('user.notFound') };
         }
 
         if (!token && !backupCode && !emailCode) {
-          const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
+          const totpKey = `rate:auth:2fa:totp:user:${tempUserId}`;
           try {
             const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300);
             if (!tRl.allowed) {
               ctx.set.status = 429;
               return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds };
             }
-          } catch {}
+          } catch { }
           ctx.set.status = 400;
           return { error: ctx.t('auth.twoFactorRequired') };
         }
@@ -542,14 +657,14 @@ export async function authRoutes(app: any, prefix = '') {
           const hashes = user.twoFactorRecoveryCodes || [];
           const h = sha256Hex(String(backupCode));
           if (!hashes.includes(h)) {
-            const bakKey = `rate:auth:2fa:backup:user:${payload.userId}`;
+            const bakKey = `rate:auth:2fa:backup:user:${tempUserId}`;
             try {
               const bRl = await require('../config/redis').consumeRateLimit(bakKey, 5, 3600);
               if (!bRl.allowed) {
                 ctx.set.status = 429;
                 return { error: 'rate_limited', retryAfter: bRl.retryAfterSeconds };
               }
-            } catch {}
+            } catch { }
             ctx.set.status = 400;
             return { error: ctx.t('auth.invalidBackupCode') };
           }
@@ -558,22 +673,22 @@ export async function authRoutes(app: any, prefix = '') {
         }
 
         if (token) {
-          const totpSoftKey = `rate:auth:2fa:totp:soft:user:${payload.userId}`;
+          const totpSoftKey = `rate:auth:2fa:totp:soft:user:${tempUserId}`;
           try {
             const tRl = await require('../config/redis').consumeRateLimit(totpSoftKey, 3, 300);
             if (!tRl.allowed) {
               ctx.set.status = 429;
               return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds };
             }
-          } catch {}
-          const totpHardKey = `rate:auth:2fa:totp:hard:user:${payload.userId}`;
+          } catch { }
+          const totpHardKey = `rate:auth:2fa:totp:hard:user:${tempUserId}`;
           try {
             const hRl = await require('../config/redis').consumeRateLimit(totpHardKey, 10, 3600);
             if (!hRl.allowed) {
               ctx.set.status = 429;
               return { error: ctx.t('auth.accountLocked2fa'), retryAfter: hRl.retryAfterSeconds };
             }
-          } catch {}
+          } catch { }
           const speakeasy = require('speakeasy');
           const ok = speakeasy.totp.verify({
             secret: user.twoFactorSecret || '',
@@ -649,9 +764,8 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/password-reset/request',
-    async (ctx: any) => {
-      const body = ctx.body || {};
-      const { email } = body as any;
+    async (ctx: AuthRouteContext) => {
+      const { email } = asEmailBody(ctx.body);
       if (!email) {
         ctx.set.status = 400;
         return { error: ctx.t('auth.emailRequired') };
@@ -693,7 +807,7 @@ export async function authRoutes(app: any, prefix = '') {
             return { error: 'rate_limited', retryAfter: eRl.retryAfterSeconds };
           }
         }
-      } catch {}
+      } catch { }
 
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ email });
@@ -732,9 +846,8 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/password-reset/confirm',
-    async (ctx: any) => {
-      const body = ctx.body || {};
-      const { token, password } = body as any;
+    async (ctx: AuthRouteContext) => {
+      const { token, password } = asPasswordResetBody(ctx.body);
       if (!token || !password) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.passwordRequired') };
@@ -756,7 +869,7 @@ export async function authRoutes(app: any, prefix = '') {
           };
           return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
         }
-      } catch {}
+      } catch { }
 
       const pwResult = validatePassword(password);
       if (!pwResult.valid) {
@@ -794,7 +907,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/logout',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user as User;
       if (!user) {
         ctx.set.status = 401;
@@ -819,7 +932,7 @@ export async function authRoutes(app: any, prefix = '') {
       await invalidateAuthSessionCache(user.id);
       try {
         clearAuthCookie(ctx);
-      } catch {}
+      } catch { }
       return { success: true };
     },
     {
@@ -862,7 +975,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/captcha',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const captchaEnabled = await isFeatureEnabled('captcha');
       if (!captchaEnabled) {
         ctx.set.status = 503;
@@ -884,7 +997,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/captcha/audio',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const captchaEnabled = await isFeatureEnabled('captcha');
       if (!captchaEnabled) {
         ctx.set.status = 503;
@@ -907,7 +1020,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/captcha/invisible',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const captchaInvisibleEnabled = await isFeatureEnabled('captchaInvisible');
       if (!captchaInvisibleEnabled) {
         ctx.set.status = 503;
@@ -930,7 +1043,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/verify-email',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       try {
         const ip = (ctx.ip || '').toString();
         const key = `rate:auth:verify-email:ip:${ip}`;
@@ -947,9 +1060,9 @@ export async function authRoutes(app: any, prefix = '') {
           };
           return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
         }
-      } catch {}
+      } catch { }
 
-      const { token } = ctx.query as any;
+      const token = getQueryString(ctx.query, 'token', '');
       if (!token) {
         ctx.set.status = 400;
         return { error: ctx.t('auth.missingToken') };
@@ -975,7 +1088,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       response: {
-        200: t.Any(),
+        200: t.Unknown(),
         400: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
       },
@@ -990,10 +1103,9 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/verify-email',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
-      const body = ctx.body || {};
-      const { code } = body as any;
+      const { code } = asCodeBody(ctx.body);
       if (!code) {
         ctx.set.status = 400;
         return { error: ctx.t('auth.missingCode') };
@@ -1014,7 +1126,7 @@ export async function authRoutes(app: any, prefix = '') {
           };
           return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
         }
-      } catch {}
+      } catch { }
 
       const expected = await redisGet(`email-verify:code:${user.id}`);
       if (!expected || expected !== String(code).trim()) {
@@ -1047,7 +1159,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/resend-verification',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
       if (user.emailVerified) return { success: true, message: ctx.t('auth.alreadyVerified') };
       try {
@@ -1103,7 +1215,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/restore-email',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       try {
         const ip = (ctx.ip || '').toString();
         const key = `rate:auth:restore-email:ip:${ip}`;
@@ -1120,9 +1232,9 @@ export async function authRoutes(app: any, prefix = '') {
           };
           return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
         }
-      } catch {}
+      } catch { }
 
-      const { token } = ctx.query as any;
+      const token = getQueryString(ctx.query, 'token', '');
       if (!token) {
         ctx.set.status = 400;
         return { error: ctx.t('auth.missingToken') };
@@ -1134,10 +1246,10 @@ export async function authRoutes(app: any, prefix = '') {
         return { error: ctx.t('auth.tokenExpired') };
       }
 
-      let payload: any;
+      let payload: RestoreEmailPayload;
       try {
         const jsonString = String(data);
-        payload = JSON.parse(jsonString);
+        payload = JSON.parse(jsonString) as RestoreEmailPayload;
       } catch (e) {
         ctx.set.status = 400;
         return { error: ctx.t('server.restoreInvalidData') };
@@ -1166,7 +1278,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       response: {
-        200: t.Any(),
+        200: t.Unknown(),
         400: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
       },
@@ -1181,7 +1293,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/passkey/register-challenge',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
       const frontendHost = getFrontendHost(ctx);
       const opts = await PasskeyService.generateRegistration(
@@ -1193,7 +1305,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
+      response: { 200: t.Unknown(), 401: t.Object({ error: t.String() }) },
       detail: {
         summary: 'Begin passkey registration',
         description: 'Starts the passkey registration process for the user.',
@@ -1205,16 +1317,17 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/passkey/register',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
-      const body = ctx.body || {};
-      const { attestationResponse } = body as any;
+      const { attestationResponse } = asPasskeyRegisterBody(ctx.body);
       const expected = await redisGet(`passkey:reg:${user.id}`);
       if (!expected) {
         ctx.set.status = 400;
         return { error: ctx.t('system.noChallenge') };
       }
-      const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+      const requestOrigin = String(
+        ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer || ''
+      ) || undefined;
       const requestHost = getFrontendHost(ctx);
       const ver = await PasskeyService.verifyRegistrationResponse({
         userId: user.id,
@@ -1228,9 +1341,9 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      body: t.Any(),
+      body: t.Unknown(),
       response: {
-        200: t.Any(),
+        200: t.Unknown(),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
       },
@@ -1245,9 +1358,8 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/passkey/authenticate-challenge',
-    async (ctx: any) => {
-      const body = ctx.body || {};
-      const { email } = body as any;
+    async (ctx: AuthRouteContext) => {
+      const { email } = asEmailBody(ctx.body);
       if (!email) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.missingEmail') };
@@ -1265,7 +1377,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       body: t.Object({ email: t.String({ format: 'email' }) }),
-      response: { 200: t.Any(), 400: t.Object({ error: t.String() }) },
+      response: { 200: t.Unknown(), 400: t.Object({ error: t.String() }) },
       detail: {
         summary: 'Start passkey authentication',
         description: 'Starts the passkey authentication process for the user.',
@@ -1277,9 +1389,8 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/passkey/authenticate',
-    async (ctx: any) => {
-      const body = ctx.body || {};
-      const { email, authenticationResponse } = body as any;
+    async (ctx: AuthRouteContext) => {
+      const { email, authenticationResponse } = asPasskeyLoginBody(ctx.body);
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ email });
       if (!user) {
@@ -1291,7 +1402,9 @@ export async function authRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: ctx.t('system.noChallenge') };
       }
-      const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+      const requestOrigin = String(
+        ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer || ''
+      ) || undefined;
       const requestHost = getFrontendHost(ctx);
       const ver = await PasskeyService.verifyAuthenticationResponse({
         userId: user.id,
@@ -1329,9 +1442,9 @@ export async function authRoutes(app: any, prefix = '') {
       }
     },
     {
-      body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Any() }),
+      body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Unknown() }),
       response: {
-        200: t.Any(),
+        200: t.Unknown(),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
       },
@@ -1346,14 +1459,14 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/passkeys',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
       const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
       const keys = await passkeyRepo.find({
         where: { user: { id: user.id } },
         relations: { user: true },
       });
-      return keys.map((k: any) => ({
+      return keys.map((k: Passkey) => ({
         id: k.id,
         name: k.name || `Passkey #${k.id}`,
         credentialID: k.credentialID,
@@ -1367,8 +1480,8 @@ export async function authRoutes(app: any, prefix = '') {
           t.Object({
             id: t.Number(),
             name: t.Optional(t.String()),
-            credentialID: t.Any(),
-            transports: t.Any(),
+            credentialID: t.Unknown(),
+            transports: t.Unknown(),
           })
         ),
         401: t.Object({ error: t.String() }),
@@ -1384,10 +1497,10 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/auth/passkeys/:id',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
-      const id = Number((ctx.params as any).id);
-      const { name } = ctx.body as any;
+      const id = getNumberParam(ctx.params, 'id', 0);
+      const { name } = asIdNameBody(ctx.body);
       if (!name) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameRequired') };
@@ -1424,7 +1537,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/2fa/setup',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user as User;
       const secret = speakeasy.generateSecret({ name: `EcliPanel (${user.email})` });
       return { secret: secret.base32, otpauth_url: secret.otpauth_url };
@@ -1446,7 +1559,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/2fa/verify',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user as User;
       try {
         const ip = (ctx.ip || '').toString();
@@ -1460,8 +1573,7 @@ export async function authRoutes(app: any, prefix = '') {
         /* meow */
       }
 
-      const body = ctx.body || {};
-      const { token, secret } = body as any;
+      const { token, secret } = asTokenSecretBody(ctx.body);
       if (!token || !secret) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.missingTokenOrSecret') };
@@ -1513,7 +1625,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/auth/2fa/disable',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user as User;
       try {
         const ip = (ctx.ip || '').toString();
@@ -1527,8 +1639,7 @@ export async function authRoutes(app: any, prefix = '') {
         /* meow */
       }
 
-      const body = ctx.body || {};
-      const { token } = body as any;
+      const { token } = asTokenBody(ctx.body);
       if (!token) {
         ctx.set.status = 400;
         return { error: ctx.t('auth.missingToken') };
@@ -1551,9 +1662,9 @@ export async function authRoutes(app: any, prefix = '') {
       await userRepo.save(user);
       try {
         await require('../config/redis').redisDelByPrefix(
-          `csrf:${(ctx.jwtPayload as any)?.sessionId}`
+          `csrf:${ctx.jwtPayload?.sessionId}`
         );
-      } catch {}
+      } catch { }
       ctx.log.info(
         { userId: user.id, twoFactorEnabled: user.twoFactorEnabled },
         'User 2FA disabled'
@@ -1579,12 +1690,12 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/auth/passkeys/:id',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
-      const { id } = ctx.params as any;
+      const id = getNumberParam(ctx.params, 'id', 0);
       const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
       const key = await passkeyRepo.findOne({
-        where: { id: Number(id), user: { id: user.id } },
+        where: { id, user: { id: user.id } },
         relations: { user: true },
       });
       if (!key) {
@@ -1614,7 +1725,7 @@ export async function authRoutes(app: any, prefix = '') {
   // and I will hope whatever I did will work..
   app.get(
     prefix + '/auth/github/start',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
       const state = await randomToken(16);
       await redisSet(`github-student-state:${state}`, String(user.id), 600);
@@ -1656,8 +1767,9 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/github/callback',
-    async (ctx: any) => {
-      const { code, state } = ctx.query as any;
+    async (ctx: AuthRouteContext) => {
+      const code = getQueryString(ctx.query, 'code', '');
+      const state = getQueryString(ctx.query, 'state', '');
       if (!code || !state) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.missingCodeOrState') };
@@ -1712,9 +1824,9 @@ export async function authRoutes(app: any, prefix = '') {
         },
         'GitHub Education API raw response'
       );
-      let eduData: Record<string, unknown> = {};
+      let eduData: JsonObject = {};
       try {
-        eduData = JSON.parse(eduText);
+        eduData = JSON.parse(eduText) as JsonObject;
       } catch {
         ctx.log.warn(
           { status: eduRes.status, body: eduText },
@@ -1763,7 +1875,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       response: {
-        200: t.Any(),
+        200: t.Unknown(),
         400: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
       },
@@ -1778,7 +1890,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/hackclub/start',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user;
       const state = await randomToken(16);
       await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
@@ -1818,8 +1930,9 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/hackclub/callback',
-    async (ctx: any) => {
-      const { code, state } = ctx.query as any;
+    async (ctx: AuthRouteContext) => {
+      const code = getQueryString(ctx.query, 'code', '');
+      const state = getQueryString(ctx.query, 'state', '');
       if (!code || !state) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.missingCodeOrState') };
@@ -1869,9 +1982,9 @@ export async function authRoutes(app: any, prefix = '') {
         },
       });
       const meText = await meRes.text();
-      let meData: Record<string, unknown> = {};
+      let meData: JsonObject = {};
       try {
-        meData = JSON.parse(meText);
+        meData = JSON.parse(meText) as JsonObject;
       } catch {
         ctx.log.warn(
           { status: meRes.status, body: meText },
@@ -1879,8 +1992,8 @@ export async function authRoutes(app: any, prefix = '') {
         );
       }
 
-      const hkIdentity = (meData?.identity as Record<string, unknown> | undefined) ?? {};
-      const isStudent = (hkIdentity as Record<string, unknown>)?.ysws_eligible === true;
+      const hkIdentity = (meData.identity as JsonObject | undefined) ?? {};
+      const isStudent = hkIdentity.ysws_eligible === true;
 
       if (!isStudent) {
         ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');
@@ -1915,8 +2028,8 @@ export async function authRoutes(app: any, prefix = '') {
           emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
         };
 
-        const existingLimits = (user.educationLimits || {}) as Record<string, any>;
-        const currentBaseLimits = (user.limits || {}) as Record<string, any>;
+        const existingLimits = (user.educationLimits || {}) as NumericLimits;
+        const currentBaseLimits = (user.limits || {}) as NumericLimits;
 
         const portLimitExisting = existingLimits.portsPerServer ?? existingLimits.portCount ?? 0;
         const portLimitBase = currentBaseLimits.portsPerServer ?? currentBaseLimits.portCount ?? 0;
@@ -1988,7 +2101,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       response: {
-        200: t.Any(),
+        200: t.Unknown(),
         400: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
       },
@@ -2003,7 +2116,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/session',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const user = ctx.user as User | undefined;
       if (!user) {
         ctx.set.status = 401;
@@ -2028,10 +2141,10 @@ export async function authRoutes(app: any, prefix = '') {
             const Plan = require('../models/plan.entity').Plan;
             const orderRepo = AppDataSource.getRepository(Order);
             const planRepo = AppDataSource.getRepository(Plan);
-            let orders: any[] = [];
+            let orders: Array<{ id?: unknown; planId?: number | null }> = [];
             try {
               const orgIds = orgs
-                .map((o: any) => Number(o.id))
+                .map((o: UserOrgMembership) => Number(o.id))
                 .filter((x: number) => Number.isFinite(x));
               if (orgIds.length > 0) {
                 const orgOrderWhere = orgIds.map((oid: number) => ({
@@ -2124,12 +2237,12 @@ export async function authRoutes(app: any, prefix = '') {
             parentId: user.parentId != null ? Number(user.parentId) : null,
             org: legacyOrg
               ? {
-                  id: legacyOrg.id,
-                  name: legacyOrg.name,
-                  handle: legacyOrg.handle,
-                  portalTier: legacyOrg.portalTier,
-                  avatarUrl: legacyOrg.avatarUrl,
-                }
+                id: legacyOrg.id,
+                name: legacyOrg.name,
+                handle: legacyOrg.handle,
+                portalTier: legacyOrg.portalTier,
+                avatarUrl: legacyOrg.avatarUrl,
+              }
               : null,
             orgs,
             orgRole: legacyOrg?.orgRole || 'member',
@@ -2148,7 +2261,7 @@ export async function authRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
+      response: { 200: t.Unknown(), 401: t.Object({ error: t.String() }) },
       detail: {
         summary: 'Get current session info',
         description: 'Returns information about the current authenticated session.',
@@ -2160,7 +2273,7 @@ export async function authRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/auth/csrf-token',
-    async (ctx: any) => {
+    async (ctx: AuthRouteContext) => {
       const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
       const sessionId = decoded?.sessionId;
       if (!sessionId) {
