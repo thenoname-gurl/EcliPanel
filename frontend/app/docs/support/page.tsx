@@ -1,16 +1,16 @@
----
-title: Help, support, and policy resources
-description: How to get help when you need it, how the ticket system works, and where to find all legal and policy documents.
----
+import { Md } from "../_components/md";
+
+const content = `
+# Help, support, and policy resources
 
 ## Support channels
 
-| Channel                                         | Use it for                                                                                                                                                    |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| In-app tickets (primary)                        | Technical issues, billing questions, account problems, and feature requests. Fastest and most reliable channel. All conversations are tracked and searchable. |
-| Email — [legal@ecli.app](mailto:legal@ecli.app) | Legal questions, compliance inquiries, DMCA notices, or data protection requests. Not for technical support.                                                  |
-| Documentation                                   | Browse the [docs](/docs) for guides on every feature. Most common questions are answered here before you need to open a ticket.                               |
-| Legal center                                    | Read our [terms of service](/legal), privacy policy, acceptable use policy, and other legal documents.                                                        |
+| Channel | Use it for |
+|---|---|
+| In-app tickets (primary) | Technical issues, billing questions, account problems, and feature requests. Fastest and most reliable channel. All conversations are tracked and searchable. |
+| Email — [legal@ecli.app](mailto:legal@ecli.app) | Legal questions, compliance inquiries, DMCA notices, or data protection requests. Not for technical support. |
+| Documentation | Browse the [docs](/docs) for guides on every feature. Most common questions are answered here before you need to open a ticket. |
+| Legal center | Read our [terms of service](/legal), privacy policy, acceptable use policy, and other legal documents. |
 
 ## How to open a support ticket
 
@@ -34,14 +34,14 @@ description: How to get help when you need it, how the ticket system works, and 
 
 ## Writing effective tickets
 
-| Do this                                      | Avoid this                                   |
-| -------------------------------------------- | -------------------------------------------- |
-| Include server ID and name                   | "It's broken" with no details                |
-| Paste full error messages                    | Vague descriptions like "not working"        |
-| Describe what you expected vs. what happened | Multiple unrelated issues in one ticket      |
-| List steps to reproduce                      | Demanding immediate responses                |
-| Attach screenshots or logs                   | Sharing sensitive data (passwords, keys)     |
-| Mention what you have already tried          | Opening duplicate tickets for the same issue |
+| Do this | Avoid this |
+|---|---|
+| Include server ID and name | "It's broken" with no details |
+| Paste full error messages | Vague descriptions like "not working" |
+| Describe what you expected vs. what happened | Multiple unrelated issues in one ticket |
+| List steps to reproduce | Demanding immediate responses |
+| Attach screenshots or logs | Sharing sensitive data (passwords, keys) |
+| Mention what you have already tried | Opening duplicate tickets for the same issue |
 
 ## Legal and policy references
 
@@ -69,3 +69,8 @@ Before opening a ticket, try these steps first.
 ---
 
 For onboarding, see [Getting started](/docs/getting-started). For server control and troubleshooting, visit [Server management](/docs/server-management). For account inactivity and server sunset rules, see the [Sunset policy](/docs/sunset).
+`;
+
+export default function Page() {
+  return <Md>{content}</Md>;
+}

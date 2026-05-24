@@ -1,7 +1,7 @@
----
-title: EcliPanel Documentation
-description: Learn how to set up your account, deploy servers, manage resources, and get help.
----
+import { Md } from "./_components/md";
+
+const content = `
+# EcliPanel Documentation
 
 Learn how to set up your account, deploy servers, manage resources, and get help. Each guide walks you through the exact screens and features in the panel — from your first login to running production workloads.
 
@@ -35,3 +35,8 @@ Start with the page that matches your goal. If you are new to the panel, begin w
 ## Legal documents
 
 For the full terms of service, privacy policy, acceptable use policy, and other legal documents, visit the [Legal Center](/legal). These documents define your rights and responsibilities as a user of EcliPanel.
+`;
+
+export default function Page() {
+  return <Md>{content}</Md>;
+}
