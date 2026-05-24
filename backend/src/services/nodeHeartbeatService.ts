@@ -2,13 +2,13 @@ import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 
-const INTERVAL_MS    = 30_000; 
-const PING_TIMEOUT   =  8_000; 
-const RETENTION_DAYS =      7; 
+const INTERVAL_MS = 30_000;
+const PING_TIMEOUT = 8_000;
+const RETENTION_DAYS = 7;
 const ALLOW_INVALID_CERTS = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
 
 export class NodeHeartbeatService {
-  private pingInterval:   ReturnType<typeof setInterval> | null = null;
+  private pingInterval: ReturnType<typeof setInterval> | null = null;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   start() {
@@ -19,7 +19,7 @@ export class NodeHeartbeatService {
   }
 
   stop() {
-    if (this.pingInterval)    clearInterval(this.pingInterval);
+    if (this.pingInterval) clearInterval(this.pingInterval);
     if (this.cleanupInterval) clearInterval(this.cleanupInterval);
     this.pingInterval = null;
     this.cleanupInterval = null;
@@ -32,11 +32,11 @@ export class NodeHeartbeatService {
     } catch {
       return;
     }
-    await Promise.allSettled(nodes.map((n) => this.pingNode(n)));
+    await Promise.allSettled(nodes.map(n => this.pingNode(n)));
   }
 
   private async pingNode(node: Node) {
-    const raw     = ((node as any).backendWingsUrl || node.url).replace(/\/+$/, '');
+    const raw = ((node as any).backendWingsUrl || node.url).replace(/\/+$/, '');
     const baseUrl = raw.endsWith('/api') ? raw.slice(0, -4) : raw;
     const endpoint = `${baseUrl}/api/servers`;
 

@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 
 @Entity()
@@ -17,7 +24,7 @@ export class OutboundEmail {
 
   @Column()
   toAddress: string;
-  
+
   @Column({ nullable: true, type: 'text' })
   cc?: string;
 

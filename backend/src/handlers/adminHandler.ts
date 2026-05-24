@@ -36,7 +36,12 @@ import { Plan } from '../models/plan.entity';
 import { ShortUrl } from '../models/shortUrl.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
 import { executeDeletionRequest } from '../jobs/deletionExecutionJob';
-import { getGeoBlockRules, getGeoBlockLevelFromRules, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
+import {
+  getGeoBlockRules,
+  getGeoBlockLevelFromRules,
+  getGeoBlockLevel,
+  getMinimumAgeForCountry,
+} from '../utils/eu';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
 import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 import { redisDel } from '../config/redis';
@@ -49,7 +54,11 @@ import { normalizeProcessConfig } from '../utils/startupDetection';
 import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
-import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
+import {
+  notifyServerOwnerDmca,
+  notifyServerOwnerSuspended,
+  notifyServerOwnerUnsuspended,
+} from '../utils/suspensionNotice';
 import { isValidIpv6, isIpv6InSubnet, parseIpv6, formatIpv6 } from '../utils/ipv6';
 import { createActivityLog } from './logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
@@ -95,7 +104,7 @@ type ContributorActivityEntry = {
 function normalizeContributorActivity(input: any): ContributorActivityEntry[] {
   if (!Array.isArray(input)) return [];
   return input
-    .map((item) => {
+    .map(item => {
       const date = String(item?.date || '').trim();
       const label = String(item?.label || '').trim();
       if (!date || !label) return null;
@@ -117,7 +126,9 @@ function buildContributorSummary(user: User) {
   const middleName = String(user.middleName || '').trim();
   const lastName = String(user.lastName || '').trim();
   const fallbackName = `${firstName}${middleName ? ` ${middleName}` : ''} ${lastName}`.trim();
-  const displayName = String(user.displayName || fallbackName || user.email || `User #${user.id}`).trim();
+  const displayName = String(
+    user.displayName || fallbackName || user.email || `User #${user.id}`
+  ).trim();
   const githubLogin = String((user as any).githubLogin || '').trim();
   const githubProfileUrl = String((user as any).githubProfileUrl || '').trim();
   const ecliAvatarUrl = String((user as any).avatarUrl || '').trim();
@@ -125,13 +136,23 @@ function buildContributorSummary(user: User) {
   const chosenAvatarUrl = ecliAvatarUrl || githubAvatarUrl;
   const contributorTitle = String((user as any).contributorTitle || '').trim();
   const activity = normalizeContributorActivity((user as any).contributorActivity);
-  const activityScore = activity.reduce((sum, item) => sum + Math.max(1, Number(item.points) || 1), 0);
-  const lastActivityAt = activity
-    .map((item) => item.date)
-    .filter(Boolean)
-    .sort((a, b) => String(b).localeCompare(String(a)))[0] || null;
+  const activityScore = activity.reduce(
+    (sum, item) => sum + Math.max(1, Number(item.points) || 1),
+    0
+  );
+  const lastActivityAt =
+    activity
+      .map(item => item.date)
+      .filter(Boolean)
+      .sort((a, b) => String(b).localeCompare(String(a)))[0] || null;
 
-  if (!githubLogin && !githubProfileUrl && !githubAvatarUrl && !contributorTitle && activity.length === 0) {
+  if (
+    !githubLogin &&
+    !githubProfileUrl &&
+    !githubAvatarUrl &&
+    !contributorTitle &&
+    activity.length === 0
+  ) {
     return null;
   }
 
@@ -163,22 +184,28 @@ const POWER_DICE_FAILURE_LINES = [
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const antiAbuseThrottleState = new Map<string, { restoreCpu: number; timer: NodeJS.Timeout }>();
-const antiAbuseAgentState = new Map<string, {
-  agentId: string;
-  detectorName: string;
-  nodeName: string;
-  lastSeenTs: number;
-  pid: number | null;
-  version: string | null;
-}>();
+const antiAbuseAgentState = new Map<
+  string,
+  {
+    agentId: string;
+    detectorName: string;
+    nodeName: string;
+    lastSeenTs: number;
+    pid: number | null;
+    version: string | null;
+  }
+>();
 
 function listAntiAbuseAgents() {
   const now = Date.now();
   const activeWindowMsRaw = Number(process.env.ANTIABUSE_AGENT_ACTIVE_MS || 120000);
-  const activeWindowMs = Number.isFinite(activeWindowMsRaw) && activeWindowMsRaw > 0 ? Math.floor(activeWindowMsRaw) : 120000;
+  const activeWindowMs =
+    Number.isFinite(activeWindowMsRaw) && activeWindowMsRaw > 0
+      ? Math.floor(activeWindowMsRaw)
+      : 120000;
 
   return Array.from(antiAbuseAgentState.values())
-    .map((entry) => {
+    .map(entry => {
       const lastSeenAt = new Date(entry.lastSeenTs).toISOString();
       const ageMs = Math.max(0, now - entry.lastSeenTs);
       const active = ageMs <= activeWindowMs;
@@ -281,7 +308,11 @@ async function sendAntiAbuseAdminNotification(params: {
     });
     return { sent: true, recipient: recipients.join(', ') };
   } catch (err: any) {
-    return { sent: false, recipient: recipients.join(', '), error: err?.message || 'failed to send admin notification' };
+    return {
+      sent: false,
+      recipient: recipients.join(', '),
+      error: err?.message || 'failed to send admin notification',
+    };
   }
 }
 
@@ -289,16 +320,25 @@ async function attemptAutoSuspendServer(
   serverId: string,
   reason: string,
   actor: string,
-  dmca = false,
-): Promise<{ success: boolean; attempted: boolean; emailSent: boolean; emailRecipient: string | null; emailError: string | null; message: string }> {
+  dmca = false
+): Promise<{
+  success: boolean;
+  attempted: boolean;
+  emailSent: boolean;
+  emailRecipient: string | null;
+  emailError: string | null;
+  message: string;
+}> {
   const _t = createT(getMessages(defaultLocale));
   const nodeRepo = AppDataSource.getRepository(Node);
   const cfgRepo = AppDataSource.getRepository(ServerConfig);
   const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
-  const preferredNode = existingCfg?.nodeId ? await nodeRepo.findOneBy({ id: existingCfg.nodeId }) : null;
+  const preferredNode = existingCfg?.nodeId
+    ? await nodeRepo.findOneBy({ id: existingCfg.nodeId })
+    : null;
   const allNodes = await nodeRepo.find();
   const nodes = preferredNode
-    ? [preferredNode, ...allNodes.filter((n) => n.id !== preferredNode.id)]
+    ? [preferredNode, ...allNodes.filter(n => n.id !== preferredNode.id)]
     : allNodes;
 
   for (const n of nodes) {
@@ -324,7 +364,7 @@ async function attemptAutoSuspendServer(
         await cfgRepo.update({ uuid: serverId }, updateData);
       }
 
-      await svc.powerServer(serverId, 'kill').catch(() => { });
+      await svc.powerServer(serverId, 'kill').catch(() => {});
       await svc.syncServer(serverId, {});
 
       const adminNotification = await sendAntiAbuseAdminNotification({
@@ -386,11 +426,16 @@ function randomIntInclusive(min: number, max: number): number {
 }
 
 function pickRandomPowerDiceFailureLine(): string {
-  return POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] || '🎲 Nuh uh.';
+  return (
+    POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] ||
+    '🎲 Nuh uh.'
+  );
 }
 
 function isGamblingModeEnabled(user: any): boolean {
-  const themeName = String(user?.settings?.theme?.name || '').trim().toLowerCase();
+  const themeName = String(user?.settings?.theme?.name || '')
+    .trim()
+    .toLowerCase();
   return GAMBLING_THEME_NAMES.has(themeName);
 }
 
@@ -408,8 +453,14 @@ function parsePanelSettingsMap(rows: PanelSetting[]): Record<string, string> {
 function getGamblingConfigFromMap(map: Record<string, string>) {
   return {
     gamblingEnabled: !(map['gamblingEnabled'] === 'false' || map['gamblingEnabled'] === '0'),
-    gamblingResourceLuckyChance: clampChance(Number(map['gamblingResourceLuckyChance']), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE),
-    gamblingPowerDenyChance: clampChance(Number(map['gamblingPowerDenyChance']), GAMBLING_DEFAULT_POWER_DENY_CHANCE),
+    gamblingResourceLuckyChance: clampChance(
+      Number(map['gamblingResourceLuckyChance']),
+      GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE
+    ),
+    gamblingPowerDenyChance: clampChance(
+      Number(map['gamblingPowerDenyChance']),
+      GAMBLING_DEFAULT_POWER_DENY_CHANCE
+    ),
   };
 }
 
@@ -417,25 +468,35 @@ function parseSizeToMB(input: any): number | null {
   if (input === null || input === undefined || input === '') return null;
   if (typeof input === 'number') return Number(input);
   if (typeof input !== 'string') return null;
-  let s = input.trim().toLowerCase().replace(',', '.');
+  const s = input.trim().toLowerCase().replace(',', '.');
   const m = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*(b|kb|k|mb|m|gb|g|tb|t)?s?$/i);
   if (!m) return null;
   const n = parseFloat(m[1]);
   const unit = (m[2] || 'mb').toLowerCase();
   switch (unit) {
-    case 'b': return Math.round(n / (1024 * 1024));
-    case 'k': case 'kb': return Math.round(n / 1024);
-    case 'm': case 'mb': return Math.round(n);
-    case 'g': case 'gb': return Math.round(n * 1024);
-    case 't': case 'tb': return Math.round(n * 1024 * 1024);
-    default: return Math.round(n);
+    case 'b':
+      return Math.round(n / (1024 * 1024));
+    case 'k':
+    case 'kb':
+      return Math.round(n / 1024);
+    case 'm':
+    case 'mb':
+      return Math.round(n);
+    case 'g':
+    case 'gb':
+      return Math.round(n * 1024);
+    case 't':
+    case 'tb':
+      return Math.round(n * 1024 * 1024);
+    default:
+      return Math.round(n);
   }
 }
 function parseCpuInput(input: any): number | null {
   if (input === null || input === undefined || input === '') return null;
   if (typeof input === 'number') return Number(input);
   if (typeof input !== 'string') return null;
-  let s = input.trim().toLowerCase().replace(',', '.');
+  const s = input.trim().toLowerCase().replace(',', '.');
   if (s.endsWith('%')) {
     const v = parseFloat(s.replace(/%/g, ''));
     return Number.isFinite(v) ? v : null;
@@ -535,7 +596,7 @@ function hasAnyAdminPermission(ctx: any): boolean {
   if (apiKey && apiKey.type === 'admin') return true;
   if (!ctx?.user) return false;
   if (hasPermissionSync(ctx, 'admin:access')) return true;
-  return ADMIN_PAGE_PERMISSIONS.some((perm) => hasPermissionSync(ctx, perm));
+  return ADMIN_PAGE_PERMISSIONS.some(perm => hasPermissionSync(ctx, perm));
 }
 
 function requireAdminPageAccess(ctx: any): true | { error: string } {
@@ -567,7 +628,10 @@ function requireAdminPermission(ctx: any, permission: string): true | { error: s
   return { error: `Admin permission ${permission} required.` };
 }
 
-function requireAdminPermissionOrAdminApiKey(ctx: any, permission: string): true | { error: string } {
+function requireAdminPermissionOrAdminApiKey(
+  ctx: any,
+  permission: string
+): true | { error: string } {
   const apiKey = ctx.apiKey as any;
   if (apiKey && apiKey.type === 'admin') return true;
   return requireAdminPermission(ctx, permission);
@@ -581,7 +645,10 @@ function requireAdminMountsPermission(ctx: any): true | { error: string } {
     return { error: ctx.t('auth.unauthorized') };
   }
   if (apiKey && apiKey.type === 'admin') return true;
-  if (hasPermissionSync(ctx, 'admin.mounts.add/remove') || hasPermissionSync(ctx, 'admin:servers:manage')) {
+  if (
+    hasPermissionSync(ctx, 'admin.mounts.add/remove') ||
+    hasPermissionSync(ctx, 'admin:servers:manage')
+  ) {
     return true;
   }
   ctx.set.status = 403;
@@ -620,38 +687,43 @@ const RESERVED_SHORT_URL_ROOT_CODES = new Set([
   'orders',
   'plans',
   'a',
-])
+]);
 
 function normalizeShortUrlCode(value: any): string {
-  return String(value || '').trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+  return String(value || '')
+    .trim()
+    .replace(/^\/+|\/+$/g, '')
+    .toLowerCase();
 }
 
 function isValidShortUrlCode(code: string): boolean {
-  return /^[a-z0-9_-]{1,64}$/.test(code)
+  return /^[a-z0-9_-]{1,64}$/.test(code);
 }
 
 function getRedirectTarget(value: any): string | null {
-  const input = String(value || '').trim()
-  if (!input) return null
+  const input = String(value || '').trim();
+  if (!input) return null;
   if (input.startsWith('/') && !input.startsWith('//')) {
-    return input
+    return input;
   }
 
   try {
-    const url = new URL(input)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
-    return url.toString()
+    const url = new URL(input);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return url.toString();
   } catch {
-    return null
+    return null;
   }
 }
 
 function getShortUrlRepo() {
-  return AppDataSource.getRepository(ShortUrl)
+  return AppDataSource.getRepository(ShortUrl);
 }
 
 function sanitizeAntiAbuseText(input: any, max = 12_000): string {
-  return String(input || '').trim().slice(0, max);
+  return String(input || '')
+    .trim()
+    .slice(0, max);
 }
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -732,9 +804,7 @@ interface FullAssessmentResult {
 }
 
 function buildBaseUrl(endpoint: string): string {
-  return (endpoint || '')
-    .replace(/\/+$/, '')
-    .replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
+  return (endpoint || '').replace(/\/+$/, '').replace(/(\/v1(\/chat(\/completions)?)?)?$/, '');
 }
 
 async function callAiModel(
@@ -764,7 +834,7 @@ async function callAiModel(
     },
   });
 
-  const reply = res.data?.choices?.[0]?.message?.content || '';
+  const reply = (res.data as any)?.choices?.[0]?.message?.content || '';
   return String(reply)
     .replace(/```json?\s*/g, '')
     .replace(/```/g, '')
@@ -849,10 +919,7 @@ Rules:
 - signals: up to 10, must be specific and actionable
 `.trim();
 
-async function runStage1Triage(
-  model: AIModel,
-  params: AntiAbuseParams
-): Promise<TriageResult> {
+async function runStage1Triage(model: AIModel, params: AntiAbuseParams): Promise<TriageResult> {
   const start = Date.now();
 
   const userContent = JSON.stringify({
@@ -874,7 +941,10 @@ async function runStage1Triage(
     threatCategory: sanitizeAntiAbuseText(parsed?.threatCategory || 'unknown', 40),
     shouldEscalate: Boolean(parsed?.shouldEscalate ?? false),
     redFlags: Array.isArray(parsed?.redFlags)
-      ? parsed.redFlags.map((f: any) => sanitizeAntiAbuseText(f, 200)).filter(Boolean).slice(0, 10)
+      ? parsed.redFlags
+          .map((f: any) => sanitizeAntiAbuseText(f, 200))
+          .filter(Boolean)
+          .slice(0, 10)
       : [],
     triageNotes: sanitizeAntiAbuseText(parsed?.triageNotes || '', 400),
   };
@@ -913,14 +983,23 @@ async function runStage2DeepAnalysis(
     confidence: Math.max(0, Math.min(1, Number(parsed?.confidence ?? 0))),
     attackVector: sanitizeAntiAbuseText(parsed?.attackVector || '', 300),
     affectedSystems: Array.isArray(parsed?.affectedSystems)
-      ? parsed.affectedSystems.map((s: any) => sanitizeAntiAbuseText(s, 100)).filter(Boolean).slice(0, 10)
+      ? parsed.affectedSystems
+          .map((s: any) => sanitizeAntiAbuseText(s, 100))
+          .filter(Boolean)
+          .slice(0, 10)
       : [],
     historicalPattern: sanitizeAntiAbuseText(parsed?.historicalPattern || 'unknown', 40),
     technicalFindings: Array.isArray(parsed?.technicalFindings)
-      ? parsed.technicalFindings.map((f: any) => sanitizeAntiAbuseText(f, 300)).filter(Boolean).slice(0, 8)
+      ? parsed.technicalFindings
+          .map((f: any) => sanitizeAntiAbuseText(f, 300))
+          .filter(Boolean)
+          .slice(0, 8)
       : [],
     mitigationOptions: Array.isArray(parsed?.mitigationOptions)
-      ? parsed.mitigationOptions.map((o: any) => sanitizeAntiAbuseText(o, 200)).filter(Boolean).slice(0, 5)
+      ? parsed.mitigationOptions
+          .map((o: any) => sanitizeAntiAbuseText(o, 200))
+          .filter(Boolean)
+          .slice(0, 5)
       : [],
   };
 }
@@ -974,25 +1053,24 @@ async function runStage3Decision(
     priority: enforcedPriority,
     summary: sanitizeAntiAbuseText(parsed?.summary || '', 800),
     signals: Array.isArray(parsed?.signals)
-      ? parsed.signals.map((s: any) => sanitizeAntiAbuseText(s, 180)).filter(Boolean).slice(0, 10)
+      ? parsed.signals
+          .map((s: any) => sanitizeAntiAbuseText(s, 180))
+          .filter(Boolean)
+          .slice(0, 10)
       : [],
     autoActionThreshold: finalRiskScore >= 80 && confidence >= 0.75,
     reasoning: sanitizeAntiAbuseText(parsed?.reasoning || '', 400),
   };
 }
 
-function enforceActionFromScore(
-  score: number
-): 'monitor' | 'throttle' | 'suspend' | 'block' {
+function enforceActionFromScore(score: number): 'monitor' | 'throttle' | 'suspend' | 'block' {
   if (score >= 80) return 'block';
   if (score >= 60) return 'suspend';
   if (score >= 30) return 'throttle';
   return 'monitor';
 }
 
-function enforcePriorityFromScore(
-  score: number
-): 'low' | 'medium' | 'high' | 'critical' {
+function enforcePriorityFromScore(score: number): 'low' | 'medium' | 'high' | 'critical' {
   if (score >= 80) return 'critical';
   if (score >= 60) return 'high';
   if (score >= 30) return 'medium';
@@ -1046,35 +1124,21 @@ async function runAntiAbuseAiAssessment(
     // Prefer Stage 3 data > Stage 2 data > Stage 1 data
     // YES YES YES
     const finalRiskScore =
-      decision?.finalRiskScore ??
-      deepAnalysis?.riskScore ??
-      triage.initialRiskScore;
+      decision?.finalRiskScore ?? deepAnalysis?.riskScore ?? triage.initialRiskScore;
 
-    const finalCategory =
-      deepAnalysis?.category ?? triage.threatCategory;
+    const finalCategory = deepAnalysis?.category ?? triage.threatCategory;
 
-    const finalConfidence =
-      deepAnalysis?.confidence ??
-      (triage.initialRiskScore >= 70 ? 0.6 : 0.3);
+    const finalConfidence = deepAnalysis?.confidence ?? (triage.initialRiskScore >= 70 ? 0.6 : 0.3);
 
-    const finalAction =
-      decision?.recommendedAction ?? enforceActionFromScore(finalRiskScore);
+    const finalAction = decision?.recommendedAction ?? enforceActionFromScore(finalRiskScore);
 
-    const finalPriority =
-      decision?.priority ?? enforcePriorityFromScore(finalRiskScore);
+    const finalPriority = decision?.priority ?? enforcePriorityFromScore(finalRiskScore);
 
-    const summary =
-      decision?.summary ??
-      deepAnalysis?.attackVector ??
-      triage.triageNotes;
+    const summary = decision?.summary ?? deepAnalysis?.attackVector ?? triage.triageNotes;
 
-    const signals: string[] =
-      decision?.signals.length
-        ? decision.signals
-        : [
-          ...triage.redFlags,
-          ...(deepAnalysis?.technicalFindings ?? []),
-        ].slice(0, 10);
+    const signals: string[] = decision?.signals.length
+      ? decision.signals
+      : [...triage.redFlags, ...(deepAnalysis?.technicalFindings ?? [])].slice(0, 10);
 
     return {
       assessmentId,
@@ -1116,7 +1180,8 @@ async function runAntiAbuseAiAssessment(
 function normalizeTicketStatus(status: any): string {
   const s = String(status || '').toLowerCase();
   if (['open', 'opened'].includes(s)) return 'opened';
-  if (['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'].includes(s)) return 'awaiting_staff_reply';
+  if (['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'].includes(s))
+    return 'awaiting_staff_reply';
   if (['replied'].includes(s)) return 'replied';
   if (['closed'].includes(s)) return 'closed';
   return s || 'opened';
@@ -1158,11 +1223,11 @@ function normalizeTicketMessages(ticket: Ticket) {
       }
 
       const keys = Object.keys(ticket.messages);
-      const numericKeys = keys.filter((k) => /^\d+$/.test(k));
+      const numericKeys = keys.filter(k => /^\d+$/.test(k));
       if (numericKeys.length === keys.length && numericKeys.length > 0) {
         ticket.messages = numericKeys
           .sort((a, b) => Number(a) - Number(b))
-          .map((k) => (ticket.messages as any)[k]);
+          .map(k => (ticket.messages as any)[k]);
         return;
       }
     }
@@ -1204,109 +1269,152 @@ function getTicketResponseDurations(ticket: Ticket): number[] {
 }
 
 export async function adminRoutes(app: any, prefix = '') {
-  app.get(prefix + '/admin/stats', async (ctx) => {
-    const adminErr = requireAdminPageAccess(ctx);
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const ticketRepo = AppDataSource.getRepository(Ticket);
-    const verRepo = AppDataSource.getRepository(IDVerification);
-    const delRepo = AppDataSource.getRepository(DeletionRequest);
+  app.get(
+    prefix + '/admin/stats',
+    async ctx => {
+      const adminErr = requireAdminPageAccess(ctx);
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const ticketRepo = AppDataSource.getRepository(Ticket);
+      const verRepo = AppDataSource.getRepository(IDVerification);
+      const delRepo = AppDataSource.getRepository(DeletionRequest);
 
-    const orgRepo = AppDataSource.getRepository(Organisation);
+      const orgRepo = AppDataSource.getRepository(Organisation);
 
-    const [totalUsers, totalNodes, totalOrganisations, pendingTickets, pendingVerifications, pendingDeletions, fraudAlerts] = await Promise.all([
-      userRepo.count(),
-      nodeRepo.count(),
-      orgRepo.count(),
-      ticketRepo.count({ where: { status: 'open' } }),
-      verRepo.count({ where: { status: 'pending' } }),
-      delRepo.count({ where: { status: 'pending' } }),
-      userRepo.count({ where: { fraudFlag: true } }),
-    ]);
+      const [
+        totalUsers,
+        totalNodes,
+        totalOrganisations,
+        pendingTickets,
+        pendingVerifications,
+        pendingDeletions,
+        fraudAlerts,
+      ] = await Promise.all([
+        userRepo.count(),
+        nodeRepo.count(),
+        orgRepo.count(),
+        ticketRepo.count({ where: { status: 'open' } }),
+        verRepo.count({ where: { status: 'pending' } }),
+        delRepo.count({ where: { status: 'pending' } }),
+        userRepo.count({ where: { fraudFlag: true } }),
+      ]);
 
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const configs = await cfgRepo.find();
-    const nodes = await AppDataSource.getRepository(Node).find();
-    const unhealthyNodeIds = await getUnhealthyNodeIds();
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const configs = await cfgRepo.find();
+      const nodes = await AppDataSource.getRepository(Node).find();
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
 
-    let totalServers = configs.length;
-    const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
-      if (unhealthyNodeIds.includes(n.id)) return null;
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
-        return (res.data || []).length;
-      } catch {
-        return null;
-      }
-    }));
+      let totalServers = configs.length;
+      const nodeResults = await Promise.allSettled(
+        nodes.map(async n => {
+          if (unhealthyNodeIds.includes(n.id)) return null;
+          try {
+            const base = (n as any).backendWingsUrl || n.url;
+            const svc = new WingsApiService(base, n.token);
+            const res = await svc.getServers();
+            return (res.data || []).length;
+          } catch {
+            return null;
+          }
+        })
+      );
 
-    const healthyServerCount = nodeResults.reduce((acc, result) => {
-      if (result.status === 'fulfilled' && typeof result.value === 'number') {
-        return acc + result.value;
-      }
-      return acc;
-    }, 0);
+      const healthyServerCount = nodeResults.reduce((acc, result) => {
+        if (result.status === 'fulfilled' && typeof result.value === 'number') {
+          return acc + result.value;
+        }
+        return acc;
+      }, 0);
 
-    const healthyNodeConfigCount = configs.filter((c: any) => unhealthyNodeIds.includes(c.nodeId)).length;
-    totalServers = healthyServerCount + healthyNodeConfigCount;
+      const healthyNodeConfigCount = configs.filter((c: any) =>
+        unhealthyNodeIds.includes(c.nodeId)
+      ).length;
+      totalServers = healthyServerCount + healthyNodeConfigCount;
 
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const recentTickets = await ticketRepo.find({
-      where: [{ created: MoreThanOrEqual(since) }, { updatedAt: MoreThanOrEqual(since) }],
-    });
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentTickets = await ticketRepo.find({
+        where: [{ created: MoreThanOrEqual(since) }, { updatedAt: MoreThanOrEqual(since) }],
+      });
 
-    const nonSpamRecentTickets = recentTickets.filter((t) => !(t as any).aiMarkedSpam);
-    const responseDurationsLast30 = nonSpamRecentTickets.flatMap((t) => getTicketResponseDurations(t));
-    const avgTicketResponseMsLast30 = responseDurationsLast30.length > 0
-      ? Math.round(responseDurationsLast30.reduce((acc, v) => acc + v, 0) / responseDurationsLast30.length)
-      : null;
+      const nonSpamRecentTickets = recentTickets.filter(t => !(t as any).aiMarkedSpam);
+      const responseDurationsLast30 = nonSpamRecentTickets.flatMap(t =>
+        getTicketResponseDurations(t)
+      );
+      const avgTicketResponseMsLast30 =
+        responseDurationsLast30.length > 0
+          ? Math.round(
+              responseDurationsLast30.reduce((acc, v) => acc + v, 0) /
+                responseDurationsLast30.length
+            )
+          : null;
 
-    const allTickets = await ticketRepo.find();
-    const nonSpamAllTickets = allTickets.filter((t) => !(t as any).aiMarkedSpam);
-    const responseDurationsAll = nonSpamAllTickets.flatMap((t) => getTicketResponseDurations(t));
-    const avgTicketResponseMsGlobal = responseDurationsAll.length > 0
-      ? Math.round(responseDurationsAll.reduce((acc, v) => acc + v, 0) / responseDurationsAll.length)
-      : null;
+      const allTickets = await ticketRepo.find();
+      const nonSpamAllTickets = allTickets.filter(t => !(t as any).aiMarkedSpam);
+      const responseDurationsAll = nonSpamAllTickets.flatMap(t => getTicketResponseDurations(t));
+      const avgTicketResponseMsGlobal =
+        responseDurationsAll.length > 0
+          ? Math.round(
+              responseDurationsAll.reduce((acc, v) => acc + v, 0) / responseDurationsAll.length
+            )
+          : null;
 
-    return {
-      totalUsers,
-      totalNodes,
-      totalOrganisations,
-      totalServers,
-      pendingTickets,
-      pendingVerifications,
-      pendingDeletions,
-      fraudAlerts,
-      avgTicketResponseMs: avgTicketResponseMsLast30,
-      avgTicketResponseSampleCount: responseDurationsLast30.length,
-      avgTicketResponseMsLast30,
-      avgTicketResponseSampleCountLast30: responseDurationsLast30.length,
-      avgTicketResponseMsGlobal,
-      avgTicketResponseSampleCountGlobal: responseDurationsAll.length,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Any(),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
+      return {
+        totalUsers,
+        totalNodes,
+        totalOrganisations,
+        totalServers,
+        pendingTickets,
+        pendingVerifications,
+        pendingDeletions,
+        fraudAlerts,
+        avgTicketResponseMs: avgTicketResponseMsLast30,
+        avgTicketResponseSampleCount: responseDurationsLast30.length,
+        avgTicketResponseMsLast30,
+        avgTicketResponseSampleCountLast30: responseDurationsLast30.length,
+        avgTicketResponseMsGlobal,
+        avgTicketResponseSampleCountGlobal: responseDurationsAll.length,
+      };
     },
-    detail: { summary: 'Get aggregated admin statistics (admin only)', tags: ['Admin'] },
-  });
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get aggregated admin statistics (admin only)', tags: ['Admin'] },
+    }
+  );
 
-  app.get(prefix + '/admin/shorturls', async (ctx) => {
-    const adminErr = requireAdminPageAccess(ctx);
-    if (adminErr !== true) return adminErr;
+  app.get(
+    prefix + '/admin/shorturls',
+    async ctx => {
+      const adminErr = requireAdminPageAccess(ctx);
+      if (adminErr !== true) return adminErr;
 
-    const canReadAny = hasPermissionSync(ctx, 'admin.shorturl.edit.any');
-    const repo = getShortUrlRepo();
+      const canReadAny = hasPermissionSync(ctx, 'admin.shorturl.edit.any');
+      const repo = getShortUrlRepo();
 
-    if (canReadAny) {
-      const urls = await repo.find({ order: { prefix: 'ASC', code: 'ASC' } });
-      return urls.map((url) => ({
+      if (canReadAny) {
+        const urls = await repo.find({ order: { prefix: 'ASC', code: 'ASC' } });
+        return urls.map(url => ({
+          id: url.id,
+          code: url.code,
+          prefix: url.prefix,
+          targetUrl: url.targetUrl,
+          active: url.active,
+          ownerId: url.ownerId,
+          createdAt: url.createdAt?.toISOString(),
+        }));
+      }
+
+      const user = ctx.user as User;
+      const urls = await repo.find({
+        where: { ownerId: user.id },
+        order: { prefix: 'ASC', code: 'ASC' },
+      });
+      return urls.map(url => ({
         id: url.id,
         code: url.code,
         prefix: url.prefix,
@@ -1315,1050 +1423,1559 @@ export async function adminRoutes(app: any, prefix = '') {
         ownerId: url.ownerId,
         createdAt: url.createdAt?.toISOString(),
       }));
-    }
-
-    const user = ctx.user as User;
-    const urls = await repo.find({ where: { ownerId: user.id }, order: { prefix: 'ASC', code: 'ASC' } });
-    return urls.map((url) => ({
-      id: url.id,
-      code: url.code,
-      prefix: url.prefix,
-      targetUrl: url.targetUrl,
-      active: url.active,
-      ownerId: url.ownerId,
-      createdAt: url.createdAt?.toISOString(),
-    }));
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Object({
-        id: t.Number(),
-        code: t.String(),
-        prefix: t.String(),
-        targetUrl: t.String(),
-        active: t.Boolean(),
-        ownerId: t.Optional(t.Number()),
-        createdAt: t.String(),
-      })),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
     },
-    detail: { summary: 'List admin short URLs', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/shorturls', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin.shorturl.add');
-    if (adminErr !== true) return adminErr;
-
-    const body = await ctx.body;
-    const code = normalizeShortUrlCode(body?.code);
-    const prefixValue = String(body?.prefix || 'a') === 'root' ? 'root' : 'a';
-    const targetUrl = getRedirectTarget(body?.targetUrl);
-
-    if (!code || !isValidShortUrlCode(code)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.invalidShortUrlCode') };
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Array(
+          t.Object({
+            id: t.Number(),
+            code: t.String(),
+            prefix: t.String(),
+            targetUrl: t.String(),
+            active: t.Boolean(),
+            ownerId: t.Optional(t.Number()),
+            createdAt: t.String(),
+          })
+        ),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List admin short URLs', tags: ['Admin'] },
     }
+  );
 
-    if (!targetUrl) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.invalidTargetUrl') };
-    }
+  app.post(
+    prefix + '/admin/shorturls',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin.shorturl.add');
+      if (adminErr !== true) return adminErr;
 
-    if (prefixValue === 'root' && RESERVED_SHORT_URL_ROOT_CODES.has(code)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.rootPathReserved') };
-    }
+      const body = await ctx.body;
+      const code = normalizeShortUrlCode(body?.code);
+      const prefixValue = String(body?.prefix || 'a') === 'root' ? 'root' : 'a';
+      const targetUrl = getRedirectTarget(body?.targetUrl);
 
-    const repo = getShortUrlRepo();
-    const existing = await repo.findOne({ where: { code, prefix: prefixValue } });
-    if (existing) {
-      ctx.set.status = 409;
-      return { error: ctx.t('system.shortUrlCodeExists') };
-    }
+      if (!code || !isValidShortUrlCode(code)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.invalidShortUrlCode') };
+      }
 
-    const user = ctx.user as User;
-    const entity = repo.create({
-      code,
-      prefix: prefixValue,
-      targetUrl,
-      active: true,
-      ownerId: user?.id,
-    });
-    await repo.save(entity);
+      if (!targetUrl) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.invalidTargetUrl') };
+      }
 
-    return {
-      id: entity.id,
-      code: entity.code,
-      prefix: entity.prefix,
-      targetUrl: entity.targetUrl,
-      active: entity.active,
-      ownerId: entity.ownerId,
-      createdAt: entity.createdAt?.toISOString(),
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({
-        id: t.Number(),
-        code: t.String(),
-        prefix: t.String(),
-        targetUrl: t.String(),
-        active: t.Boolean(),
-        ownerId: t.Optional(t.Number()),
-        createdAt: t.String(),
-      }),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      409: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Create a new admin short URL', tags: ['Admin'] },
-  });
+      if (prefixValue === 'root' && RESERVED_SHORT_URL_ROOT_CODES.has(code)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.rootPathReserved') };
+      }
 
-  app.put(prefix + '/admin/shorturls/:id', async (ctx) => {
-    const repo = getShortUrlRepo();
-    const entity = await repo.findOne({ where: { id: Number(ctx.params?.id) } });
-    if (!entity) {
-      ctx.set.status = 404;
-      return { error: ctx.t('system.shortUrlNotFound') };
-    }
+      const repo = getShortUrlRepo();
+      const existing = await repo.findOne({ where: { code, prefix: prefixValue } });
+      if (existing) {
+        ctx.set.status = 409;
+        return { error: ctx.t('system.shortUrlCodeExists') };
+      }
 
-    const canEditAny = hasPermissionSync(ctx, 'admin.shorturl.edit.any');
-    if (!canEditAny) {
       const user = ctx.user as User;
-      if (!user || entity.ownerId !== user.id || !hasPermissionSync(ctx, 'admin.shorturl.edit.own')) {
-        ctx.set.status = 403;
-        return { error: ctx.t('admin.permissionDenied') };
-      }
-    }
+      const entity = repo.create({
+        code,
+        prefix: prefixValue,
+        targetUrl,
+        active: true,
+        ownerId: user?.id,
+      });
+      await repo.save(entity);
 
-    const body = await ctx.body;
-    const code = normalizeShortUrlCode(body?.code || entity.code);
-    const prefixValue = String(body?.prefix || entity.prefix) === 'root' ? 'root' : 'a';
-    const targetUrl = getRedirectTarget(body?.targetUrl || entity.targetUrl);
-
-    if (!code || !isValidShortUrlCode(code)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.invalidShortUrlCode') };
-    }
-    if (!targetUrl) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.invalidTargetUrl') };
-    }
-    if (prefixValue === 'root' && RESERVED_SHORT_URL_ROOT_CODES.has(code)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.rootPathReserved') };
-    }
-
-    const conflict = await repo.findOne({ where: { code, prefix: prefixValue } });
-    if (conflict && conflict.id !== entity.id) {
-      ctx.set.status = 409;
-      return { error: ctx.t('system.shortUrlCodeExists') };
-    }
-
-    entity.code = code;
-    entity.prefix = prefixValue;
-    entity.targetUrl = targetUrl;
-    await repo.save(entity);
-
-    return {
-      id: entity.id,
-      code: entity.code,
-      prefix: entity.prefix,
-      targetUrl: entity.targetUrl,
-      active: entity.active,
-      ownerId: entity.ownerId,
-      createdAt: entity.createdAt?.toISOString(),
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({
-        id: t.Number(),
-        code: t.String(),
-        prefix: t.String(),
-        targetUrl: t.String(),
-        active: t.Boolean(),
-        ownerId: t.Optional(t.Number()),
-        createdAt: t.String(),
-      }),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      409: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Update an admin short URL', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/shorturls/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin.shorturl.remove');
-    if (adminErr !== true) return adminErr;
-
-    const repo = getShortUrlRepo();
-    const entity = await repo.findOne({ where: { id: Number(ctx.params?.id) } });
-    if (!entity) {
-      ctx.set.status = 404;
-      return { error: ctx.t('system.shortUrlNotFound') };
-    }
-
-    await repo.delete({ id: entity.id });
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({ success: t.Boolean() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Delete an admin short URL', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/metrics', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
-    if (adminErr !== true) return adminErr;
-
-    const queryDays = Number((ctx.query as any)?.days ?? 30);
-    const days = Number.isFinite(queryDays)
-      ? Math.min(365, Math.max(7, Math.floor(queryDays)))
-      : 30;
-
-    const endDay = startOfUtcDay(new Date());
-    const rangeStart = new Date(endDay.getTime() - (days - 1) * DAY_MS);
-    const rangeEndExclusive = new Date(endDay.getTime() + DAY_MS);
-    const previousStart = new Date(rangeStart.getTime() - days * DAY_MS);
-
-    const userRepo = AppDataSource.getRepository(User);
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const ticketRepo = AppDataSource.getRepository(Ticket);
-    const orderRepo = AppDataSource.getRepository(Order);
-    const logRepo = AppDataSource.getRepository(UserLog);
-
-    const classifyServerStatus = (rawStatus: any): 'online' | 'transitioning' | 'offline' => {
-      const s = String(rawStatus || '').trim().toLowerCase();
-      if (['running', 'online', 'up', 'healthy', 'available'].includes(s)) return 'online';
-      if (['starting', 'stopping', 'restarting', 'installing', 'transferring', 'suspending', 'unsuspending'].includes(s)) return 'transitioning';
-      return 'offline';
-    };
-
-    const [
-      totalUsers,
-      totalOrganisations,
-      totalTickets,
-      totalOrders,
-      registrationRows,
-      organisationRows,
-      ticketRows,
-      orderRows,
-      registrationsBeforeWindow,
-    ] = await Promise.all([
-      userRepo.count(),
-      orgRepo.count(),
-      ticketRepo.count(),
-      orderRepo.count(),
-      logRepo
-        .createQueryBuilder('log')
-        .select(['log.timestamp'])
-        .where('log.action = :action', { action: 'register' })
-        .andWhere('log.timestamp >= :from AND log.timestamp < :to', { from: previousStart, to: rangeEndExclusive })
-        .getMany(),
-      logRepo
-        .createQueryBuilder('log')
-        .select(['log.timestamp'])
-        .where('log.action = :action', { action: 'org:create' })
-        .andWhere('log.timestamp >= :from AND log.timestamp < :to', { from: previousStart, to: rangeEndExclusive })
-        .getMany(),
-      ticketRepo
-        .createQueryBuilder('ticket')
-        .select(['ticket.created'])
-        .where('ticket.created >= :from AND ticket.created < :to', { from: previousStart, to: rangeEndExclusive })
-        .getMany(),
-      orderRepo
-        .createQueryBuilder('orderRow')
-        .select(['orderRow.createdAt'])
-        .where('orderRow.createdAt >= :from AND orderRow.createdAt < :to', { from: previousStart, to: rangeEndExclusive })
-        .getMany(),
-      logRepo
-        .createQueryBuilder('log')
-        .where('log.action = :action', { action: 'register' })
-        .andWhere('log.timestamp < :before', { before: rangeStart })
-        .getCount(),
-    ]);
-
-    const dayKeys = utcDayKeys(rangeStart, days);
-    const registrationDaily = new Map<string, number>();
-    const organisationDaily = new Map<string, number>();
-    const ticketDaily = new Map<string, number>();
-    const orderDaily = new Map<string, number>();
-
-    let registrationsCurrent = 0;
-    let registrationsPrevious = 0;
-    for (const row of registrationRows as any[]) {
-      const ts = new Date(row.timestamp);
-      if (Number.isNaN(ts.getTime())) continue;
-      if (ts >= rangeStart) {
-        registrationsCurrent += 1;
-        const key = formatUtcDayKey(ts);
-        registrationDaily.set(key, (registrationDaily.get(key) || 0) + 1);
-      } else {
-        registrationsPrevious += 1;
-      }
-    }
-
-    let organisationsCurrent = 0;
-    let organisationsPrevious = 0;
-    for (const row of organisationRows as any[]) {
-      const ts = new Date(row.timestamp);
-      if (Number.isNaN(ts.getTime())) continue;
-      if (ts >= rangeStart) {
-        organisationsCurrent += 1;
-        const key = formatUtcDayKey(ts);
-        organisationDaily.set(key, (organisationDaily.get(key) || 0) + 1);
-      } else {
-        organisationsPrevious += 1;
-      }
-    }
-
-    let ticketsCurrent = 0;
-    for (const row of ticketRows as any[]) {
-      const ts = new Date(row.created);
-      if (Number.isNaN(ts.getTime()) || ts < rangeStart) continue;
-      ticketsCurrent += 1;
-      const key = formatUtcDayKey(ts);
-      ticketDaily.set(key, (ticketDaily.get(key) || 0) + 1);
-    }
-
-    let ordersCurrent = 0;
-    for (const row of orderRows as any[]) {
-      const ts = new Date(row.createdAt);
-      if (Number.isNaN(ts.getTime()) || ts < rangeStart) continue;
-      ordersCurrent += 1;
-      const key = formatUtcDayKey(ts);
-      orderDaily.set(key, (orderDaily.get(key) || 0) + 1);
-    }
-
-    let totalServers = 0;
-    let serversOnline = 0;
-    let serversTransitioning = 0;
-    let serversOffline = 0;
-
-    const nodes = await AppDataSource.getRepository(Node).find();
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
-        const servers = Array.isArray((res as any)?.data) ? (res as any).data : [];
-        for (const server of servers) {
-          totalServers += 1;
-          const bucket = classifyServerStatus((server as any)?.state || (server as any)?.status);
-          if (bucket === 'online') serversOnline += 1;
-          else if (bucket === 'transitioning') serversTransitioning += 1;
-          else serversOffline += 1;
-        }
-      } catch {
-      }
-    }
-
-    const growthPct = (current: number, previous: number) => {
-      if (previous <= 0) return current > 0 ? 100 : 0;
-      return Number((((current - previous) / previous) * 100).toFixed(2));
-    };
-
-    let cumulativeRegistrations = registrationsBeforeWindow;
-    const series = dayKeys.map((date) => {
-      const registrations = registrationDaily.get(date) || 0;
-      cumulativeRegistrations += registrations;
       return {
-        date,
-        registrations,
-        cumulativeRegistrations,
-        organisations: organisationDaily.get(date) || 0,
-        tickets: ticketDaily.get(date) || 0,
-        orders: orderDaily.get(date) || 0,
+        id: entity.id,
+        code: entity.code,
+        prefix: entity.prefix,
+        targetUrl: entity.targetUrl,
+        active: entity.active,
+        ownerId: entity.ownerId,
+        createdAt: entity.createdAt?.toISOString(),
       };
-    });
-
-    return {
-      window: {
-        days,
-        start: rangeStart.toISOString(),
-        end: endDay.toISOString(),
-      },
-      summary: {
-        totalUsers,
-        totalOrganisations,
-        totalServers,
-        totalTickets,
-        totalOrders,
-        serversOnline,
-        serversTransitioning,
-        serversOffline,
-        registrationsCurrent,
-        registrationsPrevious,
-        registrationGrowthPercent: growthPct(registrationsCurrent, registrationsPrevious),
-        organisationsCurrent,
-        organisationsPrevious,
-        organisationGrowthPercent: growthPct(organisationsCurrent, organisationsPrevious),
-        ticketsCurrent,
-        ordersCurrent,
-      },
-      series,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ days: t.Optional(t.Number()) }),
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
       response: {
         200: t.Object({
-          window: t.Object({
-            days: t.Number(),
-            start: t.String(),
-            end: t.String(),
-          }),
-          summary: t.Any(),
-          series: t.Array(t.Any()),
+          id: t.Number(),
+          code: t.String(),
+          prefix: t.String(),
+          targetUrl: t.String(),
+          active: t.Boolean(),
+          ownerId: t.Optional(t.Number()),
+          createdAt: t.String(),
         }),
+        400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
+        409: t.Object({ error: t.String() }),
       },
-    },
-    detail: { summary: 'Get global admin metrics time series', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/metrics/clear', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
-    if (adminErr !== true) return adminErr;
-
-    const repo = AppDataSource.getRepository(SocData);
-    const result = await repo.createQueryBuilder().delete().from(SocData).execute();
-    return { success: true, deleted: Number(result.affected || 0) };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Clear collected metrics data', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/slow-queries', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
-    if (adminErr !== true) return adminErr;
-    return getSlowQueries(100);
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List recent slow database queries (admin only)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/slow-queries/clear', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:metrics');
-    if (adminErr !== true) return adminErr;
-    clearSlowQueries();
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({ success: t.Boolean() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Clear slow query log (admin only)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/product-updates', async (ctx) => {
-    // In hopes incident with 110k email in a minute wont repeat
-    const adminErr = requireAdminPermission(ctx, 'admin:announcements');
-    if (adminErr !== true) return adminErr;
-    const body = (ctx.body || {}) as { subject?: string; message?: string; force?: boolean; test?: boolean };
-    const { subject, message, force = false, test = false } = body;
-    if (!subject || !message) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.subjectAndMessageRequired') };
+      detail: { summary: 'Create a new admin short URL', tags: ['Admin'] },
     }
+  );
 
-    if (test) {
-      const adminUser = ctx.user as User | undefined;
-      const toEmail = adminUser?.email;
-      if (!toEmail) {
+  app.put(
+    prefix + '/admin/shorturls/:id',
+    async ctx => {
+      const repo = getShortUrlRepo();
+      const entity = await repo.findOne({ where: { id: Number(ctx.params?.id) } });
+      if (!entity) {
+        ctx.set.status = 404;
+        return { error: ctx.t('system.shortUrlNotFound') };
+      }
+
+      const canEditAny = hasPermissionSync(ctx, 'admin.shorturl.edit.any');
+      if (!canEditAny) {
+        const user = ctx.user as User;
+        if (
+          !user ||
+          entity.ownerId !== user.id ||
+          !hasPermissionSync(ctx, 'admin.shorturl.edit.own')
+        ) {
+          ctx.set.status = 403;
+          return { error: ctx.t('admin.permissionDenied') };
+        }
+      }
+
+      const body = await ctx.body;
+      const code = normalizeShortUrlCode(body?.code || entity.code);
+      const prefixValue = String(body?.prefix || entity.prefix) === 'root' ? 'root' : 'a';
+      const targetUrl = getRedirectTarget(body?.targetUrl || entity.targetUrl);
+
+      if (!code || !isValidShortUrlCode(code)) {
         ctx.set.status = 400;
-        return { error: ctx.t('admin.noAdminEmail') };
+        return { error: ctx.t('system.invalidShortUrlCode') };
       }
-      try {
-        const htmlMessage = markdownToHtml(message);
-        const detailNameParts: string[] = [];
-        if (adminUser?.firstName) detailNameParts.push(adminUser.firstName);
-        if (adminUser?.middleName) detailNameParts.push(adminUser.middleName[0] + '.');
-        if (adminUser?.lastName) detailNameParts.push(adminUser.lastName[0] + '.');
-        const detailsStr = `${detailNameParts.join(' ')} — ${adminUser.email}`.trim();
-
-        await sendMail({
-          to: toEmail,
-          from: process.env.MAIL_FROM,
-          subject: `${subject} — Eclipse Systems (TEST)`,
-          template: 'notification',
-          vars: {
-            title: subject,
-            message,
-            messageHtml: htmlMessage,
-            details: escapeHtml(detailsStr),
-          },
-          locale: ctx.locale,
-        });
-        const logRepo = AppDataSource.getRepository(UserLog);
-        await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update-test', targetType: 'test', metadata: { subject, recipients: 1 }, timestamp: new Date() } as any));
-        return { success: true, recipients: 1 };
-      } catch (e) {
-        ctx.set.status = 500;
-        return { error: ctx.t('admin.testEmailFailed') };
+      if (!targetUrl) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.invalidTargetUrl') };
       }
-    }
+      if (prefixValue === 'root' && RESERVED_SHORT_URL_ROOT_CODES.has(code)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.rootPathReserved') };
+      }
 
-    const adminUser = ctx.user as User | undefined;
-    await createAdminBroadcastJob(adminUser?.id ?? 0, subject, message, force);
+      const conflict = await repo.findOne({ where: { code, prefix: prefixValue } });
+      if (conflict && conflict.id !== entity.id) {
+        ctx.set.status = 409;
+        return { error: ctx.t('system.shortUrlCodeExists') };
+      }
 
-    return {
-      success: true,
-      status: 'queued',
-      message: ctx.t('admin.broadcastQueued'),
-      recipients: 0,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({ subject: t.String(), message: t.String(), force: t.Optional(t.Boolean()), test: t.Optional(t.Boolean()) }),
-      response: { 200: t.Object({ success: t.Boolean(), recipients: t.Optional(t.Number()), status: t.Optional(t.String()), message: t.Optional(t.String()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      entity.code = code;
+      entity.prefix = prefixValue;
+      entity.targetUrl = targetUrl;
+      await repo.save(entity);
+
+      return {
+        id: entity.id,
+        code: entity.code,
+        prefix: entity.prefix,
+        targetUrl: entity.targetUrl,
+        active: entity.active,
+        ownerId: entity.ownerId,
+        createdAt: entity.createdAt?.toISOString(),
+      };
     },
-    detail: { summary: 'Send product updates to users (admin only).', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/users', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:read');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const passkeyRepo = AppDataSource.getRepository(Passkey);
-    const { page = '1', q = '' } = ctx.query as any;
-    const per = 50;
-    const p = Math.max(1, Number(page) || 1);
-
-    let qb = userRepo.createQueryBuilder('u').orderBy('u.id', 'ASC');
-    if (q && String(q).trim() !== '') {
-      const qstr = String(q).trim();
-      if (/^\d+$/.test(qstr)) {
-        qb = qb.where('u.id = :id', { id: Number(qstr) });
-      } else {
-        qb = qb.where('u.email LIKE :q OR u.firstName LIKE :q OR u.lastName LIKE :q', { q: `%${qstr}%` });
-      }
-    }
-
-    const total = await qb.getCount();
-    const users = await qb.skip((p - 1) * per).take(per).getMany();
-
-    const { decrypt, isEncryptedString } = require('../utils/crypto');
-    const maybeDecryptValue = (value: any) => {
-      if (typeof value !== 'string' || !isEncryptedString(value)) return value;
-      try {
-        return decrypt(value);
-      } catch {
-        return value;
-      }
-    };
-
-    const userIds = users.map((u) => u.id);
-    const passkeyCounts = userIds.length ? await passkeyRepo
-      .createQueryBuilder('p')
-      .select('p.userId', 'userId')
-      .addSelect('COUNT(*)', 'count')
-      .where('p.userId IN (:...ids)', { ids: userIds })
-      .groupBy('p.userId')
-      .getRawMany() : [];
-
-    const countMap: Record<number, number> = {};
-    for (const row of passkeyCounts) countMap[Number(row.userId)] = Number(row.count);
-
-    const result = users.map((u) => {
-      const out: any = { ...u };
-      delete out.passwordHash;
-      delete out.sessions;
-      out.passkeyCount = countMap[u.id] ?? 0;
-      return out;
-    });
-
-    return { users: result, total, page: p, per };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
       response: {
-        200: t.Object({ users: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List all users (admin) with pagination and search', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/users/:id/export-job', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
-    if (adminErr !== true) return adminErr;
-    const targetId = Number(ctx.params.id);
-    if (Number.isNaN(targetId)) { ctx.set.status = 400; return { error: ctx.t('validation.invalidUserId') }; }
-    try {
-      const job = await createExportJob(ctx.user?.id, targetId);
-      return { success: true, jobId: job.id };
-    } catch (e) {
-      ctx.set.status = 500;
-      return { error: ctx.t('server.exportFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: { 200: t.Object({ success: t.Boolean(), jobId: t.String() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Create background export job for a user (admin only)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/export-jobs/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
-    if (adminErr !== true) return adminErr;
-    const id = String(ctx.params.id || '');
-    const job = await getExportJob(id);
-    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.jobNotFound') }; }
-    return { job };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: { 200: t.Object({ job: t.Any() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Get export job status (admin only)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/export-jobs', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
-    if (adminErr !== true) return adminErr;
-    const limit = Math.min(500, Math.max(1, Number((ctx.query as any)?.limit || 100)));
-    const status = ((ctx.query as any)?.status || '').trim() || undefined;
-    const jobs = await listExportJobs(limit, status);
-
-    const now = new Date();
-    const nextRunAt = new Date(Math.ceil(now.getTime() / 60000) * 60000 + 60000);
-    const lastRunAt = jobs.find((j: any) => j.status === 'running' || j.status === 'completed' || j.status === 'failed')?.updatedAt || null;
-
-    return { jobs, meta: { runnerCron: '*/1 * * * *', nextRunAt, lastRunAt } };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ limit: t.Optional(t.String()), status: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ jobs: t.Array(t.Any()), meta: t.Any() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List export jobs and runner schedule metadata (admin only)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/export-jobs/:id/download', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
-    if (adminErr !== true) return adminErr;
-    const id = String(ctx.params.id || '');
-    const job = await getExportJob(id);
-    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.jobNotFound') }; }
-    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: ctx.t('server.jobNotCompleted') }; }
-    try {
-      const data = await Bun.file(job.resultPath).arrayBuffer();
-      return new Response(data, { status: 200, headers: { 'Content-Type': 'application/gzip', 'Content-Disposition': `attachment; filename="export-${job.userId}.tar.gz"` } });
-    } catch (e) {
-      ctx.set.status = 500;
-      return { error: ctx.t('application.archiveFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Download completed export archive (admin only)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/export-jobs/:id/share-link', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
-    if (adminErr !== true) return adminErr;
-
-    const id = String(ctx.params.id || '');
-    const job = await getExportJob(id) as any;
-    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.jobNotFound') }; }
-    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: ctx.t('server.jobMustCompleteBeforeShare') }; }
-
-    const expiresHoursRaw = Number((ctx.body as any)?.expiresHours ?? 24);
-    const expiresHours = Number.isFinite(expiresHoursRaw) ? Math.min(Math.max(1, Math.floor(expiresHoursRaw)), 24 * 30) : 24;
-    const shareToken = `${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`;
-    const shareLinkExpiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
-
-    const repo = AppDataSource.getRepository(ExportJob);
-    job.shareToken = shareToken;
-    job.shareLinkExpiresAt = shareLinkExpiresAt;
-    job.shareDownloadsRemaining = 1;
-    await repo.save(job);
-
-    let origin = '';
-    try { origin = new URL(String((ctx as any)?.request?.url || '')).origin; } catch { }
-    const base = process.env.BACKEND_URL || process.env.APP_URL || origin || '';
-    const sharePath = `/api/public/export-shares/${shareToken}`;
-    const shareUrl = `${base}${sharePath}`;
-
-    return { success: true, shareUrl, sharePath, expiresAt: shareLinkExpiresAt, downloadsRemaining: 1 };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Optional(t.Object({ expiresHours: t.Optional(t.Number()) })),
-      response: {
-        200: t.Object({ success: t.Boolean(), shareUrl: t.String(), sharePath: t.String(), expiresAt: t.Any(), downloadsRemaining: t.Number() }),
+        200: t.Object({
+          id: t.Number(),
+          code: t.String(),
+          prefix: t.String(),
+          targetUrl: t.String(),
+          active: t.Boolean(),
+          ownerId: t.Optional(t.Number()),
+          createdAt: t.String(),
+        }),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
+        409: t.Object({ error: t.String() }),
       },
+      detail: { summary: 'Update an admin short URL', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/shorturls/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin.shorturl.remove');
+      if (adminErr !== true) return adminErr;
+
+      const repo = getShortUrlRepo();
+      const entity = await repo.findOne({ where: { id: Number(ctx.params?.id) } });
+      if (!entity) {
+        ctx.set.status = 404;
+        return { error: ctx.t('system.shortUrlNotFound') };
+      }
+
+      await repo.delete({ id: entity.id });
+      return { success: true };
     },
-    detail: { summary: 'Create single-use share link for completed export', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/public/export-shares/:token', async (ctx) => {
-    const token = String(ctx.params.token || '');
-    if (!token) { ctx.set.status = 400; return { error: ctx.t('auth.missingToken') }; }
-
-    const repo = AppDataSource.getRepository(ExportJob);
-    const job = await repo.findOne({ where: { shareToken: token } as any });
-    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.shareLinkNotFound') }; }
-
-    if (!job.shareDownloadsRemaining || job.shareDownloadsRemaining < 1) {
-      ctx.set.status = 410;
-      return { error: ctx.t('server.shareLinkUsed') };
-    }
-    if (job.shareLinkExpiresAt && new Date(job.shareLinkExpiresAt).getTime() < Date.now()) {
-      ctx.set.status = 410;
-      return { error: ctx.t('server.shareLinkExpired') };
-    }
-    if (!job.resultPath) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.archiveUnavailable') };
-    }
-
-    let data: any;
-    try {
-      data = await Bun.file(job.resultPath).arrayBuffer();
-    } catch {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.archiveNotFound') };
-    }
-
-    const consume = await repo.createQueryBuilder()
-      .update(ExportJob)
-      .set({
-        shareDownloadsRemaining: 0,
-        shareToken: null,
-      })
-      .where('id = :id', { id: job.id })
-      .andWhere('shareToken = :token', { token })
-      .andWhere('shareDownloadsRemaining > 0')
-      .execute();
-
-    if (!consume.affected || consume.affected < 1) {
-      ctx.set.status = 410;
-      return { error: ctx.t('server.shareLinkUsed') };
-    }
-
-    return new Response(data as any, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/gzip',
-        'Content-Disposition': `attachment; filename="export-${job.userId || 'user'}.tar.gz"`,
-        'Cache-Control': 'no-store',
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
       },
-    });
-  }, {
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      410: t.Object({ error: t.String() }),
+      detail: { summary: 'Delete an admin short URL', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/metrics',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:metrics');
+      if (adminErr !== true) return adminErr;
+
+      const queryDays = Number((ctx.query as any)?.days ?? 30);
+      const days = Number.isFinite(queryDays)
+        ? Math.min(365, Math.max(7, Math.floor(queryDays)))
+        : 30;
+
+      const endDay = startOfUtcDay(new Date());
+      const rangeStart = new Date(endDay.getTime() - (days - 1) * DAY_MS);
+      const rangeEndExclusive = new Date(endDay.getTime() + DAY_MS);
+      const previousStart = new Date(rangeStart.getTime() - days * DAY_MS);
+
+      const userRepo = AppDataSource.getRepository(User);
+      const orgRepo = AppDataSource.getRepository(Organisation);
+      const ticketRepo = AppDataSource.getRepository(Ticket);
+      const orderRepo = AppDataSource.getRepository(Order);
+      const logRepo = AppDataSource.getRepository(UserLog);
+
+      const classifyServerStatus = (rawStatus: any): 'online' | 'transitioning' | 'offline' => {
+        const s = String(rawStatus || '')
+          .trim()
+          .toLowerCase();
+        if (['running', 'online', 'up', 'healthy', 'available'].includes(s)) return 'online';
+        if (
+          [
+            'starting',
+            'stopping',
+            'restarting',
+            'installing',
+            'transferring',
+            'suspending',
+            'unsuspending',
+          ].includes(s)
+        )
+          return 'transitioning';
+        return 'offline';
+      };
+
+      const [
+        totalUsers,
+        totalOrganisations,
+        totalTickets,
+        totalOrders,
+        registrationRows,
+        organisationRows,
+        ticketRows,
+        orderRows,
+        registrationsBeforeWindow,
+      ] = await Promise.all([
+        userRepo.count(),
+        orgRepo.count(),
+        ticketRepo.count(),
+        orderRepo.count(),
+        logRepo
+          .createQueryBuilder('log')
+          .select(['log.timestamp'])
+          .where('log.action = :action', { action: 'register' })
+          .andWhere('log.timestamp >= :from AND log.timestamp < :to', {
+            from: previousStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
+        logRepo
+          .createQueryBuilder('log')
+          .select(['log.timestamp'])
+          .where('log.action = :action', { action: 'org:create' })
+          .andWhere('log.timestamp >= :from AND log.timestamp < :to', {
+            from: previousStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
+        ticketRepo
+          .createQueryBuilder('ticket')
+          .select(['ticket.created'])
+          .where('ticket.created >= :from AND ticket.created < :to', {
+            from: previousStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
+        orderRepo
+          .createQueryBuilder('orderRow')
+          .select(['orderRow.createdAt'])
+          .where('orderRow.createdAt >= :from AND orderRow.createdAt < :to', {
+            from: previousStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
+        logRepo
+          .createQueryBuilder('log')
+          .where('log.action = :action', { action: 'register' })
+          .andWhere('log.timestamp < :before', { before: rangeStart })
+          .getCount(),
+      ]);
+
+      const dayKeys = utcDayKeys(rangeStart, days);
+      const registrationDaily = new Map<string, number>();
+      const organisationDaily = new Map<string, number>();
+      const ticketDaily = new Map<string, number>();
+      const orderDaily = new Map<string, number>();
+
+      let registrationsCurrent = 0;
+      let registrationsPrevious = 0;
+      for (const row of registrationRows as any[]) {
+        const ts = new Date(row.timestamp);
+        if (Number.isNaN(ts.getTime())) continue;
+        if (ts >= rangeStart) {
+          registrationsCurrent += 1;
+          const key = formatUtcDayKey(ts);
+          registrationDaily.set(key, (registrationDaily.get(key) || 0) + 1);
+        } else {
+          registrationsPrevious += 1;
+        }
+      }
+
+      let organisationsCurrent = 0;
+      let organisationsPrevious = 0;
+      for (const row of organisationRows as any[]) {
+        const ts = new Date(row.timestamp);
+        if (Number.isNaN(ts.getTime())) continue;
+        if (ts >= rangeStart) {
+          organisationsCurrent += 1;
+          const key = formatUtcDayKey(ts);
+          organisationDaily.set(key, (organisationDaily.get(key) || 0) + 1);
+        } else {
+          organisationsPrevious += 1;
+        }
+      }
+
+      let ticketsCurrent = 0;
+      for (const row of ticketRows as any[]) {
+        const ts = new Date(row.created);
+        if (Number.isNaN(ts.getTime()) || ts < rangeStart) continue;
+        ticketsCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        ticketDaily.set(key, (ticketDaily.get(key) || 0) + 1);
+      }
+
+      let ordersCurrent = 0;
+      for (const row of orderRows as any[]) {
+        const ts = new Date(row.createdAt);
+        if (Number.isNaN(ts.getTime()) || ts < rangeStart) continue;
+        ordersCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        orderDaily.set(key, (orderDaily.get(key) || 0) + 1);
+      }
+
+      let totalServers = 0;
+      let serversOnline = 0;
+      let serversTransitioning = 0;
+      let serversOffline = 0;
+
+      const nodes = await AppDataSource.getRepository(Node).find();
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          const res = await svc.getServers();
+          const servers = Array.isArray((res as any)?.data) ? (res as any).data : [];
+          for (const server of servers) {
+            totalServers += 1;
+            const bucket = classifyServerStatus((server as any)?.state || (server as any)?.status);
+            if (bucket === 'online') serversOnline += 1;
+            else if (bucket === 'transitioning') serversTransitioning += 1;
+            else serversOffline += 1;
+          }
+        } catch {}
+      }
+
+      const growthPct = (current: number, previous: number) => {
+        if (previous <= 0) return current > 0 ? 100 : 0;
+        return Number((((current - previous) / previous) * 100).toFixed(2));
+      };
+
+      let cumulativeRegistrations = registrationsBeforeWindow;
+      const series = dayKeys.map(date => {
+        const registrations = registrationDaily.get(date) || 0;
+        cumulativeRegistrations += registrations;
+        return {
+          date,
+          registrations,
+          cumulativeRegistrations,
+          organisations: organisationDaily.get(date) || 0,
+          tickets: ticketDaily.get(date) || 0,
+          orders: orderDaily.get(date) || 0,
+        };
+      });
+
+      return {
+        window: {
+          days,
+          start: rangeStart.toISOString(),
+          end: endDay.toISOString(),
+        },
+        summary: {
+          totalUsers,
+          totalOrganisations,
+          totalServers,
+          totalTickets,
+          totalOrders,
+          serversOnline,
+          serversTransitioning,
+          serversOffline,
+          registrationsCurrent,
+          registrationsPrevious,
+          registrationGrowthPercent: growthPct(registrationsCurrent, registrationsPrevious),
+          organisationsCurrent,
+          organisationsPrevious,
+          organisationGrowthPercent: growthPct(organisationsCurrent, organisationsPrevious),
+          ticketsCurrent,
+          ordersCurrent,
+        },
+        series,
+      };
     },
-    detail: { summary: 'Download export using one-time public share link', tags: ['Admin'] },
-  });
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({ days: t.Optional(t.Number()) }),
+        response: {
+          200: t.Object({
+            window: t.Object({
+              days: t.Number(),
+              start: t.String(),
+              end: t.String(),
+            }),
+            summary: t.Any(),
+            series: t.Array(t.Any()),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get global admin metrics time series', tags: ['Admin'] },
+    }
+  );
 
-  app.put(prefix + '/admin/users/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
-    if (adminErr !== true) return adminErr;
-    const body = ctx.body as any;
-    if ('suspended' in body) {
-      const suspendErr = requireAdminPermission(ctx, 'users:suspend');
-      if (suspendErr !== true) return suspendErr;
-    }
-    if ('supportBanned' in body || 'supportBanReason' in body) {
-      const banErr = requireAdminPermission(ctx, 'tickets:ban');
-      if (banErr !== true) return banErr;
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
+  app.post(
+    prefix + '/admin/metrics/clear',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:metrics');
+      if (adminErr !== true) return adminErr;
 
-    const {
-      firstName,
-      middleName,
-      lastName,
-      displayName,
-      email,
-      address,
-      address2,
-      phone,
-      billingCompany,
-      billingCity,
-      billingState,
-      billingZip,
-      billingCountry,
-      avatarUrl,
-      role,
-      portalType,
-      suspended,
-      limits,
-      nodeId,
-      supportBanned,
-      supportBanReason,
-      badges,
-      dateOfBirth,
-      parentId,
-      emailVerified,
-      idVerified,
-      studentVerified,
-      studentVerifiedAt,
-      fraudFlag,
-      fraudReason,
-      guideShown,
-    } = ctx.body as any;
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const asTrimmedString = (value: any) => {
-      if (value === undefined || value === null) return null;
-      const text = String(value).trim();
-      return text.length ? text : null;
-    };
-    const setRequiredTextField = (key: keyof User, value: any, label: string) => {
-      if (value === undefined) return true;
-      const text = asTrimmedString(value);
-      if (!text) {
+      const repo = AppDataSource.getRepository(SocData);
+      const result = await repo.createQueryBuilder().delete().from(SocData).execute();
+      return { success: true, deleted: Number(result.affected || 0) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Clear collected metrics data', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/slow-queries',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:metrics');
+      if (adminErr !== true) return adminErr;
+      return getSlowQueries(100);
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List recent slow database queries (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/slow-queries/clear',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:metrics');
+      if (adminErr !== true) return adminErr;
+      clearSlowQueries();
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Clear slow query log (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/product-updates',
+    async ctx => {
+      // In hopes incident with 110k email in a minute wont repeat
+      const adminErr = requireAdminPermission(ctx, 'admin:announcements');
+      if (adminErr !== true) return adminErr;
+      const body = (ctx.body || {}) as {
+        subject?: string;
+        message?: string;
+        force?: boolean;
+        test?: boolean;
+      };
+      const { subject, message, force = false, test = false } = body;
+      if (!subject || !message) {
         ctx.set.status = 400;
-        return { error: `Invalid ${label}` };
+        return { error: ctx.t('validation.subjectAndMessageRequired') };
       }
-      (user as any)[key] = text;
-      return true;
-    };
-    const setOptionalTextField = (key: keyof User, value: any) => {
-      if (value === undefined) return;
-      (user as any)[key] = asTrimmedString(value) as any;
-    };
 
-    const firstNameErr = setRequiredTextField('firstName', firstName, 'first name');
-    if (firstNameErr !== true) return firstNameErr;
-    const lastNameErr = setRequiredTextField('lastName', lastName, 'last name');
-    if (lastNameErr !== true) return lastNameErr;
-    const emailErr = setRequiredTextField('email', email, 'email');
-    if (emailErr !== true) return emailErr;
-    const addressErr = setRequiredTextField('address', address, 'address');
-    if (addressErr !== true) return addressErr;
-
-    setOptionalTextField('middleName', middleName);
-    setOptionalTextField('displayName', displayName);
-    setOptionalTextField('address2', address2);
-    setOptionalTextField('phone', phone);
-    setOptionalTextField('billingCompany', billingCompany);
-    setOptionalTextField('billingCity', billingCity);
-    setOptionalTextField('billingState', billingState);
-    setOptionalTextField('billingZip', billingZip);
-    setOptionalTextField('billingCountry', billingCountry);
-    setOptionalTextField('avatarUrl', avatarUrl);
-
-    if (role !== undefined) user.role = role;
-    if (portalType !== undefined) user.portalType = portalType;
-    if (suspended !== undefined) user.suspended = suspended;
-    if (nodeId !== undefined) user.nodeId = nodeId != null ? Number(nodeId) : undefined as any;
-    if (emailVerified !== undefined) user.emailVerified = !!emailVerified;
-    if (idVerified !== undefined) user.idVerified = !!idVerified;
-    if (studentVerified !== undefined) user.studentVerified = !!studentVerified;
-    if (studentVerifiedAt !== undefined) user.studentVerifiedAt = studentVerifiedAt ? new Date(studentVerifiedAt) : undefined;
-    if (fraudFlag !== undefined) user.fraudFlag = !!fraudFlag;
-    if (fraudReason !== undefined) user.fraudReason = asTrimmedString(fraudReason) || undefined;
-    if (guideShown !== undefined) user.guideShown = !!guideShown;
-    if (limits !== undefined) {
-      if (limits && typeof limits === 'object') {
-        const outLimits: any = { ...limits };
-        if (limits.memory !== undefined) {
-          const pm = parseSizeToMB(limits.memory);
-          if (pm === null || pm < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsMemory') }; }
-          outLimits.memory = pm;
-        }
-        if (limits.disk !== undefined) {
-          const pd = parseSizeToMB(limits.disk);
-          if (pd === null || pd < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsDisk') }; }
-          outLimits.disk = pd;
-        }
-        if (limits.cpu !== undefined) {
-          const pc = parseCpuInput(limits.cpu);
-          if (pc === null || pc < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsCpu') }; }
-          outLimits.cpu = pc;
-        }
-        if (limits.serverLimit !== undefined) {
-          const sl = Number(limits.serverLimit);
-          if (!Number.isFinite(sl) || sl < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsServers') }; }
-          outLimits.serverLimit = Math.round(sl);
-        }
-        if (limits.portsPerServer !== undefined) {
-          const pp = Number(limits.portsPerServer);
-          if (!Number.isFinite(pp) || pp < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsPorts') }; }
-          outLimits.portsPerServer = Math.round(pp);
-        }
-        if (limits.tunnelPortCount !== undefined) {
-          const tp = Number(limits.tunnelPortCount);
-          if (!Number.isFinite(tp) || tp < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsTunnelPorts') }; }
-          outLimits.tunnelPortCount = Math.round(tp);
-        }
-        if (limits.databases !== undefined) {
-          const d = Number(limits.databases);
-          if (!Number.isFinite(d) || d < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsDatabases') }; }
-          outLimits.databases = Math.round(d);
-        }
-        if (limits.backups !== undefined) {
-          const b = Number(limits.backups);
-          if (!Number.isFinite(b) || b < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsBackups') }; }
-          outLimits.backups = Math.round(b);
-        }
-        user.limits = outLimits;
-      } else {
-        user.limits = limits;
-      }
-    }
-
-    if (user.portalType === 'enterprise' && user.nodeId) {
-      const node = await nodeRepo.findOneBy({ id: user.nodeId });
-      if (node) {
-        const enterpriseLimits: Record<string, number> = {};
-        if (node.memory != null) enterpriseLimits.memory = Number(node.memory);
-        if (node.disk != null) enterpriseLimits.disk = Number(node.disk);
-        if (node.cpu != null) enterpriseLimits.cpu = Number(node.cpu);
-        if (node.serverLimit != null) enterpriseLimits.serverLimit = Number(node.serverLimit);
-        user.limits = Object.keys(enterpriseLimits).length ? enterpriseLimits : null;
-      }
-    }
-
-    if (dateOfBirth !== undefined) {
-      if (dateOfBirth === null || dateOfBirth === '') {
-        user.dateOfBirth = undefined as any;
-      } else {
-        const dob = new Date(String(dateOfBirth));
-        if (isNaN(dob.getTime())) {
+      if (test) {
+        const adminUser = ctx.user as User | undefined;
+        const toEmail = adminUser?.email;
+        if (!toEmail) {
           ctx.set.status = 400;
-          return { error: ctx.t('common.invalidDateOfBirth'), message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+          return { error: ctx.t('admin.noAdminEmail') };
         }
-        const updatedAge = getAgeFromDate(dob);
-        const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
-        if (updatedAge !== null && updatedAge < minimumAge) {
-          user.suspended = true;
-          user.fraudFlag = true;
-          user.fraudReason = `Underage account (<${minimumAge} years)`;
-        }
-        user.dateOfBirth = dob;
-      }
-    }
-    if (parentId !== undefined) {
-      if (parentId === null || parentId === '') {
-        user.parentId = null;
-      } else {
-        const nextParentId = Number(parentId);
-        if (!Number.isInteger(nextParentId) || nextParentId <= 0) {
-          ctx.set.status = 400;
-          return { error: ctx.t('validation.invalidParentUserId') };
-        }
-        if (nextParentId === user.id) {
-          ctx.set.status = 400;
-          return { error: ctx.t('user.cannotBeOwnParent') };
-        }
-        user.parentId = nextParentId;
-      }
-    }
-    if (supportBanned !== undefined) user.supportBanned = !!supportBanned;
-    if (supportBanReason !== undefined) user.supportBanReason = supportBanReason;
+        try {
+          const htmlMessage = markdownToHtml(message);
+          const detailNameParts: string[] = [];
+          if (adminUser?.firstName) detailNameParts.push(adminUser.firstName);
+          if (adminUser?.middleName) detailNameParts.push(adminUser.middleName[0] + '.');
+          if (adminUser?.lastName) detailNameParts.push(adminUser.lastName[0] + '.');
+          const detailsStr = `${detailNameParts.join(' ')} — ${adminUser.email}`.trim();
 
-    if (badges !== undefined) {
-      const normalizedBadges = Array.isArray(badges)
-        ? badges
-          .map((badge: any) => String(badge || '').trim())
-          .filter((badge: string) => badge.length > 0)
-          .slice(0, 128)
+          await sendMail({
+            to: toEmail,
+            from: process.env.MAIL_FROM,
+            subject: `${subject} — Eclipse Systems (TEST)`,
+            template: 'notification',
+            vars: {
+              title: subject,
+              message,
+              messageHtml: htmlMessage,
+              details: escapeHtml(detailsStr),
+            },
+            locale: ctx.locale,
+          });
+          const logRepo = AppDataSource.getRepository(UserLog);
+          await logRepo.save(
+            logRepo.create({
+              userId: ctx.user?.id,
+              action: 'admin-send-product-update-test',
+              targetType: 'test',
+              metadata: { subject, recipients: 1 },
+              timestamp: new Date(),
+            } as any)
+          );
+          return { success: true, recipients: 1 };
+        } catch (e) {
+          ctx.set.status = 500;
+          return { error: ctx.t('admin.testEmailFailed') };
+        }
+      }
+
+      const adminUser = ctx.user as User | undefined;
+      await createAdminBroadcastJob(adminUser?.id ?? 0, subject, message, force);
+
+      return {
+        success: true,
+        status: 'queued',
+        message: ctx.t('admin.broadcastQueued'),
+        recipients: 0,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          subject: t.String(),
+          message: t.String(),
+          force: t.Optional(t.Boolean()),
+          test: t.Optional(t.Boolean()),
+        }),
+        response: {
+          200: t.Object({
+            success: t.Boolean(),
+            recipients: t.Optional(t.Number()),
+            status: t.Optional(t.String()),
+            message: t.Optional(t.String()),
+          }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Send product updates to users (admin only).', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/users',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:read');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const passkeyRepo = AppDataSource.getRepository(Passkey);
+      const { page = '1', q = '' } = ctx.query as any;
+      const per = 50;
+      const p = Math.max(1, Number(page) || 1);
+
+      let qb = userRepo.createQueryBuilder('u').orderBy('u.id', 'ASC');
+      if (q && String(q).trim() !== '') {
+        const qstr = String(q).trim();
+        if (/^\d+$/.test(qstr)) {
+          qb = qb.where('u.id = :id', { id: Number(qstr) });
+        } else {
+          qb = qb.where('u.email LIKE :q OR u.firstName LIKE :q OR u.lastName LIKE :q', {
+            q: `%${qstr}%`,
+          });
+        }
+      }
+
+      const total = await qb.getCount();
+      const users = await qb
+        .skip((p - 1) * per)
+        .take(per)
+        .getMany();
+
+      const { decrypt, isEncryptedString } = require('../utils/crypto');
+      const maybeDecryptValue = (value: any) => {
+        if (typeof value !== 'string' || !isEncryptedString(value)) return value;
+        try {
+          return decrypt(value);
+        } catch {
+          return value;
+        }
+      };
+
+      const userIds = users.map(u => u.id);
+      const passkeyCounts = userIds.length
+        ? await passkeyRepo
+            .createQueryBuilder('p')
+            .select('p.userId', 'userId')
+            .addSelect('COUNT(*)', 'count')
+            .where('p.userId IN (:...ids)', { ids: userIds })
+            .groupBy('p.userId')
+            .getRawMany()
         : [];
 
-      const currentSettings = user.settings && typeof user.settings === 'object'
-        ? { ...user.settings }
-        : {};
+      const countMap: Record<number, number> = {};
+      for (const row of passkeyCounts) countMap[Number(row.userId)] = Number(row.count);
 
-      currentSettings.badges = Array.from(new Set(normalizedBadges));
+      const result = users.map(u => {
+        const out: any = { ...u };
+        delete out.passwordHash;
+        delete out.sessions;
+        out.passkeyCount = countMap[u.id] ?? 0;
+        return out;
+      });
 
-      if (currentSettings.gambling && typeof currentSettings.gambling === 'object') {
-        currentSettings.gambling = { ...(currentSettings.gambling as any), badges: currentSettings.badges };
+      return { users: result, total, page: p, per };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({
+            users: t.Array(t.Any()),
+            total: t.Number(),
+            page: t.Number(),
+            per: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List all users (admin) with pagination and search', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/export-job',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+      const targetId = Number(ctx.params.id);
+      if (Number.isNaN(targetId)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidUserId') };
+      }
+      try {
+        const job = await createExportJob(ctx.user?.id, targetId);
+        return { success: true, jobId: job.id };
+      } catch (e) {
+        ctx.set.status = 500;
+        return { error: ctx.t('server.exportFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), jobId: t.String() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          500: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Create background export job for a user (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/export-jobs/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+      const id = String(ctx.params.id || '');
+      const job = await getExportJob(id);
+      if (!job) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.jobNotFound') };
+      }
+      return { job };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ job: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get export job status (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/export-jobs',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+      const limit = Math.min(500, Math.max(1, Number((ctx.query as any)?.limit || 100)));
+      const status = ((ctx.query as any)?.status || '').trim() || undefined;
+      const jobs = await listExportJobs(limit, status);
+
+      const now = new Date();
+      const nextRunAt = new Date(Math.ceil(now.getTime() / 60000) * 60000 + 60000);
+      const lastRunAt =
+        jobs.find(
+          (j: any) => j.status === 'running' || j.status === 'completed' || j.status === 'failed'
+        )?.updatedAt || null;
+
+      return { jobs, meta: { runnerCron: '*/1 * * * *', nextRunAt, lastRunAt } };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({ limit: t.Optional(t.String()), status: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({ jobs: t.Array(t.Any()), meta: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'List export jobs and runner schedule metadata (admin only)',
+        tags: ['Admin'],
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/export-jobs/:id/download',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+      const id = String(ctx.params.id || '');
+      const job = await getExportJob(id);
+      if (!job) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.jobNotFound') };
+      }
+      if (job.status !== 'completed' || !job.resultPath) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.jobNotCompleted') };
+      }
+      try {
+        const data = await Bun.file(job.resultPath).arrayBuffer();
+        return new Response(data, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/gzip',
+            'Content-Disposition': `attachment; filename="export-${job.userId}.tar.gz"`,
+          },
+        });
+      } catch (e) {
+        ctx.set.status = 500;
+        return { error: ctx.t('application.archiveFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          500: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Download completed export archive (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/export-jobs/:id/share-link',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+
+      const id = String(ctx.params.id || '');
+      const job = (await getExportJob(id)) as any;
+      if (!job) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.jobNotFound') };
+      }
+      if (job.status !== 'completed' || !job.resultPath) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.jobMustCompleteBeforeShare') };
       }
 
-      user.settings = currentSettings;
-    }
+      const expiresHoursRaw = Number((ctx.body as any)?.expiresHours ?? 24);
+      const expiresHours = Number.isFinite(expiresHoursRaw)
+        ? Math.min(Math.max(1, Math.floor(expiresHoursRaw)), 24 * 30)
+        : 24;
+      const shareToken = `${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`;
+      const shareLinkExpiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
 
-    await userRepo.save(user);
-    try { await redisDel('public:contributors:v2'); } catch { }
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        firstName: t.Optional(t.Any()),
-        middleName: t.Optional(t.Any()),
-        lastName: t.Optional(t.Any()),
-        displayName: t.Optional(t.Any()),
-        email: t.Optional(t.Any()),
-        address: t.Optional(t.Any()),
-        address2: t.Optional(t.Any()),
-        phone: t.Optional(t.Any()),
-        billingCompany: t.Optional(t.Any()),
-        billingCity: t.Optional(t.Any()),
-        billingState: t.Optional(t.Any()),
-        billingZip: t.Optional(t.Any()),
-        billingCountry: t.Optional(t.Any()),
-        avatarUrl: t.Optional(t.Any()),
-        role: t.Optional(t.String()),
-        portalType: t.Optional(t.String()),
-        suspended: t.Optional(t.Boolean()),
-        limits: t.Optional(t.Any()),
-        nodeId: t.Optional(t.Any()),
-        badges: t.Optional(t.Array(t.String())),
-        dateOfBirth: t.Optional(t.Any()),
-        parentId: t.Optional(t.Any()),
-        emailVerified: t.Optional(t.Boolean()),
-        idVerified: t.Optional(t.Boolean()),
-        studentVerified: t.Optional(t.Boolean()),
-        studentVerifiedAt: t.Optional(t.Any()),
-        fraudFlag: t.Optional(t.Boolean()),
-        fraudReason: t.Optional(t.Any()),
-        guideShown: t.Optional(t.Boolean()),
-      }),
+      const repo = AppDataSource.getRepository(ExportJob);
+      job.shareToken = shareToken;
+      job.shareLinkExpiresAt = shareLinkExpiresAt;
+      job.shareDownloadsRemaining = 1;
+      await repo.save(job);
+
+      let origin = '';
+      try {
+        origin = new URL(String((ctx as any)?.request?.url || '')).origin;
+      } catch {}
+      const base = process.env.BACKEND_URL || process.env.APP_URL || origin || '';
+      const sharePath = `/api/public/export-shares/${shareToken}`;
+      const shareUrl = `${base}${sharePath}`;
+
+      return {
+        success: true,
+        shareUrl,
+        sharePath,
+        expiresAt: shareLinkExpiresAt,
+        downloadsRemaining: 1,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Optional(t.Object({ expiresHours: t.Optional(t.Number()) })),
+        response: {
+          200: t.Object({
+            success: t.Boolean(),
+            shareUrl: t.String(),
+            sharePath: t.String(),
+            expiresAt: t.Any(),
+            downloadsRemaining: t.Number(),
+          }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Create single-use share link for completed export', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/public/export-shares/:token',
+    async ctx => {
+      const token = String(ctx.params.token || '');
+      if (!token) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.missingToken') };
+      }
+
+      const repo = AppDataSource.getRepository(ExportJob);
+      const job = await repo.findOne({ where: { shareToken: token } as any });
+      if (!job) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.shareLinkNotFound') };
+      }
+
+      if (!job.shareDownloadsRemaining || job.shareDownloadsRemaining < 1) {
+        ctx.set.status = 410;
+        return { error: ctx.t('server.shareLinkUsed') };
+      }
+      if (job.shareLinkExpiresAt && new Date(job.shareLinkExpiresAt).getTime() < Date.now()) {
+        ctx.set.status = 410;
+        return { error: ctx.t('server.shareLinkExpired') };
+      }
+      if (!job.resultPath) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.archiveUnavailable') };
+      }
+
+      let data: any;
+      try {
+        data = await Bun.file(job.resultPath).arrayBuffer();
+      } catch {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.archiveNotFound') };
+      }
+
+      const consume = await repo
+        .createQueryBuilder()
+        .update(ExportJob)
+        .set({
+          shareDownloadsRemaining: 0,
+          shareToken: null,
+        })
+        .where('id = :id', { id: job.id })
+        .andWhere('shareToken = :token', { token })
+        .andWhere('shareDownloadsRemaining > 0')
+        .execute();
+
+      if (!consume.affected || consume.affected < 1) {
+        ctx.set.status = 410;
+        return { error: ctx.t('server.shareLinkUsed') };
+      }
+
+      return new Response(data as any, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/gzip',
+          'Content-Disposition': `attachment; filename="export-${job.userId || 'user'}.tar.gz"`,
+          'Cache-Control': 'no-store',
+        },
+      });
+    },
+    {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        410: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Download export using one-time public share link', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/users/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
+      if (adminErr !== true) return adminErr;
+      const body = ctx.body as any;
+      if ('suspended' in body) {
+        const suspendErr = requireAdminPermission(ctx, 'users:suspend');
+        if (suspendErr !== true) return suspendErr;
+      }
+      if ('supportBanned' in body || 'supportBanReason' in body) {
+        const banErr = requireAdminPermission(ctx, 'tickets:ban');
+        if (banErr !== true) return banErr;
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const {
+        firstName,
+        middleName,
+        lastName,
+        displayName,
+        email,
+        address,
+        address2,
+        phone,
+        billingCompany,
+        billingCity,
+        billingState,
+        billingZip,
+        billingCountry,
+        avatarUrl,
+        role,
+        portalType,
+        suspended,
+        limits,
+        nodeId,
+        supportBanned,
+        supportBanReason,
+        badges,
+        dateOfBirth,
+        parentId,
+        emailVerified,
+        idVerified,
+        studentVerified,
+        studentVerifiedAt,
+        fraudFlag,
+        fraudReason,
+        guideShown,
+      } = ctx.body as any;
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const asTrimmedString = (value: any) => {
+        if (value === undefined || value === null) return null;
+        const text = String(value).trim();
+        return text.length ? text : null;
+      };
+      const setRequiredTextField = (key: keyof User, value: any, label: string) => {
+        if (value === undefined) return true;
+        const text = asTrimmedString(value);
+        if (!text) {
+          ctx.set.status = 400;
+          return { error: `Invalid ${label}` };
+        }
+        (user as any)[key] = text;
+        return true;
+      };
+      const setOptionalTextField = (key: keyof User, value: any) => {
+        if (value === undefined) return;
+        (user as any)[key] = asTrimmedString(value) as any;
+      };
+
+      const firstNameErr = setRequiredTextField('firstName', firstName, 'first name');
+      if (firstNameErr !== true) return firstNameErr;
+      const lastNameErr = setRequiredTextField('lastName', lastName, 'last name');
+      if (lastNameErr !== true) return lastNameErr;
+      const emailErr = setRequiredTextField('email', email, 'email');
+      if (emailErr !== true) return emailErr;
+      const addressErr = setRequiredTextField('address', address, 'address');
+      if (addressErr !== true) return addressErr;
+
+      setOptionalTextField('middleName', middleName);
+      setOptionalTextField('displayName', displayName);
+      setOptionalTextField('address2', address2);
+      setOptionalTextField('phone', phone);
+      setOptionalTextField('billingCompany', billingCompany);
+      setOptionalTextField('billingCity', billingCity);
+      setOptionalTextField('billingState', billingState);
+      setOptionalTextField('billingZip', billingZip);
+      setOptionalTextField('billingCountry', billingCountry);
+      setOptionalTextField('avatarUrl', avatarUrl);
+
+      if (role !== undefined) user.role = role;
+      if (portalType !== undefined) user.portalType = portalType;
+      if (suspended !== undefined) user.suspended = suspended;
+      if (nodeId !== undefined) user.nodeId = nodeId != null ? Number(nodeId) : (undefined as any);
+      if (emailVerified !== undefined) user.emailVerified = !!emailVerified;
+      if (idVerified !== undefined) user.idVerified = !!idVerified;
+      if (studentVerified !== undefined) user.studentVerified = !!studentVerified;
+      if (studentVerifiedAt !== undefined)
+        user.studentVerifiedAt = studentVerifiedAt ? new Date(studentVerifiedAt) : undefined;
+      if (fraudFlag !== undefined) user.fraudFlag = !!fraudFlag;
+      if (fraudReason !== undefined) user.fraudReason = asTrimmedString(fraudReason) || undefined;
+      if (guideShown !== undefined) user.guideShown = !!guideShown;
+      if (limits !== undefined) {
+        if (limits && typeof limits === 'object') {
+          const outLimits: any = { ...limits };
+          if (limits.memory !== undefined) {
+            const pm = parseSizeToMB(limits.memory);
+            if (pm === null || pm < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsMemory') };
+            }
+            outLimits.memory = pm;
+          }
+          if (limits.disk !== undefined) {
+            const pd = parseSizeToMB(limits.disk);
+            if (pd === null || pd < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsDisk') };
+            }
+            outLimits.disk = pd;
+          }
+          if (limits.cpu !== undefined) {
+            const pc = parseCpuInput(limits.cpu);
+            if (pc === null || pc < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsCpu') };
+            }
+            outLimits.cpu = pc;
+          }
+          if (limits.serverLimit !== undefined) {
+            const sl = Number(limits.serverLimit);
+            if (!Number.isFinite(sl) || sl < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsServers') };
+            }
+            outLimits.serverLimit = Math.round(sl);
+          }
+          if (limits.portsPerServer !== undefined) {
+            const pp = Number(limits.portsPerServer);
+            if (!Number.isFinite(pp) || pp < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsPorts') };
+            }
+            outLimits.portsPerServer = Math.round(pp);
+          }
+          if (limits.tunnelPortCount !== undefined) {
+            const tp = Number(limits.tunnelPortCount);
+            if (!Number.isFinite(tp) || tp < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsTunnelPorts') };
+            }
+            outLimits.tunnelPortCount = Math.round(tp);
+          }
+          if (limits.databases !== undefined) {
+            const d = Number(limits.databases);
+            if (!Number.isFinite(d) || d < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsDatabases') };
+            }
+            outLimits.databases = Math.round(d);
+          }
+          if (limits.backups !== undefined) {
+            const b = Number(limits.backups);
+            if (!Number.isFinite(b) || b < 0) {
+              ctx.set.status = 400;
+              return { error: ctx.t('server.invalidLimitsBackups') };
+            }
+            outLimits.backups = Math.round(b);
+          }
+          user.limits = outLimits;
+        } else {
+          user.limits = limits;
+        }
+      }
+
+      if (user.portalType === 'enterprise' && user.nodeId) {
+        const node = await nodeRepo.findOneBy({ id: user.nodeId });
+        if (node) {
+          const enterpriseLimits: Record<string, number> = {};
+          if (node.memory != null) enterpriseLimits.memory = Number(node.memory);
+          if (node.disk != null) enterpriseLimits.disk = Number(node.disk);
+          if (node.cpu != null) enterpriseLimits.cpu = Number(node.cpu);
+          if (node.serverLimit != null) enterpriseLimits.serverLimit = Number(node.serverLimit);
+          user.limits = Object.keys(enterpriseLimits).length ? enterpriseLimits : null;
+        }
+      }
+
+      if (dateOfBirth !== undefined) {
+        if (dateOfBirth === null || dateOfBirth === '') {
+          user.dateOfBirth = undefined as any;
+        } else {
+          const dob = new Date(String(dateOfBirth));
+          if (isNaN(dob.getTime())) {
+            ctx.set.status = 400;
+            return {
+              error: ctx.t('common.invalidDateOfBirth'),
+              message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.',
+            };
+          }
+          const updatedAge = getAgeFromDate(dob);
+          const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
+          if (updatedAge !== null && updatedAge < minimumAge) {
+            user.suspended = true;
+            user.fraudFlag = true;
+            user.fraudReason = `Underage account (<${minimumAge} years)`;
+          }
+          user.dateOfBirth = dob;
+        }
+      }
+      if (parentId !== undefined) {
+        if (parentId === null || parentId === '') {
+          user.parentId = null;
+        } else {
+          const nextParentId = Number(parentId);
+          if (!Number.isInteger(nextParentId) || nextParentId <= 0) {
+            ctx.set.status = 400;
+            return { error: ctx.t('validation.invalidParentUserId') };
+          }
+          if (nextParentId === user.id) {
+            ctx.set.status = 400;
+            return { error: ctx.t('user.cannotBeOwnParent') };
+          }
+          user.parentId = nextParentId;
+        }
+      }
+      if (supportBanned !== undefined) user.supportBanned = !!supportBanned;
+      if (supportBanReason !== undefined) user.supportBanReason = supportBanReason;
+
+      if (badges !== undefined) {
+        const normalizedBadges = Array.isArray(badges)
+          ? badges
+              .map((badge: any) => String(badge || '').trim())
+              .filter((badge: string) => badge.length > 0)
+              .slice(0, 128)
+          : [];
+
+        const currentSettings =
+          user.settings && typeof user.settings === 'object' ? { ...user.settings } : {};
+
+        currentSettings.badges = Array.from(new Set(normalizedBadges));
+
+        if (currentSettings.gambling && typeof currentSettings.gambling === 'object') {
+          currentSettings.gambling = {
+            ...(currentSettings.gambling as any),
+            badges: currentSettings.badges,
+          };
+        }
+
+        user.settings = currentSettings;
+      }
+
+      await userRepo.save(user);
+      try {
+        await redisDel('public:contributors:v2');
+      } catch {}
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          firstName: t.Optional(t.Any()),
+          middleName: t.Optional(t.Any()),
+          lastName: t.Optional(t.Any()),
+          displayName: t.Optional(t.Any()),
+          email: t.Optional(t.Any()),
+          address: t.Optional(t.Any()),
+          address2: t.Optional(t.Any()),
+          phone: t.Optional(t.Any()),
+          billingCompany: t.Optional(t.Any()),
+          billingCity: t.Optional(t.Any()),
+          billingState: t.Optional(t.Any()),
+          billingZip: t.Optional(t.Any()),
+          billingCountry: t.Optional(t.Any()),
+          avatarUrl: t.Optional(t.Any()),
+          role: t.Optional(t.String()),
+          portalType: t.Optional(t.String()),
+          suspended: t.Optional(t.Boolean()),
+          limits: t.Optional(t.Any()),
+          nodeId: t.Optional(t.Any()),
+          badges: t.Optional(t.Array(t.String())),
+          dateOfBirth: t.Optional(t.Any()),
+          parentId: t.Optional(t.Any()),
+          emailVerified: t.Optional(t.Boolean()),
+          idVerified: t.Optional(t.Boolean()),
+          studentVerified: t.Optional(t.Boolean()),
+          studentVerifiedAt: t.Optional(t.Any()),
+          fraudFlag: t.Optional(t.Boolean()),
+          fraudReason: t.Optional(t.Any()),
+          guideShown: t.Optional(t.Boolean()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Modify a user record (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/unlink-child',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
+      if (adminErr !== true) return adminErr;
+
+      const userRepo = AppDataSource.getRepository(User);
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const previousParentId = user.parentId ?? null;
+      user.parentId = null;
+      await userRepo.save(user);
+
+      await logRepo.save(
+        logRepo.create({
+          userId: ctx.user?.id,
+          action: 'admin-unlink-child',
+          targetId: String(user.id),
+          targetType: 'user',
+          timestamp: new Date(),
+          metadata: { previousParentId },
+        } as any)
+      );
+
+      return { success: true, user };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), user: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Unlink a child account from its parent (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/users/:id/children',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:read');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const parentId = Number(ctx.params.id);
+      if (!Number.isInteger(parentId) || parentId <= 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('user.invalidParentId'), message: 'Invalid parent user id.' };
+      }
+      const children = await userRepo.find({ where: { parentId }, order: { id: 'ASC' } });
+      return { success: true, children };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), children: t.Array(t.Any()) }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List child accounts for a given parent (admin only)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/deassign-student',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:student:deassign');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const target = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!target) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      const body = (ctx.body || {}) as any;
+      const removePortal = body.removePortal === undefined ? true : !!body.removePortal;
+
+      target.studentVerified = false;
+      target.studentVerifiedAt = null as any;
+      target.educationLimits = null as any;
+      if (removePortal && target.portalType === 'educational') {
+        target.portalType = 'free';
+      }
+
+      await userRepo.save(target);
+      await logRepo.save(
+        logRepo.create({
+          userId: ctx.user?.id,
+          action: 'admin-deassign-student',
+          targetId: String(target.id),
+          targetType: 'user',
+          timestamp: new Date(),
+          metadata: { removePortal },
+        } as any)
+      );
+
+      return { success: true, user: target };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ removePortal: t.Optional(t.Boolean()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), user: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'Deassign a user from student/educational status (admin only)',
+        tags: ['Admin'],
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/require-student-reverify',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:write');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const target = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!target) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      target.studentVerified = false;
+      target.studentVerifiedAt = null as any;
+      const clearLimits = !!(ctx.body && ctx.body.clearLimits);
+      if (clearLimits) target.educationLimits = null as any;
+
+      await userRepo.save(target);
+      await logRepo.save(
+        logRepo.create({
+          userId: ctx.user?.id,
+          action: 'admin-require-student-reverify',
+          targetId: String(target.id),
+          targetType: 'user',
+          timestamp: new Date(),
+          metadata: { clearLimits },
+        } as any)
+      );
+
+      return { success: true, user: target };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ clearLimits: t.Optional(t.Boolean()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), user: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'Require a user to re-verify student status (admin only)',
+        tags: ['Admin'],
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/server-sunset',
+    async ctx => {
+      // Like actually needed thing cuz free and edu plan eat over 91% of node res
+      // And like only 10% of this is actually used by active servers!
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+
+      const userId = Number(ctx.params.id);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidUserId') };
+      }
+
+      const body = (ctx.body || {}) as any;
+      const graceHoursRaw = Number(body.graceHours ?? 48);
+      const graceHours = Number.isFinite(graceHoursRaw)
+        ? Math.min(168, Math.max(1, Math.floor(graceHoursRaw)))
+        : 48;
+
+      const result = await requestServerSunsetNoticeForUser({
+        userId,
+        graceHours,
+        requestedBy: ctx.user?.id,
+      });
+
+      if (!result.sent) {
+        const reason = result.reason || 'unknown_error';
+        if (reason === 'user_not_found') {
+          ctx.set.status = 404;
+          return { error: ctx.t('user.notFound') };
+        }
+        ctx.set.status = 400;
+        return { error: `Unable to send sunset notice: ${reason}` };
+      }
+
+      await AppDataSource.getRepository(UserLog).save(
+        AppDataSource.getRepository(UserLog).create({
+          userId: ctx.user?.id,
+          action: 'admin-request-server-sunset',
+          targetId: String(userId),
+          targetType: 'user',
+          timestamp: new Date(),
+          metadata: { graceHours: result.graceHours, servers: result.servers },
+        } as any)
+      );
+
+      return { success: true, graceHours: result.graceHours, servers: result.servers };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ graceHours: t.Optional(t.Number()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), graceHours: t.Number(), servers: t.Number() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'Request a server sunset notice for a user (admin only)',
+        tags: ['Admin'],
+      },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/users/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:delete');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      if (ctx.user?.id === user.id) {
+        ctx.set.status = 400;
+        return { error: ctx.t('user.cannotDeleteOwn') };
+      }
+      await userRepo.remove(user);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
       response: {
         200: t.Object({ success: t.Boolean() }),
         400: t.Object({ error: t.String() }),
@@ -2366,254 +2983,33 @@ export async function adminRoutes(app: any, prefix = '') {
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
       },
-    },
-    detail: { summary: 'Modify a user record (admin)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/users/:id/unlink-child', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
-    if (adminErr !== true) return adminErr;
-
-    const userRepo = AppDataSource.getRepository(User);
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
+      detail: { summary: 'Delete user account (admin)', tags: ['Admin'] },
     }
+  );
 
-    const previousParentId = user.parentId ?? null;
-    user.parentId = null;
-    await userRepo.save(user);
-
-    await logRepo.save(logRepo.create({
-      userId: ctx.user?.id,
-      action: 'admin-unlink-child',
-      targetId: String(user.id),
-      targetType: 'user',
-      timestamp: new Date(),
-      metadata: { previousParentId },
-    } as any));
-
-    return { success: true, user };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), user: t.Any() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Unlink a child account from its parent (admin only)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/users/:id/children', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:read');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const parentId = Number(ctx.params.id);
-    if (!Number.isInteger(parentId) || parentId <= 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('user.invalidParentId'), message: 'Invalid parent user id.' };
-    }
-    const children = await userRepo.find({ where: { parentId }, order: { id: 'ASC' } });
-    return { success: true, children };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), children: t.Array(t.Any()) }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List child accounts for a given parent (admin only)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/users/:id/deassign-student', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:student:deassign');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const target = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!target) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-    const body = (ctx.body || {}) as any;
-    const removePortal = body.removePortal === undefined ? true : !!body.removePortal;
-
-    target.studentVerified = false;
-    target.studentVerifiedAt = null as any;
-    target.educationLimits = null as any;
-    if (removePortal && target.portalType === 'educational') {
-      target.portalType = 'free';
-    }
-
-    await userRepo.save(target);
-    await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-deassign-student', targetId: String(target.id), targetType: 'user', timestamp: new Date(), metadata: { removePortal } } as any));
-
-    return { success: true, user: target };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ removePortal: t.Optional(t.Boolean()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), user: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Deassign a user from student/educational status (admin only)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/users/:id/require-student-reverify', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:write');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const target = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!target) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    target.studentVerified = false;
-    target.studentVerifiedAt = null as any;
-    const clearLimits = !!(ctx.body && ctx.body.clearLimits);
-    if (clearLimits) target.educationLimits = null as any;
-
-    await userRepo.save(target);
-    await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-require-student-reverify', targetId: String(target.id), targetType: 'user', timestamp: new Date(), metadata: { clearLimits } } as any));
-
-    return { success: true, user: target };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ clearLimits: t.Optional(t.Boolean()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), user: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Require a user to re-verify student status (admin only)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/users/:id/server-sunset', async (ctx) => {
-    // Like actually needed thing cuz free and edu plan eat over 91% of node res
-    // And like only 10% of this is actually used by active servers!
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-
-    const userId = Number(ctx.params.id);
-    if (!Number.isFinite(userId) || userId <= 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.invalidUserId') };
-    }
-
-    const body = (ctx.body || {}) as any;
-    const graceHoursRaw = Number(body.graceHours ?? 48);
-    const graceHours = Number.isFinite(graceHoursRaw) ? Math.min(168, Math.max(1, Math.floor(graceHoursRaw))) : 48;
-
-    const result = await requestServerSunsetNoticeForUser({
-      userId,
-      graceHours,
-      requestedBy: ctx.user?.id,
-    });
-
-    if (!result.sent) {
-      const reason = result.reason || 'unknown_error';
-      if (reason === 'user_not_found') {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.notFound') };
+  app.get(
+    prefix + '/admin/tickets',
+    async ctx => {
+      const isAdminApiKey = ctx.apiKey?.type === 'admin';
+      const canReadTickets =
+        isAdminApiKey ||
+        hasPermissionSync(ctx, 'tickets:read') ||
+        hasPermissionSync(ctx, 'admin:ticket:staff');
+      if (!canReadTickets) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
       }
-      ctx.set.status = 400;
-      return { error: `Unable to send sunset notice: ${reason}` };
-    }
+      const ticketRepo = AppDataSource.getRepository(Ticket);
+      const userRepo = AppDataSource.getRepository(User);
+      const { page = '1', q = '', priority = '', status = '', archived = '' } = ctx.query as any;
+      const per = 50;
+      const p = Math.max(1, Number(page) || 1);
 
-    await AppDataSource.getRepository(UserLog).save(AppDataSource.getRepository(UserLog).create({
-      userId: ctx.user?.id,
-      action: 'admin-request-server-sunset',
-      targetId: String(userId),
-      targetType: 'user',
-      timestamp: new Date(),
-      metadata: { graceHours: result.graceHours, servers: result.servers },
-    } as any));
+      // Nutshelllllll its  composite ordering
+      // Priority + wait time  gorups
+      const LONG_WAIT_HOURS = 48;
 
-    return { success: true, graceHours: result.graceHours, servers: result.servers };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ graceHours: t.Optional(t.Number()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), graceHours: t.Number(), servers: t.Number() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Request a server sunset notice for a user (admin only)', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/users/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:delete');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-    if (ctx.user?.id === user.id) {
-      ctx.set.status = 400;
-      return { error: ctx.t('user.cannotDeleteOwn') };
-    }
-    await userRepo.remove(user);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({ success: t.Boolean() }),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Delete user account (admin)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/tickets', async (ctx) => {
-    const isAdminApiKey = ctx.apiKey?.type === 'admin';
-    const canReadTickets = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
-    if (!canReadTickets) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
-    }
-    const ticketRepo = AppDataSource.getRepository(Ticket);
-    const userRepo = AppDataSource.getRepository(User);
-    const { page = '1', q = '', priority = '', status = '', archived = '' } = ctx.query as any;
-    const per = 50;
-    const p = Math.max(1, Number(page) || 1);
-
-    // Nutshelllllll its  composite ordering
-    // Priority + wait time  gorups
-    const LONG_WAIT_HOURS = 48;
-
-    const groupCase = `CASE
+      const groupCase = `CASE
       WHEN t.priority = 'urgent' THEN 4
       WHEN (t.priority IN ('high','medium') AND TIMESTAMPDIFF(HOUR, t.created, NOW()) >= :longWaitHours) THEN 3
       WHEN (t.priority = 'high' AND TIMESTAMPDIFF(HOUR, t.created, NOW()) < :longWaitHours) THEN 2
@@ -2623,4355 +3019,990 @@ export async function adminRoutes(app: any, prefix = '') {
       ELSE 1
     END`;
 
-    let qb = ticketRepo.createQueryBuilder('t')
-      .addSelect(groupCase, 'group_weight')
-      .setParameter('longWaitHours', LONG_WAIT_HOURS)
-      .orderBy('group_weight', 'DESC')
-      .addOrderBy('t.created', 'ASC');
+      let qb = ticketRepo
+        .createQueryBuilder('t')
+        .addSelect(groupCase, 'group_weight')
+        .setParameter('longWaitHours', LONG_WAIT_HOURS)
+        .orderBy('group_weight', 'DESC')
+        .addOrderBy('t.created', 'ASC');
 
-    if (priority && String(priority).trim() !== '') {
-      qb = qb.where('t.priority = :pr', { pr: String(priority).trim() });
-    }
+      if (priority && String(priority).trim() !== '') {
+        qb = qb.where('t.priority = :pr', { pr: String(priority).trim() });
+      }
 
-    if (status && String(status).trim() !== '') {
-      const s = String(status).trim().toLowerCase();
-      if (s === 'archived') {
+      if (status && String(status).trim() !== '') {
+        const s = String(status).trim().toLowerCase();
+        if (s === 'archived') {
+          qb = qb.andWhere('t.archived = :ar', { ar: true });
+        } else {
+          const statusMap: Record<string, string[]> = {
+            opened: ['open', 'opened'],
+            awaiting_staff_reply: ['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'],
+            replied: ['replied'],
+            closed: ['closed'],
+          };
+          const statusValues = statusMap[s] ?? [s];
+          qb = qb.andWhere('t.status IN (:...s)', { s: statusValues });
+          qb = qb.andWhere('t.archived = :ar', { ar: false });
+        }
+      } else if (archived === 'true' || archived === '1' || archived === 'yes') {
         qb = qb.andWhere('t.archived = :ar', { ar: true });
       } else {
-        const statusMap: Record<string, string[]> = {
-          opened: ['open', 'opened'],
-          awaiting_staff_reply: ['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'],
-          replied: ['replied'],
-          closed: ['closed'],
-        };
-        const statusValues = statusMap[s] ?? [s];
-        qb = qb.andWhere('t.status IN (:...s)', { s: statusValues });
         qb = qb.andWhere('t.archived = :ar', { ar: false });
-      }
-    } else if (archived === 'true' || archived === '1' || archived === 'yes') {
-      qb = qb.andWhere('t.archived = :ar', { ar: true });
-    } else {
-      qb = qb.andWhere('t.archived = :ar', { ar: false });
-      qb = qb.andWhere('(t.status != :closed OR t.aiClosed = :aiTrue)', { closed: 'closed', aiTrue: true });
-    }
-
-    if (q && String(q).trim() !== '') {
-      const qstr = String(q).trim();
-      if (/^\d+$/.test(qstr)) {
-        qb = qb.andWhere('t.userId = :uid', { uid: Number(qstr) });
-      } else {
-        qb = qb.leftJoin(require('../models/user.entity').User, 'u', 'u.id = t.userId').andWhere('u.email LIKE :email OR u.firstName LIKE :q OR u.lastName LIKE :q', { email: `%${qstr}%`, q: `%${qstr}%` });
-      }
-    }
-
-    const total = await qb.getCount();
-    const tickets = await qb.skip((p - 1) * per).take(per).getMany();
-
-    const userIds = [...new Set(tickets.map((t: any) => t.userId))];
-    const users = userIds.length ? await userRepo.findBy({ id: In(userIds) }) : [];
-    const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
-    for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
-
-    const result = tickets.map((t: any) => ({
-      ...t,
-      user: userMap[t.userId] ?? null,
-    }));
-    return { tickets: result, total, page: p, per };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()), priority: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ tickets: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List support tickets (admin) with pagination, search and priority filter', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/tickets/:id', async (ctx) => {
-    const isAdminApiKey = ctx.apiKey?.type === 'admin';
-    const canAdminWrite = isAdminApiKey || hasPermissionSync(ctx, 'tickets:write');
-    const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
-    if (!canAdminWrite && !canStaffReply) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
-    }
-    const ticketRepo = AppDataSource.getRepository(Ticket);
-    const ticket = await ticketRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!ticket) {
-      ctx.set.status = 404;
-      return { error: ctx.t('ticket.notFound') };
-    }
-
-    const {
-      status,
-      priority,
-      reply,
-      replyAs,
-      adminReply,
-      archived,
-      assignedTo,
-      department,
-      aiDisabled,
-      aiTouched,
-    } = ctx.body as any;
-
-    const now = new Date();
-    const previousStatus = ticket.status;
-
-    if (canAdminWrite) {
-      if (priority) ticket.priority = priority;
-      if (assignedTo != null) ticket.assignedTo = Number(assignedTo);
-      if (typeof department === 'string') ticket.department = department;
-      if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
-      if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
-      if (archived !== undefined) ticket.archived = Boolean(archived);
-    }
-
-    if (status) {
-      const nextStatus = normalizeTicketStatus(status);
-      if (nextStatus !== ticket.status) {
-        ticket.status = nextStatus;
-        normalizeTicketMessages(ticket);
-        if (!Array.isArray(ticket.messages)) ticket.messages = [];
-        ticket.messages.push({
-          sender: 'system',
-          message: `Status changed from ${previousStatus || 'unknown'} to ${nextStatus}.`,
-          created: now,
+        qb = qb.andWhere('(t.status != :closed OR t.aiClosed = :aiTrue)', {
+          closed: 'closed',
+          aiTrue: true,
         });
       }
-    }
 
-    normalizeTicketMessages(ticket);
-    if (!Array.isArray(ticket.messages)) ticket.messages = [];
-
-    if (typeof reply === 'string' && reply.trim()) {
-      const isAdminApiKey = ctx.apiKey?.type === 'admin';
-      const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
-      const cleanReply = sanitizeForDb(reply.trim());
-      const sender = replyAs === 'user'
-        ? 'user'
-        : replyAs === 'staff'
-          ? (canStaffReply ? 'staff' : 'user')
-          : (canStaffReply ? 'staff' : 'user');
-      ticket.messages.push({ sender, message: cleanReply, created: now });
-      if (sender === 'staff') {
-        ticket.adminReply = cleanReply;
-      }
-      if (!status) ticket.status = sender === 'staff' ? 'replied' : 'awaiting_staff_reply';
-    } else if (adminReply !== undefined && canAdminWrite) {
-      ticket.adminReply = sanitizeForDb(String(adminReply));
-    }
-
-    // status can still be set by admin reply options in the modal
-    if (status) {
-      ticket.status = normalizeTicketStatus(status);
-    }
-
-    const saved = await ticketRepo.save(ticket);
-    return { success: true, ticket: saved };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ status: t.Optional(t.String()), adminReply: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), ticket: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update a ticket (admin)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/tickets/archive', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'tickets:write');
-    if (adminErr !== true) return adminErr;
-    const ticketRepo = AppDataSource.getRepository(Ticket);
-    const { ids, archived } = ctx.body as any;
-    if (!Array.isArray(ids) || ids.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.idsArrayRequired') };
-    }
-
-    const archiveFlag = Boolean(archived);
-    await ticketRepo
-      .createQueryBuilder()
-      .update(Ticket)
-      .set({ archived: archiveFlag })
-      .where('id IN (:...ids)', { ids: ids.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id)) })
-      .execute();
-
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({ ids: t.Array(t.Number()), archived: t.Boolean() }),
-      response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Bulk archive/unarchive support tickets (admin)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/verifications', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:kyc:view');
-    if (adminErr !== true) return adminErr;
-    const canViewFiles = hasPermissionSync(ctx, 'admin:kyc:view:id');
-    const verRepo = AppDataSource.getRepository(IDVerification);
-    const userRepo = AppDataSource.getRepository(User);
-
-    const records = await verRepo.find({ order: { id: 'DESC' } });
-    const userIds = [...new Set(records.map((r) => r.userId))];
-    const users = await userRepo.findBy({ id: In(userIds) });
-    const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
-    for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
-
-    const result = records.map((r) => {
-      const row: any = { ...r, user: userMap[r.userId] ?? null };
-      if (!canViewFiles) {
-        row.idDocumentUrl = null;
-        row.selfieUrl = null;
-      }
-      return row;
-    });
-    return result;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List ID verification records', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/verifications/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
-    if (adminErr !== true) return adminErr;
-    const verRepo = AppDataSource.getRepository(IDVerification);
-    const userRepo = AppDataSource.getRepository(User);
-
-    const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!rec) {
-      ctx.set.status = 404;
-      return { error: ctx.t('common.notFound') };
-    }
-    const { status } = ctx.body as any;
-    if (!['verified', 'failed'].includes(status)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('common.statusMustBeVerifiedOrFailed') };
-    }
-    rec.status = status;
-    if (status === 'verified') {
-      rec.verifiedAt = new Date();
-      await userRepo.update({ id: rec.userId }, { idVerified: true });
-    } else {
-      rec.verifiedAt = null;
-      await userRepo.update({ id: rec.userId }, { idVerified: false });
-    }
-    await verRepo.save(rec);
-    return { success: true, rec };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ status: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update a verification record', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/verifications/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
-    if (adminErr !== true) return adminErr;
-    const verRepo = AppDataSource.getRepository(IDVerification);
-    const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!rec) {
-      ctx.set.status = 404;
-      return { error: ctx.t('common.notFound') };
-    }
-    const uploadDir = process.cwd();
-    for (const field of ['idDocumentUrl', 'selfieUrl'] as const) {
-      const url = typeof rec[field] === 'string' ? rec[field].trim() : '';
-      if (url) {
-        const filepath = getSafeRelativeFilePath(uploadDir, url);
-        if (filepath) {
-          try { fs.unlinkSync(filepath); } catch { }
+      if (q && String(q).trim() !== '') {
+        const qstr = String(q).trim();
+        if (/^\d+$/.test(qstr)) {
+          qb = qb.andWhere('t.userId = :uid', { uid: Number(qstr) });
+        } else {
+          qb = qb
+            .leftJoin(require('../models/user.entity').User, 'u', 'u.id = t.userId')
+            .andWhere('u.email LIKE :email OR u.firstName LIKE :q OR u.lastName LIKE :q', {
+              email: `%${qstr}%`,
+              q: `%${qstr}%`,
+            });
         }
-        rec[field] = null;
       }
+
+      const total = await qb.getCount();
+      const tickets = await qb
+        .skip((p - 1) * per)
+        .take(per)
+        .getMany();
+
+      const userIds = [...new Set(tickets.map((t: any) => t.userId))];
+      const users = userIds.length ? await userRepo.findBy({ id: In(userIds) }) : [];
+      const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
+      for (const u of users)
+        userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
+
+      const result = tickets.map((t: any) => ({
+        ...t,
+        user: userMap[t.userId] ?? null,
+      }));
+      return { tickets: result, total, page: p, per };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({
+          page: t.Optional(t.Number()),
+          q: t.Optional(t.String()),
+          priority: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({
+            tickets: t.Array(t.Any()),
+            total: t.Number(),
+            page: t.Number(),
+            per: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'List support tickets (admin) with pagination, search and priority filter',
+        tags: ['Admin'],
+      },
     }
-    await verRepo.save(rec);
-    return { success: true, rec };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
+  );
+
+  app.put(
+    prefix + '/admin/tickets/:id',
+    async ctx => {
+      const isAdminApiKey = ctx.apiKey?.type === 'admin';
+      const canAdminWrite = isAdminApiKey || hasPermissionSync(ctx, 'tickets:write');
+      const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
+      if (!canAdminWrite && !canStaffReply) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      const ticketRepo = AppDataSource.getRepository(Ticket);
+      const ticket = await ticketRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!ticket) {
+        ctx.set.status = 404;
+        return { error: ctx.t('ticket.notFound') };
+      }
+
+      const {
+        status,
+        priority,
+        reply,
+        replyAs,
+        adminReply,
+        archived,
+        assignedTo,
+        department,
+        aiDisabled,
+        aiTouched,
+      } = ctx.body as any;
+
+      const now = new Date();
+      const previousStatus = ticket.status;
+
+      if (canAdminWrite) {
+        if (priority) ticket.priority = priority;
+        if (assignedTo != null) ticket.assignedTo = Number(assignedTo);
+        if (typeof department === 'string') ticket.department = department;
+        if (typeof aiDisabled === 'boolean') ticket.aiDisabled = aiDisabled;
+        if (typeof aiTouched === 'boolean') ticket.aiTouched = aiTouched;
+        if (archived !== undefined) ticket.archived = Boolean(archived);
+      }
+
+      if (status) {
+        const nextStatus = normalizeTicketStatus(status);
+        if (nextStatus !== ticket.status) {
+          ticket.status = nextStatus;
+          normalizeTicketMessages(ticket);
+          if (!Array.isArray(ticket.messages)) ticket.messages = [];
+          ticket.messages.push({
+            sender: 'system',
+            message: `Status changed from ${previousStatus || 'unknown'} to ${nextStatus}.`,
+            created: now,
+          });
+        }
+      }
+
+      normalizeTicketMessages(ticket);
+      if (!Array.isArray(ticket.messages)) ticket.messages = [];
+
+      if (typeof reply === 'string' && reply.trim()) {
+        const isAdminApiKey = ctx.apiKey?.type === 'admin';
+        const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
+        const cleanReply = sanitizeForDb(reply.trim());
+        const sender =
+          replyAs === 'user'
+            ? 'user'
+            : replyAs === 'staff'
+              ? canStaffReply
+                ? 'staff'
+                : 'user'
+              : canStaffReply
+                ? 'staff'
+                : 'user';
+        ticket.messages.push({ sender, message: cleanReply, created: now });
+        if (sender === 'staff') {
+          ticket.adminReply = cleanReply;
+        }
+        if (!status) ticket.status = sender === 'staff' ? 'replied' : 'awaiting_staff_reply';
+      } else if (adminReply !== undefined && canAdminWrite) {
+        ticket.adminReply = sanitizeForDb(String(adminReply));
+      }
+
+      // status can still be set by admin reply options in the modal
+      if (status) {
+        ticket.status = normalizeTicketStatus(status);
+      }
+
+      const saved = await ticketRepo.save(ticket);
+      return { success: true, ticket: saved };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ status: t.Optional(t.String()), adminReply: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), ticket: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update a ticket (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/tickets/archive',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'tickets:write');
+      if (adminErr !== true) return adminErr;
+      const ticketRepo = AppDataSource.getRepository(Ticket);
+      const { ids, archived } = ctx.body as any;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.idsArrayRequired') };
+      }
+
+      const archiveFlag = Boolean(archived);
+      await ticketRepo
+        .createQueryBuilder()
+        .update(Ticket)
+        .set({ archived: archiveFlag })
+        .where('id IN (:...ids)', {
+          ids: ids.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id)),
+        })
+        .execute();
+
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({ ids: t.Array(t.Number()), archived: t.Boolean() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Bulk archive/unarchive support tickets (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/verifications',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:kyc:view');
+      if (adminErr !== true) return adminErr;
+      const canViewFiles = hasPermissionSync(ctx, 'admin:kyc:view:id');
+      const verRepo = AppDataSource.getRepository(IDVerification);
+      const userRepo = AppDataSource.getRepository(User);
+
+      const records = await verRepo.find({ order: { id: 'DESC' } });
+      const userIds = [...new Set(records.map(r => r.userId))];
+      const users = await userRepo.findBy({ id: In(userIds) });
+      const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
+      for (const u of users)
+        userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
+
+      const result = records.map(r => {
+        const row: any = { ...r, user: userMap[r.userId] ?? null };
+        if (!canViewFiles) {
+          row.idDocumentUrl = null;
+          row.selfieUrl = null;
+        }
+        return row;
+      });
+      return result;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
       response: {
-        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+        200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
       },
-    },
-    detail: { summary: 'Delete files attached to a verification', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/deletions', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'deletions:write');
-    if (adminErr !== true) return adminErr;
-    const delRepo = AppDataSource.getRepository(DeletionRequest);
-    const userRepo = AppDataSource.getRepository(User);
-
-    const records = await delRepo.find({ order: { requestedAt: 'DESC' } });
-    const userIds = [...new Set(records.map((r) => r.userId))];
-    const users = await userRepo.findBy({ id: In(userIds) });
-    const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
-    for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
-
-    const result = records.map((r) => ({ ...r, user: userMap[r.userId] ?? null }));
-    return result;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List account deletion requests', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/deletions/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'deletions:write');
-    if (adminErr !== true) return adminErr;
-    const delRepo = AppDataSource.getRepository(DeletionRequest);
-    const adminUser = ctx.user as User;
-    const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!rec) {
-      ctx.set.status = 404;
-      return { error: ctx.t('common.notFound') };
+      detail: { summary: 'List ID verification records', tags: ['Admin'] },
     }
-    const { status } = ctx.body as any;
-    if (status !== 'approved' && status !== 'rejected') {
-      ctx.set.status = 400;
-      return { error: ctx.t('common.invalidStatus') };
+  );
+
+  app.put(
+    prefix + '/admin/verifications/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
+      if (adminErr !== true) return adminErr;
+      const verRepo = AppDataSource.getRepository(IDVerification);
+      const userRepo = AppDataSource.getRepository(User);
+
+      const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: ctx.t('common.notFound') };
+      }
+      const { status } = ctx.body as any;
+      if (!['verified', 'failed'].includes(status)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('common.statusMustBeVerifiedOrFailed') };
+      }
+      rec.status = status;
+      if (status === 'verified') {
+        rec.verifiedAt = new Date();
+        await userRepo.update({ id: rec.userId }, { idVerified: true });
+      } else {
+        rec.verifiedAt = null;
+        await userRepo.update({ id: rec.userId }, { idVerified: false });
+      }
+      await verRepo.save(rec);
+      return { success: true, rec };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ status: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update a verification record', tags: ['Admin'] },
     }
-    rec.status = status;
-    rec.approvedBy = adminUser.id;
+  );
 
-    const userRepo = AppDataSource.getRepository(User);
-    const targetUser = await userRepo.findOneBy({ id: rec.userId });
-    const panelUrl = process.env.PANEL_URL || 'https://ecli.app';
+  app.delete(
+    prefix + '/admin/verifications/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
+      if (adminErr !== true) return adminErr;
+      const verRepo = AppDataSource.getRepository(IDVerification);
+      const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: ctx.t('common.notFound') };
+      }
+      const uploadDir = process.cwd();
+      for (const field of ['idDocumentUrl', 'selfieUrl'] as const) {
+        const url = typeof rec[field] === 'string' ? rec[field].trim() : '';
+        if (url) {
+          const filepath = getSafeRelativeFilePath(uploadDir, url);
+          if (filepath) {
+            try {
+              fs.unlinkSync(filepath);
+            } catch {}
+          }
+          rec[field] = null;
+        }
+      }
+      await verRepo.save(rec);
+      return { success: true, rec };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete files attached to a verification', tags: ['Admin'] },
+    }
+  );
 
-    if (status === 'approved') {
+  app.get(
+    prefix + '/admin/deletions',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'deletions:write');
+      if (adminErr !== true) return adminErr;
+      const delRepo = AppDataSource.getRepository(DeletionRequest);
+      const userRepo = AppDataSource.getRepository(User);
+
+      const records = await delRepo.find({ order: { requestedAt: 'DESC' } });
+      const userIds = [...new Set(records.map(r => r.userId))];
+      const users = await userRepo.findBy({ id: In(userIds) });
+      const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
+      for (const u of users)
+        userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
+
+      const result = records.map(r => ({ ...r, user: userMap[r.userId] ?? null }));
+      return result;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List account deletion requests', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/deletions/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'deletions:write');
+      if (adminErr !== true) return adminErr;
+      const delRepo = AppDataSource.getRepository(DeletionRequest);
+      const adminUser = ctx.user as User;
+      const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: ctx.t('common.notFound') };
+      }
+      const { status } = ctx.body as any;
+      if (status !== 'approved' && status !== 'rejected') {
+        ctx.set.status = 400;
+        return { error: ctx.t('common.invalidStatus') };
+      }
+      rec.status = status;
+      rec.approvedBy = adminUser.id;
+
+      const userRepo = AppDataSource.getRepository(User);
+      const targetUser = await userRepo.findOneBy({ id: rec.userId });
+      const panelUrl = process.env.PANEL_URL || 'https://ecli.app';
+
+      if (status === 'approved') {
+        if (targetUser) {
+          targetUser.deletionRequested = true;
+          targetUser.deletionApproved = false;
+          targetUser.pendingDeletionUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+          targetUser.suspended = true;
+          await userRepo.save(targetUser);
+        }
+        rec.status = 'pending_deletion';
+        rec.approvedAt = new Date();
+        rec.scheduledDeletionAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+        if (targetUser?.email) {
+          sendMail({
+            to: targetUser.email,
+            template: 'deletion-approved',
+            vars: {
+              title: 'Account Deletion Approved',
+              message: ctx.t('admin.deletionApprovedMsg'),
+              action_url: `${panelUrl}/login`,
+              action_text: 'Log in to Cancel',
+              details: `Scheduled deletion: ${rec.scheduledDeletionAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\nOnce deleted, your account and data cannot be recovered.`,
+            },
+            locale: ctx.locale,
+          }).catch((e: any) => console.error('[adminHandler] failed to send approval email', e));
+        }
+      }
+
+      if (status === 'rejected') {
+        if (targetUser?.email) {
+          sendMail({
+            to: targetUser.email,
+            template: 'deletion-rejected',
+            vars: {
+              title: 'Account Deletion Request Declined',
+              message: ctx.t('admin.deletionDeclinedMsg'),
+              action_url: `${panelUrl}/contact`,
+              action_text: 'Contact Support',
+              details:
+                'For assistance, please reply to this email or contact our support team through the panel.',
+            },
+            locale: ctx.locale,
+          }).catch((e: any) => console.error('[adminHandler] failed to send rejection email', e));
+        }
+      }
+
+      await delRepo.save(rec);
+      return { success: true, rec };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ status: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Approve or reject a deletion request', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/deletions/:id/expedite',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'deletions:write');
+      if (adminErr !== true) return adminErr;
+      const delRepo = AppDataSource.getRepository(DeletionRequest);
+      const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: ctx.t('common.notFound') };
+      }
+      if (rec.status !== 'pending_deletion' && rec.status !== 'approved') {
+        ctx.set.status = 400;
+        return { error: ctx.t('deletion.notPending') };
+      }
+      if (rec.status === 'approved') {
+        rec.status = 'pending_deletion';
+        rec.scheduledDeletionAt = new Date();
+        await delRepo.save(rec);
+      }
+      const updated = await executeDeletionRequest(rec, new Date());
+      return { success: true, rec: updated };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Expedite and execute deletion immediately', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/deletions/:id/cancel',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'deletions:write');
+      if (adminErr !== true) return adminErr;
+      const delRepo = AppDataSource.getRepository(DeletionRequest);
+      const userRepo = AppDataSource.getRepository(User);
+      const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) {
+        ctx.set.status = 404;
+        return { error: ctx.t('common.notFound') };
+      }
+      if (rec.status !== 'pending_deletion') {
+        ctx.set.status = 400;
+        return { error: ctx.t('deletion.onlyPendingCancellable') };
+      }
+
+      const targetUser = await userRepo.findOneBy({ id: rec.userId });
       if (targetUser) {
-        targetUser.deletionRequested = true;
+        const hadPendingFreeze = !!targetUser.pendingDeletionUntil;
+        targetUser.deletionRequested = false;
         targetUser.deletionApproved = false;
-        targetUser.pendingDeletionUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-        targetUser.suspended = true;
+        targetUser.pendingDeletionUntil = undefined;
+        if (hadPendingFreeze) targetUser.suspended = false;
         await userRepo.save(targetUser);
       }
-      rec.status = 'pending_deletion';
-      rec.approvedAt = new Date();
-      rec.scheduledDeletionAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
-      if (targetUser?.email) {
-        sendMail({
-          to: targetUser.email,
-          template: 'deletion-approved',
-          vars: {
-            title: 'Account Deletion Approved',
-            message: ctx.t('admin.deletionApprovedMsg'),
-            action_url: `${panelUrl}/login`,
-            action_text: 'Log in to Cancel',
-            details: `Scheduled deletion: ${rec.scheduledDeletionAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\nOnce deleted, your account and data cannot be recovered.`,
-          },
-          locale: ctx.locale,
-}).catch((e: any) => console.error('[adminHandler] failed to send approval email', e));
-      }
-    }
-
-    if (status === 'rejected') {
-      if (targetUser?.email) {
-        sendMail({
-          to: targetUser.email,
-          template: 'deletion-rejected',
-          vars: {
-            title: 'Account Deletion Request Declined',
-            message: ctx.t('admin.deletionDeclinedMsg'),
-            action_url: `${panelUrl}/contact`,
-            action_text: 'Contact Support',
-            details: 'For assistance, please reply to this email or contact our support team through the panel.',
-          },
-          locale: ctx.locale,
-}).catch((e: any) => console.error('[adminHandler] failed to send rejection email', e));
-      }
-    }
-
-    await delRepo.save(rec);
-    return { success: true, rec };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ status: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Approve or reject a deletion request', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/deletions/:id/expedite', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'deletions:write');
-    if (adminErr !== true) return adminErr;
-    const delRepo = AppDataSource.getRepository(DeletionRequest);
-    const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!rec) {
-      ctx.set.status = 404;
-      return { error: ctx.t('common.notFound') };
-    }
-    if (rec.status !== 'pending_deletion' && rec.status !== 'approved') {
-      ctx.set.status = 400;
-      return { error: ctx.t('deletion.notPending') };
-    }
-    if (rec.status === 'approved') {
-      rec.status = 'pending_deletion';
-      rec.scheduledDeletionAt = new Date();
+      rec.status = 'cancelled';
+      rec.scheduledDeletionAt = undefined;
       await delRepo.save(rec);
-    }
-    const updated = await executeDeletionRequest(rec, new Date());
-    return { success: true, rec: updated };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
+      return { success: true, rec };
     },
-    detail: { summary: 'Expedite and execute deletion immediately', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/deletions/:id/cancel', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'deletions:write');
-    if (adminErr !== true) return adminErr;
-    const delRepo = AppDataSource.getRepository(DeletionRequest);
-    const userRepo = AppDataSource.getRepository(User);
-    const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!rec) {
-      ctx.set.status = 404;
-      return { error: ctx.t('common.notFound') };
-    }
-    if (rec.status !== 'pending_deletion') {
-      ctx.set.status = 400;
-      return { error: ctx.t('deletion.onlyPendingCancellable') };
-    }
-
-    const targetUser = await userRepo.findOneBy({ id: rec.userId });
-    if (targetUser) {
-      const hadPendingFreeze = !!targetUser.pendingDeletionUntil;
-      targetUser.deletionRequested = false;
-      targetUser.deletionApproved = false;
-      targetUser.pendingDeletionUntil = undefined;
-      if (hadPendingFreeze) targetUser.suspended = false;
-      await userRepo.save(targetUser);
-    }
-
-    rec.status = 'cancelled';
-    rec.scheduledDeletionAt = undefined;
-    await delRepo.save(rec);
-    return { success: true, rec };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), rec: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), rec: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
       },
-    },
-    detail: { summary: 'Cancel pending deletion and unfreeze account', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/nodes', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'nodes:read');
-    if (adminErr !== true) return adminErr;
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const nodes = await nodeRepo.find();
-    return nodes;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List all nodes', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/organisations', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'org:read');
-    if (adminErr !== true) return adminErr;
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const userRepo = AppDataSource.getRepository(User);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const { page = '1', q = '' } = ctx.query as any;
-    const per = 50;
-    const p = Math.max(1, Number(page) || 1);
-
-    let qb = orgRepo.createQueryBuilder('o').orderBy('o.id', 'ASC');
-    if (q && String(q).trim() !== '') {
-      const qstr = String(q).trim();
-      qb = qb.leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.ownerId')
-        .where('o.name LIKE :q OR o.handle LIKE :q OR u.email LIKE :q', { q: `%${qstr}%` });
+      detail: { summary: 'Cancel pending deletion and unfreeze account', tags: ['Admin'] },
     }
-
-    const total = await qb.getCount();
-    const orgs = await qb.skip((p - 1) * per).take(per).getMany();
-
-    const ownerIds = [...new Set(orgs.map((o: any) => o.ownerId))];
-    const owners = ownerIds.length ? await userRepo.findBy({ id: In(ownerIds) }) : [];
-    const ownerMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
-    for (const u of owners) ownerMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
-
-    const orgIds = orgs.map((o: any) => o.id);
-    const memberCounts = orgIds.length ? await orgMemberRepo
-      .createQueryBuilder('m')
-      .select('m.organisationId', 'orgId')
-      .addSelect('COUNT(*)', 'count')
-      .where('m.organisationId IN (:...ids)', { ids: orgIds })
-      .groupBy('m.organisationId')
-      .getRawMany() : [];
-
-    const countMap: Record<number, number> = {};
-    for (const row of memberCounts) countMap[Number(row.orgId)] = Number(row.count);
-
-    const result = orgs.map((o: any) => ({
-      ...o,
-      owner: ownerMap[o.ownerId] ?? null,
-      memberCount: countMap[o.id] ?? 0,
-      isStaff: !!o.isStaff,
-    }));
-
-    return { organisations: result, total, page: p, per };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ organisations: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List organisations with owners and member counts (paged)', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/organisations/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'org:write');
-    if (adminErr !== true) return adminErr;
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!org) {
-      ctx.set.status = 404;
-      return { error: ctx.t('organisation.notFound') };
-    }
-
-    const { name, handle, portalTier, ownerId, isStaff } = ctx.body as any;
-    if (name !== undefined) org.name = name;
-    if (handle !== undefined) org.handle = handle;
-    if (portalTier !== undefined) org.portalTier = portalTier;
-    if (ownerId !== undefined) {
-      const newOwnerId = Number(ownerId);
-      const previousOwnerId = Number(org.ownerId);
-      org.ownerId = newOwnerId;
-      const newOwnerMembership = await orgMemberRepo.findOne({ where: { userId: newOwnerId, organisationId: org.id } });
-      if (newOwnerMembership) {
-        newOwnerMembership.orgRole = 'owner';
-        await orgMemberRepo.save(newOwnerMembership);
-      } else {
-        const userRepo = AppDataSource.getRepository(User);
-        const ownerUser = await userRepo.findOneBy({ id: newOwnerId });
-        if (ownerUser) {
-          const created = orgMemberRepo.create({ userId: newOwnerId, organisationId: org.id, user: ownerUser, organisation: org, orgRole: 'owner', createdAt: new Date() });
-          await orgMemberRepo.save(created);
-        }
-      }
-
-      if (previousOwnerId && previousOwnerId !== newOwnerId) {
-        const previousOwnerMembership = await orgMemberRepo.findOne({ where: { userId: previousOwnerId, organisationId: org.id } });
-        if (previousOwnerMembership && previousOwnerMembership.orgRole === 'owner') {
-          previousOwnerMembership.orgRole = 'admin';
-          await orgMemberRepo.save(previousOwnerMembership);
-        }
-      }
-    }
-    if (isStaff !== undefined) org.isStaff = !!isStaff;
-
-    await orgRepo.save(org);
-    return { success: true, org };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String()),
-        handle: t.Optional(t.String()),
-        portalTier: t.Optional(t.String()),
-        ownerId: t.Optional(t.Any()),
-        isStaff: t.Optional(t.Boolean()),
-      }),
-      response: {
-        200: t.Object({ success: t.Boolean(), org: t.Any() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update organisation settings', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/organisations/:id/members', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'org:write');
-    if (adminErr !== true) return adminErr;
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const userRepo = AppDataSource.getRepository(User);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!org) {
-      ctx.set.status = 404;
-      return { error: ctx.t('organisation.notFound') };
-    }
-    const { userId, orgRole = 'member' } = ctx.body as any;
-    if (!userId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.userIdRequired') };
-    }
-    const target = await userRepo.findOneBy({ id: Number(userId) });
-    if (!target) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const existing = await orgMemberRepo.findOne({ where: { userId: target.id, organisationId: org.id } });
-    const normalizedRole = ['member', 'admin', 'owner'].includes(orgRole) ? orgRole : 'member';
-    if (existing) {
-      existing.orgRole = normalizedRole as any;
-      await orgMemberRepo.save(existing);
-    } else {
-      const membership = orgMemberRepo.create({ userId: target.id, organisationId: org.id, user: target, organisation: org, orgRole: normalizedRole as any, createdAt: new Date() });
-      await orgMemberRepo.save(membership);
-    }
-
-    if (normalizedRole === 'owner') {
-      const prevOwnerId = Number(org.ownerId);
-      org.ownerId = target.id;
-      await orgRepo.save(org);
-      if (prevOwnerId && prevOwnerId !== target.id) {
-        const prevOwnerMembership = await orgMemberRepo.findOne({ where: { userId: prevOwnerId, organisationId: org.id } });
-        if (prevOwnerMembership && prevOwnerMembership.orgRole === 'owner') {
-          prevOwnerMembership.orgRole = 'admin';
-          await orgMemberRepo.save(prevOwnerMembership);
-        }
-      }
-    }
-
-    ctx.set.status = 201;
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ userId: t.Any(), orgRole: t.Optional(t.String()) }),
-      response: {
-        201: t.Object({ success: t.Boolean() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Add member to organisation', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/organisations/:id/members/:userId', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'org:write');
-    if (adminErr !== true) return adminErr;
-    const orgId = Number(ctx.params.id);
-    const targetUserId = Number(ctx.params.userId);
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const org = await orgRepo.findOneBy({ id: orgId });
-    if (!org) {
-      ctx.set.status = 404;
-      return { error: ctx.t('organisation.notFound') };
-    }
-    const membership = await orgMemberRepo.findOne({ where: { userId: targetUserId, organisationId: orgId } });
-    if (!membership) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFoundOrg') };
-    }
-    if (targetUserId === Number(org.ownerId) || membership.orgRole === 'owner') {
-      ctx.set.status = 403;
-      return { error: ctx.t('organisation.cannotRemoveOwner') };
-    }
-    await orgMemberRepo.remove(membership);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String(), userId: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Remove member from organisation', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/organisations/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'org:write');
-    if (adminErr !== true) return adminErr;
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!org) {
-      ctx.set.status = 404;
-      return { error: ctx.t('organisation.notFound') };
-    }
-
-    try {
-      await orgMemberRepo.createQueryBuilder().delete().where('organisationId = :orgId', { orgId: org.id }).execute();
-
-      await orgRepo.remove(org);
-    } catch (e: any) {
-      console.error('Failed to clear organisation members before delete:', e?.message || e);
-      ctx.set.status = 500;
-      return { error: ctx.t('organisation.deleteFailed') };
-    }
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Delete an organisation and clear members', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/servers', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
-    if (adminErr !== true) return adminErr;
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const nodes = await nodeRepo.find();
-    const unhealthyNodeIds = await getUnhealthyNodeIds();
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    try { await mergeDuplicateServerConfigs(); } catch (e) { /* skip */ }
-    const configs = await cfgRepo.find();
-    const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
-    let all: any[] = [];
-
-    const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
-      if (unhealthyNodeIds.includes(n.id)) return null;
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
-        const servers = res.data || [];
-        return { node: n, servers };
-      } catch {
-        return null;
-      }
-    }));
-
-    for (const nodeResult of nodeResults) {
-      if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
-      const { node, servers } = nodeResult.value;
-      for (const s of servers) {
-        const uuid: string = s.configuration?.uuid || s.uuid;
-        const cfg = cfgMap.get(uuid);
-        const wingsSuspended = !!(s?.is_suspended ?? s?.suspended);
-        const isSuspended = !!cfg?.suspended || wingsSuspended;
-        const status = isSuspended ? 'suspended' : (s.state || s.status || 'offline');
-        all.push({
-          ...s,
-          uuid,
-          status,
-          is_suspended: isSuspended,
-          name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
-          nodeName: node.name,
-          nodeId: node.id,
-          eggId: cfg?.eggId || null,
-        });
-      }
-    }
-
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-    for (const c of configs) {
-      if (all.some((s: any) => s.uuid === c.uuid)) continue;
-      const node = nodeMap.get(c.nodeId);
-      all.push({
-        uuid: c.uuid,
-        name: c.name || c.uuid,
-        status: c.hibernated ? 'hibernated' : 'unknown',
-        hibernated: !!c.hibernated,
-        is_suspended: c.suspended,
-        resources: null,
-        build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-        container: { image: c.dockerImage },
-        nodeId: c.nodeId,
-        nodeName: node?.name,
-        userId: c.userId,
-        eggId: c.eggId ?? null,
-      });
-    }
-
-    const seen = new Set<string>();
-    const deduped: any[] = [];
-    for (const s of all) {
-      try {
-        const raw = s.uuid || (s.configuration && s.configuration.uuid) || '';
-        const norm = String(raw).replace(/-/g, '').toLowerCase();
-        if (!norm) {
-          deduped.push(s);
-          continue;
-        }
-        if (seen.has(norm)) {
-          console.log('admin: duplicate server skipped', { uuid: raw, nodeId: s.nodeId, nodeName: s.nodeName });
-          continue;
-        }
-        seen.add(norm);
-        deduped.push(s);
-      } catch (e) {
-        deduped.push(s);
-      }
-    }
-
-    const { page = '1', q = '' } = ctx.query as any;
-    const per = 50;
-    const p = Math.max(1, Number(page) || 1);
-
-    let filtered = deduped;
-    if (q && String(q).trim() !== '') {
-      const qstr = String(q).trim().toLowerCase();
-      filtered = deduped.filter((s: any) => {
-        const name = String(s.name || '').toLowerCase();
-        const uuid = String(s.uuid || '').toLowerCase();
-        const nodeName = String(s.nodeName || '').toLowerCase();
-        return name.includes(qstr) || uuid.includes(qstr) || nodeName.includes(qstr);
-      });
-    }
-
-    const total = filtered.length;
-    const start = (p - 1) * per;
-    const servers = filtered.slice(start, start + per);
-    return { servers, total, page: p, per };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ servers: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List all servers across nodes', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/servers/:id/abuse-reports', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
-    if (adminErr !== true) return adminErr;
-
-    const serverId = String(ctx.params.id || '').trim();
-    if (!serverId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.serverIDIsRequired') };
-    }
-
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } as any });
-    if (!form) {
-      return { reports: [] };
-    }
-
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-    const submissions = await submissionRepo.find({
-      where: { formId: form.id } as any,
-      order: { createdAt: 'DESC' } as any,
-      take: 200,
-    });
-
-    const reports = submissions
-      .filter((submission) => {
-        const meta = submission.meta || {};
-        const linkedServerId = String(meta.serverId || meta.server?.uuid || meta.server || '').trim();
-        return linkedServerId === serverId;
-      })
-      .map((submission) => {
-        const meta = submission.meta || {};
-        return {
-          id: submission.id,
-          status: submission.status,
-          createdAt: submission.createdAt ? submission.createdAt.toISOString() : null,
-          reason: String(meta.reason || '').trim(),
-          detectionType: String(meta.detectionType || '').trim(),
-          enforcementAction: String(meta.enforcementAction || meta.aiAssessment?.recommendedAction || meta.aiAssessment?.finalAction || '').trim(),
-          suspendAttempted: !!meta.suspendAttempted,
-          suspendSuccess: !!meta.suspendSuccess,
-          nodeName: String(meta.nodeName || '').trim() || null,
-          sourceIp: String(meta.sourceIp || '').trim() || null,
-          targetIp: String(meta.targetIp || '').trim() || null,
-        };
-      });
-
-    return { reports };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({
-          reports: t.Array(t.Object({
-            id: t.Number(),
-            status: t.String(),
-            createdAt: t.Optional(t.String()),
-            reason: t.String(),
-            detectionType: t.String(),
-            enforcementAction: t.String(),
-            suspendAttempted: t.Boolean(),
-            suspendSuccess: t.Boolean(),
-            nodeName: t.Optional(t.String()),
-            sourceIp: t.Optional(t.String()),
-            targetIp: t.Optional(t.String()),
-          }))
-        }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List abuse reports linked to a server', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/:id/power', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const { action } = ctx.body as any;
-    const requester = ctx.user as User;
-    const settingsRows = await AppDataSource.getRepository(PanelSetting).find({
-      where: { key: In(['gamblingEnabled', 'gamblingPowerDenyChance']) },
-    });
-    const settingsMap = parsePanelSettingsMap(settingsRows);
-    const gamblingConfig = getGamblingConfigFromMap(settingsMap);
-    if (!['start', 'stop', 'restart', 'kill'].includes(action)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.invalidAction') };
-    }
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    const node = cfg ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
-    if (!node) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-    if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.hibernated') };
-    }
-
-    if (gamblingConfig.gamblingEnabled && isGamblingModeEnabled(requester) && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase()) && Math.random() < gamblingConfig.gamblingPowerDenyChance) {
-      const roll = randomIntInclusive(1, 6);
-      return {
-        success: false,
-        blockedByDice: true,
-        roll,
-        message: pickRandomPowerDiceFailureLine(),
-        data: null,
-      };
-    }
-
-    try {
-      const base = (node as any).backendWingsUrl || node.url;
-      const svc = new WingsApiService(base, node.token);
-      const res = await svc.powerServer(serverId, action);
-      if (action === 'start' || action === 'restart') {
-        await AppDataSource.getRepository(ServerConfig).update({ uuid: serverId }, { desiredPowerState: true });
-      } else if (action === 'stop' || action === 'kill') {
-        await AppDataSource.getRepository(ServerConfig).update({ uuid: serverId }, { desiredPowerState: false });
-      }
-      return { success: true, data: res.data };
-    } catch (e: any) {
-      const status = e?.response?.status || 502;
-      ctx.set.status = status;
-      console.error('[adminHandler:power-server]', e);
-      return { error: sanitizeError(e, 'adminHandler:power-server') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ action: t.Enum({ start: 'start', stop: 'stop', restart: 'restart', kill: 'kill' }) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), data: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Power control for server', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/:id/mark-started', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    const currentProcessConfig = (cfg.processConfig && typeof cfg.processConfig === 'object')
-      ? cfg.processConfig
-      : {};
-    const startup = (currentProcessConfig as any).startup && typeof (currentProcessConfig as any).startup === 'object'
-      ? (currentProcessConfig as any).startup
-      : {};
-
-    cfg.processConfig = normalizeProcessConfig({
-      ...currentProcessConfig,
-      startup: {
-        ...startup,
-        done: [' '],
-      },
-    }) as any;
-
-    await cfgRepo.save(cfg);
-
-    const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
-    if (!node) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.nodeNotFound') };
-    }
-
-    try {
-      const base = (node as any).backendWingsUrl || node.url;
-      const svc = new WingsApiService(base, node.token);
-      await svc.syncServer(serverId, {}).catch(() => { });
-      return { success: true, processConfig: cfg.processConfig };
-    } catch (e: any) {
-      const status = e?.response?.status || 502;
-      ctx.set.status = status;
-      console.error('[adminHandler:sync-server]', e);
-      return { error: sanitizeError(e, 'adminHandler:sync-server') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), processConfig: t.Any() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Manually mark server startup as completed (admin)', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/servers/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const { name, description, userId, memory, disk, cpu, swap, ioWeight, oomDisabled, dockerImage, startup, environment, allocations, eggId, hibernated, autoSyncOnEggChange, ignoreAntiAbuse } = ctx.body as any;
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-    if (name !== undefined) cfg.name = name;
-    if (description !== undefined) cfg.description = description;
-    if (userId !== undefined) cfg.userId = Number(userId);
-    if (memory !== undefined) {
-      const pm = parseSizeToMB(memory);
-      if (pm === null || pm < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidMemoryValue') }; }
-      cfg.memory = pm;
-    }
-    if (disk !== undefined) {
-      const pd = parseSizeToMB(disk);
-      if (pd === null || pd < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidDiskValue') }; }
-      cfg.disk = pd;
-    }
-    if (cpu !== undefined) {
-      const pc = parseCpuInput(cpu);
-      if (pc === null || pc < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidCpuValue') }; }
-      cfg.cpu = pc;
-    }
-    if (swap !== undefined) cfg.swap = Number(swap);
-    if (ioWeight !== undefined) cfg.ioWeight = Number(ioWeight);
-    if (hibernated !== undefined) cfg.hibernated = Boolean(hibernated);
-    if (ignoreAntiAbuse !== undefined) cfg.ignoreAntiAbuse = Boolean(ignoreAntiAbuse);
-
-    if (cfg.memory != null && (!(Number.isFinite(Number(cfg.memory)) && Number(cfg.memory) >= 0))) {
-      ctx.set.status = 400; return { error: ctx.t('validation.invalidMemoryValue') };
-    }
-    if (cfg.disk != null && (!(Number.isFinite(Number(cfg.disk)) && Number(cfg.disk) >= 0))) {
-      ctx.set.status = 400; return { error: ctx.t('validation.invalidDiskValue') };
-    }
-    if (cfg.cpu != null && (!(Number.isFinite(Number(cfg.cpu)) && Number(cfg.cpu) >= 0))) {
-      ctx.set.status = 400; return { error: ctx.t('validation.invalidCpuValue') };
-    }
-    if (oomDisabled !== undefined) cfg.oomDisabled = Boolean(oomDisabled);
-    if (dockerImage !== undefined) cfg.dockerImage = dockerImage;
-    if (startup !== undefined) cfg.startup = startup;
-    if (environment !== undefined) cfg.environment = environment;
-    if (eggId !== undefined) cfg.eggId = Number(eggId);
-    if (allocations !== undefined) {
-      const existingAlloc = cfg.allocations as any || {};
-      const existingDedicatedIps = Array.isArray(existingAlloc.dedicatedIps) ? existingAlloc.dedicatedIps : [];
-      if (Array.isArray(allocations) && allocations.length > 0) {
-        const defAlloc = allocations.find((a: any) => a.is_default) || allocations[0];
-        const mappings: Record<string, number[]> = {};
-        const fqdns: Record<string, string> = {};
-        const allocationKey = (ip: string, port: number) => {
-          const cleanIp = String(ip || '').trim();
-          return cleanIp.includes(':') ? `[${cleanIp}]:${port}` : `${cleanIp}:${port}`;
-        };
-        for (const a of allocations) {
-          const ip = String(a.ip);
-          if (!mappings[ip]) mappings[ip] = [];
-          mappings[ip].push(Number(a.port));
-          if (a.fqdn) fqdns[allocationKey(ip, Number(a.port))] = String(a.fqdn);
-        }
-        cfg.allocations = {
-          default: { ip: String(defAlloc.ip), port: Number(defAlloc.port) },
-          mappings,
-          ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}),
-          ...(existingDedicatedIps.length > 0 ? { dedicatedIps: existingDedicatedIps } : {}),
-        } as any;
-      } else {
-        cfg.allocations = existingDedicatedIps.length > 0
-          ? { dedicatedIps: existingDedicatedIps } as any
-          : null as any;
-      }
-    }
-    if (autoSyncOnEggChange !== undefined) cfg.autoSyncOnEggChange = Boolean(autoSyncOnEggChange);
-    await cfgRepo.save(cfg);
-    const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
-    if (node) {
-      const base = (node as any).backendWingsUrl || node.url;
-      const svc = new WingsApiService(base, node.token);
-      await svc.syncServer(serverId, {}).catch(() => { });
-    }
-    return { success: true, server: cfg };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String()),
-        description: t.Optional(t.String()),
-        userId: t.Optional(t.Any()),
-        memory: t.Optional(t.Any()),
-        disk: t.Optional(t.Any()),
-        cpu: t.Optional(t.Any()),
-        swap: t.Optional(t.Any()),
-        ioWeight: t.Optional(t.Any()),
-        oomDisabled: t.Optional(t.Boolean()),
-        dockerImage: t.Optional(t.String()),
-        startup: t.Optional(t.String()),
-        environment: t.Optional(t.Any()),
-        allocations: t.Optional(t.Any()),
-        eggId: t.Optional(t.Any()),
-        hibernated: t.Optional(t.Boolean()),
-        ignoreAntiAbuse: t.Optional(t.Boolean()),
-        autoSyncOnEggChange: t.Optional(t.Boolean()),
-      }),
-      response: {
-        200: t.Object({ success: t.Boolean(), server: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Edit server configuration', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/servers/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:delete');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const nodes = await nodeRepo.find();
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        await svc.getServer(serverId);
-        await svc.serverRequest(serverId, '', 'delete');
-        await removeServerConfig(serverId);
-        return { success: true };
-      } catch { }
-    }
-    ctx.set.status = 404;
-    return { error: ctx.t('server.notFoundOnNode') };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Delete a server from any node', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/:id/dedicated-ip', async (ctx) => {
-    const featureErr = await requireFeature(ctx, 'dedicatedIps');
-    if (featureErr !== true) return featureErr;
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const { ip, type, fqdn } = ctx.body as any;
-
-    if (!ip || !type) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.ipTypeRequired') };
-    }
-    if (type !== 'ipv4' && type !== 'ipv6') {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.typeIpv4OrIpv6') };
-    }
-
-    if (type === 'ipv4' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(String(ip))) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.invalidIpv4') };
-    }
-    if (type === 'ipv6' && !isValidIpv6(String(ip))) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.invalidIpv6') };
-    }
-
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    if (!cfg.kvmPassthroughEnabled) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.dedicatedIpKvmOnly') };
-    }
-
-    const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
-    if (!node) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.serverNodeNotFound') };
-    }
-
-    const alloc = (cfg.allocations as any) || { mappings: {}, owners: {}, dedicatedIps: [] };
-    alloc.mappings = alloc.mappings || {};
-    alloc.owners = alloc.owners || {};
-    alloc.dedicatedIps = Array.isArray(alloc.dedicatedIps) ? alloc.dedicatedIps : [];
-
-    const normalizedIp = String(ip).trim();
-
-    if (alloc.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.dedicatedIpAlreadyAssigned') };
-    }
-
-    const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
-    for (const c of nodeConfigs) {
-      const a = c.allocations as any;
-      if (!a) continue;
-      if (a.dedicatedIps && Array.isArray(a.dedicatedIps)) {
-        if (a.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
-          ctx.set.status = 400;
-          return { error: ctx.t('server.dedicatedIpInUseNode') };
-        }
-      }
-      if (a.mappings && Object.keys(a.mappings).some((mip) => mip === normalizedIp)) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.dedicatedIpInUseAllocations') };
-      }
-    }
-
-    alloc.dedicatedIps.push({ ip: normalizedIp, type, ...(fqdn ? { fqdn: String(fqdn).trim() } : {}) });
-
-    cfg.allocations = alloc;
-    await cfgRepo.save(cfg);
-
-    const base = (node as any).backendWingsUrl || node.url;
-    const svc = new WingsApiService(base, node.token);
-    await svc.syncServer(serverId, { allocations: alloc }).catch(() => {});
-
-    await createActivityLog({
-      userId: ctx.user?.id ?? 0,
-      action: 'server:dedicated-ip:assign',
-      targetId: serverId,
-      targetType: 'server',
-      metadata: { ip: normalizedIp, type, fqdn: fqdn || null },
-      ipAddress: ctx.ip,
-    });
-
-    return { success: true, ip: normalizedIp, type };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        ip: t.String(),
-        type: t.String(),
-        fqdn: t.Optional(t.String()),
-      }),
-      response: {
-        200: t.Object({ success: t.Boolean(), ip: t.String(), type: t.String() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Assign a dedicated IP to a KVM server', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/servers/:id/dedicated-ip', async (ctx) => {
-    const featureErr = await requireFeature(ctx, 'dedicatedIps');
-    if (featureErr !== true) return featureErr;
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const { ip } = ctx.body as any;
-
-    if (!ip) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.ipRequired') };
-    }
-
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    const alloc = (cfg.allocations as any) || {};
-    const dedicatedIps = Array.isArray(alloc.dedicatedIps) ? alloc.dedicatedIps : [];
-    const idx = dedicatedIps.findIndex((d: any) => d.ip === String(ip).trim());
-    if (idx === -1) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.dedicatedIpNotFound') };
-    }
-
-    dedicatedIps.splice(idx, 1);
-    alloc.dedicatedIps = dedicatedIps;
-
-    if (alloc.mappings) delete alloc.mappings[String(ip).trim()];
-
-    cfg.allocations = alloc;
-    await cfgRepo.save(cfg);
-
-    const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
-    if (node) {
-      const base = (node as any).backendWingsUrl || node.url;
-      const svc = new WingsApiService(base, node.token);
-      await svc.syncServer(serverId, { allocations: alloc }).catch(() => {});
-    }
-
-    await createActivityLog({
-      userId: ctx.user?.id ?? 0,
-      action: 'server:dedicated-ip:deassign',
-      targetId: serverId,
-      targetType: 'server',
-      metadata: { ip: String(ip).trim() },
-      ipAddress: ctx.ip,
-    });
-
-    return { success: true, removed: String(ip).trim() };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ ip: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), removed: t.String() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Remove a dedicated IP from a KVM server', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:write');
-    if (adminErr !== true) return adminErr;
-    const { nodeId, userId, eggId, name } = ctx.body as any;
-    let memory = (ctx.body as any).memory ?? 1024;
-    let disk = (ctx.body as any).disk ?? 10240;
-    let cpu = (ctx.body as any).cpu ?? 100;
-
-    const parsedMemory = parseSizeToMB(memory);
-    const parsedDisk = parseSizeToMB(disk);
-    const parsedCpu = parseCpuInput(cpu);
-    if (parsedMemory === null || parsedMemory < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidMemoryValue') }; }
-    if (parsedDisk === null || parsedDisk < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidDiskValue') }; }
-    if (parsedCpu === null || parsedCpu < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidCpuValue') }; }
-    memory = parsedMemory;
-    disk = parsedDisk;
-    cpu = parsedCpu;
-    if (!nodeId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.nodeIdRequired') };
-    }
-
-    const ownerId: number = userId ? Number(userId) : ctx.user?.id;
-
-    const node = await AppDataSource.getRepository(Node).findOneBy({ id: Number(nodeId) });
-    if (!node) {
-      ctx.set.status = 404;
-      return { error: ctx.t('node.notFound') };
-    }
-
-    if ((node as any).deploymentsDisabled) {
-      ctx.set.status = 403;
-      return { error: (node as any).deploymentNotice || 'This node is temporarily unavailable for deployments' };
-    }
-
-    const serverUuid = crypto.randomUUID();
-    let dockerImage = 'ghcr.io/pterodactyl/yolks:nodejs_18';
-    let startup = 'node index.js';
-    let envObject: Record<string, string> = {};
-    let egg: Egg | null = null;
-
-    if (eggId) {
-      egg = await AppDataSource.getRepository(Egg).findOneBy({ id: Number(eggId) });
-      if (egg) {
-        dockerImage = egg.dockerImage || dockerImage;
-        startup = egg.startup || startup;
-        for (const entry of ((egg.envVars || []) as any[])) {
-          if (typeof entry === 'string') {
-            const [k, ...rest] = (entry as string).split('=');
-            if (k) envObject[k.trim()] = rest.join('=').trim();
-          } else if (entry && typeof entry === 'object') {
-            const k = entry.name || entry.key;
-            if (k) envObject[k] = String(entry.defaultValue ?? entry.value ?? '');
-          }
-        }
-      }
-    }
-
-    const hasInstallScript = Boolean(egg?.installScript && (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint));
-    const wingsPayload = {
-      uuid: serverUuid,
-      start_on_completion: hasInstallScript,
-      skip_scripts: false,
-      environment: envObject,
-      build: {
-        memory_limit: Number(memory),
-        swap: 0,
-        disk_space: Number(disk),
-        io_weight: 500,
-        cpu_limit: Number(cpu),
-        threads: null,
-      },
-      container: { image: dockerImage, startup },
-      ...(name ? { name } : {}),
-    };
-
-    try {
-      const base = (node as any).backendWingsUrl || node.url;
-      const svc = new WingsApiService(base, node.token);
-      const res = await svc.createServer(wingsPayload);
-      const nodeSvc = nodeService;
-      await nodeSvc.mapServer(serverUuid, node.id);
-      await saveServerConfig({
-        uuid: serverUuid,
-        nodeId: node.id,
-        userId: ownerId,
-        name: name || undefined,
-        dockerImage,
-        startup,
-        environment: envObject,
-        memory: Number(memory),
-        disk: Number(disk),
-        cpu: Number(cpu),
-        eggId: eggId ? Number(eggId) : undefined,
-      });
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: ownerId, action: 'admin-create-server', timestamp: new Date() }));
-      return { uuid: serverUuid, nodeId: node.id, ...res.data };
-    } catch (e: any) {
-      ctx.set.status = 502;
-      console.error('[adminHandler:admin-create-server]', e);
-      return { error: sanitizeError(e, 'adminHandler:admin-create-server') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({
-        nodeId: t.Any(),
-        userId: t.Optional(t.Any()),
-        eggId: t.Optional(t.Any()),
-        name: t.Optional(t.String()),
-        memory: t.Optional(t.Any()),
-        disk: t.Optional(t.Any()),
-        cpu: t.Optional(t.Any()),
-      }),
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        502: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Create a new server on a node', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/sync-wings', async (ctx: any) => {
-    const adminErr = requireAdminPermission(ctx, 'nodes:read');
-    if (adminErr !== true) return adminErr;
-    const adminUser = ctx.user as any;
-    const adminId = adminUser?.id;
-
-    await createActivityLog({
-      userId: adminId,
-      action: 'admin:sync-to-wings:started',
-      metadata: { startedAt: new Date().toISOString() },
-      notify: false,
-    });
-
-    const retryWithDelay = async <T>(action: () => Promise<T>, attempts = 3, initialDelayMs = 500): Promise<T> => {
-      let lastError: any;
-      for (let attempt = 1; attempt <= attempts; attempt += 1) {
-        try {
-          return await action();
-        } catch (error: any) {
-          lastError = error;
-          const status = error?.response?.status;
-          if (status === 401 || status === 403) throw error;
-          if (attempt < attempts) {
-            await new Promise((resolve) => setTimeout(resolve, initialDelayMs * attempt));
-          }
-        }
-      }
-      throw lastError;
-    };
-
-    void (async () => {
+  );
+
+  app.get(
+    prefix + '/admin/nodes',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'nodes:read');
+      if (adminErr !== true) return adminErr;
       const nodeRepo = AppDataSource.getRepository(Node);
-      const cfgRepo = AppDataSource.getRepository(ServerConfig);
       const nodes = await nodeRepo.find();
-      const configs = await cfgRepo.find();
-      const results: any[] = [];
+      return nodes;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List all nodes', tags: ['Admin'] },
+    }
+  );
 
-      for (const cfg of configs) {
-        const node = nodes.find(n => n.id === cfg.nodeId);
-        if (!node) {
-          results.push({ uuid: cfg.uuid, status: 'node_not_found' });
-          continue;
+  app.get(
+    prefix + '/admin/organisations',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'org:read');
+      if (adminErr !== true) return adminErr;
+      const orgRepo = AppDataSource.getRepository(Organisation);
+      const userRepo = AppDataSource.getRepository(User);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const { page = '1', q = '' } = ctx.query as any;
+      const per = 50;
+      const p = Math.max(1, Number(page) || 1);
+
+      let qb = orgRepo.createQueryBuilder('o').orderBy('o.id', 'ASC');
+      if (q && String(q).trim() !== '') {
+        const qstr = String(q).trim();
+        qb = qb
+          .leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.ownerId')
+          .where('o.name LIKE :q OR o.handle LIKE :q OR u.email LIKE :q', { q: `%${qstr}%` });
+      }
+
+      const total = await qb.getCount();
+      const orgs = await qb
+        .skip((p - 1) * per)
+        .take(per)
+        .getMany();
+
+      const ownerIds = [...new Set(orgs.map((o: any) => o.ownerId))];
+      const owners = ownerIds.length ? await userRepo.findBy({ id: In(ownerIds) }) : [];
+      const ownerMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
+      for (const u of owners)
+        ownerMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
+
+      const orgIds = orgs.map((o: any) => o.id);
+      const memberCounts = orgIds.length
+        ? await orgMemberRepo
+            .createQueryBuilder('m')
+            .select('m.organisationId', 'orgId')
+            .addSelect('COUNT(*)', 'count')
+            .where('m.organisationId IN (:...ids)', { ids: orgIds })
+            .groupBy('m.organisationId')
+            .getRawMany()
+        : [];
+
+      const countMap: Record<number, number> = {};
+      for (const row of memberCounts) countMap[Number(row.orgId)] = Number(row.count);
+
+      const result = orgs.map((o: any) => ({
+        ...o,
+        owner: ownerMap[o.ownerId] ?? null,
+        memberCount: countMap[o.id] ?? 0,
+        isStaff: !!o.isStaff,
+      }));
+
+      return { organisations: result, total, page: p, per };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({
+            organisations: t.Array(t.Any()),
+            total: t.Number(),
+            page: t.Number(),
+            per: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'List organisations with owners and member counts (paged)',
+        tags: ['Admin'],
+      },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/organisations/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'org:write');
+      if (adminErr !== true) return adminErr;
+      const orgRepo = AppDataSource.getRepository(Organisation);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!org) {
+        ctx.set.status = 404;
+        return { error: ctx.t('organisation.notFound') };
+      }
+
+      const { name, handle, portalTier, ownerId, isStaff } = ctx.body as any;
+      if (name !== undefined) org.name = name;
+      if (handle !== undefined) org.handle = handle;
+      if (portalTier !== undefined) org.portalTier = portalTier;
+      if (ownerId !== undefined) {
+        const newOwnerId = Number(ownerId);
+        const previousOwnerId = Number(org.ownerId);
+        org.ownerId = newOwnerId;
+        const newOwnerMembership = await orgMemberRepo.findOne({
+          where: { userId: newOwnerId, organisationId: org.id },
+        });
+        if (newOwnerMembership) {
+          newOwnerMembership.orgRole = 'owner';
+          await orgMemberRepo.save(newOwnerMembership);
+        } else {
+          const userRepo = AppDataSource.getRepository(User);
+          const ownerUser = await userRepo.findOneBy({ id: newOwnerId });
+          if (ownerUser) {
+            const created = orgMemberRepo.create({
+              userId: newOwnerId,
+              organisationId: org.id,
+              user: ownerUser,
+              organisation: org,
+              orgRole: 'owner',
+              createdAt: new Date(),
+            });
+            await orgMemberRepo.save(created);
+          }
         }
 
-        const syncServer = async () => {
-          const base = (node as any).backendWingsUrl || node.url;
-          const svc = new WingsApiService(base, node.token);
-
-          try {
-            await svc.getServer(cfg.uuid);
-            return { uuid: cfg.uuid, status: 'exists', nodeId: node.id };
-          } catch (e: any) {
-            const status = e?.response?.status;
-            if (status === 401 || status === 403) {
-              return { uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id };
-            }
+        if (previousOwnerId && previousOwnerId !== newOwnerId) {
+          const previousOwnerMembership = await orgMemberRepo.findOne({
+            where: { userId: previousOwnerId, organisationId: org.id },
+          });
+          if (previousOwnerMembership && previousOwnerMembership.orgRole === 'owner') {
+            previousOwnerMembership.orgRole = 'admin';
+            await orgMemberRepo.save(previousOwnerMembership);
           }
+        }
+      }
+      if (isStaff !== undefined) org.isStaff = !!isStaff;
 
-          const egg = cfg.eggId ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId }) : null;
-          const mounts = await AppDataSource.getRepository(ServerMount).findBy({ serverUuid: cfg.uuid });
-          const mountEntities: any[] = [];
-          if (mounts && mounts.length) {
-            const mountIds = mounts.map((m: any) => m.mountId);
-            const allMounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
-            for (const m of mounts) {
-              const found = allMounts.find((am: any) => am.id === m.mountId);
-              if (found) mountEntities.push(found);
-            }
-          }
+      await orgRepo.save(org);
+      return { success: true, org };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          name: t.Optional(t.String()),
+          handle: t.Optional(t.String()),
+          portalTier: t.Optional(t.String()),
+          ownerId: t.Optional(t.Any()),
+          isStaff: t.Optional(t.Boolean()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), org: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update organisation settings', tags: ['Admin'] },
+    }
+  );
 
-          const payload: any = {
-            uuid: cfg.uuid,
-            start_on_completion: false,
-            skip_scripts: !!cfg.skipEggScripts,
-            environment: cfg.environment || {},
-            build: {
-              memory_limit: cfg.memory || 0,
-              swap: cfg.swap || 0,
-              disk_space: cfg.disk || 0,
-              io_weight: cfg.ioWeight || 0,
-              cpu_limit: cfg.cpu || 0,
-              threads: null,
-            },
-            container: {
-              image: cfg.dockerImage || (egg ? egg.dockerImage : undefined) || 'ghcr.io/pterodactyl/yolks:nodejs_18',
-              startup: cfg.startup || (egg ? egg.startup : undefined) || 'node index.js',
-            },
-          };
-          if (cfg.name) payload.name = cfg.name;
-          if (cfg.description) payload.meta = { description: cfg.description };
+  app.post(
+    prefix + '/admin/organisations/:id/members',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'org:write');
+      if (adminErr !== true) return adminErr;
+      const orgRepo = AppDataSource.getRepository(Organisation);
+      const userRepo = AppDataSource.getRepository(User);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!org) {
+        ctx.set.status = 404;
+        return { error: ctx.t('organisation.notFound') };
+      }
+      const { userId, orgRole = 'member' } = ctx.body as any;
+      if (!userId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.userIdRequired') };
+      }
+      const target = await userRepo.findOneBy({ id: Number(userId) });
+      if (!target) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
 
-          const res = await svc.createServer(payload);
-          return { uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status };
-        };
+      const existing = await orgMemberRepo.findOne({
+        where: { userId: target.id, organisationId: org.id },
+      });
+      const normalizedRole = ['member', 'admin', 'owner'].includes(orgRole) ? orgRole : 'member';
+      if (existing) {
+        existing.orgRole = normalizedRole as any;
+        await orgMemberRepo.save(existing);
+      } else {
+        const membership = orgMemberRepo.create({
+          userId: target.id,
+          organisationId: org.id,
+          user: target,
+          organisation: org,
+          orgRole: normalizedRole as any,
+          createdAt: new Date(),
+        });
+        await orgMemberRepo.save(membership);
+      }
 
-        try {
-          const result = await retryWithDelay(syncServer, 3, 1000);
-          results.push(result);
-        } catch (err: any) {
-          const status = err?.response?.status;
-          if (status === 401 || status === 403) {
-            results.push({ uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id, message: err?.message || String(err) });
-          } else {
-            results.push({ uuid: cfg.uuid, status: 'error', message: `Failed after 3 retries: ${err?.message || String(err)}` });
+      if (normalizedRole === 'owner') {
+        const prevOwnerId = Number(org.ownerId);
+        org.ownerId = target.id;
+        await orgRepo.save(org);
+        if (prevOwnerId && prevOwnerId !== target.id) {
+          const prevOwnerMembership = await orgMemberRepo.findOne({
+            where: { userId: prevOwnerId, organisationId: org.id },
+          });
+          if (prevOwnerMembership && prevOwnerMembership.orgRole === 'owner') {
+            prevOwnerMembership.orgRole = 'admin';
+            await orgMemberRepo.save(prevOwnerMembership);
           }
         }
       }
 
-      const createdCount = results.filter((r) => r.status === 'created').length;
-      const existsCount = results.filter((r) => r.status === 'exists').length;
-      const authFailedCount = results.filter((r) => r.status === 'auth_failed').length;
-      const errorCount = results.filter((r) => r.status === 'error').length;
-      const nodeNotFoundCount = results.filter((r) => r.status === 'node_not_found').length;
-
-      await createActivityLog({
-        userId: adminId,
-        action: `admin:sync-to-wings:completed - created ${createdCount}, exists ${existsCount}, auth_failed ${authFailedCount}, errors ${errorCount}, node_not_found ${nodeNotFoundCount}`,
-        metadata: { createdCount, existsCount, authFailedCount, errorCount, nodeNotFoundCount },
-        notify: false,
-      });
-    })().catch(async (err: any) => {
-      const message = err?.message || String(err);
-      await createActivityLog({
-        userId: adminId,
-        action: `admin:sync-to-wings:error — ${message}`,
-        metadata: { error: message },
-        notify: false,
-      });
-    });
-
-    return {
-      status: 'queued',
-      message: ctx.t('admin.syncQueued'),
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    detail: { summary: 'Synchronize all server configs to Wings (admin)', tags: ['Admin'] },
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
-  });
-
-  // SO YOU DECIDED TO GO AGAINST LORDS WISHES HUH? 
-  // WELL NOW YOUR SERVER IS SUSPENDED, HAVE FUN CRYING TO SUPPORT ABOUT IT
-  app.post(prefix + '/admin/servers/:id/suspend', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:suspend');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const body = (ctx.body || {}) as any;
-    const dmcaMark = Boolean(body.dmca);
-    const reason = typeof body.reason === 'string' && body.reason.trim()
-      ? body.reason.trim()
-      : dmcaMark
-        ? 'DMCA takedown'
-        : 'Suspended by administrator';
-    const adminUser = ctx.user as any;
-    const adminName = [adminUser?.firstName, adminUser?.lastName].filter(Boolean).join(' ').trim();
-    const suspendedBy = adminName || adminUser?.email || 'admin panel';
-    const dmcaAt = dmcaMark ? new Date() : undefined;
-    const dmcaDeletionAt = dmcaMark ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined;
-
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
-    const preferredNode = existingCfg?.nodeId ? await nodeRepo.findOneBy({ id: existingCfg.nodeId }) : null;
-    const allNodes = await nodeRepo.find();
-    const nodes = preferredNode
-      ? [preferredNode, ...allNodes.filter((n) => n.id !== preferredNode.id)]
-      : allNodes;
-
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        await svc.getServer(serverId);
-        const alreadySuspended = !!existingCfg?.suspended;
-        const alreadyDmca = !!existingCfg?.dmca;
-        const updateData: any = {
-          suspended: true,
-          suspendedBy,
-          suspendedReason: reason,
-          suspendedAt: new Date(),
-        };
-        if (dmcaMark) {
-          updateData.dmca = true;
-          updateData.dmcaBy = suspendedBy;
-          updateData.dmcaReason = reason;
-          updateData.dmcaAt = dmcaAt;
-          updateData.dmcaDeletionAt = dmcaDeletionAt;
-        }
-        await cfgRepo.update(
-          { uuid: serverId },
-          updateData,
-        );
-        await svc.powerServer(serverId, 'kill').catch(() => { });
-        await svc.syncServer(serverId, {});
-
-        let notice: {
-          sent: boolean;
-          skipped: boolean;
-          reason?: string;
-          recipient?: string;
-        } = {
-          sent: false,
-          skipped: true,
-          reason: 'owner notification not attempted',
-          recipient: undefined,
-        };
-
-        const shouldSendDmcaNotice = dmcaMark && !alreadyDmca;
-        if (shouldSendDmcaNotice && existingCfg) {
-          notice = await notifyServerOwnerDmca({
-            cfg: existingCfg,
-            actor: suspendedBy,
-            reason,
-            dmcaAt,
-            deletionAt: dmcaDeletionAt,
-          });
-          if (!notice.sent && !notice.skipped) {
-            console.warn('[admin:server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
-          }
-        } else if (!alreadySuspended && !dmcaMark && existingCfg) {
-          notice = await notifyServerOwnerSuspended({
-            cfg: existingCfg,
-            actor: suspendedBy,
-            reason,
-            suspendedAt: new Date(),
-          });
-          if (!notice.sent && !notice.skipped) {
-            console.warn('[admin:server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
-          }
-        } else if (alreadySuspended && !dmcaMark) {
-          notice.reason = 'server already suspended';
-        } else if (alreadyDmca && dmcaMark) {
-          notice.reason = 'server already marked DMCA';
-        }
-
-        return {
-          success: true,
-          emailSent: notice.sent,
-          emailSkipped: notice.skipped,
-          emailReason: notice.reason || null,
-          emailRecipient: notice.recipient || null,
-        };
-      } catch { }
-    }
-    ctx.set.status = 404;
-    return { error: ctx.t('server.notFoundOnNode') };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Optional(t.Object({ reason: t.Optional(t.String()), dmca: t.Optional(t.Boolean()) })),
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          emailSent: t.Boolean(),
-          emailSkipped: t.Boolean(),
-          emailReason: t.Nullable(t.String()),
-          emailRecipient: t.Nullable(t.String()),
-        }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
+      ctx.set.status = 201;
+      return { success: true };
     },
-    detail: { summary: 'Suspend a server across nodes', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/:id/unsuspend', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:suspend');
-    if (adminErr !== true) return adminErr;
-    const serverId = ctx.params.id as string;
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
-    const preferredNode = existingCfg?.nodeId ? await nodeRepo.findOneBy({ id: existingCfg.nodeId }) : null;
-    const allNodes = await nodeRepo.find();
-    const nodes = preferredNode
-      ? [preferredNode, ...allNodes.filter((n) => n.id !== preferredNode.id)]
-      : allNodes;
-
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        await svc.getServer(serverId);
-        await cfgRepo.update(
-          { uuid: serverId },
-          { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null },
-        );
-        await svc.syncServer(serverId, {});
-        if (existingCfg) {
-          await notifyServerOwnerUnsuspended({
-            cfg: existingCfg,
-            actor: ctx.user?.email || 'system',
-            unsuspendedAt: new Date(),
-          });
-        }
-        return { success: true };
-      } catch { }
-    }
-    ctx.set.status = 404;
-    return { error: ctx.t('server.notFoundOnNode') };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ userId: t.Any(), orgRole: t.Optional(t.String()) }),
+        response: {
+          201: t.Object({ success: t.Boolean() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
       },
+      detail: { summary: 'Add member to organisation', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/organisations/:id/members/:userId',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'org:write');
+      if (adminErr !== true) return adminErr;
+      const orgId = Number(ctx.params.id);
+      const targetUserId = Number(ctx.params.userId);
+      const orgRepo = AppDataSource.getRepository(Organisation);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const org = await orgRepo.findOneBy({ id: orgId });
+      if (!org) {
+        ctx.set.status = 404;
+        return { error: ctx.t('organisation.notFound') };
+      }
+      const membership = await orgMemberRepo.findOne({
+        where: { userId: targetUserId, organisationId: orgId },
+      });
+      if (!membership) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFoundOrg') };
+      }
+      if (targetUserId === Number(org.ownerId) || membership.orgRole === 'owner') {
+        ctx.set.status = 403;
+        return { error: ctx.t('organisation.cannotRemoveOwner') };
+      }
+      await orgMemberRepo.remove(membership);
+      return { success: true };
     },
-    detail: { summary: 'Unsuspend a server across nodes', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/:id/throttle', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const serverId = String(ctx.params.id || '').trim();
-    if (!serverId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.serverIDIsRequired') };
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String(), userId: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Remove member from organisation', tags: ['Admin'] },
     }
+  );
 
-    const body = (ctx.body || {}) as any;
-    const envCpu = Number(process.env.ANTIABUSE_THROTTLE_CPU_LIMIT_PERCENT || 20);
-    const envDuration = Number(process.env.ANTIABUSE_THROTTLE_DURATION_SECONDS || 900);
-    const cpuLimitPercent = clampNumber(Number(body.cpuLimitPercent ?? envCpu), 5, 100);
-    const durationSeconds = clampNumber(Number(body.durationSeconds ?? envDuration), 30, 86400);
-    const reason = sanitizeAntiAbuseText(body.reason || 'antiabuse throttle', 600);
-    const source = sanitizeAntiAbuseText(body.source || 'antiabuse', 120);
+  app.delete(
+    prefix + '/admin/organisations/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'org:write');
+      if (adminErr !== true) return adminErr;
+      const orgRepo = AppDataSource.getRepository(Organisation);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!org) {
+        ctx.set.status = 404;
+        return { error: ctx.t('organisation.notFound') };
+      }
 
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.configNotFound') };
-    }
-
-    const restoreCpu = Math.max(1, Number(cfg.cpu || 100));
-    const nodes = await AppDataSource.getRepository(Node).find();
-
-    let found = false;
-    for (const n of nodes) {
       try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        await svc.getServer(serverId);
-        await svc.syncServer(serverId, { build: { cpu_limit: cpuLimitPercent } });
-        found = true;
-        break;
-      } catch { }
+        await orgMemberRepo
+          .createQueryBuilder()
+          .delete()
+          .where('organisationId = :orgId', { orgId: org.id })
+          .execute();
+
+        await orgRepo.remove(org);
+      } catch (e: any) {
+        console.error('Failed to clear organisation members before delete:', e?.message || e);
+        ctx.set.status = 500;
+        return { error: ctx.t('organisation.deleteFailed') };
+      }
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete an organisation and clear members', tags: ['Admin'] },
     }
+  );
 
-    if (!found) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFoundOnNode') };
-    }
-
-    await cfgRepo.update({ uuid: serverId }, { cpu: cpuLimitPercent as any });
-
-    const existing = antiAbuseThrottleState.get(serverId);
-    if (existing?.timer) clearTimeout(existing.timer);
-
-    const timer = setTimeout(async () => {
+  app.get(
+    prefix + '/admin/servers',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
+      if (adminErr !== true) return adminErr;
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const nodes = await nodeRepo.find();
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
       try {
-        const restoreNodes = await AppDataSource.getRepository(Node).find();
-        for (const n of restoreNodes) {
+        await mergeDuplicateServerConfigs();
+      } catch (e) {
+        /* skip */
+      }
+      const configs = await cfgRepo.find();
+      const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
+      const all: any[] = [];
+
+      const nodeResults = await Promise.allSettled(
+        nodes.map(async n => {
+          if (unhealthyNodeIds.includes(n.id)) return null;
           try {
             const base = (n as any).backendWingsUrl || n.url;
             const svc = new WingsApiService(base, n.token);
-            await svc.getServer(serverId);
-            await svc.syncServer(serverId, { build: { cpu_limit: restoreCpu } });
-            break;
-          } catch { }
-        }
-        await cfgRepo.update({ uuid: serverId }, { cpu: restoreCpu as any });
-      } catch { }
-      antiAbuseThrottleState.delete(serverId);
-    }, durationSeconds * 1000);
-
-    antiAbuseThrottleState.set(serverId, { restoreCpu, timer });
-
-    return {
-      success: true,
-      serverId,
-      cpuLimitPercent,
-      restoreCpu,
-      durationSeconds,
-      reason,
-      source,
-      mode: 'temporary_cpu_cap',
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Optional(t.Object({
-        cpuLimitPercent: t.Optional(t.Number()),
-        durationSeconds: t.Optional(t.Number()),
-        reason: t.Optional(t.String()),
-        source: t.Optional(t.String()),
-      })),
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Throttle a server temporarily (anti-abuse)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/antiabuse/heartbeat', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const body = (ctx.body || {}) as any;
-    const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse-rs', 120) || 'antiabuse-rs';
-    const nodeName = sanitizeAntiAbuseText(body.nodeName || process.env.HOSTNAME || 'unknown', 160) || 'unknown';
-    const pidRaw = Number(body.pid);
-    const pid = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : null;
-    const version = sanitizeAntiAbuseText(body.version || '', 80) || null;
-    const agentId = sanitizeAntiAbuseText(body.agentId || `${detectorName}@${nodeName}`, 200) || `${detectorName}@${nodeName}`;
-
-    antiAbuseAgentState.set(agentId, {
-      agentId,
-      detectorName,
-      nodeName,
-      lastSeenTs: Date.now(),
-      pid,
-      version,
-    });
-
-    const agents = listAntiAbuseAgents();
-    return {
-      success: true,
-      agentId,
-      activeAgents: agents.filter((a) => a.active).length,
-      totalAgents: agents.length,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Any(),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Receive anti-abuse agent heartbeat', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/antiabuse/incidents', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const query = (ctx.query || {}) as any;
-    const pageRaw = Number(query.page ?? 1);
-    const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1);
-    const limitRaw = Number(query.limit ?? 100);
-    const limit = Math.max(1, Math.min(500, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 100));
-    const offset = (page - 1) * limit;
-    const sortBy = String(query.sort || 'createdAt');
-    const order = String(query.order || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
-    const minRiskRaw = Number(query.minRisk);
-    const minRisk = Number.isFinite(minRiskRaw) ? Math.max(0, Math.min(100, minRiskRaw)) : null;
-    const detectionTypeFilter = sanitizeAntiAbuseText(query.detectionType || '', 120).toLowerCase();
-    const actionFilter = sanitizeAntiAbuseText(query.action || '', 80).toLowerCase();
-
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-
-    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-    const agents = listAntiAbuseAgents();
-    if (!form) {
-      return { items: [], total: 0, page, limit, totalPages: 0, sort: sortBy, order, agents };
-    }
-
-    const rows = await submissionRepo.find({
-      where: { formId: form.id },
-      order: { createdAt: 'DESC' },
-      take: Math.min(Math.max((offset + limit) * 4, limit), 5000),
-    });
-
-    const mapped = rows.map((row) => {
-      const meta = (row.meta && typeof row.meta === 'object') ? row.meta : {};
-      const ai = (meta.aiAssessment && typeof meta.aiAssessment === 'object') ? meta.aiAssessment : {};
-      const metrics = (meta.metrics && typeof meta.metrics === 'object') ? meta.metrics : null;
-      const recentEvents = Array.isArray(meta.recentEvents) ? meta.recentEvents : [];
-      const aiRiskScoreRaw = Number((ai as any).riskScore);
-      const aiRiskScore = Number.isFinite(aiRiskScoreRaw) ? Math.max(0, Math.min(100, aiRiskScoreRaw)) : null;
-
-      return {
-        id: row.id,
-        createdAt: row.createdAt,
-        status: row.status,
-        reviewedAt: row.reviewedAt,
-        serverId: sanitizeAntiAbuseText(meta.serverId || '', 120) || null,
-        serverName: sanitizeAntiAbuseText(meta.serverName || '', 240) || null,
-        suspectedServerIds: Array.isArray(meta.suspectedServerIds)
-          ? meta.suspectedServerIds.map((v: any) => sanitizeAntiAbuseText(v, 120)).filter(Boolean).slice(0, 20)
-          : [],
-        suspectedServerNames: Array.isArray(meta.suspectedServerNames)
-          ? meta.suspectedServerNames.map((v: any) => sanitizeAntiAbuseText(v, 240)).filter(Boolean).slice(0, 20)
-          : [],
-        detectionType: sanitizeAntiAbuseText(meta.detectionType || '', 120) || 'unknown',
-        enforcementAction: sanitizeAntiAbuseText(meta.enforcementAction || '', 60) || 'unknown',
-        strikeCount: Number.isFinite(Number(meta.strikeCount)) ? Number(meta.strikeCount) : null,
-        reason: sanitizeAntiAbuseText(meta.reason || '', 1200) || '',
-        nodeName: sanitizeAntiAbuseText(meta.nodeName || '', 200) || null,
-        sourceIp: sanitizeAntiAbuseText(meta.sourceIp || '', 80) || null,
-        targetIp: sanitizeAntiAbuseText(meta.targetIp || '', 80) || null,
-        targetPort: Number.isFinite(Number(meta.targetPort)) ? Number(meta.targetPort) : null,
-        suspendAttempted: !!meta.suspendAttempted,
-        suspendSuccess: !!meta.suspendSuccess,
-        aiRiskScore,
-        aiCategory: sanitizeAntiAbuseText((ai as any).category || '', 60) || null,
-        aiSummary: sanitizeAntiAbuseText((ai as any).summary || '', 1200) || null,
-        aiRecommendedAction: sanitizeAntiAbuseText((ai as any).recommendedAction || '', 80) || null,
-        aiConfidence: Number.isFinite(Number((ai as any).confidence)) ? Number((ai as any).confidence) : null,
-        metrics,
-        recentEvents,
-      };
-    });
-
-    const filtered = mapped.filter((item) => {
-      if (minRisk != null && (item.aiRiskScore == null || item.aiRiskScore < minRisk)) return false;
-      if (detectionTypeFilter && !String(item.detectionType || '').toLowerCase().includes(detectionTypeFilter)) return false;
-      if (actionFilter && !String(item.enforcementAction || '').toLowerCase().includes(actionFilter)) return false;
-      return true;
-    });
-
-    filtered.sort((a, b) => {
-      if (sortBy === 'aiRisk') {
-        const av = a.aiRiskScore ?? -1;
-        const bv = b.aiRiskScore ?? -1;
-        return order === 'asc' ? av - bv : bv - av;
-      }
-      const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return order === 'asc' ? at - bt : bt - at;
-    });
-
-    const items = filtered.slice(offset, offset + limit);
-    const total = filtered.length;
-    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages,
-      sort: sortBy,
-      order,
-      agents,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Any(),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List anti-abuse incidents for admin triage', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/antiabuse/incidents/:id/status', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const id = Number((ctx.params as any)?.id);
-    if (!Number.isFinite(id) || id <= 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.validIncidentIdRequired') };
-    }
-
-    const body = (ctx.body || {}) as any;
-    const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
-    const resolutionNote = sanitizeAntiAbuseText(body.note || '', 800) || null;
-
-    let nextStatus: 'pending' | 'accepted' | 'rejected' | 'archived' = 'pending';
-    if (action === 'resolve' || action === 'solved' || action === 'accepted') {
-      nextStatus = 'accepted';
-    } else if (action === 'dismiss' || action === 'dismissed' || action === 'rejected') {
-      nextStatus = 'rejected';
-    } else if (action === 'archive' || action === 'archived') {
-      nextStatus = 'archived';
-    } else if (action === 'pending' || action === 'reopen' || action === 'open') {
-      nextStatus = 'pending';
-    } else {
-      ctx.set.status = 400;
-      return { error: ctx.t('admin.incidentInvalidAction') };
-    }
-
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-    if (!form) {
-      ctx.set.status = 404;
-      return { error: ctx.t('admin.antiabuseFormNotFound') };
-    }
-
-    const row = await submissionRepo.findOne({ where: { id, formId: form.id } as any });
-    if (!row) {
-      ctx.set.status = 404;
-      return { error: ctx.t('organisation.incidentNotFound') };
-    }
-
-    const meta = (row.meta && typeof row.meta === 'object') ? { ...row.meta } : {};
-    (meta as any).resolution = {
-      action: nextStatus,
-      note: resolutionNote,
-      at: new Date().toISOString(),
-      by: (ctx.user as User | undefined)?.id ?? null,
-    };
-
-    row.status = nextStatus;
-    row.meta = meta;
-    row.reviewedBy = (ctx.user as User | undefined)?.id ?? null;
-    row.reviewedAt = new Date();
-
-    const saved = await submissionRepo.save(row);
-    return {
-      success: true,
-      id: saved.id,
-      status: saved.status,
-      reviewedAt: saved.reviewedAt,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update anti-abuse incident status', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/antiabuse/incidents/bulk-status', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const body = (ctx.body || {}) as any;
-    const ids = Array.isArray(body.ids)
-      ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
-      : [];
-
-    if (ids.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.idsArrayRequired') };
-    }
-
-    const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
-    const resolutionNote = sanitizeAntiAbuseText(body.note || '', 800) || null;
-
-    let nextStatus: 'pending' | 'accepted' | 'rejected' | 'archived' = 'pending';
-    if (action === 'resolve' || action === 'solved' || action === 'accepted') {
-      nextStatus = 'accepted';
-    } else if (action === 'dismiss' || action === 'dismissed' || action === 'rejected') {
-      nextStatus = 'rejected';
-    } else if (action === 'archive' || action === 'archived') {
-      nextStatus = 'archived';
-    } else if (action === 'pending' || action === 'reopen' || action === 'open') {
-      nextStatus = 'pending';
-    } else {
-      ctx.set.status = 400;
-      return { error: ctx.t('admin.incidentInvalidAction') };
-    }
-
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-    if (!form) {
-      ctx.set.status = 404;
-      return { error: ctx.t('admin.antiabuseFormNotFound') };
-    }
-
-    const rows = await submissionRepo.findBy({ formId: form.id } as any);
-    const targetIdSet = new Set(ids);
-    const selectedRows = rows.filter((row) => targetIdSet.has(row.id));
-
-    for (const row of selectedRows) {
-      const meta = (row.meta && typeof row.meta === 'object') ? { ...row.meta } : {};
-      (meta as any).resolution = {
-        action: nextStatus,
-        note: resolutionNote,
-        at: new Date().toISOString(),
-        by: (ctx.user as User | undefined)?.id ?? null,
-      };
-
-      row.status = nextStatus;
-      row.meta = meta;
-      row.reviewedBy = (ctx.user as User | undefined)?.id ?? null;
-      row.reviewedAt = new Date();
-    }
-
-    await submissionRepo.save(selectedRows);
-
-    return {
-      success: true,
-      updated: selectedRows.length,
-      requested: ids.length,
-      status: nextStatus,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Bulk update anti-abuse incident status', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/antiabuse/incidents/:id', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const id = Number((ctx.params as any)?.id);
-    if (!Number.isFinite(id) || id <= 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.validIncidentIdRequired') };
-    }
-
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-    if (!form) {
-      ctx.set.status = 404;
-      return { error: ctx.t('admin.antiabuseFormNotFound') };
-    }
-
-    const result = await submissionRepo.delete({ id, formId: form.id } as any);
-    if (!result.affected) {
-      ctx.set.status = 404;
-      return { error: ctx.t('organisation.incidentNotFound') };
-    }
-
-    return { success: true, deleted: Number(result.affected || 0) };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Delete anti-abuse incident', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/antiabuse/incidents/bulk-delete', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const body = (ctx.body || {}) as any;
-    const ids = Array.isArray(body.ids)
-      ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
-      : [];
-
-    if (ids.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.idsArrayRequired') };
-    }
-
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-    const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-    if (!form) {
-      ctx.set.status = 404;
-      return { error: ctx.t('admin.antiabuseFormNotFound') };
-    }
-
-    const result = await submissionRepo
-      .createQueryBuilder()
-      .delete()
-      .from(ApplicationSubmission)
-      .where('formId = :formId', { formId: form.id })
-      .andWhere('id IN (:...ids)', { ids })
-      .execute();
-
-    return {
-      success: true,
-      deleted: Number(result.affected || 0),
-      requested: ids.length,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Object({ success: t.Boolean(), deleted: t.Number(), requested: t.Number() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Bulk delete anti-abuse incidents', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/antiabuse/events', async (ctx) => {
-    const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-    if (access !== true) return access;
-
-    const body = (ctx.body || {}) as any;
-    const serverId = sanitizeAntiAbuseText(body.serverId, 120);
-    const reason = sanitizeAntiAbuseText(body.reason, 600);
-
-    if (!serverId || !reason) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.serverIdAndReasonRequired') };
-    }
-
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const formRepo = AppDataSource.getRepository(ApplicationForm);
-    const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
-
-    const cfg = await cfgRepo.findOneBy({ uuid: serverId });
-    if (cfg?.ignoreAntiAbuse) {
-      return {
-        success: true,
-        ignored: true,
-        message: ctx.t('admin.antiAbuseDisabled'),
-      };
-    }
-
-    const nodeName = sanitizeAntiAbuseText(body.nodeName || body.node || process.env.HOSTNAME || '', 160) || null;
-    const sourceIp = sanitizeAntiAbuseText(body.sourceIp || '', 80) || null;
-    const targetIp = sanitizeAntiAbuseText(body.targetIp || '', 80) || null;
-    const targetPort = Number(body.targetPort);
-    const detectionType = sanitizeAntiAbuseText(body.detectionType || '', 120) || 'unknown';
-    const enforcementAction = sanitizeAntiAbuseText(body.enforcementAction || 'unknown', 60).toLowerCase();
-    const strikeCount = Number(body.strikeCount);
-    const suspectedServerIds = Array.isArray(body.suspectedServerIds)
-      ? body.suspectedServerIds.map((v: any) => sanitizeAntiAbuseText(v, 120)).filter(Boolean).slice(0, 20)
-      : [];
-    const suspectedServerNames = Array.isArray(body.suspectedServerNames)
-      ? body.suspectedServerNames.map((v: any) => sanitizeAntiAbuseText(v, 240)).filter(Boolean).slice(0, 20)
-      : [];
-    let suspendAttempted = !!body.suspendAttempted;
-    let suspendSuccess = !!body.suspendSuccess;
-    const aiRecommendedAction = sanitizeAntiAbuseText(body.aiAssessment?.recommendedAction || body.aiAssessment?.finalAction || '', 60).toLowerCase();
-    const effectiveAction = enforcementAction !== 'unknown' ? enforcementAction : aiRecommendedAction;
-    let autoSuspendResult: {
-      success: boolean;
-      attempted: boolean;
-      emailSent: boolean;
-      emailRecipient: string | null;
-      emailError: string | null;
-      message: string;
-    } | null = null;
-    const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse', 120);
-    const incidentId = Number(body.incidentId);
-
-    const shouldAutoSuspend = ['suspend', 'block'].includes(effectiveAction);
-    if (shouldAutoSuspend && !suspendSuccess) {
-      autoSuspendResult = await attemptAutoSuspendServer(
-        serverId,
-        `Auto enforcement (${effectiveAction}): ${reason}`,
-        'anti-abuse system',
-        false,
-      );
-      suspendAttempted = suspendAttempted || autoSuspendResult.attempted;
-      suspendSuccess = suspendSuccess || autoSuspendResult.success;
-    }
-
-    let form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-    if (!form) {
-      form = await formRepo.findOne({ where: { kind: 'abuse_report', title: 'Automated Anti-Abuse Incidents' } });
-    }
-
-    if (!form) {
-      form = formRepo.create({
-        title: 'Automated Anti-Abuse Incidents',
-        description: 'Incidents generated by automatic anti-abuse detection services.',
-        kind: 'abuse_report',
-        slug: 'antiabuse-incidents',
-        visibility: 'private_invite',
-        status: 'active',
-        active: true,
-        requiresAccount: false,
-        maxSubmissionsPerUser: 999999,
-        ipCooldownSeconds: 0,
-        createdBy: (ctx.user as User | undefined)?.id,
-      });
-      form = await formRepo.save(form);
-    }
-
-    if (Number.isFinite(incidentId) && incidentId > 0) {
-      const existing = await submissionRepo.findOne({ where: { id: incidentId, formId: form.id } as any });
-
-      if (existing) {
-        const appendLines = [
-          '',
-          '--- Incident update ---',
-          `Detector: ${detectorName}`,
-          `Detection Type: ${detectionType}`,
-          `Reason: ${reason}`,
-          `Source IP: ${sourceIp || 'unknown'}`,
-          `Target: ${targetIp || 'unknown'}${Number.isFinite(targetPort) ? `:${targetPort}` : ''}`,
-          `Suspend attempted: ${suspendAttempted ? 'yes' : 'no'}`,
-          `Suspend success: ${suspendSuccess ? 'yes' : 'no'}`,
-          `Time: ${new Date().toISOString()}`,
-        ];
-
-        const metrics = body.metrics && typeof body.metrics === 'object' ? body.metrics : null;
-        const events = Array.isArray(body.recentEvents) ? body.recentEvents.slice(-30) : [];
-
-        if (metrics) {
-          appendLines.push(`Metrics: ${sanitizeAntiAbuseText(JSON.stringify(metrics), 4000)}`);
-        }
-        if (events.length > 0) {
-          appendLines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
-        }
-        if (autoSuspendResult) {
-          appendLines.push(`Auto-enforcement: ${autoSuspendResult.success ? 'success' : 'failed'}`);
-          if (autoSuspendResult.emailSent) {
-            appendLines.push(`Admin alert sent to: ${autoSuspendResult.emailRecipient}`);
-          }
-          if (autoSuspendResult.emailError) {
-            appendLines.push(`Admin alert error: ${autoSuspendResult.emailError}`);
-          }
-        }
-
-        existing.content = `${existing.content || ''}\n${appendLines.join('\n')}`.slice(0, 20_000);
-
-        const existingMeta = (existing.meta && typeof existing.meta === 'object') ? existing.meta : {};
-        const previousUpdates = Number((existingMeta as any).updateCount) || 0;
-        existing.meta = {
-          ...(existingMeta as any),
-          lastUpdateAt: new Date().toISOString(),
-          updateCount: previousUpdates + 1,
-          latest: {
-            detector: detectorName,
-            detectionType,
-            reason,
-            sourceIp,
-            targetIp,
-            targetPort: Number.isFinite(targetPort) ? targetPort : null,
-            suspendAttempted,
-            suspendSuccess,
-            autoSuspendResult,
-            metrics,
-            recentEvents: events,
-          },
-        } as any;
-
-        const updated = await submissionRepo.save(existing);
-        return {
-          success: true,
-          updated: true,
-          submissionId: updated.id,
-          formId: form.id,
-          emailSent: false,
-          emailError: null,
-        };
-      }
-    }
-
-    const lines = [
-      `Detector: ${detectorName}`,
-      `Server UUID: ${serverId}`,
-      `Server Name: ${cfg?.name || 'unknown'}`,
-      `Node: ${nodeName || (cfg?.nodeId != null ? String(cfg.nodeId) : 'unknown')}`,
-      `Detection Type: ${detectionType}`,
-      `Reason: ${reason}`,
-      `Source IP: ${sourceIp || 'unknown'}`,
-      `Target: ${targetIp || 'unknown'}${Number.isFinite(targetPort) ? `:${targetPort}` : ''}`,
-      `Suspend attempted: ${suspendAttempted ? 'yes' : 'no'}`,
-      `Suspend success: ${suspendSuccess ? 'yes' : 'no'}`,
-      `Time: ${new Date().toISOString()}`,
-    ];
-
-    const metrics = body.metrics && typeof body.metrics === 'object' ? body.metrics : null;
-    const events = Array.isArray(body.recentEvents) ? body.recentEvents.slice(-30) : [];
-    const aiAssessment = await runAntiAbuseAiAssessment({
-      serverId,
-      serverName: cfg?.name || null,
-      nodeName,
-      reason,
-      detectionType,
-      sourceIp,
-      targetIp,
-      targetPort: Number.isFinite(targetPort) ? targetPort : null,
-      metrics,
-      recentEvents: events,
-    });
-
-    lines.push(`Enforcement action: ${enforcementAction || 'unknown'}`);
-    if (Number.isFinite(strikeCount)) {
-      lines.push(`Strike count: ${strikeCount}`);
-    }
-    if (metrics) {
-      lines.push('');
-      lines.push(`Metrics: ${sanitizeAntiAbuseText(JSON.stringify(metrics), 4000)}`);
-    }
-    if (suspectedServerNames.length > 0) {
-      lines.push('');
-      lines.push(`Suspected servers: ${sanitizeAntiAbuseText(JSON.stringify(suspectedServerNames), 4000)}`);
-    }
-    if (events.length > 0) {
-      lines.push('');
-      lines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
-    }
-    if (autoSuspendResult) {
-      lines.push('');
-      lines.push(`Auto-enforcement: ${autoSuspendResult.success ? 'success' : 'failed'}`);
-      if (autoSuspendResult.emailSent) {
-        lines.push(`Admin alert sent to: ${autoSuspendResult.emailRecipient}`);
-      }
-      if (autoSuspendResult.emailError) {
-        lines.push(`Admin alert error: ${autoSuspendResult.emailError}`);
-      }
-    }
-    if (aiAssessment) {
-      lines.push('');
-      lines.push(`AI assessment: ${sanitizeAntiAbuseText(JSON.stringify(aiAssessment), 7000)}`);
-    }
-
-    const created = submissionRepo.create({
-      formId: form.id,
-      userId: null,
-      ipAddress: sanitizeAntiAbuseText(ctx.ip || '', 120) || null,
-      status: 'pending',
-      content: lines.join('\n').slice(0, 20_000),
-      meta: {
-        source: 'antiabuse_detector',
-        detector: detectorName,
-        serverId,
-        serverName: cfg?.name || null,
-        nodeId: cfg?.nodeId ?? null,
-        nodeName,
-        reason,
-        detectionType,
-        enforcementAction,
-        strikeCount: Number.isFinite(strikeCount) ? strikeCount : null,
-        sourceIp,
-        targetIp,
-        targetPort: Number.isFinite(targetPort) ? targetPort : null,
-        suspectedServerIds,
-        suspectedServerNames,
-        suspendAttempted,
-        suspendSuccess,
-        metrics,
-        recentEvents: events,
-        aiAssessment,
-        autoSuspendResult,
-        raw: body,
-        userAgent: sanitizeAntiAbuseText(ctx.request?.headers?.get?.('user-agent') || '', 500) || null,
-      },
-    });
-
-    const saved = await submissionRepo.save(created);
-
-    const recipient = process.env.ABUSE_REPORT_EMAIL || null;
-    let emailSent = false;
-    let emailError: string | null = null;
-
-    if (recipient) {
-      try {
-        await sendMail({
-          to: recipient,
-          from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
-          subject: `[AntiAbuse] ${cfg?.name || serverId} suspended (${detectionType})`,
-          text: lines.join('\n'),
-          locale: ctx.locale,
-        });
-        emailSent = true;
-      } catch (e: any) {
-        emailError = e?.message || 'Failed to send mail';
-      }
-    }
-
-    return {
-      success: true,
-      submissionId: saved.id,
-      formId: form.id,
-      aiAssessment,
-      emailSent,
-      emailError,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Ingest anti-abuse incident event', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/sync-from-wings', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'nodes:read');
-    if (adminErr !== true) return adminErr;
-    const admin = ctx.user as User;
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const ServerMapping = require('../models/serverMapping.entity').ServerMapping;
-    const mappingRepo = AppDataSource.getRepository(ServerMapping);
-    const nodes = await AppDataSource.getRepository(Node).find();
-
-    let created = 0;
-    let skipped = 0;
-    const errors: string[] = [];
-
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
-        const servers: any[] = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
-
-        for (const s of servers) {
-          const uuid: string = s.configuration?.uuid || s.uuid || s.id;
-          if (!uuid) continue;
-
-          const existing = await cfgRepo.findOneBy({ uuid });
-          if (existing) { skipped++; continue; }
-
-          const existingMap = await mappingRepo.findOneBy({ uuid });
-          if (!existingMap) {
-            await mappingRepo.save(mappingRepo.create({ uuid, nodeId: n.id }));
-          }
-
-          const userId: number = s.user ?? s.owner ?? admin.id;
-
-          await cfgRepo.save(cfgRepo.create({
-            uuid,
-            nodeId: n.id,
-            userId,
-            name: s.configuration?.meta?.name ?? s.name ?? uuid,
-            suspended: s.suspended ?? false,
-            dockerImage: s.container?.image ?? s.image ?? '',
-            startup: s.invocation ?? s.startup ?? '',
-            environment: s.environment ?? {},
-            memory: s.build?.memory_limit ?? s.limits?.memory ?? 1024,
-            disk: s.build?.disk_space ?? s.limits?.disk ?? 10240,
-            cpu: s.build?.cpu_limit ?? s.limits?.cpu ?? 100,
-            swap: s.build?.swap ?? 0,
-            ioWeight: s.build?.io_weight ?? 500,
-            oomDisabled: s.build?.oom_disabled ?? true,
-          }));
-          created++;
-        }
-      } catch (e: any) {
-        const errMsg = sanitizeError(e, 'adminHandler:sync-all-nodes');
-        errors.push(`Node ${n.name ?? n.id}: ${errMsg}`);
-      }
-    }
-
-    return { success: true, created, skipped, errors };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({ success: t.Boolean(), created: t.Number(), skipped: t.Number(), errors: t.Array(t.String()) }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Synchronize servers from Wings nodes', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/users/:id/profile', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:read');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
-    const modelUserRepo = AppDataSource.getRepository(AIModelUser);
-    const aiLinks = await modelUserRepo.find({ where: { user: { id: userId } }, relations: {"model":true} });
-
-    const servers: any[] = [];
-    const nodes = await AppDataSource.getRepository(Node).find();
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
-        for (const s of (res.data || [])) {
-          const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
-          if (!Number.isNaN(serverOwner) && serverOwner === userId) {
-            servers.push({ ...s, nodeName: n.name, nodeId: n.id });
-          }
-        }
-      } catch { }
-    }
-
-    try {
-      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      const configs = await cfgRepo.find({ where: { userId } });
-      const nodeMap = new Map((nodes || []).map((n: any) => [n.id, n]));
-      for (const c of configs) {
-        const already = servers.find((s) => {
-          const su = s.uuid || (s.configuration && s.configuration.uuid) || s.id || s.serverId;
-          const cu = c.uuid || c.serverUuid || '';
-          if (!su || !cu) return false;
-          return String(su).replace(/-/g, '').toLowerCase() === String(cu).replace(/-/g, '').toLowerCase();
-        });
-        if (already) continue;
-        const node = nodeMap.get(c.nodeId);
-        servers.push({
-          uuid: c.uuid,
-          name: c.name || c.uuid,
-          status: c.hibernated ? 'hibernated' : 'unknown',
-          hibernated: !!c.hibernated,
-          is_suspended: !!c.suspended,
-          resources: null,
-          build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-          container: { image: c.dockerImage },
-          nodeId: c.nodeId,
-          nodeName: node?.name,
-          userId: c.userId,
-          eggId: c.eggId ?? null,
-        });
-      }
-    } catch (e) {
-      // skippy
-    }
-
-    const Order = require('../models/order.entity').Order;
-    const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
-    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: {"organisation":true} });
-    const orgs = membershipRows
-      .filter((m: any) => !!m.organisation)
-      .map((m: any) => ({
-        id: m.organisation.id,
-        name: m.organisation.name,
-        handle: m.organisation.handle,
-        portalTier: m.organisation.portalTier,
-        avatarUrl: m.organisation.avatarUrl,
-        ownerId: m.organisation.ownerId,
-        orgRole: m.orgRole,
-      }));
-    const primaryOrg = orgs.find((o: any) => o.orgRole === 'owner') || orgs[0] || null;
-
-    const out: any = { ...user };
-    delete out.passwordHash;
-    delete out.sessions;
-    out.orgs = orgs;
-    out.org = primaryOrg ? { id: primaryOrg.id, name: primaryOrg.name, handle: primaryOrg.handle, portalTier: primaryOrg.portalTier, avatarUrl: primaryOrg.avatarUrl } : null;
-    out.orgRole = primaryOrg?.orgRole || null;
-    out.aiModels = aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits }));
-    out.servers = servers;
-    out.orders = orders;
-    out.contributor = buildContributorSummary(user);
-    return out;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Get detailed profile for a user', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/users/:id/contributor-profile', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
-    if (adminErr !== true) return adminErr;
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const body = (ctx.body || {}) as any;
-    const githubLogin = String(body.githubLogin || '').trim();
-    const githubProfileUrl = String(body.githubProfileUrl || '').trim();
-    const githubAvatarUrl = String(body.githubAvatarUrl || '').trim();
-    const contributorTitle = String(body.contributorTitle || '').trim();
-    let rawActivity = body.contributorActivity ?? body.activity;
-    if (typeof rawActivity === 'string') {
-      try {
-        const parsed = JSON.parse(rawActivity);
-        rawActivity = parsed;
-      } catch {
-        rawActivity = [];
-      }
-    }
-    const activity = normalizeContributorActivity(rawActivity);
-
-    (user as any).githubLogin = githubLogin || null;
-    (user as any).githubProfileUrl = githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : null);
-    (user as any).githubAvatarUrl = githubAvatarUrl || (githubLogin ? `https://github.com/${githubLogin}.png?size=256` : null);
-    (user as any).contributorTitle = contributorTitle || null;
-    (user as any).contributorActivity = activity;
-
-    await userRepo.save(user);
-    try { await redisDel('public:contributors:v2'); } catch { }
-    return { success: true, contributor: buildContributorSummary(user) };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        githubLogin: t.Optional(t.String()),
-        githubProfileUrl: t.Optional(t.String()),
-        githubAvatarUrl: t.Optional(t.String()),
-        contributorTitle: t.Optional(t.String()),
-        contributorActivity: t.Optional(t.Any()),
-        activity: t.Optional(t.Any()),
-      }),
-      response: {
-        200: t.Object({ success: t.Boolean(), contributor: t.Any() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update contributor profile details for a user', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/users/:id/documents', async (ctx: any) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:users:documents');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const { file, name, description } = (ctx.body || {}) as any;
-    const uploadFile = Array.isArray(file) ? file[0] : file;
-    if (!uploadFile) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.noFile') };
-    }
-
-    const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
-    if (mime !== 'application/pdf') {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.fileTypePdfOnly') };
-    }
-
-    const ab = await uploadFile.arrayBuffer();
-    const buffer = Buffer.from(ab);
-    const originalName = uploadFile.name || uploadFile.filename || `document_${Date.now()}.pdf`;
-    const safeName = path.basename(originalName).replace(/[^a-zA-Z0-9._-]/g, '_');
-    const filename = `document_${Date.now()}_${safeName}`;
-
-    const uploadDir = path.join(process.cwd(), 'uploads', 'user-documents', String(user.id));
-    fs.mkdirSync(uploadDir, { recursive: true });
-    const filepath = path.join(uploadDir, filename);
-
-    const encrypted = await encryptBufferWithWorker(buffer).catch(() => {
-      const { encryptBuffer } = require('../utils/crypto');
-      return encryptBuffer(buffer);
-    });
-    await Bun.write(filepath, encrypted);
-
-    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
-      const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
-      const host = (ctx.request.headers.get('host') || 'localhost') as string;
-      return `${proto}://${host}`;
-    })();
-
-    const documentUrl = `${backendBase}/uploads/user-documents/${user.id}/${encodeURIComponent(filename)}`;
-
-    if (!user.settings || typeof user.settings !== 'object') {
-      user.settings = {};
-    }
-    const currentDocs = (user.settings as any).documents;
-    const documents = Array.isArray(currentDocs)
-      ? { admin: currentDocs, agreed: [] }
-      : { agreed: Array.isArray(currentDocs?.agreed) ? currentDocs.agreed : [], admin: Array.isArray(currentDocs?.admin) ? currentDocs.admin : [] };
-
-    const newDoc = {
-      id: crypto.randomUUID(),
-      name: String(name || originalName),
-      description: description ? String(description) : undefined,
-      filename,
-      url: documentUrl,
-      uploadedAt: new Date().toISOString(),
-    };
-    documents.admin.push(newDoc);
-    (user.settings as any).documents = documents;
-
-    await userRepo.save(user);
-    return { success: true, document: newDoc };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ file: t.File({ type: 'application/pdf' }), name: t.Optional(t.String()), description: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), document: t.Object({ id: t.String(), name: t.String(), description: t.Optional(t.String()), filename: t.String(), url: t.String(), uploadedAt: t.String() }) }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Upload a user-specific PDF document', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/users/:id/export', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
-    const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const passkeyRepo = AppDataSource.getRepository(Passkey);
-    const apiKeyRepo = AppDataSource.getRepository(require('../models/apiKey.entity').ApiKey);
-    const idVerificationRepo = AppDataSource.getRepository(IDVerification);
-    const ticketRepo = AppDataSource.getRepository(Ticket);
-    const userLogRepo = AppDataSource.getRepository(UserLog);
-    const organisationRepo = AppDataSource.getRepository(Organisation);
-    const aiModelUserRepo = AppDataSource.getRepository(require('../models/aiModelUser.entity').AIModelUser);
-
-    const aiLinks = await aiModelUserRepo.find({ where: { user: { id: userId } }, relations: {"model":true} });
-    const passkeys = await passkeyRepo.find({ where: { user: { id: userId } } });
-    const apiKeys = await apiKeyRepo.find({ where: { user: { id: userId } } });
-    const idVerifications = await idVerificationRepo.find({ where: { userId } });
-    const tickets = await ticketRepo.find({ where: { userId } });
-    const userLogs = await userLogRepo.find({ where: { userId }, order: { timestamp: 'DESC' }, take: 10 });
-    const organisationsOwned = await organisationRepo.find({ where: { ownerId: userId }, relations: {"invites":true} });
-    const membershipRows = await orgMemberRepo.find({ where: { userId }, relations: {"organisation":true} });
-    const organisations = membershipRows
-      .filter((m: any) => !!m.organisation)
-      .map((m: any) => ({
-        id: m.organisation.id,
-        name: m.organisation.name,
-        handle: m.organisation.handle,
-        portalTier: m.organisation.portalTier,
-        avatarUrl: m.organisation.avatarUrl,
-        ownerId: m.organisation.ownerId,
-        orgRole: m.orgRole,
-      }));
-    const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
-
-    const servers: any[] = [];
-    const nodes = await AppDataSource.getRepository(Node).find();
-    for (const n of nodes) {
-      try {
-        const base = (n as any).backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
-        for (const s of (res.data || [])) {
-          const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
-          if (!Number.isNaN(serverOwner) && serverOwner === userId) {
-            servers.push({ ...s, nodeName: n.name, nodeId: n.id });
-          }
-        }
-      } catch { }
-    }
-
-    try {
-      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      const configs = await cfgRepo.find({ where: { userId } });
-      const nodeMap = new Map((nodes || []).map((n: any) => [n.id, n]));
-      for (const c of configs) {
-        const already = servers.find((s) => {
-          const su = s.uuid || (s.configuration && s.configuration.uuid) || s.id || s.serverId;
-          const cu = c.uuid || c.serverUuid || '';
-          if (!su || !cu) return false;
-          return String(su).replace(/-/g, '').toLowerCase() === String(cu).replace(/-/g, '').toLowerCase();
-        });
-        if (already) continue;
-        const node = nodeMap.get(c.nodeId);
-        servers.push({
-          uuid: c.uuid,
-          name: c.name || c.uuid,
-          status: c.hibernated ? 'hibernated' : 'unknown',
-          hibernated: !!c.hibernated,
-          is_suspended: !!c.suspended,
-          resources: null,
-          build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-          container: { image: c.dockerImage },
-          nodeId: c.nodeId,
-          nodeName: node?.name,
-          userId: c.userId,
-          eggId: c.eggId ?? null,
-        });
-      }
-    } catch (e) {
-      // skippy
-    }
-
-    const out: any = { ...user };
-    delete out.passwordHash;
-    delete out.sessions;
-    const primaryOrg = organisations.find((o: any) => o.orgRole === 'owner') || organisations[0] || null;
-    out.orgs = organisations;
-    out.org = primaryOrg ? { id: primaryOrg.id, name: primaryOrg.name, handle: primaryOrg.handle, portalTier: primaryOrg.portalTier, avatarUrl: primaryOrg.avatarUrl } : null;
-    out.orgRole = primaryOrg?.orgRole || null;
-
-    const serverLogs: Record<string, string[]> = {};
-    const serverBackups: Record<string, any[]> = {};
-    const serverFilesMap: Record<string, { path: string; size: number }[]> = {};
-
-    async function collectFilesRecursive(svc: any, serverUuid: string, dir = '/') {
-      const items: Array<{ name: string; mode?: string; type?: string; size?: number }> = [];
-      try {
-        const files = await svc.serverRequest(serverUuid, `/files/list-directory?directory=${encodeURIComponent(dir)}`);
-        const body = files.data || files;
-        if (Array.isArray(body)) items.push(...body);
-        else if (Array.isArray(body.entries)) items.push(...body.entries);
-        else if (Array.isArray(body.files)) items.push(...body.files);
-      } catch (e1: any) {
-        if (e1?.response?.status === 404) {
-          try {
-            const files = await svc.serverRequest(serverUuid, `/files/list?directory=${encodeURIComponent(dir)}`);
-            const body = files.data || files;
-            if (Array.isArray(body)) items.push(...body);
-            else if (Array.isArray(body.entries)) items.push(...body.entries);
-            else if (Array.isArray(body.files)) items.push(...body.files);
+            const res = await svc.getServers();
+            const servers = res.data || [];
+            return { node: n, servers };
           } catch {
-            return [];
+            return null;
           }
-        } else {
-          return [];
-        }
-      }
-
-      const filesFound: Array<{ path: string; size: number }> = [];
-      for (const entry of items) {
-        const name = entry.name || '';
-        if (!name) continue;
-        const fullPath = dir.replace(/\/$/, '') + '/' + name;
-        if (entry.type === 'file' || entry.mode?.startsWith('f') || entry.mode?.startsWith('-')) {
-          filesFound.push({ path: fullPath, size: Number(entry.size || 0) });
-        } else {
-          const child = await collectFilesRecursive(svc, serverUuid, fullPath);
-          filesFound.push(...child);
-        }
-      }
-      return filesFound;
-    }
-
-    for (const s of servers) {
-      const serverUuid = (s.uuid || s.id || '').toString();
-      if (!serverUuid) continue;
-      const node = nodes.find((n: any) => n.id === s.nodeId) || nodes[0];
-      if (!node) continue;
-      const svc = new WingsApiService((node as any).backendWingsUrl || (node as any).url, (node as any).token);
-      try {
-        const logResp = await svc.getServerLogs(serverUuid);
-        let logs: string[] = [];
-        const raw = logResp.data;
-        if (Array.isArray(raw)) logs = raw.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
-        else if (typeof raw === 'string') logs = raw.split('\n').filter(Boolean);
-        else if (raw && typeof raw === 'object') {
-          const inner = raw.logs ?? raw.data ?? raw.output;
-          if (Array.isArray(inner)) logs = inner.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
-          else if (typeof inner === 'string') logs = inner.split('\n').filter(Boolean);
-        }
-        serverLogs[serverUuid] = logs;
-      } catch (e) {
-        serverLogs[serverUuid] = [`failed to fetch logs: ${String(e?.message || e)}`];
-      }
-
-      try {
-        const backupResp = await svc.listServerBackups(serverUuid);
-        serverBackups[serverUuid] = Array.isArray(backupResp.data) ? backupResp.data : [];
-      } catch (e) {
-        serverBackups[serverUuid] = [];
-      }
-
-      try {
-        serverFilesMap[serverUuid] = await collectFilesRecursive(svc, serverUuid, '/');
-      } catch {
-        serverFilesMap[serverUuid] = [];
-      }
-
-      try {
-        await svc.createServerBackup(serverUuid, { adapter: 'local', uuid: `admin-export-${serverUuid}-${Date.now()}`, ignore: [] });
-      } catch {
-        // skip
-      }
-    }
-
-    const dataExportDir = path.join(os.tmpdir(), `data-export-${Date.now()}-${crypto.randomUUID()}`);
-    await fsp.mkdir(dataExportDir, { recursive: true });
-
-    const metadataPath = path.join(dataExportDir, 'user-export.json');
-    const payload = {
-      user: out,
-      passkeys,
-      apiKeys,
-      idVerifications,
-      tickets,
-      userLogs,
-      organisations,
-      organisationsOwned,
-      servers,
-      orders,
-      aiModels: aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits })),
-      serverLogs,
-      serverBackups,
-      serverFiles: serverFilesMap,
-      exportedAt: new Date().toISOString(),
-    };
-    await Bun.write(metadataPath, JSON.stringify(payload, null, 2));
-
-    for (const [serverUuid, logs] of Object.entries(serverLogs)) {
-      const logFile = path.join(dataExportDir, `server-${serverUuid}-logs.txt`);
-      await Bun.write(logFile, logs.join('\n'));
-    }
-    for (const [serverUuid, backups] of Object.entries(serverBackups)) {
-      const backupFile = path.join(dataExportDir, `server-${serverUuid}-backups.json`);
-      await Bun.write(backupFile, JSON.stringify(backups, null, 2));
-    }
-
-    for (const s of servers) {
-      const serverUuid = (s.uuid || s.id || '').toString();
-      if (!serverUuid || !serverFilesMap[serverUuid] || serverFilesMap[serverUuid].length === 0) continue;
-      const node = nodes.find((n: any) => n.id === s.nodeId) || nodes[0];
-      if (!node) continue;
-      const svc = new WingsApiService((node as any).backendWingsUrl || (node as any).url, (node as any).token);
-      const base = path.join(dataExportDir, 'server-files', serverUuid);
-      await fsp.mkdir(base, { recursive: true });
-      const trimmedFiles = serverFilesMap[serverUuid].slice(0, 300);
-      for (const file of trimmedFiles) {
-        const normalizedPath = path.normalize(file.path.replace(/^\//, '')).replace(/^([/\\])+/, '');
-        const target = path.join(base, normalizedPath);
-        const relativeTarget = path.relative(base, target);
-        if (!relativeTarget || relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
-          continue;
-        }
-        try {
-          const res = await svc.downloadFile(serverUuid, file.path);
-          const rawData = res.data;
-          await fsp.mkdir(path.dirname(target), { recursive: true });
-          if (rawData instanceof Buffer || rawData instanceof ArrayBuffer) {
-            await Bun.write(target, rawData);
-          } else if (typeof rawData === 'string') {
-            await Bun.write(target, rawData);
-          } else {
-            await Bun.write(target, JSON.stringify(rawData));
-          }
-        } catch (e) {
-          // skip
-        }
-      }
-    }
-
-    const archiveName = `eclipanel-user-export-${userId}-${Date.now()}.tar.gz`;
-    const archivePath = path.join(os.tmpdir(), archiveName);
-    try {
-      await tar.c(
-        {
-          gzip: true,
-          file: archivePath,
-          cwd: dataExportDir,
-        },
-        [
-          'user-export.json',
-          ...Object.keys(serverLogs).map((s) => `server-${s}-logs.txt`),
-          ...Object.keys(serverBackups).map((s) => `server-${s}-backups.json`),
-          'server-files',
-        ],
+        })
       );
 
-      const recipient = process.env.ADMIN_EMAIL || out.email || (user.email || null);
-      if (recipient) {
-        await sendMail({
-          to: recipient,
-          from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
-          subject: `EcliPanel user data export for ${out.email || userId}`,
-          text: `Attached archive includes full data export for user #${userId}.`,
-          attachments: [{ filename: archiveName, path: archivePath }],
-          locale: ctx.locale,
-        });
-      }
-    } catch (error) {
-      console.warn('user export archive failed', error);
-    } finally {
-      try {
-        await fsp.rm(dataExportDir, { recursive: true, force: true });
-      } catch { }
-      try {
-        await fsp.unlink(archivePath);
-      } catch { }
-    }
-
-    return {
-      ...payload,
-      exportArchive: archiveName,
-      emailSentTo: process.env.ADMIN_EMAIL || out.email || user.email || null,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Export all user and owned object data (admin)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/users/:id/address-change-logs', async (ctx: any) => {
-    const adminErr = requireAdminPermission(ctx, 'users:read');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const userLogRepo = AppDataSource.getRepository(UserLog);
-    const logs = await userLogRepo.find({ where: { userId, action: 'update-address' }, order: { timestamp: 'DESC' }, take: 10 });
-    return { success: true, logs };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: { 200: t.Object({ success: t.Boolean(), logs: t.Array(t.Any()) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Get last address change logs for a user', tags: ['Admin'] },
-  });
-
-  app.delete('/admin/users/:id/ai/:linkId', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'ai:read');
-    if (adminErr !== true) return adminErr;
-    const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
-    const repo = AppDataSource.getRepository(AIModelUser);
-    const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
-    if (!link) {
-      ctx.set.status = 404;
-      return { error: ctx.t('system.linkNotFound') };
-    }
-    await repo.remove(link);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String(), linkId: t.String() }),
-      response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Remove an AI model link for user', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/users/:id/ai/:linkId', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'ai:read');
-    if (adminErr !== true) return adminErr;
-    const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
-    const repo = AppDataSource.getRepository(AIModelUser);
-    const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
-    if (!link) {
-      ctx.set.status = 404;
-      return { error: ctx.t('system.linkNotFound') };
-    }
-    const { limits } = ctx.body as any;
-    if (limits !== undefined) link.limits = limits;
-    await repo.save(link);
-    return { success: true, link };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String(), linkId: t.String() }),
-      body: t.Object({ limits: t.Optional(t.Any()) }),
-      response: { 200: t.Object({ success: t.Boolean(), link: t.Any() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    },
-    detail: { summary: 'Update limits on AI model link', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/logs', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'logs:read');
-    if (adminErr !== true) return adminErr;
-    const { userId, page = '1', per = '200', type = 'audit' } = ctx.query as any;
-    const perNum = Math.min(Math.max(Number(per) || 200, 1), 500);
-    const p = Math.max(1, Number(page) || 1);
-
-    if (type === 'requests') {
-      const repo = AppDataSource.getRepository(ApiRequestLog);
-      let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
-      if (userId !== undefined && userId !== null && userId !== '') qb = qb.where('l.userId = :uid', { uid: Number(userId) });
-      const total = await qb.getCount();
-      const logs = await qb.skip((p - 1) * perNum).take(perNum).getMany();
-
-      const userIds = [...new Set(logs.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
-      const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
-      if (userIds.length > 0) {
-        const users = await AppDataSource.getRepository(User)
-          .createQueryBuilder('u')
-          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
-          .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
-          .getMany();
-        users.forEach((u) => {
-          const name = [`${u.firstName || ''}`.trim(), `${u.lastName || ''}`.trim()].filter(Boolean).join(' ').trim();
-          userMap[u.id] = { username: name || u.email || `User #${u.id}`, email: u.email, avatarUrl: u.avatarUrl };
-        });
-      }
-
-      const out = logs.map((e) => ({
-        ...e,
-        username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
-        email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
-      }));
-      return { logs: out, total, page: p, per: perNum };
-    }
-
-    const repo = AppDataSource.getRepository(UserLog);
-
-    if (type === 'serverErrors') {
-      let qb = repo.createQueryBuilder('l')
-        .where("l.action LIKE :error1 OR l.action LIKE :error2 OR l.action LIKE :error3", { error1: '%error%', error2: '%crash%', error3: '%failed%' })
-        .orderBy('l.timestamp', 'DESC');
-      if (userId !== undefined && userId !== null && userId !== '') qb = qb.andWhere('l.userId = :uid', { uid: Number(userId) });
-      const total = await qb.getCount();
-      const entries = await qb.skip((p - 1) * perNum).take(perNum).getMany();
-
-      const userIds = [...new Set(entries.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
-      const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
-      if (userIds.length > 0) {
-        const users = await AppDataSource.getRepository(User)
-          .createQueryBuilder('u')
-          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
-          .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
-          .getMany();
-        users.forEach((u) => {
-          userMap[u.id] = {
-            username: `${u.firstName} ${u.lastName}`.trim(),
-            email: u.email,
-            avatarUrl: u.avatarUrl,
-          };
-        });
-      }
-
-      const logs = entries.map((e) => ({
-        ...e,
-        username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
-        email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
-        avatarUrl: e.userId === 0 ? undefined : userMap[e.userId as number]?.avatarUrl,
-      }));
-      return { logs, total, page: p, per: perNum };
-    }
-
-    let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
-    if (userId !== undefined && userId !== null && userId !== '') qb = qb.where('l.userId = :uid', { uid: Number(userId) });
-    const total = await qb.getCount();
-    const entries = await qb.skip((p - 1) * perNum).take(perNum).getMany();
-
-    const userIds = [...new Set(entries.map((e) => e.userId).filter((id) => id !== undefined && id !== null))];
-    const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
-    if (userIds.length > 0) {
-      const users = await AppDataSource.getRepository(User)
-        .createQueryBuilder('u')
-        .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
-        .where('u.id IN (:...ids)', { ids: userIds.filter((id) => id > 0) })
-        .getMany();
-      users.forEach((u) => {
-        userMap[u.id] = {
-          username: `${u.firstName} ${u.lastName}`.trim(),
-          email: u.email,
-          avatarUrl: u.avatarUrl,
-        };
-      });
-    }
-
-    const logs = entries.map((e) => ({
-      ...e,
-      username: e.userId === 0 ? 'System' : userMap[e.userId as number]?.username ?? null,
-      email: e.userId === 0 ? '' : userMap[e.userId as number]?.email ?? null,
-      avatarUrl: e.userId === 0 ? undefined : userMap[e.userId as number]?.avatarUrl,
-    }));
-    return { logs, total, page: p, per: perNum };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      querystring: t.Object({
-        userId: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        per: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-      }),
-      response: {
-        200: t.Object({ logs: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Get admin logs', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/fraud-scan/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const result = await runFraudScanForUser(user);
-    if (!result.success) {
-      if ('error' in result) {
-        if (result.error === 'No AI model configured.') {
-          ctx.set.status = 400;
-        } else {
-          ctx.set.status = 500;
-        }
-        return { error: result.error };
-      }
-      ctx.set.status = 500;
-      return { error: ctx.t('user.fraudScanFailed') };
-    }
-
-    return { success: true, ...result };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        500: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Run fraud AI scan on a user', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/fraud-scan-all', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
-    if (adminErr !== true) return adminErr;
-    const adminUser = ctx.user as any;
-    const adminId = adminUser?.id;
-    const models = await getConfiguredFraudModels();
-    if (models.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.noAiModel') };
-    }
-
-    await createActivityLog({
-      userId: adminId,
-      action: 'admin:fraud-scan:started',
-      metadata: { startedAt: new Date().toISOString() },
-      notify: false,
-    });
-
-    void (async () => {
-      let flaggedCount = 0;
-      let scannedCount = 0;
-      let errorCount = 0;
-      try {
-        const userRepo = AppDataSource.getRepository(User);
-        const users = await userRepo.find();
-        for (let i = 0; i < users.length; i++) {
-          const user = users[i];
-          try {
-            const scan = await runFraudScanForUser(user);
-            scannedCount++;
-            if (!scan.success) {
-              if ('error' in scan && scan.error !== 'No AI model configured.') {
-                errorCount++;
-                console.error('[adminHandler:fraud-scan-all]', scan.error);
-              }
-            } else if (scan.isSuspicious) {
-              flaggedCount++;
-            }
-          } catch (err) {
-            errorCount++;
-            console.error('[adminHandler:fraud-scan-all]', err);
-          }
-          if (i < users.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-          }
-        }
-        await createActivityLog({
-          userId: adminId,
-          action: `admin:fraud-scan:completed — scanned ${scannedCount}, flagged ${flaggedCount}, errors ${errorCount}`,
-          metadata: { scannedCount, flaggedCount, errorCount },
-          notify: false,
-        });
-      } catch (err: any) {
-        const message = err?.message || String(err);
-        await createActivityLog({
-          userId: adminId,
-          action: `admin:fraud-scan:error — ${message}`,
-          metadata: { error: message },
-          notify: false,
-        });
-      }
-    })();
-
-    return { success: true, message: ctx.t('admin.fraudScanStarted') };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({ success: t.Boolean(), message: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      400: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Run fraud scan on all users', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/fraud-alerts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const alerts = await userRepo.find({
-      where: { fraudFlag: true },
-      select: {
-        id: true, firstName: true, lastName: true, email: true, fraudReason: true,
-        fraudDetectedAt: true, address: true, address2: true, billingCity: true,
-        billingState: true, billingZip: true, billingCountry: true, billingCompany: true,
-        phone: true, suspended: true,
-      },
-      order: { fraudDetectedAt: 'DESC' },
-    });
-    return alerts;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Any(),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List fraud alerts', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/fraud-alerts/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-    const { action } = ctx.body as any;
-    if (action === 'dismiss') {
-      user.fraudFlag = false;
-      user.fraudReason = undefined;
-      user.fraudDetectedAt = undefined;
-    } else if (action === 'suspend') {
-      user.suspended = true;
-    }
-    await userRepo.save(user);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ action: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Take action on a fraud alert', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/fraud-alerts/dismiss', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:fraud');
-    if (adminErr !== true) return adminErr;
-    const body = ctx.body as any;
-    const ids = Array.isArray(body?.ids) ? body.ids.map((v: any) => Number(v)).filter((n: number) => Number.isFinite(n)) : [];
-    if (ids.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.idsArrayRequired') };
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    try {
-      await userRepo
-        .createQueryBuilder()
-        .update()
-        .set({ fraudFlag: false, fraudReason: null, fraudDetectedAt: null })
-        .whereInIds(ids)
-        .execute();
-      return { success: true, dismissed: ids.length };
-    } catch (e) {
-      ctx.set.status = 500;
-      return { error: ctx.t('admin.dismissAlertsFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({ ids: t.Array(t.Number()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), dismissed: t.Number() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        500: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Dismiss multiple fraud alerts', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/panel/settings', async (_ctx) => {
-    const repo = AppDataSource.getRepository(PanelSetting);
-    const rows = await repo.find();
-    const map = parsePanelSettingsMap(rows);
-    const gamblingConfig = getGamblingConfigFromMap(map);
-    let portalDescriptions: any = null;
-    if (map['portalDescriptions']) {
-      try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
-    }
-    const featureToggles = await getPanelFeatureToggles();
-    return {
-      registrationEnabled: map['registrationEnabled'] !== 'false',
-      registrationNotice: map['registrationNotice'] || '',
-      portalDescriptions: portalDescriptions || null,
-      geoBlockCountries: map['geoBlockCountries'] || '',
-      countryAgeRules: map['countryAgeRules'] || '',
-      billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
-      billingTaxRules: map['billingTaxRules'] || '',
-      gamblingEnabled: gamblingConfig.gamblingEnabled,
-      gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
-      gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
-      featureToggles,
-    };
-  }, {
-    response: {
-      200: t.Object({
-        registrationEnabled: t.Boolean(),
-        registrationNotice: t.String(),
-        portalDescriptions: t.Optional(t.Any()),
-        featureToggles: t.Record(t.String(), t.Boolean()),
-        geoBlockCountries: t.String(),
-        countryAgeRules: t.Optional(t.String()),
-        billingCurrency: t.String(),
-        billingTaxRules: t.String(),
-        gamblingEnabled: t.Boolean(),
-        gamblingResourceLuckyChance: t.Number(),
-        gamblingPowerDenyChance: t.Number(),
-      }),
-    },
-    detail: { summary: 'Fetch public portal settings (no auth)', tags: ['Public'] },
-  });
-
-  app.get(prefix + '/public/features', async (_ctx) => {
-    const featureToggles = await getPanelFeatureToggles();
-    return { featureToggles };
-  }, {
-    response: {
-      200: t.Object({ featureToggles: t.Record(t.String(), t.Boolean()) }),
-    },
-    detail: { summary: 'Public feature flags (no auth)', tags: ['Public'] },
-  });
-
-  app.get(prefix + '/admin/settings', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:settings');
-    if (adminErr !== true) return adminErr;
-    const repo = AppDataSource.getRepository(PanelSetting);
-    const rows = await repo.find();
-    const map = parsePanelSettingsMap(rows);
-    const gamblingConfig = getGamblingConfigFromMap(map);
-    let portalDescriptions: any = null;
-    if (map['portalDescriptions']) {
-      try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
-    }
-    const featureToggles = await getPanelFeatureToggles();
-    return {
-      registrationEnabled: map['registrationEnabled'] !== 'false',
-      registrationNotice: map['registrationNotice'] || '',
-      portalDescriptions: portalDescriptions || null,
-      geoBlockCountries: map['geoBlockCountries'] || '',
-      countryAgeRules: map['countryAgeRules'] || '',
-      billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
-      billingTaxRules: map['billingTaxRules'] || '',
-      gamblingEnabled: gamblingConfig.gamblingEnabled,
-      gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
-      gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
-      featureToggles,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({
-        registrationEnabled: t.Boolean(),
-        registrationNotice: t.String(),
-        portalDescriptions: t.Optional(t.Any()),
-        geoBlockCountries: t.String(),
-        countryAgeRules: t.Optional(t.String()),
-        billingCurrency: t.String(),
-        billingTaxRules: t.String(),
-        gamblingEnabled: t.Boolean(),
-        gamblingResourceLuckyChance: t.Number(),
-        gamblingPowerDenyChance: t.Number(),
-        featureToggles: t.Record(t.String(), t.Boolean()),
-      }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Fetch admin portal settings', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/geo-block/metrics', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:geoblock:view');
-    if (adminErr !== true) return adminErr;
-    const userRepo = AppDataSource.getRepository(User);
-    const users = await userRepo.find({ select: { billingCountry: true } });
-    const rules = await getGeoBlockRules();
-    const { decrypt, isEncryptedString } = require('../utils/crypto');
-
-    const countryStats: Record<string, { users: number; minLevel: number; maxLevel: number }> = {};
-    let totalUsers = 0;
-    let blockedRegistration = 0;
-    let blockedIdVerification = 0;
-    let blockedFree = 0;
-    let blockedEducation = 0;
-    let blockedSubuserOnly = 0;
-
-    for (const u of users) {
-      const billingCountry = typeof u.billingCountry === 'string' && isEncryptedString(u.billingCountry)
-        ? decrypt(u.billingCountry)
-        : u.billingCountry;
-      const level = getGeoBlockLevelFromRules(billingCountry, rules);
-      totalUsers++;
-      const countryKey = (billingCountry || 'unknown').toString().trim().toLowerCase() || 'unknown';
-      if (!countryStats[countryKey]) {
-        countryStats[countryKey] = { users: 0, minLevel: Number.MAX_SAFE_INTEGER, maxLevel: 0 };
-      }
-      const c = countryStats[countryKey];
-      c.users += 1;
-      c.minLevel = Math.min(c.minLevel, level);
-      c.maxLevel = Math.max(c.maxLevel, level);
-
-      if (level >= 1) blockedIdVerification += 1;
-      if (level >= 2) blockedFree += 1;
-      if (level >= 3) blockedEducation += 1;
-      if (level === 4) blockedSubuserOnly += 1;
-      if (level >= 5) blockedRegistration += 1;
-    }
-
-    const normalizedCountryStats: Record<string, any> = {};
-    for (const [country, stats] of Object.entries(countryStats)) {
-      normalizedCountryStats[country] = {
-        users: stats.users,
-        minLevel: stats.minLevel === Number.MAX_SAFE_INTEGER ? 0 : stats.minLevel,
-        maxLevel: stats.maxLevel,
-      };
-    }
-
-    return {
-      totalUsers,
-      rules,
-      blocked: {
-        registration: blockedRegistration,
-        idVerification: blockedIdVerification,
-        free: blockedFree,
-        educational: blockedEducation,
-        subuserOnly: blockedSubuserOnly,
-      },
-      byCountry: normalizedCountryStats,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Object({
-        totalUsers: t.Number(),
-        rules: t.Any(),
-        blocked: t.Object({
-          registration: t.Number(),
-          idVerification: t.Number(),
-          free: t.Number(),
-          educational: t.Number(),
-          subuserOnly: t.Number(),
-        }),
-        byCountry: t.Any(),
-      }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Retrieve Geo-block enforcement metrics', tags: ['Admin'] },
-  });
-
-  /**
-   * You better dont know how to use this endpoint or else you might break 
-   * the portal descriptions and cause a lot of work for yourself trying to fix it 
-   * by hand in the database... (HAPPENED TWICE!!)
-   * Didn't happen after that twice anymore :D
-   */
-  app.put(prefix + '/admin/settings', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:settings');
-    if (adminErr !== true) return adminErr;
-    const repo = AppDataSource.getRepository(PanelSetting);
-    const body = ctx.body as any;
-    const allowed = ['registrationEnabled', 'registrationNotice', 'geoBlockCountries', 'countryAgeRules', 'billingCurrency', 'billingTaxRules', 'gamblingEnabled', 'gamblingResourceLuckyChance', 'gamblingPowerDenyChance'];
-    for (const key of allowed) {
-      if (body[key] !== undefined) {
-        let value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
-        if (key === 'billingCurrency') {
-          value = value.trim().toUpperCase();
-        }
-        if (key === 'gamblingResourceLuckyChance') {
-          value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE));
-        }
-        if (key === 'gamblingPowerDenyChance') {
-          value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_POWER_DENY_CHANCE));
-        }
-        await repo.save({ key, value });
-      }
-    }
-    if (body.portalDescriptions !== undefined) {
-      await repo.save({ key: 'portalDescriptions', value: JSON.stringify(body.portalDescriptions) });
-    }
-    if (body.featureToggles !== undefined) {
-      const current = await getPanelFeatureToggles();
-      const merged = { ...current, ...(body.featureToggles || {}) };
-      await repo.save({ key: 'panelFeatureToggles', value: JSON.stringify(merged) });
-    }
-    const rows = await repo.find();
-    const map = parsePanelSettingsMap(rows);
-    const gamblingConfig = getGamblingConfigFromMap(map);
-    let portalDescriptions: any = null;
-    if (map['portalDescriptions']) {
-      try { portalDescriptions = JSON.parse(map['portalDescriptions']); } catch { }
-    }
-    const featureToggles = await getPanelFeatureToggles();
-    return {
-      success: true,
-      settings: {
-        registrationEnabled: map['registrationEnabled'] !== 'false',
-        registrationNotice: map['registrationNotice'] || '',
-        portalDescriptions: portalDescriptions || null,
-        geoBlockCountries: map['geoBlockCountries'] || '',
-        countryAgeRules: map['countryAgeRules'] || '',
-        billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
-        billingTaxRules: map['billingTaxRules'] || '',
-        gamblingEnabled: gamblingConfig.gamblingEnabled,
-        gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
-        gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
-        featureToggles,
-      },
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({
-        registrationEnabled: t.Optional(t.Boolean()),
-        registrationNotice: t.Optional(t.String()),
-        portalDescriptions: t.Optional(t.Any()),
-        geoBlockCountries: t.Optional(t.String()),
-        billingCurrency: t.Optional(t.String()),
-        billingTaxRules: t.Optional(t.String()),
-        countryAgeRules: t.Optional(t.String()),
-        gamblingEnabled: t.Optional(t.Boolean()),
-        gamblingResourceLuckyChance: t.Optional(t.Number()),
-        gamblingPowerDenyChance: t.Optional(t.Number()),
-        featureToggles: t.Optional(t.Record(t.String(), t.Boolean())),
-      }),
-      response: {
-        200: t.Object({ success: t.Boolean(), settings: t.Any() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update portal settings', tags: ['Admin'] },
-  });
-
-  // TODO: Check if it works, still in todo
-  app.get(prefix + '/admin/mounts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const mounts = await AppDataSource.getRepository(Mount).find({ order: { name: 'ASC' } });
-    return mounts;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    response: {
-      200: t.Array(t.Any()),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'List all mounts', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/mounts', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
-    if (!name || !source || !target) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.nameSourceTargetRequired') };
-    }
-    const repo = AppDataSource.getRepository(Mount);
-    const mount = repo.create({ name, description, source, target, read_only: !!read_only, allowed_eggs });
-    await repo.save(mount);
-    ctx.set.status = 201;
-    return mount;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({
-        name: t.String(),
-        description: t.Optional(t.String()),
-        source: t.String(),
-        target: t.String(),
-        read_only: t.Optional(t.Boolean()),
-        allowed_eggs: t.Optional(t.Any()),
-      }),
-      response: {
-        201: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Create a mount', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/mounts/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const repo = AppDataSource.getRepository(Mount);
-    const mount = await repo.findOneBy({ id: Number(ctx.params.id) });
-    if (!mount) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.mountNotFound') };
-    }
-    const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
-    if (name !== undefined) mount.name = name;
-    if (description !== undefined) mount.description = description;
-    if (source !== undefined) mount.source = source;
-    if (target !== undefined) mount.target = target;
-    if (read_only !== undefined) mount.read_only = !!read_only;
-    if (allowed_eggs !== undefined) mount.allowed_eggs = allowed_eggs;
-    await repo.save(mount);
-    return mount;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String()),
-        description: t.Optional(t.String()),
-        source: t.Optional(t.String()),
-        target: t.Optional(t.String()),
-        read_only: t.Optional(t.Boolean()),
-        allowed_eggs: t.Optional(t.Any()),
-      }),
-      response: {
-        200: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Update a mount', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/mounts/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
-    if (adminErr !== true) return adminErr;
-    const id = Number(ctx.params.id);
-    const repo = AppDataSource.getRepository(Mount);
-    const mount = await repo.findOneBy({ id });
-    if (!mount) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.mountNotFound') };
-    }
-    await AppDataSource.getRepository(ServerMount).delete({ mountId: id });
-    await repo.remove(mount);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Delete a mount', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/servers/:id/mounts', async (ctx) => {
-    const adminErr = requireAdminMountsPermission(ctx);
-    if (adminErr !== true) return adminErr;
-    const { id: uuid } = ctx.params as any;
-    const { mountId } = ctx.body as any;
-    if (!mountId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.mountIdRequired') };
-    }
-    const mount = await AppDataSource.getRepository(Mount).findOneBy({ id: Number(mountId) });
-    if (!mount) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.mountNotFound') };
-    }
-    const smRepo = AppDataSource.getRepository(ServerMount);
-    const existing = await smRepo.findOneBy({ serverUuid: uuid, mountId: mount.id });
-    if (existing) {
-      ctx.set.status = 409;
-      return { error: ctx.t('server.mountAlreadyAttached') };
-    }
-    const link = smRepo.create({ serverUuid: uuid, mountId: mount.id });
-    await smRepo.save(link);
-    ctx.set.status = 201;
-    return link;
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ mountId: t.Any() }),
-      response: {
-        201: t.Any(),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        409: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Attach a mount to a server', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/servers/:id/mounts/:mountId', async (ctx) => {
-    const adminErr = requireAdminMountsPermission(ctx);
-    if (adminErr !== true) return adminErr;
-    const { id: uuid, mountId } = ctx.params as any;
-    const smRepo = AppDataSource.getRepository(ServerMount);
-    const link = await smRepo.findOneBy({ serverUuid: uuid, mountId: Number(mountId) });
-    if (!link) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.mountLinkNotFound') };
-    }
-    await smRepo.remove(link);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String(), mountId: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Remove mount link from server', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/orders', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:view');
-    if (adminErr !== true) return adminErr;
-    const { userId, page = '1', q = '' } = ctx.query as any;
-    const orderRepo = AppDataSource.getRepository(Order);
-    const per = 50;
-    const p = Math.max(1, Number(page) || 1);
-
-    let qb = orderRepo.createQueryBuilder('o').orderBy('o.createdAt', 'DESC');
-
-    if (q && String(q).trim() !== '') {
-      const qstr = String(q).trim();
-      if (/^\d+$/.test(qstr)) {
-        qb = qb.where('o.userId = :uid', { uid: Number(qstr) });
-      } else {
-        qb = qb.leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.userId').where('u.email LIKE :email', { email: `%${qstr}%` });
-      }
-    } else if (userId) {
-      qb = qb.where('o.userId = :uid', { uid: Number(userId) });
-    }
-
-    const total = await qb.getCount();
-    const orders = await qb.skip((p - 1) * per).take(per).getMany();
-    return { orders, total, page: p, per };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ userId: t.Optional(t.Any()), page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
-      response: {
-        200: t.Object({ orders: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'List orders, with pagination and search (admin)', tags: ['Admin'] },
-  });
-
-  app.post(prefix + '/admin/orders', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:issue');
-    if (adminErr !== true) return adminErr;
-    const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
-    if (!userId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.userIdRequired') };
-    }
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(userId) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const orderRepo = AppDataSource.getRepository(Order);
-    const order = orderRepo.create({
-      userId: Number(userId),
-      description: description || undefined,
-      planId: planId ? Number(planId) : undefined,
-      amount: amount != null ? Number(amount) : 0,
-      items: items || (planId ? `plan:${planId}` : 'admin:manual'),
-      status: 'pending',
-      notes: notes || undefined,
-      createdAt: new Date(),
-      expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
-      // Fuck leap year atp.
-    });
-    await orderRepo.save(order);
-    return { success: true, order };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({
-        userId: t.Any(),
-        description: t.Optional(t.String()),
-        planId: t.Optional(t.Any()),
-        amount: t.Optional(t.Number()),
-        items: t.Optional(t.String()),
-        expiresAt: t.Optional(t.String()),
-        notes: t.Optional(t.String()),
-      }),
-      response: {
-        200: t.Object({ success: t.Boolean(), order: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Create a new order', tags: ['Admin'] },
-  });
-
-  app.put(prefix + '/admin/orders/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:update');
-    if (adminErr !== true) return adminErr;
-    const orderRepo = AppDataSource.getRepository(Order);
-    const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!order) {
-      ctx.set.status = 404;
-      return { error: ctx.t('order.notFound') };
-    }
-    const { status, notes, expiresAt, description, amount, planId, items, userId } = ctx.body as any;
-    if (status !== undefined) order.status = status;
-    if (notes !== undefined) order.notes = notes;
-    if (description !== undefined) order.description = description;
-    if (expiresAt !== undefined) order.expiresAt = new Date(expiresAt);
-    if (amount !== undefined) order.amount = Number(amount || 0);
-    if (planId !== undefined) order.planId = planId != null ? Number(planId) : undefined as any;
-    if (items !== undefined) order.items = items;
-    if (userId !== undefined) {
-      const userRepo = AppDataSource.getRepository(User);
-      const u = await userRepo.findOneBy({ id: Number(userId) });
-      if (!u) { ctx.set.status = 404; return { error: ctx.t('user.notFound') }; }
-      order.userId = Number(userId);
-    }
-    await orderRepo.save(order);
-    return { success: true, order };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ status: t.Optional(t.String()), notes: t.Optional(t.String()), expiresAt: t.Optional(t.String()), description: t.Optional(t.String()), amount: t.Optional(t.Number()), planId: t.Optional(t.Any()), items: t.Optional(t.String()), userId: t.Optional(t.Any()) }),
-      response: {
-        200: t.Object({ success: t.Boolean(), order: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Modify an order', tags: ['Admin'] },
-  });
-
-  app.delete(prefix + '/admin/orders/:id', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'orders:delete');
-    if (adminErr !== true) return adminErr;
-    const orderRepo = AppDataSource.getRepository(Order);
-    const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
-    if (!order) {
-      ctx.set.status = 404;
-      return { error: ctx.t('order.notFound') };
-    }
-    await orderRepo.remove(order);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Delete an order (admin)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/search', async (ctx) => {
-    const adminErr = requireAdminPageAccess(ctx);
-    if (adminErr !== true) return adminErr;
-    const { q = '' } = ctx.query as any;
-    const qstr = String(q || '').trim();
-
-    const userRepo = AppDataSource.getRepository(User);
-    const orgRepo = AppDataSource.getRepository(Organisation);
-    const nodeRepo = AppDataSource.getRepository(Node);
-    const serverCfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const orderRepo = AppDataSource.getRepository(Order);
-
-    const isNumeric = /^[0-9]+$/.test(qstr);
-    const likeQ = `%${qstr}%`;
-
-    const userQB = userRepo.createQueryBuilder('u').orderBy('u.id', 'ASC').limit(20);
-    if (qstr) {
-      if (isNumeric) {
-        userQB.where('u.id = :id', { id: Number(qstr) });
-      } else {
-        userQB.where('u.email LIKE :q OR u.firstName LIKE :q OR u.lastName LIKE :q OR CONCAT(u.firstName, " ", u.lastName) LIKE :q', { q: likeQ });
-      }
-    }
-    const users = await userQB.getMany();
-
-    const orgQB = orgRepo.createQueryBuilder('o').orderBy('o.id', 'ASC').limit(20);
-    if (qstr) {
-      if (isNumeric) {
-        orgQB.where('o.id = :id', { id: Number(qstr) });
-      } else {
-        orgQB.where('o.name LIKE :q OR o.handle LIKE :q', { q: likeQ });
-      }
-    }
-    const organisations = await orgQB.getMany();
-
-    let servers: any[] = [];
-
-    try {
-      const nodes = await nodeRepo.find();
-      const configs = await serverCfgRepo.find();
-      const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
-      let allServers: any[] = [];
-
-      for (const n of nodes) {
-        try {
-          const base = (n as any).backendWingsUrl || n.url;
-          const svc = new WingsApiService(base, n.token);
-          const res = await svc.getServers();
-          const nodeServers = res.data || [];
-          for (const s of nodeServers) {
-            const uuid: string = s.configuration?.uuid || s.uuid;
-            const cfg = cfgMap.get(uuid);
-            allServers.push({
-              ...s,
-              uuid,
-              status: s.state || s.status || 'offline',
-              name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
-              nodeName: n.name,
-              nodeId: n.id,
-              eggId: cfg?.eggId || null,
-            });
-          }
-        } catch {
-          // skip
+      for (const nodeResult of nodeResults) {
+        if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
+        const { node, servers } = nodeResult.value;
+        for (const s of servers) {
+          const uuid: string = s.configuration?.uuid || s.uuid;
+          const cfg = cfgMap.get(uuid);
+          const wingsSuspended = !!(s?.is_suspended ?? s?.suspended);
+          const isSuspended = !!cfg?.suspended || wingsSuspended;
+          const status = isSuspended ? 'suspended' : s.state || s.status || 'offline';
+          all.push({
+            ...s,
+            uuid,
+            status,
+            is_suspended: isSuspended,
+            name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
+            nodeName: node.name,
+            nodeId: node.id,
+            eggId: cfg?.eggId || null,
+          });
         }
       }
 
-      const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+      const nodeMap = new Map(nodes.map(n => [n.id, n]));
       for (const c of configs) {
-        if (allServers.some((s) => s.uuid === c.uuid)) continue;
+        if (all.some((s: any) => s.uuid === c.uuid)) continue;
         const node = nodeMap.get(c.nodeId);
-        allServers.push({
+        all.push({
           uuid: c.uuid,
           name: c.name || c.uuid,
           status: c.hibernated ? 'hibernated' : 'unknown',
@@ -6987,243 +4018,4357 @@ export async function adminRoutes(app: any, prefix = '') {
         });
       }
 
-      if (!qstr) {
-        servers = allServers.slice(0, 20);
-      } else {
-        const filterVal = qstr.toLowerCase();
-        servers = allServers.filter((s) => {
-          const name = String(s.name || s.uuid || '').toLowerCase();
-          const uuidVal = String(s.uuid || '').toLowerCase();
-          const idVal = String(s.id || '').toLowerCase();
+      const seen = new Set<string>();
+      const deduped: any[] = [];
+      for (const s of all) {
+        try {
+          const raw = s.uuid || (s.configuration && s.configuration.uuid) || '';
+          const norm = String(raw).replace(/-/g, '').toLowerCase();
+          if (!norm) {
+            deduped.push(s);
+            continue;
+          }
+          if (seen.has(norm)) {
+            console.log('admin: duplicate server skipped', {
+              uuid: raw,
+              nodeId: s.nodeId,
+              nodeName: s.nodeName,
+            });
+            continue;
+          }
+          seen.add(norm);
+          deduped.push(s);
+        } catch (e) {
+          deduped.push(s);
+        }
+      }
+
+      const { page = '1', q = '' } = ctx.query as any;
+      const per = 50;
+      const p = Math.max(1, Number(page) || 1);
+
+      let filtered = deduped;
+      if (q && String(q).trim() !== '') {
+        const qstr = String(q).trim().toLowerCase();
+        filtered = deduped.filter((s: any) => {
+          const name = String(s.name || '').toLowerCase();
+          const uuid = String(s.uuid || '').toLowerCase();
           const nodeName = String(s.nodeName || '').toLowerCase();
-          return (
-            idVal.startsWith(filterVal) ||
-            name.includes(filterVal) ||
-            uuidVal.includes(filterVal) ||
-            nodeName.includes(filterVal)
+          return name.includes(qstr) || uuid.includes(qstr) || nodeName.includes(qstr);
+        });
+      }
+
+      const total = filtered.length;
+      const start = (p - 1) * per;
+      const servers = filtered.slice(start, start + per);
+      return { servers, total, page: p, per };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({ page: t.Optional(t.Number()), q: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({
+            servers: t.Array(t.Any()),
+            total: t.Number(),
+            page: t.Number(),
+            per: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List all servers across nodes', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/servers/:id/abuse-reports',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
+      if (adminErr !== true) return adminErr;
+
+      const serverId = String(ctx.params.id || '').trim();
+      if (!serverId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.serverIDIsRequired') };
+      }
+
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } as any });
+      if (!form) {
+        return { reports: [] };
+      }
+
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const submissions = await submissionRepo.find({
+        where: { formId: form.id } as any,
+        order: { createdAt: 'DESC' } as any,
+        take: 200,
+      });
+
+      const reports = submissions
+        .filter(submission => {
+          const meta = submission.meta || {};
+          const linkedServerId = String(
+            meta.serverId || meta.server?.uuid || meta.server || ''
+          ).trim();
+          return linkedServerId === serverId;
+        })
+        .map(submission => {
+          const meta = submission.meta || {};
+          return {
+            id: submission.id,
+            status: submission.status,
+            createdAt: submission.createdAt ? submission.createdAt.toISOString() : null,
+            reason: String(meta.reason || '').trim(),
+            detectionType: String(meta.detectionType || '').trim(),
+            enforcementAction: String(
+              meta.enforcementAction ||
+                meta.aiAssessment?.recommendedAction ||
+                meta.aiAssessment?.finalAction ||
+                ''
+            ).trim(),
+            suspendAttempted: !!meta.suspendAttempted,
+            suspendSuccess: !!meta.suspendSuccess,
+            nodeName: String(meta.nodeName || '').trim() || null,
+            sourceIp: String(meta.sourceIp || '').trim() || null,
+            targetIp: String(meta.targetIp || '').trim() || null,
+          };
+        });
+
+      return { reports };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({
+            reports: t.Array(
+              t.Object({
+                id: t.Number(),
+                status: t.String(),
+                createdAt: t.Optional(t.String()),
+                reason: t.String(),
+                detectionType: t.String(),
+                enforcementAction: t.String(),
+                suspendAttempted: t.Boolean(),
+                suspendSuccess: t.Boolean(),
+                nodeName: t.Optional(t.String()),
+                sourceIp: t.Optional(t.String()),
+                targetIp: t.Optional(t.String()),
+              })
+            ),
+          }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List abuse reports linked to a server', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/:id/power',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const { action } = ctx.body as any;
+      const requester = ctx.user as User;
+      const settingsRows = await AppDataSource.getRepository(PanelSetting).find({
+        where: { key: In(['gamblingEnabled', 'gamblingPowerDenyChance']) },
+      });
+      const settingsMap = parsePanelSettingsMap(settingsRows);
+      const gamblingConfig = getGamblingConfigFromMap(settingsMap);
+      if (!['start', 'stop', 'restart', 'kill'].includes(action)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.invalidAction') };
+      }
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      const node = cfg
+        ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId })
+        : null;
+      if (!node) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.hibernated') };
+      }
+
+      if (
+        gamblingConfig.gamblingEnabled &&
+        isGamblingModeEnabled(requester) &&
+        POWER_DICE_ACTIONS.has(String(action || '').toLowerCase()) &&
+        Math.random() < gamblingConfig.gamblingPowerDenyChance
+      ) {
+        const roll = randomIntInclusive(1, 6);
+        return {
+          success: false,
+          blockedByDice: true,
+          roll,
+          message: pickRandomPowerDiceFailureLine(),
+          data: null,
+        };
+      }
+
+      try {
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
+        const res = await svc.powerServer(serverId, action);
+        if (action === 'start' || action === 'restart') {
+          await AppDataSource.getRepository(ServerConfig).update(
+            { uuid: serverId },
+            { desiredPowerState: true }
           );
-        }).slice(0, 20);
+        } else if (action === 'stop' || action === 'kill') {
+          await AppDataSource.getRepository(ServerConfig).update(
+            { uuid: serverId },
+            { desiredPowerState: false }
+          );
+        }
+        return { success: true, data: res.data };
+      } catch (e: any) {
+        const status = e?.response?.status || 502;
+        ctx.set.status = status;
+        console.error('[adminHandler:power-server]', e);
+        return { error: sanitizeError(e, 'adminHandler:power-server') };
       }
-    } catch (e) {
-      servers = [];
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          action: t.Enum({ start: 'start', stop: 'stop', restart: 'restart', kill: 'kill' }),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), data: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Power control for server', tags: ['Admin'] },
     }
+  );
 
-    const orderQB = orderRepo.createQueryBuilder('o').orderBy('o.createdAt', 'DESC').limit(20);
-    if (qstr) {
-      if (isNumeric) {
-        orderQB.where('o.id = :id OR o.userId = :uid', { id: Number(qstr), uid: Number(qstr) });
+  app.post(
+    prefix + '/admin/servers/:id/mark-started',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const currentProcessConfig =
+        cfg.processConfig && typeof cfg.processConfig === 'object' ? cfg.processConfig : {};
+      const startup =
+        (currentProcessConfig as any).startup &&
+        typeof (currentProcessConfig as any).startup === 'object'
+          ? (currentProcessConfig as any).startup
+          : {};
+
+      cfg.processConfig = normalizeProcessConfig({
+        ...currentProcessConfig,
+        startup: {
+          ...startup,
+          done: [' '],
+        },
+      }) as any;
+
+      await cfgRepo.save(cfg);
+
+      const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
+      if (!node) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.nodeNotFound') };
+      }
+
+      try {
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
+        await svc.syncServer(serverId, {}).catch(() => {});
+        return { success: true, processConfig: cfg.processConfig };
+      } catch (e: any) {
+        const status = e?.response?.status || 502;
+        ctx.set.status = status;
+        console.error('[adminHandler:sync-server]', e);
+        return { error: sanitizeError(e, 'adminHandler:sync-server') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), processConfig: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Manually mark server startup as completed (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/servers/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const {
+        name,
+        description,
+        userId,
+        memory,
+        disk,
+        cpu,
+        swap,
+        ioWeight,
+        oomDisabled,
+        dockerImage,
+        startup,
+        environment,
+        allocations,
+        eggId,
+        hibernated,
+        autoSyncOnEggChange,
+        ignoreAntiAbuse,
+      } = ctx.body as any;
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      if (name !== undefined) cfg.name = name;
+      if (description !== undefined) cfg.description = description;
+      if (userId !== undefined) cfg.userId = Number(userId);
+      if (memory !== undefined) {
+        const pm = parseSizeToMB(memory);
+        if (pm === null || pm < 0) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.invalidMemoryValue') };
+        }
+        cfg.memory = pm;
+      }
+      if (disk !== undefined) {
+        const pd = parseSizeToMB(disk);
+        if (pd === null || pd < 0) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.invalidDiskValue') };
+        }
+        cfg.disk = pd;
+      }
+      if (cpu !== undefined) {
+        const pc = parseCpuInput(cpu);
+        if (pc === null || pc < 0) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.invalidCpuValue') };
+        }
+        cfg.cpu = pc;
+      }
+      if (swap !== undefined) cfg.swap = Number(swap);
+      if (ioWeight !== undefined) cfg.ioWeight = Number(ioWeight);
+      if (hibernated !== undefined) cfg.hibernated = Boolean(hibernated);
+      if (ignoreAntiAbuse !== undefined) cfg.ignoreAntiAbuse = Boolean(ignoreAntiAbuse);
+
+      if (cfg.memory != null && !(Number.isFinite(Number(cfg.memory)) && Number(cfg.memory) >= 0)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidMemoryValue') };
+      }
+      if (cfg.disk != null && !(Number.isFinite(Number(cfg.disk)) && Number(cfg.disk) >= 0)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidDiskValue') };
+      }
+      if (cfg.cpu != null && !(Number.isFinite(Number(cfg.cpu)) && Number(cfg.cpu) >= 0)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidCpuValue') };
+      }
+      if (oomDisabled !== undefined) cfg.oomDisabled = Boolean(oomDisabled);
+      if (dockerImage !== undefined) cfg.dockerImage = dockerImage;
+      if (startup !== undefined) cfg.startup = startup;
+      if (environment !== undefined) cfg.environment = environment;
+      if (eggId !== undefined) cfg.eggId = Number(eggId);
+      if (allocations !== undefined) {
+        const existingAlloc = (cfg.allocations as any) || {};
+        const existingDedicatedIps = Array.isArray(existingAlloc.dedicatedIps)
+          ? existingAlloc.dedicatedIps
+          : [];
+        if (Array.isArray(allocations) && allocations.length > 0) {
+          const defAlloc = allocations.find((a: any) => a.is_default) || allocations[0];
+          const mappings: Record<string, number[]> = {};
+          const fqdns: Record<string, string> = {};
+          const allocationKey = (ip: string, port: number) => {
+            const cleanIp = String(ip || '').trim();
+            return cleanIp.includes(':') ? `[${cleanIp}]:${port}` : `${cleanIp}:${port}`;
+          };
+          for (const a of allocations) {
+            const ip = String(a.ip);
+            if (!mappings[ip]) mappings[ip] = [];
+            mappings[ip].push(Number(a.port));
+            if (a.fqdn) fqdns[allocationKey(ip, Number(a.port))] = String(a.fqdn);
+          }
+          cfg.allocations = {
+            default: { ip: String(defAlloc.ip), port: Number(defAlloc.port) },
+            mappings,
+            ...(Object.keys(fqdns).length > 0 ? { fqdns } : {}),
+            ...(existingDedicatedIps.length > 0 ? { dedicatedIps: existingDedicatedIps } : {}),
+          } as any;
+        } else {
+          cfg.allocations =
+            existingDedicatedIps.length > 0
+              ? ({ dedicatedIps: existingDedicatedIps } as any)
+              : (null as any);
+        }
+      }
+      if (autoSyncOnEggChange !== undefined) cfg.autoSyncOnEggChange = Boolean(autoSyncOnEggChange);
+      await cfgRepo.save(cfg);
+      const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
+      if (node) {
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
+        await svc.syncServer(serverId, {}).catch(() => {});
+      }
+      return { success: true, server: cfg };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          name: t.Optional(t.String()),
+          description: t.Optional(t.String()),
+          userId: t.Optional(t.Any()),
+          memory: t.Optional(t.Any()),
+          disk: t.Optional(t.Any()),
+          cpu: t.Optional(t.Any()),
+          swap: t.Optional(t.Any()),
+          ioWeight: t.Optional(t.Any()),
+          oomDisabled: t.Optional(t.Boolean()),
+          dockerImage: t.Optional(t.String()),
+          startup: t.Optional(t.String()),
+          environment: t.Optional(t.Any()),
+          allocations: t.Optional(t.Any()),
+          eggId: t.Optional(t.Any()),
+          hibernated: t.Optional(t.Boolean()),
+          ignoreAntiAbuse: t.Optional(t.Boolean()),
+          autoSyncOnEggChange: t.Optional(t.Boolean()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), server: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Edit server configuration', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/servers/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:delete');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const nodes = await nodeRepo.find();
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          await svc.getServer(serverId);
+          await svc.serverRequest(serverId, '', 'delete');
+          await removeServerConfig(serverId);
+          return { success: true };
+        } catch {}
+      }
+      ctx.set.status = 404;
+      return { error: ctx.t('server.notFoundOnNode') };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete a server from any node', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/:id/dedicated-ip',
+    async ctx => {
+      const featureErr = await requireFeature(ctx, 'dedicatedIps');
+      if (featureErr !== true) return featureErr;
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const { ip, type, fqdn } = ctx.body as any;
+
+      if (!ip || !type) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.ipTypeRequired') };
+      }
+      if (type !== 'ipv4' && type !== 'ipv6') {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.typeIpv4OrIpv6') };
+      }
+
+      if (type === 'ipv4' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(String(ip))) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.invalidIpv4') };
+      }
+      if (type === 'ipv6' && !isValidIpv6(String(ip))) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.invalidIpv6') };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      if (!cfg.kvmPassthroughEnabled) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.dedicatedIpKvmOnly') };
+      }
+
+      const node = cfg.nodeId
+        ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId })
+        : null;
+      if (!node) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.serverNodeNotFound') };
+      }
+
+      const alloc = (cfg.allocations as any) || { mappings: {}, owners: {}, dedicatedIps: [] };
+      alloc.mappings = alloc.mappings || {};
+      alloc.owners = alloc.owners || {};
+      alloc.dedicatedIps = Array.isArray(alloc.dedicatedIps) ? alloc.dedicatedIps : [];
+
+      const normalizedIp = String(ip).trim();
+
+      if (alloc.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.dedicatedIpAlreadyAssigned') };
+      }
+
+      const nodeConfigs = await cfgRepo.find({
+        where: { nodeId: node.id },
+        select: { allocations: true },
+      });
+      for (const c of nodeConfigs) {
+        const a = c.allocations as any;
+        if (!a) continue;
+        if (a.dedicatedIps && Array.isArray(a.dedicatedIps)) {
+          if (a.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
+            ctx.set.status = 400;
+            return { error: ctx.t('server.dedicatedIpInUseNode') };
+          }
+        }
+        if (a.mappings && Object.keys(a.mappings).some(mip => mip === normalizedIp)) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.dedicatedIpInUseAllocations') };
+        }
+      }
+
+      alloc.dedicatedIps.push({
+        ip: normalizedIp,
+        type,
+        ...(fqdn ? { fqdn: String(fqdn).trim() } : {}),
+      });
+
+      cfg.allocations = alloc;
+      await cfgRepo.save(cfg);
+
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
+      await svc.syncServer(serverId, { allocations: alloc }).catch(() => {});
+
+      await createActivityLog({
+        userId: ctx.user?.id ?? 0,
+        action: 'server:dedicated-ip:assign',
+        targetId: serverId,
+        targetType: 'server',
+        metadata: { ip: normalizedIp, type, fqdn: fqdn || null },
+        ipAddress: ctx.ip,
+      });
+
+      return { success: true, ip: normalizedIp, type };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          ip: t.String(),
+          type: t.String(),
+          fqdn: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), ip: t.String(), type: t.String() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Assign a dedicated IP to a KVM server', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/servers/:id/dedicated-ip',
+    async ctx => {
+      const featureErr = await requireFeature(ctx, 'dedicatedIps');
+      if (featureErr !== true) return featureErr;
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const { ip } = ctx.body as any;
+
+      if (!ip) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.ipRequired') };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const alloc = (cfg.allocations as any) || {};
+      const dedicatedIps = Array.isArray(alloc.dedicatedIps) ? alloc.dedicatedIps : [];
+      const idx = dedicatedIps.findIndex((d: any) => d.ip === String(ip).trim());
+      if (idx === -1) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.dedicatedIpNotFound') };
+      }
+
+      dedicatedIps.splice(idx, 1);
+      alloc.dedicatedIps = dedicatedIps;
+
+      if (alloc.mappings) delete alloc.mappings[String(ip).trim()];
+
+      cfg.allocations = alloc;
+      await cfgRepo.save(cfg);
+
+      const node = cfg.nodeId
+        ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId })
+        : null;
+      if (node) {
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
+        await svc.syncServer(serverId, { allocations: alloc }).catch(() => {});
+      }
+
+      await createActivityLog({
+        userId: ctx.user?.id ?? 0,
+        action: 'server:dedicated-ip:deassign',
+        targetId: serverId,
+        targetType: 'server',
+        metadata: { ip: String(ip).trim() },
+        ipAddress: ctx.ip,
+      });
+
+      return { success: true, removed: String(ip).trim() };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ ip: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), removed: t.String() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Remove a dedicated IP from a KVM server', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:write');
+      if (adminErr !== true) return adminErr;
+      const { nodeId, userId, eggId, name } = ctx.body as any;
+      let memory = (ctx.body as any).memory ?? 1024;
+      let disk = (ctx.body as any).disk ?? 10240;
+      let cpu = (ctx.body as any).cpu ?? 100;
+
+      const parsedMemory = parseSizeToMB(memory);
+      const parsedDisk = parseSizeToMB(disk);
+      const parsedCpu = parseCpuInput(cpu);
+      if (parsedMemory === null || parsedMemory < 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidMemoryValue') };
+      }
+      if (parsedDisk === null || parsedDisk < 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidDiskValue') };
+      }
+      if (parsedCpu === null || parsedCpu < 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidCpuValue') };
+      }
+      memory = parsedMemory;
+      disk = parsedDisk;
+      cpu = parsedCpu;
+      if (!nodeId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.nodeIdRequired') };
+      }
+
+      const ownerId: number = userId ? Number(userId) : ctx.user?.id;
+
+      const node = await AppDataSource.getRepository(Node).findOneBy({ id: Number(nodeId) });
+      if (!node) {
+        ctx.set.status = 404;
+        return { error: ctx.t('node.notFound') };
+      }
+
+      if ((node as any).deploymentsDisabled) {
+        ctx.set.status = 403;
+        return {
+          error:
+            (node as any).deploymentNotice ||
+            'This node is temporarily unavailable for deployments',
+        };
+      }
+
+      const serverUuid = crypto.randomUUID();
+      let dockerImage = 'ghcr.io/pterodactyl/yolks:nodejs_18';
+      let startup = 'node index.js';
+      const envObject: Record<string, string> = {};
+      let egg: Egg | null = null;
+
+      if (eggId) {
+        egg = await AppDataSource.getRepository(Egg).findOneBy({ id: Number(eggId) });
+        if (egg) {
+          dockerImage = egg.dockerImage || dockerImage;
+          startup = egg.startup || startup;
+          for (const entry of (egg.envVars || []) as any[]) {
+            if (typeof entry === 'string') {
+              const [k, ...rest] = (entry as string).split('=');
+              if (k) envObject[k.trim()] = rest.join('=').trim();
+            } else if (entry && typeof entry === 'object') {
+              const k = entry.name || entry.key;
+              if (k) envObject[k] = String(entry.defaultValue ?? entry.value ?? '');
+            }
+          }
+        }
+      }
+
+      const hasInstallScript = Boolean(
+        egg?.installScript &&
+        (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint)
+      );
+      const wingsPayload = {
+        uuid: serverUuid,
+        start_on_completion: hasInstallScript,
+        skip_scripts: false,
+        environment: envObject,
+        build: {
+          memory_limit: Number(memory),
+          swap: 0,
+          disk_space: Number(disk),
+          io_weight: 500,
+          cpu_limit: Number(cpu),
+          threads: null,
+        },
+        container: { image: dockerImage, startup },
+        ...(name ? { name } : {}),
+      };
+
+      try {
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
+        const res = await svc.createServer(wingsPayload);
+        const nodeSvc = nodeService;
+        await nodeSvc.mapServer(serverUuid, node.id);
+        await saveServerConfig({
+          uuid: serverUuid,
+          nodeId: node.id,
+          userId: ownerId,
+          name: name || undefined,
+          dockerImage,
+          startup,
+          environment: envObject,
+          memory: Number(memory),
+          disk: Number(disk),
+          cpu: Number(cpu),
+          eggId: eggId ? Number(eggId) : undefined,
+        });
+        const logRepo = AppDataSource.getRepository(UserLog);
+        await logRepo.save(
+          logRepo.create({ userId: ownerId, action: 'admin-create-server', timestamp: new Date() })
+        );
+        return { uuid: serverUuid, nodeId: node.id, ...res.data };
+      } catch (e: any) {
+        ctx.set.status = 502;
+        console.error('[adminHandler:admin-create-server]', e);
+        return { error: sanitizeError(e, 'adminHandler:admin-create-server') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          nodeId: t.Any(),
+          userId: t.Optional(t.Any()),
+          eggId: t.Optional(t.Any()),
+          name: t.Optional(t.String()),
+          memory: t.Optional(t.Any()),
+          disk: t.Optional(t.Any()),
+          cpu: t.Optional(t.Any()),
+        }),
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          502: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Create a new server on a node', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/sync-wings',
+    async (ctx: any) => {
+      const adminErr = requireAdminPermission(ctx, 'nodes:read');
+      if (adminErr !== true) return adminErr;
+      const adminUser = ctx.user as any;
+      const adminId = adminUser?.id;
+
+      await createActivityLog({
+        userId: adminId,
+        action: 'admin:sync-to-wings:started',
+        metadata: { startedAt: new Date().toISOString() },
+        notify: false,
+      });
+
+      const retryWithDelay = async <T>(
+        action: () => Promise<T>,
+        attempts = 3,
+        initialDelayMs = 500
+      ): Promise<T> => {
+        let lastError: any;
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          try {
+            return await action();
+          } catch (error: any) {
+            lastError = error;
+            const status = error?.response?.status;
+            if (status === 401 || status === 403) throw error;
+            if (attempt < attempts) {
+              await new Promise(resolve => setTimeout(resolve, initialDelayMs * attempt));
+            }
+          }
+        }
+        throw lastError;
+      };
+
+      void (async () => {
+        const nodeRepo = AppDataSource.getRepository(Node);
+        const cfgRepo = AppDataSource.getRepository(ServerConfig);
+        const nodes = await nodeRepo.find();
+        const configs = await cfgRepo.find();
+        const results: any[] = [];
+
+        for (const cfg of configs) {
+          const node = nodes.find(n => n.id === cfg.nodeId);
+          if (!node) {
+            results.push({ uuid: cfg.uuid, status: 'node_not_found' });
+            continue;
+          }
+
+          const syncServer = async () => {
+            const base = (node as any).backendWingsUrl || node.url;
+            const svc = new WingsApiService(base, node.token);
+
+            try {
+              await svc.getServer(cfg.uuid);
+              return { uuid: cfg.uuid, status: 'exists', nodeId: node.id };
+            } catch (e: any) {
+              const status = e?.response?.status;
+              if (status === 401 || status === 403) {
+                return { uuid: cfg.uuid, status: 'auth_failed', nodeId: node.id };
+              }
+            }
+
+            const egg = cfg.eggId
+              ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId })
+              : null;
+            const mounts = await AppDataSource.getRepository(ServerMount).findBy({
+              serverUuid: cfg.uuid,
+            });
+            const mountEntities: any[] = [];
+            if (mounts && mounts.length) {
+              const mountIds = mounts.map((m: any) => m.mountId);
+              const allMounts = await AppDataSource.getRepository(Mount).findBy({
+                id: In(mountIds),
+              });
+              for (const m of mounts) {
+                const found = allMounts.find((am: any) => am.id === m.mountId);
+                if (found) mountEntities.push(found);
+              }
+            }
+
+            const payload: any = {
+              uuid: cfg.uuid,
+              start_on_completion: false,
+              skip_scripts: !!cfg.skipEggScripts,
+              environment: cfg.environment || {},
+              build: {
+                memory_limit: cfg.memory || 0,
+                swap: cfg.swap || 0,
+                disk_space: cfg.disk || 0,
+                io_weight: cfg.ioWeight || 0,
+                cpu_limit: cfg.cpu || 0,
+                threads: null,
+              },
+              container: {
+                image:
+                  cfg.dockerImage ||
+                  (egg ? egg.dockerImage : undefined) ||
+                  'ghcr.io/pterodactyl/yolks:nodejs_18',
+                startup: cfg.startup || (egg ? egg.startup : undefined) || 'node index.js',
+              },
+            };
+            if (cfg.name) payload.name = cfg.name;
+            if (cfg.description) payload.meta = { description: cfg.description };
+
+            const res = await svc.createServer(payload);
+            return { uuid: cfg.uuid, status: 'created', nodeId: node.id, wingsStatus: res.status };
+          };
+
+          try {
+            const result = await retryWithDelay(syncServer, 3, 1000);
+            results.push(result);
+          } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 401 || status === 403) {
+              results.push({
+                uuid: cfg.uuid,
+                status: 'auth_failed',
+                nodeId: node.id,
+                message: err?.message || String(err),
+              });
+            } else {
+              results.push({
+                uuid: cfg.uuid,
+                status: 'error',
+                message: `Failed after 3 retries: ${err?.message || String(err)}`,
+              });
+            }
+          }
+        }
+
+        const createdCount = results.filter(r => r.status === 'created').length;
+        const existsCount = results.filter(r => r.status === 'exists').length;
+        const authFailedCount = results.filter(r => r.status === 'auth_failed').length;
+        const errorCount = results.filter(r => r.status === 'error').length;
+        const nodeNotFoundCount = results.filter(r => r.status === 'node_not_found').length;
+
+        await createActivityLog({
+          userId: adminId,
+          action: `admin:sync-to-wings:completed - created ${createdCount}, exists ${existsCount}, auth_failed ${authFailedCount}, errors ${errorCount}, node_not_found ${nodeNotFoundCount}`,
+          metadata: { createdCount, existsCount, authFailedCount, errorCount, nodeNotFoundCount },
+          notify: false,
+        });
+      })().catch(async (err: any) => {
+        const message = err?.message || String(err);
+        await createActivityLog({
+          userId: adminId,
+          action: `admin:sync-to-wings:error — ${message}`,
+          metadata: { error: message },
+          notify: false,
+        });
+      });
+
+      return {
+        status: 'queued',
+        message: ctx.t('admin.syncQueued'),
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Synchronize all server configs to Wings (admin)', tags: ['Admin'] },
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+    }
+  );
+
+  // SO YOU DECIDED TO GO AGAINST LORDS WISHES HUH?
+  // WELL NOW YOUR SERVER IS SUSPENDED, HAVE FUN CRYING TO SUPPORT ABOUT IT
+  app.post(
+    prefix + '/admin/servers/:id/suspend',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:suspend');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const body = (ctx.body || {}) as any;
+      const dmcaMark = Boolean(body.dmca);
+      const reason =
+        typeof body.reason === 'string' && body.reason.trim()
+          ? body.reason.trim()
+          : dmcaMark
+            ? 'DMCA takedown'
+            : 'Suspended by administrator';
+      const adminUser = ctx.user as any;
+      const adminName = [adminUser?.firstName, adminUser?.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      const suspendedBy = adminName || adminUser?.email || 'admin panel';
+      const dmcaAt = dmcaMark ? new Date() : undefined;
+      const dmcaDeletionAt = dmcaMark ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined;
+
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
+      const preferredNode = existingCfg?.nodeId
+        ? await nodeRepo.findOneBy({ id: existingCfg.nodeId })
+        : null;
+      const allNodes = await nodeRepo.find();
+      const nodes = preferredNode
+        ? [preferredNode, ...allNodes.filter(n => n.id !== preferredNode.id)]
+        : allNodes;
+
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          await svc.getServer(serverId);
+          const alreadySuspended = !!existingCfg?.suspended;
+          const alreadyDmca = !!existingCfg?.dmca;
+          const updateData: any = {
+            suspended: true,
+            suspendedBy,
+            suspendedReason: reason,
+            suspendedAt: new Date(),
+          };
+          if (dmcaMark) {
+            updateData.dmca = true;
+            updateData.dmcaBy = suspendedBy;
+            updateData.dmcaReason = reason;
+            updateData.dmcaAt = dmcaAt;
+            updateData.dmcaDeletionAt = dmcaDeletionAt;
+          }
+          await cfgRepo.update({ uuid: serverId }, updateData);
+          await svc.powerServer(serverId, 'kill').catch(() => {});
+          await svc.syncServer(serverId, {});
+
+          let notice: {
+            sent: boolean;
+            skipped: boolean;
+            reason?: string;
+            recipient?: string;
+          } = {
+            sent: false,
+            skipped: true,
+            reason: 'owner notification not attempted',
+            recipient: undefined,
+          };
+
+          const shouldSendDmcaNotice = dmcaMark && !alreadyDmca;
+          if (shouldSendDmcaNotice && existingCfg) {
+            notice = await notifyServerOwnerDmca({
+              cfg: existingCfg,
+              actor: suspendedBy,
+              reason,
+              dmcaAt,
+              deletionAt: dmcaDeletionAt,
+            });
+            if (!notice.sent && !notice.skipped) {
+              console.warn(
+                '[admin:server:suspend] failed to notify owner by email:',
+                notice.reason || 'unknown error'
+              );
+            }
+          } else if (!alreadySuspended && !dmcaMark && existingCfg) {
+            notice = await notifyServerOwnerSuspended({
+              cfg: existingCfg,
+              actor: suspendedBy,
+              reason,
+              suspendedAt: new Date(),
+            });
+            if (!notice.sent && !notice.skipped) {
+              console.warn(
+                '[admin:server:suspend] failed to notify owner by email:',
+                notice.reason || 'unknown error'
+              );
+            }
+          } else if (alreadySuspended && !dmcaMark) {
+            notice.reason = 'server already suspended';
+          } else if (alreadyDmca && dmcaMark) {
+            notice.reason = 'server already marked DMCA';
+          }
+
+          return {
+            success: true,
+            emailSent: notice.sent,
+            emailSkipped: notice.skipped,
+            emailReason: notice.reason || null,
+            emailRecipient: notice.recipient || null,
+          };
+        } catch {}
+      }
+      ctx.set.status = 404;
+      return { error: ctx.t('server.notFoundOnNode') };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Optional(
+          t.Object({ reason: t.Optional(t.String()), dmca: t.Optional(t.Boolean()) })
+        ),
+        response: {
+          200: t.Object({
+            success: t.Boolean(),
+            emailSent: t.Boolean(),
+            emailSkipped: t.Boolean(),
+            emailReason: t.Nullable(t.String()),
+            emailRecipient: t.Nullable(t.String()),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Suspend a server across nodes', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/:id/unsuspend',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:suspend');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
+      const preferredNode = existingCfg?.nodeId
+        ? await nodeRepo.findOneBy({ id: existingCfg.nodeId })
+        : null;
+      const allNodes = await nodeRepo.find();
+      const nodes = preferredNode
+        ? [preferredNode, ...allNodes.filter(n => n.id !== preferredNode.id)]
+        : allNodes;
+
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          await svc.getServer(serverId);
+          await cfgRepo.update(
+            { uuid: serverId },
+            { suspended: false, suspendedBy: null, suspendedReason: null, suspendedAt: null }
+          );
+          await svc.syncServer(serverId, {});
+          if (existingCfg) {
+            await notifyServerOwnerUnsuspended({
+              cfg: existingCfg,
+              actor: ctx.user?.email || 'system',
+              unsuspendedAt: new Date(),
+            });
+          }
+          return { success: true };
+        } catch {}
+      }
+      ctx.set.status = 404;
+      return { error: ctx.t('server.notFoundOnNode') };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Unsuspend a server across nodes', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/:id/throttle',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const serverId = String(ctx.params.id || '').trim();
+      if (!serverId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.serverIDIsRequired') };
+      }
+
+      const body = (ctx.body || {}) as any;
+      const envCpu = Number(process.env.ANTIABUSE_THROTTLE_CPU_LIMIT_PERCENT || 20);
+      const envDuration = Number(process.env.ANTIABUSE_THROTTLE_DURATION_SECONDS || 900);
+      const cpuLimitPercent = clampNumber(Number(body.cpuLimitPercent ?? envCpu), 5, 100);
+      const durationSeconds = clampNumber(Number(body.durationSeconds ?? envDuration), 30, 86400);
+      const reason = sanitizeAntiAbuseText(body.reason || 'antiabuse throttle', 600);
+      const source = sanitizeAntiAbuseText(body.source || 'antiabuse', 120);
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.configNotFound') };
+      }
+
+      const restoreCpu = Math.max(1, Number(cfg.cpu || 100));
+      const nodes = await AppDataSource.getRepository(Node).find();
+
+      let found = false;
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          await svc.getServer(serverId);
+          await svc.syncServer(serverId, { build: { cpu_limit: cpuLimitPercent } });
+          found = true;
+          break;
+        } catch {}
+      }
+
+      if (!found) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFoundOnNode') };
+      }
+
+      await cfgRepo.update({ uuid: serverId }, { cpu: cpuLimitPercent as any });
+
+      const existing = antiAbuseThrottleState.get(serverId);
+      if (existing?.timer) clearTimeout(existing.timer);
+
+      const timer = setTimeout(async () => {
+        try {
+          const restoreNodes = await AppDataSource.getRepository(Node).find();
+          for (const n of restoreNodes) {
+            try {
+              const base = (n as any).backendWingsUrl || n.url;
+              const svc = new WingsApiService(base, n.token);
+              await svc.getServer(serverId);
+              await svc.syncServer(serverId, { build: { cpu_limit: restoreCpu } });
+              break;
+            } catch {}
+          }
+          await cfgRepo.update({ uuid: serverId }, { cpu: restoreCpu as any });
+        } catch {}
+        antiAbuseThrottleState.delete(serverId);
+      }, durationSeconds * 1000);
+
+      antiAbuseThrottleState.set(serverId, { restoreCpu, timer });
+
+      return {
+        success: true,
+        serverId,
+        cpuLimitPercent,
+        restoreCpu,
+        durationSeconds,
+        reason,
+        source,
+        mode: 'temporary_cpu_cap',
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Optional(
+          t.Object({
+            cpuLimitPercent: t.Optional(t.Number()),
+            durationSeconds: t.Optional(t.Number()),
+            reason: t.Optional(t.String()),
+            source: t.Optional(t.String()),
+          })
+        ),
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Throttle a server temporarily (anti-abuse)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/antiabuse/heartbeat',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const body = (ctx.body || {}) as any;
+      const detectorName =
+        sanitizeAntiAbuseText(body.detectorName || 'antiabuse-rs', 120) || 'antiabuse-rs';
+      const nodeName =
+        sanitizeAntiAbuseText(body.nodeName || process.env.HOSTNAME || 'unknown', 160) || 'unknown';
+      const pidRaw = Number(body.pid);
+      const pid = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : null;
+      const version = sanitizeAntiAbuseText(body.version || '', 80) || null;
+      const agentId =
+        sanitizeAntiAbuseText(body.agentId || `${detectorName}@${nodeName}`, 200) ||
+        `${detectorName}@${nodeName}`;
+
+      antiAbuseAgentState.set(agentId, {
+        agentId,
+        detectorName,
+        nodeName,
+        lastSeenTs: Date.now(),
+        pid,
+        version,
+      });
+
+      const agents = listAntiAbuseAgents();
+      return {
+        success: true,
+        agentId,
+        activeAgents: agents.filter(a => a.active).length,
+        totalAgents: agents.length,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Any(),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Receive anti-abuse agent heartbeat', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/antiabuse/incidents',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const query = (ctx.query || {}) as any;
+      const pageRaw = Number(query.page ?? 1);
+      const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1);
+      const limitRaw = Number(query.limit ?? 100);
+      const limit = Math.max(
+        1,
+        Math.min(500, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 100)
+      );
+      const offset = (page - 1) * limit;
+      const sortBy = String(query.sort || 'createdAt');
+      const order = String(query.order || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+      const minRiskRaw = Number(query.minRisk);
+      const minRisk = Number.isFinite(minRiskRaw) ? Math.max(0, Math.min(100, minRiskRaw)) : null;
+      const detectionTypeFilter = sanitizeAntiAbuseText(
+        query.detectionType || '',
+        120
+      ).toLowerCase();
+      const actionFilter = sanitizeAntiAbuseText(query.action || '', 80).toLowerCase();
+
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+
+      const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+      const agents = listAntiAbuseAgents();
+      if (!form) {
+        return { items: [], total: 0, page, limit, totalPages: 0, sort: sortBy, order, agents };
+      }
+
+      const rows = await submissionRepo.find({
+        where: { formId: form.id },
+        order: { createdAt: 'DESC' },
+        take: Math.min(Math.max((offset + limit) * 4, limit), 5000),
+      });
+
+      const mapped = rows.map(row => {
+        const meta = row.meta && typeof row.meta === 'object' ? row.meta : {};
+        const ai =
+          meta.aiAssessment && typeof meta.aiAssessment === 'object' ? meta.aiAssessment : {};
+        const metrics = meta.metrics && typeof meta.metrics === 'object' ? meta.metrics : null;
+        const recentEvents = Array.isArray(meta.recentEvents) ? meta.recentEvents : [];
+        const aiRiskScoreRaw = Number((ai as any).riskScore);
+        const aiRiskScore = Number.isFinite(aiRiskScoreRaw)
+          ? Math.max(0, Math.min(100, aiRiskScoreRaw))
+          : null;
+
+        return {
+          id: row.id,
+          createdAt: row.createdAt,
+          status: row.status,
+          reviewedAt: row.reviewedAt,
+          serverId: sanitizeAntiAbuseText(meta.serverId || '', 120) || null,
+          serverName: sanitizeAntiAbuseText(meta.serverName || '', 240) || null,
+          suspectedServerIds: Array.isArray(meta.suspectedServerIds)
+            ? meta.suspectedServerIds
+                .map((v: any) => sanitizeAntiAbuseText(v, 120))
+                .filter(Boolean)
+                .slice(0, 20)
+            : [],
+          suspectedServerNames: Array.isArray(meta.suspectedServerNames)
+            ? meta.suspectedServerNames
+                .map((v: any) => sanitizeAntiAbuseText(v, 240))
+                .filter(Boolean)
+                .slice(0, 20)
+            : [],
+          detectionType: sanitizeAntiAbuseText(meta.detectionType || '', 120) || 'unknown',
+          enforcementAction: sanitizeAntiAbuseText(meta.enforcementAction || '', 60) || 'unknown',
+          strikeCount: Number.isFinite(Number(meta.strikeCount)) ? Number(meta.strikeCount) : null,
+          reason: sanitizeAntiAbuseText(meta.reason || '', 1200) || '',
+          nodeName: sanitizeAntiAbuseText(meta.nodeName || '', 200) || null,
+          sourceIp: sanitizeAntiAbuseText(meta.sourceIp || '', 80) || null,
+          targetIp: sanitizeAntiAbuseText(meta.targetIp || '', 80) || null,
+          targetPort: Number.isFinite(Number(meta.targetPort)) ? Number(meta.targetPort) : null,
+          suspendAttempted: !!meta.suspendAttempted,
+          suspendSuccess: !!meta.suspendSuccess,
+          aiRiskScore,
+          aiCategory: sanitizeAntiAbuseText((ai as any).category || '', 60) || null,
+          aiSummary: sanitizeAntiAbuseText((ai as any).summary || '', 1200) || null,
+          aiRecommendedAction:
+            sanitizeAntiAbuseText((ai as any).recommendedAction || '', 80) || null,
+          aiConfidence: Number.isFinite(Number((ai as any).confidence))
+            ? Number((ai as any).confidence)
+            : null,
+          metrics,
+          recentEvents,
+        };
+      });
+
+      const filtered = mapped.filter(item => {
+        if (minRisk != null && (item.aiRiskScore == null || item.aiRiskScore < minRisk))
+          return false;
+        if (
+          detectionTypeFilter &&
+          !String(item.detectionType || '')
+            .toLowerCase()
+            .includes(detectionTypeFilter)
+        )
+          return false;
+        if (
+          actionFilter &&
+          !String(item.enforcementAction || '')
+            .toLowerCase()
+            .includes(actionFilter)
+        )
+          return false;
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'aiRisk') {
+          const av = a.aiRiskScore ?? -1;
+          const bv = b.aiRiskScore ?? -1;
+          return order === 'asc' ? av - bv : bv - av;
+        }
+        const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return order === 'asc' ? at - bt : bt - at;
+      });
+
+      const items = filtered.slice(offset, offset + limit);
+      const total = filtered.length;
+      const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages,
+        sort: sortBy,
+        order,
+        agents,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Any(),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List anti-abuse incidents for admin triage', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/antiabuse/incidents/:id/status',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const id = Number((ctx.params as any)?.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.validIncidentIdRequired') };
+      }
+
+      const body = (ctx.body || {}) as any;
+      const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
+      const resolutionNote = sanitizeAntiAbuseText(body.note || '', 800) || null;
+
+      let nextStatus: 'pending' | 'accepted' | 'rejected' | 'archived' = 'pending';
+      if (action === 'resolve' || action === 'solved' || action === 'accepted') {
+        nextStatus = 'accepted';
+      } else if (action === 'dismiss' || action === 'dismissed' || action === 'rejected') {
+        nextStatus = 'rejected';
+      } else if (action === 'archive' || action === 'archived') {
+        nextStatus = 'archived';
+      } else if (action === 'pending' || action === 'reopen' || action === 'open') {
+        nextStatus = 'pending';
       } else {
-        orderQB.leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.userId')
-          .where('u.email LIKE :q OR o.status LIKE :q OR o.description LIKE :q', { q: likeQ });
+        ctx.set.status = 400;
+        return { error: ctx.t('admin.incidentInvalidAction') };
       }
-    }
-    const orders = await orderQB.getMany();
 
-    return { users, organisations, servers, orders };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      query: t.Object({ q: t.Optional(t.String()) }),
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+      if (!form) {
+        ctx.set.status = 404;
+        return { error: ctx.t('admin.antiabuseFormNotFound') };
+      }
+
+      const row = await submissionRepo.findOne({ where: { id, formId: form.id } as any });
+      if (!row) {
+        ctx.set.status = 404;
+        return { error: ctx.t('organisation.incidentNotFound') };
+      }
+
+      const meta = row.meta && typeof row.meta === 'object' ? { ...row.meta } : {};
+      (meta as any).resolution = {
+        action: nextStatus,
+        note: resolutionNote,
+        at: new Date().toISOString(),
+        by: (ctx.user as User | undefined)?.id ?? null,
+      };
+
+      row.status = nextStatus;
+      row.meta = meta;
+      row.reviewedBy = (ctx.user as User | undefined)?.id ?? null;
+      row.reviewedAt = new Date();
+
+      const saved = await submissionRepo.save(row);
+      return {
+        success: true,
+        id: saved.id,
+        status: saved.status,
+        reviewedAt: saved.reviewedAt,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update anti-abuse incident status', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/antiabuse/incidents/bulk-status',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const body = (ctx.body || {}) as any;
+      const ids = Array.isArray(body.ids)
+        ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+        : [];
+
+      if (ids.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.idsArrayRequired') };
+      }
+
+      const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
+      const resolutionNote = sanitizeAntiAbuseText(body.note || '', 800) || null;
+
+      let nextStatus: 'pending' | 'accepted' | 'rejected' | 'archived' = 'pending';
+      if (action === 'resolve' || action === 'solved' || action === 'accepted') {
+        nextStatus = 'accepted';
+      } else if (action === 'dismiss' || action === 'dismissed' || action === 'rejected') {
+        nextStatus = 'rejected';
+      } else if (action === 'archive' || action === 'archived') {
+        nextStatus = 'archived';
+      } else if (action === 'pending' || action === 'reopen' || action === 'open') {
+        nextStatus = 'pending';
+      } else {
+        ctx.set.status = 400;
+        return { error: ctx.t('admin.incidentInvalidAction') };
+      }
+
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+      if (!form) {
+        ctx.set.status = 404;
+        return { error: ctx.t('admin.antiabuseFormNotFound') };
+      }
+
+      const rows = await submissionRepo.findBy({ formId: form.id } as any);
+      const targetIdSet = new Set(ids);
+      const selectedRows = rows.filter(row => targetIdSet.has(row.id));
+
+      for (const row of selectedRows) {
+        const meta = row.meta && typeof row.meta === 'object' ? { ...row.meta } : {};
+        (meta as any).resolution = {
+          action: nextStatus,
+          note: resolutionNote,
+          at: new Date().toISOString(),
+          by: (ctx.user as User | undefined)?.id ?? null,
+        };
+
+        row.status = nextStatus;
+        row.meta = meta;
+        row.reviewedBy = (ctx.user as User | undefined)?.id ?? null;
+        row.reviewedAt = new Date();
+      }
+
+      await submissionRepo.save(selectedRows);
+
+      return {
+        success: true,
+        updated: selectedRows.length,
+        requested: ids.length,
+        status: nextStatus,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Bulk update anti-abuse incident status', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/antiabuse/incidents/:id',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const id = Number((ctx.params as any)?.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.validIncidentIdRequired') };
+      }
+
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+      if (!form) {
+        ctx.set.status = 404;
+        return { error: ctx.t('admin.antiabuseFormNotFound') };
+      }
+
+      const result = await submissionRepo.delete({ id, formId: form.id } as any);
+      if (!result.affected) {
+        ctx.set.status = 404;
+        return { error: ctx.t('organisation.incidentNotFound') };
+      }
+
+      return { success: true, deleted: Number(result.affected || 0) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Object({ success: t.Boolean(), deleted: t.Number() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete anti-abuse incident', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/antiabuse/incidents/bulk-delete',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const body = (ctx.body || {}) as any;
+      const ids = Array.isArray(body.ids)
+        ? body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+        : [];
+
+      if (ids.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.idsArrayRequired') };
+      }
+
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+      if (!form) {
+        ctx.set.status = 404;
+        return { error: ctx.t('admin.antiabuseFormNotFound') };
+      }
+
+      const result = await submissionRepo
+        .createQueryBuilder()
+        .delete()
+        .from(ApplicationSubmission)
+        .where('formId = :formId', { formId: form.id })
+        .andWhere('id IN (:...ids)', { ids })
+        .execute();
+
+      return {
+        success: true,
+        deleted: Number(result.affected || 0),
+        requested: ids.length,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Object({ success: t.Boolean(), deleted: t.Number(), requested: t.Number() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Bulk delete anti-abuse incidents', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/antiabuse/events',
+    async ctx => {
+      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+      if (access !== true) return access;
+
+      const body = (ctx.body || {}) as any;
+      const serverId = sanitizeAntiAbuseText(body.serverId, 120);
+      const reason = sanitizeAntiAbuseText(body.reason, 600);
+
+      if (!serverId || !reason) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.serverIdAndReasonRequired') };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (cfg?.ignoreAntiAbuse) {
+        return {
+          success: true,
+          ignored: true,
+          message: ctx.t('admin.antiAbuseDisabled'),
+        };
+      }
+
+      const nodeName =
+        sanitizeAntiAbuseText(body.nodeName || body.node || process.env.HOSTNAME || '', 160) ||
+        null;
+      const sourceIp = sanitizeAntiAbuseText(body.sourceIp || '', 80) || null;
+      const targetIp = sanitizeAntiAbuseText(body.targetIp || '', 80) || null;
+      const targetPort = Number(body.targetPort);
+      const detectionType = sanitizeAntiAbuseText(body.detectionType || '', 120) || 'unknown';
+      const enforcementAction = sanitizeAntiAbuseText(
+        body.enforcementAction || 'unknown',
+        60
+      ).toLowerCase();
+      const strikeCount = Number(body.strikeCount);
+      const suspectedServerIds = Array.isArray(body.suspectedServerIds)
+        ? body.suspectedServerIds
+            .map((v: any) => sanitizeAntiAbuseText(v, 120))
+            .filter(Boolean)
+            .slice(0, 20)
+        : [];
+      const suspectedServerNames = Array.isArray(body.suspectedServerNames)
+        ? body.suspectedServerNames
+            .map((v: any) => sanitizeAntiAbuseText(v, 240))
+            .filter(Boolean)
+            .slice(0, 20)
+        : [];
+      let suspendAttempted = !!body.suspendAttempted;
+      let suspendSuccess = !!body.suspendSuccess;
+      const aiRecommendedAction = sanitizeAntiAbuseText(
+        body.aiAssessment?.recommendedAction || body.aiAssessment?.finalAction || '',
+        60
+      ).toLowerCase();
+      const effectiveAction =
+        enforcementAction !== 'unknown' ? enforcementAction : aiRecommendedAction;
+      let autoSuspendResult: {
+        success: boolean;
+        attempted: boolean;
+        emailSent: boolean;
+        emailRecipient: string | null;
+        emailError: string | null;
+        message: string;
+      } | null = null;
+      const detectorName = sanitizeAntiAbuseText(body.detectorName || 'antiabuse', 120);
+      const incidentId = Number(body.incidentId);
+
+      const shouldAutoSuspend = ['suspend', 'block'].includes(effectiveAction);
+      if (shouldAutoSuspend && !suspendSuccess) {
+        autoSuspendResult = await attemptAutoSuspendServer(
+          serverId,
+          `Auto enforcement (${effectiveAction}): ${reason}`,
+          'anti-abuse system',
+          false
+        );
+        suspendAttempted = suspendAttempted || autoSuspendResult.attempted;
+        suspendSuccess = suspendSuccess || autoSuspendResult.success;
+      }
+
+      let form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+      if (!form) {
+        form = await formRepo.findOne({
+          where: { kind: 'abuse_report', title: 'Automated Anti-Abuse Incidents' },
+        });
+      }
+
+      if (!form) {
+        form = formRepo.create({
+          title: 'Automated Anti-Abuse Incidents',
+          description: 'Incidents generated by automatic anti-abuse detection services.',
+          kind: 'abuse_report',
+          slug: 'antiabuse-incidents',
+          visibility: 'private_invite',
+          status: 'active',
+          active: true,
+          requiresAccount: false,
+          maxSubmissionsPerUser: 999999,
+          ipCooldownSeconds: 0,
+          createdBy: (ctx.user as User | undefined)?.id,
+        });
+        form = await formRepo.save(form);
+      }
+
+      if (Number.isFinite(incidentId) && incidentId > 0) {
+        const existing = await submissionRepo.findOne({
+          where: { id: incidentId, formId: form.id } as any,
+        });
+
+        if (existing) {
+          const appendLines = [
+            '',
+            '--- Incident update ---',
+            `Detector: ${detectorName}`,
+            `Detection Type: ${detectionType}`,
+            `Reason: ${reason}`,
+            `Source IP: ${sourceIp || 'unknown'}`,
+            `Target: ${targetIp || 'unknown'}${Number.isFinite(targetPort) ? `:${targetPort}` : ''}`,
+            `Suspend attempted: ${suspendAttempted ? 'yes' : 'no'}`,
+            `Suspend success: ${suspendSuccess ? 'yes' : 'no'}`,
+            `Time: ${new Date().toISOString()}`,
+          ];
+
+          const metrics = body.metrics && typeof body.metrics === 'object' ? body.metrics : null;
+          const events = Array.isArray(body.recentEvents) ? body.recentEvents.slice(-30) : [];
+
+          if (metrics) {
+            appendLines.push(`Metrics: ${sanitizeAntiAbuseText(JSON.stringify(metrics), 4000)}`);
+          }
+          if (events.length > 0) {
+            appendLines.push(
+              `Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`
+            );
+          }
+          if (autoSuspendResult) {
+            appendLines.push(
+              `Auto-enforcement: ${autoSuspendResult.success ? 'success' : 'failed'}`
+            );
+            if (autoSuspendResult.emailSent) {
+              appendLines.push(`Admin alert sent to: ${autoSuspendResult.emailRecipient}`);
+            }
+            if (autoSuspendResult.emailError) {
+              appendLines.push(`Admin alert error: ${autoSuspendResult.emailError}`);
+            }
+          }
+
+          existing.content = `${existing.content || ''}\n${appendLines.join('\n')}`.slice(
+            0,
+            20_000
+          );
+
+          const existingMeta =
+            existing.meta && typeof existing.meta === 'object' ? existing.meta : {};
+          const previousUpdates = Number((existingMeta as any).updateCount) || 0;
+          existing.meta = {
+            ...(existingMeta as any),
+            lastUpdateAt: new Date().toISOString(),
+            updateCount: previousUpdates + 1,
+            latest: {
+              detector: detectorName,
+              detectionType,
+              reason,
+              sourceIp,
+              targetIp,
+              targetPort: Number.isFinite(targetPort) ? targetPort : null,
+              suspendAttempted,
+              suspendSuccess,
+              autoSuspendResult,
+              metrics,
+              recentEvents: events,
+            },
+          } as any;
+
+          const updated = await submissionRepo.save(existing);
+          return {
+            success: true,
+            updated: true,
+            submissionId: updated.id,
+            formId: form.id,
+            emailSent: false,
+            emailError: null,
+          };
+        }
+      }
+
+      const lines = [
+        `Detector: ${detectorName}`,
+        `Server UUID: ${serverId}`,
+        `Server Name: ${cfg?.name || 'unknown'}`,
+        `Node: ${nodeName || (cfg?.nodeId != null ? String(cfg.nodeId) : 'unknown')}`,
+        `Detection Type: ${detectionType}`,
+        `Reason: ${reason}`,
+        `Source IP: ${sourceIp || 'unknown'}`,
+        `Target: ${targetIp || 'unknown'}${Number.isFinite(targetPort) ? `:${targetPort}` : ''}`,
+        `Suspend attempted: ${suspendAttempted ? 'yes' : 'no'}`,
+        `Suspend success: ${suspendSuccess ? 'yes' : 'no'}`,
+        `Time: ${new Date().toISOString()}`,
+      ];
+
+      const metrics = body.metrics && typeof body.metrics === 'object' ? body.metrics : null;
+      const events = Array.isArray(body.recentEvents) ? body.recentEvents.slice(-30) : [];
+      const aiAssessment = await runAntiAbuseAiAssessment({
+        serverId,
+        serverName: cfg?.name || null,
+        nodeName,
+        reason,
+        detectionType,
+        sourceIp,
+        targetIp,
+        targetPort: Number.isFinite(targetPort) ? targetPort : null,
+        metrics,
+        recentEvents: events,
+      });
+
+      lines.push(`Enforcement action: ${enforcementAction || 'unknown'}`);
+      if (Number.isFinite(strikeCount)) {
+        lines.push(`Strike count: ${strikeCount}`);
+      }
+      if (metrics) {
+        lines.push('');
+        lines.push(`Metrics: ${sanitizeAntiAbuseText(JSON.stringify(metrics), 4000)}`);
+      }
+      if (suspectedServerNames.length > 0) {
+        lines.push('');
+        lines.push(
+          `Suspected servers: ${sanitizeAntiAbuseText(JSON.stringify(suspectedServerNames), 4000)}`
+        );
+      }
+      if (events.length > 0) {
+        lines.push('');
+        lines.push(`Recent events: ${sanitizeAntiAbuseText(JSON.stringify(events), 7000)}`);
+      }
+      if (autoSuspendResult) {
+        lines.push('');
+        lines.push(`Auto-enforcement: ${autoSuspendResult.success ? 'success' : 'failed'}`);
+        if (autoSuspendResult.emailSent) {
+          lines.push(`Admin alert sent to: ${autoSuspendResult.emailRecipient}`);
+        }
+        if (autoSuspendResult.emailError) {
+          lines.push(`Admin alert error: ${autoSuspendResult.emailError}`);
+        }
+      }
+      if (aiAssessment) {
+        lines.push('');
+        lines.push(`AI assessment: ${sanitizeAntiAbuseText(JSON.stringify(aiAssessment), 7000)}`);
+      }
+
+      const created = submissionRepo.create({
+        formId: form.id,
+        userId: null,
+        ipAddress: sanitizeAntiAbuseText(ctx.ip || '', 120) || null,
+        status: 'pending',
+        content: lines.join('\n').slice(0, 20_000),
+        meta: {
+          source: 'antiabuse_detector',
+          detector: detectorName,
+          serverId,
+          serverName: cfg?.name || null,
+          nodeId: cfg?.nodeId ?? null,
+          nodeName,
+          reason,
+          detectionType,
+          enforcementAction,
+          strikeCount: Number.isFinite(strikeCount) ? strikeCount : null,
+          sourceIp,
+          targetIp,
+          targetPort: Number.isFinite(targetPort) ? targetPort : null,
+          suspectedServerIds,
+          suspectedServerNames,
+          suspendAttempted,
+          suspendSuccess,
+          metrics,
+          recentEvents: events,
+          aiAssessment,
+          autoSuspendResult,
+          raw: body,
+          userAgent:
+            sanitizeAntiAbuseText(ctx.request?.headers?.get?.('user-agent') || '', 500) || null,
+        },
+      });
+
+      const saved = await submissionRepo.save(created);
+
+      const recipient = process.env.ABUSE_REPORT_EMAIL || null;
+      let emailSent = false;
+      let emailError: string | null = null;
+
+      if (recipient) {
+        try {
+          await sendMail({
+            to: recipient,
+            from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
+            subject: `[AntiAbuse] ${cfg?.name || serverId} suspended (${detectionType})`,
+            text: lines.join('\n'),
+            locale: ctx.locale,
+          });
+          emailSent = true;
+        } catch (e: any) {
+          emailError = e?.message || 'Failed to send mail';
+        }
+      }
+
+      return {
+        success: true,
+        submissionId: saved.id,
+        formId: form.id,
+        aiAssessment,
+        emailSent,
+        emailError,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Ingest anti-abuse incident event', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/sync-from-wings',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'nodes:read');
+      if (adminErr !== true) return adminErr;
+      const admin = ctx.user as User;
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const ServerMapping = require('../models/serverMapping.entity').ServerMapping;
+      const mappingRepo = AppDataSource.getRepository(ServerMapping);
+      const nodes = await AppDataSource.getRepository(Node).find();
+
+      let created = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          const res = await svc.getServers();
+          const servers: any[] = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
+
+          for (const s of servers) {
+            const uuid: string = s.configuration?.uuid || s.uuid || s.id;
+            if (!uuid) continue;
+
+            const existing = await cfgRepo.findOneBy({ uuid });
+            if (existing) {
+              skipped++;
+              continue;
+            }
+
+            const existingMap = await mappingRepo.findOneBy({ uuid });
+            if (!existingMap) {
+              await mappingRepo.save(mappingRepo.create({ uuid, nodeId: n.id }));
+            }
+
+            const userId: number = s.user ?? s.owner ?? admin.id;
+
+            await cfgRepo.save(
+              cfgRepo.create({
+                uuid,
+                nodeId: n.id,
+                userId,
+                name: s.configuration?.meta?.name ?? s.name ?? uuid,
+                suspended: s.suspended ?? false,
+                dockerImage: s.container?.image ?? s.image ?? '',
+                startup: s.invocation ?? s.startup ?? '',
+                environment: s.environment ?? {},
+                memory: s.build?.memory_limit ?? s.limits?.memory ?? 1024,
+                disk: s.build?.disk_space ?? s.limits?.disk ?? 10240,
+                cpu: s.build?.cpu_limit ?? s.limits?.cpu ?? 100,
+                swap: s.build?.swap ?? 0,
+                ioWeight: s.build?.io_weight ?? 500,
+                oomDisabled: s.build?.oom_disabled ?? true,
+              })
+            );
+            created++;
+          }
+        } catch (e: any) {
+          const errMsg = sanitizeError(e, 'adminHandler:sync-all-nodes');
+          errors.push(`Node ${n.name ?? n.id}: ${errMsg}`);
+        }
+      }
+
+      return { success: true, created, skipped, errors };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
       response: {
         200: t.Object({
-          users: t.Array(t.Any()),
-          organisations: t.Array(t.Any()),
-          servers: t.Array(t.Any()),
-          orders: t.Array(t.Any()),
+          success: t.Boolean(),
+          created: t.Number(),
+          skipped: t.Number(),
+          errors: t.Array(t.String()),
         }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
       },
-    },
-    detail: { summary: 'Global admin search across users, organisations, servers and orders (admin)', tags: ['Admin'] },
-  });
-
-  app.get(prefix + '/admin/users/:id/current-plan', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:read');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const orderRepo = AppDataSource.getRepository(Order);
-    const planRepo = AppDataSource.getRepository(Plan);
-    const orders = await orderRepo.find({ where: { userId, status: 'active' }, order: { createdAt: 'DESC' } });
-    const planOrders = orders.filter(o => o.planId != null);
-    const plans = [];
-    for (const order of planOrders) {
-      const plan = await planRepo.findOneBy({ id: order.planId! });
-      if (plan) plans.push({ plan, order });
+      detail: { summary: 'Synchronize servers from Wings nodes', tags: ['Admin'] },
     }
-    return { plans, orders: planOrders };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ plans: t.Array(t.Any()), orders: t.Array(t.Any()) }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Get current plans for user', tags: ['Admin'] },
-  });
+  );
 
-  app.post(prefix + '/admin/users/:id/cancel-plan', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:write');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const orderRepo = AppDataSource.getRepository(Order);
-
-    const orders = await orderRepo.find({ where: { userId, status: 'active' }, order: { createdAt: 'DESC' } });
-    if (orders.length > 0) {
-      for (const order of orders) {
-        order.status = 'cancelled';
+  app.get(
+    prefix + '/admin/users/:id/profile',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:read');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
       }
-      await orderRepo.save(orders);
-    }
 
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-    },
-    detail: { summary: 'Cancel user plan and reset portal type', tags: ['Admin'] },
-  });
+      const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
+      const modelUserRepo = AppDataSource.getRepository(AIModelUser);
+      const aiLinks = await modelUserRepo.find({
+        where: { user: { id: userId } },
+        relations: { model: true },
+      });
 
-  app.post(prefix + '/admin/users/:id/apply-plan', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'users:write');
-    if (adminErr !== true) return adminErr;
-    const userId = Number(ctx.params.id);
-    const { planId, temporary, expiresAt, notes, orgId } = ctx.body as any;
-    if (!planId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.planIdRequired') };
-    }
-
-    const userRepo = AppDataSource.getRepository(User);
-    const planRepo = AppDataSource.getRepository(Plan);
-    const nodeRepo = AppDataSource.getRepository(Node);
-
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    const plan = await planRepo.findOneBy({ id: Number(planId) });
-    if (!plan) {
-      ctx.set.status = 404;
-      return { error: ctx.t('plan.notFound') };
-    }
-
-    let limits: Record<string, number> = {};
-    if (plan.type === 'enterprise' && user.nodeId) {
-      const node = await nodeRepo.findOneBy({ id: user.nodeId });
-      if (node) {
-        if (node.memory != null) limits.memory = Number(node.memory);
-        if (node.disk != null) limits.disk = Number(node.disk);
-        if (node.cpu != null) limits.cpu = Number(node.cpu);
-        if (node.serverLimit != null) limits.serverLimit = Number(node.serverLimit);
+      const servers: any[] = [];
+      const nodes = await AppDataSource.getRepository(Node).find();
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          const res = await svc.getServers();
+          for (const s of res.data || []) {
+            const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
+            if (!Number.isNaN(serverOwner) && serverOwner === userId) {
+              servers.push({ ...s, nodeName: n.name, nodeId: n.id });
+            }
+          }
+        } catch {}
       }
-    }
-    if (Object.keys(limits).length === 0) {
-      if (plan.memory != null) limits.memory = plan.memory;
-      if (plan.disk != null) limits.disk = plan.disk;
-      if (plan.cpu != null) limits.cpu = plan.cpu;
-      if (plan.serverLimit != null) limits.serverLimit = plan.serverLimit;
-    }
 
-    const existingLimits = (user as any).limits || {};
-    if (Object.keys(limits).length) {
-      for (const key of Object.keys(limits)) {
-        if ((existingLimits[key] ?? 0) < limits[key]) {
-          existingLimits[key] = limits[key];
+      try {
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const configs = await cfgRepo.find({ where: { userId } });
+        const nodeMap = new Map((nodes || []).map((n: any) => [n.id, n]));
+        for (const c of configs) {
+          const already = servers.find(s => {
+            const su = s.uuid || (s.configuration && s.configuration.uuid) || s.id || s.serverId;
+            const cu = c.uuid || c.serverUuid || '';
+            if (!su || !cu) return false;
+            return (
+              String(su).replace(/-/g, '').toLowerCase() ===
+              String(cu).replace(/-/g, '').toLowerCase()
+            );
+          });
+          if (already) continue;
+          const node = nodeMap.get(c.nodeId);
+          servers.push({
+            uuid: c.uuid,
+            name: c.name || c.uuid,
+            status: c.hibernated ? 'hibernated' : 'unknown',
+            hibernated: !!c.hibernated,
+            is_suspended: !!c.suspended,
+            resources: null,
+            build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+            container: { image: c.dockerImage },
+            nodeId: c.nodeId,
+            nodeName: node?.name,
+            userId: c.userId,
+            eggId: c.eggId ?? null,
+          });
+        }
+      } catch (e) {
+        // skippy
+      }
+
+      const Order = require('../models/order.entity').Order;
+      const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
+      const membershipRows = await orgMemberRepo.find({
+        where: { userId },
+        relations: { organisation: true },
+      });
+      const orgs = membershipRows
+        .filter((m: any) => !!m.organisation)
+        .map((m: any) => ({
+          id: m.organisation.id,
+          name: m.organisation.name,
+          handle: m.organisation.handle,
+          portalTier: m.organisation.portalTier,
+          avatarUrl: m.organisation.avatarUrl,
+          ownerId: m.organisation.ownerId,
+          orgRole: m.orgRole,
+        }));
+      const primaryOrg = orgs.find((o: any) => o.orgRole === 'owner') || orgs[0] || null;
+
+      const out: any = { ...user };
+      delete out.passwordHash;
+      delete out.sessions;
+      out.orgs = orgs;
+      out.org = primaryOrg
+        ? {
+            id: primaryOrg.id,
+            name: primaryOrg.name,
+            handle: primaryOrg.handle,
+            portalTier: primaryOrg.portalTier,
+            avatarUrl: primaryOrg.avatarUrl,
+          }
+        : null;
+      out.orgRole = primaryOrg?.orgRole || null;
+      out.aiModels = aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits }));
+      out.servers = servers;
+      out.orders = orders;
+      out.contributor = buildContributorSummary(user);
+      return out;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Any(),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get detailed profile for a user', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/users/:id/contributor-profile',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
+      if (adminErr !== true) return adminErr;
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const body = (ctx.body || {}) as any;
+      const githubLogin = String(body.githubLogin || '').trim();
+      const githubProfileUrl = String(body.githubProfileUrl || '').trim();
+      const githubAvatarUrl = String(body.githubAvatarUrl || '').trim();
+      const contributorTitle = String(body.contributorTitle || '').trim();
+      let rawActivity = body.contributorActivity ?? body.activity;
+      if (typeof rawActivity === 'string') {
+        try {
+          const parsed = JSON.parse(rawActivity);
+          rawActivity = parsed;
+        } catch {
+          rawActivity = [];
         }
       }
-      user.limits = existingLimits;
-    }
-    await userRepo.save(user);
+      const activity = normalizeContributorActivity(rawActivity);
 
-    if (orgId) {
-      const orgRepo = AppDataSource.getRepository(Organisation);
-      const org = await orgRepo.findOneBy({ id: Number(orgId) });
-      if (org) {
-        org.portalTier = plan.type;
-        await orgRepo.save(org);
+      (user as any).githubLogin = githubLogin || null;
+      (user as any).githubProfileUrl =
+        githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : null);
+      (user as any).githubAvatarUrl =
+        githubAvatarUrl || (githubLogin ? `https://github.com/${githubLogin}.png?size=256` : null);
+      (user as any).contributorTitle = contributorTitle || null;
+      (user as any).contributorActivity = activity;
+
+      await userRepo.save(user);
+      try {
+        await redisDel('public:contributors:v2');
+      } catch {}
+      return { success: true, contributor: buildContributorSummary(user) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          githubLogin: t.Optional(t.String()),
+          githubProfileUrl: t.Optional(t.String()),
+          githubAvatarUrl: t.Optional(t.String()),
+          contributorTitle: t.Optional(t.String()),
+          contributorActivity: t.Optional(t.Any()),
+          activity: t.Optional(t.Any()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), contributor: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update contributor profile details for a user', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/documents',
+    async (ctx: any) => {
+      const adminErr = requireAdminPermission(ctx, 'admin:users:documents');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
       }
-    }
 
-    let effectiveAmount = plan.price ?? 0;
-    if (plan.type === 'enterprise' && user.nodeId) {
-      const node = await nodeRepo.findOneBy({ id: user.nodeId });
-      if (node?.cost != null) effectiveAmount = Number(node.cost);
-    }
-    const orderRepo = AppDataSource.getRepository(Order);
-    const order = orderRepo.create({
-      userId,
-      description: `${plan.name}${temporary ? ' (temporary)' : ''}`,
-      planId: plan.id,
-      amount: effectiveAmount,
-      items: `plan:${plan.id}`,
-      status: 'active',
-      notes: notes || undefined,
-      createdAt: new Date(),
-      expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
-    });
-    await orderRepo.save(order);
+      const { file, name, description } = (ctx.body || {}) as any;
+      const uploadFile = Array.isArray(file) ? file[0] : file;
+      if (!uploadFile) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.noFile') };
+      }
 
-    return { success: true, user: { id: user.id, portalType: user.portalType, limits: user.limits }, order };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ planId: t.Any(), temporary: t.Optional(t.Boolean()), expiresAt: t.Optional(t.String()), notes: t.Optional(t.String()), orgId: t.Optional(t.Any()) }),
+      const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
+      if (mime !== 'application/pdf') {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.fileTypePdfOnly') };
+      }
+
+      const ab = await uploadFile.arrayBuffer();
+      const buffer = Buffer.from(ab);
+      const originalName = uploadFile.name || uploadFile.filename || `document_${Date.now()}.pdf`;
+      const safeName = path.basename(originalName).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filename = `document_${Date.now()}_${safeName}`;
+
+      const uploadDir = path.join(process.cwd(), 'uploads', 'user-documents', String(user.id));
+      fs.mkdirSync(uploadDir, { recursive: true });
+      const filepath = path.join(uploadDir, filename);
+
+      const encrypted = await encryptBufferWithWorker(buffer).catch(() => {
+        const { encryptBuffer } = require('../utils/crypto');
+        return encryptBuffer(buffer);
+      });
+      await Bun.write(filepath, encrypted);
+
+      const backendBase =
+        (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
+        (() => {
+          const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
+          const host = (ctx.request.headers.get('host') || 'localhost') as string;
+          return `${proto}://${host}`;
+        })();
+
+      const documentUrl = `${backendBase}/uploads/user-documents/${user.id}/${encodeURIComponent(filename)}`;
+
+      if (!user.settings || typeof user.settings !== 'object') {
+        user.settings = {};
+      }
+      const currentDocs = (user.settings as any).documents;
+      const documents = Array.isArray(currentDocs)
+        ? { admin: currentDocs, agreed: [] }
+        : {
+            agreed: Array.isArray(currentDocs?.agreed) ? currentDocs.agreed : [],
+            admin: Array.isArray(currentDocs?.admin) ? currentDocs.admin : [],
+          };
+
+      const newDoc = {
+        id: crypto.randomUUID(),
+        name: String(name || originalName),
+        description: description ? String(description) : undefined,
+        filename,
+        url: documentUrl,
+        uploadedAt: new Date().toISOString(),
+      };
+      documents.admin.push(newDoc);
+      (user.settings as any).documents = documents;
+
+      await userRepo.save(user);
+      return { success: true, document: newDoc };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          file: t.File({ type: 'application/pdf' }),
+          name: t.Optional(t.String()),
+          description: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({
+            success: t.Boolean(),
+            document: t.Object({
+              id: t.String(),
+              name: t.String(),
+              description: t.Optional(t.String()),
+              filename: t.String(),
+              url: t.String(),
+              uploadedAt: t.String(),
+            }),
+          }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Upload a user-specific PDF document', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/users/:id/export',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const passkeyRepo = AppDataSource.getRepository(Passkey);
+      const apiKeyRepo = AppDataSource.getRepository(require('../models/apiKey.entity').ApiKey);
+      const idVerificationRepo = AppDataSource.getRepository(IDVerification);
+      const ticketRepo = AppDataSource.getRepository(Ticket);
+      const userLogRepo = AppDataSource.getRepository(UserLog);
+      const organisationRepo = AppDataSource.getRepository(Organisation);
+      const aiModelUserRepo = AppDataSource.getRepository(
+        require('../models/aiModelUser.entity').AIModelUser
+      );
+
+      const aiLinks = await aiModelUserRepo.find({
+        where: { user: { id: userId } },
+        relations: { model: true },
+      });
+      const passkeys = await passkeyRepo.find({ where: { user: { id: userId } } });
+      const apiKeys = await apiKeyRepo.find({ where: { user: { id: userId } } });
+      const idVerifications = await idVerificationRepo.find({ where: { userId } });
+      const tickets = await ticketRepo.find({ where: { userId } });
+      const userLogs = await userLogRepo.find({
+        where: { userId },
+        order: { timestamp: 'DESC' },
+        take: 10,
+      });
+      const organisationsOwned = await organisationRepo.find({
+        where: { ownerId: userId },
+        relations: { invites: true },
+      });
+      const membershipRows = await orgMemberRepo.find({
+        where: { userId },
+        relations: { organisation: true },
+      });
+      const organisations = membershipRows
+        .filter((m: any) => !!m.organisation)
+        .map((m: any) => ({
+          id: m.organisation.id,
+          name: m.organisation.name,
+          handle: m.organisation.handle,
+          portalTier: m.organisation.portalTier,
+          avatarUrl: m.organisation.avatarUrl,
+          ownerId: m.organisation.ownerId,
+          orgRole: m.orgRole,
+        }));
+      const orders = await AppDataSource.getRepository(Order).find({ where: { userId } });
+
+      const servers: any[] = [];
+      const nodes = await AppDataSource.getRepository(Node).find();
+      for (const n of nodes) {
+        try {
+          const base = (n as any).backendWingsUrl || n.url;
+          const svc = new WingsApiService(base, n.token);
+          const res = await svc.getServers();
+          for (const s of res.data || []) {
+            const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
+            if (!Number.isNaN(serverOwner) && serverOwner === userId) {
+              servers.push({ ...s, nodeName: n.name, nodeId: n.id });
+            }
+          }
+        } catch {}
+      }
+
+      try {
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const configs = await cfgRepo.find({ where: { userId } });
+        const nodeMap = new Map((nodes || []).map((n: any) => [n.id, n]));
+        for (const c of configs) {
+          const already = servers.find(s => {
+            const su = s.uuid || (s.configuration && s.configuration.uuid) || s.id || s.serverId;
+            const cu = c.uuid || c.serverUuid || '';
+            if (!su || !cu) return false;
+            return (
+              String(su).replace(/-/g, '').toLowerCase() ===
+              String(cu).replace(/-/g, '').toLowerCase()
+            );
+          });
+          if (already) continue;
+          const node = nodeMap.get(c.nodeId);
+          servers.push({
+            uuid: c.uuid,
+            name: c.name || c.uuid,
+            status: c.hibernated ? 'hibernated' : 'unknown',
+            hibernated: !!c.hibernated,
+            is_suspended: !!c.suspended,
+            resources: null,
+            build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+            container: { image: c.dockerImage },
+            nodeId: c.nodeId,
+            nodeName: node?.name,
+            userId: c.userId,
+            eggId: c.eggId ?? null,
+          });
+        }
+      } catch (e) {
+        // skippy
+      }
+
+      const out: any = { ...user };
+      delete out.passwordHash;
+      delete out.sessions;
+      const primaryOrg =
+        organisations.find((o: any) => o.orgRole === 'owner') || organisations[0] || null;
+      out.orgs = organisations;
+      out.org = primaryOrg
+        ? {
+            id: primaryOrg.id,
+            name: primaryOrg.name,
+            handle: primaryOrg.handle,
+            portalTier: primaryOrg.portalTier,
+            avatarUrl: primaryOrg.avatarUrl,
+          }
+        : null;
+      out.orgRole = primaryOrg?.orgRole || null;
+
+      const serverLogs: Record<string, string[]> = {};
+      const serverBackups: Record<string, any[]> = {};
+      const serverFilesMap: Record<string, { path: string; size: number }[]> = {};
+
+      async function collectFilesRecursive(svc: any, serverUuid: string, dir = '/') {
+        const items: Array<{ name: string; mode?: string; type?: string; size?: number }> = [];
+        try {
+          const files = await svc.serverRequest(
+            serverUuid,
+            `/files/list-directory?directory=${encodeURIComponent(dir)}`
+          );
+          const body = files.data || files;
+          if (Array.isArray(body)) items.push(...body);
+          else if (Array.isArray(body.entries)) items.push(...body.entries);
+          else if (Array.isArray(body.files)) items.push(...body.files);
+        } catch (e1: any) {
+          if (e1?.response?.status === 404) {
+            try {
+              const files = await svc.serverRequest(
+                serverUuid,
+                `/files/list?directory=${encodeURIComponent(dir)}`
+              );
+              const body = files.data || files;
+              if (Array.isArray(body)) items.push(...body);
+              else if (Array.isArray(body.entries)) items.push(...body.entries);
+              else if (Array.isArray(body.files)) items.push(...body.files);
+            } catch {
+              return [];
+            }
+          } else {
+            return [];
+          }
+        }
+
+        const filesFound: Array<{ path: string; size: number }> = [];
+        for (const entry of items) {
+          const name = entry.name || '';
+          if (!name) continue;
+          const fullPath = dir.replace(/\/$/, '') + '/' + name;
+          if (entry.type === 'file' || entry.mode?.startsWith('f') || entry.mode?.startsWith('-')) {
+            filesFound.push({ path: fullPath, size: Number(entry.size || 0) });
+          } else {
+            const child = await collectFilesRecursive(svc, serverUuid, fullPath);
+            filesFound.push(...child);
+          }
+        }
+        return filesFound;
+      }
+
+      for (const s of servers) {
+        const serverUuid = (s.uuid || s.id || '').toString();
+        if (!serverUuid) continue;
+        const node = nodes.find((n: any) => n.id === s.nodeId) || nodes[0];
+        if (!node) continue;
+        const svc = new WingsApiService(
+          (node as any).backendWingsUrl || (node as any).url,
+          (node as any).token
+        );
+        try {
+          const logResp = await svc.getServerLogs(serverUuid);
+          let logs: string[] = [];
+          const raw = logResp.data;
+          if (Array.isArray(raw))
+            logs = raw.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+          else if (typeof raw === 'string') logs = raw.split('\n').filter(Boolean);
+          else if (raw && typeof raw === 'object') {
+            const inner = raw.logs ?? raw.data ?? raw.output;
+            if (Array.isArray(inner))
+              logs = inner.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+            else if (typeof inner === 'string') logs = inner.split('\n').filter(Boolean);
+          }
+          serverLogs[serverUuid] = logs;
+        } catch (e) {
+          serverLogs[serverUuid] = [`failed to fetch logs: ${String(e?.message || e)}`];
+        }
+
+        try {
+          const backupResp = await svc.listServerBackups(serverUuid);
+          serverBackups[serverUuid] = Array.isArray(backupResp.data) ? backupResp.data : [];
+        } catch (e) {
+          serverBackups[serverUuid] = [];
+        }
+
+        try {
+          serverFilesMap[serverUuid] = await collectFilesRecursive(svc, serverUuid, '/');
+        } catch {
+          serverFilesMap[serverUuid] = [];
+        }
+
+        try {
+          await svc.createServerBackup(serverUuid, {
+            adapter: 'local',
+            uuid: `admin-export-${serverUuid}-${Date.now()}`,
+            ignore: [],
+          });
+        } catch {
+          // skip
+        }
+      }
+
+      const dataExportDir = path.join(
+        os.tmpdir(),
+        `data-export-${Date.now()}-${crypto.randomUUID()}`
+      );
+      await fsp.mkdir(dataExportDir, { recursive: true });
+
+      const metadataPath = path.join(dataExportDir, 'user-export.json');
+      const payload = {
+        user: out,
+        passkeys,
+        apiKeys,
+        idVerifications,
+        tickets,
+        userLogs,
+        organisations,
+        organisationsOwned,
+        servers,
+        orders,
+        aiModels: aiLinks.map((l: any) => ({ id: l.id, model: l.model, limits: l.limits })),
+        serverLogs,
+        serverBackups,
+        serverFiles: serverFilesMap,
+        exportedAt: new Date().toISOString(),
+      };
+      await Bun.write(metadataPath, JSON.stringify(payload, null, 2));
+
+      for (const [serverUuid, logs] of Object.entries(serverLogs)) {
+        const logFile = path.join(dataExportDir, `server-${serverUuid}-logs.txt`);
+        await Bun.write(logFile, logs.join('\n'));
+      }
+      for (const [serverUuid, backups] of Object.entries(serverBackups)) {
+        const backupFile = path.join(dataExportDir, `server-${serverUuid}-backups.json`);
+        await Bun.write(backupFile, JSON.stringify(backups, null, 2));
+      }
+
+      for (const s of servers) {
+        const serverUuid = (s.uuid || s.id || '').toString();
+        if (!serverUuid || !serverFilesMap[serverUuid] || serverFilesMap[serverUuid].length === 0)
+          continue;
+        const node = nodes.find((n: any) => n.id === s.nodeId) || nodes[0];
+        if (!node) continue;
+        const svc = new WingsApiService(
+          (node as any).backendWingsUrl || (node as any).url,
+          (node as any).token
+        );
+        const base = path.join(dataExportDir, 'server-files', serverUuid);
+        await fsp.mkdir(base, { recursive: true });
+        const trimmedFiles = serverFilesMap[serverUuid].slice(0, 300);
+        for (const file of trimmedFiles) {
+          const normalizedPath = path
+            .normalize(file.path.replace(/^\//, ''))
+            .replace(/^([/\\])+/, '');
+          const target = path.join(base, normalizedPath);
+          const relativeTarget = path.relative(base, target);
+          if (
+            !relativeTarget ||
+            relativeTarget.startsWith('..') ||
+            path.isAbsolute(relativeTarget)
+          ) {
+            continue;
+          }
+          try {
+            const res = await svc.downloadFile(serverUuid, file.path);
+            const rawData = res.data;
+            await fsp.mkdir(path.dirname(target), { recursive: true });
+            if (rawData instanceof Buffer || rawData instanceof ArrayBuffer) {
+              await Bun.write(target, rawData);
+            } else if (typeof rawData === 'string') {
+              await Bun.write(target, rawData);
+            } else {
+              await Bun.write(target, JSON.stringify(rawData));
+            }
+          } catch (e) {
+            // skip
+          }
+        }
+      }
+
+      const archiveName = `eclipanel-user-export-${userId}-${Date.now()}.tar.gz`;
+      const archivePath = path.join(os.tmpdir(), archiveName);
+      try {
+        await tar.c(
+          {
+            gzip: true,
+            file: archivePath,
+            cwd: dataExportDir,
+          },
+          [
+            'user-export.json',
+            ...Object.keys(serverLogs).map(s => `server-${s}-logs.txt`),
+            ...Object.keys(serverBackups).map(s => `server-${s}-backups.json`),
+            'server-files',
+          ]
+        );
+
+        const recipient = process.env.ADMIN_EMAIL || out.email || user.email || null;
+        if (recipient) {
+          await sendMail({
+            to: recipient,
+            from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
+            subject: `EcliPanel user data export for ${out.email || userId}`,
+            text: `Attached archive includes full data export for user #${userId}.`,
+            attachments: [{ filename: archiveName, path: archivePath }],
+            locale: ctx.locale,
+          });
+        }
+      } catch (error) {
+        console.warn('user export archive failed', error);
+      } finally {
+        try {
+          await fsp.rm(dataExportDir, { recursive: true, force: true });
+        } catch {}
+        try {
+          await fsp.unlink(archivePath);
+        } catch {}
+      }
+
+      return {
+        ...payload,
+        exportArchive: archiveName,
+        emailSentTo: process.env.ADMIN_EMAIL || out.email || user.email || null,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Any(),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Export all user and owned object data (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/users/:id/address-change-logs',
+    async (ctx: any) => {
+      const adminErr = requireAdminPermission(ctx, 'users:read');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const userLogRepo = AppDataSource.getRepository(UserLog);
+      const logs = await userLogRepo.find({
+        where: { userId, action: 'update-address' },
+        order: { timestamp: 'DESC' },
+        take: 10,
+      });
+      return { success: true, logs };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean(), logs: t.Array(t.Any()) }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get last address change logs for a user', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    '/admin/users/:id/ai/:linkId',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'ai:read');
+      if (adminErr !== true) return adminErr;
+      const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
+      const repo = AppDataSource.getRepository(AIModelUser);
+      const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
+      if (!link) {
+        ctx.set.status = 404;
+        return { error: ctx.t('system.linkNotFound') };
+      }
+      await repo.remove(link);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String(), linkId: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Remove an AI model link for user', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/users/:id/ai/:linkId',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'ai:read');
+      if (adminErr !== true) return adminErr;
+      const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
+      const repo = AppDataSource.getRepository(AIModelUser);
+      const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
+      if (!link) {
+        ctx.set.status = 404;
+        return { error: ctx.t('system.linkNotFound') };
+      }
+      const { limits } = ctx.body as any;
+      if (limits !== undefined) link.limits = limits;
+      await repo.save(link);
+      return { success: true, link };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String(), linkId: t.String() }),
+        body: t.Object({ limits: t.Optional(t.Any()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), link: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update limits on AI model link', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/logs',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'logs:read');
+      if (adminErr !== true) return adminErr;
+      const { userId, page = '1', per = '200', type = 'audit' } = ctx.query as any;
+      const perNum = Math.min(Math.max(Number(per) || 200, 1), 500);
+      const p = Math.max(1, Number(page) || 1);
+
+      if (type === 'requests') {
+        const repo = AppDataSource.getRepository(ApiRequestLog);
+        let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
+        if (userId !== undefined && userId !== null && userId !== '')
+          qb = qb.where('l.userId = :uid', { uid: Number(userId) });
+        const total = await qb.getCount();
+        const logs = await qb
+          .skip((p - 1) * perNum)
+          .take(perNum)
+          .getMany();
+
+        const userIds = [
+          ...new Set(logs.map(e => e.userId).filter(id => id !== undefined && id !== null)),
+        ];
+        const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
+        if (userIds.length > 0) {
+          const users = await AppDataSource.getRepository(User)
+            .createQueryBuilder('u')
+            .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
+            .where('u.id IN (:...ids)', { ids: userIds.filter(id => id > 0) })
+            .getMany();
+          users.forEach(u => {
+            const name = [`${u.firstName || ''}`.trim(), `${u.lastName || ''}`.trim()]
+              .filter(Boolean)
+              .join(' ')
+              .trim();
+            userMap[u.id] = {
+              username: name || u.email || `User #${u.id}`,
+              email: u.email,
+              avatarUrl: u.avatarUrl,
+            };
+          });
+        }
+
+        const out = logs.map(e => ({
+          ...e,
+          username: e.userId === 0 ? 'System' : (userMap[e.userId as number]?.username ?? null),
+          email: e.userId === 0 ? '' : (userMap[e.userId as number]?.email ?? null),
+        }));
+        return { logs: out, total, page: p, per: perNum };
+      }
+
+      const repo = AppDataSource.getRepository(UserLog);
+
+      if (type === 'serverErrors') {
+        let qb = repo
+          .createQueryBuilder('l')
+          .where('l.action LIKE :error1 OR l.action LIKE :error2 OR l.action LIKE :error3', {
+            error1: '%error%',
+            error2: '%crash%',
+            error3: '%failed%',
+          })
+          .orderBy('l.timestamp', 'DESC');
+        if (userId !== undefined && userId !== null && userId !== '')
+          qb = qb.andWhere('l.userId = :uid', { uid: Number(userId) });
+        const total = await qb.getCount();
+        const entries = await qb
+          .skip((p - 1) * perNum)
+          .take(perNum)
+          .getMany();
+
+        const userIds = [
+          ...new Set(entries.map(e => e.userId).filter(id => id !== undefined && id !== null)),
+        ];
+        const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
+        if (userIds.length > 0) {
+          const users = await AppDataSource.getRepository(User)
+            .createQueryBuilder('u')
+            .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
+            .where('u.id IN (:...ids)', { ids: userIds.filter(id => id > 0) })
+            .getMany();
+          users.forEach(u => {
+            userMap[u.id] = {
+              username: `${u.firstName} ${u.lastName}`.trim(),
+              email: u.email,
+              avatarUrl: u.avatarUrl,
+            };
+          });
+        }
+
+        const logs = entries.map(e => ({
+          ...e,
+          username: e.userId === 0 ? 'System' : (userMap[e.userId as number]?.username ?? null),
+          email: e.userId === 0 ? '' : (userMap[e.userId as number]?.email ?? null),
+          avatarUrl: e.userId === 0 ? undefined : userMap[e.userId as number]?.avatarUrl,
+        }));
+        return { logs, total, page: p, per: perNum };
+      }
+
+      let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
+      if (userId !== undefined && userId !== null && userId !== '')
+        qb = qb.where('l.userId = :uid', { uid: Number(userId) });
+      const total = await qb.getCount();
+      const entries = await qb
+        .skip((p - 1) * perNum)
+        .take(perNum)
+        .getMany();
+
+      const userIds = [
+        ...new Set(entries.map(e => e.userId).filter(id => id !== undefined && id !== null)),
+      ];
+      const userMap: Record<number, { username: string; email: string; avatarUrl?: string }> = {};
+      if (userIds.length > 0) {
+        const users = await AppDataSource.getRepository(User)
+          .createQueryBuilder('u')
+          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
+          .where('u.id IN (:...ids)', { ids: userIds.filter(id => id > 0) })
+          .getMany();
+        users.forEach(u => {
+          userMap[u.id] = {
+            username: `${u.firstName} ${u.lastName}`.trim(),
+            email: u.email,
+            avatarUrl: u.avatarUrl,
+          };
+        });
+      }
+
+      const logs = entries.map(e => ({
+        ...e,
+        username: e.userId === 0 ? 'System' : (userMap[e.userId as number]?.username ?? null),
+        email: e.userId === 0 ? '' : (userMap[e.userId as number]?.email ?? null),
+        avatarUrl: e.userId === 0 ? undefined : userMap[e.userId as number]?.avatarUrl,
+      }));
+      return { logs, total, page: p, per: perNum };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        querystring: t.Object({
+          userId: t.Optional(t.String()),
+          page: t.Optional(t.String()),
+          per: t.Optional(t.String()),
+          type: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({
+            logs: t.Array(t.Any()),
+            total: t.Number(),
+            page: t.Number(),
+            per: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get admin logs', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/fraud-scan/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const result = await runFraudScanForUser(user);
+      if (!result.success) {
+        if ('error' in result) {
+          if (result.error === 'No AI model configured.') {
+            ctx.set.status = 400;
+          } else {
+            ctx.set.status = 500;
+          }
+          return { error: result.error };
+        }
+        ctx.set.status = 500;
+        return { error: ctx.t('user.fraudScanFailed') };
+      }
+
+      return { success: true, ...result };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          500: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Run fraud AI scan on a user', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/fraud-scan-all',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+      if (adminErr !== true) return adminErr;
+      const adminUser = ctx.user as any;
+      const adminId = adminUser?.id;
+      const models = await getConfiguredFraudModels();
+      if (models.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noAiModel') };
+      }
+
+      await createActivityLog({
+        userId: adminId,
+        action: 'admin:fraud-scan:started',
+        metadata: { startedAt: new Date().toISOString() },
+        notify: false,
+      });
+
+      void (async () => {
+        let flaggedCount = 0;
+        let scannedCount = 0;
+        let errorCount = 0;
+        try {
+          const userRepo = AppDataSource.getRepository(User);
+          const users = await userRepo.find();
+          for (let i = 0; i < users.length; i++) {
+            const user = users[i];
+            try {
+              const scan = await runFraudScanForUser(user);
+              scannedCount++;
+              if (!scan.success) {
+                if ('error' in scan && scan.error !== 'No AI model configured.') {
+                  errorCount++;
+                  console.error('[adminHandler:fraud-scan-all]', scan.error);
+                }
+              } else if (scan.isSuspicious) {
+                flaggedCount++;
+              }
+            } catch (err) {
+              errorCount++;
+              console.error('[adminHandler:fraud-scan-all]', err);
+            }
+            if (i < users.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+          }
+          await createActivityLog({
+            userId: adminId,
+            action: `admin:fraud-scan:completed — scanned ${scannedCount}, flagged ${flaggedCount}, errors ${errorCount}`,
+            metadata: { scannedCount, flaggedCount, errorCount },
+            notify: false,
+          });
+        } catch (err: any) {
+          const message = err?.message || String(err);
+          await createActivityLog({
+            userId: adminId,
+            action: `admin:fraud-scan:error — ${message}`,
+            metadata: { error: message },
+            notify: false,
+          });
+        }
+      })();
+
+      return { success: true, message: ctx.t('admin.fraudScanStarted') };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
       response: {
-        200: t.Object({ success: t.Boolean(), user: t.Any(), order: t.Any() }),
-        400: t.Object({ error: t.String() }),
+        200: t.Object({ success: t.Boolean(), message: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
+        400: t.Object({ error: t.String() }),
       },
+      detail: { summary: 'Run fraud scan on all users', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/fraud-alerts',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const alerts = await userRepo.find({
+        where: { fraudFlag: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          fraudReason: true,
+          fraudDetectedAt: true,
+          address: true,
+          address2: true,
+          billingCity: true,
+          billingState: true,
+          billingZip: true,
+          billingCountry: true,
+          billingCompany: true,
+          phone: true,
+          suspended: true,
+        },
+        order: { fraudDetectedAt: 'DESC' },
+      });
+      return alerts;
     },
-    detail: { summary: 'Apply a plan to user and create order', tags: ['Admin'] },
-  });
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List fraud alerts', tags: ['Admin'] },
+    }
+  );
 
-  app.post(prefix + '/admin/ensure-portal-plans', async (ctx) => {
-    const adminErr = requireAdminPermission(ctx, 'admin:plans:forcereapply');
-    if (adminErr !== true) return adminErr;
-    const body = (ctx.body as any) || {};
-    const portalType = body.portalType as string | undefined;
-    const userRepo = AppDataSource.getRepository(User);
-    const planRepo = AppDataSource.getRepository(Plan);
-    const orderRepo = AppDataSource.getRepository(Order);
+  app.put(
+    prefix + '/admin/fraud-alerts/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      const { action } = ctx.body as any;
+      if (action === 'dismiss') {
+        user.fraudFlag = false;
+        user.fraudReason = undefined;
+        user.fraudDetectedAt = undefined;
+      } else if (action === 'suspend') {
+        user.suspended = true;
+      }
+      await userRepo.save(user);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ action: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Take action on a fraud alert', tags: ['Admin'] },
+    }
+  );
 
-    const users = portalType
-      ? await userRepo.find({ where: { portalType } })
-      : await userRepo.find();
+  app.post(
+    prefix + '/admin/fraud-alerts/dismiss',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:fraud');
+      if (adminErr !== true) return adminErr;
+      const body = ctx.body as any;
+      const ids = Array.isArray(body?.ids)
+        ? body.ids.map((v: any) => Number(v)).filter((n: number) => Number.isFinite(n))
+        : [];
+      if (ids.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.idsArrayRequired') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      try {
+        await userRepo
+          .createQueryBuilder()
+          .update()
+          .set({ fraudFlag: false, fraudReason: null, fraudDetectedAt: null })
+          .whereInIds(ids)
+          .execute();
+        return { success: true, dismissed: ids.length };
+      } catch (e) {
+        ctx.set.status = 500;
+        return { error: ctx.t('admin.dismissAlertsFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({ ids: t.Array(t.Number()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), dismissed: t.Number() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          500: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Dismiss multiple fraud alerts', tags: ['Admin'] },
+    }
+  );
 
-    let assigned = 0;
-    for (const user of users) {
-      const orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
-      const existing = orders.find(o => o.planId != null);
-      if (existing) {
-        const plan = await planRepo.findOneBy({ id: existing.planId! });
-        if (plan && plan.type === user.portalType) continue;
+  app.get(
+    prefix + '/panel/settings',
+    async _ctx => {
+      const repo = AppDataSource.getRepository(PanelSetting);
+      const rows = await repo.find();
+      const map = parsePanelSettingsMap(rows);
+      const gamblingConfig = getGamblingConfigFromMap(map);
+      let portalDescriptions: any = null;
+      if (map['portalDescriptions']) {
+        try {
+          portalDescriptions = JSON.parse(map['portalDescriptions']);
+        } catch {}
+      }
+      const featureToggles = await getPanelFeatureToggles();
+      return {
+        registrationEnabled: map['registrationEnabled'] !== 'false',
+        registrationNotice: map['registrationNotice'] || '',
+        portalDescriptions: portalDescriptions || null,
+        geoBlockCountries: map['geoBlockCountries'] || '',
+        countryAgeRules: map['countryAgeRules'] || '',
+        billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
+        billingTaxRules: map['billingTaxRules'] || '',
+        gamblingEnabled: gamblingConfig.gamblingEnabled,
+        gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
+        gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
+        featureToggles,
+      };
+    },
+    {
+      response: {
+        200: t.Object({
+          registrationEnabled: t.Boolean(),
+          registrationNotice: t.String(),
+          portalDescriptions: t.Optional(t.Any()),
+          featureToggles: t.Record(t.String(), t.Boolean()),
+          geoBlockCountries: t.String(),
+          countryAgeRules: t.Optional(t.String()),
+          billingCurrency: t.String(),
+          billingTaxRules: t.String(),
+          gamblingEnabled: t.Boolean(),
+          gamblingResourceLuckyChance: t.Number(),
+          gamblingPowerDenyChance: t.Number(),
+        }),
+      },
+      detail: { summary: 'Fetch public portal settings (no auth)', tags: ['Public'] },
+    }
+  );
+
+  app.get(
+    prefix + '/public/features',
+    async _ctx => {
+      const featureToggles = await getPanelFeatureToggles();
+      return { featureToggles };
+    },
+    {
+      response: {
+        200: t.Object({ featureToggles: t.Record(t.String(), t.Boolean()) }),
+      },
+      detail: { summary: 'Public feature flags (no auth)', tags: ['Public'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/settings',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:settings');
+      if (adminErr !== true) return adminErr;
+      const repo = AppDataSource.getRepository(PanelSetting);
+      const rows = await repo.find();
+      const map = parsePanelSettingsMap(rows);
+      const gamblingConfig = getGamblingConfigFromMap(map);
+      let portalDescriptions: any = null;
+      if (map['portalDescriptions']) {
+        try {
+          portalDescriptions = JSON.parse(map['portalDescriptions']);
+        } catch {}
+      }
+      const featureToggles = await getPanelFeatureToggles();
+      return {
+        registrationEnabled: map['registrationEnabled'] !== 'false',
+        registrationNotice: map['registrationNotice'] || '',
+        portalDescriptions: portalDescriptions || null,
+        geoBlockCountries: map['geoBlockCountries'] || '',
+        countryAgeRules: map['countryAgeRules'] || '',
+        billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
+        billingTaxRules: map['billingTaxRules'] || '',
+        gamblingEnabled: gamblingConfig.gamblingEnabled,
+        gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
+        gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
+        featureToggles,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({
+          registrationEnabled: t.Boolean(),
+          registrationNotice: t.String(),
+          portalDescriptions: t.Optional(t.Any()),
+          geoBlockCountries: t.String(),
+          countryAgeRules: t.Optional(t.String()),
+          billingCurrency: t.String(),
+          billingTaxRules: t.String(),
+          gamblingEnabled: t.Boolean(),
+          gamblingResourceLuckyChance: t.Number(),
+          gamblingPowerDenyChance: t.Number(),
+          featureToggles: t.Record(t.String(), t.Boolean()),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Fetch admin portal settings', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/geo-block/metrics',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:geoblock:view');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const users = await userRepo.find({ select: { billingCountry: true } });
+      const rules = await getGeoBlockRules();
+      const { decrypt, isEncryptedString } = require('../utils/crypto');
+
+      const countryStats: Record<string, { users: number; minLevel: number; maxLevel: number }> =
+        {};
+      let totalUsers = 0;
+      let blockedRegistration = 0;
+      let blockedIdVerification = 0;
+      let blockedFree = 0;
+      let blockedEducation = 0;
+      let blockedSubuserOnly = 0;
+
+      for (const u of users) {
+        const billingCountry =
+          typeof u.billingCountry === 'string' && isEncryptedString(u.billingCountry)
+            ? decrypt(u.billingCountry)
+            : u.billingCountry;
+        const level = getGeoBlockLevelFromRules(billingCountry, rules);
+        totalUsers++;
+        const countryKey =
+          (billingCountry || 'unknown').toString().trim().toLowerCase() || 'unknown';
+        if (!countryStats[countryKey]) {
+          countryStats[countryKey] = { users: 0, minLevel: Number.MAX_SAFE_INTEGER, maxLevel: 0 };
+        }
+        const c = countryStats[countryKey];
+        c.users += 1;
+        c.minLevel = Math.min(c.minLevel, level);
+        c.maxLevel = Math.max(c.maxLevel, level);
+
+        if (level >= 1) blockedIdVerification += 1;
+        if (level >= 2) blockedFree += 1;
+        if (level >= 3) blockedEducation += 1;
+        if (level === 4) blockedSubuserOnly += 1;
+        if (level >= 5) blockedRegistration += 1;
       }
 
-      const plans = await planRepo.find({ where: { type: user.portalType }, order: { price: 'ASC' } });
-      if (!plans || plans.length === 0) continue;
+      const normalizedCountryStats: Record<string, any> = {};
+      for (const [country, stats] of Object.entries(countryStats)) {
+        normalizedCountryStats[country] = {
+          users: stats.users,
+          minLevel: stats.minLevel === Number.MAX_SAFE_INTEGER ? 0 : stats.minLevel,
+          maxLevel: stats.maxLevel,
+        };
+      }
 
-      let chosen = plans.find(p => p.isDefault) || plans[0];
+      return {
+        totalUsers,
+        rules,
+        blocked: {
+          registration: blockedRegistration,
+          idVerification: blockedIdVerification,
+          free: blockedFree,
+          educational: blockedEducation,
+          subuserOnly: blockedSubuserOnly,
+        },
+        byCountry: normalizedCountryStats,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({
+          totalUsers: t.Number(),
+          rules: t.Any(),
+          blocked: t.Object({
+            registration: t.Number(),
+            idVerification: t.Number(),
+            free: t.Number(),
+            educational: t.Number(),
+            subuserOnly: t.Number(),
+          }),
+          byCountry: t.Any(),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Retrieve Geo-block enforcement metrics', tags: ['Admin'] },
+    }
+  );
 
+  /**
+   * You better dont know how to use this endpoint or else you might break
+   * the portal descriptions and cause a lot of work for yourself trying to fix it
+   * by hand in the database... (HAPPENED TWICE!!)
+   * Didn't happen after that twice anymore :D
+   */
+  app.put(
+    prefix + '/admin/settings',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:settings');
+      if (adminErr !== true) return adminErr;
+      const repo = AppDataSource.getRepository(PanelSetting);
+      const body = ctx.body as any;
+      const allowed = [
+        'registrationEnabled',
+        'registrationNotice',
+        'geoBlockCountries',
+        'countryAgeRules',
+        'billingCurrency',
+        'billingTaxRules',
+        'gamblingEnabled',
+        'gamblingResourceLuckyChance',
+        'gamblingPowerDenyChance',
+      ];
+      for (const key of allowed) {
+        if (body[key] !== undefined) {
+          let value = typeof body[key] === 'boolean' ? String(body[key]) : String(body[key]);
+          if (key === 'billingCurrency') {
+            value = value.trim().toUpperCase();
+          }
+          if (key === 'gamblingResourceLuckyChance') {
+            value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE));
+          }
+          if (key === 'gamblingPowerDenyChance') {
+            value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_POWER_DENY_CHANCE));
+          }
+          await repo.save({ key, value });
+        }
+      }
+      if (body.portalDescriptions !== undefined) {
+        await repo.save({
+          key: 'portalDescriptions',
+          value: JSON.stringify(body.portalDescriptions),
+        });
+      }
+      if (body.featureToggles !== undefined) {
+        const current = await getPanelFeatureToggles();
+        const merged = { ...current, ...(body.featureToggles || {}) };
+        await repo.save({ key: 'panelFeatureToggles', value: JSON.stringify(merged) });
+      }
+      const rows = await repo.find();
+      const map = parsePanelSettingsMap(rows);
+      const gamblingConfig = getGamblingConfigFromMap(map);
+      let portalDescriptions: any = null;
+      if (map['portalDescriptions']) {
+        try {
+          portalDescriptions = JSON.parse(map['portalDescriptions']);
+        } catch {}
+      }
+      const featureToggles = await getPanelFeatureToggles();
+      return {
+        success: true,
+        settings: {
+          registrationEnabled: map['registrationEnabled'] !== 'false',
+          registrationNotice: map['registrationNotice'] || '',
+          portalDescriptions: portalDescriptions || null,
+          geoBlockCountries: map['geoBlockCountries'] || '',
+          countryAgeRules: map['countryAgeRules'] || '',
+          billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
+          billingTaxRules: map['billingTaxRules'] || '',
+          gamblingEnabled: gamblingConfig.gamblingEnabled,
+          gamblingResourceLuckyChance: gamblingConfig.gamblingResourceLuckyChance,
+          gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
+          featureToggles,
+        },
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          registrationEnabled: t.Optional(t.Boolean()),
+          registrationNotice: t.Optional(t.String()),
+          portalDescriptions: t.Optional(t.Any()),
+          geoBlockCountries: t.Optional(t.String()),
+          billingCurrency: t.Optional(t.String()),
+          billingTaxRules: t.Optional(t.String()),
+          countryAgeRules: t.Optional(t.String()),
+          gamblingEnabled: t.Optional(t.Boolean()),
+          gamblingResourceLuckyChance: t.Optional(t.Number()),
+          gamblingPowerDenyChance: t.Optional(t.Number()),
+          featureToggles: t.Optional(t.Record(t.String(), t.Boolean())),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), settings: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update portal settings', tags: ['Admin'] },
+    }
+  );
+
+  // TODO: Check if it works, still in todo
+  app.get(
+    prefix + '/admin/mounts',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const mounts = await AppDataSource.getRepository(Mount).find({ order: { name: 'ASC' } });
+      return mounts;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List all mounts', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/mounts',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
+      if (!name || !source || !target) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.nameSourceTargetRequired') };
+      }
+      const repo = AppDataSource.getRepository(Mount);
+      const mount = repo.create({
+        name,
+        description,
+        source,
+        target,
+        read_only: !!read_only,
+        allowed_eggs,
+      });
+      await repo.save(mount);
+      ctx.set.status = 201;
+      return mount;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          name: t.String(),
+          description: t.Optional(t.String()),
+          source: t.String(),
+          target: t.String(),
+          read_only: t.Optional(t.Boolean()),
+          allowed_eggs: t.Optional(t.Any()),
+        }),
+        response: {
+          201: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Create a mount', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/mounts/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const repo = AppDataSource.getRepository(Mount);
+      const mount = await repo.findOneBy({ id: Number(ctx.params.id) });
+      if (!mount) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.mountNotFound') };
+      }
+      const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
+      if (name !== undefined) mount.name = name;
+      if (description !== undefined) mount.description = description;
+      if (source !== undefined) mount.source = source;
+      if (target !== undefined) mount.target = target;
+      if (read_only !== undefined) mount.read_only = !!read_only;
+      if (allowed_eggs !== undefined) mount.allowed_eggs = allowed_eggs;
+      await repo.save(mount);
+      return mount;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          name: t.Optional(t.String()),
+          description: t.Optional(t.String()),
+          source: t.Optional(t.String()),
+          target: t.Optional(t.String()),
+          read_only: t.Optional(t.Boolean()),
+          allowed_eggs: t.Optional(t.Any()),
+        }),
+        response: {
+          200: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Update a mount', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/mounts/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+      const id = Number(ctx.params.id);
+      const repo = AppDataSource.getRepository(Mount);
+      const mount = await repo.findOneBy({ id });
+      if (!mount) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.mountNotFound') };
+      }
+      await AppDataSource.getRepository(ServerMount).delete({ mountId: id });
+      await repo.remove(mount);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete a mount', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/:id/mounts',
+    async ctx => {
+      const adminErr = requireAdminMountsPermission(ctx);
+      if (adminErr !== true) return adminErr;
+      const { id: uuid } = ctx.params as any;
+      const { mountId } = ctx.body as any;
+      if (!mountId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.mountIdRequired') };
+      }
+      const mount = await AppDataSource.getRepository(Mount).findOneBy({ id: Number(mountId) });
+      if (!mount) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.mountNotFound') };
+      }
+      const smRepo = AppDataSource.getRepository(ServerMount);
+      const existing = await smRepo.findOneBy({ serverUuid: uuid, mountId: mount.id });
+      if (existing) {
+        ctx.set.status = 409;
+        return { error: ctx.t('server.mountAlreadyAttached') };
+      }
+      const link = smRepo.create({ serverUuid: uuid, mountId: mount.id });
+      await smRepo.save(link);
+      ctx.set.status = 201;
+      return link;
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ mountId: t.Any() }),
+        response: {
+          201: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          409: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Attach a mount to a server', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/servers/:id/mounts/:mountId',
+    async ctx => {
+      const adminErr = requireAdminMountsPermission(ctx);
+      if (adminErr !== true) return adminErr;
+      const { id: uuid, mountId } = ctx.params as any;
+      const smRepo = AppDataSource.getRepository(ServerMount);
+      const link = await smRepo.findOneBy({ serverUuid: uuid, mountId: Number(mountId) });
+      if (!link) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.mountLinkNotFound') };
+      }
+      await smRepo.remove(link);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String(), mountId: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Remove mount link from server', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/orders',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'orders:view');
+      if (adminErr !== true) return adminErr;
+      const { userId, page = '1', q = '' } = ctx.query as any;
+      const orderRepo = AppDataSource.getRepository(Order);
+      const per = 50;
+      const p = Math.max(1, Number(page) || 1);
+
+      let qb = orderRepo.createQueryBuilder('o').orderBy('o.createdAt', 'DESC');
+
+      if (q && String(q).trim() !== '') {
+        const qstr = String(q).trim();
+        if (/^\d+$/.test(qstr)) {
+          qb = qb.where('o.userId = :uid', { uid: Number(qstr) });
+        } else {
+          qb = qb
+            .leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.userId')
+            .where('u.email LIKE :email', { email: `%${qstr}%` });
+        }
+      } else if (userId) {
+        qb = qb.where('o.userId = :uid', { uid: Number(userId) });
+      }
+
+      const total = await qb.getCount();
+      const orders = await qb
+        .skip((p - 1) * per)
+        .take(per)
+        .getMany();
+      return { orders, total, page: p, per };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({
+          userId: t.Optional(t.Any()),
+          page: t.Optional(t.Number()),
+          q: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({
+            orders: t.Array(t.Any()),
+            total: t.Number(),
+            page: t.Number(),
+            per: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List orders, with pagination and search (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/orders',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'orders:issue');
+      if (adminErr !== true) return adminErr;
+      const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
+      if (!userId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.userIdRequired') };
+      }
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(userId) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const orderRepo = AppDataSource.getRepository(Order);
+      const order = orderRepo.create({
+        userId: Number(userId),
+        description: description || undefined,
+        planId: planId ? Number(planId) : undefined,
+        amount: amount != null ? Number(amount) : 0,
+        items: items || (planId ? `plan:${planId}` : 'admin:manual'),
+        status: 'pending',
+        notes: notes || undefined,
+        createdAt: new Date(),
+        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
+        // Fuck leap year atp.
+      });
+      await orderRepo.save(order);
+      return { success: true, order };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          userId: t.Any(),
+          description: t.Optional(t.String()),
+          planId: t.Optional(t.Any()),
+          amount: t.Optional(t.Number()),
+          items: t.Optional(t.String()),
+          expiresAt: t.Optional(t.String()),
+          notes: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), order: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Create a new order', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/orders/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'orders:update');
+      if (adminErr !== true) return adminErr;
+      const orderRepo = AppDataSource.getRepository(Order);
+      const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!order) {
+        ctx.set.status = 404;
+        return { error: ctx.t('order.notFound') };
+      }
+      const { status, notes, expiresAt, description, amount, planId, items, userId } =
+        ctx.body as any;
+      if (status !== undefined) order.status = status;
+      if (notes !== undefined) order.notes = notes;
+      if (description !== undefined) order.description = description;
+      if (expiresAt !== undefined) order.expiresAt = new Date(expiresAt);
+      if (amount !== undefined) order.amount = Number(amount || 0);
+      if (planId !== undefined) order.planId = planId != null ? Number(planId) : (undefined as any);
+      if (items !== undefined) order.items = items;
+      if (userId !== undefined) {
+        const userRepo = AppDataSource.getRepository(User);
+        const u = await userRepo.findOneBy({ id: Number(userId) });
+        if (!u) {
+          ctx.set.status = 404;
+          return { error: ctx.t('user.notFound') };
+        }
+        order.userId = Number(userId);
+      }
+      await orderRepo.save(order);
+      return { success: true, order };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          status: t.Optional(t.String()),
+          notes: t.Optional(t.String()),
+          expiresAt: t.Optional(t.String()),
+          description: t.Optional(t.String()),
+          amount: t.Optional(t.Number()),
+          planId: t.Optional(t.Any()),
+          items: t.Optional(t.String()),
+          userId: t.Optional(t.Any()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), order: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Modify an order', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/orders/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'orders:delete');
+      if (adminErr !== true) return adminErr;
+      const orderRepo = AppDataSource.getRepository(Order);
+      const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!order) {
+        ctx.set.status = 404;
+        return { error: ctx.t('order.notFound') };
+      }
+      await orderRepo.remove(order);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete an order (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/search',
+    async ctx => {
+      const adminErr = requireAdminPageAccess(ctx);
+      if (adminErr !== true) return adminErr;
+      const { q = '' } = ctx.query as any;
+      const qstr = String(q || '').trim();
+
+      const userRepo = AppDataSource.getRepository(User);
+      const orgRepo = AppDataSource.getRepository(Organisation);
       const nodeRepo = AppDataSource.getRepository(Node);
-      let limits: Record<string, number> = {};
-      if (chosen.type === 'enterprise' && user.nodeId) {
+      const serverCfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const orderRepo = AppDataSource.getRepository(Order);
+
+      const isNumeric = /^[0-9]+$/.test(qstr);
+      const likeQ = `%${qstr}%`;
+
+      const userQB = userRepo.createQueryBuilder('u').orderBy('u.id', 'ASC').limit(20);
+      if (qstr) {
+        if (isNumeric) {
+          userQB.where('u.id = :id', { id: Number(qstr) });
+        } else {
+          userQB.where(
+            'u.email LIKE :q OR u.firstName LIKE :q OR u.lastName LIKE :q OR CONCAT(u.firstName, " ", u.lastName) LIKE :q',
+            { q: likeQ }
+          );
+        }
+      }
+      const users = await userQB.getMany();
+
+      const orgQB = orgRepo.createQueryBuilder('o').orderBy('o.id', 'ASC').limit(20);
+      if (qstr) {
+        if (isNumeric) {
+          orgQB.where('o.id = :id', { id: Number(qstr) });
+        } else {
+          orgQB.where('o.name LIKE :q OR o.handle LIKE :q', { q: likeQ });
+        }
+      }
+      const organisations = await orgQB.getMany();
+
+      let servers: any[] = [];
+
+      try {
+        const nodes = await nodeRepo.find();
+        const configs = await serverCfgRepo.find();
+        const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
+        const allServers: any[] = [];
+
+        for (const n of nodes) {
+          try {
+            const base = (n as any).backendWingsUrl || n.url;
+            const svc = new WingsApiService(base, n.token);
+            const res = await svc.getServers();
+            const nodeServers = res.data || [];
+            for (const s of nodeServers) {
+              const uuid: string = s.configuration?.uuid || s.uuid;
+              const cfg = cfgMap.get(uuid);
+              allServers.push({
+                ...s,
+                uuid,
+                status: s.state || s.status || 'offline',
+                name: cfg?.name || s.configuration?.meta?.name || s.name || uuid,
+                nodeName: n.name,
+                nodeId: n.id,
+                eggId: cfg?.eggId || null,
+              });
+            }
+          } catch {
+            // skip
+          }
+        }
+
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        for (const c of configs) {
+          if (allServers.some(s => s.uuid === c.uuid)) continue;
+          const node = nodeMap.get(c.nodeId);
+          allServers.push({
+            uuid: c.uuid,
+            name: c.name || c.uuid,
+            status: c.hibernated ? 'hibernated' : 'unknown',
+            hibernated: !!c.hibernated,
+            is_suspended: c.suspended,
+            resources: null,
+            build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+            container: { image: c.dockerImage },
+            nodeId: c.nodeId,
+            nodeName: node?.name,
+            userId: c.userId,
+            eggId: c.eggId ?? null,
+          });
+        }
+
+        if (!qstr) {
+          servers = allServers.slice(0, 20);
+        } else {
+          const filterVal = qstr.toLowerCase();
+          servers = allServers
+            .filter(s => {
+              const name = String(s.name || s.uuid || '').toLowerCase();
+              const uuidVal = String(s.uuid || '').toLowerCase();
+              const idVal = String(s.id || '').toLowerCase();
+              const nodeName = String(s.nodeName || '').toLowerCase();
+              return (
+                idVal.startsWith(filterVal) ||
+                name.includes(filterVal) ||
+                uuidVal.includes(filterVal) ||
+                nodeName.includes(filterVal)
+              );
+            })
+            .slice(0, 20);
+        }
+      } catch (e) {
+        servers = [];
+      }
+
+      const orderQB = orderRepo.createQueryBuilder('o').orderBy('o.createdAt', 'DESC').limit(20);
+      if (qstr) {
+        if (isNumeric) {
+          orderQB.where('o.id = :id OR o.userId = :uid', { id: Number(qstr), uid: Number(qstr) });
+        } else {
+          orderQB
+            .leftJoin(require('../models/user.entity').User, 'u', 'u.id = o.userId')
+            .where('u.email LIKE :q OR o.status LIKE :q OR o.description LIKE :q', { q: likeQ });
+        }
+      }
+      const orders = await orderQB.getMany();
+
+      return { users, organisations, servers, orders };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({ q: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({
+            users: t.Array(t.Any()),
+            organisations: t.Array(t.Any()),
+            servers: t.Array(t.Any()),
+            orders: t.Array(t.Any()),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'Global admin search across users, organisations, servers and orders (admin)',
+        tags: ['Admin'],
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/users/:id/current-plan',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:read');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const orderRepo = AppDataSource.getRepository(Order);
+      const planRepo = AppDataSource.getRepository(Plan);
+      const orders = await orderRepo.find({
+        where: { userId, status: 'active' },
+        order: { createdAt: 'DESC' },
+      });
+      const planOrders = orders.filter(o => o.planId != null);
+      const plans = [];
+      for (const order of planOrders) {
+        const plan = await planRepo.findOneBy({ id: order.planId! });
+        if (plan) plans.push({ plan, order });
+      }
+      return { plans, orders: planOrders };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ plans: t.Array(t.Any()), orders: t.Array(t.Any()) }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get current plans for user', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/cancel-plan',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:write');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const orderRepo = AppDataSource.getRepository(Order);
+
+      const orders = await orderRepo.find({
+        where: { userId, status: 'active' },
+        order: { createdAt: 'DESC' },
+      });
+      if (orders.length > 0) {
+        for (const order of orders) {
+          order.status = 'cancelled';
+        }
+        await orderRepo.save(orders);
+      }
+
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Cancel user plan and reset portal type', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/apply-plan',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'users:write');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const { planId, temporary, expiresAt, notes, orgId } = ctx.body as any;
+      if (!planId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.planIdRequired') };
+      }
+
+      const userRepo = AppDataSource.getRepository(User);
+      const planRepo = AppDataSource.getRepository(Plan);
+      const nodeRepo = AppDataSource.getRepository(Node);
+
+      const user = await userRepo.findOneBy({ id: userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      const plan = await planRepo.findOneBy({ id: Number(planId) });
+      if (!plan) {
+        ctx.set.status = 404;
+        return { error: ctx.t('plan.notFound') };
+      }
+
+      const limits: Record<string, number> = {};
+      if (plan.type === 'enterprise' && user.nodeId) {
         const node = await nodeRepo.findOneBy({ id: user.nodeId });
         if (node) {
           if (node.memory != null) limits.memory = Number(node.memory);
@@ -7233,39 +8378,166 @@ export async function adminRoutes(app: any, prefix = '') {
         }
       }
       if (Object.keys(limits).length === 0) {
-        if (chosen.memory != null) limits.memory = chosen.memory;
-        if (chosen.disk != null) limits.disk = chosen.disk;
-        if (chosen.cpu != null) limits.cpu = chosen.cpu;
-        if (chosen.serverLimit != null) limits.serverLimit = chosen.serverLimit;
+        if (plan.memory != null) limits.memory = plan.memory;
+        if (plan.disk != null) limits.disk = plan.disk;
+        if (plan.cpu != null) limits.cpu = plan.cpu;
+        if (plan.serverLimit != null) limits.serverLimit = plan.serverLimit;
       }
 
-      user.limits = Object.keys(limits).length ? limits : null;
-      user.portalType = chosen.type;
+      const existingLimits = (user as any).limits || {};
+      if (Object.keys(limits).length) {
+        for (const key of Object.keys(limits)) {
+          if ((existingLimits[key] ?? 0) < limits[key]) {
+            existingLimits[key] = limits[key];
+          }
+        }
+        user.limits = existingLimits;
+      }
       await userRepo.save(user);
 
-      const effectiveAmount = chosen.price ?? 0;
+      if (orgId) {
+        const orgRepo = AppDataSource.getRepository(Organisation);
+        const org = await orgRepo.findOneBy({ id: Number(orgId) });
+        if (org) {
+          org.portalTier = plan.type;
+          await orgRepo.save(org);
+        }
+      }
+
+      let effectiveAmount = plan.price ?? 0;
+      if (plan.type === 'enterprise' && user.nodeId) {
+        const node = await nodeRepo.findOneBy({ id: user.nodeId });
+        if (node?.cost != null) effectiveAmount = Number(node.cost);
+      }
+      const orderRepo = AppDataSource.getRepository(Order);
       const order = orderRepo.create({
-        userId: user.id,
-        description: `${chosen.name} (auto-assigned)`,
-        planId: chosen.id,
+        userId,
+        description: `${plan.name}${temporary ? ' (temporary)' : ''}`,
+        planId: plan.id,
         amount: effectiveAmount,
-        items: `plan:${chosen.id}`,
+        items: `plan:${plan.id}`,
         status: 'active',
-        notes: 'Auto-assigned plan to match portal type',
+        notes: notes || undefined,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
       });
       await orderRepo.save(order);
-      assigned++;
-    }
 
-    return { success: true, assigned };
-  }, {
-    beforeHandle: [authenticate, authorize('admin:access')],
-    schema: {
-      body: t.Object({ portalType: t.Optional(t.String()) }),
-      response: { 200: t.Object({ success: t.Boolean(), assigned: t.Number() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }
+      return {
+        success: true,
+        user: { id: user.id, portalType: user.portalType, limits: user.limits },
+        order,
+      };
     },
-    detail: { summary: 'Ensure users have a plan matching their portalType', tags: ['Admin'] },
-  });
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          planId: t.Any(),
+          temporary: t.Optional(t.Boolean()),
+          expiresAt: t.Optional(t.String()),
+          notes: t.Optional(t.String()),
+          orgId: t.Optional(t.Any()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), user: t.Any(), order: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Apply a plan to user and create order', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/ensure-portal-plans',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:plans:forcereapply');
+      if (adminErr !== true) return adminErr;
+      const body = (ctx.body as any) || {};
+      const portalType = body.portalType as string | undefined;
+      const userRepo = AppDataSource.getRepository(User);
+      const planRepo = AppDataSource.getRepository(Plan);
+      const orderRepo = AppDataSource.getRepository(Order);
+
+      const users = portalType
+        ? await userRepo.find({ where: { portalType } })
+        : await userRepo.find();
+
+      let assigned = 0;
+      for (const user of users) {
+        const orders = await orderRepo.find({
+          where: { userId: user.id, status: 'active' },
+          order: { createdAt: 'DESC' },
+        });
+        const existing = orders.find(o => o.planId != null);
+        if (existing) {
+          const plan = await planRepo.findOneBy({ id: existing.planId! });
+          if (plan && plan.type === user.portalType) continue;
+        }
+
+        const plans = await planRepo.find({
+          where: { type: user.portalType },
+          order: { price: 'ASC' },
+        });
+        if (!plans || plans.length === 0) continue;
+
+        const chosen = plans.find(p => p.isDefault) || plans[0];
+
+        const nodeRepo = AppDataSource.getRepository(Node);
+        const limits: Record<string, number> = {};
+        if (chosen.type === 'enterprise' && user.nodeId) {
+          const node = await nodeRepo.findOneBy({ id: user.nodeId });
+          if (node) {
+            if (node.memory != null) limits.memory = Number(node.memory);
+            if (node.disk != null) limits.disk = Number(node.disk);
+            if (node.cpu != null) limits.cpu = Number(node.cpu);
+            if (node.serverLimit != null) limits.serverLimit = Number(node.serverLimit);
+          }
+        }
+        if (Object.keys(limits).length === 0) {
+          if (chosen.memory != null) limits.memory = chosen.memory;
+          if (chosen.disk != null) limits.disk = chosen.disk;
+          if (chosen.cpu != null) limits.cpu = chosen.cpu;
+          if (chosen.serverLimit != null) limits.serverLimit = chosen.serverLimit;
+        }
+
+        user.limits = Object.keys(limits).length ? limits : null;
+        user.portalType = chosen.type;
+        await userRepo.save(user);
+
+        const effectiveAmount = chosen.price ?? 0;
+        const order = orderRepo.create({
+          userId: user.id,
+          description: `${chosen.name} (auto-assigned)`,
+          planId: chosen.id,
+          amount: effectiveAmount,
+          items: `plan:${chosen.id}`,
+          status: 'active',
+          notes: 'Auto-assigned plan to match portal type',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+        });
+        await orderRepo.save(order);
+        assigned++;
+      }
+
+      return { success: true, assigned };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({ portalType: t.Optional(t.String()) }),
+        response: {
+          200: t.Object({ success: t.Boolean(), assigned: t.Number() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Ensure users have a plan matching their portalType', tags: ['Admin'] },
+    }
+  );
 }

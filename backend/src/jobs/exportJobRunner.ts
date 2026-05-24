@@ -20,18 +20,28 @@ export async function runPendingExportJobs() {
   }
 
   const repo = AppDataSource.getRepository(ExportJob);
-  const jobs = await repo.find({ where: { status: 'queued' }, order: { createdAt: 'ASC' }, take: MAX_CONCURRENT });
+  const jobs = await repo.find({
+    where: { status: 'queued' },
+    order: { createdAt: 'ASC' },
+    take: MAX_CONCURRENT,
+  });
 
   for (const job of jobs) {
     activeCount += 1;
     try {
-      await repo.update({ id: job.id, status: 'running' }, { message: 'Runner claimed job', progress: 1 });
+      await repo.update(
+        { id: job.id, status: 'running' },
+        { message: 'Runner claimed job', progress: 1 }
+      );
       const picked = await repo.findOne({ where: { id: job.id } });
       if (!picked) continue;
       await processExportJob(picked);
     } catch (e) {
       console.error('[exportJobRunner] failed to process export job', job.id, e);
-      await repo.update({ id: job.id }, { status: 'failed', progress: 100, message: String(e?.message || e) });
+      await repo.update(
+        { id: job.id },
+        { status: 'failed', progress: 100, message: String(e?.message || e) }
+      );
     } finally {
       activeCount -= 1;
     }
@@ -39,10 +49,12 @@ export async function runPendingExportJobs() {
 }
 
 export function scheduleExportJobRunner() {
-  runPendingExportJobs().catch((e) => console.error('[exportJobRunner] Initial run failed', e));
+  runPendingExportJobs().catch(e => console.error('[exportJobRunner] Initial run failed', e));
   try {
     schedule('*/1 * * * *', async () => {
-      await runPendingExportJobs().catch((e) => console.error('[exportJobRunner] Cron run failed', e));
+      await runPendingExportJobs().catch(e =>
+        console.error('[exportJobRunner] Cron run failed', e)
+      );
     });
   } catch (e) {
     console.error('[exportJobRunner] failed to schedule cron', e);

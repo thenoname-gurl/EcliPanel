@@ -68,10 +68,19 @@ export function EmailVerify({ name, verifyUrl, code, t }: EmailVerifyProps) {
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={verifyUrl} style={btnStyle}>{_t('email.emailVerify.button')}</Button>
+        <Button href={verifyUrl} style={btnStyle}>
+          {_t('email.emailVerify.button')}
+        </Button>
       </Section>
 
-      <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
+      <Hr
+        style={{
+          height: '1px',
+          background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)',
+          border: 'none',
+          margin: '24px 0',
+        }}
+      />
 
       <Section style={{ marginBottom: '24px' }}>
         <p style={{ ...pStyle, textAlign: 'center', marginBottom: '12px' }}>
@@ -79,9 +88,7 @@ export function EmailVerify({ name, verifyUrl, code, t }: EmailVerifyProps) {
         </p>
       </Section>
 
-      <Section style={codeStyle}>
-        {code}
-      </Section>
+      <Section style={codeStyle}>{code}</Section>
 
       <Section style={infoBoxStyle}>
         <p style={{ color: '#ffffffb3', fontSize: '14px', margin: 0 }}>

@@ -19,7 +19,9 @@ export async function getPlanForUser(user: User): Promise<Plan | null> {
   return await planRepo.findOneBy({ type: user.portalType });
 }
 
-export async function getSendLimitsForUser(user: User): Promise<{ dailyLimit: number; queueLimit: number }> {
+export async function getSendLimitsForUser(
+  user: User
+): Promise<{ dailyLimit: number; queueLimit: number }> {
   const plan = await getPlanForUser(user);
   let dailyLimit: number | null = plan?.emailSendDailyLimit ?? null;
   let queueLimit: number | null = plan?.emailSendQueueLimit ?? null;
@@ -119,14 +121,18 @@ function buildSmtpOptions(account: any) {
   };
 }
 
-export async function sendOutboundEmailImmediately(record: OutboundEmail, account?: any, user?: User) {
+export async function sendOutboundEmailImmediately(
+  record: OutboundEmail,
+  account?: any,
+  user?: User
+) {
   let fromOption: any = record.fromAddress;
   if (user) {
     const display = (user.displayName || '').toString().trim();
     const first = (user.firstName || '').toString().trim();
     const last = (user.lastName || '').toString().trim();
     const full = `${first} ${last}`.trim();
-    const name = display || (full || undefined);
+    const name = display || full || undefined;
     if (name) fromOption = { name, address: record.fromAddress };
   }
 
@@ -141,14 +147,25 @@ export async function sendOutboundEmailImmediately(record: OutboundEmail, accoun
   if (record.html) sendOptions.html = record.html;
 
   if (account && account.email) {
-    const envelopeTo = [record.toAddress].concat((record.cc || '').split(',').map(s=>s.trim()).filter(Boolean), (record.bcc || '').split(',').map(s=>s.trim()).filter(Boolean));
+    const envelopeTo = [record.toAddress].concat(
+      (record.cc || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean),
+      (record.bcc || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+    );
     sendOptions.envelope = { from: account.email, to: envelopeTo };
     console.info(`[outboundEmail] Using envelope.from=${account.email} for authenticated mailbox`);
   }
 
   const smtp = account ? buildSmtpOptions(account) : undefined;
   if (smtp) {
-    console.info(`[outboundEmail] SMTP config host=${smtp.host} port=${smtp.port} secure=${smtp.secure} passSet=${!!smtp.pass}`);
+    console.info(
+      `[outboundEmail] SMTP config host=${smtp.host} port=${smtp.port} secure=${smtp.secure} passSet=${!!smtp.pass}`
+    );
   } else {
     console.info('[outboundEmail] Using global SMTP transporter');
   }
@@ -157,13 +174,22 @@ export async function sendOutboundEmailImmediately(record: OutboundEmail, accoun
   }
 
   try {
-    const fromDesc = typeof fromOption === 'string' ? fromOption : `${fromOption.name || ''} <${fromOption.address || ''}>`;
-    console.info(`[outboundEmail] Sending user=${user?.id ?? 'n/a'} from=${fromDesc} to=${record.toAddress}`);
+    const fromDesc =
+      typeof fromOption === 'string'
+        ? fromOption
+        : `${fromOption.name || ''} <${fromOption.address || ''}>`;
+    console.info(
+      `[outboundEmail] Sending user=${user?.id ?? 'n/a'} from=${fromDesc} to=${record.toAddress}`
+    );
     const result = await sendMail({ ...sendOptions, smtp, locale: resolveLocale({ user }) });
-    console.info(`[outboundEmail] Sent user=${user?.id ?? 'n/a'} to=${record.toAddress} messageId=${result?.messageId || ''}`);
+    console.info(
+      `[outboundEmail] Sent user=${user?.id ?? 'n/a'} to=${record.toAddress} messageId=${result?.messageId || ''}`
+    );
     return result;
   } catch (err: any) {
-    console.error(`[outboundEmail] Send failed user=${user?.id ?? 'n/a'} to=${record.toAddress} error=${String(err?.message || err)}`);
+    console.error(
+      `[outboundEmail] Send failed user=${user?.id ?? 'n/a'} to=${record.toAddress} error=${String(err?.message || err)}`
+    );
     console.error(err?.stack || err);
     if (account && smtp && isSmtpAuthError(err)) {
       const rotated = await rotateMailboxPasswordForAccount(account).catch(() => null);
@@ -171,12 +197,22 @@ export async function sendOutboundEmailImmediately(record: OutboundEmail, accoun
         account.password = rotated.password;
         const retrySmtp = buildSmtpOptions(account);
         try {
-          console.info(`[outboundEmail] Retrying after password rotation user=${user?.id ?? 'n/a'} to=${record.toAddress}`);
-          const retryResult = await sendMail({ ...sendOptions, smtp: retrySmtp, locale: resolveLocale({ user }) });
-          console.info(`[outboundEmail] Retry success user=${user?.id ?? 'n/a'} to=${record.toAddress} messageId=${retryResult?.messageId || ''}`);
+          console.info(
+            `[outboundEmail] Retrying after password rotation user=${user?.id ?? 'n/a'} to=${record.toAddress}`
+          );
+          const retryResult = await sendMail({
+            ...sendOptions,
+            smtp: retrySmtp,
+            locale: resolveLocale({ user }),
+          });
+          console.info(
+            `[outboundEmail] Retry success user=${user?.id ?? 'n/a'} to=${record.toAddress} messageId=${retryResult?.messageId || ''}`
+          );
           return retryResult;
         } catch (rerr) {
-          console.error(`[outboundEmail] Retry failed user=${user?.id ?? 'n/a'} to=${record.toAddress} error=${String(rerr?.message || rerr)}`);
+          console.error(
+            `[outboundEmail] Retry failed user=${user?.id ?? 'n/a'} to=${record.toAddress} error=${String(rerr?.message || rerr)}`
+          );
           console.error(rerr?.stack || rerr);
           throw rerr;
         }
@@ -234,11 +270,15 @@ export async function processPendingOutboundEmails() {
 }
 
 export function scheduleOutboundEmailRunner() {
-  processPendingOutboundEmails().catch((e) => console.error('[outboundEmailRunner] Initial run failed', e));
+  processPendingOutboundEmails().catch(e =>
+    console.error('[outboundEmailRunner] Initial run failed', e)
+  );
   try {
     const { schedule } = require('../utils/cron');
     schedule('*/1 * * * *', async () => {
-      await processPendingOutboundEmails().catch((e) => console.error('[outboundEmailRunner] Cron run failed', e));
+      await processPendingOutboundEmails().catch(e =>
+        console.error('[outboundEmailRunner] Cron run failed', e)
+      );
     });
   } catch (e) {
     console.error('[outboundEmailRunner] failed to schedule cron', e);

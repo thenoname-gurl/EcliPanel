@@ -3,6 +3,7 @@ import { sendMail } from './mailService';
 import { User } from '../models/user.entity';
 import { DeletionRequest } from '../models/deletionRequest.entity';
 import { resolveLocale } from '../i18n/resolve';
+import { getPanelUrl } from '../utils/url';
 
 /*
  I swear spamhaus hates me,
@@ -11,10 +12,6 @@ import { resolveLocale } from '../i18n/resolve';
 const INACTIVITY_WARNING_DAYS = 365;
 const SUNSET_GRACE_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function getPanelUrl(): string {
-  return (process.env.PANEL_URL || process.env.FRONTEND_URL || 'https://ecli.app').replace(/\/+$/, '');
-}
 
 function getNoticeDeadline(): Date {
   return new Date(Date.now() + SUNSET_GRACE_DAYS * DAY_MS);
@@ -27,7 +24,9 @@ function buildLoginUrl() {
 export async function cancelPendingAutoSunsetDeletionRequest(user: User) {
   if (!AppDataSource.isInitialized) return;
   const repo = AppDataSource.getRepository(DeletionRequest);
-  const request = await repo.findOne({ where: { userId: user.id, status: 'pending_deletion', autoSunset: true } });
+  const request = await repo.findOne({
+    where: { userId: user.id, status: 'pending_deletion', autoSunset: true },
+  });
   if (!request) return;
 
   request.status = 'cancelled';
@@ -45,7 +44,8 @@ export async function processSunsetPolicy() {
   const reqRepo = AppDataSource.getRepository(DeletionRequest);
   const cutoff = new Date(Date.now() - INACTIVITY_WARNING_DAYS * DAY_MS);
 
-  const users = await userRepo.createQueryBuilder('user')
+  const users = await userRepo
+    .createQueryBuilder('user')
     .where('user.emailVerified = :verified', { verified: true })
     .andWhere('user.deletedAt IS NULL')
     .andWhere('user.suspended = false')
@@ -60,7 +60,9 @@ export async function processSunsetPolicy() {
   for (const user of users) {
     if (!user.email) continue;
 
-    const existing = await reqRepo.findOne({ where: { userId: user.id, status: 'pending_deletion', autoSunset: true } });
+    const existing = await reqRepo.findOne({
+      where: { userId: user.id, status: 'pending_deletion', autoSunset: true },
+    });
     if (existing) continue;
 
     const loginUrl = buildLoginUrl();
@@ -84,7 +86,11 @@ export async function processSunsetPolicy() {
         locale: resolveLocale({ user }),
       });
     } catch (err: any) {
-      console.warn('[sunsetPolicy] failed to send inactivity notice to', user.email, err?.message || err);
+      console.warn(
+        '[sunsetPolicy] failed to send inactivity notice to',
+        user.email,
+        err?.message || err
+      );
       continue;
     }
 

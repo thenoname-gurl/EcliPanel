@@ -9,6 +9,7 @@ import { WingsApiService } from './wingsApiService';
 import { sendMail } from './mailService';
 import { createActivityLog } from '../handlers/logHandler';
 import { resolveLocale } from '../i18n/resolve';
+import { getPanelUrl } from '../utils/url';
 
 const FIRST_NOTICE_HOURS = 24;
 const REPEAT_NOTICE_DAYS = 7;
@@ -32,7 +33,9 @@ const ONLINE_STATES = new Set([
 ]);
 
 function normalizeStatus(value: any): string {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
 async function getServerStatusMap(svc: WingsApiService): Promise<Map<string, string>> {
@@ -42,7 +45,8 @@ async function getServerStatusMap(svc: WingsApiService): Promise<Map<string, str
   for (const server of data) {
     const id = server?.configuration?.uuid || server?.uuid || server?.id;
     if (!id) continue;
-    const rawStatus = server?.state ?? server?.status ?? server?.server_state ?? server?.runtime?.state ?? '';
+    const rawStatus =
+      server?.state ?? server?.status ?? server?.server_state ?? server?.runtime?.state ?? '';
     map.set(String(id), normalizeStatus(rawStatus));
   }
   return map;
@@ -54,7 +58,7 @@ async function getOnlineStatusByServer(): Promise<Map<string, { nodeId: number; 
   if (!nodes.length) return new Map();
 
   const statusResults = await Promise.allSettled(
-    nodes.map(async (node) => {
+    nodes.map(async node => {
       const svc = await nodeService.getServiceForNode(node.id);
       const statusMap = await getServerStatusMap(svc);
       return { nodeId: node.id, statusMap };
@@ -73,24 +77,23 @@ async function getOnlineStatusByServer(): Promise<Map<string, { nodeId: number; 
   return onlineStatusByServer;
 }
 
-function getPanelUrl(): string {
-  return (process.env.PANEL_URL || process.env.FRONTEND_URL || 'https://ecli.app').replace(/\/+$/, '');
-}
-
 function buildLoginUrl(): string {
   return `${getPanelUrl()}/login`;
 }
 
 function buildNoticeEmail(params: { servers: ServerConfig[]; isFirstNotice: boolean }) {
-  const serverLines = params.servers.map((server) => {
-    const name = server.name || server.uuid;
-    return `- ${name} (${server.uuid})`;
-  }).join('\n');
+  const serverLines = params.servers
+    .map(server => {
+      const name = server.name || server.uuid;
+      return `- ${name} (${server.uuid})`;
+    })
+    .join('\n');
 
   if (params.isFirstNotice) {
     return {
       subject: 'Confirm your server usage',
-      message: 'Hey, you are new to EcliPanel. Do you want to keep your server running? Please visit the dashboard within 24 hours to confirm.',
+      message:
+        'Hey, you are new to EcliPanel. Do you want to keep your server running? Please visit the dashboard within 24 hours to confirm.',
       details: `Servers at risk:\n${serverLines}\n\nIf we do not see any account activity within 24 hours, these servers will be powered off.`,
       actionText: 'Open dashboard',
     };
@@ -98,17 +101,20 @@ function buildNoticeEmail(params: { servers: ServerConfig[]; isFirstNotice: bool
 
   return {
     subject: 'Keep your server online',
-    message: 'Your server has been online for around 7 days. Please visit the dashboard within 24 hours to confirm you are still using it.',
+    message:
+      'Your server has been online for around 7 days. Please visit the dashboard within 24 hours to confirm you are still using it.',
     details: `Servers at risk:\n${serverLines}\n\nIf we do not see any account activity within 24 hours, these servers will be powered off. This reminder repeats every 7 days while servers stay online.`,
     actionText: 'Confirm usage',
   };
 }
 
 function buildAdminNoticeEmail(params: { servers: ServerConfig[]; graceHours: number }) {
-  const serverLines = params.servers.map((server) => {
-    const name = server.name || server.uuid;
-    return `- ${name} (${server.uuid})`;
-  }).join('\n');
+  const serverLines = params.servers
+    .map(server => {
+      const name = server.name || server.uuid;
+      return `- ${name} (${server.uuid})`;
+    })
+    .join('\n');
 
   const graceHours = Math.max(1, Math.floor(params.graceHours));
 
@@ -121,7 +127,7 @@ function buildAdminNoticeEmail(params: { servers: ServerConfig[]; graceHours: nu
 }
 
 function getUserGraceHours(user: User): number {
-  const settings = (user.settings && typeof user.settings === 'object') ? user.settings : {};
+  const settings = user.settings && typeof user.settings === 'object' ? user.settings : {};
   const raw = (settings as any).serverSunsetGraceHours;
   const hours = Number(raw);
   if (Number.isFinite(hours) && hours > 0) return Math.floor(hours);
@@ -129,7 +135,7 @@ function getUserGraceHours(user: User): number {
 }
 
 function setUserGraceHours(user: User, hours: number | null, requestedBy?: number) {
-  const base = (user.settings && typeof user.settings === 'object') ? { ...user.settings } : {};
+  const base = user.settings && typeof user.settings === 'object' ? { ...user.settings } : {};
   if (hours && Number.isFinite(hours) && hours > 0) {
     (base as any).serverSunsetGraceHours = Math.floor(hours);
     if (requestedBy) (base as any).serverSunsetRequestedBy = requestedBy;
@@ -170,7 +176,9 @@ export async function requestServerSunsetNoticeForUser(params: {
   if (!onlineServerIds.length) return { sent: false, reason: 'no_online_servers' };
 
   const servers = await serverRepo.find({ where: { uuid: In(onlineServerIds), userId: user.id } });
-  const eligibleServers = servers.filter((server) => !server.suspended && !server.dmca && !server.hibernated);
+  const eligibleServers = servers.filter(
+    server => !server.suspended && !server.dmca && !server.hibernated
+  );
   if (!eligibleServers.length) return { sent: false, reason: 'no_eligible_servers' };
 
   const graceHours = Number.isFinite(Number(params.graceHours))
@@ -195,7 +203,11 @@ export async function requestServerSunsetNoticeForUser(params: {
       locale: resolveLocale({ user }),
     });
   } catch (err: any) {
-    console.warn('[serverSunsetPolicy] failed to send admin notice to', user.email, err?.message || err);
+    console.warn(
+      '[serverSunsetPolicy] failed to send admin notice to',
+      user.email,
+      err?.message || err
+    );
     return { sent: false, reason: 'send_failed' };
   }
 
@@ -208,7 +220,7 @@ export async function requestServerSunsetNoticeForUser(params: {
     await redisDelByPrefix(`auth:session:user:${user.id}:`);
   } catch {}
 
-  const serverNames = eligibleServers.map((s) => s.name || s.uuid).join(', ');
+  const serverNames = eligibleServers.map(s => s.name || s.uuid).join(', ');
   const notificationRepo = AppDataSource.getRepository(Notification);
   const notification = notificationRepo.create({
     userId: user.id,
@@ -235,7 +247,9 @@ export async function processServerSunsetPolicy() {
   if (!onlineServerIds.length) return;
 
   const servers = await serverRepo.find({ where: { uuid: In(onlineServerIds) } });
-  const eligibleServers = servers.filter((server) => !server.suspended && !server.dmca && !server.hibernated);
+  const eligibleServers = servers.filter(
+    server => !server.suspended && !server.dmca && !server.hibernated
+  );
   if (!eligibleServers.length) return;
 
   const serversByUser = new Map<number, ServerConfig[]>();
@@ -249,7 +263,7 @@ export async function processServerSunsetPolicy() {
   if (!userIds.length) return;
 
   const users = await userRepo.findBy({ id: In(userIds) });
-  const userMap = new Map<number, User>(users.map((user) => [user.id, user]));
+  const userMap = new Map<number, User>(users.map(user => [user.id, user]));
 
   const now = new Date();
 
@@ -263,13 +277,15 @@ export async function processServerSunsetPolicy() {
 
     const lastActivity = user.lastPanelActivityAt || user.lastLoginAt || user.createdAt;
     const hasActivity = Boolean(user.lastPanelActivityAt || user.lastLoginAt);
-    const thresholdMs = (hasActivity ? REPEAT_NOTICE_DAYS * DAY_MS : FIRST_NOTICE_HOURS * HOUR_MS);
+    const thresholdMs = hasActivity ? REPEAT_NOTICE_DAYS * DAY_MS : FIRST_NOTICE_HOURS * HOUR_MS;
 
-    if (!lastActivity || (now.getTime() - new Date(lastActivity).getTime() < thresholdMs)) {
+    if (!lastActivity || now.getTime() - new Date(lastActivity).getTime() < thresholdMs) {
       continue;
     }
 
-    const noticeSentAt = user.serverSunsetNoticeSentAt ? new Date(user.serverSunsetNoticeSentAt) : null;
+    const noticeSentAt = user.serverSunsetNoticeSentAt
+      ? new Date(user.serverSunsetNoticeSentAt)
+      : null;
     if (!noticeSentAt || new Date(lastActivity).getTime() > noticeSentAt.getTime()) {
       if (!user.email) continue;
 
@@ -294,7 +310,11 @@ export async function processServerSunsetPolicy() {
           locale: resolveLocale({ user }),
         });
       } catch (err: any) {
-        console.warn('[serverSunsetPolicy] failed to send notice to', user.email, err?.message || err);
+        console.warn(
+          '[serverSunsetPolicy] failed to send notice to',
+          user.email,
+          err?.message || err
+        );
         continue;
       }
 
@@ -310,7 +330,11 @@ export async function processServerSunsetPolicy() {
     const graceHours = getUserGraceHours(user);
     const graceMs = graceHours * HOUR_MS;
 
-    if (noticeSentAt && now.getTime() - noticeSentAt.getTime() >= graceMs && new Date(lastActivity).getTime() <= noticeSentAt.getTime()) {
+    if (
+      noticeSentAt &&
+      now.getTime() - noticeSentAt.getTime() >= graceMs &&
+      new Date(lastActivity).getTime() <= noticeSentAt.getTime()
+    ) {
       for (const server of userServers) {
         const onlineInfo = onlineStatusByServer.get(server.uuid);
         if (!onlineInfo) continue;
@@ -334,7 +358,11 @@ export async function processServerSunsetPolicy() {
             notify: false,
           });
         } catch (err: any) {
-          console.warn('[serverSunsetPolicy] failed to kill server', server.uuid, err?.message || err);
+          console.warn(
+            '[serverSunsetPolicy] failed to kill server',
+            server.uuid,
+            err?.message || err
+          );
         }
       }
     }

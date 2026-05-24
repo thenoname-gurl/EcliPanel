@@ -1,7 +1,17 @@
 import { WingsApiService } from '../services/wingsApiService';
 import { extractStats } from '../services/metricsCollector';
 import { nodeService } from '../services/nodeService';
-import { listSftpFiles, readSftpFile, writeSftpFile, deleteSftpFiles, mkdirSftp, renameSftp, moveSftpFiles, chmodSftp, validateSftpCredentials } from '../services/sftpClientService';
+import {
+  listSftpFiles,
+  readSftpFile,
+  writeSftpFile,
+  deleteSftpFiles,
+  mkdirSftp,
+  renameSftp,
+  moveSftpFiles,
+  chmodSftp,
+  validateSftpCredentials,
+} from '../services/sftpClientService';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
@@ -9,7 +19,12 @@ import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
 import { Node } from '../models/node.entity';
 import { Egg } from '../models/egg.entity';
-import { saveServerConfig, removeServerConfig, signWingsJwt, mergeDuplicateServerConfigs } from './remoteHandler';
+import {
+  saveServerConfig,
+  removeServerConfig,
+  signWingsJwt,
+  mergeDuplicateServerConfigs,
+} from './remoteHandler';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
@@ -23,10 +38,24 @@ import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { getGeoBlockLevel } from '../utils/eu';
-import { notifyServerOwnerDmca, notifyServerOwnerSuspended, notifyServerOwnerUnsuspended } from '../utils/suspensionNotice';
-import { isValidIpv6, isIpv6InSubnet, getNextFreeIpv6Address, parseIpv6, formatIpv6, parseIpv6Cidr } from '../utils/ipv6';
+import {
+  notifyServerOwnerDmca,
+  notifyServerOwnerSuspended,
+  notifyServerOwnerUnsuspended,
+} from '../utils/suspensionNotice';
+import {
+  isValidIpv6,
+  isIpv6InSubnet,
+  getNextFreeIpv6Address,
+  parseIpv6,
+  formatIpv6,
+  parseIpv6Cidr,
+} from '../utils/ipv6';
 import { t } from 'elysia';
-import { DEFAULT_STARTUP_DETECTION_PATTERN, normalizeStartupDonePatterns } from '../utils/startupDetection';
+import {
+  DEFAULT_STARTUP_DETECTION_PATTERN,
+  normalizeStartupDonePatterns,
+} from '../utils/startupDetection';
 import { sanitizeError } from '../utils/sanitizeError';
 
 export async function serverRoutes(app: any, prefix = '') {
@@ -34,7 +63,8 @@ export async function serverRoutes(app: any, prefix = '') {
   const logRepo = () => AppDataSource.getRepository(UserLog);
   const userRepo = () => AppDataSource.getRepository(User);
   const nodeRepo = () => AppDataSource.getRepository(Node);
-  const orgMemberRepo = () => AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+  const orgMemberRepo = () =>
+    AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const eggRepo = () => AppDataSource.getRepository(Egg);
   const cfgRepo = () => AppDataSource.getRepository(ServerConfig);
   const applicationFormRepo = () => AppDataSource.getRepository(ApplicationForm);
@@ -103,7 +133,9 @@ export async function serverRoutes(app: any, prefix = '') {
   ];
 
   function isGamblingModeEnabled(user: any): boolean {
-    const themeName = String(user?.settings?.theme?.name || '').trim().toLowerCase();
+    const themeName = String(user?.settings?.theme?.name || '')
+      .trim()
+      .toLowerCase();
     return GAMBLING_THEME_NAMES.has(themeName);
   }
 
@@ -119,8 +151,8 @@ export async function serverRoutes(app: any, prefix = '') {
   function normalizeBadgeList(raw: any): string[] {
     if (!Array.isArray(raw)) return [];
     return raw
-      .map((v) => String(v || '').trim())
-      .filter((v) => v.length > 0)
+      .map(v => String(v || '').trim())
+      .filter(v => v.length > 0)
       .slice(0, 128);
   }
 
@@ -170,7 +202,10 @@ export async function serverRoutes(app: any, prefix = '') {
   }
 
   function mergeBadges(existing: any, earned: string[]): string[] {
-    const merged = new Set<string>([...normalizeBadgeList(existing), ...normalizeBadgeList(earned)]);
+    const merged = new Set<string>([
+      ...normalizeBadgeList(existing),
+      ...normalizeBadgeList(earned),
+    ]);
     return Array.from(merged);
   }
 
@@ -207,11 +242,9 @@ export async function serverRoutes(app: any, prefix = '') {
       if (
         sub &&
         Array.isArray(sub.permissions) &&
-        (
-          sub.permissions.includes('*') ||
+        (sub.permissions.includes('*') ||
           sub.permissions.includes('files') ||
-          sub.permissions.includes('console')
-        )
+          sub.permissions.includes('console'))
       ) {
         isSubuser = true;
       }
@@ -225,16 +258,12 @@ export async function serverRoutes(app: any, prefix = '') {
     if (cfg.suspended || cfg.dmca) {
       ctx.set.status = 403;
       return {
-        error: cfg.dmca
-          ? 'Server placed under DMCA takedown'
-          : 'Server suspended',
+        error: cfg.dmca ? 'Server placed under DMCA takedown' : 'Server suspended',
       };
     }
 
     const password = String(
-      ctx.request?.headers?.get('x-sftp-password') ||
-      (ctx.body?.password ?? '') ||
-      ''
+      ctx.request?.headers?.get('x-sftp-password') || (ctx.body?.password ?? '') || ''
     ).trim();
 
     if (!password) {
@@ -272,8 +301,14 @@ export async function serverRoutes(app: any, prefix = '') {
     for (const row of rows) map[row.key] = row.value;
 
     const enabled = !(map['gamblingEnabled'] === 'false' || map['gamblingEnabled'] === '0');
-    const resourceLuckyChance = clampChance(Number(map['gamblingResourceLuckyChance']), GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE);
-    const powerDenyChance = clampChance(Number(map['gamblingPowerDenyChance']), GAMBLING_DEFAULT_POWER_DENY_CHANCE);
+    const resourceLuckyChance = clampChance(
+      Number(map['gamblingResourceLuckyChance']),
+      GAMBLING_DEFAULT_RESOURCE_LUCKY_CHANCE
+    );
+    const powerDenyChance = clampChance(
+      Number(map['gamblingPowerDenyChance']),
+      GAMBLING_DEFAULT_POWER_DENY_CHANCE
+    );
 
     return {
       enabled,
@@ -292,12 +327,17 @@ export async function serverRoutes(app: any, prefix = '') {
   function buildSuspendedServerMessage(cfg: ServerConfig): string {
     if (cfg.dmca) {
       const actor = String(cfg.dmcaBy || cfg.suspendedBy || 'system').trim() || 'system';
-      const reason = String(cfg.dmcaReason || cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
-      const deletionAt = cfg.dmcaDeletionAt ? ` It is scheduled for deletion on ${cfg.dmcaDeletionAt.toISOString()}.` : ' It is scheduled for deletion in 30 days.';
+      const reason =
+        String(cfg.dmcaReason || cfg.suspendedReason || 'No reason provided').trim() ||
+        'No reason provided';
+      const deletionAt = cfg.dmcaDeletionAt
+        ? ` It is scheduled for deletion on ${cfg.dmcaDeletionAt.toISOString()}.`
+        : ' It is scheduled for deletion in 30 days.';
       return `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}.${deletionAt} You may submit a counter-notice with support.`;
     }
     const actor = String(cfg.suspendedBy || 'system').trim() || 'system';
-    const reason = String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+    const reason =
+      String(cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
     return `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`;
   }
 
@@ -310,7 +350,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   function resolveBlackjackScore(cards: number[]): { score: number; softAces: number } {
     let score = cards.reduce((sum, value) => sum + value, 0);
-    let softAces = cards.filter((value) => value === 11).length;
+    let softAces = cards.filter(value => value === 11).length;
 
     while (score > 21 && softAces > 0) {
       score -= 10;
@@ -360,7 +400,10 @@ export async function serverRoutes(app: any, prefix = '') {
   }
 
   function pickRandomFailureLine(): string {
-    return POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] || '🎲 Nuh uh.';
+    return (
+      POWER_DICE_FAILURE_LINES[randomIntInclusive(0, POWER_DICE_FAILURE_LINES.length - 1)] ||
+      '🎲 Nuh uh.'
+    );
   }
 
   function normalizeGamblingStats(raw: any) {
@@ -379,7 +422,11 @@ export async function serverRoutes(app: any, prefix = '') {
     };
   }
 
-  function applyGambleOutcome(raw: any, didWin: boolean, meta?: { luckyHit?: boolean; bonusActivated?: boolean }) {
+  function applyGambleOutcome(
+    raw: any,
+    didWin: boolean,
+    meta?: { luckyHit?: boolean; bonusActivated?: boolean }
+  ) {
     const stats = normalizeGamblingStats(raw);
 
     stats.gambleCount += 1;
@@ -389,12 +436,14 @@ export async function serverRoutes(app: any, prefix = '') {
       stats.wins += 1;
       stats.currentWinStreak += 1;
       stats.currentLossStreak = 0;
-      if (stats.currentWinStreak > stats.bestWinStreak) stats.bestWinStreak = stats.currentWinStreak;
+      if (stats.currentWinStreak > stats.bestWinStreak)
+        stats.bestWinStreak = stats.currentWinStreak;
     } else {
       stats.losses += 1;
       stats.currentLossStreak += 1;
       stats.currentWinStreak = 0;
-      if (stats.currentLossStreak > stats.bestLossStreak) stats.bestLossStreak = stats.currentLossStreak;
+      if (stats.currentLossStreak > stats.bestLossStreak)
+        stats.bestLossStreak = stats.currentLossStreak;
     }
 
     if (meta?.luckyHit) stats.luckyHits += 1;
@@ -415,7 +464,8 @@ export async function serverRoutes(app: any, prefix = '') {
     if (normalized.bestWinStreak >= 5) badges.push('Hot Hand');
     if (normalized.currentLossStreak >= 3) badges.push('Oops All Losses');
     if (normalized.bestLossStreak >= 5) badges.push('Pain Collector');
-    if (normalized.wins >= 5 && normalized.losses >= 5 && normalized.wins === normalized.losses) badges.push('Mr. 50/50');
+    if (normalized.wins >= 5 && normalized.losses >= 5 && normalized.wins === normalized.losses)
+      badges.push('Mr. 50/50');
     if (normalized.luckyHits >= 3) badges.push('Lucky Spark');
     if (normalized.luckyHits >= 15) badges.push('Fortune Engine');
     if (normalized.bonusActivations >= 1) badges.push('Boosted by Fate');
@@ -427,12 +477,12 @@ export async function serverRoutes(app: any, prefix = '') {
     if (!owner) return;
     if (!isGamblingModeEnabled(owner)) return;
 
-    const currentSettings = owner.settings && typeof owner.settings === 'object'
-      ? { ...owner.settings }
-      : {};
-    const gamblingSettings = currentSettings.gambling && typeof currentSettings.gambling === 'object'
-      ? { ...currentSettings.gambling }
-      : {};
+    const currentSettings =
+      owner.settings && typeof owner.settings === 'object' ? { ...owner.settings } : {};
+    const gamblingSettings =
+      currentSettings.gambling && typeof currentSettings.gambling === 'object'
+        ? { ...currentSettings.gambling }
+        : {};
 
     const nextStats = applyGambleOutcome(gamblingSettings.stats, didWin);
     const earnedBadges = buildGamblingBadges(nextStats);
@@ -448,21 +498,29 @@ export async function serverRoutes(app: any, prefix = '') {
     return nodeSvc.getServiceForServer(serverId);
   }
 
-  async function pickNode(ctx: any, user: any, preferredNodeId?: number, assignedNodeId?: number): Promise<Node> {
+  async function pickNode(
+    ctx: any,
+    user: any,
+    preferredNodeId?: number,
+    assignedNodeId?: number
+  ): Promise<Node> {
     const isAdmin = hasPermissionSync(ctx, 'admin:access');
     const effectivePortalType = user.portalType;
-    const portalType = effectivePortalType === 'educational' ? 'paid' : (effectivePortalType || 'free');
+    const portalType =
+      effectivePortalType === 'educational' ? 'paid' : effectivePortalType || 'free';
     const unhealthyNodeIds = await getUnhealthyNodeIds();
 
     // Enterprise users with assigned nodes must use their assigned node
     // LIKE SERIOUSLY DONT TOUCH POOR USERS ASSIGNED NODES
-    // ITS A NIGHTMARE TO SUPPORT OTHERWISE AND THEY PROBABLY 
+    // ITS A NIGHTMARE TO SUPPORT OTHERWISE AND THEY PROBABLY
     // PAID ONLY FOR THE ASSIGNED NODE FEATURE ANYWAY
     if (portalType === 'enterprise' && assignedNodeId) {
       const n = await nodeRepo().findOneBy({ id: assignedNodeId });
       if (!n) throw new Error('Assigned enterprise node not found');
       if ((n as any).deploymentsDisabled) {
-        throw new Error((n as any).deploymentNotice || 'This node is temporarily unavailable for deployments');
+        throw new Error(
+          (n as any).deploymentNotice || 'This node is temporarily unavailable for deployments'
+        );
       }
       if (unhealthyNodeIds.includes(n.id)) {
         throw new Error('Assigned node is currently unavailable');
@@ -471,18 +529,24 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     if (preferredNodeId) {
-      const n = await nodeRepo().findOne({ where: { id: preferredNodeId }, relations: {"organisation":true} });
+      const n = await nodeRepo().findOne({
+        where: { id: preferredNodeId },
+        relations: { organisation: true },
+      });
       if (!n) throw new Error('Specified node not found');
 
       if (!isAdmin) {
         if (portalType === 'enterprise') {
           const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
-          const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+          const orgIds = memberships
+            .map((m: any) => Number(m.organisationId))
+            .filter((v: number) => Number.isFinite(v));
           if (!n.organisation?.id || !orgIds.includes(Number(n.organisation.id))) {
             throw new Error('Node not available for your organisation');
           }
         } else {
-          const allowedTypes = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
+          const allowedTypes =
+            portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
           if (!allowedTypes.includes(n.nodeType || '')) {
             throw new Error('Node not available for your portal tier');
           }
@@ -490,7 +554,9 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       if ((n as any).deploymentsDisabled) {
-        throw new Error((n as any).deploymentNotice || 'This node is temporarily unavailable for deployments');
+        throw new Error(
+          (n as any).deploymentNotice || 'This node is temporarily unavailable for deployments'
+        );
       }
 
       if (unhealthyNodeIds.includes(n.id)) {
@@ -502,13 +568,15 @@ export async function serverRoutes(app: any, prefix = '') {
     let types: string[];
     if (portalType === 'enterprise') {
       const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
-      const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+      const orgIds = memberships
+        .map((m: any) => Number(m.organisationId))
+        .filter((v: number) => Number.isFinite(v));
       if (orgIds.length > 0) {
         const where: any = { organisation: { id: In(orgIds) } };
         if (unhealthyNodeIds.length) {
           where.id = Not(In(unhealthyNodeIds));
         }
-        const orgNode = await nodeRepo().findOne({ where }) as Node | null;
+        const orgNode = (await nodeRepo().findOne({ where })) as Node | null;
         if (orgNode) return orgNode;
       }
       types = ['enterprise', 'free_and_paid', 'paid', 'free'];
@@ -529,122 +597,84 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const fallback = unhealthyNodeIds.length
-      ? await nodeRepo().findOne({ where: { id: Not(In(unhealthyNodeIds)), deploymentsDisabled: false } })
+      ? await nodeRepo().findOne({
+          where: { id: Not(In(unhealthyNodeIds)), deploymentsDisabled: false },
+        })
       : await nodeRepo().findOneBy({ deploymentsDisabled: false });
     if (!fallback) throw new Error('No nodes available');
     return fallback;
   }
 
-  app.get(prefix + '/servers', async (ctx: any) => {
-    try { await mergeDuplicateServerConfigs(); } catch (e) { /* skip */ }
-    const nodes = await nodeRepo().find();
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'servers:list');
-
-    const configs = isAdmin
-      ? await cfgRepo.find()
-      : await (async () => {
-        const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({ where: { userId: user.id } });
-        const subuserUuids = subuserEntries.map(s => s.serverUuid);
-        const where: any[] = [{ userId: user.id }];
-        if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
-        const found = await cfgRepo.find({ where });
-        return found;
-      })();
-
-    const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
-    let all: any[] = [];
-
-    if (isAdmin) {
-      const unhealthyNodeIds = await getUnhealthyNodeIds();
-      const nodeResults = await Promise.allSettled(nodes.map(async (n) => {
-        if (unhealthyNodeIds.includes(n.id)) return null;
-        try {
-          const base = (n as any).backendWingsUrl || n.url;
-          const svc = new WingsApiService(base, n.token);
-          const res = await svc.getServers();
-          return { node: n, servers: res.data || [] };
-        } catch {
-          return null;
-        }
-      }));
-
-      for (const nodeResult of nodeResults) {
-        if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
-        const { node, servers } = nodeResult.value;
-        for (const s of servers) {
-          const uuid: string = s.configuration?.uuid || s.uuid;
-          const cfg = cfgMap.get(uuid);
-          const norm = applyStartupStatusOverride(
-            normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg),
-            cfg,
-          );
-          all.push({
-            ...norm,
-            name: cfg?.name || norm.name,
-            nodeId: node.id,
-            nodeName: node.name,
-            userId: cfg?.userId,
-          });
-        }
+  app.get(
+    prefix + '/servers',
+    async (ctx: any) => {
+      try {
+        await mergeDuplicateServerConfigs();
+      } catch (e) {
+        /* skip */
       }
+      const nodes = await nodeRepo().find();
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
 
-      for (const c of configs) {
-        if (!all.some((s: any) => s.uuid === c.uuid)) {
-          all.push({
-            uuid: c.uuid,
-            name: c.name || c.uuid,
-            status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
-            hibernated: !!c.hibernated,
-            is_suspended: c.suspended || c.dmca,
-            is_dmca: !!c.dmca,
-            resources: null,
-            build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-            container: { image: c.dockerImage },
-            nodeId: c.nodeId,
-            userId: c.userId,
-          });
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'servers:list');
+
+      const configs = isAdmin
+        ? await cfgRepo.find()
+        : await (async () => {
+            const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
+              where: { userId: user.id },
+            });
+            const subuserUuids = subuserEntries.map(s => s.serverUuid);
+            const where: any[] = [{ userId: user.id }];
+            if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
+            const found = await cfgRepo.find({ where });
+            return found;
+          })();
+
+      const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
+      const all: any[] = [];
+
+      if (isAdmin) {
+        const unhealthyNodeIds = await getUnhealthyNodeIds();
+        const nodeResults = await Promise.allSettled(
+          nodes.map(async n => {
+            if (unhealthyNodeIds.includes(n.id)) return null;
+            try {
+              const base = (n as any).backendWingsUrl || n.url;
+              const svc = new WingsApiService(base, n.token);
+              const res = await svc.getServers();
+              return { node: n, servers: res.data || [] };
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        for (const nodeResult of nodeResults) {
+          if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
+          const { node, servers } = nodeResult.value;
+          for (const s of servers) {
+            const uuid: string = s.configuration?.uuid || s.uuid;
+            const cfg = cfgMap.get(uuid);
+            const norm = applyStartupStatusOverride(
+              normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg),
+              cfg
+            );
+            all.push({
+              ...norm,
+              name: cfg?.name || norm.name,
+              nodeId: node.id,
+              nodeName: node.name,
+              userId: cfg?.userId,
+            });
+          }
         }
-      }
-    } else {
-      const allowedUuids = new Set(configs.map((c: any) => c.uuid));
 
-      const nodeMap = new Map(nodes.map(n => [n.id, n]));
-      const unhealthyNodeIds = await getUnhealthyNodeIds();
-
-      const configsByNode = new Map<number, any[]>();
-      for (const c of configs) {
-        if (!allowedUuids.has(c.uuid)) continue;
-        const node = nodeMap.get(c.nodeId);
-        if (!node) {
-          all.push({
-            uuid: c.uuid,
-            name: c.name || c.uuid,
-            status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
-            hibernated: !!c.hibernated,
-            is_suspended: c.suspended || c.dmca,
-            is_dmca: !!c.dmca,
-            resources: null,
-            build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-            container: { image: c.dockerImage },
-            nodeId: c.nodeId,
-          });
-          continue;
-        }
-
-        const list = configsByNode.get(node.id) ?? [];
-        list.push(c);
-        configsByNode.set(node.id, list);
-      }
-
-      const nodePromises: Promise<void>[] = [];
-      for (const [nodeId, cfgList] of configsByNode.entries()) {
-        const node = nodeMap.get(nodeId);
-        if (!node) continue;
-        if (unhealthyNodeIds.includes(nodeId)) {
-          for (const c of cfgList) {
+        for (const c of configs) {
+          if (!all.some((s: any) => s.uuid === c.uuid)) {
             all.push({
               uuid: c.uuid,
               name: c.name || c.uuid,
@@ -656,79 +686,151 @@ export async function serverRoutes(app: any, prefix = '') {
               build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
               container: { image: c.dockerImage },
               nodeId: c.nodeId,
-              nodeName: node.name,
               userId: c.userId,
             });
           }
-          continue;
         }
+      } else {
+        const allowedUuids = new Set(configs.map((c: any) => c.uuid));
 
-        nodePromises.push((async () => {
-          const base = (node as any).backendWingsUrl || node.url;
-          const svc = new WingsApiService(base, node.token);
-          const promises = cfgList.map(async (c) => {
-            try {
-              const res = await svc.getServer(c.uuid);
-              const s = res.data;
-              const norm = applyStartupStatusOverride(
-                normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c),
-                c,
-              );
-              all.push({ ...norm, name: c.name || norm.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
-              return;
-            } catch {
-              // try sync + retry
-            }
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const unhealthyNodeIds = await getUnhealthyNodeIds();
 
-            try {
-              await svc.syncServer(c.uuid, {});
-              const retry = await svc.getServer(c.uuid);
-              const s2 = retry.data;
-              const norm2 = applyStartupStatusOverride(
-                normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c),
-                c,
-              );
-              all.push({ ...norm2, name: c.name || norm2.name, nodeId: node.id, nodeName: node.name, userId: c.userId });
-              return;
-            } catch {
-              // skip
-            }
-
+        const configsByNode = new Map<number, any[]>();
+        for (const c of configs) {
+          if (!allowedUuids.has(c.uuid)) continue;
+          const node = nodeMap.get(c.nodeId);
+          if (!node) {
             all.push({
               uuid: c.uuid,
               name: c.name || c.uuid,
-              status: c.hibernated ? 'hibernated' : 'unknown',
+              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
               hibernated: !!c.hibernated,
-              is_suspended: c.suspended,
+              is_suspended: c.suspended || c.dmca,
+              is_dmca: !!c.dmca,
               resources: null,
               build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
               container: { image: c.dockerImage },
               nodeId: c.nodeId,
-              userId: c.userId,
             });
-          });
-          await Promise.allSettled(promises);
-        })());
+            continue;
+          }
+
+          const list = configsByNode.get(node.id) ?? [];
+          list.push(c);
+          configsByNode.set(node.id, list);
+        }
+
+        const nodePromises: Promise<void>[] = [];
+        for (const [nodeId, cfgList] of configsByNode.entries()) {
+          const node = nodeMap.get(nodeId);
+          if (!node) continue;
+          if (unhealthyNodeIds.includes(nodeId)) {
+            for (const c of cfgList) {
+              all.push({
+                uuid: c.uuid,
+                name: c.name || c.uuid,
+                status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
+                hibernated: !!c.hibernated,
+                is_suspended: c.suspended || c.dmca,
+                is_dmca: !!c.dmca,
+                resources: null,
+                build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                container: { image: c.dockerImage },
+                nodeId: c.nodeId,
+                nodeName: node.name,
+                userId: c.userId,
+              });
+            }
+            continue;
+          }
+
+          nodePromises.push(
+            (async () => {
+              const base = (node as any).backendWingsUrl || node.url;
+              const svc = new WingsApiService(base, node.token);
+              const promises = cfgList.map(async c => {
+                try {
+                  const res = await svc.getServer(c.uuid);
+                  const s = res.data;
+                  const norm = applyStartupStatusOverride(
+                    normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c),
+                    c
+                  );
+                  all.push({
+                    ...norm,
+                    name: c.name || norm.name,
+                    nodeId: node.id,
+                    nodeName: node.name,
+                    userId: c.userId,
+                  });
+                  return;
+                } catch {
+                  // try sync + retry
+                }
+
+                try {
+                  await svc.syncServer(c.uuid, {});
+                  const retry = await svc.getServer(c.uuid);
+                  const s2 = retry.data;
+                  const norm2 = applyStartupStatusOverride(
+                    normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c),
+                    c
+                  );
+                  all.push({
+                    ...norm2,
+                    name: c.name || norm2.name,
+                    nodeId: node.id,
+                    nodeName: node.name,
+                    userId: c.userId,
+                  });
+                  return;
+                } catch {
+                  // skip
+                }
+
+                all.push({
+                  uuid: c.uuid,
+                  name: c.name || c.uuid,
+                  status: c.hibernated ? 'hibernated' : 'unknown',
+                  hibernated: !!c.hibernated,
+                  is_suspended: c.suspended,
+                  resources: null,
+                  build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                  container: { image: c.dockerImage },
+                  nodeId: c.nodeId,
+                  userId: c.userId,
+                });
+              });
+              await Promise.allSettled(promises);
+            })()
+          );
+        }
+
+        await Promise.allSettled(nodePromises);
       }
 
-      await Promise.allSettled(nodePromises);
+      const seen = new Set<string>();
+      const unique = all.filter((s: any) => {
+        const uuid = String(s?.uuid || s?.id || '');
+        if (!uuid) return false;
+        if (seen.has(uuid)) return false;
+        seen.add(uuid);
+        return true;
+      });
+
+      return unique;
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List all servers', tags: ['Servers'] },
     }
-
-    const seen = new Set<string>();
-    const unique = all.filter((s: any) => {
-      const uuid = String(s?.uuid || s?.id || '');
-      if (!uuid) return false;
-      if (seen.has(uuid)) return false;
-      seen.add(uuid);
-      return true;
-    });
-
-    return unique;
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'List all servers', tags: ['Servers'] }
-  });
+  );
 
   function normalizeServer(raw: any, overrideStatus?: string, persistedCfg?: any): any {
     if (!raw) return raw;
@@ -736,7 +838,9 @@ export async function serverRoutes(app: any, prefix = '') {
     const meta = cfg.meta || {};
     const build = cfg.build || {};
     const ctr = cfg.container || cfg.docker || {};
-    const isSuspended = Boolean(raw.is_suspended ?? raw.suspended ?? cfg.suspended ?? persistedCfg?.suspended ?? false);
+    const isSuspended = Boolean(
+      raw.is_suspended ?? raw.suspended ?? cfg.suspended ?? persistedCfg?.suspended ?? false
+    );
     const isDmca = Boolean(raw.is_dmca ?? raw.dmca ?? cfg.dmca ?? persistedCfg?.dmca ?? false);
     const baseStatus = overrideStatus ?? raw.state ?? raw.status ?? 'unknown';
     const status = isDmca ? 'dmca' : isSuspended ? 'suspended' : baseStatus;
@@ -793,160 +897,110 @@ export async function serverRoutes(app: any, prefix = '') {
     return server;
   }
 
-  app.get(prefix + '/servers/:id', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
+  app.get(
+    prefix + '/servers/:id',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
 
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'servers:list');
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    if (!isAdmin) {
-      const owned = cfg.userId === user?.id;
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({
-        serverUuid: id,
-        userId: user?.id,
-        accepted: true,
-      });
-      if (!owned && !subuser) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.insufficientPermissions') };
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'servers:list');
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
       }
-    }
 
-    let nodeName: string | null = null;
-    let sftpInfo: Record<string, any> | null = null;
-    let node: Node | null = null;
-    if (cfg?.nodeId) {
-      node = await nodeRepo().findOneBy({ id: cfg.nodeId });
-      if (node) {
-        nodeName = node.name;
-        const urlObj = (() => { try { return new URL(node.url); } catch { return null; } })();
-        const nodeHost = urlObj?.hostname || node.url;
-        const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
-        const backendHost = backendBase ? ((() => { try { return new URL(backendBase).hostname; } catch { return backendBase; } })()) : null;
-        const host = node.sftpProxyPort && backendHost ? backendHost : nodeHost;
-        const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
-        const sftpUser = ctx.user;
-        const sftpHex = id.replace(/-/g, '').substring(0, 8);
-        const username = sftpUser ? `${sftpUser.email}.${sftpHex}` : undefined;
-        sftpInfo = { host, port, proxied: !!node.sftpProxyPort, username };
-      }
-    }
-
-    const unhealthyNodeIds = await getUnhealthyNodeIds();
-    if (node && unhealthyNodeIds.includes(node.id)) {
-      const norm = normalizeServer({
-        uuid: cfg.uuid,
-        state: cfg.hibernated ? 'hibernated' : 'unknown',
-        is_suspended: cfg.suspended,
-        is_dmca: cfg.dmca,
-        dmca: cfg.dmca,
-        configuration: {
-          uuid: cfg.uuid,
-          meta: { name: cfg.name, description: cfg.description },
-          build: { memory_limit: cfg.memory, disk_space: cfg.disk, cpu_limit: cfg.cpu, swap: cfg.swap, io_weight: cfg.ioWeight },
-          container: { image: cfg.dockerImage, kvm_passthrough_enabled: cfg.kvmPassthroughEnabled ?? false },
-          invocation: cfg.startup,
-          environment: cfg.environment,
-          allocations: cfg.allocations,
-          autoSyncOnEggChange: cfg.autoSyncOnEggChange,
-        },
-      }, cfg?.hibernated ? 'hibernated' : undefined, cfg);
-
-      return {
-        ...norm,
-        node: nodeName,
-        sftp: sftpInfo,
-        isOwner: cfg.userId === user?.id,
-        userId: cfg.userId,
-        ...(isAdmin
-          ? {
-            owner: cfg.userId,
-            eggId: cfg.eggId ?? null,
-            nodeId: cfg.nodeId,
-            memory: cfg.memory,
-            disk: cfg.disk,
-            cpu: cfg.cpu,
-            swap: cfg.swap,
-            dockerImage: cfg.dockerImage,
-            startup: cfg.startup,
-            description: cfg.description,
-          }
-          : {}),
-      };
-    }
-
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.getServer(id);
-      const norm = applyStartupStatusOverride(
-        normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
-        cfg,
-      );
-      if (cfg && norm && norm.configuration) {
-        norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
-        const dbAlloc = cfg.allocations as any;
-        if (dbAlloc?.dedicatedIps) {
-          norm.configuration.allocations = {
-            ...(norm.configuration.allocations || {}),
-            dedicatedIps: dbAlloc.dedicatedIps,
-          };
+      if (!isAdmin) {
+        const owned = cfg.userId === user?.id;
+        const subuser = await AppDataSource.getRepository(
+          require('../models/serverSubuser.entity').ServerSubuser
+        ).findOneBy({
+          serverUuid: id,
+          userId: user?.id,
+          accepted: true,
+        });
+        if (!owned && !subuser) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.insufficientPermissions') };
         }
       }
-      return {
-        ...norm,
-        node: nodeName,
-        sftp: sftpInfo,
-        isOwner: cfg.userId === user?.id,
-        userId: cfg.userId,
-        ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
-        ...(isAdmin
-          ? {
-            owner: cfg.userId,
-            eggId: cfg.eggId ?? null,
-            nodeId: cfg.nodeId,
-            memory: cfg.memory,
-            disk: cfg.disk,
-            cpu: cfg.cpu,
-            swap: cfg.swap,
-            dockerImage: cfg.dockerImage,
-            startup: cfg.startup,
-            description: cfg.description,
-          }
-          : {}),
-      };
-    } catch (e: any) {
-      if (cfg) {
-        try {
-          const svc = await serviceFor(id);
-          await svc.syncServer(id, {});
-          const retry = await svc.getServer(id);
-          const norm = applyStartupStatusOverride(
-            normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
-            cfg,
-          );
-          if (norm?.configuration) {
-            const dbAlloc = cfg.allocations as any;
-            if (dbAlloc?.dedicatedIps) {
-              norm.configuration.allocations = {
-                ...(norm.configuration.allocations || {}),
-                dedicatedIps: dbAlloc.dedicatedIps,
-              };
+
+      let nodeName: string | null = null;
+      let sftpInfo: Record<string, any> | null = null;
+      let node: Node | null = null;
+      if (cfg?.nodeId) {
+        node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+        if (node) {
+          nodeName = node.name;
+          const urlObj = (() => {
+            try {
+              return new URL(node.url);
+            } catch {
+              return null;
             }
-          }
-          return {
-            ...norm,
-            node: nodeName,
-            sftp: sftpInfo,
-            ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
-            ...(isAdmin
-              ? {
+          })();
+          const nodeHost = urlObj?.hostname || node.url;
+          const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
+          const backendHost = backendBase
+            ? (() => {
+                try {
+                  return new URL(backendBase).hostname;
+                } catch {
+                  return backendBase;
+                }
+              })()
+            : null;
+          const host = node.sftpProxyPort && backendHost ? backendHost : nodeHost;
+          const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
+          const sftpUser = ctx.user;
+          const sftpHex = id.replace(/-/g, '').substring(0, 8);
+          const username = sftpUser ? `${sftpUser.email}.${sftpHex}` : undefined;
+          sftpInfo = { host, port, proxied: !!node.sftpProxyPort, username };
+        }
+      }
+
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
+      if (node && unhealthyNodeIds.includes(node.id)) {
+        const norm = normalizeServer(
+          {
+            uuid: cfg.uuid,
+            state: cfg.hibernated ? 'hibernated' : 'unknown',
+            is_suspended: cfg.suspended,
+            is_dmca: cfg.dmca,
+            dmca: cfg.dmca,
+            configuration: {
+              uuid: cfg.uuid,
+              meta: { name: cfg.name, description: cfg.description },
+              build: {
+                memory_limit: cfg.memory,
+                disk_space: cfg.disk,
+                cpu_limit: cfg.cpu,
+                swap: cfg.swap,
+                io_weight: cfg.ioWeight,
+              },
+              container: {
+                image: cfg.dockerImage,
+                kvm_passthrough_enabled: cfg.kvmPassthroughEnabled ?? false,
+              },
+              invocation: cfg.startup,
+              environment: cfg.environment,
+              allocations: cfg.allocations,
+              autoSyncOnEggChange: cfg.autoSyncOnEggChange,
+            },
+          },
+          cfg?.hibernated ? 'hibernated' : undefined,
+          cfg
+        );
+
+        return {
+          ...norm,
+          node: nodeName,
+          sftp: sftpInfo,
+          isOwner: cfg.userId === user?.id,
+          userId: cfg.userId,
+          ...(isAdmin
+            ? {
                 owner: cfg.userId,
-                userId: cfg.userId,
                 eggId: cfg.eggId ?? null,
                 nodeId: cfg.nodeId,
                 memory: cfg.memory,
@@ -957,792 +1011,1068 @@ export async function serverRoutes(app: any, prefix = '') {
                 startup: cfg.startup,
                 description: cfg.description,
               }
-              : {}),
-          };
-        } catch {
-          // skip
-        }
+            : {}),
+        };
+      }
 
-        const norm = normalizeServer({
-          uuid: cfg.uuid,
-          state: cfg.hibernated ? 'hibernated' : 'unknown',
-          is_suspended: cfg.suspended,
-          is_dmca: cfg.dmca,
-          dmca: cfg.dmca,
-          configuration: {
-            uuid: cfg.uuid,
-            meta: { name: cfg.name, description: cfg.description },
-            build: { memory_limit: cfg.memory, disk_space: cfg.disk, cpu_limit: cfg.cpu, swap: cfg.swap, io_weight: cfg.ioWeight },
-            container: { image: cfg.dockerImage, kvm_passthrough_enabled: cfg.kvmPassthroughEnabled ?? false },
-            invocation: cfg.startup,
-            environment: cfg.environment,
-            allocations: cfg.allocations,
-            autoSyncOnEggChange: cfg.autoSyncOnEggChange,
-          },
-        });
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.getServer(id);
+        const norm = applyStartupStatusOverride(
+          normalizeServer(res.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
+          cfg
+        );
+        if (cfg && norm && norm.configuration) {
+          norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
+          const dbAlloc = cfg.allocations as any;
+          if (dbAlloc?.dedicatedIps) {
+            norm.configuration.allocations = {
+              ...(norm.configuration.allocations || {}),
+              dedicatedIps: dbAlloc.dedicatedIps,
+            };
+          }
+        }
         return {
           ...norm,
           node: nodeName,
           sftp: sftpInfo,
+          isOwner: cfg.userId === user?.id,
+          userId: cfg.userId,
           ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
           ...(isAdmin
             ? {
-              owner: cfg.userId,
-              userId: cfg.userId,
-              eggId: cfg.eggId ?? null,
-              nodeId: cfg.nodeId,
-              memory: cfg.memory,
-              disk: cfg.disk,
-              cpu: cfg.cpu,
-              swap: cfg.swap,
-              dockerImage: cfg.dockerImage,
-              startup: cfg.startup,
-              description: cfg.description,
-            }
+                owner: cfg.userId,
+                eggId: cfg.eggId ?? null,
+                nodeId: cfg.nodeId,
+                memory: cfg.memory,
+                disk: cfg.disk,
+                cpu: cfg.cpu,
+                swap: cfg.swap,
+                dockerImage: cfg.dockerImage,
+                startup: cfg.startup,
+                description: cfg.description,
+              }
             : {}),
         };
+      } catch (e: any) {
+        if (cfg) {
+          try {
+            const svc = await serviceFor(id);
+            await svc.syncServer(id, {});
+            const retry = await svc.getServer(id);
+            const norm = applyStartupStatusOverride(
+              normalizeServer(retry.data, cfg?.hibernated ? 'hibernated' : undefined, cfg),
+              cfg
+            );
+            if (norm?.configuration) {
+              const dbAlloc = cfg.allocations as any;
+              if (dbAlloc?.dedicatedIps) {
+                norm.configuration.allocations = {
+                  ...(norm.configuration.allocations || {}),
+                  dedicatedIps: dbAlloc.dedicatedIps,
+                };
+              }
+            }
+            return {
+              ...norm,
+              node: nodeName,
+              sftp: sftpInfo,
+              ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
+              ...(isAdmin
+                ? {
+                    owner: cfg.userId,
+                    userId: cfg.userId,
+                    eggId: cfg.eggId ?? null,
+                    nodeId: cfg.nodeId,
+                    memory: cfg.memory,
+                    disk: cfg.disk,
+                    cpu: cfg.cpu,
+                    swap: cfg.swap,
+                    dockerImage: cfg.dockerImage,
+                    startup: cfg.startup,
+                    description: cfg.description,
+                  }
+                : {}),
+            };
+          } catch {
+            // skip
+          }
+
+          const norm = normalizeServer({
+            uuid: cfg.uuid,
+            state: cfg.hibernated ? 'hibernated' : 'unknown',
+            is_suspended: cfg.suspended,
+            is_dmca: cfg.dmca,
+            dmca: cfg.dmca,
+            configuration: {
+              uuid: cfg.uuid,
+              meta: { name: cfg.name, description: cfg.description },
+              build: {
+                memory_limit: cfg.memory,
+                disk_space: cfg.disk,
+                cpu_limit: cfg.cpu,
+                swap: cfg.swap,
+                io_weight: cfg.ioWeight,
+              },
+              container: {
+                image: cfg.dockerImage,
+                kvm_passthrough_enabled: cfg.kvmPassthroughEnabled ?? false,
+              },
+              invocation: cfg.startup,
+              environment: cfg.environment,
+              allocations: cfg.allocations,
+              autoSyncOnEggChange: cfg.autoSyncOnEggChange,
+            },
+          });
+          return {
+            ...norm,
+            node: nodeName,
+            sftp: sftpInfo,
+            ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
+            ...(isAdmin
+              ? {
+                  owner: cfg.userId,
+                  userId: cfg.userId,
+                  eggId: cfg.eggId ?? null,
+                  nodeId: cfg.nodeId,
+                  memory: cfg.memory,
+                  disk: cfg.disk,
+                  cpu: cfg.cpu,
+                  swap: cfg.swap,
+                  dockerImage: cfg.dockerImage,
+                  startup: cfg.startup,
+                  description: cfg.description,
+                }
+              : {}),
+          };
+        }
+        ctx.set.status = 502;
+        return { error: e?.message || 'Server fetch failed' };
       }
-      ctx.set.status = 502;
-      return { error: e?.message || 'Server fetch failed' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get server details by id', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Get server details by id', tags: ['Servers'] }
-  });
+  );
 
-  app.delete(prefix + '/servers/:id', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
-    const force = (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) || (ctx.body && ctx.body.force === true);
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: id });
-    if (cfg?.dmca && !isAdmin) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.dmcaProtected') };
-    }
+  app.delete(
+    prefix + '/servers/:id',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+      const force =
+        (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) ||
+        (ctx.body && ctx.body.force === true);
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const cfg = await cfgRepo.findOneBy({ uuid: id });
+      if (cfg?.dmca && !isAdmin) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.dmcaProtected') };
+      }
 
-    if (force && !isAdmin) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.forceDeleteAdminsOnly') };
-    }
+      if (force && !isAdmin) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.forceDeleteAdminsOnly') };
+      }
 
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.serverRequest(id, '', 'delete');
-      await createActivityLog({
-        userId: user.id,
-        action: 'server:delete',
-        targetId: id,
-        targetType: 'server',
-        metadata: { serverUuid: id, force: !!force },
-        ipAddress: ctx.ip,
-      });
-      await removeServerConfig(id);
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 502;
-      const errMsg = String(e?.message || '');
-      const mappingMissing = errMsg.includes('No node mapping');
-      if (isAdmin && (mappingMissing || status === 404 || force)) {
-        try {
-          await removeServerConfig(id).catch(() => { });
-          await nodeSvc.unmapServer(id).catch(() => { });
-        } catch { }
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.serverRequest(id, '', 'delete');
         await createActivityLog({
           userId: user.id,
-          action: 'server:delete:force',
+          action: 'server:delete',
           targetId: id,
           targetType: 'server',
-          metadata: { serverUuid: id, wingsError: e?.message || String(e), mappingMissing, status },
+          metadata: { serverUuid: id, force: !!force },
           ipAddress: ctx.ip,
         });
-        return { success: true, note: 'Removed local server config and mapping (force)' };
-      }
+        await removeServerConfig(id);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 502;
+        const errMsg = String(e?.message || '');
+        const mappingMissing = errMsg.includes('No node mapping');
+        if (isAdmin && (mappingMissing || status === 404 || force)) {
+          try {
+            await removeServerConfig(id).catch(() => {});
+            await nodeSvc.unmapServer(id).catch(() => {});
+          } catch {}
+          await createActivityLog({
+            userId: user.id,
+            action: 'server:delete:force',
+            targetId: id,
+            targetType: 'server',
+            metadata: {
+              serverUuid: id,
+              wingsError: e?.message || String(e),
+              mappingMissing,
+              status,
+            },
+            ipAddress: ctx.ip,
+          });
+          return { success: true, note: 'Removed local server config and mapping (force)' };
+        }
 
-      ctx.set.status = status === 404 ? 502 : status;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to delete server';
-      return { error: msg };
+        ctx.set.status = status === 404 ? 502 : status;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to delete server';
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:delete')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Delete a server', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:delete')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Delete a server', tags: ['Servers'] }
-  });
+  );
 
-  app.post(prefix + '/servers', async (ctx: any) => {
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+  app.post(
+    prefix + '/servers',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
-    const geoLevel = await getGeoBlockLevel(user.billingCountry);
-    if (!isAdmin && geoLevel >= 4) {
-      ctx.set.status = 403;
-      return { error: ctx.t('user.serverCreationDisabled') };
-    }
-
-    let effectivePortalType = user.portalType;
-
-    if (!isAdmin) {
-      const passkeyCount = await AppDataSource.getRepository(
-        require('../models/passkey.entity').Passkey
-      ).count({ where: { user: { id: user.id } } });
-      const hasSecurityMethod = passkeyCount > 0 || !!user.twoFactorEnabled;
-      if (!hasSecurityMethod) {
+      const geoLevel = await getGeoBlockLevel(user.billingCountry);
+      if (!isAdmin && geoLevel >= 4) {
         ctx.set.status = 403;
-        return { error: ctx.t('user.mustEnable2fa') };
+        return { error: ctx.t('user.serverCreationDisabled') };
       }
 
-      if (geoLevel >= 3 && (effectivePortalType === 'free' || effectivePortalType === 'educational')) {
-        ctx.set.status = 403;
-        return { error: ctx.t('plan.restrictedCountryEdu') };
-      }
-      if (geoLevel >= 2 && effectivePortalType === 'free') {
-        ctx.set.status = 403;
-        return { error: ctx.t('plan.restrictedCountry') };
-      }
+      const effectivePortalType = user.portalType;
 
-      if (effectivePortalType !== 'free') {
-        if (!user.emailVerified) {
+      if (!isAdmin) {
+        const passkeyCount = await AppDataSource.getRepository(
+          require('../models/passkey.entity').Passkey
+        ).count({ where: { user: { id: user.id } } });
+        const hasSecurityMethod = passkeyCount > 0 || !!user.twoFactorEnabled;
+        if (!hasSecurityMethod) {
           ctx.set.status = 403;
-          return { error: ctx.t('user.mustVerifyEmail') };
+          return { error: ctx.t('user.mustEnable2fa') };
+        }
+
+        if (
+          geoLevel >= 3 &&
+          (effectivePortalType === 'free' || effectivePortalType === 'educational')
+        ) {
+          ctx.set.status = 403;
+          return { error: ctx.t('plan.restrictedCountryEdu') };
+        }
+        if (geoLevel >= 2 && effectivePortalType === 'free') {
+          ctx.set.status = 403;
+          return { error: ctx.t('plan.restrictedCountry') };
+        }
+
+        if (effectivePortalType !== 'free') {
+          if (!user.emailVerified) {
+            ctx.set.status = 403;
+            return { error: ctx.t('user.mustVerifyEmail') };
+          }
         }
       }
-    }
 
-    const body = ctx.body as any;
-    let { eggId, name, nodeId, userId, memory: reqMemory, disk: reqDisk, cpu: reqCpu, kvmPassthroughEnabled } = body;
+      const body = ctx.body as any;
+      let {
+        eggId,
+        name,
+        nodeId,
+        userId,
+        memory: reqMemory,
+        disk: reqDisk,
+        cpu: reqCpu,
+        kvmPassthroughEnabled,
+      } = body;
 
-    if (body.requestIpv6 === true || String(body.requestIpv6) === 'true') {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.ipv6AllocationNoLongerAutomatic') };
-    }
+      if (body.requestIpv6 === true || String(body.requestIpv6) === 'true') {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.ipv6AllocationNoLongerAutomatic') };
+      }
 
-    const ownerId: number = (userId && isAdmin) ? userId : user.id;
-    kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
+      const ownerId: number = userId && isAdmin ? userId : user.id;
+      kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
 
-    let limits: { memory?: number; disk?: number; cpu?: number; serverLimit?: number } = {};
+      let limits: { memory?: number; disk?: number; cpu?: number; serverLimit?: number } = {};
 
-    if (!isAdmin) {
-      if (effectivePortalType === 'enterprise' && user.nodeId) {
-        const enterpriseNode = await nodeRepo().findOneBy({ id: user.nodeId });
-        if (enterpriseNode) {
-          limits = {
-            memory: enterpriseNode.memory,
-            disk: enterpriseNode.disk,
-            cpu: enterpriseNode.cpu,
-            serverLimit: enterpriseNode.serverLimit,
-          };
+      if (!isAdmin) {
+        if (effectivePortalType === 'enterprise' && user.nodeId) {
+          const enterpriseNode = await nodeRepo().findOneBy({ id: user.nodeId });
+          if (enterpriseNode) {
+            limits = {
+              memory: enterpriseNode.memory,
+              disk: enterpriseNode.disk,
+              cpu: enterpriseNode.cpu,
+              serverLimit: enterpriseNode.serverLimit,
+            };
+          } else {
+            limits = user.limits || {};
+          }
         } else {
           limits = user.limits || {};
         }
-      } else {
-        limits = user.limits || {};
-      }
-    }
-
-    let memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
-    let disk = reqDisk != null ? Number(reqDisk) : (limits.disk ?? 10240);
-    let cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
-
-    if (!isAdmin) {
-      if (memory < 1) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.memoryMinimum') };
-      }
-      if (disk < 1) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.diskMinimum') };
-      }
-      if (cpu < 1) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.cpuMinimum') };
-      }
-    }
-
-    const gamblingConfig = await getGamblingConfig();
-    const gamblingRequested = body?.playerStandAt !== undefined;
-    const gamblingModeEnabled = gamblingConfig.enabled && (gamblingRequested || (!isAdmin && isGamblingModeEnabled(user)));
-    let gamblingResult: {
-      enabled: boolean;
-      rolled: { memory: number; disk: number; cpu: number };
-      luckyRoll: boolean;
-      blackjack: {
-        player: { cards: number[]; score: number };
-        dealer: { cards: number[]; score: number };
-        playerStandAt: number;
-        outcome: 'player' | 'dealer' | 'push';
-      };
-      bonusAppliedToLimits: boolean;
-      bonusActivated: boolean;
-      bonusPercent: number;
-      bonusExpiresAt: string | null;
-    } | null = null;
-
-    let node: Node;
-    try {
-      node = await pickNode(ctx, user, nodeId, user.nodeId);
-    } catch (e: any) {
-      ctx.set.status = 503;
-      return { error: sanitizeError(e, 'serverHandler:pick-node') };
-    }
-
-    if (gamblingModeEnabled) {
-      const owner = await userRepo().findOneBy({ id: ownerId });
-      if (!owner) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.ownerUserNotFound') };
       }
 
-      const now = Date.now();
-      const currentSettings = owner.settings && typeof owner.settings === 'object'
-        ? { ...owner.settings }
-        : {};
-      const gamblingSettings = currentSettings.gambling && typeof currentSettings.gambling === 'object'
-        ? { ...currentSettings.gambling }
-        : {};
+      let memory = reqMemory != null ? Number(reqMemory) : (limits.memory ?? 1024);
+      let disk = reqDisk != null ? Number(reqDisk) : (limits.disk ?? 10240);
+      let cpu = reqCpu != null ? Number(reqCpu) : (limits.cpu ?? 100);
 
-      const rawBonus = gamblingSettings.bonus && typeof gamblingSettings.bonus === 'object'
-        ? { ...gamblingSettings.bonus }
-        : {};
-      const bonusExpiresAt = rawBonus.expiresAt ? new Date(rawBonus.expiresAt).getTime() : 0;
-      const bonusActive = Number.isFinite(bonusExpiresAt) && bonusExpiresAt > now;
+      if (!isAdmin) {
+        if (memory < 1) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.memoryMinimum') };
+        }
+        if (disk < 1) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.diskMinimum') };
+        }
+        if (cpu < 1) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.cpuMinimum') };
+        }
+      }
 
-      const memoryCapBase = Math.max(1, Math.floor(limits.memory ?? node.memory ?? 1024));
-      const diskCapBase = Math.max(1, Math.floor(limits.disk ?? node.disk ?? 10240));
-      const cpuCapBase = Math.max(1, Math.floor(limits.cpu ?? node.cpu ?? 100));
-
-      const memoryCap = bonusActive
-        ? memoryCapBase + Math.max(1, Math.ceil(memoryCapBase * gamblingConfig.bonusPercent))
-        : memoryCapBase;
-      const diskCap = bonusActive
-        ? diskCapBase + Math.max(1, Math.ceil(diskCapBase * gamblingConfig.bonusPercent))
-        : diskCapBase;
-      const cpuCap = bonusActive
-        ? cpuCapBase + Math.max(1, Math.ceil(cpuCapBase * gamblingConfig.bonusPercent))
-        : cpuCapBase;
-
-      const memoryMin = Math.min(128, memoryCap);
-      const diskMin = Math.min(1024, diskCap);
-      const cpuMin = Math.min(10, cpuCap);
-
-      const blackjack = runBlackjackRound(Number(body.playerStandAt));
-      const blackjackWin = blackjack.outcome === 'player';
-
-      const safePlayerScore = blackjack.player.score > 21 ? 0 : blackjack.player.score;
-      const scoreRatio = safePlayerScore / 21;
-      const outcomeModifier = blackjack.outcome === 'player'
-        ? 0.2
-        : blackjack.outcome === 'push'
-          ? 0
-          : -0.2;
-      const blackjackRatio = Math.max(0.1, Math.min(1, scoreRatio + outcomeModifier));
-
-      memory = clampInt(Math.floor(memoryCap * blackjackRatio), memoryMin, memoryCap);
-      disk = clampInt(Math.floor(diskCap * blackjackRatio), diskMin, diskCap);
-      cpu = clampInt(Math.floor(cpuCap * blackjackRatio), cpuMin, cpuCap);
-
-      const luckyRoll = Math.random() < gamblingConfig.resourceLuckyChance;
-      let bonusActivated = false;
-      let nextBonusExpiresAt: string | null = bonusActive && bonusExpiresAt
-        ? new Date(bonusExpiresAt).toISOString()
-        : null;
-
-      if (luckyRoll && !bonusActive) {
-        const expiresAt = new Date(now + GAMBLING_BONUS_MS).toISOString();
-        gamblingSettings.bonus = {
-          percent: gamblingConfig.bonusPercent,
-          expiresAt,
-          source: 'lucky-roll',
-          nonStackable: true,
-          updatedAt: new Date(now).toISOString(),
+      const gamblingConfig = await getGamblingConfig();
+      const gamblingRequested = body?.playerStandAt !== undefined;
+      const gamblingModeEnabled =
+        gamblingConfig.enabled && (gamblingRequested || (!isAdmin && isGamblingModeEnabled(user)));
+      let gamblingResult: {
+        enabled: boolean;
+        rolled: { memory: number; disk: number; cpu: number };
+        luckyRoll: boolean;
+        blackjack: {
+          player: { cards: number[]; score: number };
+          dealer: { cards: number[]; score: number };
+          playerStandAt: number;
+          outcome: 'player' | 'dealer' | 'push';
         };
-        bonusActivated = true;
-        nextBonusExpiresAt = expiresAt;
-      } else if (!bonusActive && rawBonus && Object.keys(rawBonus).length > 0) {
-        gamblingSettings.bonus = null;
-      }
+        bonusAppliedToLimits: boolean;
+        bonusActivated: boolean;
+        bonusPercent: number;
+        bonusExpiresAt: string | null;
+      } | null = null;
 
-      const nextStats = applyGambleOutcome(gamblingSettings.stats, blackjackWin, {
-        luckyHit: luckyRoll,
-        bonusActivated,
-      });
-      const earnedBadges = buildGamblingBadges(nextStats);
-      gamblingSettings.stats = nextStats;
-      gamblingSettings.badges = earnedBadges;
-      currentSettings.badges = mergeBadges(currentSettings.badges, earnedBadges);
-
-      currentSettings.gambling = gamblingSettings;
-      owner.settings = currentSettings;
-      await userRepo().save(owner);
-
-      gamblingResult = {
-        enabled: true,
-        rolled: { memory, disk, cpu },
-        luckyRoll,
-        blackjack,
-        bonusAppliedToLimits: bonusActive,
-        bonusActivated,
-        bonusPercent: gamblingConfig.bonusPercent,
-        bonusExpiresAt: nextBonusExpiresAt,
-      };
-    }
-
-    const existingRegularServers = !isAdmin
-      ? await cfgRepo().find({ where: { userId: ownerId } })
-      : [];
-
-    if (!isAdmin) {
-      if (limits.serverLimit != null && limits.serverLimit > 0) {
-        if (existingRegularServers.length >= limits.serverLimit) {
-          ctx.set.status = 403;
-          return { error: `Server limit reached (${limits.serverLimit}). Delete an existing server to create a new one.` };
-        }
-      }
-
-      const existingMemory = existingRegularServers.reduce((sum: number, s: any) => sum + (s.memory || 0), 0);
-      const existingDisk = existingRegularServers.reduce((sum: number, s: any) => sum + (s.disk || 0), 0);
-      const existingCpu = existingRegularServers.reduce((sum: number, s: any) => sum + (s.cpu || 0), 0);
-
-      if (limits.memory != null && existingMemory + memory > limits.memory) {
-        ctx.set.status = 400;
-        return { error: `Total account memory limit exceeded. Current: ${existingMemory} MB, requested: ${memory} MB, limit: ${limits.memory} MB.` };
-      }
-      if (limits.disk != null && existingDisk + disk > limits.disk) {
-        ctx.set.status = 400;
-        return { error: `Total account disk limit exceeded. Current: ${existingDisk} MB, requested: ${disk} MB, limit: ${limits.disk} MB.` };
-      }
-      if (limits.cpu != null && existingCpu + cpu > limits.cpu) {
-        ctx.set.status = 400;
-        return { error: `Total account CPU limit exceeded. Current: ${existingCpu}%, requested: ${cpu}%, limit: ${limits.cpu}%.` };
-      }
-    }
-
-    if (!eggId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.eggIdRequired') };
-    }
-
-    const egg = await eggRepo().findOneBy({ id: eggId });
-    if (!egg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.eggNotFound') };
-    }
-
-    if (egg.requiresKvm) {
-      kvmPassthroughEnabled = true;
-    } else if (kvmPassthroughEnabled && !isAdmin) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.kvmDisabled') };
-    }
-
-    if (!egg.visible && !isAdmin && egg.id !== 264) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.eggNotAvailable') };
-    }
-
-    if (!isAdmin && Array.isArray((egg as any).allowedPortals) && (egg as any).allowedPortals.length > 0) {
-      const allowed = (egg as any).allowedPortals as string[];
-      const isEducational = effectivePortalType === 'educational';
-      const isActuallyAllowed = allowed.includes(effectivePortalType) || (isEducational && allowed.includes('paid'));
-      if (!isActuallyAllowed) {
-        ctx.set.status = 403;
-        return { error: ctx.t('server.eggNotAvailableForPortal') };
-      }
-    }
-
-    if (!isAdmin) {
-      const nodeMemoryLimit = node.memory != null ? Number(node.memory) : undefined;
-      const nodeDiskLimit = node.disk != null ? Number(node.disk) : undefined;
-      const nodeCpuLimit = node.cpu != null ? Number(node.cpu) : undefined;
-
-      const effectiveMemoryLimit = limits.memory ?? nodeMemoryLimit;
-      const effectiveDiskLimit = limits.disk ?? nodeDiskLimit;
-      const effectiveCpuLimit = limits.cpu ?? nodeCpuLimit;
-
-      if (effectiveMemoryLimit != null && memory > effectiveMemoryLimit) {
-        ctx.set.status = 400;
-        return { error: `Requested memory (${memory} MB) exceeds the maximum allowed (${effectiveMemoryLimit} MB).` };
-      }
-      if (effectiveDiskLimit != null && disk > effectiveDiskLimit) {
-        ctx.set.status = 400;
-        return { error: `Requested disk (${disk} MB) exceeds the maximum allowed (${effectiveDiskLimit} MB).` };
-      }
-      if (effectiveCpuLimit != null && cpu > effectiveCpuLimit) {
-        ctx.set.status = 400;
-        return { error: `Requested CPU (${cpu}%) exceeds the maximum allowed (${effectiveCpuLimit}%).` };
-      }
-    }
-
-    if ((node as any).deploymentsDisabled) {
-      ctx.set.status = 403;
-      return { error: (node as any).deploymentNotice || 'This node is temporarily unavailable for deployments' };
-    }
-
-    let autoAllocation: Record<string, any> | null = null;
-    let assignedIpv6: string | null = null;
-    if (node.portRangeStart != null && node.portRangeEnd != null) {
-      if (node.portRangeStart > node.portRangeEnd) {
-        ctx.set.status = 500;
-        return { error: ctx.t('node.portRangeMisconfigured') };
-      }
-      const bindIp = node.defaultIp || '0.0.0.0';
-      const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
-      const nodeConfigs = await cfgRepo().find({
-        where: { nodeId: node.id },
-        select: { allocations: true },
-      });
-
-      const takenPorts = new Set<number>();
-      for (const c of nodeConfigs) {
-        const alloc = c.allocations as any;
-        if (!alloc) continue;
-        if (alloc.default?.port) {
-          const p = Number(alloc.default.port);
-          if (p >= 1 && p <= 65535) takenPorts.add(p);
-        }
-        for (const ports of Object.values(alloc.mappings ?? {}) as number[][]) {
-          for (const p of ports) {
-            const pn = Number(p);
-            if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
-          }
-        }
-        if (alloc.owners) {
-          for (const k of Object.keys(alloc.owners)) {
-            const idx = k.lastIndexOf(':');
-            const pstr = idx >= 0 ? k.slice(idx + 1) : '';
-            const pnum = Number(pstr);
-            if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
-          }
-        }
-      }
-
-      for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
-        if (!takenPorts.has(p) && !excludedIpv6Ports.has(p)) {
-          autoAllocation = {
-            default: { ip: bindIp, port: p },
-            mappings: { [bindIp]: [p] },
-            owners: { [`${bindIp}:${p}`]: ownerId },
-          };
-          break;
-        }
-      }
-
-      if (!autoAllocation) {
-        const rangeSize = node.portRangeEnd - node.portRangeStart + 1;
-        const takenCount = takenPorts.size;
-        const excludedCount = excludedIpv6Ports.size;
-        const takenInRange = [...takenPorts].filter(p => p >= node.portRangeStart && p <= node.portRangeEnd).length;
+      let node: Node;
+      try {
+        node = await pickNode(ctx, user, nodeId, user.nodeId);
+      } catch (e: any) {
         ctx.set.status = 503;
-        return { error: `No free ports available on this node (range ${node.portRangeStart}-${node.portRangeEnd}, ${rangeSize} total, ${takenInRange} taken in range, ${takenCount} taken overall, ${excludedCount} excluded). Contact an administrator.` };
+        return { error: sanitizeError(e, 'serverHandler:pick-node') };
       }
-    }
 
-    const serverUuid = crypto.randomUUID();
+      if (gamblingModeEnabled) {
+        const owner = await userRepo().findOneBy({ id: ownerId });
+        if (!owner) {
+          ctx.set.status = 404;
+          return { error: ctx.t('user.ownerUserNotFound') };
+        }
 
-    const envObject: Record<string, string> = {};
-    for (const entry of (egg.envVars || []) as any[]) {
-      if (typeof entry === 'string') {
-        const [k, ...rest] = entry.split('=');
-        if (k) envObject[k.trim()] = rest.join('=').trim();
-      } else if (entry && typeof entry === 'object') {
-        const k = entry.env_variable || entry.key || entry.name;
-        const v = entry.default_value ?? entry.defaultValue ?? entry.value ?? '';
-        if (k) envObject[String(k)] = String(v);
+        const now = Date.now();
+        const currentSettings =
+          owner.settings && typeof owner.settings === 'object' ? { ...owner.settings } : {};
+        const gamblingSettings =
+          currentSettings.gambling && typeof currentSettings.gambling === 'object'
+            ? { ...currentSettings.gambling }
+            : {};
+
+        const rawBonus =
+          gamblingSettings.bonus && typeof gamblingSettings.bonus === 'object'
+            ? { ...gamblingSettings.bonus }
+            : {};
+        const bonusExpiresAt = rawBonus.expiresAt ? new Date(rawBonus.expiresAt).getTime() : 0;
+        const bonusActive = Number.isFinite(bonusExpiresAt) && bonusExpiresAt > now;
+
+        const memoryCapBase = Math.max(1, Math.floor(limits.memory ?? node.memory ?? 1024));
+        const diskCapBase = Math.max(1, Math.floor(limits.disk ?? node.disk ?? 10240));
+        const cpuCapBase = Math.max(1, Math.floor(limits.cpu ?? node.cpu ?? 100));
+
+        const memoryCap = bonusActive
+          ? memoryCapBase + Math.max(1, Math.ceil(memoryCapBase * gamblingConfig.bonusPercent))
+          : memoryCapBase;
+        const diskCap = bonusActive
+          ? diskCapBase + Math.max(1, Math.ceil(diskCapBase * gamblingConfig.bonusPercent))
+          : diskCapBase;
+        const cpuCap = bonusActive
+          ? cpuCapBase + Math.max(1, Math.ceil(cpuCapBase * gamblingConfig.bonusPercent))
+          : cpuCapBase;
+
+        const memoryMin = Math.min(128, memoryCap);
+        const diskMin = Math.min(1024, diskCap);
+        const cpuMin = Math.min(10, cpuCap);
+
+        const blackjack = runBlackjackRound(Number(body.playerStandAt));
+        const blackjackWin = blackjack.outcome === 'player';
+
+        const safePlayerScore = blackjack.player.score > 21 ? 0 : blackjack.player.score;
+        const scoreRatio = safePlayerScore / 21;
+        const outcomeModifier =
+          blackjack.outcome === 'player' ? 0.2 : blackjack.outcome === 'push' ? 0 : -0.2;
+        const blackjackRatio = Math.max(0.1, Math.min(1, scoreRatio + outcomeModifier));
+
+        memory = clampInt(Math.floor(memoryCap * blackjackRatio), memoryMin, memoryCap);
+        disk = clampInt(Math.floor(diskCap * blackjackRatio), diskMin, diskCap);
+        cpu = clampInt(Math.floor(cpuCap * blackjackRatio), cpuMin, cpuCap);
+
+        const luckyRoll = Math.random() < gamblingConfig.resourceLuckyChance;
+        let bonusActivated = false;
+        let nextBonusExpiresAt: string | null =
+          bonusActive && bonusExpiresAt ? new Date(bonusExpiresAt).toISOString() : null;
+
+        if (luckyRoll && !bonusActive) {
+          const expiresAt = new Date(now + GAMBLING_BONUS_MS).toISOString();
+          gamblingSettings.bonus = {
+            percent: gamblingConfig.bonusPercent,
+            expiresAt,
+            source: 'lucky-roll',
+            nonStackable: true,
+            updatedAt: new Date(now).toISOString(),
+          };
+          bonusActivated = true;
+          nextBonusExpiresAt = expiresAt;
+        } else if (!bonusActive && rawBonus && Object.keys(rawBonus).length > 0) {
+          gamblingSettings.bonus = null;
+        }
+
+        const nextStats = applyGambleOutcome(gamblingSettings.stats, blackjackWin, {
+          luckyHit: luckyRoll,
+          bonusActivated,
+        });
+        const earnedBadges = buildGamblingBadges(nextStats);
+        gamblingSettings.stats = nextStats;
+        gamblingSettings.badges = earnedBadges;
+        currentSettings.badges = mergeBadges(currentSettings.badges, earnedBadges);
+
+        currentSettings.gambling = gamblingSettings;
+        owner.settings = currentSettings;
+        await userRepo().save(owner);
+
+        gamblingResult = {
+          enabled: true,
+          rolled: { memory, disk, cpu },
+          luckyRoll,
+          blackjack,
+          bonusAppliedToLimits: bonusActive,
+          bonusActivated,
+          bonusPercent: gamblingConfig.bonusPercent,
+          bonusExpiresAt: nextBonusExpiresAt,
+        };
       }
-    }
 
-    const DENIED_ENV_KEYS = new Set(['LD_PRELOAD', 'LD_LIBRARY_PATH', 'LD_AUDIT', 'LD_DEBUG', 'LD_ORIGIN_PATH', 'SHELL', 'BASH_ENV', 'BASH_FUNC_mc']);
-    const envOverrides: Record<string, string> = body.environment || {};
-    for (const key of Object.keys(envOverrides)) {
-      if (!DENIED_ENV_KEYS.has(key)) {
-        envObject[key] = envOverrides[key];
-      }
-    }
+      const existingRegularServers = !isAdmin
+        ? await cfgRepo().find({ where: { userId: ownerId } })
+        : [];
 
-    const requestedStartup = typeof body.startup === 'string' ? body.startup.trim() : '';
-    const resolvedStartup = requestedStartup || (typeof egg.startup === 'string'
-      ? egg.startup.replace(
-        /\{\{([^}]+)\}\}/g,
-        (_: string, varName: string) => envObject[varName.trim()] ?? '',
-      )
-      : '');
+      if (!isAdmin) {
+        if (limits.serverLimit != null && limits.serverLimit > 0) {
+          if (existingRegularServers.length >= limits.serverLimit) {
+            ctx.set.status = 403;
+            return {
+              error: `Server limit reached (${limits.serverLimit}). Delete an existing server to create a new one.`,
+            };
+          }
+        }
 
-    const hasInstallScript = Boolean(egg.installScript && (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint));
-    const wingsPayload = {
-      uuid: serverUuid,
-      start_on_completion: hasInstallScript,
-      skip_scripts: false,
-    };
+        const existingMemory = existingRegularServers.reduce(
+          (sum: number, s: any) => sum + (s.memory || 0),
+          0
+        );
+        const existingDisk = existingRegularServers.reduce(
+          (sum: number, s: any) => sum + (s.disk || 0),
+          0
+        );
+        const existingCpu = existingRegularServers.reduce(
+          (sum: number, s: any) => sum + (s.cpu || 0),
+          0
+        );
 
-    const hasEulaFeature = Array.isArray(egg.features) && egg.features.some((feature: any) => String(feature).toLowerCase() === 'eula');
-
-    await nodeSvc.mapServer(serverUuid, node.id);
-    await saveServerConfig({
-      uuid: serverUuid,
-      nodeId: node.id,
-      userId: ownerId,
-      name,
-      dockerImage: egg.dockerImage,
-      startup: resolvedStartup,
-      environment: envObject,
-      memory,
-      disk,
-      cpu,
-      eggId: egg.id,
-      kvmPassthroughEnabled,
-      ...(autoAllocation ? { allocations: autoAllocation } : {}),
-    });
-
-    const base = (node as any).backendWingsUrl || node.url;
-    const svc = new WingsApiService(base, node.token);
-
-    try {
-      const res = await svc.createServer(wingsPayload);
-
-      if (hasEulaFeature) {
-        try {
-          await svc.writeFile(serverUuid, 'eula.txt', 'EULA=true');
-        } catch (fileErr: any) {
-          console.error(`[serverHandler:create-server] failed to write eula.txt ${fileErr}`);
+        if (limits.memory != null && existingMemory + memory > limits.memory) {
+          ctx.set.status = 400;
+          return {
+            error: `Total account memory limit exceeded. Current: ${existingMemory} MB, requested: ${memory} MB, limit: ${limits.memory} MB.`,
+          };
+        }
+        if (limits.disk != null && existingDisk + disk > limits.disk) {
+          ctx.set.status = 400;
+          return {
+            error: `Total account disk limit exceeded. Current: ${existingDisk} MB, requested: ${disk} MB, limit: ${limits.disk} MB.`,
+          };
+        }
+        if (limits.cpu != null && existingCpu + cpu > limits.cpu) {
+          ctx.set.status = 400;
+          return {
+            error: `Total account CPU limit exceeded. Current: ${existingCpu}%, requested: ${cpu}%, limit: ${limits.cpu}%.`,
+          };
         }
       }
 
-      await createActivityLog({
+      if (!eggId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.eggIdRequired') };
+      }
+
+      const egg = await eggRepo().findOneBy({ id: eggId });
+      if (!egg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.eggNotFound') };
+      }
+
+      if (egg.requiresKvm) {
+        kvmPassthroughEnabled = true;
+      } else if (kvmPassthroughEnabled && !isAdmin) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.kvmDisabled') };
+      }
+
+      if (!egg.visible && !isAdmin && egg.id !== 264) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.eggNotAvailable') };
+      }
+
+      if (
+        !isAdmin &&
+        Array.isArray((egg as any).allowedPortals) &&
+        (egg as any).allowedPortals.length > 0
+      ) {
+        const allowed = (egg as any).allowedPortals as string[];
+        const isEducational = effectivePortalType === 'educational';
+        const isActuallyAllowed =
+          allowed.includes(effectivePortalType) || (isEducational && allowed.includes('paid'));
+        if (!isActuallyAllowed) {
+          ctx.set.status = 403;
+          return { error: ctx.t('server.eggNotAvailableForPortal') };
+        }
+      }
+
+      if (!isAdmin) {
+        const nodeMemoryLimit = node.memory != null ? Number(node.memory) : undefined;
+        const nodeDiskLimit = node.disk != null ? Number(node.disk) : undefined;
+        const nodeCpuLimit = node.cpu != null ? Number(node.cpu) : undefined;
+
+        const effectiveMemoryLimit = limits.memory ?? nodeMemoryLimit;
+        const effectiveDiskLimit = limits.disk ?? nodeDiskLimit;
+        const effectiveCpuLimit = limits.cpu ?? nodeCpuLimit;
+
+        if (effectiveMemoryLimit != null && memory > effectiveMemoryLimit) {
+          ctx.set.status = 400;
+          return {
+            error: `Requested memory (${memory} MB) exceeds the maximum allowed (${effectiveMemoryLimit} MB).`,
+          };
+        }
+        if (effectiveDiskLimit != null && disk > effectiveDiskLimit) {
+          ctx.set.status = 400;
+          return {
+            error: `Requested disk (${disk} MB) exceeds the maximum allowed (${effectiveDiskLimit} MB).`,
+          };
+        }
+        if (effectiveCpuLimit != null && cpu > effectiveCpuLimit) {
+          ctx.set.status = 400;
+          return {
+            error: `Requested CPU (${cpu}%) exceeds the maximum allowed (${effectiveCpuLimit}%).`,
+          };
+        }
+      }
+
+      if ((node as any).deploymentsDisabled) {
+        ctx.set.status = 403;
+        return {
+          error:
+            (node as any).deploymentNotice ||
+            'This node is temporarily unavailable for deployments',
+        };
+      }
+
+      let autoAllocation: Record<string, any> | null = null;
+      const assignedIpv6: string | null = null;
+      if (node.portRangeStart != null && node.portRangeEnd != null) {
+        if (node.portRangeStart > node.portRangeEnd) {
+          ctx.set.status = 500;
+          return { error: ctx.t('node.portRangeMisconfigured') };
+        }
+        const bindIp = node.defaultIp || '0.0.0.0';
+        const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
+        const nodeConfigs = await cfgRepo().find({
+          where: { nodeId: node.id },
+          select: { allocations: true },
+        });
+
+        const takenPorts = new Set<number>();
+        for (const c of nodeConfigs) {
+          const alloc = c.allocations as any;
+          if (!alloc) continue;
+          if (alloc.default?.port) {
+            const p = Number(alloc.default.port);
+            if (p >= 1 && p <= 65535) takenPorts.add(p);
+          }
+          for (const ports of Object.values(alloc.mappings ?? {}) as number[][]) {
+            for (const p of ports) {
+              const pn = Number(p);
+              if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
+            }
+          }
+          if (alloc.owners) {
+            for (const k of Object.keys(alloc.owners)) {
+              const idx = k.lastIndexOf(':');
+              const pstr = idx >= 0 ? k.slice(idx + 1) : '';
+              const pnum = Number(pstr);
+              if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
+            }
+          }
+        }
+
+        for (let p = node.portRangeStart; p <= node.portRangeEnd; p++) {
+          if (!takenPorts.has(p) && !excludedIpv6Ports.has(p)) {
+            autoAllocation = {
+              default: { ip: bindIp, port: p },
+              mappings: { [bindIp]: [p] },
+              owners: { [`${bindIp}:${p}`]: ownerId },
+            };
+            break;
+          }
+        }
+
+        if (!autoAllocation) {
+          const rangeSize = node.portRangeEnd - node.portRangeStart + 1;
+          const takenCount = takenPorts.size;
+          const excludedCount = excludedIpv6Ports.size;
+          const takenInRange = [...takenPorts].filter(
+            p => p >= node.portRangeStart && p <= node.portRangeEnd
+          ).length;
+          ctx.set.status = 503;
+          return {
+            error: `No free ports available on this node (range ${node.portRangeStart}-${node.portRangeEnd}, ${rangeSize} total, ${takenInRange} taken in range, ${takenCount} taken overall, ${excludedCount} excluded). Contact an administrator.`,
+          };
+        }
+      }
+
+      const serverUuid = crypto.randomUUID();
+
+      const envObject: Record<string, string> = {};
+      for (const entry of (egg.envVars || []) as any[]) {
+        if (typeof entry === 'string') {
+          const [k, ...rest] = entry.split('=');
+          if (k) envObject[k.trim()] = rest.join('=').trim();
+        } else if (entry && typeof entry === 'object') {
+          const k = entry.env_variable || entry.key || entry.name;
+          const v = entry.default_value ?? entry.defaultValue ?? entry.value ?? '';
+          if (k) envObject[String(k)] = String(v);
+        }
+      }
+
+      const DENIED_ENV_KEYS = new Set([
+        'LD_PRELOAD',
+        'LD_LIBRARY_PATH',
+        'LD_AUDIT',
+        'LD_DEBUG',
+        'LD_ORIGIN_PATH',
+        'SHELL',
+        'BASH_ENV',
+        'BASH_FUNC_mc',
+      ]);
+      const envOverrides: Record<string, string> = body.environment || {};
+      for (const key of Object.keys(envOverrides)) {
+        if (!DENIED_ENV_KEYS.has(key)) {
+          envObject[key] = envOverrides[key];
+        }
+      }
+
+      const requestedStartup = typeof body.startup === 'string' ? body.startup.trim() : '';
+      const resolvedStartup =
+        requestedStartup ||
+        (typeof egg.startup === 'string'
+          ? egg.startup.replace(
+              /\{\{([^}]+)\}\}/g,
+              (_: string, varName: string) => envObject[varName.trim()] ?? ''
+            )
+          : '');
+
+      const hasInstallScript = Boolean(
+        egg.installScript &&
+        (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint)
+      );
+      const wingsPayload = {
+        uuid: serverUuid,
+        start_on_completion: hasInstallScript,
+        skip_scripts: false,
+      };
+
+      const hasEulaFeature =
+        Array.isArray(egg.features) &&
+        egg.features.some((feature: any) => String(feature).toLowerCase() === 'eula');
+
+      await nodeSvc.mapServer(serverUuid, node.id);
+      await saveServerConfig({
+        uuid: serverUuid,
+        nodeId: node.id,
         userId: ownerId,
-        action: 'server:create',
-        targetId: serverUuid,
-        targetType: 'server',
-        metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu, gamblingMode: !!gamblingResult },
-        ipAddress: ctx.ip,
+        name,
+        dockerImage: egg.dockerImage,
+        startup: resolvedStartup,
+        environment: envObject,
+        memory,
+        disk,
+        cpu,
+        eggId: egg.id,
+        kvmPassthroughEnabled,
+        ...(autoAllocation ? { allocations: autoAllocation } : {}),
       });
 
-      return { uuid: serverUuid, nodeId: node.id, gambling: gamblingResult, ...res.data };
-    } catch (e: any) {
-      await Promise.allSettled([
-        removeServerConfig(serverUuid),
-        nodeSvc.unmapServer(serverUuid),
-      ]);
-      ctx.set.status = 502;
-      console.error('[serverHandler:create-server]', e);
-      return { error: sanitizeError(e, 'serverHandler:create-server') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:create')],
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      502: t.Object({ error: t.String() }),
-      503: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Create a new server', tags: ['Servers'] },
-  });
+      const base = (node as any).backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
 
-  app.put(prefix + '/servers/:id', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { memory, disk, cpu, swap, ioWeight, environment, name, kvmPassthroughEnabled } = ctx.body as any;
+      try {
+        const res = await svc.createServer(wingsPayload);
 
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
-
-    if (kvmPassthroughEnabled !== undefined && !isAdmin) {
-      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      const existing = await cfgRepo.findOneBy({ uuid: id });
-      const eggRepoInstance = AppDataSource.getRepository(require('../models/egg.entity').Egg);
-      const egg = existing?.eggId ? await eggRepoInstance.findOneBy({ id: existing.eggId }) : null;
-
-      if (egg?.requiresKvm) {
-        if (!kvmPassthroughEnabled) {
-          ctx.set.status = 403;
-          return { error: ctx.t('server.eggRequiresKvm') };
+        if (hasEulaFeature) {
+          try {
+            await svc.writeFile(serverUuid, 'eula.txt', 'EULA=true');
+          } catch (fileErr: any) {
+            console.error(`[serverHandler:create-server] failed to write eula.txt ${fileErr}`);
+          }
         }
-      } else {
-        ctx.set.status = 403;
-        return { error: ctx.t('server.kvmPassthroughAdminsOnly') };
-      }
-    }
 
-    if (ioWeight !== undefined && !isAdmin) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.ioWeightAdminsOnly') };
-    }
-
-    if (!isAdmin) {
-      if (memory !== undefined && Number(memory) < 1) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.memoryMinimum') };
-      }
-      if (disk !== undefined && Number(disk) < 1) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.diskMinimum') };
-      }
-      if (cpu !== undefined && Number(cpu) < 1) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.cpuMinimum') };
-      }
-    }
-
-    try {
-      const svc = await serviceFor(id);
-
-      const build: any = {};
-      if (memory !== undefined) build.memory_limit = Number(memory);
-      if (disk !== undefined) build.disk_space = Number(disk);
-      if (cpu !== undefined) build.cpu_limit = Number(cpu);
-      if (swap !== undefined) build.swap = Number(swap);
-      if (ioWeight !== undefined) build.io_weight = Number(ioWeight);
-      const syncPayload: any = {};
-      if (Object.keys(build).length) syncPayload.build = build;
-      if (environment !== undefined) syncPayload.environment = environment;
-      if (name !== undefined) syncPayload.name = name;
-      if (kvmPassthroughEnabled !== undefined) syncPayload.kvm_passthrough_enabled = Boolean(kvmPassthroughEnabled);
-
-      await svc.syncServer(id, syncPayload);
-
-      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      const existing = await cfgRepo.findOneBy({ uuid: id });
-      if (existing) {
-        if (memory !== undefined) existing.memory = Number(memory);
-        if (disk !== undefined) existing.disk = Number(disk);
-        if (cpu !== undefined) existing.cpu = Number(cpu);
-        if (swap !== undefined) existing.swap = Number(swap);
-        if (ioWeight !== undefined) existing.ioWeight = Number(ioWeight);
-        if (environment !== undefined) Object.assign(existing.environment ??= {}, environment);
-        if (name !== undefined) existing.name = name;
-        if (kvmPassthroughEnabled !== undefined) existing.kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
-        await cfgRepo.save(existing);
-      }
-
-      const user = ctx.user;
-      await createActivityLog({
-        userId: user.id,
-        action: 'server:update',
-        targetId: id,
-        targetType: 'server',
-        metadata: {
-          changes: {
+        await createActivityLog({
+          userId: ownerId,
+          action: 'server:create',
+          targetId: serverUuid,
+          targetType: 'server',
+          metadata: {
+            serverName: name,
+            eggId: egg.id,
+            nodeId: node.id,
             memory,
             disk,
             cpu,
-            swap,
-            ioWeight,
-            name,
-            environment: environment ? '(updated)' : undefined,
+            gamblingMode: !!gamblingResult,
           },
-        },
-        ipAddress: ctx.ip,
-      });
-      return { success: true };
-    } catch (e: any) {
-      ctx.set.status = 502;
-      console.error('[serverHandler:update-server]', e);
-      return { error: sanitizeError(e, 'serverHandler:update-server') };
+          ipAddress: ctx.ip,
+        });
+
+        return { uuid: serverUuid, nodeId: node.id, gambling: gamblingResult, ...res.data };
+      } catch (e: any) {
+        await Promise.allSettled([removeServerConfig(serverUuid), nodeSvc.unmapServer(serverUuid)]);
+        ctx.set.status = 502;
+        console.error('[serverHandler:create-server]', e);
+        return { error: sanitizeError(e, 'serverHandler:create-server') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:create')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+        503: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Create a new server', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Update server settings', tags: ['Servers'] }
-  });
+  );
 
-  app.post(prefix + '/servers/:id/ipv6', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { action, ipv6Address } = ctx.body as any || {};
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
+  app.put(
+    prefix + '/servers/:id',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { memory, disk, cpu, swap, ioWeight, environment, name, kvmPassthroughEnabled } =
+        ctx.body as any;
 
-    if (!isAdmin) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.ipv6AdminsOnly') };
-    }
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
-    if (action !== 'assign' && action !== 'deassign') {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.invalidAction') };
-    }
+      if (kvmPassthroughEnabled !== undefined && !isAdmin) {
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const existing = await cfgRepo.findOneBy({ uuid: id });
+        const eggRepoInstance = AppDataSource.getRepository(require('../models/egg.entity').Egg);
+        const egg = existing?.eggId
+          ? await eggRepoInstance.findOneBy({ id: existing.eggId })
+          : null;
 
-    const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    if (!cfg.kvmPassthroughEnabled) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.ipv6AssignmentKvmOnly') };
-    }
-
-    const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
-    if (!node || !node.ipv6Subnet) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.ipv6NoSubnet') };
-    }
-
-    const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
-    alloc.mappings = alloc.mappings || {};
-    alloc.owners = alloc.owners || {};
-    const existingIpv6Address = typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)
-      ? formatIpv6(parseIpv6(alloc.ipv6Address))
-      : null;
-
-    if (action === 'assign') {
-      if (existingIpv6Address) {
-        return { success: true, ipv6: existingIpv6Address, message: ctx.t('server.ipv6AlreadyAssigned') };
+        if (egg?.requiresKvm) {
+          if (!kvmPassthroughEnabled) {
+            ctx.set.status = 403;
+            return { error: ctx.t('server.eggRequiresKvm') };
+          }
+        } else {
+          ctx.set.status = 403;
+          return { error: ctx.t('server.kvmPassthroughAdminsOnly') };
+        }
       }
 
-      let candidateIpv6: string | null = null;
-      if (ipv6Address) {
-        const normalized = String(ipv6Address).trim();
-        if (!isValidIpv6(normalized) || !isIpv6InSubnet(normalized, node.ipv6Subnet)) {
-          ctx.set.status = 400;
-          return { error: ctx.t('node.ipv6SubnetInvalid') };
-        }
-        if (isReservedIpv6(normalized, node.ipv6Subnet, node.ipv6ReservedCount)) {
-          ctx.set.status = 400;
-          return { error: ctx.t('server.ipv6AddressReserved') };
-        }
-        const usedAddresses = new Set<string>();
-        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
-        for (const c of nodeConfigs) {
-          const entry = c.allocations as any;
-          if (!entry) continue;
-          if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
-            usedAddresses.add(formatIpv6(parseIpv6(String(entry.default.ip))));
-          }
-          for (const ip of Object.keys(entry.mappings || {})) {
-            if (isValidIpv6(ip)) usedAddresses.add(formatIpv6(parseIpv6(ip)));
-          }
-        }
-        if (usedAddresses.has(formatIpv6(parseIpv6(normalized)))) {
-          ctx.set.status = 400;
-          return { error: ctx.t('server.ipv6AlreadyInUse') };
-        }
-        candidateIpv6 = normalized;
-      } else {
-        const used = new Set<string>();
-        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
-        for (const c of nodeConfigs) {
-          const entry = c.allocations as any;
-          if (!entry) continue;
-          if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
-            used.add(formatIpv6(parseIpv6(String(entry.default.ip))));
-          }
-          for (const ip of Object.keys(entry.mappings || {})) {
-            if (isValidIpv6(ip)) used.add(formatIpv6(parseIpv6(ip)));
-          }
-        }
-        candidateIpv6 = getNextFreeIpv6Address(node.ipv6Subnet, used, BigInt(node.ipv6ReservedCount ?? 0));
+      if (ioWeight !== undefined && !isAdmin) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.ioWeightAdminsOnly') };
       }
 
-      if (!candidateIpv6) {
-        ctx.set.status = 503;
-        return { error: ctx.t('server.ipv6NoFreeAddress') };
+      if (!isAdmin) {
+        if (memory !== undefined && Number(memory) < 1) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.memoryMinimum') };
+        }
+        if (disk !== undefined && Number(disk) < 1) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.diskMinimum') };
+        }
+        if (cpu !== undefined && Number(cpu) < 1) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.cpuMinimum') };
+        }
       }
 
-      alloc.ipv6Address = candidateIpv6;
+      try {
+        const svc = await serviceFor(id);
+
+        const build: any = {};
+        if (memory !== undefined) build.memory_limit = Number(memory);
+        if (disk !== undefined) build.disk_space = Number(disk);
+        if (cpu !== undefined) build.cpu_limit = Number(cpu);
+        if (swap !== undefined) build.swap = Number(swap);
+        if (ioWeight !== undefined) build.io_weight = Number(ioWeight);
+        const syncPayload: any = {};
+        if (Object.keys(build).length) syncPayload.build = build;
+        if (environment !== undefined) syncPayload.environment = environment;
+        if (name !== undefined) syncPayload.name = name;
+        if (kvmPassthroughEnabled !== undefined)
+          syncPayload.kvm_passthrough_enabled = Boolean(kvmPassthroughEnabled);
+
+        await svc.syncServer(id, syncPayload);
+
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const existing = await cfgRepo.findOneBy({ uuid: id });
+        if (existing) {
+          if (memory !== undefined) existing.memory = Number(memory);
+          if (disk !== undefined) existing.disk = Number(disk);
+          if (cpu !== undefined) existing.cpu = Number(cpu);
+          if (swap !== undefined) existing.swap = Number(swap);
+          if (ioWeight !== undefined) existing.ioWeight = Number(ioWeight);
+          if (environment !== undefined) Object.assign((existing.environment ??= {}), environment);
+          if (name !== undefined) existing.name = name;
+          if (kvmPassthroughEnabled !== undefined)
+            existing.kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
+          await cfgRepo.save(existing);
+        }
+
+        const user = ctx.user;
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:update',
+          targetId: id,
+          targetType: 'server',
+          metadata: {
+            changes: {
+              memory,
+              disk,
+              cpu,
+              swap,
+              ioWeight,
+              name,
+              environment: environment ? '(updated)' : undefined,
+            },
+          },
+          ipAddress: ctx.ip,
+        });
+        return { success: true };
+      } catch (e: any) {
+        ctx.set.status = 502;
+        console.error('[serverHandler:update-server]', e);
+        return { error: sanitizeError(e, 'serverHandler:update-server') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Update server settings', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/ipv6',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { action, ipv6Address } = (ctx.body as any) || {};
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+
+      if (!isAdmin) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.ipv6AdminsOnly') };
+      }
+
+      if (action !== 'assign' && action !== 'deassign') {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidAction') };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const cfg = await cfgRepo.findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      if (!cfg.kvmPassthroughEnabled) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.ipv6AssignmentKvmOnly') };
+      }
+
+      const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+      if (!node || !node.ipv6Subnet) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.ipv6NoSubnet') };
+      }
+
+      const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
+      alloc.mappings = alloc.mappings || {};
+      alloc.owners = alloc.owners || {};
+      const existingIpv6Address =
+        typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)
+          ? formatIpv6(parseIpv6(alloc.ipv6Address))
+          : null;
+
+      if (action === 'assign') {
+        if (existingIpv6Address) {
+          return {
+            success: true,
+            ipv6: existingIpv6Address,
+            message: ctx.t('server.ipv6AlreadyAssigned'),
+          };
+        }
+
+        let candidateIpv6: string | null = null;
+        if (ipv6Address) {
+          const normalized = String(ipv6Address).trim();
+          if (!isValidIpv6(normalized) || !isIpv6InSubnet(normalized, node.ipv6Subnet)) {
+            ctx.set.status = 400;
+            return { error: ctx.t('node.ipv6SubnetInvalid') };
+          }
+          if (isReservedIpv6(normalized, node.ipv6Subnet, node.ipv6ReservedCount)) {
+            ctx.set.status = 400;
+            return { error: ctx.t('server.ipv6AddressReserved') };
+          }
+          const usedAddresses = new Set<string>();
+          const nodeConfigs = await cfgRepo.find({
+            where: { nodeId: node.id },
+            select: { allocations: true },
+          });
+          for (const c of nodeConfigs) {
+            const entry = c.allocations as any;
+            if (!entry) continue;
+            if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
+              usedAddresses.add(formatIpv6(parseIpv6(String(entry.default.ip))));
+            }
+            for (const ip of Object.keys(entry.mappings || {})) {
+              if (isValidIpv6(ip)) usedAddresses.add(formatIpv6(parseIpv6(ip)));
+            }
+          }
+          if (usedAddresses.has(formatIpv6(parseIpv6(normalized)))) {
+            ctx.set.status = 400;
+            return { error: ctx.t('server.ipv6AlreadyInUse') };
+          }
+          candidateIpv6 = normalized;
+        } else {
+          const used = new Set<string>();
+          const nodeConfigs = await cfgRepo.find({
+            where: { nodeId: node.id },
+            select: { allocations: true },
+          });
+          for (const c of nodeConfigs) {
+            const entry = c.allocations as any;
+            if (!entry) continue;
+            if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
+              used.add(formatIpv6(parseIpv6(String(entry.default.ip))));
+            }
+            for (const ip of Object.keys(entry.mappings || {})) {
+              if (isValidIpv6(ip)) used.add(formatIpv6(parseIpv6(ip)));
+            }
+          }
+          candidateIpv6 = getNextFreeIpv6Address(
+            node.ipv6Subnet,
+            used,
+            BigInt(node.ipv6ReservedCount ?? 0)
+          );
+        }
+
+        if (!candidateIpv6) {
+          ctx.set.status = 503;
+          return { error: ctx.t('server.ipv6NoFreeAddress') };
+        }
+
+        alloc.ipv6Address = candidateIpv6;
+        cfg.allocations = alloc;
+        await cfgRepo.save(cfg);
+
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, { allocations: alloc });
+
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:ipv6:assign',
+          targetId: id,
+          targetType: 'server',
+          metadata: { ipv6: candidateIpv6 },
+          ipAddress: ctx.ip,
+        });
+
+        return { success: true, ipv6: candidateIpv6 };
+      }
+
+      const currentIpv6Address =
+        typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)
+          ? formatIpv6(parseIpv6(alloc.ipv6Address))
+          : null;
+      const ipv6Keys = Object.keys(alloc.mappings).filter(ip =>
+        currentIpv6Address
+          ? isValidIpv6(ip) && formatIpv6(parseIpv6(ip)) === currentIpv6Address
+          : isValidIpv6(ip)
+      );
+      if (!currentIpv6Address) {
+        return { success: true, message: ctx.t('server.noIpv6Assigned') };
+      }
+
+      delete alloc.ipv6Address;
+
+      for (const ipv6 of ipv6Keys) delete alloc.mappings[ipv6];
+
+      if (alloc.owners) {
+        for (const ownerKey of Object.keys(alloc.owners)) {
+          const idx = ownerKey.lastIndexOf(':');
+          const ipPart = idx >= 0 ? ownerKey.slice(0, idx) : ownerKey;
+          if (isValidIpv6(ipPart)) delete alloc.owners[ownerKey];
+        }
+      }
+
+      if (alloc.default && isValidIpv6(String(alloc.default.ip))) {
+        const fallbackIp = Object.keys(alloc.mappings).find(ip => !isValidIpv6(ip));
+        const fallbackPort = fallbackIp ? alloc.mappings[fallbackIp]?.[0] : undefined;
+        if (fallbackIp && fallbackPort != null) {
+          alloc.default = { ip: fallbackIp, port: Number(fallbackPort) };
+        } else {
+          alloc.default = null as any;
+        }
+      }
+
       cfg.allocations = alloc;
       await cfgRepo.save(cfg);
 
@@ -1751,552 +2081,644 @@ export async function serverRoutes(app: any, prefix = '') {
 
       await createActivityLog({
         userId: user.id,
-        action: 'server:ipv6:assign',
+        action: 'server:ipv6:deassign',
         targetId: id,
         targetType: 'server',
-        metadata: { ipv6: candidateIpv6 },
+        metadata: { removed: ipv6Keys },
         ipAddress: ctx.ip,
       });
 
-      return { success: true, ipv6: candidateIpv6 };
-    }
-
-    const currentIpv6Address = typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)
-      ? formatIpv6(parseIpv6(alloc.ipv6Address))
-      : null;
-    const ipv6Keys = Object.keys(alloc.mappings).filter((ip) => currentIpv6Address ? (isValidIpv6(ip) && formatIpv6(parseIpv6(ip)) === currentIpv6Address) : isValidIpv6(ip));
-    if (!currentIpv6Address) {
-      return { success: true, message: ctx.t('server.noIpv6Assigned') };
-    }
-
-    delete alloc.ipv6Address;
-
-    for (const ipv6 of ipv6Keys) delete alloc.mappings[ipv6];
-
-    if (alloc.owners) {
-      for (const ownerKey of Object.keys(alloc.owners)) {
-        const idx = ownerKey.lastIndexOf(':');
-        const ipPart = idx >= 0 ? ownerKey.slice(0, idx) : ownerKey;
-        if (isValidIpv6(ipPart)) delete alloc.owners[ownerKey];
-      }
-    }
-
-    if (alloc.default && isValidIpv6(String(alloc.default.ip))) {
-      const fallbackIp = Object.keys(alloc.mappings).find((ip) => !isValidIpv6(ip));
-      const fallbackPort = fallbackIp ? alloc.mappings[fallbackIp]?.[0] : undefined;
-      if (fallbackIp && fallbackPort != null) {
-        alloc.default = { ip: fallbackIp, port: Number(fallbackPort) };
-      } else {
-        alloc.default = null as any;
-      }
-    }
-
-    cfg.allocations = alloc;
-    await cfgRepo.save(cfg);
-
-    const svc = await serviceFor(id);
-    await svc.syncServer(id, { allocations: alloc });
-
-    await createActivityLog({
-      userId: user.id,
-      action: 'server:ipv6:deassign',
-      targetId: id,
-      targetType: 'server',
-      metadata: { removed: ipv6Keys },
-      ipAddress: ctx.ip,
-    });
-
-    return { success: true, removed: ipv6Keys };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    body: t.Object({ action: t.String(), ipv6Address: t.Optional(t.String()) }),
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      503: t.Object({ error: t.String() }),
+      return { success: true, removed: ipv6Keys };
     },
-    detail: { summary: 'Assign or remove an IPv6 address from a server', tags: ['Servers'] },
-  });
-
-  app.post(prefix + '/servers/:id/suspend', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    try {
-      const body = (ctx.body || {}) as any;
-      const providedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
-      const providedSource = typeof body.source === 'string' ? body.source.trim() : '';
-      const dmcaMark = Boolean(body.dmca);
-      const user = ctx.user;
-      const userName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
-      const actor = providedSource || userName || user?.email || 'system';
-      const reason = providedReason || (dmcaMark ? 'DMCA takedown' : 'Suspended by panel moderation action');
-      const dmcaAt = dmcaMark ? new Date() : undefined;
-      const dmcaDeletionAt = dmcaMark ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined;
-
-      const svc = await serviceFor(id);
-      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      const existingCfg = await cfgRepo.findOneBy({ uuid: id });
-      const alreadySuspended = !!existingCfg?.suspended;
-      const updateData: any = {
-        suspended: true,
-        suspendedBy: actor,
-        suspendedReason: reason,
-        suspendedAt: new Date(),
-      };
-      if (dmcaMark) {
-        updateData.dmca = true;
-        updateData.dmcaBy = actor;
-        updateData.dmcaReason = reason;
-        updateData.dmcaAt = dmcaAt;
-        updateData.dmcaDeletionAt = dmcaDeletionAt;
-      }
-      await cfgRepo.update({ uuid: id }, updateData);
-      await svc.powerServer(id, 'kill').catch(() => { });
-      await svc.syncServer(id, {});
-
-      let notice: {
-        sent: boolean;
-        skipped: boolean;
-        reason?: string;
-        recipient?: string;
-      } = {
-        sent: false,
-        skipped: true,
-        reason: 'owner notification not attempted',
-        recipient: undefined,
-      };
-
-      if (existingCfg) {
-        const shouldSendDmcaNotice = dmcaMark && !existingCfg.dmca;
-        if (shouldSendDmcaNotice) {
-          notice = await notifyServerOwnerDmca({
-            cfg: existingCfg,
-            actor,
-            reason,
-            dmcaAt,
-            deletionAt: dmcaDeletionAt,
-          });
-        } else if (!alreadySuspended) {
-          notice = await notifyServerOwnerSuspended({
-            cfg: existingCfg,
-            actor,
-            reason,
-            suspendedAt: new Date(),
-          });
-        } else {
-          notice.reason = dmcaMark ? 'server already marked DMCA' : 'server already suspended';
-        }
-
-        if (!notice.sent && !notice.skipped) {
-          console.warn('[server:suspend] failed to notify owner by email:', notice.reason || 'unknown error');
-        }
-      }
-
-      if (user?.id) {
-        await createActivityLog({
-          userId: user.id,
-          action: 'server:suspend',
-          targetId: id,
-          targetType: 'server',
-          metadata: { reason, suspendedBy: actor, dmca: dmcaMark },
-          ipAddress: ctx.ip,
-        });
-      }
-      return {
-        success: true,
-        emailSent: notice.sent,
-        emailSkipped: notice.skipped,
-        emailReason: notice.reason || null,
-        emailRecipient: notice.recipient || null,
-      };
-    } catch (e: any) {
-      ctx.set.status = 502;
-      console.error('[serverHandler:suspend-server]', e);
-      return { error: sanitizeError(e, 'serverHandler:suspend-server') };
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      body: t.Object({ action: t.String(), ipv6Address: t.Optional(t.String()) }),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        503: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Assign or remove an IPv6 address from a server', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    body: t.Optional(t.Object({ reason: t.Optional(t.String()), source: t.Optional(t.String()), dmca: t.Optional(t.Boolean()) })),
-    response: {
-      200: t.Object({
-        success: t.Boolean(),
-        emailSent: t.Boolean(),
-        emailSkipped: t.Boolean(),
-        emailReason: t.Nullable(t.String()),
-        emailRecipient: t.Nullable(t.String()),
-      }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      502: t.Object({ error: t.String() }),
-    },
-    detail: { summary: 'Suspend a server', tags: ['Servers'] }
-  });
+  );
 
-  app.post(prefix + '/servers/:id/unsuspend', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    try {
-      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-      const existingCfg = await cfgRepo.findOneBy({ uuid: id });
-      await cfgRepo.update(
-        { uuid: id },
-        {
-          suspended: false,
-          suspendedBy: null,
-          suspendedReason: null,
-          suspendedAt: null,
-          dmca: false,
-          dmcaBy: null,
-          dmcaReason: null,
-          dmcaAt: null,
-          dmcaDeletionAt: null,
-        },
-      );
-      const svc = await serviceFor(id);
-      await svc.syncServer(id, {});
-      const user = ctx.user;
-      const alreadySuspended = !!existingCfg?.suspended || !!existingCfg?.dmca;
-      if (!alreadySuspended && existingCfg) {
-        await notifyServerOwnerUnsuspended({
-          cfg: existingCfg,
-          actor: user?.email || 'system',
-          unsuspendedAt: new Date(),
-        });
-      } else if (alreadySuspended && existingCfg) {
-        await notifyServerOwnerUnsuspended({
-          cfg: existingCfg,
-          actor: user?.email || 'system',
-          unsuspendedAt: new Date(),
-        });
-      }
-      await createActivityLog({ userId: user.id, action: 'server:unsuspend', targetId: id, targetType: 'server', ipAddress: ctx.ip });
-      return { success: true };
-    } catch (e: any) {
-      ctx.set.status = 502;
-      console.error('[serverHandler:unsuspend-server]', e);
-      return { error: sanitizeError(e, 'serverHandler:unsuspend-server') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Unsuspend a server', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/power', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { action } = ctx.body as any;
-    const user = ctx.user;
-    const gamblingConfig = await getGamblingConfig();
-    const gamblingPowerEnabled = gamblingConfig.enabled && isGamblingModeEnabled(user);
-    const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: id });
-    if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.hibernated') };
-    }
-
-    if (cfg?.suspended || cfg?.dmca) {
-      ctx.set.status = 403;
-      return { error: buildSuspendedServerMessage(cfg) };
-    }
-
-    if (gamblingPowerEnabled && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase())) {
-      const roll = randomIntInclusive(1, 6);
-      const denied = Math.random() < gamblingConfig.powerDenyChance;
-      if (denied) {
-        await recordPowerGambleOutcome(Number(user.id), false);
-        await createActivityLog({
-          userId: user.id,
-          action: `server:power:${action}:dice-denied`,
-          targetId: id,
-          targetType: 'server',
-          metadata: { powerAction: action, diceRoll: roll },
-          ipAddress: ctx.ip,
-        });
-        return {
-          success: false,
-          blockedByDice: true,
-          roll,
-          message: pickRandomFailureLine(),
-        };
-      }
-    }
-
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.powerServer(id, action);
-      if (gamblingPowerEnabled) {
-        await recordPowerGambleOutcome(Number(user.id), true);
-      }
-      if (action === 'start' || action === 'restart') {
-        await cfgRepo().update({ uuid: id }, { desiredPowerState: true });
-      } else if (action === 'stop' || action === 'kill') {
-        await cfgRepo().update({ uuid: id }, { desiredPowerState: false });
-      }
-      await createActivityLog({ userId: user.id, action: `server:power:${action}`, targetId: id, targetType: 'server', metadata: { powerAction: action }, ipAddress: ctx.ip });
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 502;
-      const msg = e?.response?.data?.error || e?.message || 'Power action failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:power')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Perform power action on server', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/kvm', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { enable } = ctx.body as any;
-
-    const user = ctx.user;
-    if (!user || !hasPermissionSync(ctx, 'servers:kvm')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('admin.insufficientPermissions') };
-    }
-
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    cfg.kvmPassthroughEnabled = Boolean(enable);
-    await cfgRepo.save(cfg);
-
-    try {
-      const svc = await serviceFor(id);
-      await svc.syncServer(id, {});
-    } catch (e: any) {
-      ctx.set.status = 502;
-      return { error: `KVM toggle failed: ${e?.message || 'unable to sync to node'}` };
-    }
-
-    await createActivityLog({ userId: user.id, action: `server:kvm:${enable ? 'enable' : 'disable'}`, targetId: id, targetType: 'server', metadata: { kvmEnabled: enable }, ipAddress: ctx.ip });
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:kvm')],
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Toggle server KVM', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/files', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path } = ctx.query as any;
-    const dir = path || '/';
-    try {
-      const svc = await serviceFor(id);
-      let res: any;
+  app.post(
+    prefix + '/servers/:id/suspend',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
       try {
-        res = await svc.serverRequest(id, `/files/list-directory?directory=${encodeURIComponent(dir)}`);
-      } catch (e1: any) {
-        if (e1?.response?.status === 404) {
-          res = await svc.serverRequest(id, `/files/list?directory=${encodeURIComponent(dir)}`);
-        } else {
-          throw e1;
+        const body = (ctx.body || {}) as any;
+        const providedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
+        const providedSource = typeof body.source === 'string' ? body.source.trim() : '';
+        const dmcaMark = Boolean(body.dmca);
+        const user = ctx.user;
+        const userName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+        const actor = providedSource || userName || user?.email || 'system';
+        const reason =
+          providedReason || (dmcaMark ? 'DMCA takedown' : 'Suspended by panel moderation action');
+        const dmcaAt = dmcaMark ? new Date() : undefined;
+        const dmcaDeletionAt = dmcaMark
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          : undefined;
+
+        const svc = await serviceFor(id);
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const existingCfg = await cfgRepo.findOneBy({ uuid: id });
+        const alreadySuspended = !!existingCfg?.suspended;
+        const updateData: any = {
+          suspended: true,
+          suspendedBy: actor,
+          suspendedReason: reason,
+          suspendedAt: new Date(),
+        };
+        if (dmcaMark) {
+          updateData.dmca = true;
+          updateData.dmcaBy = actor;
+          updateData.dmcaReason = reason;
+          updateData.dmcaAt = dmcaAt;
+          updateData.dmcaDeletionAt = dmcaDeletionAt;
         }
+        await cfgRepo.update({ uuid: id }, updateData);
+        await svc.powerServer(id, 'kill').catch(() => {});
+        await svc.syncServer(id, {});
+
+        let notice: {
+          sent: boolean;
+          skipped: boolean;
+          reason?: string;
+          recipient?: string;
+        } = {
+          sent: false,
+          skipped: true,
+          reason: 'owner notification not attempted',
+          recipient: undefined,
+        };
+
+        if (existingCfg) {
+          const shouldSendDmcaNotice = dmcaMark && !existingCfg.dmca;
+          if (shouldSendDmcaNotice) {
+            notice = await notifyServerOwnerDmca({
+              cfg: existingCfg,
+              actor,
+              reason,
+              dmcaAt,
+              deletionAt: dmcaDeletionAt,
+            });
+          } else if (!alreadySuspended) {
+            notice = await notifyServerOwnerSuspended({
+              cfg: existingCfg,
+              actor,
+              reason,
+              suspendedAt: new Date(),
+            });
+          } else {
+            notice.reason = dmcaMark ? 'server already marked DMCA' : 'server already suspended';
+          }
+
+          if (!notice.sent && !notice.skipped) {
+            console.warn(
+              '[server:suspend] failed to notify owner by email:',
+              notice.reason || 'unknown error'
+            );
+          }
+        }
+
+        if (user?.id) {
+          await createActivityLog({
+            userId: user.id,
+            action: 'server:suspend',
+            targetId: id,
+            targetType: 'server',
+            metadata: { reason, suspendedBy: actor, dmca: dmcaMark },
+            ipAddress: ctx.ip,
+          });
+        }
+        return {
+          success: true,
+          emailSent: notice.sent,
+          emailSkipped: notice.skipped,
+          emailReason: notice.reason || null,
+          emailRecipient: notice.recipient || null,
+        };
+      } catch (e: any) {
+        ctx.set.status = 502;
+        console.error('[serverHandler:suspend-server]', e);
+        return { error: sanitizeError(e, 'serverHandler:suspend-server') };
       }
-      const data = res.data;
-      const entries =
-        (Array.isArray(data) ? data : null) ??
-        (Array.isArray(data?.entries) ? data.entries : null) ??
-        (Array.isArray(data?.data) ? data.data : null) ??
-        (Array.isArray(data?.files) ? data.files : null) ??
-        [];
-      return entries;
-    } catch (e: any) {
-      if (e?.response?.status === 404) return [];
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to list files';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'List directory contents', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/files/contents', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path } = ctx.query as any;
-    if (!path) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.pathQueryParamRequired') };
-    }
-
-    if (/\.qcow2$/i.test(String(path))) {
-      ctx.set.status = 403;
-      return { error: ctx.t('server.qcow2NotAllowed') };
-    }
-
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.readFile(id, path);
-      return res.data ?? '';
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to read file';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Read file contents', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/files/download', async (ctx: any) => {
-    const { id } = ctx.params;
-    const { path } = ctx.query;
-
-    if (!path) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.pathQueryParamRequired') };
-    }
-
-    const svc = await serviceFor(id);
-
-    try {
-      const res = await svc.downloadFile(id, path);
-      const filename = path.split('/').pop() || 'download';
-      const contentType = String(res.headers?.['content-type'] ?? 'application/octet-stream');
-
-      let body: Uint8Array;
-
-      if (res.data instanceof ArrayBuffer) {
-        body = new Uint8Array(res.data);
-      } else if (ArrayBuffer.isView(res.data)) {
-        body = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
-      } else if (typeof res.data === 'string') {
-        console.error('WARNING: downloadFile returned string instead of ArrayBuffer - binary corruption will occur!');
-        body = new TextEncoder().encode(res.data);
-      } else {
-        ctx.set.status = 500;
-        return { error: ctx.t('server.wingsUnexpectedResponse') };
-      }
-
-      return new Response(Buffer.from(body), {
-        status: 200,
-        headers: {
-          'Content-Type': contentType,
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-          'Content-Length': String(body.byteLength),
-        },
-      });
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to download file';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    query: t.Object({ path: t.String() }),
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() }),
     },
-    detail: { summary: 'Download file', tags: ['Servers'] },
-  });
-
-  app.post(prefix + '/servers/:id/files/upload', async (ctx: any) => {
-    const { id } = ctx.params;
-    const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
-    if (!pathParam) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.pathQueryParamRequired') };
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      body: t.Optional(
+        t.Object({
+          reason: t.Optional(t.String()),
+          source: t.Optional(t.String()),
+          dmca: t.Optional(t.Boolean()),
+        })
+      ),
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          emailSent: t.Boolean(),
+          emailSkipped: t.Boolean(),
+          emailReason: t.Nullable(t.String()),
+          emailRecipient: t.Nullable(t.String()),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Suspend a server', tags: ['Servers'] },
     }
+  );
 
-    const svc = await serviceFor(id);
-
-    try {
-      const contentType = String(ctx.request?.headers?.get('content-type') || '').toLowerCase();
-      if (!contentType || !contentType.includes('octet-stream')) {
-        ctx.set.status = 415;
-        return { error: ctx.t('validation.unsupportedMediaType') };
-      }
-
-      let binaryData: Uint8Array;
-      if (ctx.body instanceof Uint8Array) {
-        binaryData = ctx.body;
-      } else if (ctx.body instanceof ArrayBuffer) {
-        binaryData = new Uint8Array(ctx.body);
-      } else if (Buffer.isBuffer(ctx.body)) {
-        binaryData = new Uint8Array(ctx.body);
-      } else {
-        const rawBody = await ctx.request.arrayBuffer();
-        binaryData = new Uint8Array(rawBody);
-      }
-
-      const res = await svc.writeFile(id, pathParam, binaryData);
-
-      const user = (ctx as any).store?.user ?? (ctx as any).user;
-      if (user?.id) {
+  app.post(
+    prefix + '/servers/:id/unsuspend',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      try {
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const existingCfg = await cfgRepo.findOneBy({ uuid: id });
+        await cfgRepo.update(
+          { uuid: id },
+          {
+            suspended: false,
+            suspendedBy: null,
+            suspendedReason: null,
+            suspendedAt: null,
+            dmca: false,
+            dmcaBy: null,
+            dmcaReason: null,
+            dmcaAt: null,
+            dmcaDeletionAt: null,
+          }
+        );
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, {});
+        const user = ctx.user;
+        const alreadySuspended = !!existingCfg?.suspended || !!existingCfg?.dmca;
+        if (!alreadySuspended && existingCfg) {
+          await notifyServerOwnerUnsuspended({
+            cfg: existingCfg,
+            actor: user?.email || 'system',
+            unsuspendedAt: new Date(),
+          });
+        } else if (alreadySuspended && existingCfg) {
+          await notifyServerOwnerUnsuspended({
+            cfg: existingCfg,
+            actor: user?.email || 'system',
+            unsuspendedAt: new Date(),
+          });
+        }
         await createActivityLog({
           userId: user.id,
-          action: 'server:file:upload',
+          action: 'server:unsuspend',
           targetId: id,
           targetType: 'server',
-          metadata: { filePath: pathParam, size: binaryData.byteLength },
           ipAddress: ctx.ip,
         });
+        return { success: true };
+      } catch (e: any) {
+        ctx.set.status = 502;
+        console.error('[serverHandler:unsuspend-server]', e);
+        return { error: sanitizeError(e, 'serverHandler:unsuspend-server') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Unsuspend a server', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/power',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { action } = ctx.body as any;
+      const user = ctx.user;
+      const gamblingConfig = await getGamblingConfig();
+      const gamblingPowerEnabled = gamblingConfig.enabled && isGamblingModeEnabled(user);
+      const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: id });
+      if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.hibernated') };
       }
 
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'File upload failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      415: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() }),
+      if (cfg?.suspended || cfg?.dmca) {
+        ctx.set.status = 403;
+        return { error: buildSuspendedServerMessage(cfg) };
+      }
+
+      if (gamblingPowerEnabled && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase())) {
+        const roll = randomIntInclusive(1, 6);
+        const denied = Math.random() < gamblingConfig.powerDenyChance;
+        if (denied) {
+          await recordPowerGambleOutcome(Number(user.id), false);
+          await createActivityLog({
+            userId: user.id,
+            action: `server:power:${action}:dice-denied`,
+            targetId: id,
+            targetType: 'server',
+            metadata: { powerAction: action, diceRoll: roll },
+            ipAddress: ctx.ip,
+          });
+          return {
+            success: false,
+            blockedByDice: true,
+            roll,
+            message: pickRandomFailureLine(),
+          };
+        }
+      }
+
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.powerServer(id, action);
+        if (gamblingPowerEnabled) {
+          await recordPowerGambleOutcome(Number(user.id), true);
+        }
+        if (action === 'start' || action === 'restart') {
+          await cfgRepo().update({ uuid: id }, { desiredPowerState: true });
+        } else if (action === 'stop' || action === 'kill') {
+          await cfgRepo().update({ uuid: id }, { desiredPowerState: false });
+        }
+        await createActivityLog({
+          userId: user.id,
+          action: `server:power:${action}`,
+          targetId: id,
+          targetType: 'server',
+          metadata: { powerAction: action },
+          ipAddress: ctx.ip,
+        });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 502;
+        const msg = e?.response?.data?.error || e?.message || 'Power action failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
     },
-    detail: { summary: 'Upload a binary file to server path', tags: ['Servers'] },
-  });
+    {
+      beforeHandle: [authenticate, authorize('servers:power')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Perform power action on server', tags: ['Servers'] },
+    }
+  );
 
-  app.post(prefix + '/servers/:id/files/write', async (ctx: any) => {
-    const { id } = ctx.params;
-    const svc = await serviceFor(id);
+  app.post(
+    prefix + '/servers/:id/kvm',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { enable } = ctx.body as any;
 
-    try {
-      const body = ctx.body as any;
-      const user = (ctx as any).store?.user ?? (ctx as any).user;
+      const user = ctx.user;
+      if (!user || !hasPermissionSync(ctx, 'servers:kvm')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('admin.insufficientPermissions') };
+      }
 
-      // ── Multipart file upload ──
-      if (body && (body.file || body.files)) {
-        const uploadFile =
-          (Array.isArray(body.file) ? body.file[0] : body.file) ||
-          (Array.isArray(body.files) ? body.files[0] : body.files);
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const cfg = await cfgRepo.findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
 
-        if (!uploadFile || typeof uploadFile.arrayBuffer !== 'function') {
-          ctx.set.status = 400;
-          return { error: ctx.t('validation.missingFile') };
+      cfg.kvmPassthroughEnabled = Boolean(enable);
+      await cfgRepo.save(cfg);
+
+      try {
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, {});
+      } catch (e: any) {
+        ctx.set.status = 502;
+        return { error: `KVM toggle failed: ${e?.message || 'unable to sync to node'}` };
+      }
+
+      await createActivityLog({
+        userId: user.id,
+        action: `server:kvm:${enable ? 'enable' : 'disable'}`,
+        targetId: id,
+        targetType: 'server',
+        metadata: { kvmEnabled: enable },
+        ipAddress: ctx.ip,
+      });
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:kvm')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Toggle server KVM', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { path } = ctx.query as any;
+      const dir = path || '/';
+      try {
+        const svc = await serviceFor(id);
+        let res: any;
+        try {
+          res = await svc.serverRequest(
+            id,
+            `/files/list-directory?directory=${encodeURIComponent(dir)}`
+          );
+        } catch (e1: any) {
+          if (e1?.response?.status === 404) {
+            res = await svc.serverRequest(id, `/files/list?directory=${encodeURIComponent(dir)}`);
+          } else {
+            throw e1;
+          }
+        }
+        const data = res.data;
+        const entries =
+          (Array.isArray(data) ? data : null) ??
+          (Array.isArray(data?.entries) ? data.entries : null) ??
+          (Array.isArray(data?.data) ? data.data : null) ??
+          (Array.isArray(data?.files) ? data.files : null) ??
+          [];
+        return entries;
+      } catch (e: any) {
+        if (e?.response?.status === 404) return [];
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to list files';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List directory contents', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files/contents',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { path } = ctx.query as any;
+      if (!path) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.pathQueryParamRequired') };
+      }
+
+      if (/\.qcow2$/i.test(String(path))) {
+        ctx.set.status = 403;
+        return { error: ctx.t('server.qcow2NotAllowed') };
+      }
+
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.readFile(id, path);
+        return res.data ?? '';
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to read file';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Read file contents', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files/download',
+    async (ctx: any) => {
+      const { id } = ctx.params;
+      const { path } = ctx.query;
+
+      if (!path) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.pathQueryParamRequired') };
+      }
+
+      const svc = await serviceFor(id);
+
+      try {
+        const res = await svc.downloadFile(id, path);
+        const filename = path.split('/').pop() || 'download';
+        const contentType = String(res.headers?.['content-type'] ?? 'application/octet-stream');
+
+        let body: Uint8Array;
+
+        if (res.data instanceof ArrayBuffer) {
+          body = new Uint8Array(res.data);
+        } else if (ArrayBuffer.isView(res.data)) {
+          body = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
+        } else if (typeof res.data === 'string') {
+          console.error(
+            'WARNING: downloadFile returned string instead of ArrayBuffer - binary corruption will occur!'
+          );
+          body = new TextEncoder().encode(res.data);
+        } else {
+          ctx.set.status = 500;
+          return { error: ctx.t('server.wingsUnexpectedResponse') };
         }
 
-        const destination = (body.path || body.destination || '/').replace(/\/+$/, '');
-        const fileName = uploadFile.name || 'upload';
-        const filePath = destination.endsWith('/') ? `${destination}${fileName}` : `${destination}/${fileName}`;
+        return new Response(Buffer.from(body), {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+            'Content-Length': String(body.byteLength),
+          },
+        });
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to download file';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      query: t.Object({ path: t.String() }),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Download file', tags: ['Servers'] },
+    }
+  );
 
-        // CRITICAL: Get raw binary as Uint8Array - NOT Buffer
-        const arrayBuffer = await uploadFile.arrayBuffer();
-        const binaryData = new Uint8Array(arrayBuffer);
+  app.post(
+    prefix + '/servers/:id/files/upload',
+    async (ctx: any) => {
+      const { id } = ctx.params;
+      const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
+      if (!pathParam) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.pathQueryParamRequired') };
+      }
 
-        // Pass raw bytes to writeFile
+      const svc = await serviceFor(id);
+
+      try {
+        const contentType = String(ctx.request?.headers?.get('content-type') || '').toLowerCase();
+        if (!contentType || !contentType.includes('octet-stream')) {
+          ctx.set.status = 415;
+          return { error: ctx.t('validation.unsupportedMediaType') };
+        }
+
+        let binaryData: Uint8Array;
+        if (ctx.body instanceof Uint8Array) {
+          binaryData = ctx.body;
+        } else if (ctx.body instanceof ArrayBuffer) {
+          binaryData = new Uint8Array(ctx.body);
+        } else if (Buffer.isBuffer(ctx.body)) {
+          binaryData = new Uint8Array(ctx.body);
+        } else {
+          const rawBody = await ctx.request.arrayBuffer();
+          binaryData = new Uint8Array(rawBody);
+        }
+
+        const res = await svc.writeFile(id, pathParam, binaryData);
+
+        const user = (ctx as any).store?.user ?? (ctx as any).user;
+        if (user?.id) {
+          await createActivityLog({
+            userId: user.id,
+            action: 'server:file:upload',
+            targetId: id,
+            targetType: 'server',
+            metadata: { filePath: pathParam, size: binaryData.byteLength },
+            ipAddress: ctx.ip,
+          });
+        }
+
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'File upload failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        415: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Upload a binary file to server path', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/files/write',
+    async (ctx: any) => {
+      const { id } = ctx.params;
+      const svc = await serviceFor(id);
+
+      try {
+        const body = ctx.body as any;
+        const user = (ctx as any).store?.user ?? (ctx as any).user;
+
+        // ── Multipart file upload ──
+        if (body && (body.file || body.files)) {
+          const uploadFile =
+            (Array.isArray(body.file) ? body.file[0] : body.file) ||
+            (Array.isArray(body.files) ? body.files[0] : body.files);
+
+          if (!uploadFile || typeof uploadFile.arrayBuffer !== 'function') {
+            ctx.set.status = 400;
+            return { error: ctx.t('validation.missingFile') };
+          }
+
+          const destination = (body.path || body.destination || '/').replace(/\/+$/, '');
+          const fileName = uploadFile.name || 'upload';
+          const filePath = destination.endsWith('/')
+            ? `${destination}${fileName}`
+            : `${destination}/${fileName}`;
+
+          // CRITICAL: Get raw binary as Uint8Array - NOT Buffer
+          const arrayBuffer = await uploadFile.arrayBuffer();
+          const binaryData = new Uint8Array(arrayBuffer);
+
+          // Pass raw bytes to writeFile
+          const res = await svc.writeFile(id, filePath, binaryData);
+
+          if (user?.id) {
+            await createActivityLog({
+              userId: user.id,
+              action: 'server:file:write',
+              targetId: id,
+              targetType: 'server',
+              metadata: { filePath },
+              ipAddress: ctx.ip,
+            });
+          }
+
+          return res.data && typeof res.data === 'object' ? res.data : { success: true };
+        }
+
+        // ── JSON body — text content write ──
+        const { path: filePath, content } = body;
+
+        if (!filePath) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.pathRequired') };
+        }
+
+        // Convert content to raw bytes
+        let binaryData: Uint8Array;
+        if (typeof content === 'string') {
+          binaryData = new TextEncoder().encode(content);
+        } else if (content instanceof ArrayBuffer) {
+          binaryData = new Uint8Array(content);
+        } else if (ArrayBuffer.isView(content)) {
+          binaryData = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+        } else {
+          binaryData = new TextEncoder().encode(String(content ?? ''));
+        }
+
         const res = await svc.writeFile(id, filePath, binaryData);
 
         if (user?.id) {
@@ -2311,2173 +2733,2979 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'File write failed';
+        ctx.set.status = status;
+        return { error: msg };
       }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Write file', tags: ['Servers'] },
+    }
+  );
 
-      // ── JSON body — text content write ──
-      const { path: filePath, content } = body;
+  app.post(
+    prefix + '/servers/:id/files/delete',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { path: filePath, files, bulk } = ctx.body as any;
+      let root = '/';
+      let targetFiles: string[] = [];
 
-      if (!filePath) {
-        ctx.set.status = 400;
-        return { error: ctx.t('validation.pathRequired') };
-      }
-
-      // Convert content to raw bytes
-      let binaryData: Uint8Array;
-      if (typeof content === 'string') {
-        binaryData = new TextEncoder().encode(content);
-      } else if (content instanceof ArrayBuffer) {
-        binaryData = new Uint8Array(content);
-      } else if (ArrayBuffer.isView(content)) {
-        binaryData = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+      if (bulk && Array.isArray(files)) {
+        root = typeof filePath === 'string' && filePath.length > 0 ? filePath : '/';
+        targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
       } else {
-        binaryData = new TextEncoder().encode(String(content ?? ''));
+        const lastSlash = filePath.lastIndexOf('/');
+        root = lastSlash > 0 ? filePath.substring(0, lastSlash) : '/';
+        const fileName = filePath.substring(lastSlash + 1);
+        targetFiles = fileName ? [fileName] : [];
       }
 
-      const res = await svc.writeFile(id, filePath, binaryData);
+      if (targetFiles.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.noFilesSpecified') };
+      }
 
-      if (user?.id) {
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.deleteFile(id, root, targetFiles);
+        const user = ctx.user;
         await createActivityLog({
           userId: user.id,
-          action: 'server:file:write',
+          action: 'server:file:delete',
           targetId: id,
           targetType: 'server',
-          metadata: { filePath },
+          metadata: { root, files: targetFiles },
           ipAddress: ctx.ip,
         });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'File delete failed';
+        ctx.set.status = status;
+        return { error: msg };
       }
-
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'File write failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() }),
     },
-    detail: { summary: 'Write file', tags: ['Servers'] },
-  });
-
-  app.post(prefix + '/servers/:id/files/delete', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path: filePath, files, bulk } = ctx.body as any;
-    let root = '/';
-    let targetFiles: string[] = [];
-
-    if (bulk && Array.isArray(files)) {
-      root = typeof filePath === 'string' && filePath.length > 0 ? filePath : '/';
-      targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
-    } else {
-      const lastSlash = filePath.lastIndexOf('/');
-      root = lastSlash > 0 ? filePath.substring(0, lastSlash) : '/';
-      const fileName = filePath.substring(lastSlash + 1);
-      targetFiles = fileName ? [fileName] : [];
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Delete file(s)', tags: ['Servers'] },
     }
+  );
 
-    if (targetFiles.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.noFilesSpecified') };
-    }
-
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.deleteFile(id, root, targetFiles);
-      const user = ctx.user;
-      await createActivityLog({ userId: user.id, action: 'server:file:delete', targetId: id, targetType: 'server', metadata: { root, files: targetFiles }, ipAddress: ctx.ip });
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'File delete failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Delete file(s)', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/files/create-directory', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path: dirPath } = ctx.body as any;
-    // Wings expects { root: "<parent-dir>", name: "<new-dir-name>" }
-    // Learnt it hard way, dont change it :x
-    const lastSlash = dirPath.lastIndexOf('/');
-    const root = lastSlash > 0 ? dirPath.substring(0, lastSlash) : '/';
-    const name = dirPath.substring(lastSlash + 1);
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.createDirectory(id, root, name);
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Create directory failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Create directory', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/files/archive', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.archiveFiles(id, root, files);
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Archive failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Archive files', tags: ['Servers'] }
-  });
-
-  app.put(prefix + '/servers/:id/files/rename', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.serverRequest(id, '/files/rename', 'put', { root, files });
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Rename failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Rename files', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/files/move', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files, destination } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-    if (!destination || typeof destination !== 'string') {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.destinationRequired') };
-    }
-
-    const dest = destination.replace(/^\/+|\/+$/g, '');
-    const mappings = files.map((name: string) => ({
-      from: name,
-      to: dest ? `${dest}/${name}` : name,
-    }));
-
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.moveFiles(id, root, mappings);
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Move failed';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Move files', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/files/chmod', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-
-    const normalizedFiles = files.map((f: any) => {
-      if (!f || typeof f !== 'object' || typeof f.file !== 'string' || !/^[0-7]{3,4}$/.test(f.mode)) {
-        throw new Error('Invalid file entry; expected { file: string, mode: string }');
+  app.post(
+    prefix + '/servers/:id/files/create-directory',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { path: dirPath } = ctx.body as any;
+      // Wings expects { root: "<parent-dir>", name: "<new-dir-name>" }
+      // Learnt it hard way, dont change it :x
+      const lastSlash = dirPath.lastIndexOf('/');
+      const root = lastSlash > 0 ? dirPath.substring(0, lastSlash) : '/';
+      const name = dirPath.substring(lastSlash + 1);
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.createDirectory(id, root, name);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Create directory failed';
+        ctx.set.status = status;
+        return { error: msg };
       }
-      const normalized: any = { file: f.file, mode: f.mode };
-      if (typeof f.recursive === 'boolean') normalized.recursive = f.recursive;
-      return normalized;
-    });
-
-    const svc = await serviceFor(id);
-    try {
-      const res = await svc.chmodFiles(id, root, normalizedFiles);
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'chmod failed';
-      ctx.set.status = status;
-      return { error: msg };
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Create directory', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Change file permissions', tags: ['Servers'] }
-  });
+  );
 
-  app.post(prefix + '/servers/:id/sftp/validate', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      ctx.log?.warn?.({ serverId: id, error: auth.error, path: ctx.query?.path ?? '/' }, 'sftp.validate.access-denied');
-      return { error: auth.error };
+  app.post(
+    prefix + '/servers/:id/files/archive',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.archiveFiles(id, root, files);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Archive failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Archive files', tags: ['Servers'] },
     }
+  );
 
-    const filePath = String(ctx.query?.path || '/');
-    const start = Date.now();
-    ctx.log?.info?.({ serverId: id, nodeId: auth.node?.id, nodeName: auth.node?.name, path: filePath, username: auth.username }, 'sftp.validate.start');
+  app.put(
+    prefix + '/servers/:id/files/rename',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
 
-    try {
-      await validateSftpCredentials(auth.node, { username: auth.username, password: auth.password }, filePath, auth.endpoint);
-      ctx.log?.info?.({ serverId: id, nodeId: auth.node?.id, durationMs: Date.now() - start }, 'sftp.validate.success');
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 401;
-      ctx.set.status = status;
-      ctx.log?.warn?.({ serverId: id, nodeId: auth.node?.id, durationMs: Date.now() - start, code: e?.code, message: e?.message }, 'sftp.validate.failed');
-      return { error: e?.message || 'Failed to validate SFTP credentials' };
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.serverRequest(id, '/files/rename', 'put', { root, files });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Rename failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Rename files', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    detail: { summary: 'Validate KVM SFTP credentials', tags: ['Servers'] }
-  });
+  );
 
-  app.get(prefix + '/servers/:id/sftp/files', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
+  app.post(
+    prefix + '/servers/:id/files/move',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files, destination } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
+      if (!destination || typeof destination !== 'string') {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.destinationRequired') };
+      }
+
+      const dest = destination.replace(/^\/+|\/+$/g, '');
+      const mappings = files.map((name: string) => ({
+        from: name,
+        to: dest ? `${dest}/${name}` : name,
+      }));
+
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.moveFiles(id, root, mappings);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Move failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Move files', tags: ['Servers'] },
     }
+  );
 
-    try {
-      return await listSftpFiles(auth.node, { username: auth.username, password: auth.password }, ctx.query?.path ?? '/', auth.endpoint);
-    } catch (e: any) {
-      const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'Failed to list SFTP directory' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    detail: { summary: 'List KVM SFTP directory contents', tags: ['Servers'] }
-  });
+  app.post(
+    prefix + '/servers/:id/files/chmod',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
 
-  app.get(prefix + '/servers/:id/sftp/contents', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    const filePath = String(ctx.query?.path || '/');
-    try {
-      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, auth.endpoint);
-      return data.toString('utf-8');
-    } catch (e: any) {
-      const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'Failed to read SFTP file' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    detail: { summary: 'Read KVM SFTP file contents', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/sftp/download', async (ctx: any) => {
-    const { id } = ctx.params;
-    const filePath = String(ctx.query?.path || '');
-    if (!filePath) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.pathQueryParamRequired') };
-    }
-
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    try {
-      const data = await readSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, auth.endpoint);
-      const filename = filePath.split('/').pop() || 'download';
-      return new Response(Buffer.from(data), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-          'Content-Length': String(data.length),
-        },
+      const normalizedFiles = files.map((f: any) => {
+        if (
+          !f ||
+          typeof f !== 'object' ||
+          typeof f.file !== 'string' ||
+          !/^[0-7]{3,4}$/.test(f.mode)
+        ) {
+          throw new Error('Invalid file entry; expected { file: string, mode: string }');
+        }
+        const normalized: any = { file: f.file, mode: f.mode };
+        if (typeof f.recursive === 'boolean') normalized.recursive = f.recursive;
+        return normalized;
       });
-    } catch (e: any) {
-      const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'Failed to download SFTP file' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:read')],
-    query: t.Object({ path: t.String() }),
-    detail: { summary: 'Download KVM SFTP file', tags: ['Servers'] },
-  });
 
-  app.post(prefix + '/servers/:id/sftp/upload', async (ctx: any) => {
-    const { id } = ctx.params;
-    const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
-    if (!pathParam) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.pathQueryParamRequired') };
-    }
-
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    try {
-      let binaryData: Uint8Array;
-      if (ctx.body instanceof Uint8Array) {
-        binaryData = ctx.body;
-      } else if (ctx.body instanceof ArrayBuffer) {
-        binaryData = new Uint8Array(ctx.body);
-      } else if (Buffer.isBuffer(ctx.body)) {
-        binaryData = new Uint8Array(ctx.body);
-      } else {
-        const rawBody = await ctx.request.arrayBuffer();
-        binaryData = new Uint8Array(rawBody);
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.chmodFiles(id, root, normalizedFiles);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'chmod failed';
+        ctx.set.status = status;
+        return { error: msg };
       }
-      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, pathParam, Buffer.from(binaryData), auth.endpoint);
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP upload failed' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Change file permissions', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Upload a file to KVM SFTP path', tags: ['Servers'] },
-  });
+  );
 
-  app.post(prefix + '/servers/:id/sftp/write', async (ctx: any) => {
-    const { id } = ctx.params;
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
+  app.post(
+    prefix + '/servers/:id/sftp/validate',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        ctx.log?.warn?.(
+          { serverId: id, error: auth.error, path: ctx.query?.path ?? '/' },
+          'sftp.validate.access-denied'
+        );
+        return { error: auth.error };
+      }
+
+      const filePath = String(ctx.query?.path || '/');
+      const start = Date.now();
+      ctx.log?.info?.(
+        {
+          serverId: id,
+          nodeId: auth.node?.id,
+          nodeName: auth.node?.name,
+          path: filePath,
+          username: auth.username,
+        },
+        'sftp.validate.start'
+      );
+
+      try {
+        await validateSftpCredentials(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          filePath,
+          auth.endpoint
+        );
+        ctx.log?.info?.(
+          { serverId: id, nodeId: auth.node?.id, durationMs: Date.now() - start },
+          'sftp.validate.success'
+        );
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 401;
+        ctx.set.status = status;
+        ctx.log?.warn?.(
+          {
+            serverId: id,
+            nodeId: auth.node?.id,
+            durationMs: Date.now() - start,
+            code: e?.code,
+            message: e?.message,
+          },
+          'sftp.validate.failed'
+        );
+        return { error: e?.message || 'Failed to validate SFTP credentials' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      detail: { summary: 'Validate KVM SFTP credentials', tags: ['Servers'] },
     }
+  );
 
-    try {
-      const body = ctx.body as any;
-      const filePath = String(body?.path || '');
+  app.get(
+    prefix + '/servers/:id/sftp/files',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      try {
+        return await listSftpFiles(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          ctx.query?.path ?? '/',
+          auth.endpoint
+        );
+      } catch (e: any) {
+        const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'Failed to list SFTP directory' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      detail: { summary: 'List KVM SFTP directory contents', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/sftp/contents',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      const filePath = String(ctx.query?.path || '/');
+      try {
+        const data = await readSftpFile(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          filePath,
+          auth.endpoint
+        );
+        return data.toString('utf-8');
+      } catch (e: any) {
+        const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'Failed to read SFTP file' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      detail: { summary: 'Read KVM SFTP file contents', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/sftp/download',
+    async (ctx: any) => {
+      const { id } = ctx.params;
+      const filePath = String(ctx.query?.path || '');
       if (!filePath) {
         ctx.set.status = 400;
-        return { error: ctx.t('validation.pathRequired') };
+        return { error: ctx.t('validation.pathQueryParamRequired') };
       }
 
-      let content = body?.content ?? '';
-      if (typeof content !== 'string') content = String(content);
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
 
-      await writeSftpFile(auth.node, { username: auth.username, password: auth.password }, filePath, Buffer.from(content, 'utf-8'), auth.endpoint);
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP write failed' };
+      try {
+        const data = await readSftpFile(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          filePath,
+          auth.endpoint
+        );
+        const filename = filePath.split('/').pop() || 'download';
+        return new Response(Buffer.from(data), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+            'Content-Length': String(data.length),
+          },
+        });
+      } catch (e: any) {
+        const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'Failed to download SFTP file' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      query: t.Object({ path: t.String() }),
+      detail: { summary: 'Download KVM SFTP file', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Write a KVM SFTP file', tags: ['Servers'] },
-  });
+  );
 
-  app.post(prefix + '/servers/:id/sftp/delete', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path: root = '/', files, bulk } = ctx.body as any;
+  app.post(
+    prefix + '/servers/:id/sftp/upload',
+    async (ctx: any) => {
+      const { id } = ctx.params;
+      const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
+      if (!pathParam) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.pathQueryParamRequired') };
+      }
 
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      try {
+        let binaryData: Uint8Array;
+        if (ctx.body instanceof Uint8Array) {
+          binaryData = ctx.body;
+        } else if (ctx.body instanceof ArrayBuffer) {
+          binaryData = new Uint8Array(ctx.body);
+        } else if (Buffer.isBuffer(ctx.body)) {
+          binaryData = new Uint8Array(ctx.body);
+        } else {
+          const rawBody = await ctx.request.arrayBuffer();
+          binaryData = new Uint8Array(rawBody);
+        }
+        await writeSftpFile(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          pathParam,
+          Buffer.from(binaryData),
+          auth.endpoint
+        );
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP upload failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Upload a file to KVM SFTP path', tags: ['Servers'] },
     }
+  );
 
-    let targetFiles: string[] = [];
-    let baseDir: string = root;
+  app.post(
+    prefix + '/servers/:id/sftp/write',
+    async (ctx: any) => {
+      const { id } = ctx.params;
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
 
-    if (bulk && Array.isArray(files)) {
-      targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
-    } else {
-      const filePath = String(root || '');
-      if (!filePath) {
+      try {
+        const body = ctx.body as any;
+        const filePath = String(body?.path || '');
+        if (!filePath) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.pathRequired') };
+        }
+
+        let content = body?.content ?? '';
+        if (typeof content !== 'string') content = String(content);
+
+        await writeSftpFile(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          filePath,
+          Buffer.from(content, 'utf-8'),
+          auth.endpoint
+        );
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP write failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Write a KVM SFTP file', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/sftp/delete',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { path: root = '/', files, bulk } = ctx.body as any;
+
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      let targetFiles: string[] = [];
+      let baseDir: string = root;
+
+      if (bulk && Array.isArray(files)) {
+        targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
+      } else {
+        const filePath = String(root || '');
+        if (!filePath) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.pathRequired_1') };
+        }
+        const lastSlash = filePath.lastIndexOf('/');
+        baseDir = filePath.substring(0, lastSlash) || '/';
+        const filename = filePath.substring(lastSlash + 1);
+        targetFiles = filename ? [filename] : [];
+      }
+
+      if (targetFiles.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.noFilesSpecified') };
+      }
+
+      try {
+        await deleteSftpFiles(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          baseDir,
+          targetFiles,
+          auth.endpoint
+        );
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP delete failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Delete file(s) over KVM SFTP', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/sftp/create-directory',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { path: dirPath } = ctx.body as any;
+      if (!dirPath || typeof dirPath !== 'string') {
         ctx.set.status = 400;
         return { error: ctx.t('validation.pathRequired_1') };
       }
-      const lastSlash = filePath.lastIndexOf('/');
-      baseDir = filePath.substring(0, lastSlash) || '/';
-      const filename = filePath.substring(lastSlash + 1);
-      targetFiles = filename ? [filename] : [];
-    }
 
-    if (targetFiles.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.noFilesSpecified') };
-    }
-
-    try {
-      await deleteSftpFiles(auth.node, { username: auth.username, password: auth.password }, baseDir, targetFiles, auth.endpoint);
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP delete failed' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Delete file(s) over KVM SFTP', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/sftp/create-directory', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { path: dirPath } = ctx.body as any;
-    if (!dirPath || typeof dirPath !== 'string') {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.pathRequired_1') };
-    }
-
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    try {
-      await mkdirSftp(auth.node, { username: auth.username, password: auth.password }, dirPath, auth.endpoint);
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP create directory failed' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Create directory over KVM SFTP', tags: ['Servers'] }
-  });
-
-  app.put(prefix + '/servers/:id/sftp/rename', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    try {
-      const base = root.replace(/\/+$/, '') || '/';
-      for (const entry of files) {
-        if (!entry || typeof entry.from !== 'string' || typeof entry.to !== 'string') {
-          throw new Error('Invalid file mapping entry');
-        }
-        const fromPath = `${base}/${entry.from}`.replace(/\/+/g, '/');
-        const toPath = `${base}/${entry.to}`.replace(/\/+/g, '/');
-        await renameSftp(auth.node, { username: auth.username, password: auth.password }, fromPath, toPath, auth.endpoint);
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
       }
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP rename failed' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Rename files over KVM SFTP', tags: ['Servers'] }
-  });
 
-  app.post(prefix + '/servers/:id/sftp/move', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files, destination } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-    if (!destination || typeof destination !== 'string') {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.destinationRequired') };
-    }
-
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    const dest = ('/' + destination).replace(/\/+/g, '/').replace(/\/+$/, '') || '/';
-    const mappings = files.map((name: string) => ({
-      from: name,
-      to: `${dest}/${name}`.replace(/\/+/g, '/'),
-    }));
-
-    try {
-      await moveSftpFiles(auth.node, { username: auth.username, password: auth.password }, String(root || '/'), mappings, auth.endpoint);
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP move failed' };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Move files over KVM SFTP', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/sftp/chmod', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { root = '/', files } = ctx.body as any;
-    if (!Array.isArray(files) || files.length === 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.filesMustBeArray') };
-    }
-
-    const auth = await resolveSftpAccess(id, ctx);
-    if ('error' in auth) {
-      ctx.set.status = 401;
-      return { error: auth.error };
-    }
-
-    try {
-      const base = root.replace(/\/+$/, '') || '/';
-      for (const entry of files) {
-        if (!entry || typeof entry.file !== 'string' || typeof entry.mode !== 'string') {
-          throw new Error('Invalid chmod entry');
-        }
-        const mode = parseInt(entry.mode, 8);
-        if (Number.isNaN(mode)) throw new Error(`Invalid mode: ${entry.mode}`);
-        const target = `${base}/${entry.file}`.replace(/\/+/g, '/');
-        await chmodSftp(auth.node, { username: auth.username, password: auth.password }, target, mode, auth.endpoint);
+      try {
+        await mkdirSftp(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          dirPath,
+          auth.endpoint
+        );
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP create directory failed' };
       }
-      return { success: true };
-    } catch (e: any) {
-      const status = e?.code === 'EACCES' ? 403 : 500;
-      ctx.set.status = status;
-      return { error: e?.message || 'SFTP chmod failed' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Create directory over KVM SFTP', tags: ['Servers'] },
     }
-  }, {
-    beforeHandle: [authenticate, authorize('files:write')],
-    detail: { summary: 'Change permissions over KVM SFTP', tags: ['Servers'] }
-  });
+  );
+
+  app.put(
+    prefix + '/servers/:id/sftp/rename',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
+
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      try {
+        const base = root.replace(/\/+$/, '') || '/';
+        for (const entry of files) {
+          if (!entry || typeof entry.from !== 'string' || typeof entry.to !== 'string') {
+            throw new Error('Invalid file mapping entry');
+          }
+          const fromPath = `${base}/${entry.from}`.replace(/\/+/g, '/');
+          const toPath = `${base}/${entry.to}`.replace(/\/+/g, '/');
+          await renameSftp(
+            auth.node,
+            { username: auth.username, password: auth.password },
+            fromPath,
+            toPath,
+            auth.endpoint
+          );
+        }
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP rename failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Rename files over KVM SFTP', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/sftp/move',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files, destination } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
+      if (!destination || typeof destination !== 'string') {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.destinationRequired') };
+      }
+
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      const dest = ('/' + destination).replace(/\/+/g, '/').replace(/\/+$/, '') || '/';
+      const mappings = files.map((name: string) => ({
+        from: name,
+        to: `${dest}/${name}`.replace(/\/+/g, '/'),
+      }));
+
+      try {
+        await moveSftpFiles(
+          auth.node,
+          { username: auth.username, password: auth.password },
+          String(root || '/'),
+          mappings,
+          auth.endpoint
+        );
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP move failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Move files over KVM SFTP', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/sftp/chmod',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { root = '/', files } = ctx.body as any;
+      if (!Array.isArray(files) || files.length === 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesMustBeArray') };
+      }
+
+      const auth = await resolveSftpAccess(id, ctx);
+      if ('error' in auth) {
+        ctx.set.status = 401;
+        return { error: auth.error };
+      }
+
+      try {
+        const base = root.replace(/\/+$/, '') || '/';
+        for (const entry of files) {
+          if (!entry || typeof entry.file !== 'string' || typeof entry.mode !== 'string') {
+            throw new Error('Invalid chmod entry');
+          }
+          const mode = parseInt(entry.mode, 8);
+          if (Number.isNaN(mode)) throw new Error(`Invalid mode: ${entry.mode}`);
+          const target = `${base}/${entry.file}`.replace(/\/+/g, '/');
+          await chmodSftp(
+            auth.node,
+            { username: auth.username, password: auth.password },
+            target,
+            mode,
+            auth.endpoint
+          );
+        }
+        return { success: true };
+      } catch (e: any) {
+        const status = e?.code === 'EACCES' ? 403 : 500;
+        ctx.set.status = status;
+        return { error: e?.message || 'SFTP chmod failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      detail: { summary: 'Change permissions over KVM SFTP', tags: ['Servers'] },
+    }
+  );
 
   // yeah so basically wings-rs only cuz wings-go compatibility
   // would be nightmare to add
   // be happy that most shit is already supported and using wings-go is possible
-  app.get(prefix + '/servers/:id/backups', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.listServerBackups(id);
-      try { (app as any).log?.info?.({ serverUuid: id, remoteCount: Array.isArray(res.data) ? res.data.length : 0 }, 'server: listServerBackups response'); } catch { }
-      if (Array.isArray(res.data) && res.data.length) return res.data;
-      try {
-        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-        const records = await repo.find({ where: { serverUuid: id }, order: { createdAt: 'DESC' } });
-        try { (app as any).log?.info?.({ serverUuid: id, localCount: records.length, uuids: records.map((r: any) => r.uuid) }, 'server: falling back to local persisted backup records'); } catch { }
-        return records.map((r: any) => ({
-          uuid: r.uuid,
-          name: r.name,
-          display_name: r.displayName,
-          bytes: r.bytes,
-          created_at: r.createdAt,
-          adapter: r.adapter,
-          locked: !!r.locked,
-          progress: r.progress ?? 0,
-          status: r.status ?? null,
-        }));
-      } catch (e) {
-        try { (app as any).log?.warn?.({ err: e, serverUuid: id }, 'server: failed to read local backup records'); } catch { }
-        return [];
-      }
-    } catch (e: any) {
-      if (e?.response?.status === 404) return [];
-      throw e;
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('backups:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'List backups', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/backups', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const user = ctx.user;
-    const accountBackupsLimit = user?.limits && typeof user.limits.backups === 'number' ? user.limits.backups : 0;
-    if (accountBackupsLimit > 0) {
-      const backupRepo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      const cfg = await cfgRepo().findOneBy({ uuid: id });
-      const ownerId = cfg?.userId || user?.id;
-      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: { uuid: true } }) : [];
-      const serverUuids = ownedServers.map((s: any) => s.uuid);
-      const existingBackups = serverUuids.length > 0 ? await backupRepo.count({ where: { serverUuid: In(serverUuids) } }) : 0;
-      if (existingBackups >= accountBackupsLimit) {
-        ctx.set.status = 429;
-        return { error: `Account backup limit reached (${accountBackupsLimit})` };
-      }
-    }
-    const body = ctx.body || {};
-    const adapter = 'wings';
-    const uuid = body.uuid || crypto.randomUUID();
-    const ignore = typeof body.ignore === 'string' ? body.ignore : '';
-
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.createServerBackup(id, { adapter, uuid, ignore });
-      try {
-        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-        const record = repo.create({ uuid, serverUuid: id, adapter, name: (res?.data?.name) || undefined });
-        await repo.save(record);
-        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: uuid }, 'server: created backup and persisted local record'); } catch { }
-      } catch (e) {
-        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: uuid }, 'server: failed to persist created backup record'); } catch { }
-      }
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      if (e?.response?.status === 404) {
-        console.log(e)
-        ctx.set.status = 400;
-        return { error: ctx.t('server.backupNotSupported') };
-      }
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to create backup';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('backups:create')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Create backup', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/backups/:bid/restore', async (ctx: any) => {
-    const { id, bid } = ctx.params as any;
-    const body = ctx.body || {};
-    const adapter = 'wings';
-    const truncate_directory = body.truncate_directory === true;
-    const download_url = body.download_url;
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.restoreServerBackup(id, bid, { adapter, truncate_directory, download_url });
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      if (e?.response?.status === 404) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.backupNotSupported') };
-      }
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to restore backup';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('backups:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Restore backup', tags: ['Servers'] }
-  });
-
-  app.delete(prefix + '/servers/:id/backups/:bid', async (ctx: any) => {
-    const { id, bid } = ctx.params as any;
-    const adapter = 'wings';
-    try {
-      const svc = await serviceFor(id);
-      try {
-        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-        const rec = await repo.findOneBy({ uuid: bid });
-        if (rec && rec.locked) {
-          const force = (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) || (ctx.body && ctx.body.force === true);
-          if (!force) {
-            ctx.set.status = 403;
-            return { error: ctx.t('server.backupLocked') };
-          }
-        }
-      } catch (e) {
-        // skip
-      }
-      try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: attempting to delete backup on node'); } catch { }
-      const res = await svc.serverRequest(id, `/backup/${bid}`, 'delete', { adapter });
-      try {
-        const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-        await repo.delete({ uuid: bid });
-        try { (app as any).log?.info?.({ serverUuid: id, backupUuid: bid }, 'server: deleted local persisted backup record'); } catch { }
-      } catch (e) {
-        try { (app as any).log?.warn?.({ err: e, serverUuid: id, backupUuid: bid }, 'server: failed to delete local persisted backup record'); } catch { }
-      }
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      if (e?.response?.status === 404) {
-        ctx.set.status = 400;
-        return { error: ctx.t('server.backupNotSupported') };
-      }
-      const status = e?.response?.status || 500;
-      const msg = e?.response?.data?.error || e?.message || 'Failed to delete backup';
-      ctx.set.status = status;
-      return { error: msg };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('backups:write')],
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Delete backup', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/backups/:bid/lock', async (ctx: any) => {
-    const { id, bid } = ctx.params as any;
-    const { lock } = ctx.body || {};
-    try {
-      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      const rec = await repo.findOneBy({ uuid: bid });
-      if (!rec) {
-        ctx.set.status = 404;
-        return { error: ctx.t('server.backupNotFound') };
-      }
-      rec.locked = !!lock;
-      await repo.save(rec);
-      return { success: true, locked: rec.locked };
-    } catch (e: any) {
-      ctx.set.status = 500;
-      return { error: e?.message || 'Failed to update lock' };
-    }
-  }, { beforeHandle: [authenticate, authorize('backups:write')], response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) }, detail: { summary: 'Lock/unlock a backup', tags: ['Servers'] } });
-
-  app.post(prefix + '/servers/:id/backups/:bid/rename', async (ctx: any) => {
-    const { id, bid } = ctx.params as any;
-    const { name } = ctx.body || {};
-    if (typeof name !== 'string' || !name.trim()) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.nameRequired') };
-    }
-    try {
-      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      const rec = await repo.findOneBy({ uuid: bid });
-      if (!rec) {
-        ctx.set.status = 404;
-        return { error: ctx.t('server.backupNotFound') };
-      }
-      rec.displayName = name.trim();
-      await repo.save(rec);
-      return { success: true, display_name: rec.displayName };
-    } catch (e: any) {
-      ctx.set.status = 500;
-      return { error: e?.message || 'Failed to rename backup' };
-    }
-  }, { beforeHandle: [authenticate, authorize('backups:write')], response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) }, detail: { summary: 'Rename backup display name', tags: ['Servers'] } });
-
-  app.post(prefix + '/servers/:id/commands', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { command } = ctx.body as any;
-    const svc = await serviceFor(id);
-    const res = await svc.executeServerCommand(id, command);
-    const user = ctx.user;
-    await createActivityLog({ userId: user.id, action: 'server:console:command', targetId: id, targetType: 'server', metadata: { command }, ipAddress: ctx.ip });
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('commands:execute')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Execute server command', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/logs', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.getServerLogs(id);
-      const raw = res.data;
-      let lines: string[];
-      if (Buffer.isBuffer(raw)) {
-        lines = raw.toString('utf-8').split('\n').filter(Boolean);
-      } else if (typeof raw === 'string') {
-        lines = raw.split('\n').filter(Boolean);
-      } else if (Array.isArray(raw)) {
-        lines = raw.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
-      } else if (raw && typeof raw === 'object') {
-        const inner = raw.logs ?? raw.data ?? raw.output;
-        if (typeof inner === 'string') {
-          lines = inner.split('\n').filter(Boolean);
-        } else if (Array.isArray(inner)) {
-          lines = inner.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
-        } else {
-          lines = [JSON.stringify(raw)];
-        }
-      } else {
-        lines = raw ? [String(raw)] : [];
-      }
-      return lines;
-    } catch (e: any) {
-      if (e?.response?.status === 404) return [];
-      throw e;
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('logs:read')],
-    response: { 200: t.Array(t.String()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch server logs', tags: ['Servers', 'Logs'] }
-  });
-
-  app.post(prefix + '/servers/:id/reinstall', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const payload = ctx.body;
-    const svc = await serviceFor(id);
-    const res = await svc.reinstallServer(id, payload);
-    const user = ctx.user;
-    await createActivityLog({ userId: user.id, action: 'server:reinstall', targetId: id, targetType: 'server', ipAddress: ctx.ip });
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('reinstall:execute')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Reinstall server', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/schedules', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    return cfg?.schedules ?? [];
-  }, {
-    beforeHandle: [authenticate, authorize('schedules:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'List schedules', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/schedules', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const body = ctx.body as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-    const schedule = {
-      id: crypto.randomUUID(),
-      name: body.name || '',
-      cron_minute: body.cron_minute || '*',
-      cron_hour: body.cron_hour || '*',
-      cron_day_of_month: body.cron_day_of_month || '*',
-      cron_month: body.cron_month || '*',
-      cron_day_of_week: body.cron_day_of_week || '*',
-      is_active: body.is_active !== false,
-      last_run_at: null,
-      created_at: new Date().toISOString(),
-    };
-    const schedules = [...(cfg.schedules ?? []), schedule];
-    await cfgRepo().update({ uuid: id }, { schedules } as any);
-    return schedule;
-  }, {
-    beforeHandle: [authenticate, authorize('schedules:create')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Create schedule', tags: ['Servers'] }
-  });
-
-  app.delete(prefix + '/servers/:id/schedules/:sid', async (ctx: any) => {
-    const { id, sid } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-    const schedules = (cfg.schedules ?? []).filter((s: any) => s.id !== sid);
-    await cfgRepo().update({ uuid: id }, { schedules } as any);
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('schedules:write')],
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Delete schedule', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/sync', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const payload = ctx.body;
-    const svc = await serviceFor(id);
-    const res = await svc.syncServer(id, payload);
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('sync:execute')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Sync server', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/transfer', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const payload = ctx.body;
-    const user = ctx.user;
-    let svc = await serviceFor(id);
-
-    if (payload && payload.sourceNodeId) {
-      const nodeId = Number(payload.sourceNodeId);
-      try {
-        const node = await nodeRepo().findOneBy({ id: nodeId });
-        if (!node) {
-          ctx.set.status = 404;
-          return { error: ctx.t('node.sourceNotFound') };
-        }
-        svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
-      } catch (e: any) {
-        ctx.set.status = 500;
-        return { error: ctx.t('node.resolveFailed') };
-      }
-    }
-
-    if (payload && payload.targetNodeId) {
-      const targetId = Number(payload.targetNodeId);
-      try {
-        const targetNode = await nodeRepo().findOneBy({ id: targetId });
-        if (!targetNode) {
-          ctx.set.status = 404;
-          return { error: ctx.t('node.targetNotFound') };
-        }
-        const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
-        const now = Math.floor(Date.now() / 1000);
-        const token = signWingsJwt({
-          iss: 'eclipanel',
-          sub: id,
-          aud: [''],
-          iat: now,
-          nbf: now,
-          exp: now + 600,
-          jti: crypto.randomUUID(),
-        }, targetNode.token);
-
-        payload.url = targetUrl;
-        payload.token = token;
-      } catch (e: any) {
-        ctx.set.status = 500;
-        return { error: ctx.t('node.resolveTargetFailed') };
-      }
-    }
-
-    if (payload) {
-      delete payload.sourceNodeId;
-      delete payload.targetNodeId;
-    }
-
-    try {
-      const res = await svc.transferServer(id, payload);
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      const status = e?.response?.status || 500;
-      const message = e?.response?.data?.error || e?.response?.data || e?.message || 'Transfer failed';
-      ctx.set.status = status;
-      return { error: message };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('transfer:execute')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Transfer server', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/version', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.getServerVersion(id);
-    return res.data ?? {};
-  }, {
-    beforeHandle: [authenticate, authorize('version:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Get server software version', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/console', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (cfg?.suspended || cfg?.dmca) {
-      ctx.set.status = 403;
-      return { error: buildSuspendedServerMessage(cfg) };
-    }
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.serverRequest(id, '/console');
-      return res.data && typeof res.data === 'object' ? res.data : { success: true };
-    } catch (e: any) {
-      if (e?.response?.status === 404) return { error: ctx.t('common.notSupported') };
-      throw e;
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:console')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Access server console', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/allocations', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    const a = cfg?.allocations;
-    if (!a) return [];
-    const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
-    const nodeFqdn = node?.fqdn;
-    const fqdns: Record<string, string> = (a as any).fqdns ?? {};
-    const resolveFqdn = (ip: string, key: string) => fqdns[key] || (isValidIpv6(ip) ? null : nodeFqdn || null);
-    const result: any[] = [];
-    const ipv6Address = typeof (a as any).ipv6Address === 'string' && isValidIpv6((a as any).ipv6Address)
-      ? formatIpv6(parseIpv6((a as any).ipv6Address))
-      : null;
-    const ipv6Ports = ipv6Address && Array.isArray((a as any).ipv6Ports)
-      ? [...new Set((a as any).ipv6Ports.map((p: any) => Number(p)).filter((p: number) => Number.isInteger(p) && p > 0))].sort((x: number, y: number) => x - y)
-      : [];
-
-    if (a.default && !isValidIpv6(String(a.default.ip))) {
-      const key = `${a.default.ip}:${a.default.port}`;
-      result.push({ ip: a.default.ip, port: a.default.port, fqdn: resolveFqdn(a.default.ip, key), is_default: true, notes: null });
-    }
-    const mappings: Record<string, number[]> = a.mappings ?? {};
-    for (const [ip, ports] of Object.entries(mappings)) {
-      if (isValidIpv6(ip)) continue;
-      for (const port of (ports as number[]) ?? []) {
-        const isDef = a.default?.ip === ip && a.default?.port === port;
-        if (!isDef) {
-          const key = `${ip}:${port}`;
-          result.push({ ip, port, fqdn: resolveFqdn(ip, key), is_default: false, notes: null });
-        }
-      }
-    }
-    return result;
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'List network allocations', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/allocations', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const body = ctx.body as any || {};
-    const count = Number(body.count || 1);
-    const requestIpv6 = body.requestIpv6 === true || String(body.requestIpv6) === 'true';
-    if (count <= 0) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.allocationInvalidCount') };
-    }
-    if (requestIpv6 && count !== 1) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.ipv6AllocationOnePort') };
-    }
-
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
-    if (!isAdmin) {
-      const owned = cfg.userId === user?.id;
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
-      if (!owned && !subuser) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.insufficientPermissions') };
-      }
-    }
-
-    const limit = (user?.limits && typeof user.limits.portsPerServer === 'number') ? user.limits.portsPerServer : 3;
-
-    const alloc = cfg.allocations as any || {};
-    const owners: Record<string, any> = alloc.owners || {};
-    const existingIpv6Allocations: string[] = [];
-    if (typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)) {
-      existingIpv6Allocations.push(formatIpv6(parseIpv6(alloc.ipv6Address)));
-    }
-    if (alloc.default?.ip && isValidIpv6(String(alloc.default.ip))) {
-      existingIpv6Allocations.push(formatIpv6(parseIpv6(String(alloc.default.ip))));
-    }
-    for (const ip of Object.keys(alloc.mappings || {})) {
-      if (isValidIpv6(ip)) {
-        const normalized = formatIpv6(parseIpv6(ip));
-        if (!existingIpv6Allocations.includes(normalized)) existingIpv6Allocations.push(normalized);
-      }
-    }
-    let existingCount = 0;
-    for (const [k, v] of Object.entries(owners)) {
-      if (v === user.id) existingCount++;
-    }
-    if (alloc.default) {
-      const defKey = `${alloc.default.ip}:${alloc.default.port}`;
-      if (!owners[defKey] && cfg.userId === user?.id) {
-        existingCount++;
-      }
-    }
-    if (!requestIpv6 && existingCount + count > limit) {
-      ctx.set.status = 403;
-      return { error: `Per-server port limit exceeded (allowed ${limit}). Currently allocated: ${existingCount}` };
-    }
-
-    const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
-    if (!node) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.allocationNotFound') };
-    }
-    if (!requestIpv6 && (node.portRangeStart == null || node.portRangeEnd == null)) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.allocationNotFound') };
-    }
-    if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
-      ctx.set.status = 500;
-      return { error: ctx.t('node.portRangeMisconfigured') };
-    }
-
-    const excludedPorts = parsePortList(node.ipv6ExcludedPorts);
-    const nodeConfigs = await cfgRepo().find({ where: { nodeId: node.id } });
-    const takenPorts = new Set<number>();
-    for (const c of nodeConfigs) {
-      const a = c.allocations as any;
-      if (!a) continue;
-      if (a.default?.port) {
-        const p = Number(a.default.port);
-        if (p >= 1 && p <= 65535) takenPorts.add(p);
-      }
-      for (const ports of Object.values(a.mappings ?? {}) as number[][]) {
-        for (const p of ports) {
-          const pn = Number(p);
-          if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
-        }
-      }
-      if (a.owners) {
-        for (const k of Object.keys(a.owners || {})) {
-          const idx = k.lastIndexOf(':');
-          const pstr = idx >= 0 ? k.slice(idx + 1) : '';
-          const pnum = Number(pstr);
-          if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
-        }
-      }
-    }
-
-    if (requestIpv6) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.ipv6AllocationRequestRequired') };
-    }
-
-    const bindIp = node.defaultIp || '0.0.0.0';
-
-    const newPorts: { ip: string; port: number }[] = [];
-    for (let p = node.portRangeStart; p <= node.portRangeEnd && newPorts.length < count; p++) {
-      if (!takenPorts.has(p) && !excludedPorts.has(p)) {
-        newPorts.push({ ip: bindIp, port: p });
-        takenPorts.add(p);
-      }
-    }
-
-    if (newPorts.length < count) {
-      ctx.set.status = 503;
-      return { error: ctx.t('node.noFreePorts') };
-    }
-
-    alloc.mappings = alloc.mappings || {};
-    alloc.mappings[bindIp] = alloc.mappings[bindIp] || [];
-    alloc.owners = alloc.owners || {};
-    for (const np of newPorts) {
-      alloc.mappings[bindIp].push(np.port);
-      alloc.owners[`${np.ip}:${np.port}`] = user.id;
-    }
-    cfg.allocations = alloc;
-    await cfgRepo().save(cfg);
-
-    return newPorts.map(x => ({ ip: x.ip, port: x.port, is_default: false }));
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }), 503: t.Object({ error: t.String() }) },
-    detail: { summary: 'Request additional network allocations for server (per-account limit)', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/ip-request', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { type, reason } = ctx.body as any || {};
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
-
-    if (!type || (type !== 'ipv4' && type !== 'ipv6')) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.ipv4OrIpv6') };
-    }
-    if (!reason || typeof reason !== 'string' || !reason.trim()) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.aReasonForTheIPRequestIsRequired') };
-    }
-
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    if (!isAdmin) {
-      const owned = cfg.userId === user?.id;
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
-      if (!owned && !subuser) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.insufficientPermissions') };
-      }
-    }
-
-    const form = await getOrCreateIpRequestForm();
-    const submission = applicationSubmissionRepo().create({
-      formId: form.id,
-      userId: user?.id,
-      ipAddress: ctx.ip,
-      status: 'pending',
-      content: `IP request for server ${id} (${type}): ${reason.trim()}`,
-      meta: {
-        serverUuid: id,
-        nodeId: cfg.nodeId,
-        requestType: type,
-        reason: reason.trim(),
-      },
-    });
-    const saved = await applicationSubmissionRepo().save(submission);
-
-    await createActivityLog({
-      userId: user?.id || 0,
-      action: 'server:ip_request',
-      targetId: id,
-      targetType: 'server',
-      metadata: { requestType: type, submissionId: saved.id },
-      ipAddress: ctx.ip,
-    });
-
-    return { success: true, submissionId: saved.id };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean(), submissionId: t.Number() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Request an IPv4 or IPv6 allocation via application', tags: ['Servers'] }
-  });
-
-  app.delete(prefix + '/servers/:id/allocations', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const body = ctx.body as any || {};
-    const ip = body.ip;
-    const port = Number(body.port || 0);
-    if (!ip || !port) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.invalidIpPort') };
-    }
-
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
-    if (!isAdmin) {
-      const owned = cfg.userId === user?.id;
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
-      if (!owned && !subuser) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.insufficientPermissions') };
-      }
-    }
-
-    const alloc = cfg.allocations as any || {};
-    if (alloc.default && alloc.default.ip === ip && Number(alloc.default.port) === port) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.allocationDefaultCannotRemove') };
-    }
-
-    const key = `${ip}:${port}`;
-    if (!isAdmin) {
-      const owners: Record<string, any> = alloc.owners || {};
-      if (owners[key] !== user.id) {
-        ctx.set.status = 403;
-        return { error: ctx.t('server.allocationNotOwner') };
-      }
-    }
-
-    alloc.mappings = alloc.mappings || {};
-    for (const [mip, ports] of Object.entries(alloc.mappings)) {
-      if (mip === ip) {
-        const idx = (ports as number[]).indexOf(Number(port));
-        if (idx !== -1) {
-          (ports as number[]).splice(idx, 1);
-        }
-        if ((ports as number[]).length === 0) delete alloc.mappings[mip];
-      }
-    }
-
-    if (alloc.owners) {
-      delete alloc.owners[key];
-    }
-
-    cfg.allocations = alloc;
-    await cfgRepo().save(cfg);
-
-    return { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Delete a network allocation from a server', tags: ['Servers'] }
-  });
-
-  app.delete(prefix + '/servers/:id/allocations/secondary', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'admin:access');
-    const owned = cfg.userId === user?.id;
-    if (!isAdmin) {
-      const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
-      if (!owned && !subuser) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.insufficientPermissions') };
-      }
-    }
-
-    const alloc = cfg.allocations as any || {};
-    const defaultKey = alloc.default ? `${alloc.default.ip}:${Number(alloc.default.port)}` : null;
-    const owners: Record<string, any> = alloc.owners || {};
-    const removed: Array<{ ip: string; port: number }> = [];
-
-    alloc.mappings = alloc.mappings || {};
-    for (const [ip, ports] of Object.entries(alloc.mappings) as Array<[string, number[]]>) {
-      for (const port of [...ports]) {
-        const key = `${ip}:${Number(port)}`;
-        if (defaultKey && key === defaultKey) continue;
-        if (!isAdmin && !owned && owners[key] !== user?.id) continue;
-        const idx = ports.indexOf(Number(port));
-        if (idx !== -1) ports.splice(idx, 1);
-        delete owners[key];
-        removed.push({ ip, port: Number(port) });
-      }
-      if (ports.length === 0) delete alloc.mappings[ip];
-    }
-
-    alloc.owners = owners;
-    cfg.allocations = alloc;
-    await cfgRepo().save(cfg);
-
-    return { success: true, removedCount: removed.length, removed };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean(), removedCount: t.Number(), removed: t.Array(t.Object({ ip: t.String(), port: t.Number() })) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Delete all secondary network allocations from a server', tags: ['Servers'] }
-  });
-
-  for (const sub of ['network', 'location']) {
-    app.get(prefix + `/servers/:id/${sub}`, async (ctx: any) => {
+  app.get(
+    prefix + '/servers/:id/backups',
+    async (ctx: any) => {
       const { id } = ctx.params as any;
       try {
         const svc = await serviceFor(id);
-        const res = await svc.serverRequest(id, `/${sub}`);
-        return res.data ?? [];
+        const res = await svc.listServerBackups(id);
+        try {
+          (app as any).log?.info?.(
+            { serverUuid: id, remoteCount: Array.isArray(res.data) ? res.data.length : 0 },
+            'server: listServerBackups response'
+          );
+        } catch {}
+        if (Array.isArray(res.data) && res.data.length) return res.data;
+        try {
+          const repo = AppDataSource.getRepository(
+            require('../models/serverBackup.entity').ServerBackup
+          );
+          const records = await repo.find({
+            where: { serverUuid: id },
+            order: { createdAt: 'DESC' },
+          });
+          try {
+            (app as any).log?.info?.(
+              {
+                serverUuid: id,
+                localCount: records.length,
+                uuids: records.map((r: any) => r.uuid),
+              },
+              'server: falling back to local persisted backup records'
+            );
+          } catch {}
+          return records.map((r: any) => ({
+            uuid: r.uuid,
+            name: r.name,
+            display_name: r.displayName,
+            bytes: r.bytes,
+            created_at: r.createdAt,
+            adapter: r.adapter,
+            locked: !!r.locked,
+            progress: r.progress ?? 0,
+            status: r.status ?? null,
+          }));
+        } catch (e) {
+          try {
+            (app as any).log?.warn?.(
+              { err: e, serverUuid: id },
+              'server: failed to read local backup records'
+            );
+          } catch {}
+          return [];
+        }
       } catch (e: any) {
         if (e?.response?.status === 404) return [];
         throw e;
       }
-    }, {
-      beforeHandle: [authenticate, authorize('servers:read')],
-      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-      detail: { summary: `Get server ${sub}`, tags: ['Servers'] }
-    });
-  }
+    },
+    {
+      beforeHandle: [authenticate, authorize('backups:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List backups', tags: ['Servers'] },
+    }
+  );
 
-  app.get(prefix + '/servers/:id/stats', async (ctx: any) => {
-    const { id } = ctx.params as any;
-
-    const mappingRepo = AppDataSource.getRepository(ServerMapping);
-    const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
-    const unhealthyNodeIds = await getUnhealthyNodeIds();
-    const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
-
-    const withNetworkRates = async (input: any) => {
-      const merged: any = input && typeof input === 'object' ? { ...input } : {};
-
-      const readNumber = (source: any, paths: string[]): number => {
-        for (const path of paths) {
-          const parts = path.split('.');
-          let cur = source;
-          for (const p of parts) {
-            if (cur == null) break;
-            cur = cur[p];
-          }
-          const num = Number(cur);
-          if (Number.isFinite(num)) return num;
+  app.post(
+    prefix + '/servers/:id/backups',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const user = ctx.user;
+      const accountBackupsLimit =
+        user?.limits && typeof user.limits.backups === 'number' ? user.limits.backups : 0;
+      if (accountBackupsLimit > 0) {
+        const backupRepo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        const cfg = await cfgRepo().findOneBy({ uuid: id });
+        const ownerId = cfg?.userId || user?.id;
+        const ownedServers = ownerId
+          ? await cfgRepo().find({ where: { userId: ownerId }, select: { uuid: true } })
+          : [];
+        const serverUuids = ownedServers.map((s: any) => s.uuid);
+        const existingBackups =
+          serverUuids.length > 0
+            ? await backupRepo.count({ where: { serverUuid: In(serverUuids) } })
+            : 0;
+        if (existingBackups >= accountBackupsLimit) {
+          ctx.set.status = 429;
+          return { error: `Account backup limit reached (${accountBackupsLimit})` };
         }
-        return 0;
-      };
-
-      let rxBps = readNumber(merged, ['network.rx_bps', 'network.download_bps']);
-      let txBps = readNumber(merged, ['network.tx_bps', 'network.upload_bps']);
-
-      if (rxBps <= 0) {
-        const rxMbps = readNumber(merged, ['network.rx_mbps', 'network.rx_mbit', 'network.rx_rate_mbps', 'network.download_mbps']);
-        if (rxMbps > 0) rxBps = (rxMbps * 1_000_000) / 8;
       }
-      if (txBps <= 0) {
-        const txMbps = readNumber(merged, ['network.tx_mbps', 'network.tx_mbit', 'network.tx_rate_mbps', 'network.upload_mbps']);
-        if (txMbps > 0) txBps = (txMbps * 1_000_000) / 8;
-      }
+      const body = ctx.body || {};
+      const adapter = 'wings';
+      const uuid = body.uuid || crypto.randomUUID();
+      const ignore = typeof body.ignore === 'string' ? body.ignore : '';
 
-      if (rxBps <= 0 && txBps <= 0) {
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.createServerBackup(id, { adapter, uuid, ignore });
         try {
-          const socRepo = AppDataSource.getRepository(SocData);
-          const rows = await socRepo.find({ where: { serverId: id }, order: { timestamp: 'DESC' }, take: 2 });
-          if (Array.isArray(rows) && rows.length >= 2) {
-            const sorted = [...rows].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-            const prev = sorted[0];
-            const last = sorted[1];
+          const repo = AppDataSource.getRepository(
+            require('../models/serverBackup.entity').ServerBackup
+          );
+          const record = repo.create({
+            uuid,
+            serverUuid: id,
+            adapter,
+            name: res?.data?.name || undefined,
+          });
+          await repo.save(record);
+          try {
+            (app as any).log?.info?.(
+              { serverUuid: id, backupUuid: uuid },
+              'server: created backup and persisted local record'
+            );
+          } catch {}
+        } catch (e) {
+          try {
+            (app as any).log?.warn?.(
+              { err: e, serverUuid: id, backupUuid: uuid },
+              'server: failed to persist created backup record'
+            );
+          } catch {}
+        }
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          console.log(e);
+          ctx.set.status = 400;
+          return { error: ctx.t('server.backupNotSupported') };
+        }
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to create backup';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('backups:create')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Create backup', tags: ['Servers'] },
+    }
+  );
 
-            const prevTs = new Date(prev.timestamp).getTime();
-            const lastTs = new Date(last.timestamp).getTime();
-            const deltaSeconds = (lastTs - prevTs) / 1000;
+  app.post(
+    prefix + '/servers/:id/backups/:bid/restore',
+    async (ctx: any) => {
+      const { id, bid } = ctx.params as any;
+      const body = ctx.body || {};
+      const adapter = 'wings';
+      const truncate_directory = body.truncate_directory === true;
+      const download_url = body.download_url;
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.restoreServerBackup(id, bid, {
+          adapter,
+          truncate_directory,
+          download_url,
+        });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.backupNotSupported') };
+        }
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to restore backup';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('backups:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Restore backup', tags: ['Servers'] },
+    }
+  );
 
-            if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
-              const prevRx = readNumber(prev.metrics ?? {}, ['network.rx_bytes', 'network.rx', 'network.received']);
-              const prevTx = readNumber(prev.metrics ?? {}, ['network.tx_bytes', 'network.tx', 'network.sent']);
-              const lastRx = readNumber(last.metrics ?? {}, ['network.rx_bytes', 'network.rx', 'network.received']);
-              const lastTx = readNumber(last.metrics ?? {}, ['network.tx_bytes', 'network.tx', 'network.sent']);
-
-              rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds;
-              txBps = Math.max(0, lastTx - prevTx) / deltaSeconds;
+  app.delete(
+    prefix + '/servers/:id/backups/:bid',
+    async (ctx: any) => {
+      const { id, bid } = ctx.params as any;
+      const adapter = 'wings';
+      try {
+        const svc = await serviceFor(id);
+        try {
+          const repo = AppDataSource.getRepository(
+            require('../models/serverBackup.entity').ServerBackup
+          );
+          const rec = await repo.findOneBy({ uuid: bid });
+          if (rec && rec.locked) {
+            const force =
+              (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) ||
+              (ctx.body && ctx.body.force === true);
+            if (!force) {
+              ctx.set.status = 403;
+              return { error: ctx.t('server.backupLocked') };
             }
           }
-        } catch {
-          // uwu no netwurk fur u
+        } catch (e) {
+          // skip
+        }
+        try {
+          (app as any).log?.info?.(
+            { serverUuid: id, backupUuid: bid },
+            'server: attempting to delete backup on node'
+          );
+        } catch {}
+        const res = await svc.serverRequest(id, `/backup/${bid}`, 'delete', { adapter });
+        try {
+          const repo = AppDataSource.getRepository(
+            require('../models/serverBackup.entity').ServerBackup
+          );
+          await repo.delete({ uuid: bid });
+          try {
+            (app as any).log?.info?.(
+              { serverUuid: id, backupUuid: bid },
+              'server: deleted local persisted backup record'
+            );
+          } catch {}
+        } catch (e) {
+          try {
+            (app as any).log?.warn?.(
+              { err: e, serverUuid: id, backupUuid: bid },
+              'server: failed to delete local persisted backup record'
+            );
+          } catch {}
+        }
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          ctx.set.status = 400;
+          return { error: ctx.t('server.backupNotSupported') };
+        }
+        const status = e?.response?.status || 500;
+        const msg = e?.response?.data?.error || e?.message || 'Failed to delete backup';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('backups:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Delete backup', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/backups/:bid/lock',
+    async (ctx: any) => {
+      const { id, bid } = ctx.params as any;
+      const { lock } = ctx.body || {};
+      try {
+        const repo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        const rec = await repo.findOneBy({ uuid: bid });
+        if (!rec) {
+          ctx.set.status = 404;
+          return { error: ctx.t('server.backupNotFound') };
+        }
+        rec.locked = !!lock;
+        await repo.save(rec);
+        return { success: true, locked: rec.locked };
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: e?.message || 'Failed to update lock' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('backups:write')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Lock/unlock a backup', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/backups/:bid/rename',
+    async (ctx: any) => {
+      const { id, bid } = ctx.params as any;
+      const { name } = ctx.body || {};
+      if (typeof name !== 'string' || !name.trim()) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.nameRequired') };
+      }
+      try {
+        const repo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        const rec = await repo.findOneBy({ uuid: bid });
+        if (!rec) {
+          ctx.set.status = 404;
+          return { error: ctx.t('server.backupNotFound') };
+        }
+        rec.displayName = name.trim();
+        await repo.save(rec);
+        return { success: true, display_name: rec.displayName };
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: e?.message || 'Failed to rename backup' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('backups:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Rename backup display name', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/commands',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { command } = ctx.body as any;
+      const svc = await serviceFor(id);
+      const res = await svc.executeServerCommand(id, command);
+      const user = ctx.user;
+      await createActivityLog({
+        userId: user.id,
+        action: 'server:console:command',
+        targetId: id,
+        targetType: 'server',
+        metadata: { command },
+        ipAddress: ctx.ip,
+      });
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('commands:execute')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Execute server command', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/logs',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.getServerLogs(id);
+        const raw = res.data;
+        let lines: string[];
+        if (Buffer.isBuffer(raw)) {
+          lines = raw.toString('utf-8').split('\n').filter(Boolean);
+        } else if (typeof raw === 'string') {
+          lines = raw.split('\n').filter(Boolean);
+        } else if (Array.isArray(raw)) {
+          lines = raw.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+        } else if (raw && typeof raw === 'object') {
+          const inner = raw.logs ?? raw.data ?? raw.output;
+          if (typeof inner === 'string') {
+            lines = inner.split('\n').filter(Boolean);
+          } else if (Array.isArray(inner)) {
+            lines = inner.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+          } else {
+            lines = [JSON.stringify(raw)];
+          }
+        } else {
+          lines = raw ? [String(raw)] : [];
+        }
+        return lines;
+      } catch (e: any) {
+        if (e?.response?.status === 404) return [];
+        throw e;
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('logs:read')],
+      response: {
+        200: t.Array(t.String()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Fetch server logs', tags: ['Servers', 'Logs'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/reinstall',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const payload = ctx.body;
+      const svc = await serviceFor(id);
+      const res = await svc.reinstallServer(id, payload);
+      const user = ctx.user;
+      await createActivityLog({
+        userId: user.id,
+        action: 'server:reinstall',
+        targetId: id,
+        targetType: 'server',
+        ipAddress: ctx.ip,
+      });
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('reinstall:execute')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Reinstall server', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/schedules',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      return cfg?.schedules ?? [];
+    },
+    {
+      beforeHandle: [authenticate, authorize('schedules:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List schedules', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/schedules',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const body = ctx.body as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      const schedule = {
+        id: crypto.randomUUID(),
+        name: body.name || '',
+        cron_minute: body.cron_minute || '*',
+        cron_hour: body.cron_hour || '*',
+        cron_day_of_month: body.cron_day_of_month || '*',
+        cron_month: body.cron_month || '*',
+        cron_day_of_week: body.cron_day_of_week || '*',
+        is_active: body.is_active !== false,
+        last_run_at: null,
+        created_at: new Date().toISOString(),
+      };
+      const schedules = [...(cfg.schedules ?? []), schedule];
+      await cfgRepo().update({ uuid: id }, { schedules } as any);
+      return schedule;
+    },
+    {
+      beforeHandle: [authenticate, authorize('schedules:create')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Create schedule', tags: ['Servers'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/:id/schedules/:sid',
+    async (ctx: any) => {
+      const { id, sid } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      const schedules = (cfg.schedules ?? []).filter((s: any) => s.id !== sid);
+      await cfgRepo().update({ uuid: id }, { schedules } as any);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('schedules:write')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Delete schedule', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/sync',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const payload = ctx.body;
+      const svc = await serviceFor(id);
+      const res = await svc.syncServer(id, payload);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('sync:execute')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Sync server', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/transfer',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const payload = ctx.body;
+      const user = ctx.user;
+      let svc = await serviceFor(id);
+
+      if (payload && payload.sourceNodeId) {
+        const nodeId = Number(payload.sourceNodeId);
+        try {
+          const node = await nodeRepo().findOneBy({ id: nodeId });
+          if (!node) {
+            ctx.set.status = 404;
+            return { error: ctx.t('node.sourceNotFound') };
+          }
+          svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+        } catch (e: any) {
+          ctx.set.status = 500;
+          return { error: ctx.t('node.resolveFailed') };
         }
       }
 
-      const network = merged?.network && typeof merged.network === 'object' ? merged.network : {};
-      merged.network = {
-        ...network,
-        rx_bps: Number.isFinite(rxBps) ? rxBps : 0,
-        tx_bps: Number.isFinite(txBps) ? txBps : 0,
-        rx_kbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000 : 0,
-        tx_kbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000 : 0,
-        rx_mbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000_000 : 0,
-        tx_mbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000_000 : 0,
-      };
+      if (payload && payload.targetNodeId) {
+        const targetId = Number(payload.targetNodeId);
+        try {
+          const targetNode = await nodeRepo().findOneBy({ id: targetId });
+          if (!targetNode) {
+            ctx.set.status = 404;
+            return { error: ctx.t('node.targetNotFound') };
+          }
+          const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
+          const now = Math.floor(Date.now() / 1000);
+          const token = signWingsJwt(
+            {
+              iss: 'eclipanel',
+              sub: id,
+              aud: [''],
+              iat: now,
+              nbf: now,
+              exp: now + 600,
+              jti: crypto.randomUUID(),
+            },
+            targetNode.token
+          );
 
-      return merged;
-    };
-
-    if (nodeIsUnhealthy) {
-      const socRepo = AppDataSource.getRepository(SocData);
-      const latest = await socRepo.findOne({ where: { serverId: id }, order: { timestamp: 'DESC' } });
-      return await withNetworkRates(latest?.metrics ?? {});
-    }
-
-    try {
-      const svc = await serviceFor(id);
-      const res = await svc.serverRequest(id, '/stats');
-      if (res?.data && typeof res.data === 'object') {
-        return await withNetworkRates(extractStats(res.data));
+          payload.url = targetUrl;
+          payload.token = token;
+        } catch (e: any) {
+          ctx.set.status = 500;
+          return { error: ctx.t('node.resolveTargetFailed') };
+        }
       }
-    } catch (e) {
-      // skip
+
+      if (payload) {
+        delete payload.sourceNodeId;
+        delete payload.targetNodeId;
+      }
+
+      try {
+        const res = await svc.transferServer(id, payload);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        const status = e?.response?.status || 500;
+        const message =
+          e?.response?.data?.error || e?.response?.data || e?.message || 'Transfer failed';
+        ctx.set.status = status;
+        return { error: message };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('transfer:execute')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Transfer server', tags: ['Servers'] },
     }
+  );
 
-    const socRepo = AppDataSource.getRepository(SocData);
-    const latest = await socRepo.findOne({ where: { serverId: id }, order: { timestamp: 'DESC' } });
-    return await withNetworkRates(latest?.metrics ?? {});
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Latest server stats', tags: ['Servers'] }
-  });
+  app.get(
+    prefix + '/servers/:id/version',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.getServerVersion(id);
+      return res.data ?? {};
+    },
+    {
+      beforeHandle: [authenticate, authorize('version:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get server software version', tags: ['Servers'] },
+    }
+  );
 
-  app.get(prefix + '/servers/:id/stats/history', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { window: w = '1h', points: p = '60' } = ctx.query as any;
-    const points = Math.max(12, Math.min(1440, Number(p) || 60));
+  app.get(
+    prefix + '/servers/:id/console',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (cfg?.suspended || cfg?.dmca) {
+        ctx.set.status = 403;
+        return { error: buildSuspendedServerMessage(cfg) };
+      }
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.serverRequest(id, '/console');
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: any) {
+        if (e?.response?.status === 404) return { error: ctx.t('common.notSupported') };
+        throw e;
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Access server console', tags: ['Servers'] },
+    }
+  );
 
-    try {
+  app.get(
+    prefix + '/servers/:id/allocations',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      const a = cfg?.allocations;
+      if (!a) return [];
+      const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+      const nodeFqdn = node?.fqdn;
+      const fqdns: Record<string, string> = (a as any).fqdns ?? {};
+      const resolveFqdn = (ip: string, key: string) =>
+        fqdns[key] || (isValidIpv6(ip) ? null : nodeFqdn || null);
+      const result: any[] = [];
+      const ipv6Address =
+        typeof (a as any).ipv6Address === 'string' && isValidIpv6((a as any).ipv6Address)
+          ? formatIpv6(parseIpv6((a as any).ipv6Address))
+          : null;
+      const ipv6Ports =
+        ipv6Address && Array.isArray((a as any).ipv6Ports)
+          ? [
+              ...new Set(
+                (a as any).ipv6Ports
+                  .map((p: any) => Number(p))
+                  .filter((p: number) => Number.isInteger(p) && p > 0)
+              ),
+            ].sort((x: number, y: number) => x - y)
+          : [];
+
+      if (a.default && !isValidIpv6(String(a.default.ip))) {
+        const key = `${a.default.ip}:${a.default.port}`;
+        result.push({
+          ip: a.default.ip,
+          port: a.default.port,
+          fqdn: resolveFqdn(a.default.ip, key),
+          is_default: true,
+          notes: null,
+        });
+      }
+      const mappings: Record<string, number[]> = a.mappings ?? {};
+      for (const [ip, ports] of Object.entries(mappings)) {
+        if (isValidIpv6(ip)) continue;
+        for (const port of (ports as number[]) ?? []) {
+          const isDef = a.default?.ip === ip && a.default?.port === port;
+          if (!isDef) {
+            const key = `${ip}:${port}`;
+            result.push({ ip, port, fqdn: resolveFqdn(ip, key), is_default: false, notes: null });
+          }
+        }
+      }
+      return result;
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List network allocations', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/allocations',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const body = (ctx.body as any) || {};
+      const count = Number(body.count || 1);
+      const requestIpv6 = body.requestIpv6 === true || String(body.requestIpv6) === 'true';
+      if (count <= 0) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.allocationInvalidCount') };
+      }
+      if (requestIpv6 && count !== 1) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.ipv6AllocationOnePort') };
+      }
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+      if (!isAdmin) {
+        const owned = cfg.userId === user?.id;
+        const subuser = await AppDataSource.getRepository(
+          require('../models/serverSubuser.entity').ServerSubuser
+        ).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
+        if (!owned && !subuser) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.insufficientPermissions') };
+        }
+      }
+
+      const limit =
+        user?.limits && typeof user.limits.portsPerServer === 'number'
+          ? user.limits.portsPerServer
+          : 3;
+
+      const alloc = (cfg.allocations as any) || {};
+      const owners: Record<string, any> = alloc.owners || {};
+      const existingIpv6Allocations: string[] = [];
+      if (typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)) {
+        existingIpv6Allocations.push(formatIpv6(parseIpv6(alloc.ipv6Address)));
+      }
+      if (alloc.default?.ip && isValidIpv6(String(alloc.default.ip))) {
+        existingIpv6Allocations.push(formatIpv6(parseIpv6(String(alloc.default.ip))));
+      }
+      for (const ip of Object.keys(alloc.mappings || {})) {
+        if (isValidIpv6(ip)) {
+          const normalized = formatIpv6(parseIpv6(ip));
+          if (!existingIpv6Allocations.includes(normalized))
+            existingIpv6Allocations.push(normalized);
+        }
+      }
+      let existingCount = 0;
+      for (const [k, v] of Object.entries(owners)) {
+        if (v === user.id) existingCount++;
+      }
+      if (alloc.default) {
+        const defKey = `${alloc.default.ip}:${alloc.default.port}`;
+        if (!owners[defKey] && cfg.userId === user?.id) {
+          existingCount++;
+        }
+      }
+      if (!requestIpv6 && existingCount + count > limit) {
+        ctx.set.status = 403;
+        return {
+          error: `Per-server port limit exceeded (allowed ${limit}). Currently allocated: ${existingCount}`,
+        };
+      }
+
+      const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+      if (!node) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.allocationNotFound') };
+      }
+      if (!requestIpv6 && (node.portRangeStart == null || node.portRangeEnd == null)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.allocationNotFound') };
+      }
+      if (
+        node.portRangeStart != null &&
+        node.portRangeEnd != null &&
+        node.portRangeStart > node.portRangeEnd
+      ) {
+        ctx.set.status = 500;
+        return { error: ctx.t('node.portRangeMisconfigured') };
+      }
+
+      const excludedPorts = parsePortList(node.ipv6ExcludedPorts);
+      const nodeConfigs = await cfgRepo().find({ where: { nodeId: node.id } });
+      const takenPorts = new Set<number>();
+      for (const c of nodeConfigs) {
+        const a = c.allocations as any;
+        if (!a) continue;
+        if (a.default?.port) {
+          const p = Number(a.default.port);
+          if (p >= 1 && p <= 65535) takenPorts.add(p);
+        }
+        for (const ports of Object.values(a.mappings ?? {}) as number[][]) {
+          for (const p of ports) {
+            const pn = Number(p);
+            if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
+          }
+        }
+        if (a.owners) {
+          for (const k of Object.keys(a.owners || {})) {
+            const idx = k.lastIndexOf(':');
+            const pstr = idx >= 0 ? k.slice(idx + 1) : '';
+            const pnum = Number(pstr);
+            if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
+          }
+        }
+      }
+
+      if (requestIpv6) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.ipv6AllocationRequestRequired') };
+      }
+
+      const bindIp = node.defaultIp || '0.0.0.0';
+
+      const newPorts: { ip: string; port: number }[] = [];
+      for (let p = node.portRangeStart; p <= node.portRangeEnd && newPorts.length < count; p++) {
+        if (!takenPorts.has(p) && !excludedPorts.has(p)) {
+          newPorts.push({ ip: bindIp, port: p });
+          takenPorts.add(p);
+        }
+      }
+
+      if (newPorts.length < count) {
+        ctx.set.status = 503;
+        return { error: ctx.t('node.noFreePorts') };
+      }
+
+      alloc.mappings = alloc.mappings || {};
+      alloc.mappings[bindIp] = alloc.mappings[bindIp] || [];
+      alloc.owners = alloc.owners || {};
+      for (const np of newPorts) {
+        alloc.mappings[bindIp].push(np.port);
+        alloc.owners[`${np.ip}:${np.port}`] = user.id;
+      }
+      cfg.allocations = alloc;
+      await cfgRepo().save(cfg);
+
+      return newPorts.map(x => ({ ip: x.ip, port: x.port, is_default: false }));
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        409: t.Object({ error: t.String() }),
+        503: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Request additional network allocations for server (per-account limit)',
+        tags: ['Servers'],
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/ip-request',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { type, reason } = (ctx.body as any) || {};
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+
+      if (!type || (type !== 'ipv4' && type !== 'ipv6')) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.ipv4OrIpv6') };
+      }
+      if (!reason || typeof reason !== 'string' || !reason.trim()) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.aReasonForTheIPRequestIsRequired') };
+      }
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      if (!isAdmin) {
+        const owned = cfg.userId === user?.id;
+        const subuser = await AppDataSource.getRepository(
+          require('../models/serverSubuser.entity').ServerSubuser
+        ).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
+        if (!owned && !subuser) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.insufficientPermissions') };
+        }
+      }
+
+      const form = await getOrCreateIpRequestForm();
+      const submission = applicationSubmissionRepo().create({
+        formId: form.id,
+        userId: user?.id,
+        ipAddress: ctx.ip,
+        status: 'pending',
+        content: `IP request for server ${id} (${type}): ${reason.trim()}`,
+        meta: {
+          serverUuid: id,
+          nodeId: cfg.nodeId,
+          requestType: type,
+          reason: reason.trim(),
+        },
+      });
+      const saved = await applicationSubmissionRepo().save(submission);
+
+      await createActivityLog({
+        userId: user?.id || 0,
+        action: 'server:ip_request',
+        targetId: id,
+        targetType: 'server',
+        metadata: { requestType: type, submissionId: saved.id },
+        ipAddress: ctx.ip,
+      });
+
+      return { success: true, submissionId: saved.id };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Object({ success: t.Boolean(), submissionId: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Request an IPv4 or IPv6 allocation via application', tags: ['Servers'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/:id/allocations',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const body = (ctx.body as any) || {};
+      const ip = body.ip;
+      const port = Number(body.port || 0);
+      if (!ip || !port) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.invalidIpPort') };
+      }
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+      if (!isAdmin) {
+        const owned = cfg.userId === user?.id;
+        const subuser = await AppDataSource.getRepository(
+          require('../models/serverSubuser.entity').ServerSubuser
+        ).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
+        if (!owned && !subuser) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.insufficientPermissions') };
+        }
+      }
+
+      const alloc = (cfg.allocations as any) || {};
+      if (alloc.default && alloc.default.ip === ip && Number(alloc.default.port) === port) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.allocationDefaultCannotRemove') };
+      }
+
+      const key = `${ip}:${port}`;
+      if (!isAdmin) {
+        const owners: Record<string, any> = alloc.owners || {};
+        if (owners[key] !== user.id) {
+          ctx.set.status = 403;
+          return { error: ctx.t('server.allocationNotOwner') };
+        }
+      }
+
+      alloc.mappings = alloc.mappings || {};
+      for (const [mip, ports] of Object.entries(alloc.mappings)) {
+        if (mip === ip) {
+          const idx = (ports as number[]).indexOf(Number(port));
+          if (idx !== -1) {
+            (ports as number[]).splice(idx, 1);
+          }
+          if ((ports as number[]).length === 0) delete alloc.mappings[mip];
+        }
+      }
+
+      if (alloc.owners) {
+        delete alloc.owners[key];
+      }
+
+      cfg.allocations = alloc;
+      await cfgRepo().save(cfg);
+
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Delete a network allocation from a server', tags: ['Servers'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/:id/allocations/secondary',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+      const owned = cfg.userId === user?.id;
+      if (!isAdmin) {
+        const subuser = await AppDataSource.getRepository(
+          require('../models/serverSubuser.entity').ServerSubuser
+        ).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
+        if (!owned && !subuser) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.insufficientPermissions') };
+        }
+      }
+
+      const alloc = (cfg.allocations as any) || {};
+      const defaultKey = alloc.default ? `${alloc.default.ip}:${Number(alloc.default.port)}` : null;
+      const owners: Record<string, any> = alloc.owners || {};
+      const removed: Array<{ ip: string; port: number }> = [];
+
+      alloc.mappings = alloc.mappings || {};
+      for (const [ip, ports] of Object.entries(alloc.mappings) as Array<[string, number[]]>) {
+        for (const port of [...ports]) {
+          const key = `${ip}:${Number(port)}`;
+          if (defaultKey && key === defaultKey) continue;
+          if (!isAdmin && !owned && owners[key] !== user?.id) continue;
+          const idx = ports.indexOf(Number(port));
+          if (idx !== -1) ports.splice(idx, 1);
+          delete owners[key];
+          removed.push({ ip, port: Number(port) });
+        }
+        if (ports.length === 0) delete alloc.mappings[ip];
+      }
+
+      alloc.owners = owners;
+      cfg.allocations = alloc;
+      await cfgRepo().save(cfg);
+
+      return { success: true, removedCount: removed.length, removed };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          removedCount: t.Number(),
+          removed: t.Array(t.Object({ ip: t.String(), port: t.Number() })),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Delete all secondary network allocations from a server',
+        tags: ['Servers'],
+      },
+    }
+  );
+
+  for (const sub of ['network', 'location']) {
+    app.get(
+      prefix + `/servers/:id/${sub}`,
+      async (ctx: any) => {
+        const { id } = ctx.params as any;
+        try {
+          const svc = await serviceFor(id);
+          const res = await svc.serverRequest(id, `/${sub}`);
+          return res.data ?? [];
+        } catch (e: any) {
+          if (e?.response?.status === 404) return [];
+          throw e;
+        }
+      },
+      {
+        beforeHandle: [authenticate, authorize('servers:read')],
+        response: {
+          200: t.Array(t.Any()),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+        detail: { summary: `Get server ${sub}`, tags: ['Servers'] },
+      }
+    );
+  }
+
+  app.get(
+    prefix + '/servers/:id/stats',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+
       const mappingRepo = AppDataSource.getRepository(ServerMapping);
-      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
+      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: { node: true } });
       const unhealthyNodeIds = await getUnhealthyNodeIds();
       const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
 
-      let rows: Array<{ timestamp: string; metrics: Record<string, any> }> = [];
-      let liveData: Record<string, any> | null = null;
+      const withNetworkRates = async (input: any) => {
+        const merged: any = input && typeof input === 'object' ? { ...input } : {};
 
-      if (!nodeIsUnhealthy) {
-        try {
-          const svc = await serviceFor(id);
-          const res = await svc.serverRequest(id, '/stats');
-          if (res?.data && typeof res.data === 'object') {
-            liveData = extractStats(res.data);
+        const readNumber = (source: any, paths: string[]): number => {
+          for (const path of paths) {
+            const parts = path.split('.');
+            let cur = source;
+            for (const p of parts) {
+              if (cur == null) break;
+              cur = cur[p];
+            }
+            const num = Number(cur);
+            if (Number.isFinite(num)) return num;
           }
-        } catch {
-          // skip
+          return 0;
+        };
+
+        let rxBps = readNumber(merged, ['network.rx_bps', 'network.download_bps']);
+        let txBps = readNumber(merged, ['network.tx_bps', 'network.upload_bps']);
+
+        if (rxBps <= 0) {
+          const rxMbps = readNumber(merged, [
+            'network.rx_mbps',
+            'network.rx_mbit',
+            'network.rx_rate_mbps',
+            'network.download_mbps',
+          ]);
+          if (rxMbps > 0) rxBps = (rxMbps * 1_000_000) / 8;
         }
-      }
-
-      if (w === 'live') {
-        if (liveData) {
-          return [{ timestamp: new Date().toISOString(), metrics: liveData }];
+        if (txBps <= 0) {
+          const txMbps = readNumber(merged, [
+            'network.tx_mbps',
+            'network.tx_mbit',
+            'network.tx_rate_mbps',
+            'network.upload_mbps',
+          ]);
+          if (txMbps > 0) txBps = (txMbps * 1_000_000) / 8;
         }
 
-        const { fetchHistorical } = await import('../services/metricsService');
-        rows = await fetchHistorical(id, '5m', points);
-        if (rows.length > 0) {
-          return rows;
-        }
-      } else {
-        const { fetchHistorical } = await import('../services/metricsService');
-        rows = await fetchHistorical(id, w, points);
-      }
+        if (rxBps <= 0 && txBps <= 0) {
+          try {
+            const socRepo = AppDataSource.getRepository(SocData);
+            const rows = await socRepo.find({
+              where: { serverId: id },
+              order: { timestamp: 'DESC' },
+              take: 2,
+            });
+            if (Array.isArray(rows) && rows.length >= 2) {
+              const sorted = [...rows].sort(
+                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              );
+              const prev = sorted[0];
+              const last = sorted[1];
 
-      if (liveData) {
-        if (rows.length === 0) {
-          rows.push({ timestamp: new Date().toISOString(), metrics: liveData });
-        } else {
-          rows[rows.length - 1].metrics = liveData;
-          rows[rows.length - 1].timestamp = new Date().toISOString();
-        }
-      } else if (w === 'live' && rows.length > 0) {
-        rows.pop();
-      }
-
-      return rows;
-    } catch (e: any) {
-      console.error('stats history error', e);
-      ctx.set.status = 500;
-      return { error: ctx.t('server.statsFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Historical stats', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/stats/node', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    try {
-      const mappingRepo = AppDataSource.getRepository(ServerMapping);
-      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
-      if (!mapping) {
-        ctx.set.status = 404;
-        return { error: ctx.t('server.nodeMappingNotFound') };
-      }
-      const unhealthyNodeIds = await getUnhealthyNodeIds();
-      const node = mapping.node;
-      if (unhealthyNodeIds.includes(node.id)) {
-        const { fetchHistorical } = await import('../services/metricsService');
-        const rows = await fetchHistorical(`node:${node.id}`, '5m', 5);
-        return rows.length > 0 ? rows[rows.length - 1].metrics : {};
-      }
-      const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
-      const [infoResult, statsResult] = await Promise.allSettled([
-        svc.getSystemInfo(),
-        svc.getSystemStats(),
-      ]);
-      const info = infoResult.status === 'fulfilled' ? (infoResult.value.data ?? {}) : {};
-      const statsPayload = statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
-
-      const merged: any = { ...info, ...(statsPayload.stats ?? {}) };
-
-      const readNumber = (source: any, paths: string[]): number => {
-        for (const path of paths) {
-          const parts = path.split('.');
-          let cur = source;
-          for (const p of parts) {
-            if (cur == null) break;
-            cur = cur[p];
-          }
-          const num = Number(cur);
-          if (Number.isFinite(num)) return num;
-        }
-        return 0;
-      };
-
-      let rxBps = readNumber(merged, [
-        'network.rx_bps',
-        'network.download_bps',
-      ]);
-      let txBps = readNumber(merged, [
-        'network.tx_bps',
-        'network.upload_bps',
-      ]);
-
-      if (rxBps <= 0) {
-        const directMbps = readNumber(merged, ['network.rx_mbps', 'network.rx_mbit', 'network.rx_rate_mbps', 'network.download_mbps']);
-        if (directMbps > 0) rxBps = (directMbps * 1_000_000) / 8;
-      }
-      if (txBps <= 0) {
-        const directMbps = readNumber(merged, ['network.tx_mbps', 'network.tx_mbit', 'network.tx_rate_mbps', 'network.upload_mbps']);
-        if (directMbps > 0) txBps = (directMbps * 1_000_000) / 8;
-      }
-
-      if (rxBps <= 0 && txBps <= 0) {
-        try {
-          const { fetchHistorical } = await import('../services/metricsService');
-          const nodeMetricKey = `node:${mapping.node.id}`;
-          const rows = await fetchHistorical(nodeMetricKey, '5m', 5);
-          if (Array.isArray(rows) && rows.length >= 2) {
-            const sorted = [...rows]
-              .filter((row: any) => Number.isFinite(new Date(row?.timestamp).getTime()))
-              .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-            if (sorted.length >= 2) {
-              const prev = sorted[sorted.length - 2];
-              const last = sorted[sorted.length - 1];
               const prevTs = new Date(prev.timestamp).getTime();
               const lastTs = new Date(last.timestamp).getTime();
               const deltaSeconds = (lastTs - prevTs) / 1000;
 
               if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
-                const prevRx = readNumber(prev, ['metrics.network.rx_bytes', 'metrics.network.rx', 'metrics.network.received', 'network.rx_bytes', 'network.rx', 'network.received']);
-                const prevTx = readNumber(prev, ['metrics.network.tx_bytes', 'metrics.network.tx', 'metrics.network.sent', 'network.tx_bytes', 'network.tx', 'network.sent']);
-                const lastRx = readNumber(last, ['metrics.network.rx_bytes', 'metrics.network.rx', 'metrics.network.received', 'network.rx_bytes', 'network.rx', 'network.received']);
-                const lastTx = readNumber(last, ['metrics.network.tx_bytes', 'metrics.network.tx', 'metrics.network.sent', 'network.tx_bytes', 'network.tx', 'network.sent']);
+                const prevRx = readNumber(prev.metrics ?? {}, [
+                  'network.rx_bytes',
+                  'network.rx',
+                  'network.received',
+                ]);
+                const prevTx = readNumber(prev.metrics ?? {}, [
+                  'network.tx_bytes',
+                  'network.tx',
+                  'network.sent',
+                ]);
+                const lastRx = readNumber(last.metrics ?? {}, [
+                  'network.rx_bytes',
+                  'network.rx',
+                  'network.received',
+                ]);
+                const lastTx = readNumber(last.metrics ?? {}, [
+                  'network.tx_bytes',
+                  'network.tx',
+                  'network.sent',
+                ]);
 
                 rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds;
                 txBps = Math.max(0, lastTx - prevTx) / deltaSeconds;
               }
             }
+          } catch {
+            // uwu no netwurk fur u
           }
-        } catch {
-          // skippyyyyy
+        }
+
+        const network = merged?.network && typeof merged.network === 'object' ? merged.network : {};
+        merged.network = {
+          ...network,
+          rx_bps: Number.isFinite(rxBps) ? rxBps : 0,
+          tx_bps: Number.isFinite(txBps) ? txBps : 0,
+          rx_kbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000 : 0,
+          tx_kbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000 : 0,
+          rx_mbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000_000 : 0,
+          tx_mbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000_000 : 0,
+        };
+
+        return merged;
+      };
+
+      if (nodeIsUnhealthy) {
+        const socRepo = AppDataSource.getRepository(SocData);
+        const latest = await socRepo.findOne({
+          where: { serverId: id },
+          order: { timestamp: 'DESC' },
+        });
+        return await withNetworkRates(latest?.metrics ?? {});
+      }
+
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.serverRequest(id, '/stats');
+        if (res?.data && typeof res.data === 'object') {
+          return await withNetworkRates(extractStats(res.data));
+        }
+      } catch (e) {
+        // skip
+      }
+
+      const socRepo = AppDataSource.getRepository(SocData);
+      const latest = await socRepo.findOne({
+        where: { serverId: id },
+        order: { timestamp: 'DESC' },
+      });
+      return await withNetworkRates(latest?.metrics ?? {});
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Latest server stats', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/stats/history',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { window: w = '1h', points: p = '60' } = ctx.query as any;
+      const points = Math.max(12, Math.min(1440, Number(p) || 60));
+
+      try {
+        const mappingRepo = AppDataSource.getRepository(ServerMapping);
+        const mapping = await mappingRepo.findOne({
+          where: { uuid: id },
+          relations: { node: true },
+        });
+        const unhealthyNodeIds = await getUnhealthyNodeIds();
+        const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
+
+        let rows: Array<{ timestamp: string; metrics: Record<string, any> }> = [];
+        let liveData: Record<string, any> | null = null;
+
+        if (!nodeIsUnhealthy) {
+          try {
+            const svc = await serviceFor(id);
+            const res = await svc.serverRequest(id, '/stats');
+            if (res?.data && typeof res.data === 'object') {
+              liveData = extractStats(res.data);
+            }
+          } catch {
+            // skip
+          }
+        }
+
+        if (w === 'live') {
+          if (liveData) {
+            return [{ timestamp: new Date().toISOString(), metrics: liveData }];
+          }
+
+          const { fetchHistorical } = await import('../services/metricsService');
+          rows = await fetchHistorical(id, '5m', points);
+          if (rows.length > 0) {
+            return rows;
+          }
+        } else {
+          const { fetchHistorical } = await import('../services/metricsService');
+          rows = await fetchHistorical(id, w, points);
+        }
+
+        if (liveData) {
+          if (rows.length === 0) {
+            rows.push({ timestamp: new Date().toISOString(), metrics: liveData });
+          } else {
+            rows[rows.length - 1].metrics = liveData;
+            rows[rows.length - 1].timestamp = new Date().toISOString();
+          }
+        } else if (w === 'live' && rows.length > 0) {
+          rows.pop();
+        }
+
+        return rows;
+      } catch (e: any) {
+        console.error('stats history error', e);
+        ctx.set.status = 500;
+        return { error: ctx.t('server.statsFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Historical stats', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/stats/node',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      try {
+        const mappingRepo = AppDataSource.getRepository(ServerMapping);
+        const mapping = await mappingRepo.findOne({
+          where: { uuid: id },
+          relations: { node: true },
+        });
+        if (!mapping) {
+          ctx.set.status = 404;
+          return { error: ctx.t('server.nodeMappingNotFound') };
+        }
+        const unhealthyNodeIds = await getUnhealthyNodeIds();
+        const node = mapping.node;
+        if (unhealthyNodeIds.includes(node.id)) {
+          const { fetchHistorical } = await import('../services/metricsService');
+          const rows = await fetchHistorical(`node:${node.id}`, '5m', 5);
+          return rows.length > 0 ? rows[rows.length - 1].metrics : {};
+        }
+        const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+        const [infoResult, statsResult] = await Promise.allSettled([
+          svc.getSystemInfo(),
+          svc.getSystemStats(),
+        ]);
+        const info = infoResult.status === 'fulfilled' ? (infoResult.value.data ?? {}) : {};
+        const statsPayload =
+          statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
+
+        const merged: any = { ...info, ...(statsPayload.stats ?? {}) };
+
+        const readNumber = (source: any, paths: string[]): number => {
+          for (const path of paths) {
+            const parts = path.split('.');
+            let cur = source;
+            for (const p of parts) {
+              if (cur == null) break;
+              cur = cur[p];
+            }
+            const num = Number(cur);
+            if (Number.isFinite(num)) return num;
+          }
+          return 0;
+        };
+
+        let rxBps = readNumber(merged, ['network.rx_bps', 'network.download_bps']);
+        let txBps = readNumber(merged, ['network.tx_bps', 'network.upload_bps']);
+
+        if (rxBps <= 0) {
+          const directMbps = readNumber(merged, [
+            'network.rx_mbps',
+            'network.rx_mbit',
+            'network.rx_rate_mbps',
+            'network.download_mbps',
+          ]);
+          if (directMbps > 0) rxBps = (directMbps * 1_000_000) / 8;
+        }
+        if (txBps <= 0) {
+          const directMbps = readNumber(merged, [
+            'network.tx_mbps',
+            'network.tx_mbit',
+            'network.tx_rate_mbps',
+            'network.upload_mbps',
+          ]);
+          if (directMbps > 0) txBps = (directMbps * 1_000_000) / 8;
+        }
+
+        if (rxBps <= 0 && txBps <= 0) {
+          try {
+            const { fetchHistorical } = await import('../services/metricsService');
+            const nodeMetricKey = `node:${mapping.node.id}`;
+            const rows = await fetchHistorical(nodeMetricKey, '5m', 5);
+            if (Array.isArray(rows) && rows.length >= 2) {
+              const sorted = [...rows]
+                .filter((row: any) => Number.isFinite(new Date(row?.timestamp).getTime()))
+                .sort(
+                  (a: any, b: any) =>
+                    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                );
+
+              if (sorted.length >= 2) {
+                const prev = sorted[sorted.length - 2];
+                const last = sorted[sorted.length - 1];
+                const prevTs = new Date(prev.timestamp).getTime();
+                const lastTs = new Date(last.timestamp).getTime();
+                const deltaSeconds = (lastTs - prevTs) / 1000;
+
+                if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
+                  const prevRx = readNumber(prev, [
+                    'metrics.network.rx_bytes',
+                    'metrics.network.rx',
+                    'metrics.network.received',
+                    'network.rx_bytes',
+                    'network.rx',
+                    'network.received',
+                  ]);
+                  const prevTx = readNumber(prev, [
+                    'metrics.network.tx_bytes',
+                    'metrics.network.tx',
+                    'metrics.network.sent',
+                    'network.tx_bytes',
+                    'network.tx',
+                    'network.sent',
+                  ]);
+                  const lastRx = readNumber(last, [
+                    'metrics.network.rx_bytes',
+                    'metrics.network.rx',
+                    'metrics.network.received',
+                    'network.rx_bytes',
+                    'network.rx',
+                    'network.received',
+                  ]);
+                  const lastTx = readNumber(last, [
+                    'metrics.network.tx_bytes',
+                    'metrics.network.tx',
+                    'metrics.network.sent',
+                    'network.tx_bytes',
+                    'network.tx',
+                    'network.sent',
+                  ]);
+
+                  rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds;
+                  txBps = Math.max(0, lastTx - prevTx) / deltaSeconds;
+                }
+              }
+            }
+          } catch {
+            // skippyyyyy
+          }
+        }
+
+        const network = merged?.network && typeof merged.network === 'object' ? merged.network : {};
+        merged.network = {
+          ...network,
+          rx_bps: Number.isFinite(rxBps) ? rxBps : 0,
+          tx_bps: Number.isFinite(txBps) ? txBps : 0,
+          rx_kbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000 : 0,
+          tx_kbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000 : 0,
+          rx_mbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000_000 : 0,
+          tx_mbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000_000 : 0,
+        };
+
+        return merged;
+      } catch (e: any) {
+        ctx.set.status = 502;
+        return { error: ctx.t('node.statsRetrieveFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Node-level stats', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/stats/node/history',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { window: w = '24h', points: p = '144' } = ctx.query as any;
+      const points = Math.max(12, Math.min(1440, Number(p) || 144));
+
+      try {
+        const mappingRepo = AppDataSource.getRepository(ServerMapping);
+        const mapping = await mappingRepo.findOne({
+          where: { uuid: id },
+          relations: { node: true },
+        });
+        if (!mapping) {
+          ctx.set.status = 404;
+          return { error: ctx.t('server.nodeMappingNotFound') };
+        }
+
+        const nodeMetricKey = `node:${mapping.node.id}`;
+        const unhealthyNodeIds = await getUnhealthyNodeIds();
+        const nodeIsUnhealthy = unhealthyNodeIds.includes(mapping.node.id);
+        const { fetchHistorical } = await import('../services/metricsService');
+        let rows = await fetchHistorical(nodeMetricKey, w, points);
+
+        if (!nodeIsUnhealthy) {
+          try {
+            const node = mapping.node;
+            const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+            const latest = await svc.getSystemStats();
+            const liveMetrics = (latest as any)?.data?.stats ?? (latest as any)?.data ?? null;
+            if (liveMetrics && typeof liveMetrics === 'object') {
+              if (rows.length === 0) {
+                rows = [{ timestamp: new Date().toISOString(), metrics: liveMetrics }];
+              } else {
+                rows[rows.length - 1].metrics = liveMetrics;
+                rows[rows.length - 1].timestamp = new Date().toISOString();
+              }
+            }
+          } catch {
+            // skip
+          }
+        }
+
+        return rows;
+      } catch (e: any) {
+        console.error('node stats history error', e);
+        ctx.set.status = 500;
+        return { error: ctx.t('server.nodeStatsFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: "Node historical stats for server's host node", tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/configuration',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/configuration');
+      return res.data ?? {};
+    },
+    {
+      beforeHandle: [authenticate, authorize('configuration:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Server configuration', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/script',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/script', 'post', ctx.body);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Run script', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/ws/permissions',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/ws/permissions', 'post', ctx.body);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Set WS permissions', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/ws/broadcast',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/ws/broadcast', 'post', ctx.body);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Broadcast WS message', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/install/abort',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/install/abort', 'post');
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Abort install', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/logs/install',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/logs/install');
+      return res.data ?? [];
+    },
+    {
+      beforeHandle: [authenticate, authorize('logs:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Fetch install logs', tags: ['Servers', 'Logs'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/configuration/egg',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/configuration/egg');
+      return res.data ?? {};
+    },
+    {
+      beforeHandle: [authenticate, authorize('configuration:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Egg-specific configuration', tags: ['Servers'] },
+    }
+  );
+
+  app.put(
+    prefix + '/servers/:id/configuration/egg',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const payload = ctx.body;
+      const svc = await serviceFor(id);
+      const res = await svc.serverRequest(id, '/configuration/egg', 'put', payload);
+      return res.data && typeof res.data === 'object' ? res.data : { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('configuration:write')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Update egg configuration', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/startup',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
+      const eggProc = egg?.processConfig || {};
+      const cfgProc = (cfg as any).processConfig || {};
+      const proc: Record<string, any> = { ...eggProc, ...cfgProc };
+
+      const selectedDockerImage = cfg.dockerImage || egg?.dockerImage || '';
+      const dockerImageOptions: Array<{ label: string; value: string }> = [];
+
+      if (egg?.dockerImages && typeof egg.dockerImages === 'object') {
+        for (const [key, value] of Object.entries(egg.dockerImages)) {
+          dockerImageOptions.push({ label: String(key), value: String(value) });
         }
       }
 
-      const network = merged?.network && typeof merged.network === 'object' ? merged.network : {};
-      merged.network = {
-        ...network,
-        rx_bps: Number.isFinite(rxBps) ? rxBps : 0,
-        tx_bps: Number.isFinite(txBps) ? txBps : 0,
-        rx_kbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000 : 0,
-        tx_kbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000 : 0,
-        rx_mbps: Number.isFinite(rxBps) ? (rxBps * 8) / 1_000_000 : 0,
-        tx_mbps: Number.isFinite(txBps) ? (txBps * 8) / 1_000_000 : 0,
-      };
-
-      return merged;
-    } catch (e: any) {
-      ctx.set.status = 502;
-      return { error: ctx.t('node.statsRetrieveFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
-    detail: { summary: 'Node-level stats', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/stats/node/history', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { window: w = '24h', points: p = '144' } = ctx.query as any;
-    const points = Math.max(12, Math.min(1440, Number(p) || 144));
-
-    try {
-      const mappingRepo = AppDataSource.getRepository(ServerMapping);
-      const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
-      if (!mapping) {
-        ctx.set.status = 404;
-        return { error: ctx.t('server.nodeMappingNotFound') };
+      if (egg?.dockerImage) {
+        const exists = dockerImageOptions.some(option => option.value === egg.dockerImage);
+        if (!exists) dockerImageOptions.unshift({ label: 'Default', value: egg.dockerImage });
       }
 
-      const nodeMetricKey = `node:${mapping.node.id}`;
-      const unhealthyNodeIds = await getUnhealthyNodeIds();
-      const nodeIsUnhealthy = unhealthyNodeIds.includes(mapping.node.id);
-      const { fetchHistorical } = await import('../services/metricsService');
-      let rows = await fetchHistorical(nodeMetricKey, w, points);
+      if (
+        selectedDockerImage &&
+        !dockerImageOptions.some(option => option.value === selectedDockerImage)
+      ) {
+        dockerImageOptions.unshift({ label: 'Custom', value: selectedDockerImage });
+      }
 
-      if (!nodeIsUnhealthy) {
-        try {
-          const node = mapping.node;
-          const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
-          const latest = await svc.getSystemStats();
-          const liveMetrics = (latest as any)?.data?.stats ?? (latest as any)?.data ?? null;
-          if (liveMetrics && typeof liveMetrics === 'object') {
-            if (rows.length === 0) {
-              rows = [{ timestamp: new Date().toISOString(), metrics: liveMetrics }];
-            } else {
-              rows[rows.length - 1].metrics = liveMetrics;
-              rows[rows.length - 1].timestamp = new Date().toISOString();
+      return {
+        environment: cfg.environment || {},
+        startup: cfg.startup || '',
+        dockerImage: selectedDockerImage,
+        dockerImageOptions,
+        envVars: egg?.envVars || [],
+        eggName: egg?.name || null,
+        processConfig: {
+          startup: {
+            done: normalizeStartupDonePatterns(proc.startup?.done),
+            strip_ansi: proc.startup?.strip_ansi ?? false,
+          },
+          stop: {
+            type: proc.stop?.type || 'command',
+            value: proc.stop?.value || 'stop',
+          },
+        },
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get startup configuration', tags: ['Servers'] },
+    }
+  );
+
+  app.put(
+    prefix + '/servers/:id/startup',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as any;
+      if (!environment && !incomingProcCfg && dockerImage === undefined) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.environmentRequired') };
+      }
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'servers:list');
+      let nextEnvironment: Record<string, string> | null = null;
+
+      const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
+      const editableKeys = new Set<string>();
+      const definedKeys = new Set<string>();
+      if (egg?.envVars) {
+        for (const v of egg.envVars as any[]) {
+          const key = v.env_variable || v.key || v.name;
+          if (!key) continue;
+          definedKeys.add(key);
+          if (v.user_editable) editableKeys.add(key);
+        }
+      }
+
+      if (dockerImage !== undefined) {
+        const allowedImages = new Set<string>();
+        if (egg?.dockerImage) allowedImages.add(String(egg.dockerImage));
+        if (egg?.dockerImages && typeof egg.dockerImages === 'object') {
+          for (const v of Object.values(egg.dockerImages)) {
+            allowedImages.add(String(v));
+          }
+        }
+
+        if (!isAdmin && allowedImages.size > 0 && !allowedImages.has(String(dockerImage))) {
+          ctx.set.status = 403;
+          return { error: ctx.t('server.invalidDockerImage') };
+        }
+
+        cfg.dockerImage = String(dockerImage);
+      }
+
+      if (environment && typeof environment === 'object') {
+        nextEnvironment = {};
+        for (const [key, val] of Object.entries(environment)) {
+          if (!key) continue;
+          if (definedKeys.has(key) && editableKeys.size > 0 && !editableKeys.has(key)) continue;
+          nextEnvironment[key] = String(val);
+        }
+        cfg.environment = nextEnvironment;
+      }
+
+      if (incomingProcCfg && typeof incomingProcCfg === 'object') {
+        const existing = (cfg as any).processConfig || {};
+        const updated = { ...existing };
+        if (incomingProcCfg.startup) {
+          updated.startup = { ...(existing.startup || {}), ...incomingProcCfg.startup };
+        }
+        if (incomingProcCfg.stop) {
+          updated.stop = { ...(existing.stop || {}), ...incomingProcCfg.stop };
+        }
+        updated.startup = {
+          ...(updated.startup || {}),
+          done: normalizeStartupDonePatterns(updated.startup?.done),
+        };
+        (cfg as any).processConfig = updated;
+      }
+
+      const requestedHostAddr =
+        normalizeIpv6Host(nextEnvironment?.VM_HOSTADDR) ||
+        normalizeIpv6Host((cfg.allocations as any)?.ipv6Address) ||
+        '';
+      const requestedVmPorts = nextEnvironment?.VM_PORTS ?? '';
+      if (nextEnvironment && requestedHostAddr && isValidIpv6(requestedHostAddr)) {
+        const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
+        const ipv6Address = formatIpv6(parseIpv6(requestedHostAddr));
+        const existingMappings: Record<string, number[]> = alloc.mappings || {};
+        const parsedPorts = parseVmPorts(requestedVmPorts);
+
+        for (const key of Object.keys(existingMappings)) {
+          const normalizedKey = normalizeIpv6Host(key);
+          if (
+            normalizedKey !== ipv6Address &&
+            isValidIpv6(normalizedKey) &&
+            formatIpv6(parseIpv6(normalizedKey)) === ipv6Address
+          ) {
+            delete existingMappings[key];
+          }
+        }
+
+        const currentIpv6 = normalizeIpv6Host(alloc.ipv6Address);
+        if (
+          currentIpv6 &&
+          isValidIpv6(currentIpv6) &&
+          formatIpv6(parseIpv6(currentIpv6)) !== ipv6Address
+        ) {
+          const oldIpv6 = formatIpv6(parseIpv6(currentIpv6));
+          delete existingMappings[oldIpv6];
+          if (alloc.owners) {
+            for (const ownerKey of Object.keys(alloc.owners)) {
+              const idx = ownerKey.lastIndexOf(':');
+              const ipPart = idx >= 0 ? ownerKey.slice(0, idx) : ownerKey;
+              if (isValidIpv6(ipPart) && formatIpv6(parseIpv6(ipPart)) === oldIpv6)
+                delete alloc.owners[ownerKey];
             }
+          }
+        }
+
+        if (parsedPorts.size > 0) {
+          const ports = Array.from(parsedPorts).sort((a, b) => a - b);
+          existingMappings[ipv6Address] = ports;
+          (alloc as any).ipv6Ports = ports;
+        } else if (existingMappings[ipv6Address]) {
+          delete existingMappings[ipv6Address];
+          delete (alloc as any).ipv6Ports;
+        }
+
+        alloc.ipv6Address = ipv6Address;
+        alloc.mappings = existingMappings;
+        cfg.allocations = alloc;
+      }
+
+      try {
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, {});
+      } catch {
+        // continue
+      }
+
+      await cfgRepo().save(cfg);
+      return {
+        success: true,
+        environment: cfg.environment,
+        processConfig: (cfg as any).processConfig,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      response: {
+        200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Update startup configuration', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/mounts',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const mountRepo = AppDataSource.getRepository(Mount);
+      const smRepo = AppDataSource.getRepository(ServerMount);
+      const links = await smRepo.findBy({ serverUuid: id });
+      if (links.length === 0) return [];
+      const mountIds = links.map(l => l.mountId);
+      const mounts = await mountRepo.findBy({ id: In(mountIds) });
+      return mounts;
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List server mounts', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/websocket',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const user = ctx.user;
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const cfg = await cfgRepo.findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      if (cfg.suspended || cfg.dmca) {
+        ctx.set.status = 403;
+        return { error: buildSuspendedServerMessage(cfg) };
+      }
+
+      const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+      if (!node) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.targetNodeFailed') };
+      }
+
+      const normalizeUuid = (value: any) => {
+        if (!value) return crypto.randomUUID().replace(/-/g, '');
+        const s = String(value).toLowerCase().replace(/-/g, '');
+        if (/^[0-9a-f]{32}$/.test(s)) return s;
+        return crypto.randomUUID().replace(/-/g, '');
+      };
+
+      const now = Math.floor(Date.now() / 1000);
+      const safeUserUuid = normalizeUuid(user?.uuid || user?.id || crypto.randomUUID());
+      const safeServerUuid = normalizeUuid(id);
+      const jti = normalizeUuid(crypto.randomUUID());
+
+      console.debug('wings jwt payload lengths', {
+        user_uuid: safeUserUuid.length,
+        server_uuid: safeServerUuid.length,
+        jti: jti.length,
+        sub_source: {
+          uuid: String(user?.uuid || ''),
+          id: user?.id != null ? String(user.id) : undefined,
+        },
+      });
+
+      const payload = {
+        iss: 'eclipanel',
+        sub: safeUserUuid,
+        aud: [''],
+        iat: now,
+        nbf: now,
+        exp: now + 600,
+        jti,
+        user_uuid: safeUserUuid,
+        server_uuid: safeServerUuid,
+        permissions: ['*'],
+        use_console_read_permission: false,
+      };
+
+      const token = signWingsJwt(payload, node.token);
+
+      if (process.env.DEBUG_WINGS_JWT === '1') {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payloadJson = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as any;
+            ctx.log?.debug?.(
+              {
+                payload: {
+                  sub: payloadJson.sub,
+                  user_uuid: payloadJson.user_uuid,
+                  server_uuid: payloadJson.server_uuid,
+                  jti: payloadJson.jti,
+                },
+              },
+              'wings jwt payload decoded from token'
+            );
           }
         } catch {
           // skip
         }
       }
 
-      return rows;
-    } catch (e: any) {
-      console.error('node stats history error', e);
-      ctx.set.status = 500;
-      return { error: ctx.t('server.nodeStatsFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Node historical stats for server\'s host node', tags: ['Servers'] }
-  });
+      const incomingProto = (ctx.headers['x-forwarded-proto'] as string) || ctx.protocol || 'https';
+      const forwardedHost =
+        (ctx.headers['x-forwarded-host'] as string) ||
+        (ctx.headers['host'] as string) ||
+        ctx.hostname;
+      const hostSafe =
+        forwardedHost &&
+        forwardedHost !== 'undefined' &&
+        typeof forwardedHost === 'string' &&
+        /^[a-zA-Z0-9.:\-[\]]+$/.test(forwardedHost.split(':')[0])
+          ? forwardedHost
+          : 'localhost';
+      const backendBase = (process.env.BACKEND_URL || `${incomingProto}://${hostSafe}`).replace(
+        /\/+$/,
+        ''
+      );
+      const socketScheme =
+        backendBase.startsWith('https') || incomingProto === 'https' ? 'wss' : 'ws';
 
-  app.get(prefix + '/servers/:id/configuration', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/configuration');
-    return res.data ?? {};
-  }, {
-    beforeHandle: [authenticate, authorize('configuration:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Server configuration', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/script', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/script', 'post', ctx.body);
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Run script', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/ws/permissions', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/ws/permissions', 'post', ctx.body);
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Set WS permissions', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/ws/broadcast', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/ws/broadcast', 'post', ctx.body);
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Broadcast WS message', tags: ['Servers'] }
-  });
-
-  app.post(prefix + '/servers/:id/install/abort', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/install/abort', 'post');
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Abort install', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/logs/install', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/logs/install');
-    return res.data ?? [];
-  }, {
-    beforeHandle: [authenticate, authorize('logs:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch install logs', tags: ['Servers', 'Logs'] }
-  });
-
-  app.get(prefix + '/servers/:id/configuration/egg', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/configuration/egg');
-    return res.data ?? {};
-  }, {
-    beforeHandle: [authenticate, authorize('configuration:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Egg-specific configuration', tags: ['Servers'] }
-  });
-
-  app.put(prefix + '/servers/:id/configuration/egg', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const payload = ctx.body;
-    const svc = await serviceFor(id);
-    const res = await svc.serverRequest(id, '/configuration/egg', 'put', payload);
-    return res.data && typeof res.data === 'object' ? res.data : { success: true };
-  }, {
-    beforeHandle: [authenticate, authorize('configuration:write')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Update egg configuration', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/startup', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-    const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
-    const eggProc = egg?.processConfig || {};
-    const cfgProc = (cfg as any).processConfig || {};
-    const proc: Record<string, any> = { ...eggProc, ...cfgProc };
-
-    const selectedDockerImage = cfg.dockerImage || egg?.dockerImage || '';
-    const dockerImageOptions: Array<{ label: string; value: string }> = [];
-
-    if (egg?.dockerImages && typeof egg.dockerImages === 'object') {
-      for (const [key, value] of Object.entries(egg.dockerImages)) {
-        dockerImageOptions.push({ label: String(key), value: String(value) });
-      }
-    }
-
-    if (egg?.dockerImage) {
-      const exists = dockerImageOptions.some((option) => option.value === egg.dockerImage);
-      if (!exists) dockerImageOptions.unshift({ label: 'Default', value: egg.dockerImage });
-    }
-
-    if (selectedDockerImage && !dockerImageOptions.some((option) => option.value === selectedDockerImage)) {
-      dockerImageOptions.unshift({ label: 'Custom', value: selectedDockerImage });
-    }
-
-    return {
-      environment: cfg.environment || {},
-      startup: cfg.startup || '',
-      dockerImage: selectedDockerImage,
-      dockerImageOptions,
-      envVars: egg?.envVars || [],
-      eggName: egg?.name || null,
-      processConfig: {
-        startup: {
-          done: normalizeStartupDonePatterns(proc.startup?.done),
-          strip_ansi: proc.startup?.strip_ansi ?? false,
-        },
-        stop: {
-          type: proc.stop?.type || 'command',
-          value: proc.stop?.value || 'stop',
-        },
-      },
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Get startup configuration', tags: ['Servers'] }
-  });
-
-  app.put(prefix + '/servers/:id/startup', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as any;
-    if (!environment && !incomingProcCfg && dockerImage === undefined) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.environmentRequired') };
-    }
-
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    const user = ctx.user;
-    const isAdmin = hasPermissionSync(ctx, 'servers:list');
-    let nextEnvironment: Record<string, string> | null = null;
-
-    const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
-    const editableKeys = new Set<string>();
-    const definedKeys = new Set<string>();
-    if (egg?.envVars) {
-      for (const v of egg.envVars as any[]) {
-        const key = v.env_variable || v.key || v.name
-        if (!key) continue;
-        definedKeys.add(key)
-        if (v.user_editable) editableKeys.add(key)
-      }
-    }
-
-    if (dockerImage !== undefined) {
-      const allowedImages = new Set<string>();
-      if (egg?.dockerImage) allowedImages.add(String(egg.dockerImage));
-      if (egg?.dockerImages && typeof egg.dockerImages === 'object') {
-        for (const v of Object.values(egg.dockerImages)) {
-          allowedImages.add(String(v));
-        }
-      }
-
-      if (!isAdmin && allowedImages.size > 0 && !allowedImages.has(String(dockerImage))) {
-        ctx.set.status = 403;
-        return { error: ctx.t('server.invalidDockerImage') };
-      }
-
-      cfg.dockerImage = String(dockerImage);
-    }
-
-    if (environment && typeof environment === 'object') {
-      nextEnvironment = {};
-      for (const [key, val] of Object.entries(environment)) {
-        if (!key) continue;
-        if (definedKeys.has(key) && editableKeys.size > 0 && !editableKeys.has(key)) continue;
-        nextEnvironment[key] = String(val);
-      }
-      cfg.environment = nextEnvironment;
-    }
-
-    if (incomingProcCfg && typeof incomingProcCfg === 'object') {
-      const existing = (cfg as any).processConfig || {};
-      const updated = { ...existing };
-      if (incomingProcCfg.startup) {
-        updated.startup = { ...(existing.startup || {}), ...incomingProcCfg.startup };
-      }
-      if (incomingProcCfg.stop) {
-        updated.stop = { ...(existing.stop || {}), ...incomingProcCfg.stop };
-      }
-      updated.startup = {
-        ...(updated.startup || {}),
-        done: normalizeStartupDonePatterns(updated.startup?.done),
+      const cookieName = process.env.JWT_COOKIE_NAME || 'token';
+      const getCookieToken = () => {
+        const cookieValue = (ctx.cookie &&
+          ctx.cookie[cookieName] &&
+          ctx.cookie[cookieName].value) as string | undefined;
+        if (cookieValue) return cookieValue;
+        const raw = (ctx.headers && (ctx.headers.cookie as string)) || '';
+        const parts = String(raw)
+          .split(';')
+          .map((s: string) => s.trim());
+        const pair = parts.find(p => p.startsWith(cookieName + '='));
+        if (pair) return pair.split('=')[1];
+        return '';
       };
-      (cfg as any).processConfig = updated;
-    }
 
-    const requestedHostAddr = normalizeIpv6Host(nextEnvironment?.VM_HOSTADDR) || normalizeIpv6Host((cfg.allocations as any)?.ipv6Address) || '';
-    const requestedVmPorts = nextEnvironment?.VM_PORTS ?? '';
-    if (nextEnvironment && requestedHostAddr && isValidIpv6(requestedHostAddr)) {
-      const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
-      const ipv6Address = formatIpv6(parseIpv6(requestedHostAddr));
-      const existingMappings: Record<string, number[]> = alloc.mappings || {};
-      const parsedPorts = parseVmPorts(requestedVmPorts);
+      const panelJwt =
+        ((ctx.headers['authorization'] as string) || '').replace(/^Bearer\s+/i, '') ||
+        getCookieToken();
+      const wsUrl =
+        backendBase.replace(/^https?/, socketScheme) +
+        `/api/servers/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
 
-      for (const key of Object.keys(existingMappings)) {
-        const normalizedKey = normalizeIpv6Host(key);
-        if (normalizedKey !== ipv6Address && isValidIpv6(normalizedKey) && formatIpv6(parseIpv6(normalizedKey)) === ipv6Address) {
-          delete existingMappings[key];
-        }
-      }
-
-      const currentIpv6 = normalizeIpv6Host(alloc.ipv6Address);
-      if (currentIpv6 && isValidIpv6(currentIpv6) && formatIpv6(parseIpv6(currentIpv6)) !== ipv6Address) {
-        const oldIpv6 = formatIpv6(parseIpv6(currentIpv6));
-        delete existingMappings[oldIpv6];
-        if (alloc.owners) {
-          for (const ownerKey of Object.keys(alloc.owners)) {
-            const idx = ownerKey.lastIndexOf(':');
-            const ipPart = idx >= 0 ? ownerKey.slice(0, idx) : ownerKey;
-            if (isValidIpv6(ipPart) && formatIpv6(parseIpv6(ipPart)) === oldIpv6) delete alloc.owners[ownerKey];
-          }
-        }
-      }
-
-      if (parsedPorts.size > 0) {
-        const ports = Array.from(parsedPorts).sort((a, b) => a - b);
-        existingMappings[ipv6Address] = ports;
-        (alloc as any).ipv6Ports = ports;
-      } else if (existingMappings[ipv6Address]) {
-        delete existingMappings[ipv6Address];
-        delete (alloc as any).ipv6Ports;
-      }
-
-      alloc.ipv6Address = ipv6Address;
-      alloc.mappings = existingMappings;
-      cfg.allocations = alloc;
-    }
-
-    try {
-      const svc = await serviceFor(id);
-      await svc.syncServer(id, {});
-    } catch {
-      // continue
-    }
-
-    await cfgRepo().save(cfg);
-    return { success: true, environment: cfg.environment, processConfig: (cfg as any).processConfig };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:write')],
-    response: { 200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Update startup configuration', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/mounts', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const mountRepo = AppDataSource.getRepository(Mount);
-    const smRepo = AppDataSource.getRepository(ServerMount);
-    const links = await smRepo.findBy({ serverUuid: id });
-    if (links.length === 0) return [];
-    const mountIds = links.map(l => l.mountId);
-    const mounts = await mountRepo.findBy({ id: In(mountIds) });
-    return mounts;
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'List server mounts', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/websocket', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const user = ctx.user;
-
-    const cfgRepo = AppDataSource.getRepository(ServerConfig);
-    const cfg = await cfgRepo.findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
-    }
-
-    if (cfg.suspended || cfg.dmca) {
-      ctx.set.status = 403;
-      return { error: buildSuspendedServerMessage(cfg) };
-    }
-
-    const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
-    if (!node) {
-      ctx.set.status = 500;
-      return { error: ctx.t('system.targetNodeFailed') };
-    }
-
-    const normalizeUuid = (value: any) => {
-      if (!value) return crypto.randomUUID().replace(/-/g, '');
-      const s = String(value).toLowerCase().replace(/-/g, '');
-      if (/^[0-9a-f]{32}$/.test(s)) return s;
-      return crypto.randomUUID().replace(/-/g, '');
-    };
-
-    const now = Math.floor(Date.now() / 1000);
-    const safeUserUuid = normalizeUuid(user?.uuid || user?.id || crypto.randomUUID());
-    const safeServerUuid = normalizeUuid(id);
-    const jti = normalizeUuid(crypto.randomUUID());
-
-    console.debug('wings jwt payload lengths', {
-      user_uuid: safeUserUuid.length,
-      server_uuid: safeServerUuid.length,
-      jti: jti.length,
-      sub_source: {
-        uuid: String(user?.uuid || ''),
-        id: (user?.id != null ? String(user.id) : undefined),
+      return {
+        data: {
+          token,
+          socket: wsUrl,
+        },
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: {
+        200: t.Object({ data: t.Object({ token: t.String(), socket: t.String() }) }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
       },
-    });
+      detail: { summary: 'Websocket auth token', tags: ['Servers'] },
+    }
+  );
 
-    const payload = {
-      iss: 'eclipanel',
-      sub: safeUserUuid,
-      aud: [''],
-      iat: now,
-      nbf: now,
-      exp: now + 600,
-      jti,
-      user_uuid: safeUserUuid,
-      server_uuid: safeServerUuid,
-      permissions: ['*'],
-      use_console_read_permission: false,
-    };
+  app.get(
+    prefix + '/servers/:id/sftp',
+    async (ctx: any) => {
+      const { id } = ctx.params as any;
+      const user = ctx.user;
 
-    const token = signWingsJwt(payload, node.token);
-
-    if (process.env.DEBUG_WINGS_JWT === '1') {
-      try {
-        const parts = token.split('.')
-        if (parts.length === 3) {
-          const payloadJson = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as any
-          ctx.log?.debug?.(
-            { payload: { sub: payloadJson.sub, user_uuid: payloadJson.user_uuid, server_uuid: payloadJson.server_uuid, jti: payloadJson.jti } },
-            'wings jwt payload decoded from token',
-          )
-        }
-      } catch {
-        // skip
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
       }
-    }
 
-    const incomingProto = (ctx.headers['x-forwarded-proto'] as string) || ctx.protocol || 'https';
-    const forwardedHost = (ctx.headers['x-forwarded-host'] as string) || (ctx.headers['host'] as string) || ctx.hostname;
-    const hostSafe = forwardedHost && forwardedHost !== 'undefined' && typeof forwardedHost === 'string' && /^[a-zA-Z0-9.:\-[\]]+$/.test(forwardedHost.split(':')[0]) ? forwardedHost : 'localhost';
-    const backendBase = (process.env.BACKEND_URL || `${incomingProto}://${hostSafe}`).replace(/\/+$/, '');
-    const socketScheme = backendBase.startsWith('https') || incomingProto === 'https' ? 'wss' : 'ws';
+      if (cfg.suspended || cfg.dmca) {
+        ctx.set.status = 403;
+        return { error: buildSuspendedServerMessage(cfg) };
+      }
 
-    const cookieName = process.env.JWT_COOKIE_NAME || 'token';
-    const getCookieToken = () => {
-      const cookieValue = (ctx.cookie && ctx.cookie[cookieName] && ctx.cookie[cookieName].value) as string | undefined;
-      if (cookieValue) return cookieValue;
-      const raw = (ctx.headers && (ctx.headers.cookie as string)) || '';
-      const parts = String(raw).split(';').map((s: string) => s.trim());
-      const pair = parts.find(p => p.startsWith(cookieName + '='));
-      if (pair) return pair.split('=')[1];
-      return '';
-    };
+      const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+      if (!node) {
+        ctx.set.status = 500;
+        return { error: ctx.t('node.notFound') };
+      }
 
-    const panelJwt = (ctx.headers['authorization'] as string || '').replace(/^Bearer\s+/i, '') || getCookieToken();
-    const wsUrl = backendBase.replace(/^https?/, socketScheme) + `/api/servers/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
+      const urlObj = (() => {
+        try {
+          return new URL(node.url);
+        } catch {
+          return null;
+        }
+      })();
+      const nodeHost = urlObj?.hostname || node.url;
 
-    return {
-      data: {
-        token,
-        socket: wsUrl,
+      const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
+      const backendHost = backendBase
+        ? (() => {
+            try {
+              return new URL(backendBase).hostname;
+            } catch {
+              return backendBase;
+            }
+          })()
+        : null;
+
+      const host = node.sftpProxyPort && backendHost ? backendHost : nodeHost;
+      const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
+
+      const sftpHex = id.replace(/-/g, '').substring(0, 8);
+      const username = `${user.email}.${sftpHex}`;
+
+      // Wings SFTP username format: <email>.<first-8-hex-chars-of-uuid>
+      // Cuz usernames and shit is not unique enough
+      // Hence missleading username LOL
+      return {
+        host,
+        port,
+        username,
+        proxied: !!node.sftpProxyPort,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: {
+        200: t.Object({
+          host: t.String(),
+          port: t.Number(),
+          username: t.String(),
+          proxied: t.Boolean(),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
       },
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:console')],
-    response: { 200: t.Object({ data: t.Object({ token: t.String(), socket: t.String() }) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Websocket auth token', tags: ['Servers'] }
-  });
-
-  app.get(prefix + '/servers/:id/sftp', async (ctx: any) => {
-    const { id } = ctx.params as any;
-    const user = ctx.user;
-
-    const cfg = await cfgRepo().findOneBy({ uuid: id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { error: ctx.t('server.notFound') };
+      detail: { summary: 'Get SFTP connection info', tags: ['Servers'] },
     }
-
-    if (cfg.suspended || cfg.dmca) {
-      ctx.set.status = 403;
-      return { error: buildSuspendedServerMessage(cfg) };
-    }
-
-    const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
-    if (!node) {
-      ctx.set.status = 500;
-      return { error: ctx.t('node.notFound') };
-    }
-
-    const urlObj = (() => { try { return new URL(node.url); } catch { return null; } })();
-    const nodeHost = urlObj?.hostname || node.url;
-
-    const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
-    const backendHost = backendBase
-      ? ((() => { try { return new URL(backendBase).hostname; } catch { return backendBase; } })())
-      : null;
-
-    const host = node.sftpProxyPort && backendHost ? backendHost : nodeHost;
-    const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
-
-    const sftpHex = id.replace(/-/g, '').substring(0, 8);
-    const username = `${user.email}.${sftpHex}`;
-
-    // Wings SFTP username format: <email>.<first-8-hex-chars-of-uuid>
-    // Cuz usernames and shit is not unique enough
-    // Hence missleading username LOL
-    return {
-      host,
-      port,
-      username,
-      proxied: !!node.sftpProxyPort,
-    };
-  }, {
-    beforeHandle: [authenticate, authorize('servers:read')],
-    response: { 200: t.Object({ host: t.String(), port: t.Number(), username: t.String(), proxied: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: { summary: 'Get SFTP connection info', tags: ['Servers'] }
-  });
+  );
 }

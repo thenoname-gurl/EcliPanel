@@ -32,104 +32,109 @@ export async function publicRoutes(app: any, prefix = '') {
   const hbRepo = () => AppDataSource.getRepository(NodeHeartbeat);
   const userRepo = () => AppDataSource.getRepository(User);
 
-  app.get(prefix + '/public/status', async (ctx: any) => {
-    return withRedisCache('public:status:v1', 15, async () => {
-      const nodes = await nodeRepo().find();
-      const total = nodes.length;
-      const now = new Date();
+  app.get(
+    prefix + '/public/status',
+    async (ctx: any) => {
+      return withRedisCache('public:status:v1', 15, async () => {
+        const nodes = await nodeRepo().find();
+        const total = nodes.length;
+        const now = new Date();
 
-      let online = 0;
-      let degraded = 0;
-      let offline = 0;
+        let online = 0;
+        let degraded = 0;
+        let offline = 0;
 
-      const tunnelDeviceRepo = AppDataSource.getRepository(TunnelDevice);
-      const tunnelCount = await tunnelDeviceRepo.count({ where: { kind: 'server', approved: true } });
-      const { agentConnections } = await import('../services/agent.service');
-      const activeConnectionIds = Array.from(agentConnections.keys());
-      const tunnelActive = activeConnectionIds.length > 0
-        ? await tunnelDeviceRepo.count({
-            where: {
-              kind: 'server',
-              approved: true,
-              deviceCode: In(activeConnectionIds),
-            },
-          })
-        : 0;
-      const tunnelInactive = Math.max(0, tunnelCount - tunnelActive);
-
-      const nodeIds = nodes.map(n => n.id);
-      let allHeartbeats: NodeHeartbeat[] = [];
-      
-      if (nodeIds.length > 0) {
-        const recentSince = new Date(now.getTime() - 30 * 60 * 1000);
-        allHeartbeats = await hbRepo().find({
-          where: { nodeId: In(nodeIds), timestamp: MoreThanOrEqual(recentSince) },
-          order: { id: 'DESC' },
+        const tunnelDeviceRepo = AppDataSource.getRepository(TunnelDevice);
+        const tunnelCount = await tunnelDeviceRepo.count({
+          where: { kind: 'server', approved: true },
         });
-      }
-      
-      const hbMap = new Map<number, NodeHeartbeat>();
-      for (const hb of allHeartbeats) {
-        if (!hbMap.has(hb.nodeId)) {
-          hbMap.set(hb.nodeId, hb);
-        }
-      }
+        const { agentConnections } = await import('../services/agent.service');
+        const activeConnectionIds = Array.from(agentConnections.keys());
+        const tunnelActive =
+          activeConnectionIds.length > 0
+            ? await tunnelDeviceRepo.count({
+                where: {
+                  kind: 'server',
+                  approved: true,
+                  deviceCode: In(activeConnectionIds),
+                },
+              })
+            : 0;
+        const tunnelInactive = Math.max(0, tunnelCount - tunnelActive);
 
-      for (const node of nodes) {
-        const latest = hbMap.get(node.id);
-        if (!latest) {
-          offline++;
-          continue;
-        }
-        const ageMs = now.getTime() - new Date(latest.timestamp).getTime();
-        if (ageMs <= 2 * 60 * 1000 && latest.status === 'ok') {
-          online++;
-        } else if (ageMs <= 10 * 60 * 1000) {
-          degraded++;
-        } else {
-          offline++;
-        }
-      }
+        const nodeIds = nodes.map(n => n.id);
+        let allHeartbeats: NodeHeartbeat[] = [];
 
-      let status: 'online' | 'degraded' | 'offline' = 'offline';
-      if (total === 0) status = 'offline';
-      else if (online === total) status = 'online';
-      else if (online > 0) status = 'degraded';
+        if (nodeIds.length > 0) {
+          const recentSince = new Date(now.getTime() - 30 * 60 * 1000);
+          allHeartbeats = await hbRepo().find({
+            where: { nodeId: In(nodeIds), timestamp: MoreThanOrEqual(recentSince) },
+            order: { id: 'DESC' },
+          });
+        }
 
-      return {
-        nodeCount: total,
-        online,
-        degraded,
-        offline,
-        tunnelCount,
-        tunnelActive,
-        tunnelInactive,
-        status,
-        timestamp: now.toISOString(),
-      };
-    });
-  }, {
-    response: {
-      200: t.Object({
-        nodeCount: t.Number(),
-        online: t.Number(),
-        degraded: t.Number(),
-        offline: t.Number(),
-        tunnelCount: t.Number(),
-        tunnelActive: t.Number(),
-        tunnelInactive: t.Number(),
-        status: t.String(),
-        timestamp: t.String(),
-      }),
+        const hbMap = new Map<number, NodeHeartbeat>();
+        for (const hb of allHeartbeats) {
+          if (!hbMap.has(hb.nodeId)) {
+            hbMap.set(hb.nodeId, hb);
+          }
+        }
+
+        for (const node of nodes) {
+          const latest = hbMap.get(node.id);
+          if (!latest) {
+            offline++;
+            continue;
+          }
+          const ageMs = now.getTime() - new Date(latest.timestamp).getTime();
+          if (ageMs <= 2 * 60 * 1000 && latest.status === 'ok') {
+            online++;
+          } else if (ageMs <= 10 * 60 * 1000) {
+            degraded++;
+          } else {
+            offline++;
+          }
+        }
+
+        let status: 'online' | 'degraded' | 'offline' = 'offline';
+        if (total === 0) status = 'offline';
+        else if (online === total) status = 'online';
+        else if (online > 0) status = 'degraded';
+
+        return {
+          nodeCount: total,
+          online,
+          degraded,
+          offline,
+          tunnelCount,
+          tunnelActive,
+          tunnelInactive,
+          status,
+          timestamp: now.toISOString(),
+        };
+      });
     },
-    detail: {
-      tags: ['Health'],
-      summary: 'Public node status and platform health',
-      description: 'Returns aggregated node availability and platform health status.',
-    },
-  });
-
-
+    {
+      response: {
+        200: t.Object({
+          nodeCount: t.Number(),
+          online: t.Number(),
+          degraded: t.Number(),
+          offline: t.Number(),
+          tunnelCount: t.Number(),
+          tunnelActive: t.Number(),
+          tunnelInactive: t.Number(),
+          status: t.String(),
+          timestamp: t.String(),
+        }),
+      },
+      detail: {
+        tags: ['Health'],
+        summary: 'Public node status and platform health',
+        description: 'Returns aggregated node availability and platform health status.',
+      },
+    }
+  );
 
   app.get(
     prefix + '/public/metrics',
@@ -146,14 +151,14 @@ export async function publicRoutes(app: any, prefix = '') {
         const nodeServerPrefix = 'node:%';
 
         const [recentRows, requestRow, totalUsers] = await Promise.all([
-            socRepo
-              .createQueryBuilder('soc')
-              .select(['soc.serverId', 'soc.metrics', 'soc.timestamp'])
-              .where('soc.timestamp >= :since', { since })
-              .andWhere('soc.serverId LIKE :serverPrefix', { serverPrefix: nodeServerPrefix })
-              .orderBy('soc.serverId', 'ASC')
-              .addOrderBy('soc.timestamp', 'ASC')
-              .getMany(),
+          socRepo
+            .createQueryBuilder('soc')
+            .select(['soc.serverId', 'soc.metrics', 'soc.timestamp'])
+            .where('soc.timestamp >= :since', { since })
+            .andWhere('soc.serverId LIKE :serverPrefix', { serverPrefix: nodeServerPrefix })
+            .orderBy('soc.serverId', 'ASC')
+            .addOrderBy('soc.timestamp', 'ASC')
+            .getMany(),
 
           apiRepo
             .createQueryBuilder('l')
@@ -165,36 +170,34 @@ export async function publicRoutes(app: any, prefix = '') {
         ]);
 
         const serverIds = [
-          ...new Set(
-            recentRows.map((r: SocData) => r.serverId).filter(Boolean),
-          ),
+          ...new Set(recentRows.map((r: SocData) => r.serverId).filter(Boolean)),
         ] as string[];
 
         const beforeRows: SocData[] =
           serverIds.length > 0
             ? await socRepo
-              .createQueryBuilder('soc')
-              .innerJoin(
-                (subQuery) =>
-                  subQuery
-                    .select('soc2.serverId', 'serverId')
-                    .addSelect('MAX(soc2.timestamp)', 'timestamp')
-                    .from(SocData, 'soc2')
-                    .where('soc2.timestamp < :since', { since })
-                    .andWhere('soc2.serverId LIKE :serverPrefix', { serverPrefix: nodeServerPrefix })
-                    .andWhere('soc2.serverId IN (:...serverIds)', { serverIds })
-                    .groupBy('soc2.serverId'),
-                'latest',
-                'latest.serverId = soc.serverId AND latest.timestamp = soc.timestamp',
-              )
-              .setParameters({ since, serverIds, serverPrefix: nodeServerPrefix })
-              .select(['soc.serverId', 'soc.metrics', 'soc.timestamp'])
-              .getMany()
+                .createQueryBuilder('soc')
+                .innerJoin(
+                  subQuery =>
+                    subQuery
+                      .select('soc2.serverId', 'serverId')
+                      .addSelect('MAX(soc2.timestamp)', 'timestamp')
+                      .from(SocData, 'soc2')
+                      .where('soc2.timestamp < :since', { since })
+                      .andWhere('soc2.serverId LIKE :serverPrefix', {
+                        serverPrefix: nodeServerPrefix,
+                      })
+                      .andWhere('soc2.serverId IN (:...serverIds)', { serverIds })
+                      .groupBy('soc2.serverId'),
+                  'latest',
+                  'latest.serverId = soc.serverId AND latest.timestamp = soc.timestamp'
+                )
+                .setParameters({ since, serverIds, serverPrefix: nodeServerPrefix })
+                .select(['soc.serverId', 'soc.metrics', 'soc.timestamp'])
+                .getMany()
             : [];
 
-        const firstBeforeByServer = new Map<string, SocData>(
-          beforeRows.map((r) => [r.serverId, r]),
-        );
+        const firstBeforeByServer = new Map<string, SocData>(beforeRows.map(r => [r.serverId, r]));
 
         const rowsByServerId: Record<string, SocData[]> = {};
         for (const row of recentRows) {
@@ -239,8 +242,7 @@ export async function publicRoutes(app: any, prefix = '') {
               'network.sent',
             ]);
 
-            serverDelta +=
-              Math.max(0, currRx - prevRx) + Math.max(0, currTx - prevTx);
+            serverDelta += Math.max(0, currRx - prevRx) + Math.max(0, currTx - prevTx);
           }
 
           if (typeof sid === 'string' && sid.startsWith('node:')) {
@@ -280,200 +282,239 @@ export async function publicRoutes(app: any, prefix = '') {
         description:
           'Returns the last 24 hours of node traffic, API call volume, and total user count.',
       },
-    },
+    }
   );
 
-  app.get(prefix + '/public/geoblock', async () => {
-    return withRedisCache('public:geoblock:v1', 300, async () => {
-      const rules = await getGeoBlockRulesWithDefaults();
-      const notes = [] as string[];
-      if ((process.env.EU_ID_DISABLED || '').toLowerCase() === 'true') {
-        notes.push('EU member states are subject to default identity verification restrictions (Level 1).');
-      }
-      const countries = Object.entries(rules)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([country, level]) => ({
-          country,
-          level,
-          services: [
-            ...(level >= 1 ? ['Identity verification'] : []),
-            ...(level >= 2 ? ['Free services'] : []),
-            ...(level >= 3 ? ['Educational services'] : []),
-            ...(level >= 4 ? ['Paid services'] : []),
-            ...(level >= 5 ? ['Registration'] : []),
-          ],
-          explanation: {
-            1: 'Identity verification is unavailable for this jurisdiction.',
-            2: 'Free plans and trial products are blocked for this jurisdiction.',
-            3: 'Educational services and student-specific offerings are blocked.',
-            4: 'Paid subscriptions and premium services are blocked; this location may still retain limited subuser access.',
-            5: 'New registrations are blocked for this jurisdiction.',
-          }[level] ?? 'Geoblock restrictions apply.',
-        }));
+  app.get(
+    prefix + '/public/geoblock',
+    async () => {
+      return withRedisCache('public:geoblock:v1', 300, async () => {
+        const rules = await getGeoBlockRulesWithDefaults();
+        const notes = [] as string[];
+        if ((process.env.EU_ID_DISABLED || '').toLowerCase() === 'true') {
+          notes.push(
+            'EU member states are subject to default identity verification restrictions (Level 1).'
+          );
+        }
+        const countries = Object.entries(rules)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([country, level]) => ({
+            country,
+            level,
+            services: [
+              ...(level >= 1 ? ['Identity verification'] : []),
+              ...(level >= 2 ? ['Free services'] : []),
+              ...(level >= 3 ? ['Educational services'] : []),
+              ...(level >= 4 ? ['Paid services'] : []),
+              ...(level >= 5 ? ['Registration'] : []),
+            ],
+            explanation:
+              {
+                1: 'Identity verification is unavailable for this jurisdiction.',
+                2: 'Free plans and trial products are blocked for this jurisdiction.',
+                3: 'Educational services and student-specific offerings are blocked.',
+                4: 'Paid subscriptions and premium services are blocked; this location may still retain limited subuser access.',
+                5: 'New registrations are blocked for this jurisdiction.',
+              }[level] ?? 'Geoblock restrictions apply.',
+          }));
 
-      return {
-        source: 'database',
-        generatedAt: new Date().toISOString(),
-        notes,
-        rules: countries,
-      };
-    });
-  }, {
-    response: {
-      200: t.Object({
-        source: t.String(),
-        generatedAt: t.String(),
-        notes: t.Array(t.String()),
-        rules: t.Array(t.Object({
-          country: t.String(),
-          level: t.Number(),
-          services: t.Array(t.String()),
-          explanation: t.String(),
-        })),
-      }),
+        return {
+          source: 'database',
+          generatedAt: new Date().toISOString(),
+          notes,
+          rules: countries,
+        };
+      });
     },
-    detail: {
-      tags: ['Public'],
-      summary: 'Public geoblock rules',
-      description: 'Returns the current geoblocked countries and the services restricted for each jurisdiction.',
-    },
-  });
-
-  app.get(prefix + '/public/short-url', async (ctx: any) => {
-    const code = String(ctx.query?.code || '').trim().toLowerCase();
-    const prefixValue = String(ctx.query?.prefix || 'root') === 'root' ? 'root' : 'a';
-
-    if (!code) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.shortUrlCodeRequired') };
-    }
-
-    return withRedisCache(`public:short-url:${prefixValue}:${code}:v1`, 60, async () => {
-      const repo = AppDataSource.getRepository(ShortUrl);
-      const entry = await repo.findOne({ where: { code, prefix: prefixValue, active: true } });
-      if (!entry) {
-        ctx.set.status = 404;
-        return { error: ctx.t('system.shortUrlNotFound') };
-      }
-
-      return { targetUrl: entry.targetUrl };
-    });
-  }, {
-    response: {
-      200: t.Object({ targetUrl: t.String() }),
-      400: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-    },
-    detail: {
-      tags: ['Public'],
-      summary: 'Lookup a short URL redirect target',
-      description: 'Return redirect target for a short URL code.',
-    },
-  });
-
-  app.get(prefix + '/public/minimum-age', async () => {
-    return withRedisCache('public:minimum-age:v1', 300, async () => {
-      const rules = await getCountryAgeRules();
-      const entries = Object.entries(rules)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([country, minimumAge]) => ({ country, minimumAge }));
-
-      return {
-        source: 'database',
-        generatedAt: new Date().toISOString(),
-        defaultMinimumAge: 13,
-        euUkMinimumAge: 14,
-        rules: entries,
-      };
-    });
-  }, {
-    response: {
-      200: t.Object({
-        source: t.String(),
-        generatedAt: t.String(),
-        defaultMinimumAge: t.Number(),
-        euUkMinimumAge: t.Number(),
-        rules: t.Array(t.Object({
-          country: t.String(),
-          minimumAge: t.Number(),
-        })),
-      }),
-    },
-    detail: {
-      tags: ['Public'],
-      summary: 'Public minimum age rules',
-      description: 'Returns country-specific minimum age overrides and default policy values.',
-    },
-  });
-
-  app.get(prefix + '/public/contributors', async () => {
-    return withRedisCache('public:contributors:v2', 60, async () => {
-      return getGithubContributorsSnapshot();
-    });
-  }, {
-    response: {
-      200: t.Object({
-        repo: t.Object({
-          owner: t.String(),
-          name: t.String(),
-          url: t.String(),
+    {
+      response: {
+        200: t.Object({
+          source: t.String(),
+          generatedAt: t.String(),
+          notes: t.Array(t.String()),
+          rules: t.Array(
+            t.Object({
+              country: t.String(),
+              level: t.Number(),
+              services: t.Array(t.String()),
+              explanation: t.String(),
+            })
+          ),
         }),
-        generatedAt: t.String(),
-        totalContributors: t.Number(),
-        totalTrackedCommits: t.Number(),
-        totalTrackedPullRequests: t.Number(),
-        totalMergedPullRequests: t.Number(),
-        contributors: t.Array(t.Object({
-          login: t.String(),
-          avatarUrl: t.String(),
-          profileUrl: t.String(),
-          source: t.Optional(t.Union([t.Literal('github'), t.Literal('manual')])),
-          userId: t.Optional(t.Number()),
-          displayName: t.Optional(t.String()),
-          title: t.Optional(t.Union([t.String(), t.Null()])),
-          githubLogin: t.Optional(t.Union([t.String(), t.Null()])),
-          githubProfileUrl: t.Optional(t.Union([t.String(), t.Null()])),
-          githubAvatarUrl: t.Optional(t.Union([t.String(), t.Null()])),
-          activity: t.Optional(t.Array(t.Object({
-            date: t.String(),
-            label: t.String(),
-            details: t.Optional(t.String()),
-            points: t.Optional(t.Number()),
-            url: t.Optional(t.String()),
-          }))),
-          contributions: t.Number(),
-          pullRequests: t.Number(),
-          mergedPullRequests: t.Number(),
-          isBot: t.Boolean(),
-          lastCommitAt: t.Optional(t.String()),
-          recentCommits: t.Array(t.Object({
-            sha: t.String(),
-            message: t.String(),
-            url: t.String(),
-            committedAt: t.String(),
-          })),
-          recentPullRequests: t.Array(t.Object({
-            number: t.Number(),
-            title: t.String(),
-            url: t.String(),
-            state: t.String(),
-            createdAt: t.String(),
-            mergedAt: t.Optional(t.String()),
-            merged: t.Boolean(),
-          })),
-          commitHistory: t.Array(t.Object({
-            date: t.String(),
-            count: t.Number(),
-          })),
-        })),
-      }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Public geoblock rules',
+        description:
+          'Returns the current geoblocked countries and the services restricted for each jurisdiction.',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/public/short-url',
+    async (ctx: any) => {
+      const code = String(ctx.query?.code || '')
+        .trim()
+        .toLowerCase();
+      const prefixValue = String(ctx.query?.prefix || 'root') === 'root' ? 'root' : 'a';
+
+      if (!code) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.shortUrlCodeRequired') };
+      }
+
+      return withRedisCache(`public:short-url:${prefixValue}:${code}:v1`, 60, async () => {
+        const repo = AppDataSource.getRepository(ShortUrl);
+        const entry = await repo.findOne({ where: { code, prefix: prefixValue, active: true } });
+        if (!entry) {
+          ctx.set.status = 404;
+          return { error: ctx.t('system.shortUrlNotFound') };
+        }
+
+        return { targetUrl: entry.targetUrl };
+      });
     },
-    detail: {
-      tags: ['Public'],
-      summary: 'Public GitHub contributors list',
-      description: 'Returns GitHub-synced contributors plus linked EcliPanel contributor profiles, sorted by contribution count with recent activity.',
+    {
+      response: {
+        200: t.Object({ targetUrl: t.String() }),
+        400: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Lookup a short URL redirect target',
+        description: 'Return redirect target for a short URL code.',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/public/minimum-age',
+    async () => {
+      return withRedisCache('public:minimum-age:v1', 300, async () => {
+        const rules = await getCountryAgeRules();
+        const entries = Object.entries(rules)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([country, minimumAge]) => ({ country, minimumAge }));
+
+        return {
+          source: 'database',
+          generatedAt: new Date().toISOString(),
+          defaultMinimumAge: 13,
+          euUkMinimumAge: 14,
+          rules: entries,
+        };
+      });
     },
-  });
+    {
+      response: {
+        200: t.Object({
+          source: t.String(),
+          generatedAt: t.String(),
+          defaultMinimumAge: t.Number(),
+          euUkMinimumAge: t.Number(),
+          rules: t.Array(
+            t.Object({
+              country: t.String(),
+              minimumAge: t.Number(),
+            })
+          ),
+        }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Public minimum age rules',
+        description: 'Returns country-specific minimum age overrides and default policy values.',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/public/contributors',
+    async () => {
+      return withRedisCache('public:contributors:v2', 60, async () => {
+        return getGithubContributorsSnapshot();
+      });
+    },
+    {
+      response: {
+        200: t.Object({
+          repo: t.Object({
+            owner: t.String(),
+            name: t.String(),
+            url: t.String(),
+          }),
+          generatedAt: t.String(),
+          totalContributors: t.Number(),
+          totalTrackedCommits: t.Number(),
+          totalTrackedPullRequests: t.Number(),
+          totalMergedPullRequests: t.Number(),
+          contributors: t.Array(
+            t.Object({
+              login: t.String(),
+              avatarUrl: t.String(),
+              profileUrl: t.String(),
+              source: t.Optional(t.Union([t.Literal('github'), t.Literal('manual')])),
+              userId: t.Optional(t.Number()),
+              displayName: t.Optional(t.String()),
+              title: t.Optional(t.Union([t.String(), t.Null()])),
+              githubLogin: t.Optional(t.Union([t.String(), t.Null()])),
+              githubProfileUrl: t.Optional(t.Union([t.String(), t.Null()])),
+              githubAvatarUrl: t.Optional(t.Union([t.String(), t.Null()])),
+              activity: t.Optional(
+                t.Array(
+                  t.Object({
+                    date: t.String(),
+                    label: t.String(),
+                    details: t.Optional(t.String()),
+                    points: t.Optional(t.Number()),
+                    url: t.Optional(t.String()),
+                  })
+                )
+              ),
+              contributions: t.Number(),
+              pullRequests: t.Number(),
+              mergedPullRequests: t.Number(),
+              isBot: t.Boolean(),
+              lastCommitAt: t.Optional(t.String()),
+              recentCommits: t.Array(
+                t.Object({
+                  sha: t.String(),
+                  message: t.String(),
+                  url: t.String(),
+                  committedAt: t.String(),
+                })
+              ),
+              recentPullRequests: t.Array(
+                t.Object({
+                  number: t.Number(),
+                  title: t.String(),
+                  url: t.String(),
+                  state: t.String(),
+                  createdAt: t.String(),
+                  mergedAt: t.Optional(t.String()),
+                  merged: t.Boolean(),
+                })
+              ),
+              commitHistory: t.Array(
+                t.Object({
+                  date: t.String(),
+                  count: t.Number(),
+                })
+              ),
+            })
+          ),
+        }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Public GitHub contributors list',
+        description:
+          'Returns GitHub-synced contributors plus linked EcliPanel contributor profiles, sorted by contribution count with recent activity.',
+      },
+    }
+  );
 }
 
 export default publicRoutes;

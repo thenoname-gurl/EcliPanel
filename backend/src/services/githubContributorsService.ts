@@ -1,6 +1,11 @@
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
-import { GithubCommitHistoryPoint, GithubCommitSummary, GithubContributor, GithubPullRequestSummary } from '../models/githubContributor.entity';
+import {
+  GithubCommitHistoryPoint,
+  GithubCommitSummary,
+  GithubContributor,
+  GithubPullRequestSummary,
+} from '../models/githubContributor.entity';
 
 type GithubRepoInfo = {
   owner: string;
@@ -93,7 +98,11 @@ function parseRepoUrl(raw: string | undefined | null): GithubRepoInfo {
 
   try {
     const parsed = new URL(url);
-    const parts = parsed.pathname.replace(/^\/+/, '').replace(/\.git$/, '').split('/').filter(Boolean);
+    const parts = parsed.pathname
+      .replace(/^\/+/, '')
+      .replace(/\.git$/, '')
+      .split('/')
+      .filter(Boolean);
     if (parts.length >= 2) {
       return {
         owner: parts[0],
@@ -105,7 +114,10 @@ function parseRepoUrl(raw: string | undefined | null): GithubRepoInfo {
     // bruh
   }
 
-  const rawSlug = String(raw || '').trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '');
+  const rawSlug = String(raw || '')
+    .trim()
+    .replace(/^https?:\/\/github\.com\//i, '')
+    .replace(/\.git$/, '');
   const slugParts = rawSlug.split('/').filter(Boolean);
   if (slugParts.length >= 2) {
     return {
@@ -128,18 +140,22 @@ function getRepoInfo(): GithubRepoInfo {
       process.env.GITHUB_REPOSITORY_URL ||
       process.env.GITHUB_REPOSITORY ||
       process.env.NEXT_PUBLIC_REPO_URL ||
-      DEFAULT_REPO_URL,
+      DEFAULT_REPO_URL
   );
 }
 
 function isBotContributor(row: GithubContributorApiRow) {
   const login = String(row.login || '').trim();
-  const type = String(row.type || '').trim().toLowerCase();
+  const type = String(row.type || '')
+    .trim()
+    .toLowerCase();
   return !login || login.toLowerCase().endsWith('[bot]') || type === 'bot';
 }
 
 function isBotLogin(login?: string | null) {
-  const value = String(login || '').trim().toLowerCase();
+  const value = String(login || '')
+    .trim()
+    .toLowerCase();
   return !value || value.endsWith('[bot]');
 }
 
@@ -154,7 +170,7 @@ type ManualContributorActivityEntry = {
 function normalizeContributorActivity(input: any): ManualContributorActivityEntry[] {
   if (!Array.isArray(input)) return [];
   return input
-    .map((item) => {
+    .map(item => {
       const date = String(item?.date || '').trim();
       const label = String(item?.label || '').trim();
       if (!date || !label) return null;
@@ -205,7 +221,7 @@ async function githubFetch<T>(path: string): Promise<T> {
   const repoInfo = getRepoInfo();
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
   const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github+json',
+    Accept: 'application/vnd.github+json',
     'User-Agent': 'EcliPanel-Contributors-Sync',
     'X-GitHub-Api-Version': '2022-11-28',
   };
@@ -214,9 +230,12 @@ async function githubFetch<T>(path: string): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.name}${path}`, {
-    headers,
-  });
+  const res = await fetch(
+    `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.name}${path}`,
+    {
+      headers,
+    }
+  );
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -231,7 +250,9 @@ async function fetchAllContributorRows() {
   const maxPages = Number(process.env.GITHUB_CONTRIBUTOR_PAGES || 5);
 
   for (let page = 1; page <= maxPages; page += 1) {
-    const pageRows = await githubFetch<GithubContributorApiRow[]>(`/contributors?per_page=${CONTRIBUTORS_PAGE_SIZE}&anon=1&page=${page}`);
+    const pageRows = await githubFetch<GithubContributorApiRow[]>(
+      `/contributors?per_page=${CONTRIBUTORS_PAGE_SIZE}&anon=1&page=${page}`
+    );
     rows.push(...pageRows);
     if (pageRows.length < CONTRIBUTORS_PAGE_SIZE) break;
   }
@@ -244,7 +265,9 @@ async function fetchRecentCommits() {
   const maxPages = Number(process.env.GITHUB_COMMIT_PAGES || 4);
 
   for (let page = 1; page <= maxPages; page += 1) {
-    const pageRows = await githubFetch<GithubCommitApiRow[]>(`/commits?per_page=${COMMITS_PAGE_SIZE}&page=${page}`);
+    const pageRows = await githubFetch<GithubCommitApiRow[]>(
+      `/commits?per_page=${COMMITS_PAGE_SIZE}&page=${page}`
+    );
     rows.push(...pageRows);
     if (pageRows.length < COMMITS_PAGE_SIZE) break;
   }
@@ -257,7 +280,9 @@ async function fetchRecentPullRequests() {
   const maxPages = Number(process.env.GITHUB_PR_PAGES || 5);
 
   for (let page = 1; page <= maxPages; page += 1) {
-    const pageRows = await githubFetch<GithubPullRequestApiRow[]>(`/pulls?state=all&per_page=${PULL_REQUESTS_PAGE_SIZE}&page=${page}`);
+    const pageRows = await githubFetch<GithubPullRequestApiRow[]>(
+      `/pulls?state=all&per_page=${PULL_REQUESTS_PAGE_SIZE}&page=${page}`
+    );
     rows.push(...pageRows);
     if (pageRows.length < PULL_REQUESTS_PAGE_SIZE) break;
   }
@@ -273,19 +298,22 @@ export async function syncGithubContributors() {
     fetchRecentPullRequests(),
   ]);
 
-  const contributorMap = new Map<string, {
-    login: string;
-    avatarUrl: string;
-    profileUrl: string;
-    contributions: number;
-    pullRequests: number;
-    mergedPullRequests: number;
-    isBot: boolean;
-    recentCommits: GithubCommitSummary[];
-    recentPullRequests: GithubPullRequestSummary[];
-    commitHistory: Map<string, number>;
-    lastCommitAt?: string;
-  }>();
+  const contributorMap = new Map<
+    string,
+    {
+      login: string;
+      avatarUrl: string;
+      profileUrl: string;
+      contributions: number;
+      pullRequests: number;
+      mergedPullRequests: number;
+      isBot: boolean;
+      recentCommits: GithubCommitSummary[];
+      recentPullRequests: GithubPullRequestSummary[];
+      commitHistory: Map<string, number>;
+      lastCommitAt?: string;
+    }
+  >();
 
   for (const row of contributors) {
     if (isBotContributor(row)) continue;
@@ -345,7 +373,9 @@ export async function syncGithubContributors() {
     const summary: GithubPullRequestSummary = {
       number: Number(pullRequest.number || 0),
       title: String(pullRequest.title || 'Pull request'),
-      url: pullRequest.html_url || `https://github.com/${repo.owner}/${repo.name}/pull/${pullRequest.number}`,
+      url:
+        pullRequest.html_url ||
+        `https://github.com/${repo.owner}/${repo.name}/pull/${pullRequest.number}`,
       state: String(pullRequest.state || 'open'),
       createdAt: String(pullRequest.created_at || new Date().toISOString()),
       mergedAt: pullRequest.merged_at || undefined,
@@ -367,24 +397,26 @@ export async function syncGithubContributors() {
 
   const entities = Array.from(contributorMap.values())
     .sort((a, b) => b.contributions - a.contributions || a.login.localeCompare(b.login))
-    .map((item) => repoRows.create({
-      repoOwner: repo.owner,
-      repoName: repo.name,
-      login: item.login,
-      avatarUrl: item.avatarUrl,
-      profileUrl: item.profileUrl,
-      contributions: item.contributions,
-      pullRequests: item.pullRequests,
-      mergedPullRequests: item.mergedPullRequests,
-      isBot: item.isBot,
-      recentCommits: item.recentCommits,
-      recentPullRequests: item.recentPullRequests,
-      commitHistory: Array.from(item.commitHistory.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, count]) => ({ date, count })),
-      lastCommitAt: item.lastCommitAt ? new Date(item.lastCommitAt) : undefined,
-      fetchedAt: new Date(),
-    }));
+    .map(item =>
+      repoRows.create({
+        repoOwner: repo.owner,
+        repoName: repo.name,
+        login: item.login,
+        avatarUrl: item.avatarUrl,
+        profileUrl: item.profileUrl,
+        contributions: item.contributions,
+        pullRequests: item.pullRequests,
+        mergedPullRequests: item.mergedPullRequests,
+        isBot: item.isBot,
+        recentCommits: item.recentCommits,
+        recentPullRequests: item.recentPullRequests,
+        commitHistory: Array.from(item.commitHistory.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, count]) => ({ date, count })),
+        lastCommitAt: item.lastCommitAt ? new Date(item.lastCommitAt) : undefined,
+        fetchedAt: new Date(),
+      })
+    );
 
   if (entities.length > 0) {
     await repoRows.save(entities);
@@ -404,9 +436,12 @@ async function fetchManualContributorEntries() {
     .orWhere('u.contributorActivity IS NOT NULL')
     .getMany();
 
-  return users.map((user) => {
-    const fallbackName = `${String(user.firstName || '').trim()} ${String(user.lastName || '').trim()}`.trim();
-    const displayName = String(user.displayName || fallbackName || user.email || `User #${user.id}`).trim();
+  return users.map(user => {
+    const fallbackName =
+      `${String(user.firstName || '').trim()} ${String(user.lastName || '').trim()}`.trim();
+    const displayName = String(
+      user.displayName || fallbackName || user.email || `User #${user.id}`
+    ).trim();
     const rawGithubLogin = String((user as any).githubLogin || '').trim();
     const githubProfileUrl = String((user as any).githubProfileUrl || '').trim();
     const githubAvatarUrl = String((user as any).githubAvatarUrl || '').trim();
@@ -418,11 +453,15 @@ async function fetchManualContributorEntries() {
     const commitHistory = new Map<string, number>();
     const recentCommits = activity.slice(0, 6).map((entry, index) => {
       const dayKey = entry.date.slice(0, 10);
-      commitHistory.set(dayKey, (commitHistory.get(dayKey) || 0) + Math.max(1, Number(entry.points) || 1));
+      commitHistory.set(
+        dayKey,
+        (commitHistory.get(dayKey) || 0) + Math.max(1, Number(entry.points) || 1)
+      );
       return {
         sha: `manual-${user.id}-${index}-${dayKey}`,
         message: entry.label,
-        url: entry.url || githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : ''),
+        url:
+          entry.url || githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : ''),
         committedAt: entry.date,
       };
     });
@@ -430,18 +469,24 @@ async function fetchManualContributorEntries() {
     if (activity.length > recentCommits.length) {
       for (const entry of activity.slice(recentCommits.length)) {
         const dayKey = entry.date.slice(0, 10);
-        commitHistory.set(dayKey, (commitHistory.get(dayKey) || 0) + Math.max(1, Number(entry.points) || 1));
+        commitHistory.set(
+          dayKey,
+          (commitHistory.get(dayKey) || 0) + Math.max(1, Number(entry.points) || 1)
+        );
       }
     }
 
     const lastCommitAt = activity
-      .map((item) => item.date)
+      .map(item => item.date)
       .filter(Boolean)
       .sort((a, b) => String(b).localeCompare(String(a)))[0];
 
     return {
       login: githubLogin || displayName,
-      avatarUrl: githubAvatarUrl || user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=111827&color=fff`,
+      avatarUrl:
+        githubAvatarUrl ||
+        user.avatarUrl ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=111827&color=fff`,
       profileUrl: githubProfileUrl || (githubLogin ? `https://github.com/${githubLogin}` : ''),
       source: 'manual' as const,
       userId: user.id,
@@ -487,14 +532,18 @@ export async function getGithubContributorsSnapshot(): Promise<GithubContributor
       isBot: row.isBot,
       lastCommitAt: row.lastCommitAt ? new Date(row.lastCommitAt).toISOString() : undefined,
       recentCommits: Array.isArray(row.recentCommits) ? row.recentCommits.slice(0, 6) : [],
-      recentPullRequests: Array.isArray(row.recentPullRequests) ? row.recentPullRequests.slice(0, 6) : [],
+      recentPullRequests: Array.isArray(row.recentPullRequests)
+        ? row.recentPullRequests.slice(0, 6)
+        : [],
       commitHistory: Array.isArray(row.commitHistory) ? row.commitHistory : [],
       source: 'github' as const,
     });
   }
 
   for (const manual of manualContributors) {
-    const key = String(manual.githubLogin || manual.login || '').trim().toLowerCase();
+    const key = String(manual.githubLogin || manual.login || '')
+      .trim()
+      .toLowerCase();
     if (key && contributorMap.has(key)) {
       const existing = contributorMap.get(key);
       const mergedRecentCommits = [
@@ -503,10 +552,16 @@ export async function getGithubContributorsSnapshot(): Promise<GithubContributor
       ].slice(0, 6);
       const mergedHistoryMap = new Map<string, number>();
       for (const point of Array.isArray(existing.commitHistory) ? existing.commitHistory : []) {
-        mergedHistoryMap.set(point.date, (mergedHistoryMap.get(point.date) || 0) + Number(point.count || 0));
+        mergedHistoryMap.set(
+          point.date,
+          (mergedHistoryMap.get(point.date) || 0) + Number(point.count || 0)
+        );
       }
       for (const point of Array.isArray(manual.commitHistory) ? manual.commitHistory : []) {
-        mergedHistoryMap.set(point.date, (mergedHistoryMap.get(point.date) || 0) + Number(point.count || 0));
+        mergedHistoryMap.set(
+          point.date,
+          (mergedHistoryMap.get(point.date) || 0) + Number(point.count || 0)
+        );
       }
       contributorMap.set(key, {
         ...existing,
@@ -532,8 +587,12 @@ export async function getGithubContributorsSnapshot(): Promise<GithubContributor
   }
 
   const contributors = Array.from(contributorMap.values())
-    .sort((a, b) => Number(b.contributions || 0) - Number(a.contributions || 0) || String(a.login || '').localeCompare(String(b.login || '')))
-    .map((row) => ({
+    .sort(
+      (a, b) =>
+        Number(b.contributions || 0) - Number(a.contributions || 0) ||
+        String(a.login || '').localeCompare(String(b.login || ''))
+    )
+    .map(row => ({
       login: row.login,
       avatarUrl: row.avatarUrl,
       profileUrl: row.profileUrl,
@@ -551,22 +610,36 @@ export async function getGithubContributorsSnapshot(): Promise<GithubContributor
       isBot: row.isBot,
       lastCommitAt: row.lastCommitAt ? new Date(row.lastCommitAt).toISOString() : undefined,
       recentCommits: Array.isArray(row.recentCommits) ? row.recentCommits.slice(0, 6) : [],
-      recentPullRequests: Array.isArray(row.recentPullRequests) ? row.recentPullRequests.slice(0, 6) : [],
+      recentPullRequests: Array.isArray(row.recentPullRequests)
+        ? row.recentPullRequests.slice(0, 6)
+        : [],
       commitHistory: Array.isArray(row.commitHistory) ? row.commitHistory : [],
     }));
 
   const latestFetchedAt = rows
-    .map((row) => row.fetchedAt)
+    .map(row => row.fetchedAt)
     .filter(Boolean)
     .sort((a, b) => new Date(b as any).getTime() - new Date(a as any).getTime())[0];
 
-  const totalTrackedCommits = contributors.reduce((sum, contributor) => sum + (Array.isArray(contributor.recentCommits) ? contributor.recentCommits.length : 0), 0);
-  const totalTrackedPullRequests = contributors.reduce((sum, contributor) => sum + Number(contributor.pullRequests || 0), 0);
-  const totalMergedPullRequests = contributors.reduce((sum, contributor) => sum + Number(contributor.mergedPullRequests || 0), 0);
+  const totalTrackedCommits = contributors.reduce(
+    (sum, contributor) =>
+      sum + (Array.isArray(contributor.recentCommits) ? contributor.recentCommits.length : 0),
+    0
+  );
+  const totalTrackedPullRequests = contributors.reduce(
+    (sum, contributor) => sum + Number(contributor.pullRequests || 0),
+    0
+  );
+  const totalMergedPullRequests = contributors.reduce(
+    (sum, contributor) => sum + Number(contributor.mergedPullRequests || 0),
+    0
+  );
 
   return {
     repo,
-    generatedAt: latestFetchedAt ? new Date(latestFetchedAt).toISOString() : new Date().toISOString(),
+    generatedAt: latestFetchedAt
+      ? new Date(latestFetchedAt).toISOString()
+      : new Date().toISOString(),
     totalContributors: contributors.length,
     totalTrackedCommits,
     totalTrackedPullRequests,

@@ -13,10 +13,10 @@ import { SunsetPolicy } from './SunsetPolicy';
 export const emailTemplates = {
   'email-verify': EmailVerify,
   'password-reset': PasswordReset,
-  'invite': Invite,
-  'notification': Notification,
+  invite: Invite,
+  notification: Notification,
   'tfa-email': TfaEmail,
-  'verification': Verification,
+  verification: Verification,
   'email-restore': EmailRestore,
   'deletion-approved': DeletionApproved,
   'deletion-deleted': DeletionDeleted,

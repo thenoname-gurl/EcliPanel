@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  Index,
+} from 'typeorm';
 import { Organisation } from './organisation.entity';
 
 @Entity()
@@ -6,7 +13,7 @@ export class OrganisationDnsZone {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Organisation, (org) => org.id, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Organisation, org => org.id, { onDelete: 'CASCADE' })
   organisation: Organisation;
 
   @Index()

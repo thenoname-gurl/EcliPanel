@@ -32,7 +32,13 @@ export class MailMessage {
   html?: string;
 
   @Column({ nullable: true, type: 'simple-json' })
-  attachments?: { filename: string; url: string; contentType?: string; size?: number; cid?: string }[];
+  attachments?: {
+    filename: string;
+    url: string;
+    contentType?: string;
+    size?: number;
+    cid?: string;
+  }[];
 
   @Column({ nullable: true, type: 'text' })
   headers?: string;
@@ -80,7 +86,15 @@ export class MailMessage {
   encryptionType?: string;
 
   @Column({ nullable: true, type: 'simple-json' })
-  receivedChain?: { from?: string; by?: string; with?: string; id?: string; for?: string; ip?: string; raw?: string }[];
+  receivedChain?: {
+    from?: string;
+    by?: string;
+    with?: string;
+    id?: string;
+    for?: string;
+    ip?: string;
+    raw?: string;
+  }[];
 
   @Column({ default: false })
   read: boolean;

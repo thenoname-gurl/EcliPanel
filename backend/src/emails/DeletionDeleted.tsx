@@ -47,9 +47,7 @@ export function DeletionDeleted({ title, message, details, t }: DeletionDeletedP
         <p style={pStyle}>{message}</p>
       </Section>
 
-      <Section style={detailsStyle}>
-        {details}
-      </Section>
+      <Section style={detailsStyle}>{details}</Section>
     </BaseEmail>
   );
 }

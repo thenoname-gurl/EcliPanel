@@ -25,7 +25,10 @@ function resolveSupportUrl(): string | null {
   return `${base.replace(/\/+$/, '')}/dashboard/tickets/new`;
 }
 
-async function createUserNotification(userId: number, params: { type: string; title: string; body: string; url?: string | null }) {
+async function createUserNotification(
+  userId: number,
+  params: { type: string; title: string; body: string; url?: string | null }
+) {
   try {
     const notificationRepo = AppDataSource.getRepository(Notification);
     const notification = notificationRepo.create({
@@ -87,7 +90,10 @@ export async function notifyServerOwnerSuspended(params: {
     subject: `Server suspended: ${serverName}`,
     body: `${message}\n\n${details}`,
     toAddress: mailboxAddress || user.email || '',
-    fromAddress: process.env.MAIL_FROM || process.env.SMTP_USER || `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
+    fromAddress:
+      process.env.MAIL_FROM ||
+      process.env.SMTP_USER ||
+      `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
   });
 
   if (recipientAddresses.size === 0) {
@@ -167,7 +173,10 @@ export async function notifyServerOwnerDmca(params: {
     subject: `Server DMCA notice: ${serverName}`,
     body: `${message}\n\n${details}`,
     toAddress: mailboxAddress || user.email || '',
-    fromAddress: process.env.MAIL_FROM || process.env.SMTP_USER || `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
+    fromAddress:
+      process.env.MAIL_FROM ||
+      process.env.SMTP_USER ||
+      `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
   });
 
   if (recipientAddresses.size === 0) {
@@ -238,7 +247,10 @@ export async function notifyServerOwnerUnsuspended(params: {
     subject: `Server unsuspended: ${serverName}`,
     body: `${message}\n\n${details}`,
     toAddress: mailboxAddress || user.email || '',
-    fromAddress: process.env.MAIL_FROM || process.env.SMTP_USER || `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
+    fromAddress:
+      process.env.MAIL_FROM ||
+      process.env.SMTP_USER ||
+      `noreply@${process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'}`,
   });
 
   if (recipientAddresses.size === 0) {

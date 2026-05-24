@@ -22,11 +22,23 @@ function normalizeSftpPath(value: string | undefined): string {
 
 function sftpUrlForNode(node: any) {
   const urlObj = (() => {
-    try { return new URL(node.url); } catch { return null; }
+    try {
+      return new URL(node.url);
+    } catch {
+      return null;
+    }
   })();
   const nodeHost = urlObj?.hostname || node.url;
   const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$|$/, '');
-  const backendHost = backendBase ? (() => { try { return new URL(backendBase).hostname; } catch { return backendBase; } })() : null;
+  const backendHost = backendBase
+    ? (() => {
+        try {
+          return new URL(backendBase).hostname;
+        } catch {
+          return backendBase;
+        }
+      })()
+    : null;
   const host = node.sftpProxyPort ? backendHost || '127.0.0.1' : nodeHost;
   const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
   return { host, port };
@@ -47,7 +59,10 @@ function createConnectConfig(endpoint: any, creds: any): ConnectConfig {
   return config;
 }
 
-function createSftpClient(endpoint: any, creds: any): Promise<{ client: Client; sftp: SFTPWrapper }> {
+function createSftpClient(
+  endpoint: any,
+  creds: any
+): Promise<{ client: Client; sftp: SFTPWrapper }> {
   return new Promise((resolve, reject) => {
     const client = new Client();
     let settled = false;
@@ -55,13 +70,18 @@ function createSftpClient(endpoint: any, creds: any): Promise<{ client: Client; 
     const handleError = (err: Error) => {
       if (settled) return;
       settled = true;
-      try { client.end(); } catch {}
+      try {
+        client.end();
+      } catch {}
       reject(err);
     };
 
     client.once('ready', () => {
       client.sftp((err, sftp) => {
-        if (err) { handleError(err); return; }
+        if (err) {
+          handleError(err);
+          return;
+        }
         settled = true;
         resolve({ client, sftp });
       });
@@ -76,44 +96,90 @@ function createSftpClient(endpoint: any, creds: any): Promise<{ client: Client; 
     });
 
     const config = createConnectConfig(endpoint, creds);
-    try { client.connect(config); } catch (err) { handleError(err as Error); }
+    try {
+      client.connect(config);
+    } catch (err) {
+      handleError(err as Error);
+    }
   });
 }
 
 function sftpReaddir(sftp: SFTPWrapper, p: string): Promise<any[]> {
-  return new Promise((resolve, reject) => { sftp.readdir(p, (err, list) => { if (err) return reject(err); resolve(list || []); }); });
+  return new Promise((resolve, reject) => {
+    sftp.readdir(p, (err, list) => {
+      if (err) return reject(err);
+      resolve(list || []);
+    });
+  });
 }
 
 function sftpReadFile(sftp: SFTPWrapper, p: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => { sftp.readFile(p, (err, data) => { if (err) return reject(err); resolve(Buffer.from(data)); }); });
+  return new Promise((resolve, reject) => {
+    sftp.readFile(p, (err, data) => {
+      if (err) return reject(err);
+      resolve(Buffer.from(data));
+    });
+  });
 }
 
 function sftpWriteFile(sftp: SFTPWrapper, p: string, data: Buffer): Promise<void> {
-  return new Promise((resolve, reject) => { sftp.writeFile(p, data, (err) => { if (err) return reject(err); resolve(); }); });
+  return new Promise((resolve, reject) => {
+    sftp.writeFile(p, data, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpUnlink(sftp: SFTPWrapper, p: string): Promise<void> {
-  return new Promise((resolve, reject) => { sftp.unlink(p, (err) => { if (err) return reject(err); resolve(); }); });
+  return new Promise((resolve, reject) => {
+    sftp.unlink(p, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpRmdir(sftp: SFTPWrapper, p: string): Promise<void> {
-  return new Promise((resolve, reject) => { sftp.rmdir(p, (err) => { if (err) return reject(err); resolve(); }); });
+  return new Promise((resolve, reject) => {
+    sftp.rmdir(p, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpRename(sftp: SFTPWrapper, oldP: string, newP: string): Promise<void> {
-  return new Promise((resolve, reject) => { sftp.rename(oldP, newP, (err) => { if (err) return reject(err); resolve(); }); });
+  return new Promise((resolve, reject) => {
+    sftp.rename(oldP, newP, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpMkdir(sftp: SFTPWrapper, p: string): Promise<void> {
-  return new Promise((resolve, reject) => { sftp.mkdir(p, (err) => { if (err) return reject(err); resolve(); }); });
+  return new Promise((resolve, reject) => {
+    sftp.mkdir(p, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpChmod(sftp: SFTPWrapper, p: string, mode: number): Promise<void> {
-  return new Promise((resolve, reject) => { sftp.chmod(p, mode, (err) => { if (err) return reject(err); resolve(); }); });
+  return new Promise((resolve, reject) => {
+    sftp.chmod(p, mode, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 async function deleteSftpPath(sftp: SFTPWrapper, targetPath: string): Promise<void> {
-  const stats = await new Promise<any>((res, rej) => sftp.stat(targetPath, (err, st) => err ? rej(err) : res(st)));
+  const stats = await new Promise<any>((res, rej) =>
+    sftp.stat(targetPath, (err, st) => (err ? rej(err) : res(st)))
+  );
   const isDir = typeof stats.isDirectory === 'function' ? stats.isDirectory() : false;
   if (isDir) {
     const entries = await sftpReaddir(sftp, targetPath);
@@ -138,7 +204,17 @@ parentPort?.on('message', async (msg: Msg) => {
         case 'list': {
           const dir = normalizeSftpPath(args?.[0]);
           const entries = await sftpReaddir(sftp, dir);
-          result = entries.map((entry: any) => ({ name: entry.filename, attributes: { size: Number(entry.attrs?.size || 0), modified_at: entry.attrs ? new Date((entry.attrs.mtime || 0) * 1000).toISOString() : undefined }, directory: typeof entry.attrs?.isDirectory === 'function' ? entry.attrs.isDirectory() : false }));
+          result = entries.map((entry: any) => ({
+            name: entry.filename,
+            attributes: {
+              size: Number(entry.attrs?.size || 0),
+              modified_at: entry.attrs
+                ? new Date((entry.attrs.mtime || 0) * 1000).toISOString()
+                : undefined,
+            },
+            directory:
+              typeof entry.attrs?.isDirectory === 'function' ? entry.attrs.isDirectory() : false,
+          }));
           break;
         }
         case 'read': {
@@ -206,7 +282,9 @@ parentPort?.on('message', async (msg: Msg) => {
       }
       parentPort?.postMessage({ id, result });
     } finally {
-      try { client.end(); } catch {}
+      try {
+        client.end();
+      } catch {}
     }
   } catch (err: any) {
     parentPort?.postMessage({ id, error: String(err?.message || err) });

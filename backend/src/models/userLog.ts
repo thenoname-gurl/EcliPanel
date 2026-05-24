@@ -1,6 +1,2 @@
-export interface UserLog {
-  id: number;
-  userId: number;
-  action: string;
-  timestamp: Date;
-}
+export { UserLog } from './userLog.entity';
+export type { UserLog as UserLogEntity } from './userLog.entity';

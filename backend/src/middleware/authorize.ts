@@ -42,7 +42,7 @@ export function hasPermissionSync(ctx: any, required: string): boolean {
   if (user.role === '*' || user.role === 'rootAdmin') return true;
 
   const perms = getUserPermissionsFromCtx(ctx);
-  return perms.some((p) => permissionMatches(p, required));
+  return perms.some(p => permissionMatches(p, required));
 }
 
 export function isAdminContext(ctx: any): boolean {
@@ -63,7 +63,7 @@ export async function getUserPermissions(ctx: any): Promise<string[]> {
   const userRepo = AppDataSource.getRepository(User);
   const u = await userRepo.findOne({
     where: { id: user.id },
-    relations: {"userRoles":{"role":{"permissions":true}}},
+    relations: { userRoles: { role: { permissions: true } } },
   });
   if (u && Array.isArray(u.userRoles)) {
     for (const ur of u.userRoles) {
@@ -80,7 +80,10 @@ export async function getUserPermissions(ctx: any): Promise<string[]> {
   if (perms.length === 0) {
     try {
       const roleRepo = AppDataSource.getRepository(require('../models/role.entity').Role);
-      const def = await roleRepo.findOne({ where: { name: 'default' }, relations: {"permissions":true} });
+      const def = await roleRepo.findOne({
+        where: { name: 'default' },
+        relations: { permissions: true },
+      });
       if (def && Array.isArray(def.permissions)) {
         def.permissions.forEach((p: any) => perms.push(p.value));
       }
@@ -98,19 +101,20 @@ export async function hasPermission(ctx: any, required: string): Promise<boolean
   if (user.role === '*' || user.role === 'rootAdmin') return true;
 
   const perms = await getUserPermissions(ctx);
-  return perms.some((p) => permissionMatches(p, required));
+  return perms.some(p => permissionMatches(p, required));
 }
 
 export function authorize(required: string) {
   return async (ctx: any) => {
-    const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
+    const t = (key: string, def?: string) =>
+      typeof ctx.t === 'function' ? ctx.t(key) : def || key;
     const apiKey = ctx.apiKey;
     const ip = ctx.ip || (ctx.request && ctx.request.ip) || 'unknown';
     const _ctxInfo = { ip, path: ctx.path || ctx.request?.url || 'unknown' };
     if (apiKey) {
       if (apiKey.type === 'admin') return;
       const perms: string[] = apiKey.permissions || [];
-      const has = perms.some((p) => permissionMatches(p, required));
+      const has = perms.some(p => permissionMatches(p, required));
       if (has) return;
       ctx.set.status = 403;
       return { error: t('sshKey.insufficientPermissionsApiKey', 'API key lacks permissions') };
@@ -141,13 +145,17 @@ export function authorize(required: string) {
       'configuration:',
       'databases:',
     ];
-    const isServerRelated = serverRelatedPrefixes.some((prefix) => required.startsWith(prefix));
+    const isServerRelated = serverRelatedPrefixes.some(prefix => required.startsWith(prefix));
     if (isServerRelated && !hasPermissionSync(ctx, 'admin:access') && !user.dateOfBirth) {
       ctx.set.status = 403;
       return { error: t('validation.ageVerificationRequired', 'Age verification required') };
     }
 
-    if (required === 'transfer:execute' && !hasPermissionSync(ctx, 'admin:access') && !hasPermissionSync(ctx, 'transfer:execute')) {
+    if (
+      required === 'transfer:execute' &&
+      !hasPermissionSync(ctx, 'admin:access') &&
+      !hasPermissionSync(ctx, 'transfer:execute')
+    ) {
       ctx.set.status = 403;
       return { error: t('common.insufficientPermissions', 'Insufficient permissions') };
     }
@@ -159,7 +167,12 @@ export function authorize(required: string) {
       try {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-        const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
+        const serverUuid =
+          ctx.params?.id ||
+          ctx.params?.serverId ||
+          ctx.request?.body?.serverUuid ||
+          ctx.request?.body?.id ||
+          ctx.query?.serverUuid;
         if (serverUuid) serverScopeResolved = true;
 
         const serverSubuserGrant = (sub: any, requiredPerm: string) => {
@@ -182,7 +195,9 @@ export function authorize(required: string) {
           };
 
           if (requiredPerm && serverPermissionMap[requiredPerm]) {
-            if (sub.permissions.some((p: string) => serverPermissionMap[requiredPerm].includes(p))) {
+            if (
+              sub.permissions.some((p: string) => serverPermissionMap[requiredPerm].includes(p))
+            ) {
               return true;
             }
           }
@@ -202,7 +217,9 @@ export function authorize(required: string) {
           }
 
           try {
-            const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+            const cfgRepo = AppDataSource.getRepository(
+              require('../models/serverConfig.entity').ServerConfig
+            );
             const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
             if (cfg && cfg.userId === user.id) return;
           } catch (e) {
@@ -218,7 +235,12 @@ export function authorize(required: string) {
       try {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-        const serverUuid = ctx.params?.id || ctx.params?.serverId || ctx.request?.body?.serverUuid || ctx.request?.body?.id || ctx.query?.serverUuid;
+        const serverUuid =
+          ctx.params?.id ||
+          ctx.params?.serverId ||
+          ctx.request?.body?.serverUuid ||
+          ctx.request?.body?.id ||
+          ctx.query?.serverUuid;
         if (serverUuid) serverScopeResolved = true;
 
         if (serverUuid) {
@@ -226,12 +248,19 @@ export function authorize(required: string) {
           whereAny.push({ userId: user.id, serverUuid });
           if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
           const sub = await subuserRepo.findOne({ where: whereAny });
-          if (sub && sub.accepted !== false && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files'))) {
+          if (
+            sub &&
+            sub.accepted !== false &&
+            Array.isArray(sub.permissions) &&
+            (sub.permissions.includes('*') || sub.permissions.includes('files'))
+          ) {
             return;
           }
 
           try {
-            const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+            const cfgRepo = AppDataSource.getRepository(
+              require('../models/serverConfig.entity').ServerConfig
+            );
             const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
             if (cfg && cfg.userId === user.id) return;
           } catch (e) {
@@ -245,15 +274,25 @@ export function authorize(required: string) {
 
     if (isServerScoped && serverScopeResolved) {
       ctx.set.status = 403;
-      return { error: t('server.insufficientServerPermissions', 'Insufficient server permissions') };
+      return {
+        error: t('server.insufficientServerPermissions', 'Insufficient server permissions'),
+      };
     }
 
     if (required.startsWith('org:') || required.startsWith('organisation:')) {
       try {
-        const orgId = ctx.params?.id || ctx.request?.body?.organisationId || ctx.request?.body?.orgId || ctx.query?.id;
+        const orgId =
+          ctx.params?.id ||
+          ctx.request?.body?.organisationId ||
+          ctx.request?.body?.orgId ||
+          ctx.query?.id;
         if (orgId && user) {
-          const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-          const membership = await orgMemberRepo.findOne({ where: { userId: user.id, organisationId: Number(orgId) } });
+          const orgMemberRepo = AppDataSource.getRepository(
+            require('../models/organisationMember.entity').OrganisationMember
+          );
+          const membership = await orgMemberRepo.findOne({
+            where: { userId: user.id, organisationId: Number(orgId) },
+          });
           if (membership && (membership.orgRole === 'owner' || membership.orgRole === 'admin')) {
             return;
           }

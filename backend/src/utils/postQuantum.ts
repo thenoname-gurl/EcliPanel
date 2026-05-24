@@ -34,18 +34,26 @@ export async function generateKyber768Keypair(seed?: Uint8Array): Promise<PqKemK
   };
 }
 
-export async function encapsulateKyber768(publicKey: Uint8Array): Promise<{ cipherText: Uint8Array; sharedSecret: Uint8Array }> {
+export async function encapsulateKyber768(
+  publicKey: Uint8Array
+): Promise<{ cipherText: Uint8Array; sharedSecret: Uint8Array }> {
   const kem = await getMlKemInstance();
   const [cipherText, sharedSecret] = kem.encap(publicKey);
   return { cipherText, sharedSecret };
 }
 
-export async function decapsulateKyber768(cipherText: Uint8Array, secretKey: Uint8Array): Promise<Uint8Array> {
+export async function decapsulateKyber768(
+  cipherText: Uint8Array,
+  secretKey: Uint8Array
+): Promise<Uint8Array> {
   const kem = await getMlKemInstance();
   return kem.decap(cipherText, secretKey);
 }
 
-export async function verifyKyber768Keypair(publicKey: Uint8Array, secretKey: Uint8Array): Promise<boolean> {
+export async function verifyKyber768Keypair(
+  publicKey: Uint8Array,
+  secretKey: Uint8Array
+): Promise<boolean> {
   const { cipherText, sharedSecret } = await encapsulateKyber768(publicKey);
   const recovered = await decapsulateKyber768(cipherText, secretKey);
   return Buffer.from(sharedSecret).equals(Buffer.from(recovered));

@@ -8,23 +8,28 @@ import { AppDataSource } from '../config/typeorm';
 import { Passkey } from '../models/passkey.entity';
 import base64url from 'base64url';
 import { sha256Bytes } from '../utils/bunCrypto';
-import { isoBase64URL, decodeAttestationObject, parseAuthenticatorData } from '@simplewebauthn/server/helpers';
+import {
+  isoBase64URL,
+  decodeAttestationObject,
+  parseAuthenticatorData,
+} from '@simplewebauthn/server/helpers';
 
 const rpName = 'Ecli Panel';
 const rpID: string | string[] = process.env.RP_ID
-  ? process.env.RP_ID.split(',').map((s) => s.trim())
+  ? process.env.RP_ID.split(',').map(s => s.trim())
   : 'ecli.app';
 const origin: string | string[] = process.env.ORIGIN
-  ? process.env.ORIGIN.split(',').map((s) => s.trim())
-  : 'https://ecli.app'; 
-  // FUN FACT: This was meant to be panel.ecli.app originally but yes, here we are
+  ? process.env.ORIGIN.split(',').map(s => s.trim())
+  : 'https://ecli.app';
+// FUN FACT: This was meant to be panel.ecli.app originally but yes, here we are
 
 function selectRpId(requestHost?: string) {
   if (requestHost && Array.isArray(rpID)) {
-    return rpID.find((id) => requestHost === id) ||
-      rpID.filter((id) => requestHost.endsWith('.' + id))
-        .sort((a, b) => b.length - a.length)[0] ||
-      rpID[0];
+    return (
+      rpID.find(id => requestHost === id) ||
+      rpID.filter(id => requestHost.endsWith('.' + id)).sort((a, b) => b.length - a.length)[0] ||
+      rpID[0]
+    );
   }
   return Array.isArray(rpID) ? rpID[0] : rpID;
 }
@@ -77,20 +82,28 @@ export class PasskeyService {
     }
 
     try {
-      const attestationBase64 = attestationResponse.response?.attestationObject || attestationResponse.attestationObject;
+      const attestationBase64 =
+        attestationResponse.response?.attestationObject || attestationResponse.attestationObject;
       const attBuf = isoBase64URL.toBuffer(attestationBase64);
       const decodedCBOR = decodeAttestationObject(attBuf);
       const authData = decodedCBOR.get('authData');
       const parsed = parseAuthenticatorData(authData);
       const buf = Buffer.from(parsed.rpIdHash);
       if (Array.isArray(rpID)) {
-        rpID.forEach((id) => {
+        rpID.forEach(id => {
           const h = Buffer.from(sha256Bytes(id));
           console.log(`  expected rpIdHash for ${id}:`, h.toString('hex'), 'match:', h.equals(buf));
         });
       } else {
         const h = Buffer.from(sha256Bytes(rpID));
-        console.log('  expected rpIdHash for', rpID, ':', h.toString('hex'), 'match:', h.equals(buf));
+        console.log(
+          '  expected rpIdHash for',
+          rpID,
+          ':',
+          h.toString('hex'),
+          'match:',
+          h.equals(buf)
+        );
       }
     } catch (e) {
       console.log('  failed to decode attestationObject for rpIdHash:', e);
@@ -113,9 +126,8 @@ export class PasskeyService {
         ? base64url.encode(Buffer.from(info.credential.publicKey))
         : base64url.encode(info.credentialPublicKey);
       const counter = info.credential?.counter ?? info.counter ?? 0;
-      const transports: string[] = info.credential?.transports
-        || attestationResponse.response?.transports
-        || ['internal'];
+      const transports: string[] = info.credential?.transports ||
+        attestationResponse.response?.transports || ['internal'];
       const transport = Array.isArray(transports) ? transports.join(',') : String(transports);
 
       const passkeyRepo = AppDataSource.getRepository(Passkey);
@@ -137,9 +149,16 @@ export class PasskeyService {
     const passkeyRepo = AppDataSource.getRepository(Passkey);
     const keys = await passkeyRepo.find({ where: { user: { id: userId } } });
     const selectedRPID = selectRpId(requestHost);
-    console.log('[PasskeyService] generateAuthentication frontendHost:', requestHost, 'availableRPIDs:', rpID, 'selectedRPID:', selectedRPID);
+    console.log(
+      '[PasskeyService] generateAuthentication frontendHost:',
+      requestHost,
+      'availableRPIDs:',
+      rpID,
+      'selectedRPID:',
+      selectedRPID
+    );
     const opts: any = generateAuthenticationOptions({
-      allowCredentials: keys.map((k) => ({
+      allowCredentials: keys.map(k => ({
         id: k.credentialID,
         type: 'public-key',
         transports: k.transports.split(',').filter(Boolean) as any,

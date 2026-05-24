@@ -1,15 +1,17 @@
-import path from 'path'
-import fs from 'fs'
+import path from 'path';
+import fs from 'fs';
 
-let initialized = false
-let faceapi: any = null
-let tf: any = null
-let imageLib: any = null
+let initialized = false;
+let faceapi: any = null;
+let tf: any = null;
+let imageLib: any = null;
 
 const MODEL_PATH = process.env.FACE_API_MODEL_PATH
   ? String(process.env.FACE_API_MODEL_PATH)
-  : path.join(process.cwd(), 'model')
-const MODEL_BASE_URL = process.env.FACE_API_MODEL_BASE_URL || 'https://raw.githubusercontent.com/vladmandic/face-api/master/model'
+  : path.join(process.cwd(), 'model');
+const MODEL_BASE_URL =
+  process.env.FACE_API_MODEL_BASE_URL ||
+  'https://raw.githubusercontent.com/vladmandic/face-api/master/model';
 const REQUIRED_MODEL_FILES = [
   'ssd_mobilenetv1_model-weights_manifest.json',
   'ssd_mobilenetv1_model.bin',
@@ -17,78 +19,87 @@ const REQUIRED_MODEL_FILES = [
   'age_gender_model.bin',
   'face_landmark_68_model-weights_manifest.json',
   'face_landmark_68_model.bin',
-]
+];
 
 async function downloadFile(filename: string): Promise<void> {
-  const url = `${MODEL_BASE_URL}/${filename}`
-  const response = await fetch(url)
+  const url = `${MODEL_BASE_URL}/${filename}`;
+  const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to download FaceAPI model file ${filename}: ${response.status} ${response.statusText}`)
+    throw new Error(
+      `Failed to download FaceAPI model file ${filename}: ${response.status} ${response.statusText}`
+    );
   }
-  await Bun.write(path.join(MODEL_PATH, filename), response)
+  await Bun.write(path.join(MODEL_PATH, filename), response);
 }
 
 async function ensureModelFiles(): Promise<void> {
   if (Bun.file(MODEL_PATH).size === 0) {
-    fs.mkdirSync(MODEL_PATH, { recursive: true })
+    fs.mkdirSync(MODEL_PATH, { recursive: true });
   }
 
   for (const filename of REQUIRED_MODEL_FILES) {
-    const filePath = path.join(MODEL_PATH, filename)
+    const filePath = path.join(MODEL_PATH, filename);
     if (Bun.file(filePath).size === 0) {
-      await downloadFile(filename)
+      await downloadFile(filename);
     }
   }
 }
 
 async function initFaceApi(): Promise<void> {
-  if (initialized) return
+  if (initialized) return;
 
   // @ts-ignore
-  const tfModule = await import('@tensorflow/tfjs-node')
+  const tfModule = await import('@tensorflow/tfjs-node');
   // @ts-ignore
-  const faceApiModule = await import('@vladmandic/face-api')
+  const faceApiModule = await import('@vladmandic/face-api');
   // @ts-ignore
-  const imageModule = await import('@canvas/image')
+  const imageModule = await import('@canvas/image');
 
-  tf = tfModule?.default || tfModule
-  faceapi = faceApiModule?.default || faceApiModule
-  imageLib = imageModule?.default || imageModule
+  tf = tfModule?.default || tfModule;
+  faceapi = faceApiModule?.default || faceApiModule;
+  imageLib = imageModule?.default || imageModule;
   if (!faceapi.tf) {
-    faceapi.tf = tf
+    faceapi.tf = tf;
   }
 
-  await ensureModelFiles()
+  await ensureModelFiles();
 
-  await faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH)
-  await faceapi.nets.ageGenderNet.loadFromDisk(MODEL_PATH)
-  await faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH)
+  await faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH);
+  await faceapi.nets.ageGenderNet.loadFromDisk(MODEL_PATH);
+  await faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH);
 
-  initialized = true
+  initialized = true;
 }
 
 export async function estimateAgeFromSelfie(buffer: Buffer): Promise<number | null> {
-  await initFaceApi()
+  await initFaceApi();
 
-  const canvas = await imageLib.imageFromBuffer(buffer)
-  const imageData = imageLib.getImageData(canvas)
+  const canvas = await imageLib.imageFromBuffer(buffer);
+  const imageData = imageLib.getImageData(canvas);
 
   const tensor = tf.tidy(() => {
-    const rgba = tf.tensor(Array.from(imageData?.data || []), [canvas.height, canvas.width, 4], 'int32')
-    const channels = tf.split(rgba, 4, 2)
-    const rgb = tf.stack([channels[0], channels[1], channels[2]], 2)
-    const reshape = tf.reshape(rgb, [1, canvas.height, canvas.width, 3])
-    return reshape
-  })
+    const rgba = tf.tensor(
+      Array.from(imageData?.data || []),
+      [canvas.height, canvas.width, 4],
+      'int32'
+    );
+    const channels = tf.split(rgba, 4, 2);
+    const rgb = tf.stack([channels[0], channels[1], channels[2]], 2);
+    const reshape = tf.reshape(rgb, [1, canvas.height, canvas.width, 3]);
+    return reshape;
+  });
 
   try {
-    const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3, maxResults: 1 })
-    const result = await faceapi.detectSingleFace(tensor, options).withFaceLandmarks().withAgeAndGender()
+    const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3, maxResults: 1 });
+    const result = await faceapi
+      .detectSingleFace(tensor, options)
+      .withFaceLandmarks()
+      .withAgeAndGender();
     if (!result || typeof result.age !== 'number') {
-      return null
+      return null;
     }
-    return Number(result.age)
+    return Number(result.age);
   } finally {
-    tensor.dispose()
+    tensor.dispose();
   }
 }

@@ -1,17 +1,25 @@
-export type HttpResult<T> = {
+export type HttpResult<T = unknown> = {
   data: T;
   status: number;
   headers: Record<string, string>;
 };
 
 export class HttpError extends Error {
-  response?: HttpResult<any>;
+  response?: HttpResult<unknown>;
+
+  constructor(message: string, response?: HttpResult<unknown>) {
+    super(message);
+    this.name = 'HttpError';
+    this.response = response;
+  }
 }
 
-type RequestOptions = {
+type RequestBody = string | Uint8Array | ArrayBuffer | Record<string, unknown> | unknown[];
+
+export type RequestOptions = {
   method?: string;
   headers?: Record<string, string>;
-  body?: any;
+  body?: RequestBody;
   timeoutMs?: number;
   responseType?: 'json' | 'text' | 'arraybuffer';
 };
@@ -20,15 +28,25 @@ function normalizeHeaders(headers?: Record<string, string>): Record<string, stri
   return headers ? { ...headers } : {};
 }
 
-async function readResponse(res: Response, responseType: RequestOptions['responseType']) {
-  if (responseType === 'text') return await res.text();
-  if (responseType === 'arraybuffer') return await res.arrayBuffer();
+async function readResponse(
+  res: Response,
+  responseType: RequestOptions['responseType']
+): Promise<unknown> {
+  if (responseType === 'text') {
+    return await res.text();
+  }
+  if (responseType === 'arraybuffer') {
+    return await res.arrayBuffer();
+  }
   return await res.json().catch(() => null);
 }
 
 const allowInvalidCerts = process.env.WINGS_ALLOW_INVALID_CERT === 'true';
 
-export async function httpRequest<T = any>(url: string, opts: RequestOptions = {}): Promise<HttpResult<T>> {
+export async function httpRequest<T = unknown>(
+  url: string,
+  opts: RequestOptions = {}
+): Promise<HttpResult<T>> {
   const { method = 'GET', headers, body, timeoutMs, responseType = 'json' } = opts;
   const controller = new AbortController();
   const timeout = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
@@ -46,12 +64,12 @@ export async function httpRequest<T = any>(url: string, opts: RequestOptions = {
 
     if (body !== undefined) {
       if (typeof body === 'string' || body instanceof Uint8Array || body instanceof ArrayBuffer) {
-        init.body = body as any;
+        init.body = body as BodyInit;
       } else {
         init.body = JSON.stringify(body);
-        if (!init.headers) init.headers = {};
-        if (!(init.headers as Record<string, string>)['Content-Type']) {
-          (init.headers as Record<string, string>)['Content-Type'] = 'application/json';
+        const headersRecord = init.headers as Record<string, string>;
+        if (!headersRecord['Content-Type']) {
+          headersRecord['Content-Type'] = 'application/json';
         }
       }
     }
@@ -69,8 +87,10 @@ export async function httpRequest<T = any>(url: string, opts: RequestOptions = {
       throw err;
     }
 
-    return { data, status: res.status, headers: headersOut } as HttpResult<T>;
+    return { data: data as T, status: res.status, headers: headersOut };
   } finally {
-    if (timeout) clearTimeout(timeout);
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
   }
 }

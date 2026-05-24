@@ -88,8 +88,14 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
   }
 
   const isAdmin = hasPermissionSync(req, 'ai:read') || apiKey?.type === 'admin';
-  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-  const userOrgIds = user ? (await orgMemberRepo.find({ where: { userId: user.id } })).map((m: any) => Number(m.organisationId)) : [];
+  const orgMemberRepo = AppDataSource.getRepository(
+    require('../models/organisationMember.entity').OrganisationMember
+  );
+  const userOrgIds = user
+    ? (await orgMemberRepo.find({ where: { userId: user.id } })).map((m: any) =>
+        Number(m.organisationId)
+      )
+    : [];
 
   const listener = (data: any) => {
     let allowed = false;
@@ -200,7 +206,6 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
         remoteWs = null;
       }
     });
-
   } catch (err) {
     console.error('Failed to connect to server:', err);
     sendError(socket, 'Failed to connect to server');
@@ -213,12 +218,16 @@ async function getAllowedServerIds(user: any, apiKey: any): Promise<string[]> {
 
   try {
     const nodesRepo = AppDataSource.getRepository(Node);
-    
+
     let whereClause: any = {};
     if (user?.id) {
-      const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+      const orgMemberRepo = AppDataSource.getRepository(
+        require('../models/organisationMember.entity').OrganisationMember
+      );
       const memberships = await orgMemberRepo.find({ where: { userId: user.id } });
-      const orgIds = memberships.map((m: any) => Number(m.organisationId)).filter((v: number) => Number.isFinite(v));
+      const orgIds = memberships
+        .map((m: any) => Number(m.organisationId))
+        .filter((v: number) => Number.isFinite(v));
       if (orgIds.length > 0) {
         whereClause = { organisation: { id: In(orgIds) } } as any;
       }

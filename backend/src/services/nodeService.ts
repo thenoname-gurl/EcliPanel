@@ -9,7 +9,7 @@ export class NodeService {
 
   async getServiceForServer(uuid: string): Promise<WingsApiService> {
     const repo = AppDataSource.getRepository(ServerMapping);
-    const mapping = await repo.findOne({ where: { uuid }, relations: {"node":true} });
+    const mapping = await repo.findOne({ where: { uuid }, relations: { node: true } });
     if (!mapping) throw new Error('No node mapping for server');
     return this.getServiceForNode(mapping.node.id);
   }
@@ -33,7 +33,13 @@ export class NodeService {
     return svc;
   }
 
-  async registerNode(name: string, url: string, token: string, nodeId?: string, backendWingsUrl?: string) {
+  async registerNode(
+    name: string,
+    url: string,
+    token: string,
+    nodeId?: string,
+    backendWingsUrl?: string
+  ) {
     const repo = AppDataSource.getRepository(Node);
     let node = repo.create({ name, url, token, nodeId, backendWingsUrl });
     node = await repo.save(node);

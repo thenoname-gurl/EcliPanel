@@ -19,15 +19,17 @@ export function sanitizeError(e: any, context?: string, locale?: string): string
   console.error(`[${context ?? 'error'}]`, e instanceof Error ? e.stack : e);
 
   if (e?.response?.data?.errors?.[0]?.detail) {
-    const detail = typeof e.response.data.errors[0].detail === 'string'
-      ? e.response.data.errors[0].detail
-      : String(e.response.data.errors[0].detail);
+    const detail =
+      typeof e.response.data.errors[0].detail === 'string'
+        ? e.response.data.errors[0].detail
+        : String(e.response.data.errors[0].detail);
     return cleanErrorMessage(detail);
   }
   if (e?.response?.data?.error) {
-    const error = typeof e.response.data.error === 'string'
-      ? e.response.data.error
-      : String(e.response.data.error);
+    const error =
+      typeof e.response.data.error === 'string'
+        ? e.response.data.error
+        : String(e.response.data.error);
     return cleanErrorMessage(error);
   }
 

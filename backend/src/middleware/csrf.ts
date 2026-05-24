@@ -21,7 +21,7 @@ export async function validateCsrfToken(sessionId: string, token: string): Promi
   if (!sessionId || !token) return false;
   try {
     const expected = await redisGet(csrfTokenKey(sessionId));
-    if (!expected) return false; 
+    if (!expected) return false;
     return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
   } catch {
     return false;
@@ -39,14 +39,16 @@ export async function csrfProtection(ctx: any) {
   const headerToken = (ctx.request as Request)?.headers?.get(CSRF_HEADER);
   if (!headerToken) {
     ctx.set.status = 403;
-    const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
+    const t = (key: string, def?: string) =>
+      typeof ctx.t === 'function' ? ctx.t(key) : def || key;
     return { error: t('validation.missingCSRFToken', 'Missing CSRF token') };
   }
 
   const valid = await validateCsrfToken(sessionId, headerToken);
   if (!valid) {
     ctx.set.status = 403;
-    const t = (key: string, def?: string) => (typeof ctx.t === 'function' ? ctx.t(key) : def || key);
+    const t = (key: string, def?: string) =>
+      typeof ctx.t === 'function' ? ctx.t(key) : def || key;
     return { error: t('validation.invalidCSRFToken', 'Invalid CSRF token') };
   }
 }

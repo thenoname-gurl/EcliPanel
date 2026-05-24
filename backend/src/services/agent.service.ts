@@ -2,10 +2,7 @@ import type { AgentMessage } from '../types/tunnels';
 
 export const agentConnections = new Map<string, WebSocket>();
 
-export function sendAgentMessage(
-  agentId: string,
-  message: AgentMessage
-): boolean {
+export function sendAgentMessage(agentId: string, message: AgentMessage): boolean {
   const ws = agentConnections.get(agentId);
 
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;

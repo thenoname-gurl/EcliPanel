@@ -14,12 +14,12 @@ export async function runGithubContributorsJob() {
 export async function scheduleGithubContributorsJob() {
   console.log('Starting GitHub contributors sync job...');
 
-  await runGithubContributorsJob().catch((error) => {
+  await runGithubContributorsJob().catch(error => {
     console.error('[GithubContributors] Initial sync failed:', error);
   });
 
   schedule('0 * * * *', async () => {
-    await runGithubContributorsJob().catch((error) => {
+    await runGithubContributorsJob().catch(error => {
       console.error('[GithubContributors] Scheduled sync failed:', error);
     });
   });

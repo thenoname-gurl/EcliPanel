@@ -16,7 +16,7 @@ import { hasPermissionSync } from '../middleware/authorize';
  *    They will commit genocide on order to enact this brutal hierarchy and use propaganda to justify it and their endless wars.
  *    Our only hope is to join together in a working class revolution and reclaim our freedom.
  * D: Basketball
-*/
+ */
 
 function formatMetadataForEmail(
   meta: Record<string, any>,
@@ -28,16 +28,22 @@ function formatMetadataForEmail(
   const parts = action.toLowerCase().split(':');
   const domain = parts[0];
   const verb = parts[parts.length - 1];
-  const subdomain = parts.length > 2 ? parts.slice(1, -1).join(' ') : (parts.length === 2 ? '' : '');
+  const subdomain = parts.length > 2 ? parts.slice(1, -1).join(' ') : parts.length === 2 ? '' : '';
 
-  const nameEmail = actor?.email ? `${actor.name || 'Someone'} (${actor.email})` : (actor?.name || 'Someone');
+  const nameEmail = actor?.email
+    ? `${actor.name || 'Someone'} (${actor.email})`
+    : actor?.name || 'Someone';
   const targetId = whereStr ? whereStr.replace(/^server:/, '') : '';
   const targetLabel = meta?.serverName || meta?.changes?.name || targetId || '';
 
-  const server = targetLabel && targetId && targetLabel !== targetId ? `${targetLabel} (${targetId})` : (targetLabel || 'a server');
+  const server =
+    targetLabel && targetId && targetLabel !== targetId
+      ? `${targetLabel} (${targetId})`
+      : targetLabel || 'a server';
   const actorStr = nameEmail;
 
-  const n = (key: string, vars?: Record<string, string | undefined>) => t('notification.' + key, vars as any);
+  const n = (key: string, vars?: Record<string, string | undefined>) =>
+    t('notification.' + key, vars as any);
 
   let message = '';
 
@@ -46,8 +52,6 @@ function formatMetadataForEmail(
       message = n('serverCreated', { server, actor: actorStr });
     } else if (verb === 'delete') {
       message = n('serverDeleted', { server, actor: actorStr });
-    } else if (verb === 'update') {
-      message = n('serverUpdated', { server, actor: actorStr });
     } else if (verb === 'suspend') {
       message = n('serverSuspended', { server, actor: actorStr });
     } else if (verb === 'unsuspend') {
@@ -68,6 +72,8 @@ function formatMetadataForEmail(
       message = n('subuserUpdated', { server, actor: actorStr });
     } else if (subdomain === 'kvm' || parts[1] === 'kvm') {
       message = n('kvmAccess', { server, actor: actorStr, action: verb });
+    } else if (verb === 'update') {
+      message = n('serverUpdated', { server, actor: actorStr });
     } else if (verb === 'assign') {
       message = n('ipAssigned', { server, actor: actorStr });
     } else if (verb === 'deassign') {
@@ -99,7 +105,11 @@ function formatMetadataForEmail(
     } else if (verb === 'revoke_invite') {
       message = n('orgInviteRevoked', { invited: meta?.invitedEmail || 'a user', actor: actorStr });
     } else {
-      message = n('orgGenericAction', { org: orgName, action: verb.replace(/_/g, ' '), actor: actorStr });
+      message = n('orgGenericAction', {
+        org: orgName,
+        action: verb.replace(/_/g, ' '),
+        actor: actorStr,
+      });
     }
   } else if (domain === 'ticket') {
     if (verb === 'urgent') {
@@ -124,11 +134,16 @@ function formatMetadataForEmail(
   } else if (domain === 'ai') {
     message = n('aiTriggered', { action: verb });
   } else if (domain === 'billing' || domain === 'bill' || domain === 'invoice') {
-    message = n('billingEvent', { action: verb.replace(/_/g, ' '), type: action.includes('invoice') ? 'invoice' : 'billing' });
+    message = n('billingEvent', {
+      action: verb.replace(/_/g, ' '),
+      type: action.includes('invoice') ? 'invoice' : 'billing',
+    });
   } else if (domain === 'security') {
     message = n('securityAlertMsg', { action: verb.replace(/_/g, ' ') });
   } else {
-    message = n('genericEvent', { action: action.replace(/[:_-]/g, ' ').replace(/\b\w/g, (s: string) => s.toUpperCase()) });
+    message = n('genericEvent', {
+      action: action.replace(/[:_-]/g, ' ').replace(/\b\w/g, (s: string) => s.toUpperCase()),
+    });
   }
 
   message = message.charAt(0).toUpperCase() + message.slice(1);
@@ -140,7 +155,9 @@ function formatMetadataForEmail(
   const detailLines: string[] = [];
 
   if (changes && typeof changes === 'object') {
-    const entries = Object.entries(changes).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    const entries = Object.entries(changes).filter(
+      ([, v]) => v !== undefined && v !== null && v !== ''
+    );
     if (entries.length > 0) {
       detailLines.push(n('changes'));
       for (const [key, val] of entries) {
@@ -162,8 +179,20 @@ function formatMetadataForEmail(
     }
   }
 
-  const skipKeys = new Set(['changes', 'actor', 'where', 'ipAddress', 'orgName', 'handle', 'invitedEmail', 'serverName', 'powerAction']);
-  const remaining = Object.entries(rest).filter(([k, v]) => v !== undefined && v !== null && v !== '' && !skipKeys.has(k));
+  const skipKeys = new Set([
+    'changes',
+    'actor',
+    'where',
+    'ipAddress',
+    'orgName',
+    'handle',
+    'invitedEmail',
+    'serverName',
+    'powerAction',
+  ]);
+  const remaining = Object.entries(rest).filter(
+    ([k, v]) => v !== undefined && v !== null && v !== '' && !skipKeys.has(k)
+  );
   if (remaining.length > 0) {
     if (detailLines.length > 0) detailLines.push('');
     for (const [key, val] of remaining) {
@@ -238,16 +267,27 @@ export async function createActivityLog(opts: {
       if (!targetUser || !targetUser.email) return;
 
       try {
-        const meta = (entry.metadata && typeof entry.metadata === 'object') ? { ...entry.metadata } : {};
+        const meta =
+          entry.metadata && typeof entry.metadata === 'object' ? { ...entry.metadata } : {};
         if (!meta.actor) {
           const actor = await userRepo.findOneBy({ id: entry.userId });
-          if (actor) meta.actor = { id: actor.id, name: [actor.firstName, actor.lastName].filter(Boolean).join(' ') || actor.email, email: actor.email, role: actor.role };
+          if (actor)
+            meta.actor = {
+              id: actor.id,
+              name: [actor.firstName, actor.lastName].filter(Boolean).join(' ') || actor.email,
+              email: actor.email,
+              role: actor.role,
+            };
         }
-        if (!meta.where && entry.targetType) meta.where = entry.targetType + (entry.targetId ? `:${entry.targetId}` : '');
+        if (!meta.where && entry.targetType)
+          meta.where = entry.targetType + (entry.targetId ? `:${entry.targetId}` : '');
         if (entry.ipAddress) meta.ipAddress = entry.ipAddress;
         if (entry.targetType === 'server' && entry.targetId && !meta.serverName) {
           const serverRepo = AppDataSource.getRepository(ServerConfig);
-          const server = await serverRepo.findOne({ where: { uuid: entry.targetId }, select: { name: true } });
+          const server = await serverRepo.findOne({
+            where: { uuid: entry.targetId },
+            select: { name: true },
+          });
           if (server?.name) meta.serverName = server.name;
         }
         entry.metadata = meta;
@@ -259,11 +299,27 @@ export async function createActivityLog(opts: {
       const a = (entry.action || '').toLowerCase();
       const notifKey = (() => {
         if (a.startsWith('wings:') || a.includes('wings:')) return 'serverActivity';
-        if (a.includes('offline') || a.includes('failed') || a.includes('error') || a.includes('crash')) return 'serverErrors';
-        if (a.startsWith('server:') && (a.includes('delete') || a.includes('reinstall') || a.includes('create') || a.includes('stop') || a.includes('start'))) return 'serverLifecycle';
+        if (
+          a.includes('offline') ||
+          a.includes('failed') ||
+          a.includes('error') ||
+          a.includes('crash')
+        )
+          return 'serverErrors';
+        if (
+          a.startsWith('server:') &&
+          (a.includes('delete') ||
+            a.includes('reinstall') ||
+            a.includes('create') ||
+            a.includes('stop') ||
+            a.includes('start'))
+        )
+          return 'serverLifecycle';
         if (a.includes('bill') || a.includes('invoice') || a.includes('payment')) return 'billing';
-        if (a.includes('login') || a.includes('security') || a.includes('suspicious')) return 'security';
-        if (a.includes('product') || a.includes('update') || a.includes('announcement')) return 'productUpdates';
+        if (a.includes('login') || a.includes('security') || a.includes('suspicious'))
+          return 'security';
+        if (a.includes('product') || a.includes('update') || a.includes('announcement'))
+          return 'productUpdates';
         if (a.includes('ticket') || a.includes('support')) return 'tickets';
         if (a.includes('ai') || a.includes('usage') || a.includes('credits')) return 'aiUsage';
         return null;
@@ -285,15 +341,40 @@ export async function createActivityLog(opts: {
       };
 
       const prefValue = wants[notifKey];
-      const fallback = (notifKey.startsWith('server') && typeof wants['serverAlerts'] === 'boolean') ? wants['serverAlerts'] : undefined;
-      const enabled = typeof prefValue === 'boolean' ? prefValue : (typeof fallback === 'boolean' ? fallback : (defaultPrefs[notifKey] ?? true));
+      const fallback =
+        notifKey.startsWith('server') && typeof wants['serverAlerts'] === 'boolean'
+          ? wants['serverAlerts']
+          : undefined;
+      const enabled =
+        typeof prefValue === 'boolean'
+          ? prefValue
+          : typeof fallback === 'boolean'
+            ? fallback
+            : (defaultPrefs[notifKey] ?? true);
       if (!enabled) return;
 
       const t = tForUser(targetUser);
 
-      const title = notifKey === 'serverErrors' ? t('notification.serverError') : notifKey === 'serverLifecycle' ? t('notification.serverEvent') : notifKey === 'serverActivity' ? t('notification.serverActivity') : notifKey === 'billing' ? t('notification.billingNotification') : notifKey === 'security' ? t('notification.securityAlert') : notifKey === 'productUpdates' ? t('notification.productUpdate') : notifKey === 'tickets' ? t('notification.ticketUpdate') : t('notification.title');
+      const title =
+        notifKey === 'serverErrors'
+          ? t('notification.serverError')
+          : notifKey === 'serverLifecycle'
+            ? t('notification.serverEvent')
+            : notifKey === 'serverActivity'
+              ? t('notification.serverActivity')
+              : notifKey === 'billing'
+                ? t('notification.billingNotification')
+                : notifKey === 'security'
+                  ? t('notification.securityAlert')
+                  : notifKey === 'productUpdates'
+                    ? t('notification.productUpdate')
+                    : notifKey === 'tickets'
+                      ? t('notification.ticketUpdate')
+                      : t('notification.title');
 
-      const formatted = entry.metadata ? formatMetadataForEmail(entry.metadata, entry.action, t) : null;
+      const formatted = entry.metadata
+        ? formatMetadataForEmail(entry.metadata, entry.action, t)
+        : null;
       const message = formatted?.message || `Event: ${entry.action}`;
       const details = formatted?.details || '';
 
@@ -318,229 +399,287 @@ export async function createActivityLog(opts: {
 }
 
 export async function logRoutes(app: any, prefix = '') {
-  app.post(prefix + '/logs', async (ctx: any) => {
-    const { userId, action, targetId, targetType, metadata, ipAddress } = (ctx.body as any) || {};
-    if (!action) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.actionRequired') };
+  app.post(
+    prefix + '/logs',
+    async (ctx: any) => {
+      const { userId, action, targetId, targetType, metadata, ipAddress } = (ctx.body as any) || {};
+      if (!action) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.actionRequired') };
+      }
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const log = logRepo.create({
+        userId: Number(userId) || undefined,
+        action,
+        targetId: String(targetId || ''),
+        targetType: String(targetType || ''),
+        metadata: metadata || {},
+        ipAddress: String(ipAddress || ''),
+        timestamp: new Date(),
+        isRead: false,
+      });
+      await logRepo.save(log);
+      return { success: true, log };
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Object({
+        action: t.String({ minLength: 1, maxLength: 100 }),
+        userId: t.Optional(t.Number()),
+        targetId: t.Optional(t.String()),
+        targetType: t.Optional(t.String()),
+        metadata: t.Optional(t.Any()),
+        ipAddress: t.Optional(t.String()),
+      }),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Create a new log entry (internal use)',
+        description: 'Internal endpoint for creating log entries. Not for public use.',
+        tags: ['Logs'],
+        hide: true,
+      },
     }
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const log = logRepo.create({
-      userId: Number(userId) || undefined,
-      action,
-      targetId: String(targetId || ''),
-      targetType: String(targetType || ''),
-      metadata: metadata || {},
-      ipAddress: String(ipAddress || ''),
-      timestamp: new Date(),
-      isRead: false,
-    });
-    await logRepo.save(log);
-    return { success: true, log };
-  }, {
-    beforeHandle: authenticate,
-    body: t.Object({
-      action: t.String({ minLength: 1, maxLength: 100 }),
-      userId: t.Optional(t.Number()),
-      targetId: t.Optional(t.String()),
-      targetType: t.Optional(t.String()),
-      metadata: t.Optional(t.Any()),
-      ipAddress: t.Optional(t.String()),
-    }),
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Create a new log entry (internal use)',
-      description: 'Internal endpoint for creating log entries. Not for public use.',
-      tags: ['Logs'],
-      hide: true
+  );
+
+  app.get(
+    prefix + '/users/:id/logs',
+    async (ctx: any) => {
+      const userId = Number(ctx.params['id']);
+      const requester = ctx.user as any;
+      if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      const { limit = '50', offset = '0', action, targetType, unread } = ctx.query as any;
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const qb = logRepo
+        .createQueryBuilder('log')
+        .where('log.userId = :userId', { userId })
+        .orderBy('log.timestamp', 'DESC')
+        .skip(Number(offset))
+        .take(Math.min(Number(limit), 200));
+      if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
+      if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
+      if (typeof unread !== 'undefined') {
+        const unreadVal = String(unread).toLowerCase();
+        qb.andWhere('log.isRead = :isRead', {
+          isRead: unreadVal === '1' || unreadVal === 'true' || unreadVal === 'yes' ? false : true,
+        });
+      }
+      const logs = await qb.getMany();
+      return logs;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Fetch activity logs for a given user', tags: ['Logs'] },
     }
-  });
+  );
 
-  app.get(prefix + '/users/:id/logs', async (ctx: any) => {
-    const userId = Number(ctx.params['id']);
-    const requester = ctx.user as any;
-    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
+  app.get(
+    prefix + '/users/:id/logs/unread-count',
+    async (ctx: any) => {
+      const userId = Number(ctx.params['id']);
+      const requester = ctx.user as any;
+      if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const unread = await logRepo
+        .createQueryBuilder('log')
+        .where('log.userId = :userId', { userId })
+        .andWhere('log.isRead = :isRead', { isRead: false })
+        .getCount();
+
+      return { unread };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Object({ unread: t.Number() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get unread user log count', tags: ['Logs'] },
     }
-    const { limit = '50', offset = '0', action, targetType, unread } = ctx.query as any;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const qb = logRepo.createQueryBuilder('log')
-      .where('log.userId = :userId', { userId })
-      .orderBy('log.timestamp', 'DESC')
-      .skip(Number(offset))
-      .take(Math.min(Number(limit), 200));
-    if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
-    if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
-    if (typeof unread !== 'undefined') {
-      const unreadVal = String(unread).toLowerCase();
-      qb.andWhere('log.isRead = :isRead', { isRead: unreadVal === '1' || unreadVal === 'true' || unreadVal === 'yes' ? false : true });
+  );
+
+  app.patch(
+    prefix + '/users/:id/logs/read-all',
+    async (ctx: any) => {
+      const userId = Number(ctx.params['id']);
+      const requester = ctx.user as any;
+      if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      const logRepo = AppDataSource.getRepository(UserLog);
+      await logRepo
+        .createQueryBuilder()
+        .update(UserLog)
+        .set({ isRead: true })
+        .where('userId = :userId', { userId })
+        .execute();
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Object({ success: t.Boolean() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Mark all user logs as read', tags: ['Logs'] },
     }
-    const logs = await qb.getMany();
-    return logs;
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch activity logs for a given user', tags: ['Logs'] }
-  });
+  );
 
-  app.get(prefix + '/users/:id/logs/unread-count', async (ctx: any) => {
-    const userId = Number(ctx.params['id']);
-    const requester = ctx.user as any;
-    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
+  app.patch(
+    prefix + '/users/:id/logs/:logId/read',
+    async (ctx: any) => {
+      const userId = Number(ctx.params['id']);
+      const logId = Number(ctx.params['logId']);
+      const requester = ctx.user as any;
+      if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const log = await logRepo.findOneBy({ id: logId, userId });
+      if (!log) {
+        ctx.set.status = 404;
+        return { error: ctx.t('common.notFound') };
+      }
+      log.isRead = true;
+      await logRepo.save(log);
+      return { success: true, log };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Any(),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Mark a single log notification as read', tags: ['Logs'] },
     }
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const unread = await logRepo.createQueryBuilder('log')
-      .where('log.userId = :userId', { userId })
-      .andWhere('log.isRead = :isRead', { isRead: false })
-      .getCount();
+  );
 
-    return { unread };
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Object({ unread: t.Number() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Get unread user log count', tags: ['Logs'] }
-  });
-
-  app.patch(prefix + '/users/:id/logs/read-all', async (ctx: any) => {
-    const userId = Number(ctx.params['id']);
-    const requester = ctx.user as any;
-    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
+  app.get(
+    prefix + '/servers/:id/logs',
+    async (ctx: any) => {
+      const serverId = ctx.params['id'] as string;
+      const { limit = '50', offset = '0' } = ctx.query as any;
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const logs = await logRepo
+        .createQueryBuilder('log')
+        .where('log.targetId = :serverId', { serverId })
+        .andWhere('log.targetType = :type', { type: 'server' })
+        .orderBy('log.timestamp', 'DESC')
+        .skip(Number(offset))
+        .take(Math.min(Number(limit), 200))
+        .getMany();
+      return logs;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()) },
+      detail: { summary: 'Fetch logs for a specific server', tags: ['Logs'] },
     }
-    const logRepo = AppDataSource.getRepository(UserLog);
-    await logRepo.createQueryBuilder()
-      .update(UserLog)
-      .set({ isRead: true })
-      .where('userId = :userId', { userId })
-      .execute();
-    return { success: true };
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Mark all user logs as read', tags: ['Logs'] }
-  });
+  );
 
-  app.patch(prefix + '/users/:id/logs/:logId/read', async (ctx: any) => {
-    const userId = Number(ctx.params['id']);
-    const logId = Number(ctx.params['logId']);
-    const requester = ctx.user as any;
-    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
+  app.get(
+    prefix + '/servers/:id/activity',
+    async (ctx: any) => {
+      const serverId = ctx.params['id'] as string;
+      const { limit = '50', offset = '0' } = ctx.query as any;
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const logs = await logRepo
+        .createQueryBuilder('log')
+        .leftJoinAndMapOne('log.user', User, 'user', 'user.id = log.userId')
+        .where('log.targetId = :serverId', { serverId })
+        .andWhere('log.targetType = :type', { type: 'server' })
+        .orderBy('log.timestamp', 'DESC')
+        .skip(Number(offset))
+        .take(Math.min(Number(limit), 200))
+        .getMany();
+      return logs;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()) },
+      detail: { summary: 'Fetch activity for a specific server (alias)', tags: ['Logs'] },
     }
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const log = await logRepo.findOneBy({ id: logId, userId });
-    if (!log) {
-      ctx.set.status = 404;
-      return { error: ctx.t('common.notFound') };
+  );
+
+  app.get(
+    prefix + '/organisations/:id/logs',
+    async (ctx: any) => {
+      const orgId = ctx.params['id'] as string;
+      const { limit = '50', offset = '0' } = ctx.query as any;
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const logs = await logRepo
+        .createQueryBuilder('log')
+        .where('log.targetId = :orgId', { orgId })
+        .andWhere('log.targetType = :type', { type: 'organisation' })
+        .orderBy('log.timestamp', 'DESC')
+        .skip(Number(offset))
+        .take(Math.min(Number(limit), 200))
+        .getMany();
+      return logs;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()) },
+      detail: { summary: 'Fetch logs for a specific organisation', tags: ['Logs'] },
     }
-    log.isRead = true;
-    await logRepo.save(log);
-    return { success: true, log };
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Any(), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Mark a single log notification as read', tags: ['Logs'] }
-  });
+  );
 
-  app.get(prefix + '/servers/:id/logs', async (ctx: any) => {
-    const serverId = ctx.params['id'] as string;
-    const { limit = '50', offset = '0' } = ctx.query as any;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const logs = await logRepo.createQueryBuilder('log')
-      .where('log.targetId = :serverId', { serverId })
-      .andWhere('log.targetType = :type', { type: 'server' })
-      .orderBy('log.timestamp', 'DESC')
-      .skip(Number(offset))
-      .take(Math.min(Number(limit), 200))
-      .getMany();
-    return logs;
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()) },
-    detail: { summary: 'Fetch logs for a specific server', tags: ['Logs'] }
-  });
-
-  app.get(prefix + '/servers/:id/activity', async (ctx: any) => {
-    const serverId = ctx.params['id'] as string;
-    const { limit = '50', offset = '0' } = ctx.query as any;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const logs = await logRepo.createQueryBuilder('log')
-      .leftJoinAndMapOne('log.user', User, 'user', 'user.id = log.userId')
-      .where('log.targetId = :serverId', { serverId })
-      .andWhere('log.targetType = :type', { type: 'server' })
-      .orderBy('log.timestamp', 'DESC')
-      .skip(Number(offset))
-      .take(Math.min(Number(limit), 200))
-      .getMany();
-    return logs;
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()) },
-    detail: { summary: 'Fetch activity for a specific server (alias)', tags: ['Logs'] }
-  });
-
-  app.get(prefix + '/organisations/:id/logs', async (ctx: any) => {
-    const orgId = ctx.params['id'] as string;
-    const { limit = '50', offset = '0' } = ctx.query as any;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const logs = await logRepo.createQueryBuilder('log')
-      .where('log.targetId = :orgId', { orgId })
-      .andWhere('log.targetType = :type', { type: 'organisation' })
-      .orderBy('log.timestamp', 'DESC')
-      .skip(Number(offset))
-      .take(Math.min(Number(limit), 200))
-      .getMany();
-    return logs;
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()) },
-    detail: { summary: 'Fetch logs for a specific organisation', tags: ['Logs'] }
-  });
-
-  app.get(prefix + '/organisations/:id/activity', async (ctx: any) => {
-    const orgId = ctx.params['id'] as string;
-    const { limit = '50', offset = '0' } = ctx.query as any;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const logs = await logRepo.createQueryBuilder('log')
-      .where('log.targetId = :orgId', { orgId })
-      .andWhere('log.targetType = :type', { type: 'organisation' })
-      .orderBy('log.timestamp', 'DESC')
-      .skip(Number(offset))
-      .take(Math.min(Number(limit), 200))
-      .getMany();
-    return logs;
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()) },
-    detail: { summary: 'Fetch activity for a specific organisation (alias)', tags: ['Logs'] }
-  });
-
-  app.get(prefix + '/users/:id/activity', async (ctx: any) => {
-    const userId = Number(ctx.params['id']);
-    const requester = ctx.user as any;
-    if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
+  app.get(
+    prefix + '/organisations/:id/activity',
+    async (ctx: any) => {
+      const orgId = ctx.params['id'] as string;
+      const { limit = '50', offset = '0' } = ctx.query as any;
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const logs = await logRepo
+        .createQueryBuilder('log')
+        .where('log.targetId = :orgId', { orgId })
+        .andWhere('log.targetType = :type', { type: 'organisation' })
+        .orderBy('log.timestamp', 'DESC')
+        .skip(Number(offset))
+        .take(Math.min(Number(limit), 200))
+        .getMany();
+      return logs;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()) },
+      detail: { summary: 'Fetch activity for a specific organisation (alias)', tags: ['Logs'] },
     }
-    const { limit = '50', offset = '0', action, targetType } = ctx.query as any;
-    const logRepo = AppDataSource.getRepository(UserLog);
-    const qb = logRepo.createQueryBuilder('log')
-      .where('log.userId = :userId', { userId })
-      .orderBy('log.timestamp', 'DESC')
-      .skip(Number(offset))
-      .take(Math.min(Number(limit), 200));
-    if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
-    if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
-    const logs = await qb.getMany();
-    return logs;
-  }, {
-   beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch activity logs for a given user (alias)', tags: ['Logs'] }
-  });
+  );
+
+  app.get(
+    prefix + '/users/:id/activity',
+    async (ctx: any) => {
+      const userId = Number(ctx.params['id']);
+      const requester = ctx.user as any;
+      if (requester.id !== userId && !hasPermissionSync(ctx, 'logs:read')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      const { limit = '50', offset = '0', action, targetType } = ctx.query as any;
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const qb = logRepo
+        .createQueryBuilder('log')
+        .where('log.userId = :userId', { userId })
+        .orderBy('log.timestamp', 'DESC')
+        .skip(Number(offset))
+        .take(Math.min(Number(limit), 200));
+      if (action) qb.andWhere('log.action LIKE :action', { action: `%${action}%` });
+      if (targetType) qb.andWhere('log.targetType = :targetType', { targetType });
+      const logs = await qb.getMany();
+      return logs;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Fetch activity logs for a given user (alias)', tags: ['Logs'] },
+    }
+  );
 }

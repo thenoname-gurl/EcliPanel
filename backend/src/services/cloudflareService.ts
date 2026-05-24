@@ -52,7 +52,9 @@ export class CloudflareService {
     let results: any[] = [];
 
     while (true) {
-      const resp = await this.request(`${path}${path.includes('?') ? '&' : '?'}page=${page}&per_page=${per_page}`);
+      const resp = await this.request(
+        `${path}${path.includes('?') ? '&' : '?'}page=${page}&per_page=${per_page}`
+      );
       if (!resp || !resp.result) break;
       results = results.concat(resp.result);
       const total_pages = resp.result_info?.total_pages ?? 1;
@@ -190,7 +192,14 @@ export class CloudflareService {
       proxied: !!r.proxied,
       records: [{ id: r.id, content: r.content }],
     }));
-    const recordsList = records.map((r: any) => ({ id: r.id, name: String(r.name || '').replace(/\.$/, ''), type: r.type, ttl: r.ttl, content: r.content, proxied: !!r.proxied }));
+    const recordsList = records.map((r: any) => ({
+      id: r.id,
+      name: String(r.name || '').replace(/\.$/, ''),
+      type: r.type,
+      ttl: r.ttl,
+      content: r.content,
+      proxied: !!r.proxied,
+    }));
     const resultZone = { ...zone.result, rrsets, recordsList } as any;
     if (resultZone.name) resultZone.name = String(resultZone.name).replace(/\.$/, '');
     return resultZone;
@@ -206,7 +215,10 @@ export class CloudflareService {
     if (record.proxied !== undefined) {
       body.proxied = record.proxied;
     }
-    const resp = await this.request(`/zones/${zoneId}/dns_records`, { method: 'POST', body: JSON.stringify(body) });
+    const resp = await this.request(`/zones/${zoneId}/dns_records`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
     const res = resp.result;
     if (res && res.name) res.name = String(res.name).replace(/\.$/, '');
     return res;
@@ -220,14 +232,19 @@ export class CloudflareService {
       ttl: record.ttl ?? 3600,
     };
     if (record.proxied !== undefined) body.proxied = record.proxied;
-    const resp = await this.request(`/zones/${zoneId}/dns_records/${recordId}`, { method: 'PUT', body: JSON.stringify(body) });
+    const resp = await this.request(`/zones/${zoneId}/dns_records/${recordId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
     const res = resp.result;
     if (res && res.name) res.name = String(res.name).replace(/\.$/, '');
     return res;
   }
 
   async deleteRecord(zoneId: string, recordId: string) {
-    const resp = await this.request(`/zones/${zoneId}/dns_records/${recordId}`, { method: 'DELETE' });
+    const resp = await this.request(`/zones/${zoneId}/dns_records/${recordId}`, {
+      method: 'DELETE',
+    });
     return resp.result;
   }
 

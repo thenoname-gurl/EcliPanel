@@ -16,11 +16,11 @@ export class Role {
   @Column({ nullable: true })
   parentRoleId?: number;
 
-  @ManyToOne(() => Role, (role) => role.children, { nullable: true })
+  @ManyToOne(() => Role, role => role.children, { nullable: true })
   @JoinColumn({ name: 'parentRoleId' })
   parentRole?: Role;
 
-  @OneToMany(() => Role, (role) => role.parentRole)
+  @OneToMany(() => Role, role => role.parentRole)
   children?: Role[];
 
   @OneToMany(() => require('./permission.entity').Permission, (perm: any) => perm.role)

@@ -26,8 +26,14 @@ const COLORS = {
 
 function drawRoundedRect(
   doc: any,
-  x: number, y: number, w: number, h: number,
-  r: number, fill?: string, stroke?: string, strokeWidth = 0.5,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  fill?: string,
+  stroke?: string,
+  strokeWidth = 0.5
 ) {
   doc.save();
   if (fill) {
@@ -39,14 +45,9 @@ function drawRoundedRect(
   doc.restore();
 }
 
-function drawDottedLine(
-  doc: any,
-  x1: number, y: number, x2: number, color: string,
-) {
+function drawDottedLine(doc: any, x1: number, y: number, x2: number, color: string) {
   doc.save();
-  doc.strokeColor(color).lineWidth(0.5)
-    .moveTo(x1, y).lineTo(x2, y)
-    .dash(2, { space: 3 }).stroke();
+  doc.strokeColor(color).lineWidth(0.5).moveTo(x1, y).lineTo(x2, y).dash(2, { space: 3 }).stroke();
   doc.restore();
 }
 
@@ -149,12 +150,19 @@ self.addEventListener('message', async (ev: any) => {
     doc.circle(M + 46, dotsY, 4).fill(COLORS.success);
     doc.restore();
 
-    doc.font('Helvetica').fontSize(7).fillColor(COLORS.textDim)
+    doc
+      .font('Helvetica')
+      .fontSize(7)
+      .fillColor(COLORS.textDim)
       .text('invoice.pdf', M + 58, dotsY - 3);
 
     doc.save();
-    doc.moveTo(M + 1, curY + 26).lineTo(M + CW - 1, curY + 26)
-      .strokeColor(COLORS.border).lineWidth(0.5).stroke();
+    doc
+      .moveTo(M + 1, curY + 26)
+      .lineTo(M + CW - 1, curY + 26)
+      .strokeColor(COLORS.border)
+      .lineWidth(0.5)
+      .stroke();
     doc.restore();
 
     let logoRendered = false;
@@ -163,31 +171,51 @@ self.addEventListener('message', async (ev: any) => {
         doc.image(logoPath, M + 15, curY + 36, { height: 40 });
         logoRendered = true;
       }
-    } catch { }
+    } catch {}
 
     const nameX = logoRendered ? M + 65 : M + 15;
-    const name = companyName || (process.env.COMPANY_NAME || 'Eclipse Systems');
+    const name = companyName || process.env.COMPANY_NAME || 'Eclipse Systems';
 
-    doc.font('Helvetica-Bold').fontSize(18).fillColor(COLORS.primary)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(18)
+      .fillColor(COLORS.primary)
       .text(name, nameX, curY + 40, { width: 260 });
-    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textDim)
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor(COLORS.textDim)
       .text('Hosting & Cloud Infrastructure', nameX, curY + 60, { width: 260 });
 
-    doc.font('Helvetica-Bold').fontSize(28).fillColor(COLORS.accent)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(28)
+      .fillColor(COLORS.accent)
       .text('INVOICE', M + CW - 200, curY + 36, { width: 185, align: 'right' });
 
     const issuedAt = order.createdAt ? new Date(order.createdAt) : new Date();
-    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMedium)
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor(COLORS.textMedium)
       .text(`#${order.id}`, M + CW - 200, curY + 68, { width: 185, align: 'right' });
     doc.text(
       issuedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      M + CW - 200, curY + 80, { width: 185, align: 'right' },
+      M + CW - 200,
+      curY + 80,
+      { width: 185, align: 'right' }
     );
 
-    const statusText = order.status === 'paid' || order.status === 'completed'
-      ? 'PAID' : (order.status?.toUpperCase() || 'PENDING');
-    const badgeColor = statusText === 'PAID' ? COLORS.success
-      : statusText === 'PENDING' ? COLORS.warning : COLORS.error;
+    const statusText =
+      order.status === 'paid' || order.status === 'completed'
+        ? 'PAID'
+        : order.status?.toUpperCase() || 'PENDING';
+    const badgeColor =
+      statusText === 'PAID'
+        ? COLORS.success
+        : statusText === 'PENDING'
+          ? COLORS.warning
+          : COLORS.error;
 
     curY += headerH + 10;
 
@@ -195,7 +223,10 @@ self.addEventListener('message', async (ev: any) => {
     const badgeH = 22;
     const badgeX = M + CW - badgeW;
     drawRoundedRect(doc, badgeX, curY, badgeW, badgeH, 4, undefined, badgeColor, 1);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(badgeColor)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(badgeColor)
       .text(statusText, badgeX, curY + 6, { width: badgeW, align: 'center' });
 
     curY += badgeH + 15;
@@ -204,7 +235,17 @@ self.addEventListener('message', async (ev: any) => {
     const infoCardW = (CW - 15) / 2;
 
     drawRoundedRect(doc, M, curY, infoCardW, infoCardH, 6, COLORS.bgCard, COLORS.border, 0.5);
-    drawRoundedRect(doc, M + infoCardW + 15, curY, infoCardW, infoCardH, 6, COLORS.bgCard, COLORS.border, 0.5);
+    drawRoundedRect(
+      doc,
+      M + infoCardW + 15,
+      curY,
+      infoCardW,
+      infoCardH,
+      6,
+      COLORS.bgCard,
+      COLORS.border,
+      0.5
+    );
 
     const issued = issuedFrom || {
       name: process.env.INVOICE_ISSUED_FROM_NAME || process.env.COMPANY_NAME || '',
@@ -220,63 +261,95 @@ self.addEventListener('message', async (ev: any) => {
     if (issued.email) fromLines.push(issued.email);
 
     let fY = curY + 12;
-    doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.accent)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7)
+      .fillColor(COLORS.accent)
       .text('# FROM', M + 14, fY);
     drawDottedLine(doc, M + 14, fY + 12, M + infoCardW - 14, COLORS.border);
     fY += 18;
     if (fromLines.length) {
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text)
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor(COLORS.text)
         .text(fromLines[0], M + 14, fY, { width: infoCardW - 28 });
       fY += 14;
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMedium)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(COLORS.textMedium)
         .text(fromLines.slice(1).join('\n'), M + 14, fY, { width: infoCardW - 28, lineGap: 3 });
     }
 
     const billCardX = M + infoCardW + 15;
     let bY = curY + 12;
-    doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.accent)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7)
+      .fillColor(COLORS.accent)
       .text('# BILL TO', billCardX + 14, bY);
     drawDottedLine(doc, billCardX + 14, bY + 12, billCardX + infoCardW - 14, COLORS.border);
     bY += 18;
 
     const fullNameParts = [user?.firstName, user?.middleName, user?.lastName].filter(Boolean);
-    const displayName = fullNameParts.length ? fullNameParts.join(' ') : (user?.email || 'Customer');
+    const displayName = fullNameParts.length ? fullNameParts.join(' ') : user?.email || 'Customer';
     const billLines: string[] = [displayName];
     if (user?.billingCompany) billLines.push(user.billingCompany);
     if (user?.address) billLines.push(user.address);
     if (user?.address2) billLines.push(user.address2);
-    const cityLine = [user?.billingCity, user?.billingState, user?.billingZip].filter(Boolean).join(', ');
+    const cityLine = [user?.billingCity, user?.billingState, user?.billingZip]
+      .filter(Boolean)
+      .join(', ');
     if (cityLine) billLines.push(cityLine);
     if (user?.billingCountry) billLines.push(user.billingCountry);
     if (user?.email) billLines.push(user.email);
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(COLORS.text)
       .text(billLines[0], billCardX + 14, bY, { width: infoCardW - 28 });
     bY += 14;
     if (billLines.length > 1) {
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMedium)
-        .text(billLines.slice(1).join('\n'), billCardX + 14, bY, { width: infoCardW - 28, lineGap: 3 });
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(COLORS.textMedium)
+        .text(billLines.slice(1).join('\n'), billCardX + 14, bY, {
+          width: infoCardW - 28,
+          lineGap: 3,
+        });
     }
 
     curY += infoCardH + 20;
 
     let items: any[] = [];
-    try { items = JSON.parse(order.items); } catch { items = []; }
+    try {
+      items = JSON.parse(order.items);
+    } catch {
+      items = [];
+    }
     if (!Array.isArray(items)) items = [];
     if (items.length === 0 && order.description) {
-      items = [{
-        description: order.description || 'Service',
-        quantity: 1,
-        price: Number(order.amount ?? 0),
-      }];
+      items = [
+        {
+          description: order.description || 'Service',
+          quantity: 1,
+          price: Number(order.amount ?? 0),
+        },
+      ];
     }
 
     const ROW_H = 28;
     const HEADER_ROW_H = 30;
-    const tableContentH = HEADER_ROW_H + (items.length * ROW_H) + 4;
+    const tableContentH = HEADER_ROW_H + items.length * ROW_H + 4;
     drawRoundedRect(doc, M, curY, CW, tableContentH + 30, 6, COLORS.bgCard, COLORS.border, 0.5);
 
-    doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.accent)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7)
+      .fillColor(COLORS.accent)
       .text('# LINE ITEMS', M + 14, curY + 10);
     drawDottedLine(doc, M + 14, curY + 22, M + CW - 14, COLORS.border);
 
@@ -284,8 +357,8 @@ self.addEventListener('message', async (ev: any) => {
 
     const TBL = {
       desc: { x: M + 14, w: CW * 0.44 },
-      qty: { x: M + 14 + CW * 0.48, w: CW * 0.10 },
-      price: { x: M + 14 + CW * 0.60, w: CW * 0.16 },
+      qty: { x: M + 14 + CW * 0.48, w: CW * 0.1 },
+      price: { x: M + 14 + CW * 0.6, w: CW * 0.16 },
       total: { x: M + 14 + CW * 0.78, w: CW * 0.18 },
     };
 
@@ -315,21 +388,37 @@ self.addEventListener('message', async (ev: any) => {
 
       const rTextY = curY + 8;
 
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.accent)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(COLORS.accent)
         .text('→', TBL.desc.x - 1, rTextY, { width: 12 });
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.text)
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(COLORS.text)
         .text(desc, TBL.desc.x + 14, rTextY, { width: TBL.desc.w - 14, lineBreak: false });
-      doc.fillColor(COLORS.textMedium)
+      doc
+        .fillColor(COLORS.textMedium)
         .text(String(qty), TBL.qty.x, rTextY, { width: TBL.qty.w, align: 'center' });
-      doc.fillColor(COLORS.textMedium)
+      doc
+        .fillColor(COLORS.textMedium)
         .text(`$${price.toFixed(2)}`, TBL.price.x, rTextY, { width: TBL.price.w, align: 'right' });
-      doc.font('Helvetica-Bold').fillColor(COLORS.primary)
-        .text(`$${lineTotal.toFixed(2)}`, TBL.total.x, rTextY, { width: TBL.total.w, align: 'right' });
+      doc
+        .font('Helvetica-Bold')
+        .fillColor(COLORS.primary)
+        .text(`$${lineTotal.toFixed(2)}`, TBL.total.x, rTextY, {
+          width: TBL.total.w,
+          align: 'right',
+        });
 
       doc.save();
-      doc.moveTo(M + 14, curY + ROW_H)
+      doc
+        .moveTo(M + 14, curY + ROW_H)
         .lineTo(M + CW - 14, curY + ROW_H)
-        .strokeColor(COLORS.borderDim).lineWidth(0.3).stroke();
+        .strokeColor(COLORS.borderDim)
+        .lineWidth(0.3)
+        .stroke();
       doc.restore();
 
       curY += ROW_H;
@@ -346,32 +435,48 @@ self.addEventListener('message', async (ev: any) => {
     let totalsLines = 1;
     if (tax > 0) totalsLines++;
     if (discount > 0) totalsLines++;
-    const totalsCardH = (totalsLines * 22) + 50;
-    drawRoundedRect(doc, totalsCardX, curY, totalsCardW, totalsCardH, 6, COLORS.bgCard, COLORS.border, 0.5);
+    const totalsCardH = totalsLines * 22 + 50;
+    drawRoundedRect(
+      doc,
+      totalsCardX,
+      curY,
+      totalsCardW,
+      totalsCardH,
+      6,
+      COLORS.bgCard,
+      COLORS.border,
+      0.5
+    );
 
     let tY = curY + 12;
     const tLabelX = totalsCardX + 14;
     const tValX = totalsCardX + totalsCardW - 14;
     const tValW = 90;
 
-    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textDim)
-      .text('Subtotal', tLabelX, tY);
-    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMedium)
+    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textDim).text('Subtotal', tLabelX, tY);
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor(COLORS.textMedium)
       .text(`$${subtotal.toFixed(2)}`, tValX - tValW, tY, { width: tValW, align: 'right' });
     tY += 22;
 
     if (tax > 0) {
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.textDim)
-        .text('Tax', tLabelX, tY);
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMedium)
+      doc.font('Helvetica').fontSize(8).fillColor(COLORS.textDim).text('Tax', tLabelX, tY);
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(COLORS.textMedium)
         .text(`$${tax.toFixed(2)}`, tValX - tValW, tY, { width: tValW, align: 'right' });
       tY += 22;
     }
 
     if (discount > 0) {
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.success)
-        .text('Discount', tLabelX, tY);
-      doc.font('Helvetica').fontSize(8).fillColor(COLORS.success)
+      doc.font('Helvetica').fontSize(8).fillColor(COLORS.success).text('Discount', tLabelX, tY);
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(COLORS.success)
         .text(`-$${discount.toFixed(2)}`, tValX - tValW, tY, { width: tValW, align: 'right' });
       tY += 22;
     }
@@ -380,11 +485,30 @@ self.addEventListener('message', async (ev: any) => {
     tY += 8;
 
     const totalBoxH = 30;
-    drawRoundedRect(doc, tLabelX - 4, tY, totalsCardW - 20, totalBoxH, 4, COLORS.primaryFaint, COLORS.primary, 1);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.accent)
+    drawRoundedRect(
+      doc,
+      tLabelX - 4,
+      tY,
+      totalsCardW - 20,
+      totalBoxH,
+      4,
+      COLORS.primaryFaint,
+      COLORS.primary,
+      1
+    );
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .fillColor(COLORS.accent)
       .text('TOTAL', tLabelX + 6, tY + 8);
-    doc.font('Helvetica-Bold').fontSize(14).fillColor(COLORS.primary)
-      .text(`$${amount.toFixed(2)}`, tValX - tValW - 10, tY + 6, { width: tValW + 10, align: 'right' });
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(14)
+      .fillColor(COLORS.primary)
+      .text(`$${amount.toFixed(2)}`, tValX - tValW - 10, tY + 6, {
+        width: tValW + 10,
+        align: 'right',
+      });
 
     curY += totalsCardH + 20;
 
@@ -398,12 +522,19 @@ self.addEventListener('message', async (ev: any) => {
       doc.circle(M + 28, pdY, 3).fill(COLORS.warning);
       doc.circle(M + 38, pdY, 3).fill(COLORS.success);
       doc.restore();
-      doc.font('Helvetica').fontSize(6).fillColor(COLORS.textDim)
+      doc
+        .font('Helvetica')
+        .fontSize(6)
+        .fillColor(COLORS.textDim)
         .text('payment_details', M + 48, pdY - 2);
 
       doc.save();
-      doc.moveTo(M + 1, curY + 22).lineTo(M + CW - 1, curY + 22)
-        .strokeColor(COLORS.border).lineWidth(0.3).stroke();
+      doc
+        .moveTo(M + 1, curY + 22)
+        .lineTo(M + CW - 1, curY + 22)
+        .strokeColor(COLORS.border)
+        .lineWidth(0.3)
+        .stroke();
       doc.restore();
 
       let dY = curY + 30;
@@ -435,25 +566,40 @@ self.addEventListener('message', async (ev: any) => {
     drawRoundedRect(doc, M, footerY, CW, 50, 6, COLORS.bgCard, COLORS.border, 0.5);
 
     doc.save();
-    doc.moveTo(M + 14, footerY + 1).lineTo(M + CW - 14, footerY + 1)
-      .strokeColor(COLORS.primary).lineWidth(1.5).stroke();
+    doc
+      .moveTo(M + 14, footerY + 1)
+      .lineTo(M + CW - 14, footerY + 1)
+      .strokeColor(COLORS.primary)
+      .lineWidth(1.5)
+      .stroke();
     doc.restore();
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.primary)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(COLORS.primary)
       .text('Thank you for your business!', M, footerY + 14, { width: CW, align: 'center' });
 
     const footerParts: string[] = [];
     if (issued.name) footerParts.push(issued.name);
     if (issued.email) footerParts.push(issued.email);
     if (footerParts.length) {
-      doc.font('Helvetica').fontSize(7).fillColor(COLORS.textDim)
+      doc
+        .font('Helvetica')
+        .fontSize(7)
+        .fillColor(COLORS.textDim)
         .text(footerParts.join('  •  '), M, footerY + 28, { width: CW, align: 'center' });
     }
 
-    doc.font('Helvetica').fontSize(6).fillColor(COLORS.textFaint)
+    doc
+      .font('Helvetica')
+      .fontSize(6)
+      .fillColor(COLORS.textFaint)
       .text(
         `Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}  |  Powered by EcliPanel`,
-        M, footerY + 40, { width: CW, align: 'center' },
+        M,
+        footerY + 40,
+        { width: CW, align: 'center' }
       );
 
     doc.end();

@@ -17,7 +17,9 @@ export const SUPPORTED_SSH_KEY_TYPES = [
   'ecdsa-sha2-nistp521-cert-v01@openssh.com',
 ];
 
-export function parseSshPublicKey(publicKey: string): { type: string; material: string; comment?: string } | null {
+export function parseSshPublicKey(
+  publicKey: string
+): { type: string; material: string; comment?: string } | null {
   if (!publicKey || typeof publicKey !== 'string') return null;
   const trimmed = publicKey.trim();
   if (!trimmed) return null;

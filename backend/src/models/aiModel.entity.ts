@@ -21,7 +21,13 @@ export class AIModel {
   apiKey?: string;
 
   @Column('json', { nullable: true })
-  endpoints?: Array<{ id?: string; endpoint?: string; url?: string; apiKey?: string; key?: string }>;
+  endpoints?: Array<{
+    id?: string;
+    endpoint?: string;
+    url?: string;
+    apiKey?: string;
+    key?: string;
+  }>;
 
   @Column('json', { nullable: true })
   tags?: string[];

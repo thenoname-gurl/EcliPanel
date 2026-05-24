@@ -13,7 +13,7 @@ function loadFile(locale: Locale): Promise<Messages> {
 
 export async function preloadAll(): Promise<void> {
   await Promise.all(
-    locales.map(async (locale) => {
+    locales.map(async locale => {
       const data = await loadFile(locale);
       cache.set(locale, data);
     })

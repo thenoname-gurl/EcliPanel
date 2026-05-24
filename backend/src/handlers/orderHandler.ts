@@ -15,10 +15,19 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
   try {
     const userRepo = AppDataSource.getRepository(User as any);
     const u = await userRepo.findOneBy({ id: order.userId }).catch(() => null);
-    const defaultLogo = path.resolve(import.meta.dir, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+    const defaultLogo = path.resolve(
+      import.meta.dir,
+      '..',
+      '..',
+      '..',
+      'frontend',
+      'public',
+      'assets',
+      'icons',
+      'logo.png'
+    );
     const logoPath = process.env.INVOICE_LOGO_PATH
       ? path.resolve(process.env.INVOICE_LOGO_PATH)
-
       : defaultLogo;
     const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
     const issuedFrom = {
@@ -40,10 +49,26 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       doc.on('data', (d: Uint8Array) => bufs.push(d));
       doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-      const defaultLogo = path.resolve(import.meta.dir, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
-      const logoPath = process.env.INVOICE_LOGO_PATH ? path.resolve(process.env.INVOICE_LOGO_PATH) : defaultLogo;
+      const defaultLogo = path.resolve(
+        import.meta.dir,
+        '..',
+        '..',
+        '..',
+        'frontend',
+        'public',
+        'assets',
+        'icons',
+        'logo.png'
+      );
+      const logoPath = process.env.INVOICE_LOGO_PATH
+        ? path.resolve(process.env.INVOICE_LOGO_PATH)
+        : defaultLogo;
       if (Bun.file(logoPath).size !== -1) {
-        try { doc.image(logoPath, 50, 45, { width: 90 }); } catch (e) { /* skip */ }
+        try {
+          doc.image(logoPath, 50, 45, { width: 90 });
+        } catch (e) {
+          /* skip */
+        }
       }
       const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
       doc.fontSize(16).text(companyName, 150, 50);
@@ -75,67 +100,80 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       doc.fontSize(12).fillColor('black').text('Bill To:', 50, 140);
       try {
         const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
-        userRepo.findOneBy({ id: order.userId }).then((u: any) => {
-          const fullNameParts = [u?.firstName, u?.middleName, u?.lastName].filter(Boolean as any);
-          const name = fullNameParts.length ? fullNameParts.join(' ') : u?.email || 'Customer';
-          const lines = [name];
-          if (u?.billingCompany) lines.push(u.billingCompany);
-          if (u?.address) lines.push(u.address);
-          if (u?.address2) lines.push(u.address2);
-          const city = [u?.billingCity, u?.billingState, u?.billingZip].filter(Boolean).join(', ');
-          if (city) lines.push(city);
-          if (u?.billingCountry) lines.push(u.billingCountry);
-          doc.fontSize(10).fillColor('black').text(lines.join('\n'), 50, 155);
+        userRepo
+          .findOneBy({ id: order.userId })
+          .then((u: any) => {
+            const fullNameParts = [u?.firstName, u?.middleName, u?.lastName].filter(Boolean as any);
+            const name = fullNameParts.length ? fullNameParts.join(' ') : u?.email || 'Customer';
+            const lines = [name];
+            if (u?.billingCompany) lines.push(u.billingCompany);
+            if (u?.address) lines.push(u.address);
+            if (u?.address2) lines.push(u.address2);
+            const city = [u?.billingCity, u?.billingState, u?.billingZip]
+              .filter(Boolean)
+              .join(', ');
+            if (city) lines.push(city);
+            if (u?.billingCountry) lines.push(u.billingCountry);
+            doc.fontSize(10).fillColor('black').text(lines.join('\n'), 50, 155);
 
-          doc.moveDown(4);
-          doc.fontSize(12).text('Items', 50);
-          doc.moveDown(0.5);
+            doc.moveDown(4);
+            doc.fontSize(12).text('Items', 50);
+            doc.moveDown(0.5);
 
-          let items: any[] = [];
-          try { items = JSON.parse(order.items); } catch { items = []; }
-          if (!Array.isArray(items) || items.length === 0) {
-            const desc = order.description || order.items || 'Order';
-            doc.fontSize(10).text(desc, { continued: false });
-          } else {
-            const startY = doc.y;
-            const tableX = 50;
-            doc.fontSize(10);
-            items.forEach((it: any, i: number) => {
-              const desc = it.description || it.name || JSON.stringify(it);
-              const qty = it.quantity ?? it.qty ?? 1;
-              const price = Number(it.price ?? it.unit_price ?? 0);
-              const lineTotal = qty * price;
-              const y = startY + i * 18;
-              doc.text(desc, tableX, y, { width: 300 });
-              doc.text(String(qty), tableX + 320, y);
-              doc.text((price).toFixed(2), tableX + 360, y, { width: 60, align: 'right' });
-              doc.text((lineTotal).toFixed(2), tableX + 430, y, { width: 60, align: 'right' });
-            });
-            doc.moveDown(items.length * 0.8 + 1);
-          }
+            let items: any[] = [];
+            try {
+              items = JSON.parse(order.items);
+            } catch {
+              items = [];
+            }
+            if (!Array.isArray(items) || items.length === 0) {
+              const desc = order.description || order.items || 'Order';
+              doc.fontSize(10).text(desc, { continued: false });
+            } else {
+              const startY = doc.y;
+              const tableX = 50;
+              doc.fontSize(10);
+              items.forEach((it: any, i: number) => {
+                const desc = it.description || it.name || JSON.stringify(it);
+                const qty = it.quantity ?? it.qty ?? 1;
+                const price = Number(it.price ?? it.unit_price ?? 0);
+                const lineTotal = qty * price;
+                const y = startY + i * 18;
+                doc.text(desc, tableX, y, { width: 300 });
+                doc.text(String(qty), tableX + 320, y);
+                doc.text(price.toFixed(2), tableX + 360, y, { width: 60, align: 'right' });
+                doc.text(lineTotal.toFixed(2), tableX + 430, y, { width: 60, align: 'right' });
+              });
+              doc.moveDown(items.length * 0.8 + 1);
+            }
 
-          const amount = Number(order.amount ?? 0);
-          doc.moveDown();
-          const totX = 400;
-          doc.fontSize(10).text('Subtotal:', totX, doc.y, { align: 'right' });
-          doc.text(amount.toFixed(2), totX + 80, doc.y, { align: 'right' });
-          doc.moveDown();
-          doc.fontSize(12).text('Total:', totX, doc.y, { align: 'right' });
-          doc.text(amount.toFixed(2), totX + 80, doc.y, { align: 'right' });
+            const amount = Number(order.amount ?? 0);
+            doc.moveDown();
+            const totX = 400;
+            doc.fontSize(10).text('Subtotal:', totX, doc.y, { align: 'right' });
+            doc.text(amount.toFixed(2), totX + 80, doc.y, { align: 'right' });
+            doc.moveDown();
+            doc.fontSize(12).text('Total:', totX, doc.y, { align: 'right' });
+            doc.text(amount.toFixed(2), totX + 80, doc.y, { align: 'right' });
 
-          doc.moveDown(2);
-          doc.fontSize(9).fillColor('gray').text('Thank you for your business.', 50, doc.y);
+            doc.moveDown(2);
+            doc.fontSize(9).fillColor('gray').text('Thank you for your business.', 50, doc.y);
 
-          doc.end();
-        }).catch(() => {
-          doc.fontSize(10).text(order.description || order.items || 'Order details not available');
-          doc.end();
-        });
+            doc.end();
+          })
+          .catch(() => {
+            doc
+              .fontSize(10)
+              .text(order.description || order.items || 'Order details not available');
+            doc.end();
+          });
       } catch (e) {
         doc.fontSize(10).text(order.description || order.items || 'Order details not available');
         doc.end();
       }
-    } catch (e) { reject(e); }
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
@@ -157,7 +195,11 @@ function deriveDescriptionFromItems(itemsStr: string | undefined) {
 }
 
 function normalizeOrder(o: any) {
-  const date = o.createdAt ? (o.createdAt instanceof Date ? o.createdAt.toISOString() : new Date(o.createdAt).toISOString()) : new Date().toISOString();
+  const date = o.createdAt
+    ? o.createdAt instanceof Date
+      ? o.createdAt.toISOString()
+      : new Date(o.createdAt).toISOString()
+    : new Date().toISOString();
   const desc = o.description || deriveDescriptionFromItems(o.items) || 'Order';
   return {
     ...o,
@@ -168,7 +210,9 @@ function normalizeOrder(o: any) {
 
 export async function orderRoutes(app: any, prefix = '') {
   const orderRepo = AppDataSource.getRepository(Order);
-  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+  const orgMemberRepo = AppDataSource.getRepository(
+    require('../models/organisationMember.entity').OrganisationMember
+  );
 
   async function getOrgMembershipRole(userId: number, orgId: number): Promise<string | null> {
     const m = await orgMemberRepo.findOne({ where: { userId, organisationId: orgId } });
@@ -183,160 +227,207 @@ export async function orderRoutes(app: any, prefix = '') {
       .filter((v: number) => Number.isFinite(v));
   }
 
-  app.post(prefix + '/orders', async (ctx: any) => {
-    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
-    const user = ctx.user as any;
-    const body = ctx.body as Partial<Order>;
+  app.post(
+    prefix + '/orders',
+    async (ctx: any) => {
+      const f = await requireFeature(ctx, 'billing');
+      if (f !== true) return f;
+      const user = ctx.user as any;
+      const body = ctx.body as Partial<Order>;
 
-    if (user.parentId) {
-      if (body.orgId) {
-        ctx.set.status = 403;
-        return { error: 'child_accounts_cannot_create_org_orders', message: ctx.t('orders.childCannotCreateOrg') };
-      }
-      if (body.amount != null && Number(body.amount) > 0) {
-        ctx.set.status = 403;
-        return { error: 'child_accounts_cannot_create_paid_orders', message: ctx.t('orders.childCanOnlyFreeOrEdu') };
-      }
-      if (body.planId != null) {
-        const planRepo = AppDataSource.getRepository(Plan);
-        const plan = await planRepo.findOneBy({ id: Number(body.planId) });
-        if (!plan) {
-          ctx.set.status = 400;
-          return { error: 'invalid_plan_id', message: ctx.t('orders.planNotFound') };
-        }
-        const allowedTypes = ['free', 'edu'];
-        if (!allowedTypes.includes(String(plan.type).toLowerCase())) {
+      if (user.parentId) {
+        if (body.orgId) {
           ctx.set.status = 403;
-          return { error: 'child_accounts_can_only_order_free_or_edu_plans', message: ctx.t('orders.childCanOnlyOrderFreeOrEdu') };
+          return {
+            error: 'child_accounts_cannot_create_org_orders',
+            message: ctx.t('orders.childCannotCreateOrg'),
+          };
+        }
+        if (body.amount != null && Number(body.amount) > 0) {
+          ctx.set.status = 403;
+          return {
+            error: 'child_accounts_cannot_create_paid_orders',
+            message: ctx.t('orders.childCanOnlyFreeOrEdu'),
+          };
+        }
+        if (body.planId != null) {
+          const planRepo = AppDataSource.getRepository(Plan);
+          const plan = await planRepo.findOneBy({ id: Number(body.planId) });
+          if (!plan) {
+            ctx.set.status = 400;
+            return { error: 'invalid_plan_id', message: ctx.t('orders.planNotFound') };
+          }
+          const allowedTypes = ['free', 'edu'];
+          if (!allowedTypes.includes(String(plan.type).toLowerCase())) {
+            ctx.set.status = 403;
+            return {
+              error: 'child_accounts_can_only_order_free_or_edu_plans',
+              message: ctx.t('orders.childCanOnlyOrderFreeOrEdu'),
+            };
+          }
         }
       }
-    }
 
-    if (body.orgId) {
-      const role = await getOrgMembershipRole(user.id, Number(body.orgId));
-      if (!role) {
-        ctx.set.status = 403;
-        return { error: ctx.t('organisation.notOwner') };
+      if (body.orgId) {
+        const role = await getOrgMembershipRole(user.id, Number(body.orgId));
+        if (!role) {
+          ctx.set.status = 403;
+          return { error: ctx.t('organisation.notOwner') };
+        }
+        if (role !== 'admin' && role !== 'owner') {
+          ctx.set.status = 403;
+          return { error: ctx.t('organisation.insufficientPrivileges') };
+        }
       }
-      if (role !== 'admin' && role !== 'owner') {
-        ctx.set.status = 403;
-        return { error: ctx.t('organisation.insufficientPrivileges') };
+
+      const { orgId, items, amount, description, planId, notes } = body as any;
+      const order = orderRepo.create({
+        orgId,
+        items,
+        amount,
+        description,
+        planId,
+        notes,
+        userId: user.id,
+        status: 'pending',
+        createdAt: new Date(),
+        expiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 10)),
+      });
+      await orderRepo.save(order);
+      return { success: true, order: normalizeOrder(order) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('orders:create')],
+      response: {
+        200: t.Object({ success: t.Boolean(), order: t.Any() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Create order', tags: ['Orders'] },
+    }
+  );
+
+  app.get(
+    prefix + '/orders',
+    async (ctx: any) => {
+      const f = await requireFeature(ctx, 'billing');
+      if (f !== true) return f;
+      const user = ctx.user as any;
+      let rows: any[] = [];
+      const managedOrgIds = await getManagedOrgIds(user.id);
+      if (managedOrgIds.length > 0) {
+        rows = await orderRepo.find({
+          where: [{ userId: user.id }, ...managedOrgIds.map(orgId => ({ orgId }))] as any,
+        });
+      } else {
+        rows = await orderRepo.find({ where: { userId: user.id } });
       }
+      return rows.map(normalizeOrder);
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Array(t.Any()),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List orders', tags: ['Orders'] },
     }
+  );
 
-    const { orgId, items, amount, description, planId, notes } = body as any;
-    const order = orderRepo.create({
-      orgId,
-      items,
-      amount,
-      description,
-      planId,
-      notes,
-      userId: user.id,
-      status: 'pending',
-      createdAt: new Date(),
-      expiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 10)),
-    });
-    await orderRepo.save(order);
-    return { success: true, order: normalizeOrder(order) };
-  }, {
-    beforeHandle: [authenticate, authorize('orders:create')],
-    response: { 200: t.Object({ success: t.Boolean(), order: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'Create order', tags: ['Orders'] }
-  });
-
-  app.get(prefix + '/orders', async (ctx: any) => {
-    const f = await requireFeature(ctx, 'billing'); if (f !== true) return f;
-    const user = ctx.user as any;
-    let rows: any[] = [];
-    const managedOrgIds = await getManagedOrgIds(user.id);
-    if (managedOrgIds.length > 0) {
-      rows = await orderRepo.find({ where: [{ userId: user.id }, ...managedOrgIds.map((orgId) => ({ orgId }))] as any });
-    } else {
-      rows = await orderRepo.find({ where: { userId: user.id } });
-    }
-    return rows.map(normalizeOrder);
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
-    detail: { summary: 'List orders', tags: ['Orders'] }
-  });
-
-  app.get(prefix + '/orders/:id', async (ctx: any) => {
-    const order = await orderRepo.findOneBy({ id: Number(ctx.params['id']) });
-    if (!order) {
-      ctx.set.status = 404;
-      return { error: ctx.t('order.notFound') };
-    }
-    const user = ctx.user as any;
-    if (order.userId === user.id) {
-      return normalizeOrder(order);
-    }
-    if (order.orgId) {
-      const role = await getOrgMembershipRole(user.id, Number(order.orgId));
-      if (role === 'admin' || role === 'owner') {
+  app.get(
+    prefix + '/orders/:id',
+    async (ctx: any) => {
+      const order = await orderRepo.findOneBy({ id: Number(ctx.params['id']) });
+      if (!order) {
+        ctx.set.status = 404;
+        return { error: ctx.t('order.notFound') };
+      }
+      const user = ctx.user as any;
+      if (order.userId === user.id) {
         return normalizeOrder(order);
       }
-    }
-    ctx.set.status = 403;
-    return { error: ctx.t('common.forbidden') };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: { summary: 'Fetch order by id', tags: ['Orders'] }
-  });
-
-  app.get(prefix + '/orders/:id/invoice', async (ctx: any) => {
-    const id = Number(ctx.params['id']);
-    const order = await orderRepo.findOneBy({ id });
-    if (!order) {
-      ctx.set.status = 404;
-      return { error: ctx.t('order.notFound') };
-    }
-    const user = ctx.user as any;
-    if (order.userId === user.id) {
-      // skip
-    } else if (order.orgId) {
-      const role = await getOrgMembershipRole(user.id, Number(order.orgId));
-      if (role !== 'admin' && role !== 'owner') {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.forbidden') };
-      }
-    } else {
-      const parentUser = await AppDataSource.getRepository(require('../models/user.entity').User).findOneBy({ id: user.id });
-      if (!parentUser || parentUser.id !== user.id) {
-        // bite ah nvm
-      }
-      const childUser = await AppDataSource.getRepository(require('../models/user.entity').User).findOneBy({ id: order.userId });
-      if (!childUser || childUser.parentId !== user.id) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.forbidden') };
-      }
-    }
-
-    try {
-      const pdfBuf = await renderInvoicePdf(order as any);
-      return new Response(pdfBuf as any, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="invoice-${order.id}.pdf"`
+      if (order.orgId) {
+        const role = await getOrgMembershipRole(user.id, Number(order.orgId));
+        if (role === 'admin' || role === 'owner') {
+          return normalizeOrder(order);
         }
-      });
-    } catch (e: any) {
-      console.error('invoice generation failed', e);
-      ctx.set.status = 500;
-      return { error: ctx.t('system.invoiceGenerationFailed') };
-    }
-  }, {
-    beforeHandle: [authenticate],
-    response: {
-      200: t.Any(),
-      401: t.Object({ error: t.String() }),
-      403: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
+      }
+      ctx.set.status = 403;
+      return { error: ctx.t('common.forbidden') };
     },
-    detail: { summary: 'Download invoice PDF', tags: ['Orders'] }
-  });
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Fetch order by id', tags: ['Orders'] },
+    }
+  );
+
+  app.get(
+    prefix + '/orders/:id/invoice',
+    async (ctx: any) => {
+      const id = Number(ctx.params['id']);
+      const order = await orderRepo.findOneBy({ id });
+      if (!order) {
+        ctx.set.status = 404;
+        return { error: ctx.t('order.notFound') };
+      }
+      const user = ctx.user as any;
+      if (order.userId === user.id) {
+        // skip
+      } else if (order.orgId) {
+        const role = await getOrgMembershipRole(user.id, Number(order.orgId));
+        if (role !== 'admin' && role !== 'owner') {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.forbidden') };
+        }
+      } else {
+        const parentUser = await AppDataSource.getRepository(
+          require('../models/user.entity').User
+        ).findOneBy({ id: user.id });
+        if (!parentUser || parentUser.id !== user.id) {
+          // bite ah nvm
+        }
+        const childUser = await AppDataSource.getRepository(
+          require('../models/user.entity').User
+        ).findOneBy({ id: order.userId });
+        if (!childUser || childUser.parentId !== user.id) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.forbidden') };
+        }
+      }
+
+      try {
+        const pdfBuf = await renderInvoicePdf(order as any);
+        return new Response(pdfBuf as any, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="invoice-${order.id}.pdf"`,
+          },
+        });
+      } catch (e: any) {
+        console.error('invoice generation failed', e);
+        ctx.set.status = 500;
+        return { error: ctx.t('system.invoiceGenerationFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Download invoice PDF', tags: ['Orders'] },
+    }
+  );
 }

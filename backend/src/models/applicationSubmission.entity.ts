@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export type ApplicationSubmissionStatus = 'pending' | 'accepted' | 'rejected' | 'archived';
 
@@ -22,7 +28,12 @@ export class ApplicationSubmission {
   @Column({ type: 'text', charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   content: string;
 
-  @Column({ type: 'simple-json', nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
+  @Column({
+    type: 'simple-json',
+    nullable: true,
+    charset: 'utf8mb4',
+    collation: 'utf8mb4_unicode_ci',
+  })
   meta?: Record<string, any>;
 
   @Column({ nullable: true })

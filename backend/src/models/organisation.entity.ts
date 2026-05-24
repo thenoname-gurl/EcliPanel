@@ -23,9 +23,15 @@ export class Organisation {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  @OneToMany(() => require('./organisationInvite.entity').OrganisationInvite, (inv: any) => inv.organisation)
+  @OneToMany(
+    () => require('./organisationInvite.entity').OrganisationInvite,
+    (inv: any) => inv.organisation
+  )
   invites: import('./organisationInvite.entity').OrganisationInvite[];
 
-  @OneToMany(() => require('./organisationMember.entity').OrganisationMember, (membership: any) => membership.organisation)
+  @OneToMany(
+    () => require('./organisationMember.entity').OrganisationMember,
+    (membership: any) => membership.organisation
+  )
   memberships: import('./organisationMember.entity').OrganisationMember[];
 }

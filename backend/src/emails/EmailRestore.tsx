@@ -55,14 +55,14 @@ export function EmailRestore({ name, restoreUrl, newEmail, oldEmail, t }: EmailR
 
       <Section style={{ marginBottom: '24px' }}>
         <p style={pStyle}>{_t('email.emailRestore.greeting', { name })}</p>
-        <p style={pStyle}>
-          {_t('email.emailRestore.changed', { oldEmail, newEmail })}
-        </p>
+        <p style={pStyle}>{_t('email.emailRestore.changed', { oldEmail, newEmail })}</p>
         <p style={pStyle}>{_t('email.emailRestore.restorePrompt')}</p>
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={restoreUrl} style={btnStyle}>{_t('email.emailRestore.button')}</Button>
+        <Button href={restoreUrl} style={btnStyle}>
+          {_t('email.emailRestore.button')}
+        </Button>
       </Section>
 
       <Section style={infoBoxStyle}>

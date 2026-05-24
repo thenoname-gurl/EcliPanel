@@ -6,16 +6,20 @@ export function parseIpv6(address: string): bigint {
 
   const normalizeSegment = (segment: string): string[] => {
     if (!segment) return [];
-    return segment.split(':').flatMap((part) => {
+    return segment.split(':').flatMap(part => {
       if (part.includes('.')) {
         const dots = part.split('.');
         if (dots.length !== 4) throw new Error('Invalid IPv4-mapped segment');
-        const bytes = dots.map((n) => {
+        const bytes = dots.map(n => {
           const value = Number(n);
-          if (!Number.isInteger(value) || value < 0 || value > 255) throw new Error('Invalid IPv4-mapped segment');
+          if (!Number.isInteger(value) || value < 0 || value > 255)
+            throw new Error('Invalid IPv4-mapped segment');
           return value;
         });
-        return [((bytes[0] << 8) | bytes[1]).toString(16), ((bytes[2] << 8) | bytes[3]).toString(16)];
+        return [
+          ((bytes[0] << 8) | bytes[1]).toString(16),
+          ((bytes[2] << 8) | bytes[3]).toString(16),
+        ];
       }
       return [part];
     });
@@ -51,7 +55,7 @@ export function formatIpv6(value: bigint): string {
   const groups: string[] = [];
   let v = value;
   for (let i = 0; i < 8; i += 1) {
-    groups.unshift((Number(v & 0xffffn)).toString(16));
+    groups.unshift(Number(v & 0xffffn).toString(16));
     v >>= 16n;
   }
 
@@ -131,7 +135,11 @@ export function isIpv6InSubnet(address: string, cidr: string): boolean {
   }
 }
 
-export function getNextFreeIpv6Address(subnet: string, used: Set<string>, skipFirst = 0n): string | null {
+export function getNextFreeIpv6Address(
+  subnet: string,
+  used: Set<string>,
+  skipFirst = 0n
+): string | null {
   const { network, prefix } = parseIpv6Cidr(subnet);
   const hostBits = 128n - BigInt(prefix);
   const size = 1n << hostBits;

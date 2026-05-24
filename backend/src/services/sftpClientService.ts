@@ -1,16 +1,24 @@
-import { Client, ConnectConfig, SFTPWrapper } from 'ssh2'
-import path from 'path'
-import { URL } from 'url'
-import { Node } from '../models/node.entity'
+import { Client, ConnectConfig, SFTPWrapper } from 'ssh2';
+import path from 'path';
+import { URL } from 'url';
+import { Node } from '../models/node.entity';
 
-async function runSftpOpInWorker(op: string, node: Node, creds: any, args: any[] = [], timeoutMs = 30000) {
+async function runSftpOpInWorker(
+  op: string,
+  node: Node,
+  creds: any,
+  args: any[] = [],
+  timeoutMs = 30000
+) {
   return new Promise<any>((resolve, reject) => {
     const workerUrl = new URL('../workers/sftpWorker.worker.ts', import.meta.url).href;
     const worker = new Worker(workerUrl, { type: 'module' });
     const id = `${Date.now()}-${Math.random()}`;
 
     const cleanup = () => {
-      try { worker.terminate(); } catch {}
+      try {
+        worker.terminate();
+      } catch {}
       worker.removeEventListener('message', onMessage as any);
       worker.removeEventListener('error', onError as any);
       if (timer) clearTimeout(timer);
@@ -42,69 +50,67 @@ async function runSftpOpInWorker(op: string, node: Node, creds: any, args: any[]
 }
 
 export interface SftpCredentials {
-  username: string
-  password?: string
-  privateKey?: string
-  passphrase?: string
+  username: string;
+  password?: string;
+  privateKey?: string;
+  passphrase?: string;
 }
 
 export interface SftpEndpoint {
-  host: string
-  port: number
+  host: string;
+  port: number;
 }
 
 function normalizeSftpPath(value: string | undefined): string {
-  let normalized = typeof value === 'string' ? value.trim() : '/'
-  if (!normalized) normalized = '/'
-  normalized = normalized.replace(/\\\\/g, '/')
-  normalized = path.posix.normalize(normalized)
-  if (!normalized.startsWith('/')) normalized = `/${normalized}`
-  return normalized === '' ? '/' : normalized
+  let normalized = typeof value === 'string' ? value.trim() : '/';
+  if (!normalized) normalized = '/';
+  normalized = normalized.replace(/\\\\/g, '/');
+  normalized = path.posix.normalize(normalized);
+  if (!normalized.startsWith('/')) normalized = `/${normalized}`;
+  return normalized === '' ? '/' : normalized;
 }
 
 function sftpUrlForNode(node: Node): SftpEndpoint {
   const urlObj = (() => {
     try {
-      return new URL(node.url)
+      return new URL(node.url);
     } catch {
-      return null
+      return null;
     }
-  })()
+  })();
 
-  const nodeHost = urlObj?.hostname || node.url
-  const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '')
+  const nodeHost = urlObj?.hostname || node.url;
+  const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '');
   const backendHost = backendBase
     ? (() => {
         try {
-          return new URL(backendBase).hostname
+          return new URL(backendBase).hostname;
         } catch {
-          return backendBase
+          return backendBase;
         }
       })()
-    : null
+    : null;
 
-  const host = node.sftpProxyPort
-    ? backendHost || '127.0.0.1'
-    : nodeHost
+  const host = node.sftpProxyPort ? backendHost || '127.0.0.1' : nodeHost;
 
-  const port = node.sftpProxyPort ?? node.sftpPort ?? 2022
+  const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
 
-  return { host, port }
+  return { host, port };
 }
 
 function sftpEndpoint(node: Node, override?: SftpEndpoint): SftpEndpoint {
-  return override ?? sftpUrlForNode(node)
+  return override ?? sftpUrlForNode(node);
 }
 
 function parseTime(attr: any): string | undefined {
-  if (!attr) return undefined
+  if (!attr) return undefined;
   if (typeof attr === 'number') {
-    return new Date(attr * 1000).toISOString()
+    return new Date(attr * 1000).toISOString();
   }
   if (attr instanceof Date) {
-    return attr.toISOString()
+    return attr.toISOString();
   }
-  return undefined
+  return undefined;
 }
 
 function normalizeSftpEntry(filename: string, attrs: any) {
@@ -121,7 +127,7 @@ function normalizeSftpEntry(filename: string, attrs: any) {
     size: Number(attrs.size || 0),
     modified: parseTime(attrs.mtime),
     modified_at: parseTime(attrs.mtime),
-  }
+  };
 }
 
 function createConnectConfig(endpoint: SftpEndpoint, creds: SftpCredentials): ConnectConfig {
@@ -132,79 +138,91 @@ function createConnectConfig(endpoint: SftpEndpoint, creds: SftpCredentials): Co
     readyTimeout: 20000,
     keepaliveInterval: 10000,
     tryKeyboard: false,
-  }
+  };
 
   if (creds.password) {
-    config.password = creds.password
+    config.password = creds.password;
   }
 
   if (creds.privateKey) {
-    config.privateKey = creds.privateKey
+    config.privateKey = creds.privateKey;
   }
 
   if (creds.passphrase) {
-    config.passphrase = creds.passphrase
+    config.passphrase = creds.passphrase;
   }
 
-  return config
+  return config;
 }
 
-function createSftpClient(endpoint: SftpEndpoint, creds: SftpCredentials): Promise<{ client: Client; sftp: SFTPWrapper }> {
+function createSftpClient(
+  endpoint: SftpEndpoint,
+  creds: SftpCredentials
+): Promise<{ client: Client; sftp: SFTPWrapper }> {
   return new Promise((resolve, reject) => {
-    const client = new Client()
-    let settled = false
+    const client = new Client();
+    let settled = false;
 
-    console.debug('[sftp] attempting connection', { host: endpoint.host, port: endpoint.port, username: creds.username })
+    console.debug('[sftp] attempting connection', {
+      host: endpoint.host,
+      port: endpoint.port,
+      username: creds.username,
+    });
 
     const cleanup = () => {
-      if (!settled) return
-      settled = false
-      client.removeAllListeners()
-    }
+      if (!settled) return;
+      settled = false;
+      client.removeAllListeners();
+    };
 
     const handleError = (err: Error) => {
-      if (settled) return
-      settled = true
-      client.end()
-      reject(err)
-    }
+      if (settled) return;
+      settled = true;
+      client.end();
+      reject(err);
+    };
 
     client.once('ready', () => {
       client.sftp((err, sftp) => {
         if (err) {
-          handleError(err)
-          return
+          handleError(err);
+          return;
         }
-        settled = true
-        resolve({ client, sftp })
-      })
-    })
+        settled = true;
+        resolve({ client, sftp });
+      });
+    });
 
-    client.once('error', handleError)
+    client.once('error', handleError);
     client.once('end', () => {
       if (!settled) {
-        settled = true
-        reject(new Error('SFTP connection closed before ready'))
+        settled = true;
+        reject(new Error('SFTP connection closed before ready'));
       }
-    })
+    });
 
-    const config = createConnectConfig(endpoint, creds)
+    const config = createConnectConfig(endpoint, creds);
     try {
-      client.connect(config)
+      client.connect(config);
     } catch (err) {
-      handleError(err as Error)
+      handleError(err as Error);
     }
-  })
+  });
 }
 
-async function withSftp<T>(node: Node, creds: SftpCredentials, callback: (sftp: SFTPWrapper) => Promise<T>, endpoint?: SftpEndpoint): Promise<T> {
-  const selectedEndpoint = sftpEndpoint(node, endpoint)
-  const { client, sftp } = await createSftpClient(selectedEndpoint, creds)
+async function withSftp<T>(
+  node: Node,
+  creds: SftpCredentials,
+  callback: (sftp: SFTPWrapper) => Promise<T>,
+  endpoint?: SftpEndpoint
+): Promise<T> {
+  const selectedEndpoint = sftpEndpoint(node, endpoint);
+  const { client, sftp } = await createSftpClient(selectedEndpoint, creds);
   try {
-    return await callback(sftp)
+    return await callback(sftp);
   } finally {
     try {
-      client.end()
+      client.end();
     } catch {
       // meow
     }
@@ -214,150 +232,205 @@ async function withSftp<T>(node: Node, creds: SftpCredentials, callback: (sftp: 
 function sftpReaddir(sftp: SFTPWrapper, path: string): Promise<any[]> {
   return new Promise((resolve, reject) => {
     sftp.readdir(path, (err, list) => {
-      if (err) return reject(err)
-      resolve(list || [])
-    })
-  })
+      if (err) return reject(err);
+      resolve(list || []);
+    });
+  });
 }
 
 function sftpReadFile(sftp: SFTPWrapper, path: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     sftp.readFile(path, (err, data) => {
-      if (err) return reject(err)
-      resolve(Buffer.from(data))
-    })
-  })
+      if (err) return reject(err);
+      resolve(Buffer.from(data));
+    });
+  });
 }
 
 function sftpWriteFile(sftp: SFTPWrapper, path: string, data: Buffer): Promise<void> {
   return new Promise((resolve, reject) => {
-    sftp.writeFile(path, data, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
+    sftp.writeFile(path, data, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpUnlink(sftp: SFTPWrapper, path: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    sftp.unlink(path, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
+    sftp.unlink(path, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpRmdir(sftp: SFTPWrapper, path: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    sftp.rmdir(path, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
+    sftp.rmdir(path, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpRename(sftp: SFTPWrapper, oldPath: string, newPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    sftp.rename(oldPath, newPath, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
+    sftp.rename(oldPath, newPath, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpMkdir(sftp: SFTPWrapper, path: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    sftp.mkdir(path, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
+    sftp.mkdir(path, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpChmod(sftp: SFTPWrapper, path: string, mode: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    sftp.chmod(path, mode, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
+    sftp.chmod(path, mode, err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 function sftpStat(sftp: SFTPWrapper, path: string): Promise<any> {
   return new Promise((resolve, reject) => {
     sftp.stat(path, (err, stats) => {
-      if (err) return reject(err)
-      resolve(stats)
-    })
-  })
+      if (err) return reject(err);
+      resolve(stats);
+    });
+  });
 }
 
-export async function listSftpDirectory(node: Node, creds: SftpCredentials, dir: string, endpoint?: SftpEndpoint) {
-  const normalized = normalizeSftpPath(dir)
-  const res = await runSftpOpInWorker('list', node, creds, [normalized])
-  return res || []
+export async function listSftpDirectory(
+  node: Node,
+  creds: SftpCredentials,
+  dir: string,
+  endpoint?: SftpEndpoint
+) {
+  const normalized = normalizeSftpPath(dir);
+  const res = await runSftpOpInWorker('list', node, creds, [normalized]);
+  return res || [];
 }
 
-export async function readSftpFile(node: Node, creds: SftpCredentials, filePath: string, endpoint?: SftpEndpoint): Promise<Buffer> {
-  const normalized = normalizeSftpPath(filePath)
-  const res = await runSftpOpInWorker('read', node, creds, [normalized])
-  if (!res || !res.data) throw new Error('Empty SFTP result')
-  return Buffer.from(res.data)
+export async function readSftpFile(
+  node: Node,
+  creds: SftpCredentials,
+  filePath: string,
+  endpoint?: SftpEndpoint
+): Promise<Buffer> {
+  const normalized = normalizeSftpPath(filePath);
+  const res = await runSftpOpInWorker('read', node, creds, [normalized]);
+  if (!res || !res.data) throw new Error('Empty SFTP result');
+  return Buffer.from(res.data);
 }
 
-export async function writeSftpFile(node: Node, creds: SftpCredentials, filePath: string, data: Buffer, endpoint?: SftpEndpoint) {
-  const normalized = normalizeSftpPath(filePath)
-  await runSftpOpInWorker('write', node, creds, [normalized, Array.from(data)])
+export async function writeSftpFile(
+  node: Node,
+  creds: SftpCredentials,
+  filePath: string,
+  data: Buffer,
+  endpoint?: SftpEndpoint
+) {
+  const normalized = normalizeSftpPath(filePath);
+  await runSftpOpInWorker('write', node, creds, [normalized, Array.from(data)]);
 }
 
 async function deleteSftpPath(sftp: SFTPWrapper, targetPath: string): Promise<void> {
-  const stats = await sftpStat(sftp, targetPath)
+  const stats = await sftpStat(sftp, targetPath);
   if (typeof stats.isDirectory === 'function' && stats.isDirectory()) {
-    const entries = await sftpReaddir(sftp, targetPath)
+    const entries = await sftpReaddir(sftp, targetPath);
     for (const entry of entries) {
-      const child = path.posix.join(targetPath, entry.filename)
-      await deleteSftpPath(sftp, child)
+      const child = path.posix.join(targetPath, entry.filename);
+      await deleteSftpPath(sftp, child);
     }
-    await sftpRmdir(sftp, targetPath)
+    await sftpRmdir(sftp, targetPath);
   } else {
-    await sftpUnlink(sftp, targetPath)
+    await sftpUnlink(sftp, targetPath);
   }
 }
 
-export async function deleteSftpFiles(node: Node, creds: SftpCredentials, root: string, files: string[], endpoint?: SftpEndpoint) {
-  const normalizedRoot = normalizeSftpPath(root)
-  await runSftpOpInWorker('delete', node, creds, [normalizedRoot, files])
+export async function deleteSftpFiles(
+  node: Node,
+  creds: SftpCredentials,
+  root: string,
+  files: string[],
+  endpoint?: SftpEndpoint
+) {
+  const normalizedRoot = normalizeSftpPath(root);
+  await runSftpOpInWorker('delete', node, creds, [normalizedRoot, files]);
 }
 
-export async function mkdirSftp(node: Node, creds: SftpCredentials, dirPath: string, endpoint?: SftpEndpoint) {
-  const normalized = normalizeSftpPath(dirPath)
-  await runSftpOpInWorker('mkdir', node, creds, [normalized])
+export async function mkdirSftp(
+  node: Node,
+  creds: SftpCredentials,
+  dirPath: string,
+  endpoint?: SftpEndpoint
+) {
+  const normalized = normalizeSftpPath(dirPath);
+  await runSftpOpInWorker('mkdir', node, creds, [normalized]);
 }
 
-export async function renameSftp(node: Node, creds: SftpCredentials, oldPath: string, newPath: string, endpoint?: SftpEndpoint) {
-  const normalizedOld = normalizeSftpPath(oldPath)
-  const normalizedNew = normalizeSftpPath(newPath)
-  await runSftpOpInWorker('rename', node, creds, [normalizedOld, normalizedNew])
+export async function renameSftp(
+  node: Node,
+  creds: SftpCredentials,
+  oldPath: string,
+  newPath: string,
+  endpoint?: SftpEndpoint
+) {
+  const normalizedOld = normalizeSftpPath(oldPath);
+  const normalizedNew = normalizeSftpPath(newPath);
+  await runSftpOpInWorker('rename', node, creds, [normalizedOld, normalizedNew]);
 }
 
-export async function chmodSftp(node: Node, creds: SftpCredentials, filePath: string, mode: number, endpoint?: SftpEndpoint) {
-  const normalized = normalizeSftpPath(filePath)
-  await runSftpOpInWorker('chmod', node, creds, [normalized, mode])
+export async function chmodSftp(
+  node: Node,
+  creds: SftpCredentials,
+  filePath: string,
+  mode: number,
+  endpoint?: SftpEndpoint
+) {
+  const normalized = normalizeSftpPath(filePath);
+  await runSftpOpInWorker('chmod', node, creds, [normalized, mode]);
 }
 
-export async function moveSftpFiles(node: Node, creds: SftpCredentials, root: string, mappings: Array<{ from: string; to: string }>, endpoint?: SftpEndpoint) {
-  const normalizedRoot = normalizeSftpPath(root)
-  await runSftpOpInWorker('move', node, creds, [normalizedRoot, mappings])
+export async function moveSftpFiles(
+  node: Node,
+  creds: SftpCredentials,
+  root: string,
+  mappings: Array<{ from: string; to: string }>,
+  endpoint?: SftpEndpoint
+) {
+  const normalizedRoot = normalizeSftpPath(root);
+  await runSftpOpInWorker('move', node, creds, [normalizedRoot, mappings]);
 }
 
-export async function listSftpFiles(node: Node, creds: SftpCredentials, dir: string, endpoint?: SftpEndpoint) {
-  return listSftpDirectory(node, creds, dir, endpoint)
+export async function listSftpFiles(
+  node: Node,
+  creds: SftpCredentials,
+  dir: string,
+  endpoint?: SftpEndpoint
+) {
+  return listSftpDirectory(node, creds, dir, endpoint);
 }
 
-export async function validateSftpCredentials(node: Node, creds: SftpCredentials, path: string, endpoint?: SftpEndpoint) {
-  const normalized = normalizeSftpPath(path)
-  const res = await runSftpOpInWorker('validate', node, creds, [normalized])
-  return !!res?.ok
+export async function validateSftpCredentials(
+  node: Node,
+  creds: SftpCredentials,
+  path: string,
+  endpoint?: SftpEndpoint
+) {
+  const normalized = normalizeSftpPath(path);
+  const res = await runSftpOpInWorker('validate', node, creds, [normalized]);
+  return !!res?.ok;
 }
 
-export { sftpUrlForNode }
+export { sftpUrlForNode };

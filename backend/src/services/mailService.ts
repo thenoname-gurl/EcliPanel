@@ -73,7 +73,8 @@ export async function initMail() {
   const secure = (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
   const user = process.env.SMTP_USER || process.env.MAIL_USER;
   const pass = process.env.SMTP_PASS || process.env.MAIL_PASS;
-  const allowInvalidTls = (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
+  const allowInvalidTls =
+    (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
   const poolEnabled = (process.env.SMTP_POOL || process.env.MAIL_POOL || 'true') === 'true';
 
   transporter = nodemailer.createTransport({
@@ -81,11 +82,15 @@ export async function initMail() {
     port,
     secure,
     pool: poolEnabled,
-    maxConnections: Number(process.env.SMTP_MAX_CONNECTIONS || process.env.MAIL_MAX_CONNECTIONS) || 5,
+    maxConnections:
+      Number(process.env.SMTP_MAX_CONNECTIONS || process.env.MAIL_MAX_CONNECTIONS) || 5,
     maxMessages: Number(process.env.SMTP_MAX_MESSAGES || process.env.MAIL_MAX_MESSAGES) || 100,
-    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || process.env.MAIL_CONNECTION_TIMEOUT) || 10000,
-    greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || process.env.MAIL_GREETING_TIMEOUT) || 10000,
-    socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || process.env.MAIL_SOCKET_TIMEOUT) || 10000,
+    connectionTimeout:
+      Number(process.env.SMTP_CONNECTION_TIMEOUT || process.env.MAIL_CONNECTION_TIMEOUT) || 10000,
+    greetingTimeout:
+      Number(process.env.SMTP_GREETING_TIMEOUT || process.env.MAIL_GREETING_TIMEOUT) || 10000,
+    socketTimeout:
+      Number(process.env.SMTP_SOCKET_TIMEOUT || process.env.MAIL_SOCKET_TIMEOUT) || 10000,
     auth: user || pass ? { user, pass } : undefined,
     tls: allowInvalidTls
       ? {
@@ -111,7 +116,10 @@ async function renderReactTemplate(name: string, vars: Record<string, any>, loca
   try {
     const resolvedLocale: Locale = locale || resolveLocale({});
     const t = createT(getMessages(resolvedLocale));
-    const element = (TemplateComponent as (props: Record<string, any>) => React.ReactNode)({ ...vars, t });
+    const element = (TemplateComponent as (props: Record<string, any>) => React.ReactNode)({
+      ...vars,
+      t,
+    });
     return await render(element, { pretty: false });
   } catch (err) {
     console.error(`mailService: failed to render react template "${name}":`, err);
@@ -121,7 +129,14 @@ async function renderReactTemplate(name: string, vars: Record<string, any>, loca
   }
 }
 
-export async function sendMail(options: nodemailer.SendMailOptions & { template?: string; vars?: Record<string, any>; smtp?: { host: string; port: number; secure: boolean; user?: string; pass?: string }; locale?: Locale }) {
+export async function sendMail(
+  options: nodemailer.SendMailOptions & {
+    template?: string;
+    vars?: Record<string, any>;
+    smtp?: { host: string; port: number; secure: boolean; user?: string; pass?: string };
+    locale?: Locale;
+  }
+) {
   if (options.template) {
     options.html = await renderReactTemplate(options.template, options.vars || {}, options.locale);
   }
@@ -129,7 +144,8 @@ export async function sendMail(options: nodemailer.SendMailOptions & { template?
   options.from = normalizeFromHeader(options.from);
 
   if (!options.replyTo) {
-    options.replyTo = process.env.SMTP_REPLY_TO || process.env.MAIL_REPLY_TO || extractAddress(options.from);
+    options.replyTo =
+      process.env.SMTP_REPLY_TO || process.env.MAIL_REPLY_TO || extractAddress(options.from);
   }
 
   if (options.html && !options.text) {
@@ -159,15 +175,22 @@ export async function sendMail(options: nodemailer.SendMailOptions & { template?
   let transport: nodemailer.Transporter | null = null;
 
   if (smtpOptions && smtpOptions.host) {
-    const allowInvalidTls = (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
+    const allowInvalidTls =
+      (process.env.SMTP_TLS_ALLOW_INVALID || process.env.MAIL_TLS_ALLOW_INVALID) === 'true';
     transport = nodemailer.createTransport({
       host: smtpOptions.host,
       port: smtpOptions.port,
       secure: smtpOptions.secure,
-      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || process.env.MAIL_CONNECTION_TIMEOUT) || 10000,
-      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || process.env.MAIL_GREETING_TIMEOUT) || 10000,
-      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || process.env.MAIL_SOCKET_TIMEOUT) || 10000,
-      auth: smtpOptions.user || smtpOptions.pass ? { user: smtpOptions.user, pass: smtpOptions.pass } : undefined,
+      connectionTimeout:
+        Number(process.env.SMTP_CONNECTION_TIMEOUT || process.env.MAIL_CONNECTION_TIMEOUT) || 10000,
+      greetingTimeout:
+        Number(process.env.SMTP_GREETING_TIMEOUT || process.env.MAIL_GREETING_TIMEOUT) || 10000,
+      socketTimeout:
+        Number(process.env.SMTP_SOCKET_TIMEOUT || process.env.MAIL_SOCKET_TIMEOUT) || 10000,
+      auth:
+        smtpOptions.user || smtpOptions.pass
+          ? { user: smtpOptions.user, pass: smtpOptions.pass }
+          : undefined,
       tls: allowInvalidTls
         ? {
             rejectUnauthorized: false,

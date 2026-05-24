@@ -1,15 +1,22 @@
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  passwordHash: string;
-  role: 'admin' | 'free' | 'paid' | 'enterprise' | 'subuser';
-  portalType: 'free' | 'paid' | 'enterprise';
-  orgId?: number;
-  limits?: Record<string, any>;
-  idVerified?: boolean;
-  deletionRequested?: boolean;
-  deletionApproved?: boolean;
-  lastPanelActivityAt?: Date;
-  serverSunsetNoticeSentAt?: Date;
-}
+import { User as UserEntity } from './user.entity';
+
+export { User } from './user.entity';
+export type { User as UserEntity } from './user.entity';
+
+export type UserRole = 'admin' | 'free' | 'paid' | 'enterprise' | 'subuser';
+export type PortalType = 'free' | 'paid' | 'enterprise';
+
+export type UserSummary = Pick<
+  UserEntity,
+  | 'id'
+  | 'email'
+  | 'firstName'
+  | 'lastName'
+  | 'displayName'
+  | 'role'
+  | 'portalType'
+  | 'emailVerified'
+  | 'idVerified'
+  | 'suspended'
+  | 'avatarUrl'
+>;

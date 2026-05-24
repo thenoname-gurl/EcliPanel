@@ -24,7 +24,11 @@ function headerValueToString(value: any): string | undefined {
   return String(value);
 }
 
-function normalizeHeaderParameter(headers: any, key: string, parameter: string): string | undefined {
+function normalizeHeaderParameter(
+  headers: any,
+  key: string,
+  parameter: string
+): string | undefined {
   if (!headers) return undefined;
   const lowerKey = key.toLowerCase();
 
@@ -118,9 +122,21 @@ export function getHeaderValues(headers: any, key: string): string[] {
 }
 
 function parseReceivedHeader(raw: string) {
-  const result: { raw: string; from?: string; by?: string; with?: string; id?: string; for?: string; ip?: string } = { raw };
+  const result: {
+    raw: string;
+    from?: string;
+    by?: string;
+    with?: string;
+    id?: string;
+    for?: string;
+    ip?: string;
+  } = { raw };
 
-  const trim = (value?: string) => value?.trim().replace(/["' ]+$/g, '').replace(/^["' ]+/g, '') || undefined;
+  const trim = (value?: string) =>
+    value
+      ?.trim()
+      .replace(/["' ]+$/g, '')
+      .replace(/^["' ]+/g, '') || undefined;
 
   const findField = (pattern: RegExp) => {
     const match = raw.match(pattern);
@@ -133,7 +149,9 @@ function parseReceivedHeader(raw: string) {
   result.id = findField(/\sid\s+(.+?)(?:\s+for\s+|;|$)/i);
   result.for = findField(/\sfor\s+(.+?)(?:;|$)/i);
 
-  const ipMatches = Array.from(raw.matchAll(/\b([0-9]{1,3}(?:\.[0-9]{1,3}){3}|[A-Fa-f0-9:]{2,})\b/g)).map(m => m[1]);
+  const ipMatches = Array.from(
+    raw.matchAll(/\b([0-9]{1,3}(?:\.[0-9]{1,3}){3}|[A-Fa-f0-9:]{2,})\b/g)
+  ).map(m => m[1]);
   for (const candidate of ipMatches) {
     if (isIP(candidate)) {
       result.ip = candidate;
@@ -199,25 +217,29 @@ export function parseAuthenticationResults(headers: any): {
   dkimResult: string | null;
   dmarcResult: string | null;
 } {
-  const authResultsValue = normalizeHeaderValue(headers, 'authentication-results') || normalizeHeaderValue(headers, 'x-authentication-results');
-  const spfValue = normalizeHeaderValue(headers, 'received-spf') || normalizeHeaderValue(headers, 'spf');
+  const authResultsValue =
+    normalizeHeaderValue(headers, 'authentication-results') ||
+    normalizeHeaderValue(headers, 'x-authentication-results');
+  const spfValue =
+    normalizeHeaderValue(headers, 'received-spf') || normalizeHeaderValue(headers, 'spf');
   const dmarcValue = normalizeHeaderValue(headers, 'dmarc');
 
   const authResults = authResultsValue?.trim() || spfValue?.trim() || dmarcValue?.trim() || null;
 
-  const spfResult = parseAuthResultToken(
-    authResultsValue || spfValue,
-    /spf=(pass|fail|softfail|neutral|none|temperror|permerror)/i,
-  ) || parseAuthResultToken(spfValue, /^(pass|fail|softfail|neutral|none|temperror|permerror)/i);
+  const spfResult =
+    parseAuthResultToken(
+      authResultsValue || spfValue,
+      /spf=(pass|fail|softfail|neutral|none|temperror|permerror)/i
+    ) || parseAuthResultToken(spfValue, /^(pass|fail|softfail|neutral|none|temperror|permerror)/i);
 
   const dkimResult = parseAuthResultToken(
     authResultsValue,
-    /dkim=(pass|fail|neutral|none|policy|temperror|permerror)/i,
+    /dkim=(pass|fail|neutral|none|policy|temperror|permerror)/i
   );
 
   const dmarcResult = parseAuthResultToken(
     authResultsValue || dmarcValue,
-    /dmarc=(pass|fail|bestguess|none|policy|temperror|permerror)/i,
+    /dmarc=(pass|fail|bestguess|none|policy|temperror|permerror)/i
   );
 
   return {
@@ -231,18 +253,32 @@ export function parseAuthenticationResults(headers: any): {
 export function extractMailboxPriority(headers: any): string | null {
   if (!headers) return null;
 
-  const raw = normalizeHeaderValue(headers, 'priority')
-    || normalizeHeaderValue(headers, 'x-priority')
-    || normalizeHeaderValue(headers, 'importance');
+  const raw =
+    normalizeHeaderValue(headers, 'priority') ||
+    normalizeHeaderValue(headers, 'x-priority') ||
+    normalizeHeaderValue(headers, 'importance');
   if (!raw) return null;
 
   const normalized = String(raw).trim().toLowerCase();
   if (/urgent/i.test(normalized)) return 'Urgent';
-  if (normalized === '1' || normalized.startsWith('1') || normalized.includes('highest') || normalized.includes('high')) return 'High';
+  if (
+    normalized === '1' ||
+    normalized.startsWith('1') ||
+    normalized.includes('highest') ||
+    normalized.includes('high')
+  )
+    return 'High';
   if (normalized === '2' || normalized.startsWith('2')) return 'High';
-  if (normalized === '3' || normalized.startsWith('3') || normalized.includes('normal') || normalized.includes('medium')) return 'Normal';
+  if (
+    normalized === '3' ||
+    normalized.startsWith('3') ||
+    normalized.includes('normal') ||
+    normalized.includes('medium')
+  )
+    return 'Normal';
   if (normalized === '4' || normalized.startsWith('4') || normalized.includes('low')) return 'Low';
-  if (normalized === '5' || normalized.startsWith('5') || normalized.includes('lowest')) return 'Low';
+  if (normalized === '5' || normalized.startsWith('5') || normalized.includes('lowest'))
+    return 'Low';
 
   if (normalized.includes('high')) return 'High';
   if (normalized.includes('normal') || normalized.includes('medium')) return 'Normal';
@@ -265,7 +301,11 @@ export function detectMailboxEncryption(headers: any): string | null {
   if (!headers) return null;
   const contentType = normalizeHeaderValue(headers, 'content-type')?.toLowerCase();
   const protocol = normalizeHeaderValue(headers, 'protocol')?.toLowerCase();
-  const contentTypeProtocol = normalizeHeaderParameter(headers, 'content-type', 'protocol')?.toLowerCase();
+  const contentTypeProtocol = normalizeHeaderParameter(
+    headers,
+    'content-type',
+    'protocol'
+  )?.toLowerCase();
   const authResults = normalizeHeaderValue(headers, 'authentication-results')?.toLowerCase();
 
   if (contentType?.includes('application/pgp-encrypted')) {
@@ -276,27 +316,48 @@ export function detectMailboxEncryption(headers: any): string | null {
     return 'PGP/MIME';
   }
 
-  if (contentType?.includes('multipart/encrypted') && protocol?.includes('application/pgp-encrypted')) {
+  if (
+    contentType?.includes('multipart/encrypted') &&
+    protocol?.includes('application/pgp-encrypted')
+  ) {
     return 'PGP/MIME';
   }
 
-  if (contentType?.includes('multipart/signed') && (protocol?.includes('application/pgp-signature') || contentTypeProtocol?.includes('application/pgp-signature'))) {
+  if (
+    contentType?.includes('multipart/signed') &&
+    (protocol?.includes('application/pgp-signature') ||
+      contentTypeProtocol?.includes('application/pgp-signature'))
+  ) {
     return 'PGP/MIME';
   }
 
-  if (contentType?.includes('multipart/encrypted') && (protocol?.includes('application/pgp-encrypted') || contentTypeProtocol?.includes('application/pgp-encrypted'))) {
+  if (
+    contentType?.includes('multipart/encrypted') &&
+    (protocol?.includes('application/pgp-encrypted') ||
+      contentTypeProtocol?.includes('application/pgp-encrypted'))
+  ) {
     return 'PGP/MIME';
   }
 
-  if (contentType?.includes('application/pkcs7-mime') || contentType?.includes('application/x-pkcs7-mime')) {
+  if (
+    contentType?.includes('application/pkcs7-mime') ||
+    contentType?.includes('application/x-pkcs7-mime')
+  ) {
     return 'S/MIME';
   }
 
-  if (contentType?.includes('application/pkcs7-signature') || contentType?.includes('application/x-pkcs7-signature')) {
+  if (
+    contentType?.includes('application/pkcs7-signature') ||
+    contentType?.includes('application/x-pkcs7-signature')
+  ) {
     return 'S/MIME';
   }
 
-  if (contentType?.includes('multipart/signed') && (protocol?.includes('application/pkcs7-signature') || contentTypeProtocol?.includes('application/pkcs7-signature'))) {
+  if (
+    contentType?.includes('multipart/signed') &&
+    (protocol?.includes('application/pkcs7-signature') ||
+      contentTypeProtocol?.includes('application/pkcs7-signature'))
+  ) {
     return 'S/MIME';
   }
 
@@ -304,7 +365,10 @@ export function detectMailboxEncryption(headers: any): string | null {
     return 'PGP/MIME';
   }
 
-  if (normalizeHeaderValue(headers, 'x-pkcs7-signature') || normalizeHeaderValue(headers, 'x-smime-capable')) {
+  if (
+    normalizeHeaderValue(headers, 'x-pkcs7-signature') ||
+    normalizeHeaderValue(headers, 'x-smime-capable')
+  ) {
     return 'S/MIME';
   }
 
@@ -313,7 +377,7 @@ export function detectMailboxEncryption(headers: any): string | null {
 
 export async function extractMailboxAuthMetadata(
   headers: any,
-  rawHeaders?: string,
+  rawHeaders?: string
 ): Promise<{
   senderIp: string | null;
   senderRdns: string | null;
@@ -322,7 +386,15 @@ export async function extractMailboxAuthMetadata(
   dmarcResult: string | null;
   authResults: string | null;
   encryptionType: string | null;
-  receivedChain: Array<{ from?: string; by?: string; with?: string; id?: string; for?: string; ip?: string; raw?: string }>;
+  receivedChain: Array<{
+    from?: string;
+    by?: string;
+    with?: string;
+    id?: string;
+    for?: string;
+    ip?: string;
+    raw?: string;
+  }>;
 }> {
   let parsedHeaders: any = headers;
   if (!parsedHeaders && rawHeaders) {
@@ -333,23 +405,30 @@ export async function extractMailboxAuthMetadata(
     }
   }
 
-  const rawHeaderText = typeof rawHeaders === 'string' && /(^|\r?\n)received:/i.test(rawHeaders)
-    ? rawHeaders
-    : undefined;
+  const rawHeaderText =
+    typeof rawHeaders === 'string' && /(^|\r?\n)received:/i.test(rawHeaders)
+      ? rawHeaders
+      : undefined;
 
   const receivedChain = rawHeaderText
     ? parseReceivedHeaders(rawHeaderText)
     : getHeaderValues(parsedHeaders, 'received').map(raw => parseReceivedHeader(raw));
 
-  const originatingIp = normalizeHeaderValue(parsedHeaders, 'x-originating-ip')
-    || normalizeHeaderValue(parsedHeaders, 'x-client-ip')
-    || normalizeHeaderValue(parsedHeaders, 'x-original-ip');
-  const forwardedForIp = extractIpFromHeaderValue(normalizeHeaderValue(parsedHeaders, 'x-forwarded-for'));
-  const forwardedHeaderIp = extractIpFromForwarded(normalizeHeaderValue(parsedHeaders, 'forwarded'));
-  const senderIp = originatingIp?.replace(/[^0-9A-Fa-f:.]/g, '')
-    || forwardedForIp
-    || forwardedHeaderIp
-    || receivedChain.reduceRight<string | null>((found, entry) => {
+  const originatingIp =
+    normalizeHeaderValue(parsedHeaders, 'x-originating-ip') ||
+    normalizeHeaderValue(parsedHeaders, 'x-client-ip') ||
+    normalizeHeaderValue(parsedHeaders, 'x-original-ip');
+  const forwardedForIp = extractIpFromHeaderValue(
+    normalizeHeaderValue(parsedHeaders, 'x-forwarded-for')
+  );
+  const forwardedHeaderIp = extractIpFromForwarded(
+    normalizeHeaderValue(parsedHeaders, 'forwarded')
+  );
+  const senderIp =
+    originatingIp?.replace(/[^0-9A-Fa-f:.]/g, '') ||
+    forwardedForIp ||
+    forwardedHeaderIp ||
+    receivedChain.reduceRight<string | null>((found, entry) => {
       if (found) return found;
       return entry.ip || null;
     }, null);
@@ -370,7 +449,7 @@ export async function extractMailboxAuthMetadata(
 
 export function detectMailboxSecurityFlags(
   headers: any,
-  subject?: string,
+  subject?: string
 ): {
   isSpam: boolean;
   spamScore: number | null;
@@ -384,7 +463,8 @@ export function detectMailboxSecurityFlags(
 
   const spamStatus = normalizeHeaderValue(headers, 'x-spam-status')?.toLowerCase();
   const spamFlag = normalizeHeaderValue(headers, 'x-spam-flag')?.toLowerCase();
-  const spamScoreHeader = normalizeHeaderValue(headers, 'x-spam-score') || normalizeHeaderValue(headers, 'x-spam-level');
+  const spamScoreHeader =
+    normalizeHeaderValue(headers, 'x-spam-score') || normalizeHeaderValue(headers, 'x-spam-level');
   const spamReport = normalizeHeaderValue(headers, 'x-spam-report');
 
   if (spamStatus && /(yes|true|spam)/.test(spamStatus)) isSpam = true;
@@ -421,7 +501,9 @@ export function detectMailboxSecurityFlags(
   const virusScanned = normalizeHeaderValue(headers, 'x-virus-scanned');
   const virusNameHeader = normalizeHeaderValue(headers, 'x-virus-name');
 
-  const virusStatusValue = String(virusStatus || virusScanned || '').toLowerCase().trim();
+  const virusStatusValue = String(virusStatus || virusScanned || '')
+    .toLowerCase()
+    .trim();
   if (virusStatusValue && /(yes|infected|found|positive|virus|suspicious)/.test(virusStatusValue)) {
     isVirus = true;
   }
@@ -433,7 +515,9 @@ export function detectMailboxSecurityFlags(
   }
 
   if (!virusName && virusStatusValue) {
-    const parsedName = virusStatusValue.replace(/^(yes|infected|found|positive|virus)[:\s]*/i, '').trim();
+    const parsedName = virusStatusValue
+      .replace(/^(yes|infected|found|positive|virus)[:\s]*/i, '')
+      .trim();
     if (parsedName && !/^(yes|infected|found|positive|virus)$/i.test(parsedName)) {
       virusName = parsedName;
     }
@@ -467,14 +551,17 @@ function resolveMessageId(domain: string) {
   return `<${Date.now()}.${Math.random().toString(36).slice(2)}@${safeDomain}>`;
 }
 
-export async function createMailboxMessageForUser(user: User, params: {
-  subject: string;
-  body: string;
-  html?: string;
-  fromAddress?: string;
-  toAddress?: string;
-  messageId?: string;
-}) {
+export async function createMailboxMessageForUser(
+  user: User,
+  params: {
+    subject: string;
+    body: string;
+    html?: string;
+    fromAddress?: string;
+    toAddress?: string;
+    messageId?: string;
+  }
+) {
   if (!user?.id) return;
 
   const account = await getMailboxAccountForUser(user.id).catch(() => null);
@@ -486,7 +573,9 @@ export async function createMailboxMessageForUser(user: User, params: {
   const fromAddress = params.fromAddress || resolveMailboxFromAddress();
 
   const repo = AppDataSource.getRepository(MailMessage);
-  const existing = await repo.findOne({ where: { userId: user.id, messageId } as any }).catch(() => null);
+  const existing = await repo
+    .findOne({ where: { userId: user.id, messageId } as any })
+    .catch(() => null);
   if (existing) return;
 
   const entity = repo.create({
@@ -507,7 +596,9 @@ export async function createMailboxMessageForUser(user: User, params: {
       const notificationRepo = AppDataSource.getRepository(Notification);
       const excerpt = (entity.body || '').toString().slice(0, 300);
       const baseUrl = String(process.env.PANEL_URL || 'https://ecli.app').replace(/\/+$/, '');
-      const url = baseUrl ? `${baseUrl}/dashboard/mailbox?messageId=${encodeURIComponent(String(messageId))}` : `/dashboard/mailbox?messageId=${encodeURIComponent(String(messageId))}`;
+      const url = baseUrl
+        ? `${baseUrl}/dashboard/mailbox?messageId=${encodeURIComponent(String(messageId))}`
+        : `/dashboard/mailbox?messageId=${encodeURIComponent(String(messageId))}`;
       const notification = notificationRepo.create({
         userId: user.id,
         type: 'mailbox',
@@ -518,9 +609,17 @@ export async function createMailboxMessageForUser(user: User, params: {
       });
       await notificationRepo.save(notification).catch(() => null);
     } catch (err: any) {
-      console.warn('[mailboxMessage] failed to create notification for user', user.id, err?.message || err);
+      console.warn(
+        '[mailboxMessage] failed to create notification for user',
+        user.id,
+        err?.message || err
+      );
     }
   } catch (err: any) {
-    console.warn('[mailboxMessage] failed to create mailbox message for user', user.id, err?.message || err);
+    console.warn(
+      '[mailboxMessage] failed to create mailbox message for user',
+      user.id,
+      err?.message || err
+    );
   }
 }

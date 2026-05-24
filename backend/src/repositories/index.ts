@@ -1,0 +1,78 @@
+import { AppDataSource } from '../config/typeorm';
+import type { Repository, ObjectType } from 'typeorm';
+
+const _repositoryCache = new Map<string, Repository<unknown>>();
+
+export function getRepository<T>(entity: ObjectType<T>): Repository<T> {
+  return AppDataSource.getRepository(entity);
+}
+
+export { User } from '../models/user.entity';
+export { Organisation } from '../models/organisation.entity';
+export { OrganisationMember } from '../models/organisationMember.entity';
+export { OrganisationInvite } from '../models/organisationInvite.entity';
+export { OrganisationDnsZone } from '../models/organisationDnsZone.entity';
+export { ServerConfig } from '../models/serverConfig.entity';
+export { Node } from '../models/node.entity';
+export { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
+export { UserRole } from '../models/userRole.entity';
+export { Role } from '../models/role.entity';
+export { Permission } from '../models/permission.entity';
+export { ApiKey } from '../models/apiKey.entity';
+export { Passkey } from '../models/passkey.entity';
+export { Order } from '../models/order.entity';
+export { Plan } from '../models/plan.entity';
+export { Ticket } from '../models/ticket.entity';
+export { ServerSubuser } from '../models/serverSubuser.entity';
+export { ServerBackup } from '../models/serverBackup.entity';
+export { ServerDatabase } from '../models/serverDatabase.entity';
+export { ServerMount } from '../models/serverMount.entity';
+export { ServerMapping } from '../models/serverMapping.entity';
+export { DatabaseHost } from '../models/databaseHost.entity';
+export { Mount } from '../models/mount.entity';
+export { Egg } from '../models/egg.entity';
+export { OAuthApp } from '../models/oauthApp.entity';
+export { OAuthToken } from '../models/oauthToken.entity';
+export { OAuthAuthCode } from '../models/oauthAuthCode.entity';
+export { UserLog } from '../models/userLog.entity';
+export { DeletionRequest } from '../models/deletionRequest.entity';
+export { IDVerification } from '../models/idVerification.entity';
+export { LegalDocument } from '../models/legalDocument.entity';
+export { SshKey } from '../models/sshKey.entity';
+export { Notification } from '../models/notification.entity';
+export { Feedback } from '../models/feedback.entity';
+export { ShortUrl } from '../models/shortUrl.entity';
+export { SocData } from '../models/socData.entity';
+export { PanelSetting } from '../models/panelSetting.entity';
+export { ExportJob } from '../models/exportJob.entity';
+export { AdminBroadcastJob } from '../models/adminBroadcastJob.entity';
+export { OutboundEmail } from '../models/outboundEmail.entity';
+export { MailMessage } from '../models/mailMessage.entity';
+export { MailboxAccount } from '../models/mailboxAccount.entity';
+export { DeletedUserRetention } from '../models/deletedUserRetention.entity';
+export { AIModel } from '../models/aiModel.entity';
+export { AIModelOrg } from '../models/aiModelOrg.entity';
+export { AIModelUser } from '../models/aiModelUser.entity';
+export { AIUsage } from '../models/aiUsage.entity';
+export { ApplicationForm } from '../models/applicationForm.entity';
+export { ApplicationFormInvite } from '../models/applicationFormInvite.entity';
+export { ApplicationSubmission } from '../models/applicationSubmission.entity';
+export { GithubContributor } from '../models/githubContributor.entity';
+export { ParentLinkRequest } from '../models/parentLinkRequest.entity';
+export { ParentRegistrationInvite } from '../models/parentRegistrationInvite.entity';
+export { Rollout } from '../models/rollout.entity';
+export { RolloutUserOverride } from '../models/rolloutUserOverride.entity';
+export { TunnelAllocation } from '../models/tunnelAllocation.entity';
+export { TunnelDevice } from '../models/tunnelDevice.entity';
+export { ApiRequestLog } from '../models/apiRequestLog.entity';
+
+export type { User as UserEntity } from '../models/user.entity';
+export type { Organisation as OrganisationEntity } from '../models/organisation.entity';
+export type { ServerConfig as ServerConfigEntity } from '../models/serverConfig.entity';
+export type { Node as NodeEntity } from '../models/node.entity';
+export type { Role as RoleEntity } from '../models/role.entity';
+export type { Permission as PermissionEntity } from '../models/permission.entity';
+export type { ApiKey as ApiKeyEntity } from '../models/apiKey.entity';
+export type { Order as OrderEntity } from '../models/order.entity';
+export type { Plan as PlanEntity } from '../models/plan.entity';
+export type { Ticket as TicketEntity } from '../models/ticket.entity';

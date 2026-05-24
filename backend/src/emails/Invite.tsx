@@ -52,10 +52,19 @@ export function Invite({ name, orgName, link, t }: InviteProps) {
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={link} style={btnStyle}>{_t('email.invite.button')}</Button>
+        <Button href={link} style={btnStyle}>
+          {_t('email.invite.button')}
+        </Button>
       </Section>
 
-      <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
+      <Hr
+        style={{
+          height: '1px',
+          background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)',
+          border: 'none',
+          margin: '24px 0',
+        }}
+      />
 
       <Section style={{ marginBottom: '24px' }}>
         <p style={pStyle}>{_t('email.invite.ignore')}</p>

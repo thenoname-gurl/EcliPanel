@@ -51,10 +51,19 @@ export function PasswordReset({ name, message, url, t }: PasswordResetProps) {
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={url} style={btnStyle}>{_t('email.passwordReset.button')}</Button>
+        <Button href={url} style={btnStyle}>
+          {_t('email.passwordReset.button')}
+        </Button>
       </Section>
 
-      <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
+      <Hr
+        style={{
+          height: '1px',
+          background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)',
+          border: 'none',
+          margin: '24px 0',
+        }}
+      />
 
       <Section style={{ marginBottom: '24px' }}>
         <p style={pStyle}>{_t('email.passwordReset.ignore')}</p>

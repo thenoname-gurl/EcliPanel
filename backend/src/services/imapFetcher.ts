@@ -11,9 +11,7 @@ import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 
 const DOVECOT_MASTER_USER = String(process.env.DOVECOT_MASTER_USER || '').trim();
 const DOVECOT_MASTER_PASS = String(process.env.DOVECOT_MASTER_PASS || '').trim();
-const DOVECOT_MASTER_DOMAIN = String(
-  process.env.DOVECOT_MASTER_DOMAIN || 'mailcow.local',
-).trim();
+const DOVECOT_MASTER_DOMAIN = String(process.env.DOVECOT_MASTER_DOMAIN || 'mailcow.local').trim();
 const IMAP_FETCH_INTERVAL_CRON =
   typeof process.env.IMAP_FETCH_CRON === 'string'
     ? process.env.IMAP_FETCH_CRON.trim()
@@ -51,10 +49,8 @@ function imapSearch(imap: Imap, criteria: any[]): Promise<number[]> {
       if (err) return reject(err);
       resolve(
         Array.isArray(results)
-          ? results
-              .map((v: any) => Number(v))
-              .filter((v) => Number.isFinite(v) && v > 0)
-          : [],
+          ? results.map((v: any) => Number(v)).filter(v => Number.isFinite(v) && v > 0)
+          : []
       );
     });
   });
@@ -62,7 +58,7 @@ function imapSearch(imap: Imap, criteria: any[]): Promise<number[]> {
 
 function imapAddFlags(imap: Imap, uids: number[], flags: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    imap.addFlags(uids as any, flags, (err) => {
+    imap.addFlags(uids as any, flags, err => {
       if (err) return reject(err);
       resolve();
     });
@@ -71,7 +67,7 @@ function imapAddFlags(imap: Imap, uids: number[], flags: string): Promise<void> 
 
 function imapExpunge(imap: Imap): Promise<void> {
   return new Promise((resolve, reject) => {
-    imap.expunge((err) => {
+    imap.expunge(err => {
       if (err) return reject(err);
       resolve();
     });
@@ -79,7 +75,7 @@ function imapExpunge(imap: Imap): Promise<void> {
 }
 
 function normalizeUids(uids: number[]): number[] {
-  return Array.from(new Set(uids.filter((v) => Number.isFinite(v) && v > 0)));
+  return Array.from(new Set(uids.filter(v => Number.isFinite(v) && v > 0)));
 }
 
 function normalizeMessageId(raw: string): string {
@@ -94,9 +90,7 @@ function buildMessageIdVariants(raw: string): string[] {
   const base = String(raw ?? '').trim();
   const noQuotes = base.replace(/^"+|"+$/g, '');
   const noAngles = noQuotes.replace(/^<|>$/g, '');
-  return Array.from(
-    new Set([base, noQuotes, noAngles, `<${noAngles}>`]),
-  ).filter(Boolean);
+  return Array.from(new Set([base, noQuotes, noAngles, `<${noAngles}>`])).filter(Boolean);
 }
 
 function getRemoteMessageId(message: MailMessage): string | null {
@@ -108,9 +102,7 @@ function getRemoteMessageId(message: MailMessage): string | null {
 
   try {
     const parsed =
-      typeof message.headers === 'string'
-        ? JSON.parse(message.headers)
-        : message.headers;
+      typeof message.headers === 'string' ? JSON.parse(message.headers) : message.headers;
 
     if (parsed && typeof parsed === 'object') {
       for (const key of Object.keys(parsed)) {
@@ -129,20 +121,20 @@ function getRemoteMessageId(message: MailMessage): string | null {
 }
 
 function collectBody(
-  msg: Imap.ImapMessage,
+  msg: Imap.ImapMessage
 ): Promise<{ buffer: Buffer; attributes: Imap.ImapMessageAttributes }> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let attributes: Imap.ImapMessageAttributes | undefined;
 
-    msg.on('body', (stream) => {
+    msg.on('body', stream => {
       stream.on('data', (chunk: Buffer) => {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       });
       stream.once('error', reject);
     });
 
-    msg.once('attributes', (attr) => {
+    msg.once('attributes', attr => {
       attributes = attr;
     });
 
@@ -175,15 +167,13 @@ function attachmentToBuffer(att: any, index: number): Buffer {
   }
 
   if (typeof att.content === 'string') {
-    const encoding = typeof att.encoding === 'string'
-      ? att.encoding.toLowerCase()
-      : '';
+    const encoding = typeof att.encoding === 'string' ? att.encoding.toLowerCase() : '';
     return Buffer.from(att.content, encoding === 'base64' ? 'base64' : 'utf8');
   }
 
   console.warn(
     `[imapFetcher] attachment[${index}] has unexpected content type:`,
-    typeof att.content,
+    typeof att.content
   );
   return Buffer.alloc(0);
 }
@@ -191,7 +181,7 @@ function attachmentToBuffer(att: any, index: number): Buffer {
 async function resolveUniqueFilename(
   uploadDir: string,
   rawName: string,
-  index: number,
+  index: number
 ): Promise<string> {
   const fallback = `attachment-${index + 1}`;
   const safeName = (rawName.trim() || fallback).replace(/[\\/:*?"<>|\x00-\x1f]+/g, '_');
@@ -201,9 +191,7 @@ async function resolveUniqueFilename(
   let filename = safeName;
   let counter = 1;
 
-  while (
-    await Bun.file(path.join(uploadDir, filename)).exists()
-  ) {
+  while (await Bun.file(path.join(uploadDir, filename)).exists()) {
     filename = `${base}-${counter++}${ext}`;
   }
 
@@ -213,7 +201,7 @@ async function resolveUniqueFilename(
 async function saveAttachments(
   parsedAttachments: any[],
   userId: string | number,
-  savedMessageId: string | number,
+  savedMessageId: string | number
 ): Promise<AttachmentMeta[]> {
   if (!parsedAttachments.length) return [];
 
@@ -222,17 +210,13 @@ async function saveAttachments(
     'uploads',
     'mailbox',
     String(userId),
-    String(savedMessageId),
+    String(savedMessageId)
   );
 
   try {
     await fsp.mkdir(uploadDir, { recursive: true });
   } catch (err: any) {
-    console.error(
-      '[imapFetcher] could not create attachment directory',
-      uploadDir,
-      err?.message,
-    );
+    console.error('[imapFetcher] could not create attachment directory', uploadDir, err?.message);
     return [];
   }
 
@@ -246,9 +230,7 @@ async function saveAttachments(
     const content = attachmentToBuffer(att, i);
 
     if (content.length === 0) {
-      console.warn(
-        `[imapFetcher] attachment[${i}] "${filename}" is empty, skipping write`,
-      );
+      console.warn(`[imapFetcher] attachment[${i}] "${filename}" is empty, skipping write`);
     }
 
     const filepath = path.join(uploadDir, filename);
@@ -257,18 +239,12 @@ async function saveAttachments(
       const encrypted = await encryptBufferWithWorker(content).catch(() => encryptBuffer(content));
       await Bun.write(filepath, encrypted);
     } catch (err: any) {
-      console.error(
-        '[imapFetcher] failed to write attachment',
-        filepath,
-        err?.message,
-      );
+      console.error('[imapFetcher] failed to write attachment', filepath, err?.message);
       continue;
     }
 
     const rawCid = typeof att.cid === 'string' ? att.cid.trim() : undefined;
-    const cid = rawCid
-      ? rawCid.replace(/^<|>$/g, '')
-      : undefined;
+    const cid = rawCid ? rawCid.replace(/^<|>$/g, '') : undefined;
 
     results.push({
       filename,
@@ -285,18 +261,12 @@ async function saveAttachments(
   return results;
 }
 
-function replaceCidReferences(
-  html: string,
-  attachments: AttachmentMeta[],
-): string {
+function replaceCidReferences(html: string, attachments: AttachmentMeta[]): string {
   let result = html;
 
   for (const att of attachments) {
     if (!att.cid) continue;
-    const pattern = new RegExp(
-      `cid:${att.cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
-      'gi',
-    );
+    const pattern = new RegExp(`cid:${att.cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
     result = result.replace(pattern, att.url);
   }
 
@@ -311,7 +281,7 @@ interface ImapSession {
 function createImapSession(
   account: MailboxAccount,
   resolve: (v: boolean) => void,
-  reject: (e: unknown) => void,
+  reject: (e: unknown) => void
 ): ImapSession {
   const imap = new Imap(buildImapConfig(account));
   let settled = false;
@@ -335,7 +305,7 @@ function createImapSession(
 
 export async function deleteMessageFromMailbox(
   account: MailboxAccount,
-  message: MailMessage,
+  message: MailMessage
 ): Promise<boolean> {
   if (!DOVECOT_MASTER_USER || !DOVECOT_MASTER_PASS) {
     console.warn('[imapFetcher] deleteMessage: master credentials not set');
@@ -351,9 +321,7 @@ export async function deleteMessageFromMailbox(
 
         const messageId = getRemoteMessageId(message);
         const tryUid =
-          typeof message.imapUid === 'number' && message.imapUid > 0
-            ? message.imapUid
-            : null;
+          typeof message.imapUid === 'number' && message.imapUid > 0 ? message.imapUid : null;
 
         const searchByMessageIdDirect = async (id: string): Promise<number[]> => {
           for (const variant of buildMessageIdVariants(id)) {
@@ -364,7 +332,7 @@ export async function deleteMessageFromMailbox(
                   '[imapFetcher] located by Message-ID variant',
                   variant,
                   'hits=',
-                  hits.length,
+                  hits.length
                 );
                 return hits;
               }
@@ -372,7 +340,7 @@ export async function deleteMessageFromMailbox(
               console.warn(
                 '[imapFetcher] MESSAGE-ID search failed for variant',
                 variant,
-                e?.message,
+                e?.message
               );
             }
           }
@@ -385,9 +353,7 @@ export async function deleteMessageFromMailbox(
 
             imap.search(['ALL'], (err, all) => {
               if (err) return rej(err);
-              const allUids = (all ?? [])
-                .map(Number)
-                .filter((v) => Number.isFinite(v) && v > 0);
+              const allUids = (all ?? []).map(Number).filter(v => Number.isFinite(v) && v > 0);
               if (allUids.length === 0) return res([]);
 
               const matched: number[] = [];
@@ -396,16 +362,16 @@ export async function deleteMessageFromMailbox(
                 struct: false,
               });
 
-              f.on('message', (msg) => {
+              f.on('message', msg => {
                 let headerChunk = '';
                 let uid: number | undefined;
 
-                msg.on('body', (stream) => {
+                msg.on('body', stream => {
                   stream.on('data', (chunk: Buffer) => {
                     headerChunk += chunk.toString('utf8');
                   });
                 });
-                msg.once('attributes', (attr) => {
+                msg.once('attributes', attr => {
                   uid = typeof attr?.uid === 'number' ? attr.uid : undefined;
                 });
                 msg.once('end', () => {
@@ -423,9 +389,7 @@ export async function deleteMessageFromMailbox(
 
         const findUids = async (): Promise<number[]> => {
           const sets = await Promise.all([
-            messageId
-              ? searchByMessageIdDirect(messageId)
-              : Promise.resolve([]),
+            messageId ? searchByMessageIdDirect(messageId) : Promise.resolve([]),
             tryUid
               ? imapSearch(imap, [['UID', String(tryUid)]]).catch(() => [])
               : Promise.resolve([]),
@@ -434,13 +398,8 @@ export async function deleteMessageFromMailbox(
           let uids = normalizeUids(sets.flat());
 
           if (uids.length === 0 && messageId) {
-            console.info(
-              '[imapFetcher] falling back to header-fetch search for',
-              messageId,
-            );
-            uids = normalizeUids(
-              await searchByMessageIdFetch(messageId).catch(() => []),
-            );
+            console.info('[imapFetcher] falling back to header-fetch search for', messageId);
+            uids = normalizeUids(await searchByMessageIdFetch(messageId).catch(() => []));
           }
 
           return uids;
@@ -486,7 +445,7 @@ export async function deleteMessageFromMailbox(
 async function processMessage(
   account: MailboxAccount,
   imap: Imap,
-  msg: Imap.ImapMessage,
+  msg: Imap.ImapMessage
 ): Promise<void> {
   let buffer: Buffer;
   let attributes: Imap.ImapMessageAttributes;
@@ -494,11 +453,7 @@ async function processMessage(
   try {
     ({ buffer, attributes } = await collectBody(msg));
   } catch (err: any) {
-    console.warn(
-      '[imapFetcher] failed to collect body for',
-      account.email,
-      err?.message,
-    );
+    console.warn('[imapFetcher] failed to collect body for', account.email, err?.message);
     return;
   }
 
@@ -507,9 +462,7 @@ async function processMessage(
     const messageRepo = AppDataSource.getRepository(MailMessage);
 
     const messageId: string | null =
-      parsed.messageId ||
-      (parsed.headers?.get?.('message-id') as string | undefined) ||
-      null;
+      parsed.messageId || (parsed.headers?.get?.('message-id') as string | undefined) || null;
 
     if (messageId) {
       const existing = await messageRepo
@@ -537,9 +490,7 @@ async function processMessage(
       subject: parsed.subject ?? 'No subject',
       body: parsed.text ?? parsed.html ?? '',
       html: parsed.html ?? undefined,
-      headers: parsed.headers
-        ? JSON.stringify(Object.fromEntries(parsed.headers))
-        : undefined,
+      headers: parsed.headers ? JSON.stringify(Object.fromEntries(parsed.headers)) : undefined,
       rawHeaders: rawHeaders || undefined,
       senderIp: authMetadata.senderIp || undefined,
       senderRdns: authMetadata.senderRdns || undefined,
@@ -559,16 +510,10 @@ async function processMessage(
 
     const savedEntity = await messageRepo.save(entity);
 
-    const parsedAttachments: any[] = Array.isArray(parsed.attachments)
-      ? parsed.attachments
-      : [];
+    const parsedAttachments: any[] = Array.isArray(parsed.attachments) ? parsed.attachments : [];
 
     if (parsedAttachments.length > 0) {
-      const metas = await saveAttachments(
-        parsedAttachments,
-        account.userId,
-        savedEntity.id,
-      );
+      const metas = await saveAttachments(parsedAttachments, account.userId, savedEntity.id);
 
       if (metas.length > 0) {
         savedEntity.attachments = metas;
@@ -585,18 +530,14 @@ async function processMessage(
     }
 
     if (attributes?.uid) {
-      imap.addFlags(attributes.uid, '\\Seen', (e) => {
+      imap.addFlags(attributes.uid, '\\Seen', e => {
         if (e) {
           console.warn('[imapFetcher] addFlags \\Seen failed', e?.message);
         }
       });
     }
   } catch (e: any) {
-    console.warn(
-      '[imapFetcher] failed to parse/store message for',
-      account.email,
-      e?.message,
-    );
+    console.warn('[imapFetcher] failed to parse/store message for', account.email, e?.message);
   }
 }
 
@@ -605,7 +546,7 @@ async function fetchAndStoreForAccount(account: MailboxAccount): Promise<void> {
 
   const imap = new Imap(buildImapConfig(account));
 
-  return new Promise<void>((resolve) => {
+  return new Promise<void>(resolve => {
     let finished = false;
     const done = () => {
       if (finished) return;
@@ -629,46 +570,29 @@ async function fetchAndStoreForAccount(account: MailboxAccount): Promise<void> {
       try {
         await openInbox(imap);
       } catch (err: any) {
-        console.warn(
-          '[imapFetcher] openBox failed for',
-          account.email,
-          err?.message,
-        );
+        console.warn('[imapFetcher] openBox failed for', account.email, err?.message);
         return done();
       }
 
       imap.search(['UNSEEN'], (searchErr, results) => {
         if (searchErr) {
-          console.warn(
-            '[imapFetcher] SEARCH failed for',
-            account.email,
-            searchErr?.message,
-          );
+          console.warn('[imapFetcher] SEARCH failed for', account.email, searchErr?.message);
           return done();
         }
 
         if (!results?.length) return done();
 
-        console.info(
-          '[imapFetcher]',
-          results.length,
-          'unseen message(s) for',
-          account.email,
-        );
+        console.info('[imapFetcher]', results.length, 'unseen message(s) for', account.email);
 
         const fetcher = imap.fetch(results, { bodies: '', struct: true });
         const pending: Promise<void>[] = [];
 
-        fetcher.on('message', (msg) => {
+        fetcher.on('message', msg => {
           pending.push(processMessage(account, imap, msg));
         });
 
         fetcher.once('error', (e: Error) => {
-          console.warn(
-            '[imapFetcher] fetch error for',
-            account.email,
-            e?.message,
-          );
+          console.warn('[imapFetcher] fetch error for', account.email, e?.message);
           done();
         });
 
@@ -734,18 +658,14 @@ export async function fetchMailForAllMailboxes(): Promise<void> {
     }
   };
 
-  await Promise.allSettled(
-    Array.from({ length: Math.min(CONCURRENCY, accounts.length) }, worker),
-  );
+  await Promise.allSettled(Array.from({ length: Math.min(CONCURRENCY, accounts.length) }, worker));
 }
 
 export async function fetchMailboxNow(account: MailboxAccount): Promise<void> {
   await fetchAndStoreForAccount(account);
 }
 
-export function scheduleImapFetchJob(
-  cronExpr: string = IMAP_FETCH_INTERVAL_CRON,
-): void {
+export function scheduleImapFetchJob(cronExpr: string = IMAP_FETCH_INTERVAL_CRON): void {
   if (!cronExpr?.trim()) {
     console.info('[imapFetcher] IMAP fetch scheduler disabled (empty cron)');
     return;
@@ -760,14 +680,10 @@ export function scheduleImapFetchJob(
 
   console.info('[imapFetcher] scheduling IMAP fetch job:', cronExpr);
 
-  fetchMailForAllMailboxes().catch((e) =>
-    console.error('[imapFetcher] initial fetch failed', e),
-  );
+  fetchMailForAllMailboxes().catch(e => console.error('[imapFetcher] initial fetch failed', e));
 
   schedule(cronExpr, () => {
     console.info('[imapFetcher] cron tick');
-    fetchMailForAllMailboxes().catch((e) =>
-      console.error('[imapFetcher] scheduled fetch failed', e),
-    );
+    fetchMailForAllMailboxes().catch(e => console.error('[imapFetcher] scheduled fetch failed', e));
   });
 }

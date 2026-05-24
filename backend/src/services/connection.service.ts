@@ -28,13 +28,10 @@ export async function handleServerConnectionOpen(
   const repo = AppDataSource.getRepository(TunnelAllocation);
   const allocation = await repo.findOne({
     where: { id: allocationId },
-    relations: {"clientDevice":true,"serverDevice":true},
+    relations: { clientDevice: true, serverDevice: true },
   });
 
-  if (
-    !allocation?.clientDevice ||
-    allocation.serverDevice?.deviceCode !== serverAgentId
-  ) {
+  if (!allocation?.clientDevice || allocation.serverDevice?.deviceCode !== serverAgentId) {
     console.warn(
       `[tunnel] Rejected connection.open: allocation=${allocationId} serverAgent=${serverAgentId} ` +
         `serverDevice=${allocation?.serverDevice?.deviceCode ?? 'none'} clientDevice=${allocation?.clientDevice?.deviceCode ?? 'none'}`
@@ -111,8 +108,7 @@ export function handleConnectionData(
     return;
   }
 
-  const targetAgentId =
-    senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
+  const targetAgentId = senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
 
   sendAgentMessage(targetAgentId, {
     type: 'connection.data',
@@ -129,8 +125,7 @@ function dispatchPendingData(connectionId: string): void {
   const mapping = connectionMap.get(connectionId);
   if (!mapping) return;
   for (const { msg, senderKind } of pending) {
-    const targetAgentId =
-      senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
+    const targetAgentId = senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
     sendAgentMessage(targetAgentId, {
       type: 'connection.data',
       allocationId: mapping.allocationId,
@@ -149,8 +144,7 @@ export function handleConnectionClose(
   const mapping = connectionMap.get(connectionId);
   if (!mapping) return;
 
-  const targetAgentId =
-    senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
+  const targetAgentId = senderKind === 'server' ? mapping.clientAgentId : mapping.serverAgentId;
 
   sendAgentMessage(targetAgentId, {
     type: 'connection.close',
@@ -164,14 +158,9 @@ export function handleConnectionClose(
 
 export function cleanupConnectionsByAgent(agentId: string): void {
   for (const [id, mapping] of connectionMap.entries()) {
-    if (
-      mapping.clientAgentId === agentId ||
-      mapping.serverAgentId === agentId
-    ) {
+    if (mapping.clientAgentId === agentId || mapping.serverAgentId === agentId) {
       const targetId =
-        mapping.clientAgentId === agentId
-          ? mapping.serverAgentId
-          : mapping.clientAgentId;
+        mapping.clientAgentId === agentId ? mapping.serverAgentId : mapping.clientAgentId;
 
       sendAgentMessage(targetId, {
         type: 'connection.close',

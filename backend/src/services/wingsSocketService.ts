@@ -26,7 +26,9 @@ export class WingsSocketService {
     for (const t of Object.values(this.retryTimers)) clearTimeout(t);
     for (const i of Object.values(this.statsIntervals)) clearInterval(i);
     for (const ws of Object.values(this.sockets)) {
-      try { ws.terminate?.() ?? ws.close?.(); } catch {}
+      try {
+        ws.terminate?.() ?? ws.close?.();
+      } catch {}
     }
     this.sockets = {};
     this.retryTimers = {};
@@ -39,19 +41,29 @@ export class WingsSocketService {
 
     let ws: any;
     try {
-      ws = this.wings.connectServerWebsocket(serverId, async (msg) => {
+      ws = this.wings.connectServerWebsocket(serverId, async msg => {
+        try {
+          if (msg?.event !== 'stats') return;
+          let stats: any = msg.args?.[0];
+          if (typeof stats === 'string') {
             try {
-              if (msg?.event !== 'stats') return;
-              let stats: any = msg.args?.[0];
-              if (typeof stats === 'string') {
-                try { stats = JSON.parse(stats); } catch { return; }
-              }
-              if (!stats || typeof stats !== 'object') return;
-              const repo = AppDataSource.getRepository(SocData);
-              const record = repo.create({ serverId, metrics: stats, timestamp: new Date() });
-              const saved = await repo.save(record);
-              try { socEmitter.emit('update', saved); } catch (e) { /* skip */ }
-            } catch (e) { console.error('wingsSocketService: failed to persist stats', e); }
+              stats = JSON.parse(stats);
+            } catch {
+              return;
+            }
+          }
+          if (!stats || typeof stats !== 'object') return;
+          const repo = AppDataSource.getRepository(SocData);
+          const record = repo.create({ serverId, metrics: stats, timestamp: new Date() });
+          const saved = await repo.save(record);
+          try {
+            socEmitter.emit('update', saved);
+          } catch (e) {
+            /* skip */
+          }
+        } catch (e) {
+          console.error('wingsSocketService: failed to persist stats', e);
+        }
       });
     } catch {
       this._scheduleRetry(serverId, retryDelay);
@@ -64,7 +76,9 @@ export class WingsSocketService {
       this.retryTimers[serverId] && clearTimeout(this.retryTimers[serverId]);
       delete this.retryTimers[serverId];
       const sendStats = () => {
-        try { ws.send(JSON.stringify({ event: 'send stats', args: [] })); } catch {}
+        try {
+          ws.send(JSON.stringify({ event: 'send stats', args: [] }));
+        } catch {}
       };
       sendStats();
       if (this.statsIntervals[serverId]) clearInterval(this.statsIntervals[serverId]);
@@ -97,7 +111,10 @@ export class WingsSocketService {
   private async importUnknownServers(wingsServers: any[]) {
     try {
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
-      const existing = await cfgRepo.find({ where: { nodeId: this.nodeId }, select: { uuid: true } });
+      const existing = await cfgRepo.find({
+        where: { nodeId: this.nodeId },
+        select: { uuid: true },
+      });
       const existingUuids = new Set(existing.map(c => c.uuid));
 
       for (const s of wingsServers) {
@@ -128,9 +145,14 @@ export class WingsSocketService {
             processConfig: s.process_configuration || undefined,
             hibernated: s.state === 'hibernated' || undefined,
           });
-          console.log(`[wingsSocketService] auto-imported unknown server ${uuid} from node ${this.nodeId}`);
+          console.log(
+            `[wingsSocketService] auto-imported unknown server ${uuid} from node ${this.nodeId}`
+          );
         } catch (e) {
-          console.error(`[wingsSocketService] failed to import server ${uuid} from node ${this.nodeId}:`, e);
+          console.error(
+            `[wingsSocketService] failed to import server ${uuid} from node ${this.nodeId}:`,
+            e
+          );
         }
       }
     } catch (e) {
@@ -140,9 +162,7 @@ export class WingsSocketService {
 
   async listenToAll() {
     const res = await this.wings.getServers();
-    const servers: any[] = Array.isArray(res.data)
-      ? res.data
-      : (res.data?.servers ?? []);
+    const servers: any[] = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
 
     await this.importUnknownServers(servers);
 

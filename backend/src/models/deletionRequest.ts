@@ -1,12 +1,10 @@
-export interface DeletionRequest {
-  id: number;
-  userId: number;
-  status: 'pending' | 'approved' | 'rejected' | 'pending_deletion' | 'cancelled';
-  requestedAt: Date;
-  approvedAt?: Date;
-  scheduledDeletionAt?: Date;
-  deletedAt?: Date;
-  approvedBy?: number;
-  idVerified?: boolean;
-  autoSunset?: boolean;
-}
+export { DeletionRequest } from './deletionRequest.entity';
+export type { DeletionRequest as DeletionRequestEntity } from './deletionRequest.entity';
+
+export type DeletionRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'pending_deletion'
+  | 'cancelled'
+  | string;

@@ -7,10 +7,10 @@ export class AIModelUser {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => AIModel, (m) => m.id)
+  @ManyToOne(() => AIModel, m => m.id)
   model: AIModel;
 
-  @ManyToOne(() => User, (u) => u.id)
+  @ManyToOne(() => User, u => u.id)
   user: User;
 
   @Column('json', { nullable: true })
